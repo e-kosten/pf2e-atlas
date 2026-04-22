@@ -38,6 +38,7 @@ import { useSearchWorkspaceActions } from "./workspace/workspace-actions.js";
 import {
   buildTerminalListDetailScreenModel,
   measureTerminalListDetailPresentation,
+  useTerminalListDetailNotification,
 } from "../list-detail-presentation.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
@@ -62,6 +63,7 @@ export function useSearchScreenController({
   const prompts = useTerminalInteractionContextAdapters();
   const { user } = usePf2eTerminalAppServices();
   const size = useDerivedTagTerminalSize();
+  const { notification, showNotification } = useTerminalListDetailNotification();
   const initialQueryState = React.useMemo(
     () =>
       initialSession?.query ??
@@ -91,6 +93,7 @@ export function useSearchScreenController({
       terminalWidth: size.width,
       terminalHeight: size.height,
       footerLineCount: 2,
+      notification,
       transitionStatus,
       detailLines: [{ text: "" }],
       detailScroll: 0,
@@ -166,6 +169,7 @@ export function useSearchScreenController({
     terminalWidth: size.width,
     terminalHeight: size.height,
     footerLineCount: 2,
+    notification,
     transitionStatus,
     detailLines,
     detailScroll: state.detailScroll,
@@ -193,6 +197,7 @@ export function useSearchScreenController({
     resultCount,
     selectedWorkspaceEntry,
     showSearchHelp,
+    showNotification,
     state,
     terminal,
     prompts,
@@ -210,6 +215,7 @@ export function useSearchScreenController({
     selectionJumpSize,
     pageSize,
     maxDetailScroll,
+    hasSelectedResult: Boolean(selectedResult),
     onIntent: handleIntent,
   });
 
@@ -253,6 +259,7 @@ export function useSearchScreenController({
         tone: "accent",
       },
     ],
+    notification,
     transitionStatus,
   });
   if (screenModel.kind !== "two-pane") {

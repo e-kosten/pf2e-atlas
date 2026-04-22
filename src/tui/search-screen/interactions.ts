@@ -33,6 +33,7 @@ export type SearchScreenIntent =
   | { type: "open_result_commands" }
   | { type: "toggle_pane" }
   | { type: "return_to_editor" }
+  | { type: "show_result_preview_hint" }
   | { type: "move_result_selection"; delta: number }
   | { type: "result_selection_boundary"; boundary: "start" | "end" }
   | { type: "return_to_result_list" }
@@ -268,6 +269,7 @@ export function useSearchScreenInteractionRouter(options: {
   selectionJumpSize: number;
   pageSize: number;
   maxDetailScroll: number;
+  hasSelectedResult: boolean;
   onIntent: (intent: SearchScreenIntent) => void;
 }): void {
   useTerminalListDetailInteractionRouter({
@@ -280,6 +282,7 @@ export function useSearchScreenInteractionRouter(options: {
       pageSize: options.pageSize,
       jumpSize: options.selectionJumpSize,
       includeConfirmKeys: true,
+      includeHorizontalConfirmKeys: true,
     },
     detail: {
       interactionActions: getSearchResultDetailInteractionActions(options.origin),
@@ -343,6 +346,10 @@ export function useSearchScreenInteractionRouter(options: {
       if (options.state.activePane === "list") {
         if (list.interactionAction?.id === "back") {
           options.onIntent({ type: "return_to_editor" });
+          return;
+        }
+        if (list.navigationAction?.kind === "confirm" && options.hasSelectedResult) {
+          options.onIntent({ type: "show_result_preview_hint" });
           return;
         }
         if (list.navigationAction?.kind === "move") {

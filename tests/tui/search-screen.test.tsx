@@ -703,6 +703,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
     expect(app.lastFrame()).not.toContain("[PREVIEW] Alarm Ward");
+    expect(app.lastFrame()).toContain("Preview is already visible. Use Tab to focus it.");
 
     app.stdin.write("\u001b[D");
     await flushInk();
@@ -1123,6 +1124,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 3/3");
     expect(app.lastFrame()).toContain("Preview | Beacon Sigil");
     expect(app.lastFrame()).not.toContain("[PREVIEW] Beacon Sigil");
+    expect(app.lastFrame()).toContain("Preview is already visible. Use Tab to focus it.");
 
     app.stdin.write("g");
     await flushInk();
@@ -1133,6 +1135,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 1/3");
     expect(app.lastFrame()).toContain("Preview | Alarm Ward");
     expect(app.lastFrame()).not.toContain("[PREVIEW] Alarm Ward");
+    expect(app.lastFrame()).toContain("Preview is already visible. Use Tab to focus it.");
   });
 
   it("prefetches the full result set for small totals so paging stays invisible", async () => {
@@ -1369,6 +1372,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[RESULTS] 1,000/1,000");
     expect(app.lastFrame()).toContain("Preview | Spell 999");
     expect(app.lastFrame()).not.toContain("[PREVIEW] Spell 999");
+    expect(app.lastFrame()).toContain("Preview is already visible. Use Tab to focus it.");
   });
 
   it("treats rightward result navigation as a no-op when no result is selected", async () => {
