@@ -6,14 +6,10 @@ import {
 import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "../../domain/item-metrics.js";
 import { SEARCH_CATEGORIES } from "../../domain/categories.js";
 import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
+import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
+import { METADATA_FIELD_KIND_OPERATORS, type MetadataFieldName, type MetadataFieldType } from "../../domain/metadata-field-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
-import {
-  METADATA_FIELD_KIND_OPERATORS,
-  METADATA_FIELD_REGISTRY,
-  type MetadataFieldName,
-  type MetadataFieldType,
-} from "./registry.js";
-import type { MetadataFilterNode } from "./types.js";
+import { METADATA_FIELD_REGISTRY } from "./registry.js";
 
 export interface MetadataFieldSemantics {
   field: MetadataFieldName;

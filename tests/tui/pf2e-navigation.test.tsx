@@ -19,6 +19,7 @@ import {
   usePf2eNavigation,
 } from "../../src/tui/pf2e-navigation.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 function createDeferred<T>(): {
   promise: Promise<T>;
@@ -53,12 +54,10 @@ function createOntologyModel(): OntologyDomainModel {
 
 function createOntologyQuery(overrides: Partial<OntologyNodeQuery> = {}): OntologyNodeQuery {
   return {
-    kind: "listRecords",
-    label: "Browse records with this value",
-    filters: {
+    ...browseQuery("Browse records with this value", {
       category: "creature",
       limit: 20,
-    },
+    }),
     ...overrides,
   };
 }

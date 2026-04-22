@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { RankingConfigStore } from "../../src/search/ranking-config.js";
 import { createCapturingEmbeddingProviderFactory, loadTestService, writeJson } from "../helpers/pf2e-fixture.js";
+import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Search and Lookup", () => {
@@ -17,7 +18,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).searchProfile).toBeNull();
@@ -1960,7 +1961,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const listed = service
       .listRecords({
@@ -1990,7 +1991,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
     const track = service.lookup("Track").match;
     const coverTracks = service.lookup("Cover Tracks").match;
 
@@ -2045,7 +2046,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const legacyCategoryLookup = service.lookup("Cythnigot", { category: "creatures" }).match;
     expect(legacyCategoryLookup?.category).toBe("creature");
@@ -2071,7 +2072,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     await expect(service.search({})).rejects.toThrow(
       "pf2e_search requires search text and/or at least one structured filter.",
@@ -2088,7 +2089,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const lexicalResults = await service.search({
       searchProfile: "lexical",
@@ -2132,14 +2133,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     createdRoots.push(fixture.root);
     const embeddingCalls: string[] = [];
 
-    const service = await loadTestService(fixture, {
+    const service = adaptLegacySearchCalls(await loadTestService(fixture, {
       embeddingProviderFactory: createCapturingEmbeddingProviderFactory(embeddingCalls, {
         provider: "hash",
         model: "capture-model",
         revision: null,
         dimensions: 8,
       }),
-    });
+    }));
 
     const query = "  Ghost-ship: body horror?!  ";
     const result = await service.search({
@@ -2159,7 +2160,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const baseline = await service.search({
       searchProfile: "lexical",
@@ -2183,7 +2184,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const baseline = await service.search({
       category: "creature",
@@ -2212,7 +2213,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const baseline = await service.search({
       category: "creature",
@@ -2232,7 +2233,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const broadQuery =
       "ghost ship cursed voyage fear fog darkness possession maddening whispers vermin in the hold wrong-feeling stowaways body horror haunted physically unclean";
@@ -2282,7 +2283,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const bilgeResults = await service.search({
       category: "creature",
@@ -2337,7 +2338,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     createdRoots.push(fixture.root);
     const rankingConfigPath = path.join(fixture.root, "pf2e-ranking.json");
     const rankingConfigStore = await RankingConfigStore.create(rankingConfigPath, { watch: false });
-    const service = await loadTestService(fixture, { rankingConfigStore });
+    const service = adaptLegacySearchCalls(await loadTestService(fixture, { rankingConfigStore }));
 
     const baselineResults = await service.search({
       category: "creature",
@@ -2372,7 +2373,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createHardFilterFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("macros");
     expect(service.listPacks().map((pack) => pack.name)).not.toContain("action-macros");
@@ -2424,7 +2425,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createHardFilterFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(
       service
@@ -2692,14 +2693,14 @@ describe("Pf2eDataService / Search and Lookup", () => {
     createdRoots.push(fixture.root);
 
     const embedCalls: string[] = [];
-    const service = await loadTestService(fixture, {
+    const service = adaptLegacySearchCalls(await loadTestService(fixture, {
       embeddingProviderFactory: createCapturingEmbeddingProviderFactory(embedCalls, {
         provider: "hash",
         model: "feature-hash-192",
         revision: null,
         dimensions: 4,
       }),
-    });
+    }));
 
     expect(service.lookup("Attack of Opportunity", { category: "rule", subcategory: "action" }).match?.name).toBe(
       "Reactive Strike",
@@ -2772,7 +2773,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(
       service
@@ -3183,7 +3184,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const alphabeticalPage = service.listRecords({
       category: "spell",
@@ -3234,7 +3235,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const alphabeticalWindow = await service.openSearchWindow(
       {
@@ -3286,7 +3287,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
     const total = service.listRecords({
       category: "spell",
       sort: "alphabetical",

@@ -1,5 +1,5 @@
 import type { SearchRequest, SearchRequestPart } from "../domain/search-request-types.js";
-import type { MetadataFilterNode } from "./filters/types.js";
+import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 import type { SearchExecutionFilters } from "./contracts.js";
 import { searchRequestPartsToMetadataFilterNode } from "../domain/search-request-types.js";
 

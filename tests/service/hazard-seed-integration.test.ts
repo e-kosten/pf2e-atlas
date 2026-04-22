@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { writeJson, loadTestService } from "../helpers/pf2e-fixture.js";
+import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Hazard manual seeds", () => {
@@ -97,7 +98,7 @@ describe("Pf2eDataService / Hazard manual seeds", () => {
       }),
     ]);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(service.lookup("Mukradi Summoning Runes", { category: "hazard" }).match?.derivedTags).toEqual(
       expect.arrayContaining(["spawned_attackers", "ward_trigger"]),

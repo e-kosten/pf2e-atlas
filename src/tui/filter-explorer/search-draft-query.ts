@@ -1,7 +1,7 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../../search/filters/types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import { isMetadataPredicate, normalizeMetadataNode } from "../search/query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "../search/discoverable-fields.js";
 import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "../search/policies.js";

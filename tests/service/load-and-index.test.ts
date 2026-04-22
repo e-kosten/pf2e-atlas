@@ -13,6 +13,7 @@ import {
   TEST_HASH_EMBEDDING,
   writeJson,
 } from "../helpers/pf2e-fixture.js";
+import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 type DerivedRawRecord = {
@@ -330,7 +331,7 @@ describe("Pf2eDataService / Load and Index", () => {
       },
     });
 
-    const service = await loadTestService(fixture, { indexPath });
+    const service = adaptLegacySearchCalls(await loadTestService(fixture, { indexPath }));
 
     const ghoulFever = service.lookup("Ghoul Fever", { category: "affliction" }).match;
     expect(ghoulFever?.packName).toBe("derived-afflictions");

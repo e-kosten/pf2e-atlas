@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadTestService } from "../helpers/pf2e-fixture.js";
+import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService", () => {
@@ -14,7 +15,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     const stats = service.getStats();
     expect(service.listPacks()).toHaveLength(16);
@@ -27,7 +28,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
     expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);

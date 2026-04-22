@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate } from "../../search/filters/types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import { createEmptyStringPolicy } from "../search/policies.js";
 import type { Pf2eTerminalFilterValuePolicy, Pf2eTerminalQueryFieldOption } from "../search/service-types.js";
 

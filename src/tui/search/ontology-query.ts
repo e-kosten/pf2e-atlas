@@ -3,7 +3,6 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
@@ -33,7 +32,7 @@ export function createSearchQueryFromOntologyQuery(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const defaultQuery = createDefaultQuery();
-  const request = resolveOntologyQueryRequest(query);
+  const request = query.request;
   const category = normalizeSearchCategory(request.category) ?? null;
   const parts = request.parts ?? [];
 

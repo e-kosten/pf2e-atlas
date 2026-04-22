@@ -1,4 +1,4 @@
-import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
 import {

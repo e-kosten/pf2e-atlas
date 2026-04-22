@@ -12,6 +12,7 @@ import {
   getCurrentPf2eAppRoute,
   pf2eAppReducer,
 } from "../../src/tui/pf2e-app-state.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 describe("pf2e app state", () => {
   it("pushes and pops nested routes with a stack", () => {
@@ -70,14 +71,10 @@ describe("pf2e app state", () => {
     const next = pf2eAppReducer(state, {
       type: "push_route",
       route: createPf2eSearchEditorRoute({
-        initialQuery: {
-          kind: "listRecords",
-          label: "Browse records with this value",
-          filters: {
-            category: "creature",
-            limit: 20,
-          },
-        },
+        initialQuery: browseQuery("Browse records with this value", {
+          category: "creature",
+          limit: 20,
+        }),
         origin: {
           kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
           route: ontologyRoute,
@@ -88,14 +85,10 @@ describe("pf2e app state", () => {
     expect(getCurrentPf2eAppRoute(next)).toEqual({
       kind: PF2E_APP_ROUTE_KIND.SEARCH,
       entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
-      initialQuery: {
-        kind: "listRecords",
-        label: "Browse records with this value",
-        filters: {
-          category: "creature",
-          limit: 20,
-        },
-      },
+      initialQuery: browseQuery("Browse records with this value", {
+        category: "creature",
+        limit: 20,
+      }),
       origin: {
         kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
         route: ontologyRoute,

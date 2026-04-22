@@ -19,6 +19,7 @@ import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-e
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 type CloseSearchWindowFn = SearchServiceDependencies["closeSearchWindow"];
@@ -574,10 +575,7 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
             listLabel: "Hit Points | 4",
             detailTitle: "Metric Details",
             detailLines: [{ text: "Hit Points", tone: "section" }],
-            query: {
-              kind: "listRecords",
-              label: "Browse records with Hit Points",
-              filters: {
+            query: browseQuery("Browse records with Hit Points", {
                 category: "creature",
                 metadata: {
                   field: "actorMetricCompare",
@@ -586,8 +584,7 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
                   rightMetric: "hp.value",
                 },
                 limit: 20,
-              },
-            },
+              }),
           },
         ],
       },
@@ -826,18 +823,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse spells",
-              filters: {
-                actionCost: 2,
-                category: "spell",
-                limit: 20,
-                levelMax: 1,
-                levelMin: 1,
-                rarity: "common",
-              },
-            }}
+            initialQuery={browseQuery("Browse spells", {
+              actionCost: 2,
+              category: "spell",
+              limit: 20,
+              levelMax: 1,
+              levelMin: 1,
+              rarity: "common",
+            })}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -1598,15 +1591,13 @@ describe("search screen", () => {
 
   it("maps simple ontology browse queries into seeded workspace requests", () => {
     const services = createServices();
-    const request = services.user.search.createQueryFromOntologyQuery({
-      kind: "listRecords",
-      label: "Browse records with this trait",
-      filters: {
+    const request = services.user.search.createQueryFromOntologyQuery(
+      browseQuery("Browse records with this trait", {
         category: "spell",
         metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
         limit: 20,
-      },
-    });
+      }),
+    );
 
     expect(request).toEqual({
       mode: "browse",
@@ -1635,15 +1626,11 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse illusion spells",
-              filters: {
-                category: "spell",
-                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                limit: 20,
-              },
-            }}
+            initialQuery={browseQuery("Browse illusion spells", {
+              category: "spell",
+              metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+              limit: 20,
+            })}
             origin="ontology"
             onBack={vi.fn()}
           />
@@ -1666,15 +1653,11 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse illusion spells",
-              filters: {
-                category: "spell",
-                metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-                limit: 20,
-              },
-            }}
+            initialQuery={browseQuery("Browse illusion spells", {
+              category: "spell",
+              metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+              limit: 20,
+            })}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -1891,18 +1874,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse spells",
-              filters: {
-                actionCost: 2,
-                category: "spell",
-                limit: 20,
-                levelMax: 1,
-                levelMin: 1,
-                rarity: "common",
-              },
-            }}
+            initialQuery={browseQuery("Browse spells", {
+              actionCost: 2,
+              category: "spell",
+              limit: 20,
+              levelMax: 1,
+              levelMin: 1,
+              rarity: "common",
+            })}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -1988,18 +1967,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse spells",
-              filters: {
-                actionCost: 2,
-                category: "spell",
-                limit: 20,
-                levelMax: 1,
-                levelMin: 1,
-                rarity: "common",
-              },
-            }}
+            initialQuery={browseQuery("Browse spells", {
+              actionCost: 2,
+              category: "spell",
+              limit: 20,
+              levelMax: 1,
+              levelMin: 1,
+              rarity: "common",
+            })}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -2112,18 +2087,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={{
-              kind: "listRecords",
-              label: "Browse spells",
-              filters: {
-                actionCost: 2,
-                category: "spell",
-                limit: 20,
-                levelMax: 1,
-                levelMin: 1,
-                rarity: "common",
-              },
-            }}
+            initialQuery={browseQuery("Browse spells", {
+              actionCost: 2,
+              category: "spell",
+              limit: 20,
+              levelMax: 1,
+              levelMin: 1,
+              rarity: "common",
+            })}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>

@@ -18,6 +18,7 @@ import type {
   FilterExplorerNode,
   FilterExplorerOptions,
 } from "../../src/tui/filter-explorer/types.js";
+import { browseQuery, searchRequest } from "../helpers/search-request-fixture.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {
@@ -112,8 +113,7 @@ describe("filter explorer controller inspect", () => {
 
     expect(
       resolveFilterExplorerLaunchIntent(mode, {
-        kind: "search",
-        filters: { limit: 20 },
+        request: searchRequest({ limit: 20 }),
       }),
     ).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
     expect(

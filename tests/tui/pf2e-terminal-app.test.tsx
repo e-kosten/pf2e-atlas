@@ -11,6 +11,7 @@ import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 type WorkbenchPrompts = Parameters<Pf2eTerminalAppServices["dev"]["tagRefinement"]["promptAndCreateSession"]>[2];
 
@@ -185,14 +186,10 @@ function createSearchSemanticsModel(): OntologyDomainModel {
                     listLabel: "Pathfinder Player Core | 1",
                     detailTitle: "Filter Value",
                     detailLines: [{ text: "Pathfinder Player Core", tone: "section" }],
-                    query: {
-                      kind: "listRecords",
-                      label: "Browse records with this value",
-                      filters: {
-                        category: "spell",
-                        limit: 20,
-                      },
-                    },
+                    query: browseQuery("Browse records with this value", {
+                      category: "spell",
+                      limit: 20,
+                    }),
                   },
                 ],
               },
@@ -604,14 +601,10 @@ describe("pf2e terminal app", () => {
           listLabel: "Pathfinder Monster Core | 320",
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
-          query: {
-            kind: "listRecords",
-            label: "Browse records with this value",
-            filters: {
-              category: "creature",
-              limit: 20,
-            },
-          },
+          query: browseQuery("Browse records with this value", {
+            category: "creature",
+            limit: 20,
+          }),
         },
         {
           id: "creature:publicationTitle:rage-of-elements",
@@ -624,14 +617,10 @@ describe("pf2e terminal app", () => {
             { text: "Pathfinder Rage of Elements", tone: "section" },
             ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
           ],
-          query: {
-            kind: "listRecords",
-            label: "Browse records with this value",
-            filters: {
-              category: "creature",
-              limit: 20,
-            },
-          },
+          query: browseQuery("Browse records with this value", {
+            category: "creature",
+            limit: 20,
+          }),
         },
       ],
     }));
@@ -686,14 +675,10 @@ describe("pf2e terminal app", () => {
           listLabel: "Pathfinder Monster Core | 320",
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
-          query: {
-            kind: "listRecords",
-            label: "Browse records with this value",
-            filters: {
-              category: "creature",
-              limit: 20,
-            },
-          },
+          query: browseQuery("Browse records with this value", {
+            category: "creature",
+            limit: 20,
+          }),
         },
         {
           id: "creature:publicationTitle:rage-of-elements",
@@ -703,14 +688,10 @@ describe("pf2e terminal app", () => {
           listLabel: "Pathfinder Rage of Elements | 81",
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Rage of Elements", tone: "section" }],
-          query: {
-            kind: "listRecords",
-            label: "Browse records with this value",
-            filters: {
-              category: "creature",
-              limit: 20,
-            },
-          },
+          query: browseQuery("Browse records with this value", {
+            category: "creature",
+            limit: 20,
+          }),
         },
       ],
     }));
@@ -746,14 +727,10 @@ describe("pf2e terminal app", () => {
   it("keeps the ontology explorer mounted while direct-result transitions prepare", async () => {
     const services = createFakeServices();
     const pendingSession = createDeferred<Awaited<ReturnType<typeof services.user.search.executeQuery>>>();
-    const preparedQuery = {
-      kind: "listRecords" as const,
-      label: "Browse records with this value",
-      filters: {
-        category: "creature" as const,
-        limit: 20,
-      },
-    };
+    const preparedQuery = browseQuery("Browse records with this value", {
+      category: "creature",
+      limit: 20,
+    });
     services.user.search.executeQuery = vi.fn(() =>
       pendingSession.promise,
     ) as typeof services.user.search.executeQuery;
@@ -837,14 +814,10 @@ describe("pf2e terminal app", () => {
           listLabel: "Pathfinder Monster Core | 320",
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
-          query: {
-            kind: "listRecords",
-            label: "Browse records with this value",
-            filters: {
-              category: "creature",
-              limit: 20,
-            },
-          },
+          query: browseQuery("Browse records with this value", {
+            category: "creature",
+            limit: 20,
+          }),
         },
       ],
     }));

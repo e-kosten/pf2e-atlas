@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/search/filters/types.js";
+import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import {
   createDefaultQuery,
   setSearchQueryCategory,

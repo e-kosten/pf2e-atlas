@@ -139,9 +139,11 @@ That is why server registration files are blocked from importing low-level SQL/q
 The durable ownership split is:
 
 - `src/domain/search-request-types.ts` owns the shared semantic query contract
+- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the shared metadata query vocabulary carried inside that contract
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own execution-facing compiled filter shapes
 - `src/search/filters/` owns normalization and validation for execution filters
 - `src/app/**`, `src/domain/**`, `src/server/**`, and `src/tui/**` must not import the search execution DTOs or compiler directly
+- `src/domain/**` must not import `src/search/**`; if a search concept is shared across surfaces, move that concept into `src/domain/` instead of borrowing a search-owned type
 
 ### Ontology Boundary
 

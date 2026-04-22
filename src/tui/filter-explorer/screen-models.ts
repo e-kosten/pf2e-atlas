@@ -24,7 +24,6 @@ import {
   buildFilterExplorerPolicyLabelSegments,
   getFilterExplorerPolicyPresentation,
 } from "./policy-presentation.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
   FilterExplorerComposeMode,
@@ -360,7 +359,7 @@ export function buildFilterExplorerCommandEntries(
   }
 
   const result = controller.selectedInspectResult;
-  const request = resolveOntologyQueryRequest(result.query);
+  const request = result.query.request;
   const targetLabel = buildInspectTargetLabel(result);
   const resultsDescription = buildInspectCommandDescription(result);
   const queryDescription = targetLabel
@@ -496,7 +495,7 @@ function buildInspectTargetLabel(result: FilterExplorerInspectResult): string | 
 }
 
 function buildInspectCommandDescription(result: FilterExplorerInspectResult): string {
-  const request = resolveOntologyQueryRequest(result.query);
+  const request = result.query.request;
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "Open the focused selection in results."
@@ -517,7 +516,7 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   }
 
   const targetLabel = buildInspectTargetLabel(result);
-  const request = resolveOntologyQueryRequest(result.query);
+  const request = result.query.request;
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "open results"

@@ -359,6 +359,20 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks domain modules from importing search internals and allows domain-owned search semantics", async () => {
+    await expectRuleMessage(
+      "src/domain/metadata-predicate-spec.ts",
+      'import type { MetadataFieldType } from "../search/filters/registry.js";\nexport type Value = MetadataFieldType;\n',
+      "Domain modules must not import src/search internals. Move shared search semantics into src/domain or invert the dependency through a search-owned execution boundary.",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/domain/search-request-types.ts",
+      'import type { MetadataFilterNode } from "./metadata-filter-types.js";\nexport type Value = MetadataFilterNode;\n',
+    );
+  });
+
   it("blocks owner-specific shared utils imports in non-tag modules but keeps normalizeText and uniqueSorted available", async () => {
     await expectRuleMessage(
       "src/data/references.ts",

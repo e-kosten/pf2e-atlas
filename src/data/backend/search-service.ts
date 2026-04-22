@@ -12,7 +12,6 @@ import type {
 } from "../../domain/search-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
-import { coerceSearchRequest } from "../../domain/search-request-compat.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import {
@@ -52,7 +51,7 @@ export class Pf2eSearchBackendService {
   }
 
   listRecords(request: SearchRequest): SearchResult {
-    const normalizedFilters = this.normalizeRequest(coerceSearchRequest(request, "browse"));
+    const normalizedFilters = this.normalizeRequest(request);
     validateSearchFilters(normalizedFilters, "list");
     return listRecordsRuntime(normalizedFilters, this.runtimeSearchDependencies());
   }
@@ -61,7 +60,7 @@ export class Pf2eSearchBackendService {
     request: SearchRequest,
     options: { lexicalOnly?: boolean } = {},
   ): Promise<SearchCountResult> {
-    const normalizedRequest = coerceSearchRequest(request, "search");
+    const normalizedRequest = request;
     const runtime = this.runtimeSearchDependencies();
     const executionFilters = this.compileRequest({
       ...normalizedRequest,
@@ -90,7 +89,7 @@ export class Pf2eSearchBackendService {
   }
 
   async openSearchWindow(request: SearchRequest): Promise<SearchWindowPage> {
-    const normalizedRequest = coerceSearchRequest(request, "search");
+    const normalizedRequest = request;
     const runtime = this.runtimeSearchDependencies();
     const normalizedFilters = this.normalizeRequest(normalizedRequest);
 
@@ -142,7 +141,7 @@ export class Pf2eSearchBackendService {
   }
 
   async search(request: SearchRequest): Promise<SearchResult> {
-    const executionFilters = this.compileRequest(coerceSearchRequest(request, "search"));
+    const executionFilters = this.compileRequest(request);
     const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
     return searchRuntime(executionFilters, normalizedFilters, this.runtimeSearchDependencies());
@@ -215,7 +214,7 @@ export class Pf2eSearchBackendService {
   }
 
   private searchStructured(request: SearchRequest): SearchResult {
-    const normalizedFilters = this.normalizeRequest(coerceSearchRequest(request, "search"));
+    const normalizedFilters = this.normalizeRequest(request);
     validateSearchFilters(normalizedFilters, "search");
     return searchStructuredRuntime(normalizedFilters, this.runtimeSearchDependencies());
   }

@@ -1,5 +1,5 @@
 import { ACTOR_METRIC_NUMERIC_OPERATORS, ACTOR_METRIC_SCALAR_OPERATORS } from "./actor-metrics.js";
-import { METADATA_FIELD_KIND_OPERATORS, type MetadataFieldType } from "../search/filters/registry.js";
+import { METADATA_FIELD_KIND_OPERATORS, type MetadataFieldType } from "./metadata-field-types.js";
 
 export type MetadataPredicatePayloadKind = "string" | "stringArray" | "number" | "numberRange" | "boolean";
 

@@ -4,8 +4,8 @@ import {
   type SearchRequestIntent,
   type SearchRequestPart,
 } from "../domain/search-request-types.js";
+import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 import type { LookupOptions, SearchCategoryInput, SearchSubcategoryInput } from "../domain/search-types.js";
-import type { MetadataFilterNode } from "../search/filters/types.js";
 
 type SearchRequestTransportInput = {
   searchProfile?: SearchRequest["searchProfile"];

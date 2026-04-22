@@ -1,5 +1,4 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import { searchRequestPartsToMetadataFilterNode } from "../../domain/search-request-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
@@ -309,7 +308,7 @@ export function buildSearchFilterExplorerTargetResolver(
     }
 
     const predicate = node.query
-      ? searchRequestPartsToMetadataFilterNode(resolveOntologyQueryRequest(node.query).parts ?? [])
+      ? searchRequestPartsToMetadataFilterNode(node.query.request.parts ?? [])
       : null;
     if (!predicate || !isMetadataPredicate(predicate)) {
       return fieldOptions

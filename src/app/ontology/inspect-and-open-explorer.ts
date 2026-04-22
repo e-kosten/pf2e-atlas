@@ -3,7 +3,6 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
 import {
@@ -22,7 +21,7 @@ function buildOntologyQueryRecordChildren(
     return [];
   }
 
-  const request = resolveOntologyQueryRequest(query);
+  const request = query.request;
   if (request.intent !== "browse") {
     return [];
   }
@@ -146,7 +145,7 @@ function decorateNodeForInspectAndOpen(
     };
   }
 
-  if (cloned.query && resolveOntologyQueryRequest(cloned.query).intent === "browse") {
+  if (cloned.query && cloned.query.request.intent === "browse") {
     return {
       ...cloned,
       loadChildren: () => buildOntologyQueryRecordChildren(dataService, cloned.query),

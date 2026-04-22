@@ -9,10 +9,9 @@ import type {
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
-} from "../../search/filters/types.js";
+} from "../../domain/metadata-filter-types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
 import { metadataFilterNodeToSearchRequestParts } from "../../domain/search-request-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
@@ -333,7 +332,7 @@ function buildQueryRecordChildren(
     return [];
   }
 
-  const request = resolveOntologyQueryRequest(query);
+  const request = query.request;
   if (request.intent !== "browse") {
     return [];
   }

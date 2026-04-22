@@ -1,4 +1,4 @@
-import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
 import {
   appendMetadataNodeAtPath,
   normalizeMetadataNode,

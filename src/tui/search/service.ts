@@ -2,7 +2,7 @@ import {
   CATEGORY_SUBCATEGORY_MAP,
 } from "../../domain/categories.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
-import type { MetadataFieldName } from "../../search/filters/registry.js";
+import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import type {
   SearchCategory,
   SearchSubcategory,

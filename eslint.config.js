@@ -140,6 +140,28 @@ const SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   ],
 };
 
+const DOMAIN_SEARCH_INTERNAL_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["../search/**", "../../search/**", "../../../search/**"],
+      message:
+        "Domain modules must not import src/search internals. Move shared search semantics into src/domain or invert the dependency through a search-owned execution boundary.",
+    },
+  ],
+};
+
+const DOMAIN_SEARCH_INTERNAL_SYNTAX_RESTRICTIONS = buildImportSourceSyntaxRestrictions(
+  [
+    "../search/filters/registry.js",
+    "../../search/filters/registry.js",
+    "../../../search/filters/registry.js",
+    "../search/filters/metadata.js",
+    "../../search/filters/metadata.js",
+    "../../../search/filters/metadata.js",
+  ],
+  "Domain modules must not import src/search internals. Move shared search semantics into src/domain or invert the dependency through a search-owned execution boundary.",
+);
+
 const NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS = {
   paths: [
     {
@@ -897,6 +919,22 @@ export default defineConfig(
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
         SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
       ),
+    },
+  },
+  {
+    files: ["src/domain/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS,
+        DOMAIN_SEARCH_INTERNAL_IMPORT_RESTRICTIONS,
+      ),
+      "no-restricted-syntax": [
+        "error",
+        ...SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS,
+        ...DOMAIN_SEARCH_INTERNAL_SYNTAX_RESTRICTIONS,
+      ],
     },
   },
   {

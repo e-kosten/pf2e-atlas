@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/search/filters/types.js";
+import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
-import type { SearchFilters } from "../../src/domain/search-types.js";
+import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
@@ -14,6 +14,7 @@ import {
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
 } from "../../src/tui/search/query-state.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 
@@ -51,7 +52,7 @@ function createDependencies(overrides: Partial<SearchServiceDependencies> = {}):
       return { values: [] };
     }),
     lookup: vi.fn(() => ({ match: null, alternatives: [] })),
-    listRecords: vi.fn((filters: SearchFilters) => ({
+    listRecords: vi.fn((filters: SearchRequest) => ({
       searchProfile: null,
       mode: "structured" as const,
       sort: filters.sort ?? "alphabetical",
@@ -90,7 +91,7 @@ function createDependencies(overrides: Partial<SearchServiceDependencies> = {}):
       nextOffset: null,
       records: [],
     })),
-    search: vi.fn((filters: SearchFilters) =>
+    search: vi.fn((filters: SearchRequest) =>
       Promise.resolve({
         searchProfile: filters.searchProfile ?? "balanced",
         mode: "hybrid" as const,
@@ -794,10 +795,7 @@ describe("createPf2eTerminalSearchService", () => {
       filterText: "perception modifier",
       detailTitle: "Metric",
       detailLines: [{ text: "Perception Modifier" }],
-      query: {
-        kind: "listRecords",
-        label: "Perception Modifier",
-        filters: {
+      query: browseQuery("Perception Modifier", {
           category: "creature",
           metadata: {
             field: "actorMetricCompare",
@@ -805,8 +803,7 @@ describe("createPf2eTerminalSearchService", () => {
             leftMetric: "perception.mod",
             rightMetric: "perception.mod",
           },
-        },
-      },
+        }),
     } as OntologyNode);
 
     expect(target).toEqual({
@@ -837,10 +834,7 @@ describe("createPf2eTerminalSearchService", () => {
       filterText: "range increment",
       detailTitle: "Metric",
       detailLines: [{ text: "Range Increment" }],
-      query: {
-        kind: "listRecords",
-        label: "Range Increment",
-        filters: {
+      query: browseQuery("Range Increment", {
           category: "equipment",
           metadata: {
             field: "itemMetricCompare",
@@ -848,8 +842,7 @@ describe("createPf2eTerminalSearchService", () => {
             leftMetric: "weapon.range_increment",
             rightMetric: "weapon.range_increment",
           },
-        },
-      },
+        }),
     } as OntologyNode);
 
     expect(target).toEqual({

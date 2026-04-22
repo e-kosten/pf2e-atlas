@@ -12,7 +12,7 @@ import type {
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
-import type { MetadataFilterNode } from "./filters/types.js";
+import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 
 export type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
 

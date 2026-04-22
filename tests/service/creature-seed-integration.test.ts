@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadTestService, writeJson } from "../helpers/pf2e-fixture.js";
+import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Creature explicit assignments, true seeds, and legacy seed migrations", () => {
@@ -191,7 +192,7 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
       }),
     ]);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
 
     expect(service.lookup("Departmental Chair", { category: "creature" }).match?.derivedTags).toEqual(
       expect.arrayContaining(["profession_npc", "civic_npc"]),

@@ -1,8 +1,8 @@
 import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import type { MetadataFieldName, MetadataFieldNameByType, MetadataFieldType } from "../../domain/metadata-field-types.js";
 
-export type MetadataFieldType = "set" | "enumString" | "text" | "number" | "boolean";
 export type MetadataValueNormalization = "normalizedText" | "lowercaseTrim" | "derivedTag";
 export type MetadataPresentation = "summary" | "detail" | "none";
 export type MetadataRowValueSourceKind = "string" | "number" | "booleanNumber" | "jsonArray";
@@ -810,12 +810,10 @@ export const METADATA_FIELD_REGISTRY = [
 ] as const;
 
 export type MetadataFieldSpecEntry = (typeof METADATA_FIELD_REGISTRY)[number];
-export type MetadataFieldName = MetadataFieldSpecEntry["field"];
 export type MetadataFieldSpecByType<FieldType extends MetadataFieldType> = Extract<
   MetadataFieldSpecEntry,
   { fieldType: FieldType }
 >;
-export type MetadataFieldNameByType<FieldType extends MetadataFieldType> = MetadataFieldSpecByType<FieldType>["field"];
 
 type MetadataRecordValueByFieldType = {
   set: string[];
@@ -824,14 +822,6 @@ type MetadataRecordValueByFieldType = {
   number: number | null;
   boolean: boolean;
 };
-
-export const METADATA_FIELD_KIND_OPERATORS = {
-  set: ["includesAny", "includesAll", "excludesAny"],
-  enumString: ["eq", "in", "notIn"],
-  text: ["eq", "notEq", "contains", "notContains"],
-  number: ["eq", "gte", "lte", "between"],
-  boolean: ["eq"],
-} as const;
 
 export const METADATA_FIELD_SPEC_BY_NAME = new Map<MetadataFieldName, MetadataFieldSpecEntry>(
   METADATA_FIELD_REGISTRY.map((entry) => [entry.field, entry]),

@@ -12,6 +12,7 @@ The search runtime is shared infrastructure, not an MCP-only feature. The same b
 
 - `src/index.ts` and `src/server/` own MCP registration and wire-format responses.
 - `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic query contract.
+- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the metadata field vocabulary and metadata query AST carried by `SearchRequest`.
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own the lowering from `SearchRequest` into search-execution filters.
@@ -133,6 +134,8 @@ flowchart TD
 
 `SearchRequest` is the cross-surface search contract. MCP adapters, TUI query adapters, and ontology-origin queries all converge on that one semantic model before backend execution begins.
 
+That shared semantic contract includes the metadata query subtree. Metadata field names, field kinds, predicate operators, and metadata boolean-group AST nodes are domain-owned because they are part of cross-surface query meaning, not search-runtime execution details.
+
 `compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
 
 - mapping `intent` and `text` onto `query` or `nameQuery`
@@ -141,6 +144,8 @@ flowchart TD
 - preserving shared pagination, link, pack, price, explain, and exclusion settings
 
 Search-execution filters are not the shared contract. They are search-owned compiled output used by normalization, validation, SQL construction, and runtime execution.
+
+The backend does not preserve a hidden compatibility path for legacy filter-shaped inputs. Surface adapters and ontology query carriers must provide real `SearchRequest` values before execution begins.
 
 ### 2. Filter normalization and validation
 

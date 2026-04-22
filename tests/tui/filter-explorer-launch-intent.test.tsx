@@ -10,6 +10,7 @@ import {
   type FilterExplorerQueryOpenIntent,
 } from "../../src/tui/filter-explorer/index.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
+import { browseQuery } from "../helpers/search-request-fixture.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -31,15 +32,11 @@ function createModel(): FilterExplorerModel {
         listLabel: "Illusion | 12",
         detailTitle: "Filter Value",
         detailLines: [{ text: "Illusion", tone: "section" }],
-        query: {
-          kind: "listRecords",
-          label: "Browse illusion spells",
-          filters: {
-            category: "spell",
-            metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
-            limit: 20,
-          },
-        },
+        query: browseQuery("Browse illusion spells", {
+          category: "spell",
+          metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+          limit: 20,
+        }),
       },
     ],
   };

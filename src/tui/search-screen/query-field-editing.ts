@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../search/filters/types.js";
+import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import {
   isMetadataPredicate,
 } from "../search/query-core.js";

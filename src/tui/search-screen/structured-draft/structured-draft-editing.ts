@@ -2,7 +2,7 @@ import React from "react";
 
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
-import type { MetadataFilterNode } from "../../../search/filters/types.js";
+import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,

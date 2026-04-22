@@ -19,13 +19,14 @@ import {
   type MetadataPredicatePayloadKind,
   type MetadataPredicateVariantSpec,
 } from "../domain/metadata-predicate-spec.js";
+import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
   METADATA_NUMBER_FIELDS,
   METADATA_SET_FIELDS,
   METADATA_TEXT_STRING_FIELDS,
-} from "../search/filters/types.js";
+} from "../domain/metadata-field-types.js";
 import { FILTER_VALUE_FIELDS } from "../domain/search-types.js";
 import type {
   FilterValueField,
@@ -33,8 +34,6 @@ import type {
   SearchScope,
   SearchSubcategory,
 } from "../domain/search-types.js";
-import type { MetadataFilterNode } from "../search/filters/types.js";
-
 export const CATEGORY_HINT_DESCRIPTION = `Optional top-level category hint. Canonical values: ${VALID_SEARCH_CATEGORY_LIST}. Legacy plural aliases are also accepted.`;
 
 export const SUBCATEGORY_HINT_DESCRIPTION =

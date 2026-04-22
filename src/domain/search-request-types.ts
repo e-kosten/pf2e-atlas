@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate } from "../search/filters/types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-types.js";
 import type { SearchCategoryInput, SearchProfile, SearchScope, SearchSort, SearchSubcategoryInput } from "./search-types.js";
 
 export type SearchRequestIntent = "browse" | "search" | "lookup";

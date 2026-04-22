@@ -36,19 +36,19 @@ import {
   type MetadataMetricValuePredicateSpec,
 } from "../../domain/metadata-predicate-spec.js";
 import {
-  MetadataBooleanField,
-  MetadataBooleanPredicate,
-  MetadataEnumStringField,
-  MetadataEnumStringPredicate,
-  MetadataFilterNode,
-  MetadataNumberField,
-  MetadataNumberPredicate,
-  MetadataPredicate,
-  MetadataSetPredicate,
-  MetadataSetField,
-  MetadataTextStringField,
-  MetadataTextStringPredicate,
-} from "./types.js";
+  type MetadataBooleanField,
+  type MetadataBooleanPredicate,
+  type MetadataEnumStringField,
+  type MetadataEnumStringPredicate,
+  type MetadataFilterNode,
+  type MetadataNumberField,
+  type MetadataNumberPredicate,
+  type MetadataPredicate,
+  type MetadataSetField,
+  type MetadataSetPredicate,
+  type MetadataTextStringField,
+  type MetadataTextStringPredicate,
+} from "../../domain/metadata-filter-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import { normalizeDerivedTag } from "../../tags/runtime.js";
 import { normalizeText } from "../../shared/utils.js";

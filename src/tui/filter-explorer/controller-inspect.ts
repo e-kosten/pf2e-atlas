@@ -1,5 +1,4 @@
-import type { MetadataFilterNode } from "../../search/filters/types.js";
-import { resolveOntologyQueryRequest } from "../../domain/search-request-compat.js";
+import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import {
   metadataFilterNodeToSearchRequestParts,
 } from "../../domain/search-request-types.js";
@@ -22,7 +21,7 @@ export function resolveFilterExplorerLaunchIntent(
   mode: FilterExplorerInspectAndOpenMode,
   query: FilterExplorerQueryTarget,
 ): FilterExplorerLaunchIntent {
-  if (resolveOntologyQueryRequest(query).intent !== "browse") {
+  if (query.request.intent !== "browse") {
     return FILTER_EXPLORER_LAUNCH_INTENT.EDITOR;
   }
 
@@ -126,7 +125,7 @@ export function buildCompiledFilterExplorerInspectResult(
   result: FilterExplorerInspectResult,
   clause: FilterExplorerScalarClause,
 ): FilterExplorerInspectResult | null {
-  const request = resolveOntologyQueryRequest(result.query);
+  const request = result.query.request;
   if (request.intent !== "browse" || !isFilterExplorerScalarTarget(result.target)) {
     return null;
   }
@@ -258,5 +257,5 @@ export function shouldOpenImmediateFilterExplorerInspectResult(
   node: FilterExplorerNode | undefined,
   result: FilterExplorerInspectResult | undefined,
 ): boolean {
-  return Boolean(result && resolveOntologyQueryRequest(result.query).intent === "browse" && node?.kind !== "record");
+  return Boolean(result && result.query.request.intent === "browse" && node?.kind !== "record");
 }
