@@ -1,6 +1,6 @@
-# Pathfinder 2E Foundry MCP
+# PF2e Atlas
 
-Offline Pathfinder 2E search, reference, and editorial workbench built on a local clone of the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). It supports querying and exploring Foundry PF2E data locally through either an MCP server or a TUI.
+PF2e Atlas is an offline Pathfinder 2E search, reference, and editorial workbench built on a local clone of the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). It supports querying and exploring Foundry PF2E data locally through either an MCP server or a TUI.
 
 It provides several connected surfaces over the local Foundry PF2E data:
 - a stdio MCP server for external clients and agents
@@ -50,11 +50,11 @@ For deeper local developer and editorial tooling, use the script surfaces under 
 
 ## Contact
 
-For questions about this project, use the [GitHub issue tracker](https://github.com/ekosten/pathfinder-2e-foundry-mcp/issues).
+For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/ekosten/pathfinder-2e-foundry-mcp/issues).
 
 ## Paizo Community Use Notice
 
-Pathfinder 2E Foundry MCP uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. Pathfinder 2E Foundry MCP is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
+PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
 
 ## Data And Index
 
