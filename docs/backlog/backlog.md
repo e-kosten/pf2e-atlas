@@ -43,6 +43,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
+- [Shared list/detail behavior contracts](./items/shared-list-detail-behavior-contracts.md)
+  Lift rightward intent, dead-end handling, and explicit focus policy into shared list/detail behavior infrastructure instead of repeating that policy per screen. Status: proposed.
+
 ## Later
 
 - [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
