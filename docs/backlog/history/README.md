@@ -8,6 +8,10 @@ Good uses:
 - archived `done` / `superseded` rolls that are too noisy for the live index
 - preserving a backlog state before a larger triage or restructuring pass
 
+Current live archive files:
+
+- `done-and-superseded.md` for the current completed / retired index
+
 Avoid using this folder for:
 
 - every small backlog edit
