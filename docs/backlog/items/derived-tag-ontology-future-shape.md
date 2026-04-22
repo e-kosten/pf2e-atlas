@@ -114,6 +114,8 @@ The main remaining review targets are:
 
 Additional remaining medium families are mostly broad utility/effect clusters in spell, equipment, and hazard spaces. Many of those may resolve through one or two family-level validation passes rather than through major model changes.
 
+The immediate pending review questions for those families are tracked separately in [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md).
+
 ### Likely Future Implementation Work
 
 When this backlog item is picked up for implementation rather than continued ontology review, the expected work will likely include:
@@ -126,6 +128,7 @@ When this backlog item is picked up for implementation rather than continued ont
 
 ## Related
 
+- [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md)
 - [Derived-tag assignments layout](./derived-tag-assignments-layout.md)
 - [Derived tag manifest tooling metadata](./derived-tag-manifest-tooling-metadata.md)
 - [Tagging tooling reorganization](./tagging-tooling-reorg.md)
