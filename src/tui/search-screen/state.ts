@@ -1,6 +1,6 @@
 import type { SearchCountResult } from "../../domain/search-types.js";
+import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "../search/service.js";
-import { humanizeIdentifier } from "../search/service-options.js";
 import { moveSelection } from "../framework/input.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "../two-pane-state.js";
 export type {
@@ -73,7 +73,7 @@ export function formatSort(sort: Pf2eTerminalSearchSort): string {
     case "ranked":
     case "alphabetical":
     case "random":
-      return humanizeIdentifier(sort);
+      return humanizeOntologySearchIdentifier(sort);
     case "levelAsc":
       return "Level Low-High";
     case "levelDesc":

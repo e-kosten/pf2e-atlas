@@ -78,9 +78,9 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 }
 
 describe("list detail formatting", () => {
-  it("formats shared breadcrumbs through one helper", () => {
-    expect(formatTerminalBreadcrumb(["Search Semantics", "Creature", "Derived Tags"])).toBe(
-      "Search Semantics > Creature > Derived Tags",
+  it("formats shared breadcrumbs through one helper with friendly fallback rendering", () => {
+    expect(formatTerminalBreadcrumb(["searchSemantics", "characterCreation", "party_role"])).toBe(
+      "Search Semantics > Character Creation > Party Role",
     );
   });
 

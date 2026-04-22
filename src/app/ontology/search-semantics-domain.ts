@@ -8,6 +8,7 @@ import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-ty
 import {
   formatMetadataFieldLabel,
   formatMetadataFieldTypeLabel,
+  formatOntologySearchVocabularyLabel,
 } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
@@ -137,10 +138,23 @@ export function buildSearchSemanticsDomain(
     idPrefix: string,
   ): OntologyNode {
     const querySubcategory = getDerivedTagNodeSubcategory(activeSubcategory, familyEntry);
+    const categoryLabel = formatOntologySearchVocabularyLabel(category);
+    const activeSubcategoryLabel = activeSubcategory ? formatOntologySearchVocabularyLabel(activeSubcategory) : "(all)";
+    const familyLabel = formatOntologySearchVocabularyLabel(familyEntry.family);
+    const axisLabel = formatOntologySearchVocabularyLabel(familyEntry.axis);
+    const tagLabel = formatOntologySearchVocabularyLabel(tag.value);
+    const familyScopeLabel =
+      familyEntry.subcategories?.map((entry) => formatOntologySearchVocabularyLabel(entry)).join(", ") ??
+      "(all subcategories)";
+    const assignmentModeLabel = tag.assignmentMode
+      ? formatOntologySearchVocabularyLabel(tag.assignmentMode)
+      : familyEntry.assignmentMode
+        ? formatOntologySearchVocabularyLabel(familyEntry.assignmentMode)
+        : "(unspecified)";
     return {
       id: `${idPrefix}:tag:${tag.value}`,
       kind: "tag",
-      label: tag.value,
+      label: tagLabel,
       filterText: buildFilterText(
         category,
         activeSubcategory ?? "",
@@ -151,14 +165,14 @@ export function buildSearchSemanticsDomain(
       ),
       detailTitle: "Derived Tag",
       detailLines: [
-        { text: tag.value, tone: "section" },
+        { text: tagLabel, tone: "section" },
         ...(tag.description ? [{ text: tag.description }] : []),
-        { text: `Category: ${category}` },
-        { text: `Active subcategory: ${activeSubcategory ?? "(all)"}` },
-        { text: `Family: ${familyEntry.family}` },
-        { text: `Axis: ${familyEntry.axis}` },
-        { text: `Family scope: ${familyEntry.subcategories?.join(", ") ?? "(all subcategories)"}` },
-        { text: `Assignment mode: ${tag.assignmentMode ?? familyEntry.assignmentMode ?? "(unspecified)"}` },
+        { text: `Category: ${categoryLabel}` },
+        { text: `Active subcategory: ${activeSubcategoryLabel}` },
+        { text: `Family: ${familyLabel}` },
+        { text: `Axis: ${axisLabel}` },
+        { text: `Family scope: ${familyScopeLabel}` },
+        { text: `Assignment mode: ${assignmentModeLabel}` },
         { text: `Live canonical records: ${liveRecordCount}` },
         { text: "Press Enter or o to open the full matching set in the shared result reader." },
       ],
@@ -166,9 +180,9 @@ export function buildSearchSemanticsDomain(
         category,
         querySubcategory,
         tag.value,
-        `Browse records with the ${tag.value} derived tag`,
+        `Browse records with the ${tagLabel} derived tag`,
       ),
-      listLabel: `${tag.value} | ${liveRecordCount}`,
+      listLabel: `${tagLabel} | ${liveRecordCount}`,
     };
   }
 
@@ -200,11 +214,18 @@ export function buildSearchSemanticsDomain(
     }
 
     const familyNodeId = `${idPrefix}:family:${normalizeText(familyEntry.family)}`;
+    const categoryLabel = formatOntologySearchVocabularyLabel(category);
+    const subcategoryLabel = subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)";
+    const familyLabel = formatOntologySearchVocabularyLabel(familyEntry.family);
+    const axisLabel = formatOntologySearchVocabularyLabel(familyEntry.axis);
+    const familyScopeLabel =
+      familyEntry.subcategories?.map((entry) => formatOntologySearchVocabularyLabel(entry)).join(", ") ??
+      "(all subcategories)";
 
     return {
       id: familyNodeId,
       kind: "family",
-      label: familyEntry.family,
+      label: familyLabel,
       filterText: buildFilterText(
         category,
         subcategory ?? "",
@@ -214,15 +235,15 @@ export function buildSearchSemanticsDomain(
         ...(familyEntry.subcategories ?? []),
         ...familyEntry.tags.map((tag) => tag.value),
       ),
-      listLabel: `${familyEntry.family} | ${familyEntry.tags.length} tags`,
+      listLabel: `${familyLabel} | ${familyEntry.tags.length} tags`,
       detailTitle: "Derived Tag Family",
       detailLines: buildKeyValueDetailLines(
-        familyEntry.family,
+        familyLabel,
         [
-          ["Category", category],
-          ["Active subcategory", subcategory ?? "(all)"],
-          ["Axis", familyEntry.axis],
-          ["Family scope", familyEntry.subcategories?.join(", ") ?? "(all subcategories)"],
+          ["Category", categoryLabel],
+          ["Active subcategory", subcategoryLabel],
+          ["Axis", axisLabel],
+          ["Family scope", familyScopeLabel],
           ["Tags", familyEntry.tags.length],
         ],
         familyEntry.description,
@@ -414,7 +435,7 @@ export function buildSearchSemanticsDomain(
       detailLines: buildKeyValueDetailLines(
         "Common Derived Tags",
         [
-          ["Category", category],
+          ["Category", formatOntologySearchVocabularyLabel(category)],
           ["Families", matchingFamilies.length],
           ["Entries", tagCount],
         ],
@@ -427,22 +448,25 @@ export function buildSearchSemanticsDomain(
   function buildBooleanGroupNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
     return (Object.entries(semantics.booleanGroups) as Array<[keyof typeof semantics.booleanGroups, string]>).map(
-      ([groupName, description]) => ({
-        id: `${idPrefix}:booleanGroup:${groupName}`,
-        kind: "booleanGroup",
-        label: groupName,
-        filterText: buildFilterText(category, subcategory ?? "", groupName, description),
-        listLabel: groupName,
-        detailTitle: "Boolean Group Details",
-        detailLines: buildKeyValueDetailLines(
-          titleCaseLabel(groupName),
-          [
-            ["Category", category],
-            ["Subcategory", subcategory ?? "(all)"],
-          ],
-          description,
-        ),
-      }),
+      ([groupName, description]) => {
+        const groupLabel = formatOntologySearchVocabularyLabel(groupName);
+        return {
+          id: `${idPrefix}:booleanGroup:${groupName}`,
+          kind: "booleanGroup",
+          label: groupLabel,
+          filterText: buildFilterText(category, subcategory ?? "", groupName, description),
+          listLabel: groupLabel,
+          detailTitle: "Boolean Group Details",
+          detailLines: buildKeyValueDetailLines(
+            groupLabel,
+            [
+              ["Category", formatOntologySearchVocabularyLabel(category)],
+              ["Subcategory", subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"],
+            ],
+            description,
+          ),
+        };
+      },
     );
   }
 
@@ -450,34 +474,38 @@ export function buildSearchSemanticsDomain(
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
     return semantics.advancedPredicates
       .filter((predicate) => predicate.categories.includes(category))
-      .map((predicate) => ({
-        id: `${idPrefix}:advanced:${predicate.name}`,
-        kind: "advancedPredicate",
-        label: predicate.name,
-        filterText: buildFilterText(
-          category,
-          subcategory ?? "",
-          predicate.name,
-          predicate.description,
-          ...predicate.operators,
-        ),
-        listLabel: `${predicate.name} | ${predicate.operators.join(", ")}`,
-        detailTitle: "Advanced Predicate Details",
-        detailLines: [
-          { text: predicate.name, tone: "section" },
-          { text: predicate.description },
-          { text: `Category: ${category}` },
-          { text: `Subcategory: ${subcategory ?? "(all)"}` },
-          { text: `Operators: ${predicate.operators.join(", ")}` },
-          { text: "Press Enter or o to open the full matching set in the shared result reader." },
-        ],
-        query: buildSearchSemanticsMetadataQuery(
-          category,
-          subcategory,
-          `Browse records matching the ${predicate.name} example`,
-          predicate.example,
-        ),
-      }));
+      .map((predicate) => {
+        const predicateLabel = formatOntologySearchVocabularyLabel(predicate.name);
+        const operatorLabels = predicate.operators.map((operator) => formatOntologySearchVocabularyLabel(operator));
+        return {
+          id: `${idPrefix}:advanced:${predicate.name}`,
+          kind: "advancedPredicate",
+          label: predicateLabel,
+          filterText: buildFilterText(
+            category,
+            subcategory ?? "",
+            predicate.name,
+            predicate.description,
+            ...predicate.operators,
+          ),
+          listLabel: `${predicateLabel} | ${operatorLabels.join(", ")}`,
+          detailTitle: "Advanced Predicate Details",
+          detailLines: [
+            { text: predicateLabel, tone: "section" },
+            { text: predicate.description },
+            { text: `Category: ${formatOntologySearchVocabularyLabel(category)}` },
+            { text: `Subcategory: ${subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"}` },
+            { text: `Operators: ${operatorLabels.join(", ")}` },
+            { text: "Press Enter or o to open the full matching set in the shared result reader." },
+          ],
+          query: buildSearchSemanticsMetadataQuery(
+            category,
+            subcategory,
+            `Browse records matching the ${predicateLabel} example`,
+            predicate.example,
+          ),
+        };
+      });
   }
 
   function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
@@ -604,15 +632,15 @@ export function buildSearchSemanticsDomain(
     return {
       id: `${category}:subcategory:${subcategory}`,
       kind: "subcategory",
-      label: subcategory,
+      label: formatOntologySearchVocabularyLabel(subcategory),
       filterText: buildFilterText(category, subcategory, ...children.map((node) => node.label)),
-      listLabel: `${subcategory} | ${liveSubcategoryCountsByCategory.get(category)?.get(subcategory) ?? 0}`,
+      listLabel: `${formatOntologySearchVocabularyLabel(subcategory)} | ${liveSubcategoryCountsByCategory.get(category)?.get(subcategory) ?? 0}`,
       detailTitle: "Subcategory Boundary",
       detailLines: buildKeyValueDetailLines(
-        subcategory,
+        formatOntologySearchVocabularyLabel(subcategory),
         [
-          ["Category", category],
-          ["Subcategory", subcategory],
+          ["Category", formatOntologySearchVocabularyLabel(category)],
+          ["Subcategory", formatOntologySearchVocabularyLabel(subcategory)],
           ["Live canonical records", liveSubcategoryCountsByCategory.get(category)?.get(subcategory) ?? 0],
           ["Metadata fields", subcategoryMetadataFieldNodes.length],
         ],
@@ -740,12 +768,12 @@ export function buildSearchSemanticsDomain(
       label: titleCaseLabel(category),
       shortLabel: category,
       filterText: buildFilterText(category, ...categoryFields),
-      listLabel: `${category} | ${children.length} groups`,
+      listLabel: `${formatOntologySearchVocabularyLabel(category)} | ${children.length} groups`,
       detailTitle: "Search Semantics",
       detailLines: buildKeyValueDetailLines(
         titleCaseLabel(category),
         [
-          ["Category", category],
+          ["Category", formatOntologySearchVocabularyLabel(category)],
           ["Subcategories", CATEGORY_SUBCATEGORY_MAP[category].length],
           ["Metadata fields", categoryFields.length],
           ["Boolean groups", booleanGroupNodes.length],

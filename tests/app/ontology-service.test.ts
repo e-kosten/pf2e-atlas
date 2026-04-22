@@ -464,8 +464,10 @@ describe("application ontology service", () => {
     expect(booleanGroupNode?.detailLines.map((line) => line.text)).toContain(
       "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
     );
+    expect(booleanGroupNode?.label).toBe("And");
+    expect(actorMetricCompareNode?.label).toBe("Actor Metric Compare");
     expect(actorMetricCompareNode?.query).toEqual({
-      label: "Browse records matching the actorMetricCompare example",
+      label: "Browse records matching the Actor Metric Compare example",
       request: {
         category: "creature",
         intent: "browse",
@@ -484,7 +486,7 @@ describe("application ontology service", () => {
       },
     });
     expect(itemMetricCompareNode?.query).toEqual({
-      label: "Browse records matching the itemMetricCompare example",
+      label: "Browse records matching the Item Metric Compare example",
       request: {
         category: "equipment",
         intent: "browse",

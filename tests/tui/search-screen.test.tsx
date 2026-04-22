@@ -700,11 +700,9 @@ describe("search screen", () => {
 
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward");
-
-    app.stdin.write("\u001b[D");
-    await flushInk();
     expect(app.lastFrame()).toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward");
+    expect(app.lastFrame()).not.toContain("[PREVIEW] Alarm Ward");
 
     app.stdin.write("\u001b[D");
     await flushInk();
@@ -886,7 +884,7 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > coast");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > Coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");
@@ -1122,17 +1120,19 @@ describe("search screen", () => {
     await flushInk();
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Beacon Sigil");
+    expect(app.lastFrame()).toContain("[RESULTS] 3/3");
+    expect(app.lastFrame()).toContain("Preview | Beacon Sigil");
+    expect(app.lastFrame()).not.toContain("[PREVIEW] Beacon Sigil");
 
-    app.stdin.write("\u001b[D");
-    await flushInk();
     app.stdin.write("g");
     await flushInk();
     app.stdin.write("g");
     await flushInk();
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward");
+    expect(app.lastFrame()).toContain("[RESULTS] 1/3");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward");
+    expect(app.lastFrame()).not.toContain("[PREVIEW] Alarm Ward");
   });
 
   it("prefetches the full result set for small totals so paging stays invisible", async () => {
@@ -1366,7 +1366,34 @@ describe("search screen", () => {
 
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toMatch(/(\[PREVIEW\]|Preview \|) Spell 999/);
+    expect(app.lastFrame()).toContain("[RESULTS] 1,000/1,000");
+    expect(app.lastFrame()).toContain("Preview | Spell 999");
+    expect(app.lastFrame()).not.toContain("[PREVIEW] Spell 999");
+  });
+
+  it("treats rightward result navigation as a no-op when no result is selected", async () => {
+    const initialSession = createSearchSession({
+      results: [],
+      total: 0,
+      loadedCount: 0,
+    });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen entry="results" initialSession={initialSession} onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    const before = app.lastFrame();
+
+    pressRight(app);
+    await flushInk();
+
+    expect(app.lastFrame()).toBe(before);
+    expect(app.lastFrame()).toContain("[RESULTS]");
+    expect(app.lastFrame()).not.toContain("[PREVIEW]");
   });
 
   it("does not keep rereading the same terminal window while moving inside the last page", async () => {
@@ -1948,7 +1975,7 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > coast");
+    expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags > Coast");
     expect(app.lastFrame()).toContain("coast | 1 tag");
 
     app.stdin.write("\r");

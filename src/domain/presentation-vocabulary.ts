@@ -46,10 +46,13 @@ const METADATA_FIELD_TYPE_LABELS: Record<MetadataFieldType, string> = {
   boolean: "Boolean",
 };
 
-function humanizeOntologySearchIdentifier(value: string): string {
+export function humanizeOntologySearchIdentifier(value: string): string {
   return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(/[_\s-]+/)
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[_\-.:/]+/)
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segment.trim())
     .filter((segment) => segment.length > 0)
     .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
     .join(" ");

@@ -1,7 +1,7 @@
 # Shared Result Grouping And Presentation Modes
 
-Status: proposed  
-Priority: soon  
+Status: deferred  
+Priority: later  
 Owner: unassigned  
 Last reviewed: 2026-04-22
 

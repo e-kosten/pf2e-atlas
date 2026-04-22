@@ -3,6 +3,7 @@ import type {
 } from "../../domain/metadata-filter-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
+import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
@@ -11,11 +12,7 @@ import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySumm
 const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
 
 export function titleCaseLabel(value: string): string {
-  return value
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
+  return humanizeOntologySearchIdentifier(value);
 }
 
 export function buildFilterText(...values: Array<string | null | undefined>): string {

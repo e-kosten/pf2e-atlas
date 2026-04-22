@@ -602,8 +602,8 @@ describe("derived tag migration tooling", () => {
     ).toBeLessThan(rendered.indexOf("Identity"));
     expect(rendered).toContain("Identity");
     expect(rendered).toContain("Retrieval");
-    expect(rendered).toContain("Traits: incorporeal, undead");
-    expect(rendered).toContain("Derived tags: urban_setting");
+    expect(rendered).toContain("Traits: Incorporeal, Undead");
+    expect(rendered).toContain("Derived tags: Urban Setting");
     expect(rendered).toContain("Blurb");
     expect(rendered).toContain("An undead sentinel bound to a haunted district.");
     expect(rendered).toContain("Description");

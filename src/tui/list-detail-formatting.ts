@@ -1,9 +1,16 @@
 import type { NormalizedRecord } from "../domain/record-types.js";
-import { formatOntologySearchVocabularyLabel } from "../domain/presentation-vocabulary.js";
+import {
+  formatOntologySearchVocabularyLabel,
+  humanizeOntologySearchIdentifier,
+} from "../domain/presentation-vocabulary.js";
 import type { DerivedTagTerminalLine } from "./framework/types.js";
 
 export function formatTerminalBreadcrumb(segments: ReadonlyArray<string | null | undefined>): string {
-  return segments.map((segment) => segment?.trim()).filter((segment): segment is string => Boolean(segment)).join(" > ");
+  return segments
+    .map((segment) => segment?.trim())
+    .filter((segment): segment is string => Boolean(segment))
+    .map((segment) => humanizeOntologySearchIdentifier(segment))
+    .join(" > ");
 }
 
 function buildSearchResultMetadataParts(record: NormalizedRecord): string[] {

@@ -303,9 +303,6 @@ export function useSearchWorkspaceActions({
           }
           dispatch({ type: "set_layout", layout: "editor", pane: "list" });
           return;
-        case "open_preview":
-          dispatch({ type: "set_active_pane", pane: "detail" });
-          return;
         case "move_result_selection":
           dispatch({ type: "move_result_selection", delta: intent.delta, itemCount: resultCount });
           return;

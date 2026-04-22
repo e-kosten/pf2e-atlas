@@ -33,7 +33,6 @@ export type SearchScreenIntent =
   | { type: "open_result_commands" }
   | { type: "toggle_pane" }
   | { type: "return_to_editor" }
-  | { type: "open_preview" }
   | { type: "move_result_selection"; delta: number }
   | { type: "result_selection_boundary"; boundary: "start" | "end" }
   | { type: "return_to_result_list" }
@@ -77,7 +76,6 @@ export function getSearchEditorInteractionActions(origin: SearchScreenOrigin = "
 export function getSearchResultListInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
   return [
     { id: "back", label: origin === "ontology" ? "return" : "editor" },
-    { id: "preview" },
     { id: "focus", label: "pane" },
     { id: "commands" },
     { id: "help" },
@@ -206,9 +204,7 @@ export function buildSearchHelpLines(
   const resultActions: TerminalInteractionAction[] = getSearchInteractionActions(state, origin).map((action) => ({
     ...action,
     helpText:
-      action.id === "preview"
-        ? "open the focused result preview"
-        : action.id === "back" && context === "result-list" && origin === "ontology"
+      action.id === "back" && context === "result-list" && origin === "ontology"
           ? "return to the exact ontology location that launched this result reader"
           : action.id === "back" && context === "result-list"
             ? "return to the query editor"
@@ -272,7 +268,6 @@ export function useSearchScreenInteractionRouter(options: {
   selectionJumpSize: number;
   pageSize: number;
   maxDetailScroll: number;
-  hasSelectedResult: boolean;
   onIntent: (intent: SearchScreenIntent) => void;
 }): void {
   useTerminalListDetailInteractionRouter({
@@ -348,10 +343,6 @@ export function useSearchScreenInteractionRouter(options: {
       if (options.state.activePane === "list") {
         if (list.interactionAction?.id === "back") {
           options.onIntent({ type: "return_to_editor" });
-          return;
-        }
-        if (list.interactionAction?.id === "preview" && options.hasSelectedResult) {
-          options.onIntent({ type: "open_preview" });
           return;
         }
         if (list.navigationAction?.kind === "move") {

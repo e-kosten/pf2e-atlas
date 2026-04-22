@@ -183,7 +183,7 @@ describe("buildSearchSemanticsDomain", () => {
       groupBy: "axis",
       render: "inline",
     });
-    expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["mist", "tripwire"]);
+    expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["Mist", "Tripwire"]);
 
     const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
     const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
@@ -209,8 +209,8 @@ describe("buildSearchSemanticsDomain", () => {
     const mistTags = mistFamilyNode?.loadChildren?.() ?? [];
     const tripwireTags = tripwireFamilyNode?.loadChildren?.() ?? [];
 
-    expect(mistTags[0]?.listLabel).toBe("fogbound | 2");
-    expect(tripwireTags[0]?.listLabel).toBe("snag_line | 1");
+    expect(mistTags[0]?.listLabel).toBe("Fogbound | 2");
+    expect(tripwireTags[0]?.listLabel).toBe("Snag Line | 1");
     expect(dataService.listFilterValues).toHaveBeenCalledWith({
       field: "derivedTags",
       category: "hazard",

@@ -42,6 +42,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Search result readability cleanup](../items/search-result-readability-cleanup.md)
   Shared breadcrumb formatting and compact default result rows are now part of the shared list/detail presentation path instead of per-screen string assembly. Status: done.
 
+- [Ontology browser naming friendliness](../items/ontology-browser-naming-friendliness.md)
+  Shared ontology/search labels and fallback humanization now keep explorer and detail copy friendly without changing canonical ids or query semantics. Status: done.
+
 - `Concern-specific tag facades`
   The runtime, editorial, and editorial-UI facades now match the intended concern split instead of acting like a mixed catch-all surface. Status: done.
 

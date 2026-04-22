@@ -1,8 +1,7 @@
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
-import { formatMetadataFieldLabel } from "../../domain/presentation-vocabulary.js";
+import { formatMetadataFieldLabel, humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory } from "../../domain/search-types.js";
-import { humanizeIdentifier } from "./service-options.js";
 
 export type SearchMetadataNodeSummary = {
   label: string;
@@ -178,7 +177,7 @@ export function formatMetadataScalar(value: boolean | number | string): string {
   if (typeof value === "boolean") {
     return value ? "true" : "false";
   }
-  return typeof value === "number" ? String(value) : humanizeIdentifier(value);
+  return typeof value === "number" ? String(value) : humanizeOntologySearchIdentifier(value);
 }
 
 export function formatMetadataPredicateValue(node: MetadataPredicate): string {

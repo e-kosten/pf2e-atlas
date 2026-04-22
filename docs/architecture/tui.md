@@ -78,7 +78,7 @@ But the TUI keeps UI concerns local:
 - screen controllers own transient selection, pane focus, and detail-scroll state
 - workflows own prompt flows, modal handoffs, session cleanup, and live-count/result-window behavior
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
-- shared list/detail presentation helpers now own repeated pane measurement, screen-model assembly, and shared interaction-context setup for screens that follow the common list/detail pattern
+- shared list/detail presentation owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, and shared breadcrumb formatting for screens that follow the common list/detail pattern
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
@@ -131,7 +131,7 @@ Route readiness is part of that same boundary:
 
 ### Shared List/Detail Presentation Layer
 
-`src/tui/list-detail-presentation.ts` sits above the lower-level interaction/router primitives and below feature controllers.
+`src/tui/list-detail-presentation.ts` and `src/tui/list-detail-formatting.ts` sit above the lower-level interaction/router primitives and below feature controllers.
 
 It owns the repeated mechanics that several screens were previously rebuilding:
 
@@ -139,7 +139,7 @@ It owns the repeated mechanics that several screens were previously rebuilding:
 - shared assembly of `TerminalPaneScreen` / `TerminalTwoPaneScreen` props
 - common interaction-context setup for list, detail, optional text-entry, and optional action-target flows
 - transient footer-banner notifications for lightweight failed-navigation or informational feedback
-- shared breadcrumb and default result-row formatting for list/detail search and explorer surfaces
+- shared breadcrumb and default result-row formatting for list/detail search and explorer surfaces, using the shared ontology/search vocabulary owner for friendly fallback rendering where no explicit alias exists
 
 It does not own feature-domain workflows. Search, filter explorer, and review still decide:
 
@@ -147,6 +147,8 @@ It does not own feature-domain workflows. Search, filter explorer, and review st
 - how list rows, detail lines, and status text are built
 - which notification messages and tones to emit for local workflow outcomes
 - how shared presentation intents map to local reducer actions or async workflow steps
+
+Pane-focus changes remain explicit feature actions. The shared notification seam exists so failed rightward drill/open intent can surface lightweight feedback without silently flipping list/detail focus.
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 

@@ -7,7 +7,7 @@ Last reviewed: 2026-04-22
 
 ## Problem
 
-This item is complete. Shared list/detail presentation owners now format breadcrumbs through one helper and render compact default result rows that keep record identity primary while omitting repeated scope text already carried elsewhere in the screen.
+This item is complete. Shared list/detail formatting now lives on the shared TUI presentation helpers, with breadcrumbs routed through one formatter and compact default result rows keeping record identity primary while omitting repeated scope text already carried elsewhere in the screen.
 
 ## Desired Outcome
 
@@ -16,7 +16,7 @@ That landed outcome is:
 - primary record identity leads the shared default result row
 - repeated category or subcategory scope no longer gets restated in result rows when the screen subtitle already carries it
 - breadcrumbs route through one shared formatter instead of per-screen joins
-- shared ontology/search labels replace raw metadata ids and raw field-type wording in the affected list/detail surfaces
+- shared ontology/search labels and fallback humanization replace raw metadata ids and raw field-type wording in the affected list/detail surfaces
 
 ## Constraints
 

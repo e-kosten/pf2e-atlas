@@ -20,9 +20,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
 
-- [Ontology browser naming friendliness](./items/ontology-browser-naming-friendliness.md)
-  Replace machine-shaped explorer labels such as `EnumString` and `derivedTags` with natural wording and casing suited to the TUI. Status: proposed.
-
 - [Remove isUnique metadata](./items/remove-isunique-metadata.md)
   Stop exposing `isUnique` as standalone metadata where it only duplicates rarity semantics. Status: proposed.
 
@@ -46,10 +43,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
-- [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
-  Explore shared grouping keys and user-cyclable presentation modes for list/detail search and explorer surfaces without regressing back into per-screen experiments. Status: proposed.
-
 ## Later
+
+- [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
+  Explore shared grouping keys and user-cyclable presentation modes for list/detail search and explorer surfaces without regressing back into per-screen experiments. Status: deferred.
 
 - [Category relevance script](./items/category-relevance-script.md)
   Add tooling to help tagging work happen in coherent batches without forcing one agent or reviewer to keep an entire family/tag space in active memory. Status: proposed.

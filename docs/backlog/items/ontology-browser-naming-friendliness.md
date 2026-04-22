@@ -1,25 +1,21 @@
 # Ontology Browser Naming Friendliness
 
-Status: proposed  
+Status: done  
 Priority: now  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-22
 
 ## Problem
 
-The ontology and search-semantics explorer still surfaces some machine-shaped names that read naturally in code but not in the TUI. Examples called out in scratch planning included labels like `EnumString` and `derivedTags`.
-
-Those labels make the explorer feel internal-facing instead of reader-friendly, especially in a text UI where wording carries more of the interface burden.
+This item is complete. Shared ontology/search wording now routes through the domain-owned presentation vocabulary, and uncatalogued values fall back to one shared friendly humanization path instead of surfacing raw ids such as `EnumString`, `derivedTags`, `party_role`, or `characterCreation`.
 
 ## Desired Outcome
 
-Make the explorer labels read like natural user-facing copy rather than implementation vocabulary.
+That landed outcome is:
 
-That work should:
-
-- replace internal casing and type-flavored labels with natural wording
-- preserve stable underlying semantics and ids while improving displayed copy
-- keep the explorer readable without hiding important distinctions between field types or domains
+- shared metadata-field and field-type labels render through one domain owner
+- category, subcategory, tag, predicate, breadcrumb, and detail values fall back to friendly rendering when no explicit alias exists
+- stable ids and search semantics stay unchanged beneath the presentation layer
 
 ## Constraints
 
@@ -29,7 +25,7 @@ That work should:
 
 ## Notes
 
-The scratch note that prompted this item specifically called out explorer labels like `EnumString` and `derivedTags` as unfriendly in the TUI.
+The original naming cleanup is done. Any future wording work should be a narrower refinement rather than a first-pass friendliness fix.
 
 ## Related
 

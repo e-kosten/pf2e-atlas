@@ -210,7 +210,6 @@ export function useSearchScreenController({
     selectionJumpSize,
     pageSize,
     maxDetailScroll,
-    hasSelectedResult: Boolean(selectedResult),
     onIntent: handleIntent,
   });
 

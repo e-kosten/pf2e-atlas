@@ -1,4 +1,5 @@
 import type { OntologyTextLine } from "../../domain/ontology-types.js";
+import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { NormalizedRecord, SourceCategory } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
@@ -121,12 +122,23 @@ function renderNullable(value: string | number | null | undefined): string {
   return String(value);
 }
 
+function renderVocabularyValue(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "(none)";
+  }
+  return formatOntologySearchVocabularyLabel(value);
+}
+
 function renderBoolean(value: boolean): string {
   return value ? "yes" : "no";
 }
 
 function renderList(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "(none)";
+}
+
+function renderVocabularyList(values: string[]): string {
+  return values.length > 0 ? values.map((value) => formatOntologySearchVocabularyLabel(value)).join(", ") : "(none)";
 }
 
 function formatPriceCp(priceCp: number | null): string {
@@ -389,22 +401,22 @@ export function buildOntologyExplorerEntityDetailLines(
 
   appendSection(lines, "Identity", [
     ["Pack", record.packName],
-    ["Type", record.type],
+    ["Type", renderVocabularyValue(record.type)],
     ["Document", record.documentType],
-    ["Category", record.category],
-    ["Subcategory", renderNullable(record.subcategory)],
+    ["Category", renderVocabularyValue(record.category)],
+    ["Subcategory", renderVocabularyValue(record.subcategory)],
     ["Level", renderNullable(record.level)],
-    ["Rarity", renderNullable(record.rarity)],
+    ["Rarity", renderVocabularyValue(record.rarity)],
     ["Unique", renderBoolean(record.isUnique)],
-    ["Source category", record.sourceCategory],
+    ["Source category", renderVocabularyValue(record.sourceCategory)],
     ["Publication", renderNullable(record.publicationTitle)],
     ["Remaster", renderBoolean(record.publicationRemaster)],
   ]);
 
   appendSection(lines, "Retrieval", [
-    ["Traits", renderList(record.traits)],
-    ["Derived tags", renderList(record.derivedTags)],
-    ["Families", renderList(record.families)],
+    ["Traits", renderVocabularyList(record.traits)],
+    ["Derived tags", renderVocabularyList(record.derivedTags)],
+    ["Families", renderVocabularyList(record.families)],
   ]);
 
   if (aonSearchLink) {
@@ -418,33 +430,33 @@ export function buildOntologyExplorerEntityDetailLines(
   }
 
   appendSection(lines, "Creature/Actor", [
-    ["Size", renderNullable(record.size)],
-    ["Languages", renderList(record.languages)],
-    ["Speeds", renderList(record.speedTypes)],
-    ["Senses", renderList(record.senses)],
-    ["Immunities", renderList(record.immunities)],
-    ["Resistances", renderList(record.resistances)],
-    ["Weaknesses", renderList(record.weaknesses)],
+    ["Size", renderVocabularyValue(record.size)],
+    ["Languages", renderVocabularyList(record.languages)],
+    ["Speeds", renderVocabularyList(record.speedTypes)],
+    ["Senses", renderVocabularyList(record.senses)],
+    ["Immunities", renderVocabularyList(record.immunities)],
+    ["Resistances", renderVocabularyList(record.resistances)],
+    ["Weaknesses", renderVocabularyList(record.weaknesses)],
   ]);
 
   appendSection(lines, "Item", [
-    ["Item category", renderNullable(record.itemCategory)],
-    ["Base item", renderNullable(record.baseItem)],
+    ["Item category", renderVocabularyValue(record.itemCategory)],
+    ["Base item", renderVocabularyValue(record.baseItem)],
     ["Price", formatPriceCp(record.priceCp)],
-    ["Usage", renderNullable(record.usage)],
+    ["Usage", renderVocabularyValue(record.usage)],
     ["Hands", renderNullable(record.hands)],
-    ["Damage types", renderList(record.damageTypes)],
-    ["Weapon group", renderNullable(record.weaponGroup)],
-    ["Armor group", renderNullable(record.armorGroup)],
+    ["Damage types", renderVocabularyList(record.damageTypes)],
+    ["Weapon group", renderVocabularyValue(record.weaponGroup)],
+    ["Armor group", renderVocabularyValue(record.armorGroup)],
   ]);
 
   appendSection(lines, "Spell", [
-    ["Traditions", renderList(record.traditions)],
-    ["Spell kinds", renderList(record.spellKinds)],
+    ["Traditions", renderVocabularyList(record.traditions)],
+    ["Spell kinds", renderVocabularyList(record.spellKinds)],
     ["Range", renderNullable(record.rangeText)],
-    ["Area type", renderNullable(record.areaType)],
+    ["Area type", renderVocabularyValue(record.areaType)],
     ["Area value", renderNullable(record.areaValue)],
-    ["Save", renderNullable(record.saveType)],
+    ["Save", renderVocabularyValue(record.saveType)],
     ["Duration", renderNullable(record.durationText)],
     ["Target", renderNullable(record.targetText)],
     ["Sustained", renderBoolean(record.sustained)],
@@ -454,7 +466,7 @@ export function buildOntologyExplorerEntityDetailLines(
   appendSection(lines, "Hazard", [
     ["Complex", renderBoolean(record.isComplex)],
     ["Disable", renderNullable(record.disableText)],
-    ["Disable skills", renderList(record.disableSkills)],
+    ["Disable skills", renderVocabularyList(record.disableSkills)],
   ]);
 
   if (record.blurbText) {

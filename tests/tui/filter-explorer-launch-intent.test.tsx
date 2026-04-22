@@ -99,4 +99,47 @@ describe("filter explorer launch intent", () => {
     const [intent] = onOpenQueryIntent.mock.calls[0] ?? [];
     expect(intent?.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
   });
+
+  it("renders a shared warning banner instead of changing focus when rightward drill hits a dead end", async () => {
+    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <FilterExplorerScreen
+          title="Search Semantics"
+          model={{
+            id: "search-semantics",
+            label: "Search Semantics",
+            description: "Search semantics ontology",
+            rootNodes: [
+              {
+                id: "spell:leaf",
+                kind: "value",
+                label: "Leaf Entry",
+                filterText: "leaf entry",
+                listLabel: "Leaf Entry",
+                detailTitle: "Leaf Entry",
+                detailLines: [{ text: "Leaf Entry", tone: "section" }],
+              },
+            ],
+          }}
+          onExit={vi.fn()}
+          mode={{
+            kind: "inspect-and-open",
+            onOpenQueryIntent,
+          }}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("[LIST] Explorer Entries");
+
+    app.stdin.write("\u001b[C");
+    await flushInk();
+
+    expect(onOpenQueryIntent).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("[LIST] Explorer Entries");
+    expect(app.lastFrame()).toContain("No deeper explorer level is available for the focused entry.");
+    expect(app.lastFrame()).not.toContain("[DETAIL] Leaf Entry");
+  });
 });

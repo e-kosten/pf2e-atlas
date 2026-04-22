@@ -1,4 +1,5 @@
 import { orderFilterValues, type FilterValueOrdering } from "../../domain/filter-value-ordering.js";
+import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type {
   Pf2eTerminalFacetField,
@@ -127,31 +128,16 @@ export const SEARCH_SORT_OPTIONS: Record<Pf2eTerminalSearchMode, Pf2eTerminalSea
 
 export const FACET_FIELD_EXCLUSIONS = new Set<Pf2eTerminalFacetField>(["rarity"]);
 
-export function humanizeIdentifier(value: string): string {
-  return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .split(/[_\s-]+/)
-    .filter((segment) => segment.length > 0)
-    .map((segment) => `${segment[0]!.toUpperCase()}${segment.slice(1)}`)
-    .join(" ");
-}
-
 export function formatCategoryLabel(category: SearchCategory): string {
-  return humanizeIdentifier(category);
+  return formatOntologySearchVocabularyLabel(category);
 }
 
 export function formatSubcategoryLabel(subcategory: SearchSubcategory): string {
-  return humanizeIdentifier(subcategory);
+  return formatOntologySearchVocabularyLabel(subcategory);
 }
 
 export function formatFilterValueLabel(value: string): string {
-  if (value === "true") {
-    return "True";
-  }
-  if (value === "false") {
-    return "False";
-  }
-  return humanizeIdentifier(value);
+  return formatOntologySearchVocabularyLabel(value);
 }
 
 export function orderStringValues(values: readonly string[], ordering?: FilterValueOrdering): string[] {

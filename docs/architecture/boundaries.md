@@ -155,7 +155,7 @@ Important expectations:
 - treat ontology nodes as readonly browse models
 - keep helper caches alongside ontology helpers rather than mutating shared nodes from UI code
 - move shared vocabulary into `src/domain/` when the concept is no longer ontology-specific
-- route shared ontology/search labels for metadata fields and field types through `src/domain/presentation-vocabulary.ts` instead of screen-local humanization or raw ids
+- route shared ontology/search labels and friendly fallback humanization through `src/domain/presentation-vocabulary.ts` instead of screen-local humanization or raw ids
 
 The lint config also contains ontology-specific syntax guards in `src/app/ontology-service.ts` to keep search semantics output aligned with the final browse model instead of regressing toward ad hoc example-only nodes.
 
@@ -185,7 +185,7 @@ Menu-style TUI editors should also derive footer and help bindings from one shar
 
 List/detail screens that fit the shared contract should go through `src/tui/list-detail-presentation.ts`. Repeating pane measurement, transition-footer composition, visible-detail slicing, or list/detail router setup in feature controllers is an architecture violation once that shared presentation owner applies.
 
-List/detail screens that need lightweight transient feedback should also route that feedback through the shared list/detail notification seam instead of storing ad hoc footer-banner strings in feature-local state. Shared breadcrumb formatting and default result-row formatting for search/explorer list/detail surfaces should stay on the shared TUI presentation owners rather than being reassembled per screen.
+List/detail screens that need lightweight transient feedback should also route that feedback through the shared list/detail notification seam instead of storing ad hoc footer-banner strings in feature-local state. Shared breadcrumb formatting and default result-row formatting for search/explorer list/detail surfaces should stay on the shared TUI presentation owners in `src/tui/list-detail-formatting.ts` rather than being reassembled per screen. Pane-focus changes should remain explicit interaction actions rather than rightward dead-end or preview fallbacks.
 
 ### Domain Boundary
 
@@ -195,7 +195,7 @@ List/detail screens that need lightweight transient feedback should also route t
 - UI-agnostic
 - storage-lifecycle-agnostic
 
-It is the right home for shared contracts, category vocabularies, metadata semantics, ontology types, and broad reusable ontology/search presentation vocabulary such as shared metadata-field and field-type labels. If code needs runtime composition, SQL access, prompt handling, or wire formatting, it belongs above the domain layer.
+It is the right home for shared contracts, category vocabularies, metadata semantics, ontology types, and broad reusable ontology/search presentation vocabulary such as shared metadata-field labels, field-type labels, and default humanization for uncatalogued ontology/search identifiers. If code needs runtime composition, SQL access, prompt handling, or wire formatting, it belongs above the domain layer.
 
 There is no approved broad `src/domain/index.ts` import path. When non-tag code needs a contract or vocabulary, import the concrete `src/domain/*` owner file directly.
 

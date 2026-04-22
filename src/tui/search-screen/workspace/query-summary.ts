@@ -1,4 +1,5 @@
 import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
+import { humanizeOntologySearchIdentifier } from "../../../domain/presentation-vocabulary.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import type {
   Pf2eTerminalFilterValuePolicy,
@@ -14,7 +15,6 @@ import {
 } from "../../search/query-state.js";
 import { formatFilterExplorerPolicySummary } from "../../framework/policy-presentation.js";
 import { countMetadataPredicates, flattenMetadataTree } from "../../search/query-core.js";
-import { humanizeIdentifier } from "../../search/service-options.js";
 import type { SearchStructuredDraftAnchor } from "../../search/structured-draft-session.js";
 
 export type SearchQuerySummaryAnchor =
@@ -54,11 +54,11 @@ export type SearchQuerySummary = {
 };
 
 export function formatSearchCategory(category: SearchCategory | null): string {
-  return category ? humanizeIdentifier(category) : "Any Category";
+  return category ? humanizeOntologySearchIdentifier(category) : "Any Category";
 }
 
 export function formatSearchSubcategory(subcategory: SearchSubcategory | null): string {
-  return subcategory ? humanizeIdentifier(subcategory) : "Any Subcategory";
+  return subcategory ? humanizeOntologySearchIdentifier(subcategory) : "Any Subcategory";
 }
 
 export function formatSearchScope(category: SearchCategory | null, subcategory: SearchSubcategory | null): string {
@@ -71,11 +71,11 @@ export function formatSearchScope(category: SearchCategory | null, subcategory: 
 }
 
 export function formatMode(mode: Pf2eTerminalSearchMode): string {
-  return humanizeIdentifier(mode);
+  return humanizeOntologySearchIdentifier(mode);
 }
 
 function formatPolicyValue(value: number | string): string {
-  return typeof value === "number" ? String(value) : humanizeIdentifier(value);
+  return typeof value === "number" ? String(value) : humanizeOntologySearchIdentifier(value);
 }
 
 export function formatFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): string {
