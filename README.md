@@ -48,14 +48,6 @@ npm run mcp
 
 For deeper local developer and editorial tooling, use the script surfaces under [`scripts/`](./scripts/package.json) and [`src/tags/cli/`](./src/tags/cli/package.json). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the command layout.
 
-## Contact
-
-For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
-
-## Paizo Community Use Notice
-
-PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
-
 ## Data And Index
 
 The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
@@ -141,3 +133,11 @@ For the full MCP tool catalog, response field reference, and detailed search beh
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, developer commands, and repo layout
 - [docs/mcp-and-search.md](./docs/mcp-and-search.md) for MCP tool and search reference
 - [docs/architecture](./docs/architecture/overview.md) for architecture, boundaries, and subsystem docs
+
+## Contact
+
+For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
+
+## Paizo Community Use Notice
+
+PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
