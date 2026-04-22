@@ -50,7 +50,7 @@ For deeper local developer and editorial tooling, use the script surfaces under 
 
 ## Contact
 
-For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/ekosten/pathfinder-2e-foundry-mcp/issues).
+For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
 
 ## Paizo Community Use Notice
 
