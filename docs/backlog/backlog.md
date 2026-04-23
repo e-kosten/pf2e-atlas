@@ -25,9 +25,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
-- [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
-  Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed.
-
 - [Derived-tag concept model implementation](./items/derived-tag-concept-model-implementation.md)
   Move the preserved canonical concept/projection design out of scratch planning and into tracked `src/tags/` ownership, including source-of-truth schema, projection metadata, and canonical concept relations. Status: proposed.
 
@@ -37,14 +34,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
-- [Incomplete search tail in nested explorer lists](./items/incomplete-search-tail.md)
-  Investigate why some deep explorer lists, such as `families > ghost`, advertise more results than the stepped-in detail view actually shows. Status: proposed.
-
 - [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
-
-- [Shared list/detail behavior contracts](./items/shared-list-detail-behavior-contracts.md)
-  Lift rightward intent, dead-end handling, and explicit focus policy into shared list/detail behavior infrastructure instead of repeating that policy per screen. Status: proposed.
 
 ## Later
 
@@ -71,5 +62,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Shared TUI interaction family contracts](./items/shared-tui-interaction-family-contracts.md)
   Capture the intended higher-level interaction families and the split between shared behavior contracts and feature-local workflow ownership across list/detail, menu/editor/workspace, and command/action-target surfaces. Status: proposed.
+
+- [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
+  Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed. Deferred for now, don't prioritize.
 
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.

@@ -63,10 +63,10 @@ Key semantic principles:
 
 The active scratch artifacts for this work are:
 
-- [Derived Tag Canonical Concept Model](../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping CSV](../../../scratch/plans/derived-tag-concept-mapping.csv)
-- [Derived Tag Concept Mapping Summary](../../../scratch/plans/derived-tag-concept-mapping-summary.md)
-- [Derived Tag Concept Mapping Generator](../../../scratch/scripts/generate-derived-tag-concept-mapping.mjs)
+- [Derived Tag Canonical Concept Model](../../../../scratch/plans/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping CSV](../../../../scratch/plans/derived-tag-concept-mapping.csv)
+- [Derived Tag Concept Mapping Summary](../../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Concept Mapping Generator](../../../../scratch/scripts/generate-derived-tag-concept-mapping.mjs)
 
 Those files are the live working plans. This backlog item is the durable reminder of what that work is for and where the ontology stands.
 
@@ -116,11 +116,11 @@ The main remaining review targets are:
 
 Additional remaining medium families are mostly broad utility/effect clusters in spell, equipment, and hazard spaces. Many of those may resolve through one or two family-level validation passes rather than through major model changes.
 
-The immediate pending review questions for those families are tracked separately in [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md).
+The immediate pending review questions for those families are tracked separately in [Derived-tag ontology next review questions](../../items/derived-tag-ontology-next-review-questions.md).
 
 ### Likely Future Implementation Work
 
-The actual implementation follow-through is now tracked separately in [Derived-tag concept model implementation](./derived-tag-concept-model-implementation.md).
+The actual implementation follow-through is now tracked separately in [Derived-tag concept model implementation](../../items/derived-tag-concept-model-implementation.md).
 
 When this backlog item is picked up for implementation rather than continued ontology review, the expected work will likely include:
 
@@ -132,10 +132,10 @@ When this backlog item is picked up for implementation rather than continued ont
 
 ## Related
 
-- [Derived-tag concept model implementation](./derived-tag-concept-model-implementation.md)
-- [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md)
-- [Derived-tag assignments layout](./derived-tag-assignments-layout.md)
-- [Derived tag manifest tooling metadata](./derived-tag-manifest-tooling-metadata.md)
-- [Tagging tooling reorganization](./tagging-tooling-reorg.md)
-- [Derived Tag Canonical Concept Model](../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived-tag concept model implementation](../../items/derived-tag-concept-model-implementation.md)
+- [Derived-tag ontology next review questions](../../items/derived-tag-ontology-next-review-questions.md)
+- [Derived-tag assignments layout](../../items/derived-tag-assignments-layout.md)
+- [Derived tag manifest tooling metadata](../../items/derived-tag-manifest-tooling-metadata.md)
+- [Tagging tooling reorganization](../../items/tagging-tooling-reorg.md)
+- [Derived Tag Canonical Concept Model](../../../../scratch/plans/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../../scratch/plans/derived-tag-concept-mapping-summary.md)

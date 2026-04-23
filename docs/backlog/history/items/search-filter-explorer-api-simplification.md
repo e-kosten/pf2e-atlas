@@ -82,5 +82,5 @@ This cleanup matters because future search-screen and explorer-hosting code now 
 - [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md)
 - [Structured query summary model](./structured-query-summary-model.md)
 - [Filter explorer internal decomposition](./filter-explorer-internal-decomposition.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/tui.md)
+- [Architectural boundaries](../../../architecture/boundaries.md)

@@ -30,4 +30,4 @@ This item was specifically about clarifying failed “go deeper” intent, not r
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../../architecture/tui.md)

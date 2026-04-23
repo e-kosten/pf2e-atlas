@@ -26,6 +26,8 @@ Keep each documentation surface focused on its job:
 
 - `README.md` should describe the current product, what users can do with it, and how to set it up and run it. Keep it present-state, user-facing, and low on internal implementation detail.
 - `docs/architecture/` should describe the current intended architecture and durable boundaries that the codebase is expected to follow. Do not use architecture docs as a change log or migration diary.
+- `docs/backlog/backlog.md` should list only open backlog work using the active status vocabulary in that file. Do not leave completed or superseded items in the live backlog index.
+- `docs/backlog/history/` should hold the durable history of completed or retired backlog work. When a backlog item file under `docs/backlog/items/` is marked `done` or otherwise retired from active work, move it into `docs/backlog/history/items/` and update `docs/backlog/history/done-and-superseded.md` in the same task.
 - `CONTRIBUTING.md` should carry contributor workflow, validation commands, repo layout, and other developer-facing operational guidance.
 - Historical context, design evolution, tradeoff records, and "why we changed this" material should primarily live in ADRs under `docs/architecture/decisions/`, not in README or architecture overviews.
 

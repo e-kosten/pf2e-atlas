@@ -36,11 +36,11 @@ This was a follow-through item from the shared list/detail presentation work and
 
 The derived-tag review screen still uses the shared presentation seam but does not fit this specific behavior contract because its rightward behavior is centered on an action-target flow instead of list-row confirm semantics.
 
-This item remains adjacent to the broader [Shared UI model boundary enforcement](./shared-ui-model-boundary-enforcement.md) follow-up, but it landed as a narrower behavior-specific contract rather than a broader reducer taxonomy.
+This item remains adjacent to the broader [Shared UI model boundary enforcement](../../items/shared-ui-model-boundary-enforcement.md) follow-up, but it landed as a narrower behavior-specific contract rather than a broader reducer taxonomy.
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/tui.md)
+- [Architectural boundaries](../../../architecture/boundaries.md)
 - [Right-navigation feedback](./right-navigation-feedback.md)
-- [Shared UI model boundary enforcement](./shared-ui-model-boundary-enforcement.md)
+- [Shared UI model boundary enforcement](../../items/shared-ui-model-boundary-enforcement.md)

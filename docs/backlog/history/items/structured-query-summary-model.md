@@ -49,12 +49,12 @@ The implementation includes focused validation around:
 
 ## Related
 
-- [Backlog: Search interaction cleanup](../backlog.md)
+- [Backlog: Search interaction cleanup](../../backlog.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
 - [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md)
-- [View pages and detail presentation](./view-pages-and-details.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Search architecture](../../architecture/search.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
-- [ADR 0006: Shared TUI interaction contracts](../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
-- [ADR 0009: Shared list/detail presentation layer](../../architecture/decisions/0009-shared-list-detail-presentation-layer.md)
+- [View pages and detail presentation](../../items/view-pages-and-details.md)
+- [TUI architecture](../../../architecture/tui.md)
+- [Search architecture](../../../architecture/search.md)
+- [Architectural boundaries](../../../architecture/boundaries.md)
+- [ADR 0006: Shared TUI interaction contracts](../../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
+- [ADR 0009: Shared list/detail presentation layer](../../../architecture/decisions/0009-shared-list-detail-presentation-layer.md)

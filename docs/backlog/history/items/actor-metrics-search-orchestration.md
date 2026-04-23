@@ -25,5 +25,5 @@ That outcome is now landed:
 
 ## Related
 
-- [Search architecture](../../architecture/search.md)
-- [TUI architecture](../../architecture/tui.md)
+- [Search architecture](../../../architecture/search.md)
+- [TUI architecture](../../../architecture/tui.md)
