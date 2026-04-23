@@ -69,4 +69,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Shared menu/editor behavior contracts](./items/shared-menu-editor-behavior-contracts.md)
   Track the higher-level editor/workspace interaction leak where shared mechanics exist but behavior policy still lives partly in feature-local code. Status: proposed.
 
+- [Shared TUI interaction family contracts](./items/shared-tui-interaction-family-contracts.md)
+  Capture the intended higher-level interaction families and the split between shared behavior contracts and feature-local workflow ownership across list/detail, menu/editor/workspace, and command/action-target surfaces. Status: proposed.
+
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.
