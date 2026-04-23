@@ -1,6 +1,5 @@
 import React from "react";
 
-import type { TerminalListDetailNotificationTone } from "../../list-detail-presentation.js";
 import type { SearchScreenAction, SearchScreenState } from "../state.js";
 import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
@@ -37,7 +36,6 @@ export function useSearchWorkspaceActions({
   resultCount,
   selectedWorkspaceEntry,
   showSearchHelp,
-  showNotification,
   state,
   terminal,
   user,
@@ -56,11 +54,6 @@ export function useSearchWorkspaceActions({
   resultCount: number;
   selectedWorkspaceEntry?: SearchWorkspaceEntry;
   showSearchHelp: () => void;
-  showNotification: (options: {
-    message: string;
-    tone?: TerminalListDetailNotificationTone;
-    durationMs?: number;
-  }) => void;
   state: SearchScreenState;
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
@@ -310,12 +303,6 @@ export function useSearchWorkspaceActions({
           }
           dispatch({ type: "set_layout", layout: "editor", pane: "list" });
           return;
-        case "show_result_preview_hint":
-          showNotification({
-            message: "Preview is already visible. Use Tab to focus it.",
-            tone: "accent",
-          });
-          return;
         case "move_result_selection":
           dispatch({ type: "move_result_selection", delta: intent.delta, itemCount: resultCount });
           return;
@@ -349,7 +336,6 @@ export function useSearchWorkspaceActions({
       origin,
       resultCount,
       showSearchHelp,
-      showNotification,
       state.activePane,
       state.query,
       workspaceEntries.length,

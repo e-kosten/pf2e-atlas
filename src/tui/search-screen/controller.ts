@@ -197,7 +197,6 @@ export function useSearchScreenController({
     resultCount,
     selectedWorkspaceEntry,
     showSearchHelp,
-    showNotification,
     state,
     terminal,
     prompts,
@@ -216,6 +215,7 @@ export function useSearchScreenController({
     pageSize,
     maxDetailScroll,
     hasSelectedResult: Boolean(selectedResult),
+    showNotification,
     onIntent: handleIntent,
   });
 

@@ -122,7 +122,7 @@ describe("filter explorer controller routing", () => {
 
     expect(dispatch).not.toHaveBeenCalledWith({ type: "toggle_focus" });
     expect(showNotification).toHaveBeenCalledWith({
-      message: "No deeper explorer level is available for the focused entry.",
+      message: "No rightward action is available for the focused entry.",
       tone: "warning",
     });
   });

@@ -1,6 +1,8 @@
 import type { TerminalInteractionAction, TerminalInteractionCommand } from "../interaction-bindings.js";
 import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "../interaction-bindings.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
+import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
+import { applyTerminalListDetailRightBehavior } from "../list-detail-behavior.js";
 import {
   useTerminalListDetailInteractionRouter,
 } from "../list-detail-presentation.js";
@@ -33,7 +35,6 @@ export type SearchScreenIntent =
   | { type: "open_result_commands" }
   | { type: "toggle_pane" }
   | { type: "return_to_editor" }
-  | { type: "show_result_preview_hint" }
   | { type: "move_result_selection"; delta: number }
   | { type: "result_selection_boundary"; boundary: "start" | "end" }
   | { type: "return_to_result_list" }
@@ -270,6 +271,10 @@ export function useSearchScreenInteractionRouter(options: {
   pageSize: number;
   maxDetailScroll: number;
   hasSelectedResult: boolean;
+  showNotification: (options: {
+    message: string;
+    tone?: TerminalListDetailNotificationTone;
+  }) => void;
   onIntent: (intent: SearchScreenIntent) => void;
 }): void {
   useTerminalListDetailInteractionRouter({
@@ -348,8 +353,17 @@ export function useSearchScreenInteractionRouter(options: {
           options.onIntent({ type: "return_to_editor" });
           return;
         }
-        if (list.navigationAction?.kind === "confirm" && options.hasSelectedResult) {
-          options.onIntent({ type: "show_result_preview_hint" });
+        if (list.navigationAction?.kind === "confirm") {
+          applyTerminalListDetailRightBehavior({
+            contract: {
+              rightIntent: "preview",
+              destination: options.hasSelectedResult
+                ? { availability: "already-satisfied" }
+                : { availability: "unavailable" },
+              deadEndPolicy: options.hasSelectedResult ? "notify" : "noop",
+            },
+            showNotification: options.showNotification,
+          });
           return;
         }
         if (list.navigationAction?.kind === "move") {

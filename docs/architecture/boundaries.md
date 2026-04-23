@@ -185,7 +185,9 @@ Menu-style TUI editors should also derive footer and help bindings from one shar
 
 List/detail screens that fit the shared contract should go through `src/tui/list-detail-presentation.ts`. Repeating pane measurement, transition-footer composition, visible-detail slicing, or list/detail router setup in feature controllers is an architecture violation once that shared presentation owner applies.
 
-List/detail screens that need lightweight transient feedback should also route that feedback through the shared list/detail notification seam instead of storing ad hoc footer-banner strings in feature-local state. Shared breadcrumb formatting and default result-row formatting for search/explorer list/detail surfaces should stay on the shared TUI presentation owners in `src/tui/list-detail-formatting.ts` rather than being reassembled per screen. Pane-focus changes should remain explicit interaction actions rather than rightward dead-end or preview fallbacks.
+List/detail screens that need lightweight transient feedback should also route that feedback through the shared list/detail notification seam instead of storing ad hoc footer-banner strings in feature-local state. Shared breadcrumb formatting and default result-row formatting for search/explorer list/detail surfaces should stay on the shared TUI presentation owners in `src/tui/list-detail-formatting.ts` rather than being reassembled per screen.
+
+Qualifying list/detail callers should also declare rightward list behavior through `src/tui/list-detail-behavior.ts` instead of hand-rolling dead-end detection, rightward notification copy, or focus-fallback behavior in feature code. The shared contract owns `drill`/`open`/`preview`/`none`, destination availability, and shared dead-end policy. Pane-focus changes should remain explicit interaction actions rather than rightward dead-end or preview fallbacks.
 
 ### Domain Boundary
 

@@ -78,7 +78,7 @@ But the TUI keeps UI concerns local:
 - screen controllers own transient selection, pane focus, and detail-scroll state
 - workflows own prompt flows, modal handoffs, session cleanup, and live-count/result-window behavior
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
-- shared list/detail presentation owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, and shared breadcrumb formatting for screens that follow the common list/detail pattern
+- shared list/detail owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, shared breadcrumb formatting, and the reusable rightward behavior contract for screens that follow the common list/detail pattern
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
@@ -129,9 +129,9 @@ Route readiness is part of that same boundary:
 - route screens should mount from render-ready payloads, not kick off route-entry bootstrap work after navigation
 - the currently mounted screen hosts the shared transition-status affordance while navigation prepares the next route
 
-### Shared List/Detail Presentation Layer
+### Shared List/Detail Presentation And Behavior Layer
 
-`src/tui/list-detail-presentation.ts` and `src/tui/list-detail-formatting.ts` sit above the lower-level interaction/router primitives and below feature controllers.
+`src/tui/list-detail-presentation.ts`, `src/tui/list-detail-behavior.ts`, and `src/tui/list-detail-formatting.ts` sit above the lower-level interaction/router primitives and below feature controllers.
 
 It owns the repeated mechanics that several screens were previously rebuilding:
 
@@ -139,16 +139,20 @@ It owns the repeated mechanics that several screens were previously rebuilding:
 - shared assembly of `TerminalPaneScreen` / `TerminalTwoPaneScreen` props
 - common interaction-context setup for list, detail, optional text-entry, and optional action-target flows
 - transient footer-banner notifications for lightweight failed-navigation or informational feedback
+- reusable rightward list behavior contracts such as `drill`, `open`, `preview`, or `none`
+- shared dead-end handling for qualifying list/detail screens, including notification-vs-noop policy and preview-already-visible behavior
 - shared breadcrumb and default result-row formatting for list/detail search and explorer surfaces, using the shared ontology/search vocabulary owner for friendly fallback rendering where no explicit alias exists
 
 It does not own feature-domain workflows. Search, filter explorer, and review still decide:
 
 - which actions are available in each context
 - how list rows, detail lines, and status text are built
-- which notification messages and tones to emit for local workflow outcomes
-- how shared presentation intents map to local reducer actions or async workflow steps
+- how successful rightward intents map to local reducer actions or async workflow steps
+- which non-contract workflow outcomes still warrant local notification or prompt handling
 
-Pane-focus changes remain explicit feature actions. The shared notification seam exists so failed rightward drill/open intent can surface lightweight feedback without silently flipping list/detail focus.
+Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
+
+The current qualifying callers are the search result reader and the filter explorer in both inspect and compose modes. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 

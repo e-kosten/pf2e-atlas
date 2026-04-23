@@ -1,5 +1,9 @@
 import type { TerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { TerminalInteractionAction } from "../interaction-bindings.js";
+import {
+  applyTerminalListDetailRightBehavior,
+  type TerminalListDetailRightBehaviorContract,
+} from "../list-detail-behavior.js";
 import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
 import { getFilterExplorerScalarClause, getFilterExplorerTargetState } from "./compose-state.js";
 import {
@@ -154,6 +158,97 @@ function handleSharedFilterExplorerAction(args: {
   return false;
 }
 
+function resolveFilterExplorerListRightBehavior(args: {
+  browserContext: FilterExplorerBrowserContext;
+  dispatch: (action: FilterExplorerAction) => void;
+  draft: FilterExplorerComposeDraft;
+  keyContext: FilterExplorerKeyContext;
+  options: FilterExplorerOptions;
+  updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
+}): TerminalListDetailRightBehaviorContract {
+  const { browserContext, dispatch, draft, keyContext, options, updateDraft } = args;
+
+  if (options.mode.kind === "compose") {
+    const composeMode = options.mode;
+    const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+    const canOpenTarget = Boolean(target && (target.kind !== "scalar" || composeMode.onEditScalarTarget));
+
+    if (canOpenTarget) {
+      return {
+        rightIntent: "open",
+        destination: {
+          availability: "available",
+          perform: () => {
+            void (
+              openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
+              applyComposeCycleSelection(composeMode, keyContext, updateDraft)
+            );
+          },
+        },
+      };
+    }
+
+    if (browserContext.currentNodeHasChildren) {
+      return {
+        rightIntent: "drill",
+        destination: {
+          availability: "available",
+          perform: () => {
+            dispatch({ type: "drill_in" });
+          },
+        },
+      };
+    }
+
+    return {
+      rightIntent: target ? "open" : "none",
+      destination: { availability: "unavailable" },
+      deadEndPolicy: "notify",
+    };
+  }
+
+  const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode);
+  const shouldOpenResult =
+    (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult) ||
+      (!keyContext.currentNodeHasChildren && Boolean(inspectResult))) &&
+    Boolean(
+      inspectResult &&
+        (options.mode.onOpenInspectResult ||
+          options.mode.onOpenQueryIntent ||
+          (inspectResult.target?.kind === "scalar" && options.mode.onEditScalarTarget)),
+    );
+
+  if (shouldOpenResult) {
+    return {
+      rightIntent: "open",
+      destination: {
+        availability: "available",
+        perform: () => {
+          void openFilterExplorerInspectResult({ options, keyContext, result: inspectResult });
+        },
+      },
+    };
+  }
+
+  if (browserContext.currentNodeHasChildren) {
+    return {
+      rightIntent: "drill",
+      destination: {
+        availability: "available",
+        perform: () => {
+          dispatch({ type: "drill_in" });
+        },
+      },
+    };
+  }
+
+  return {
+    rightIntent: inspectResult ? "open" : "none",
+    destination: { availability: "unavailable" },
+    deadEndPolicy: "notify",
+  };
+}
+
 export function handleFilterExplorerInteractionRoute(args: {
   route: FilterExplorerInteractionRoute;
   adapters: TerminalInteractionContextAdapters;
@@ -247,35 +342,17 @@ export function handleFilterExplorerInteractionRoute(args: {
     return;
   }
   if (listNavigationAction?.kind === "confirm") {
-    if (options.mode.kind === "compose") {
-      const target = options.mode.resolveSelectionTarget(keyContext.currentNode);
-      if (
-        openComposeScalarEditor(options.mode, target, draft, updateDraft) ||
-        applyComposeCycleSelection(options.mode, keyContext, updateDraft)
-      ) {
-        return;
-      }
-    } else {
-      const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode);
-      if (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult)) {
-        if (openFilterExplorerInspectResult({ options, keyContext, result: inspectResult })) {
-          return;
-        }
-      } else if (!keyContext.currentNodeHasChildren && inspectResult) {
-        if (openFilterExplorerInspectResult({ options, keyContext, result: inspectResult })) {
-          return;
-        }
-      }
-    }
-
-    if (browserContext.currentNodeHasChildren) {
-      dispatch({ type: "drill_in" });
-    } else {
-      showNotification({
-        message: "No deeper explorer level is available for the focused entry.",
-        tone: "warning",
-      });
-    }
+    applyTerminalListDetailRightBehavior({
+      contract: resolveFilterExplorerListRightBehavior({
+        browserContext,
+        dispatch,
+        draft,
+        keyContext,
+        options,
+        updateDraft,
+      }),
+      showNotification,
+    });
     return;
   }
 

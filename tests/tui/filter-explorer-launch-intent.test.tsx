@@ -139,7 +139,7 @@ describe("filter explorer launch intent", () => {
 
     expect(onOpenQueryIntent).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("[LIST] Explorer Entries");
-    expect(app.lastFrame()).toContain("No deeper explorer level is available for the focused entry.");
+    expect(app.lastFrame()).toContain("No rightward action is available for the focused entry.");
     expect(app.lastFrame()).not.toContain("[DETAIL] Leaf Entry");
   });
 });
