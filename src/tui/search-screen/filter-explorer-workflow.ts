@@ -4,7 +4,6 @@ import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
-import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalPreparedFilterExplorerContext,
@@ -73,16 +72,13 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const loadModelForDiscoveryMode = async (discoveryMode: SearchFilterDiscoveryMode) => {
-        const searchSemanticsDomain = await services.ontology.loadSearchSemanticsDomain(discoveryMode);
-        return buildSearchFilterExplorerModel(searchSemanticsDomain, {
-          category: scopeCategory,
-          subcategory: scopeSubcategory,
-          fieldOptions,
-          singleFieldBehavior,
-        });
-      };
-      const model = await loadModelForDiscoveryMode("matching");
+      const searchSemanticsDomain = await services.ontology.loadSearchSemanticsDomain();
+      const model = buildSearchFilterExplorerModel(searchSemanticsDomain, {
+        category: scopeCategory,
+        subcategory: scopeSubcategory,
+        fieldOptions,
+        singleFieldBehavior,
+      });
       if (model.rootNodes.length === 0) {
         await onUnavailable("No ontology-backed query explorer is available for that field.");
         return false;
@@ -93,8 +89,6 @@ export function useSearchFilterExplorerWorkflow({
       setFilterExplorerSession({
         title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
         model,
-        initialDiscoveryMode: "matching",
-        loadModelForDiscoveryMode,
         draft: preparedDraft.draft,
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {

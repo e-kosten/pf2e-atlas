@@ -2081,49 +2081,9 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2 actions");
   });
 
-  it("rebuilds structured-draft shared explorer data when discovery mode changes", async () => {
+  it("keeps structured-draft shared explorer commands neutral until mode-aware loaders land", async () => {
     const services = createServices();
-    const createModeSpecificDomain = (valueLabel: string): OntologyDomainModel => {
-      const domain = createFacetPickerOntologyDomainWithDiscreteFields();
-      return {
-        ...domain,
-        rootNodes: domain.rootNodes.map((rootNode, rootIndex) =>
-          rootIndex !== 0
-            ? rootNode
-            : {
-                ...rootNode,
-                children: (rootNode.children ?? []).map((childNode, childIndex) =>
-                  childIndex !== 0
-                    ? childNode
-                    : {
-                        ...childNode,
-                        children: (childNode.children ?? []).map((node) =>
-                          node.id !== "spell:field:rarity"
-                            ? node
-                            : {
-                                ...node,
-                                children: [
-                                  {
-                                    id: `spell:field:rarity:value:${valueLabel}`,
-                                    kind: "value",
-                                    label: valueLabel,
-                                    filterText: valueLabel,
-                                    listLabel: valueLabel,
-                                    detailTitle: "Value Details",
-                                    detailLines: [{ text: valueLabel, tone: "section" }],
-                                  },
-                                ],
-                              },
-                        ),
-                      },
-                ),
-              },
-        ),
-      };
-    };
-    const loadSearchSemanticsDomain = vi.fn((mode?: "matching" | "catalog") =>
-      mode === "catalog" ? createModeSpecificDomain("catalog-only") : createModeSpecificDomain("matching-only"),
-    );
+    const loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
 
     const app = render(
@@ -2163,28 +2123,10 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Rarity Explorer");
-    expect(app.lastFrame()).toContain("matching counts");
-    expect(app.lastFrame()).toContain("matching-only");
-    expect(app.lastFrame()).not.toContain("catalog-only");
-
-    app.stdin.write(":");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Rarity Explorer Commands");
-    expect(app.lastFrame()).toContain("Use Catalog Counts");
-
-    for (const character of "catalog") {
-      app.stdin.write(character);
-    }
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("catalog counts");
-    expect(app.lastFrame()).toContain("catalog-only");
-    expect(app.lastFrame()).not.toContain("matching-only");
-    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1, "matching");
-    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, "catalog");
+    expect(app.lastFrame()).not.toContain("matching counts");
+    expect(app.lastFrame()).not.toContain("catalog counts");
+    expect(app.lastFrame()).not.toContain("commands");
+    expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
   });
 
   it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {

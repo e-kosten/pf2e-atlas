@@ -223,11 +223,7 @@ describe("pf2e navigation", () => {
     expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
     expect(capture.current!.state.routeStack).toEqual([
       { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      createPf2eOntologyRoute({
-        model,
-        initialDiscoveryMode: "matching",
-        loadModelForDiscoveryMode: loadSearchSemanticsDomain,
-      }),
+      createPf2eOntologyRoute({ model }),
     ]);
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
@@ -264,13 +260,7 @@ describe("pf2e navigation", () => {
 
     expect(capture.current!.state.routeStack).toEqual([
       { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      createPf2eOntologyRoute({
-        model,
-        initialDiscoveryMode: "matching",
-        loadModelForDiscoveryMode: capture.current!.state.routeStack[1]?.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY
-          ? capture.current!.state.routeStack[1].loadModelForDiscoveryMode
-          : undefined,
-      }),
+      createPf2eOntologyRoute({ model }),
     ]);
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });

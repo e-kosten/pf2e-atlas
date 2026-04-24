@@ -392,55 +392,9 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Spell");
   });
 
-  it("exposes ontology discovery mode switching through the shared explorer commands", async () => {
+  it("does not expose ontology discovery mode switching before mode-aware loaders land", async () => {
     const services = createFakeServices();
-    const createModeSpecificModel = (valueLabel: string): OntologyDomainModel => {
-      const baseModel = createSearchSemanticsModel();
-      const baseRootNode = baseModel.rootNodes[0]!;
-      const baseMetadataGroup = baseRootNode.children![0]!;
-      const baseFieldNode = baseMetadataGroup.children![0]!;
-
-      return {
-        ...baseModel,
-        rootNodes: [
-          {
-            ...baseRootNode,
-            detailLines: [
-              ...baseRootNode.detailLines,
-              { text: `Discovery fixture: ${valueLabel}` },
-            ],
-            children: [
-              {
-                ...baseMetadataGroup,
-                children: [
-                  {
-                    ...baseFieldNode,
-                    children: [
-                      {
-                        id: `spell:publicationTitle:${valueLabel}`,
-                        kind: "value",
-                        label: valueLabel,
-                        filterText: valueLabel,
-                        listLabel: `${valueLabel} | 1`,
-                        detailTitle: "Filter Value",
-                        detailLines: [{ text: valueLabel, tone: "section" }],
-                        query: browseQuery("Browse records with this value", {
-                          category: "spell",
-                          limit: 20,
-                        }),
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-    };
-    const loadSearchSemanticsDomain = vi.fn(async (mode?: "matching" | "catalog") =>
-      mode === "catalog" ? createModeSpecificModel("catalog-only") : createModeSpecificModel("matching-only"),
-    );
+    const loadSearchSemanticsDomain = vi.fn(async () => createSearchSemanticsModel());
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
     const app = render(
       <DerivedTagTerminalProvider>
@@ -451,28 +405,10 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     await openOntologyBrowser(app);
-    expect(app.lastFrame()).toContain("matching counts");
-    expect(app.lastFrame()).toContain("Discovery fixture: matching-only");
-    expect(app.lastFrame()).not.toContain("Discovery fixture: catalog-only");
-
-    app.stdin.write(":");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Search Semantics Commands");
-    expect(app.lastFrame()).toContain("Use Catalog Counts");
-
-    for (const character of "catalog") {
-      app.stdin.write(character);
-    }
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("catalog counts");
-    expect(app.lastFrame()).toContain("Discovery fixture: catalog-only");
-    expect(app.lastFrame()).not.toContain("Discovery fixture: matching-only");
-    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1);
-    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, "catalog");
+    expect(app.lastFrame()).toContain("Search Semantics");
+    expect(app.lastFrame()).not.toContain("matching counts");
+    expect(app.lastFrame()).not.toContain("catalog counts");
+    expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
   });
 
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {

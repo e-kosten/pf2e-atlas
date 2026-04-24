@@ -278,7 +278,7 @@ describe("application ontology service", () => {
     expect(second).toBe(first);
   });
 
-  it("caches ontology domain loads by discovery mode", async () => {
+  it("reuses the in-flight ontology domain load", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
@@ -286,14 +286,11 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    const matchingFirst = await service.loadSearchSemanticsDomain("matching");
-    const matchingSecond = await service.loadSearchSemanticsDomain("matching");
-    const catalogFirst = await service.loadSearchSemanticsDomain("catalog");
-    const catalogSecond = await service.loadSearchSemanticsDomain("catalog");
+    const first = service.loadSearchSemanticsDomain();
+    const second = service.loadSearchSemanticsDomain();
 
-    expect(matchingSecond).toBe(matchingFirst);
-    expect(catalogSecond).toBe(catalogFirst);
-    expect(catalogFirst).not.toBe(matchingFirst);
+    expect(second).toBe(first);
+    expect(await second).toBe(await first);
   });
 
   it("loads search semantics without any derived-tag explorer storage dependency", async () => {

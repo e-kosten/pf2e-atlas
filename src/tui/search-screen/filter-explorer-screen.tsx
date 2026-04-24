@@ -62,13 +62,16 @@ export function SearchFilterExplorerScreen({
     [discoveryMode, session, terminal],
   );
 
-  const discovery = React.useMemo<FilterExplorerDiscoveryState>(
-    () => ({
+  const discovery = React.useMemo<FilterExplorerDiscoveryState | undefined>(() => {
+    if (!session.loadModelForDiscoveryMode) {
+      return undefined;
+    }
+
+    return {
       mode: discoveryMode,
       onModeChange: onDiscoveryModeChange,
-    }),
-    [discoveryMode, onDiscoveryModeChange],
-  );
+    };
+  }, [discoveryMode, onDiscoveryModeChange, session.loadModelForDiscoveryMode]);
 
   const applyDraft = React.useCallback(() => {
     session.onApply(draftRef.current);

@@ -172,13 +172,16 @@ export function OntologyInspectScreen({
     },
     [discoveryMode, routeData, terminal],
   );
-  const discovery = React.useMemo<FilterExplorerDiscoveryState>(
-    () => ({
+  const discovery = React.useMemo<FilterExplorerDiscoveryState | undefined>(() => {
+    if (!routeData.loadModelForDiscoveryMode) {
+      return undefined;
+    }
+
+    return {
       mode: discoveryMode,
       onModeChange: onDiscoveryModeChange,
-    }),
-    [discoveryMode, onDiscoveryModeChange],
-  );
+    };
+  }, [discoveryMode, onDiscoveryModeChange, routeData.loadModelForDiscoveryMode]);
 
   return (
     <FilterExplorerScreen
