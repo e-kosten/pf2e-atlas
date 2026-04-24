@@ -51,6 +51,7 @@ function createDependencies(
     discovery:
       overrides.discovery ??
       createPf2eApplicationSearchDiscoveryService({
+        discoverFilterValues: vi.fn(async (query) => listFilterValues(query)),
         getPack: overrides.getPack ?? vi.fn(() => undefined),
         listFilterValues,
       }),

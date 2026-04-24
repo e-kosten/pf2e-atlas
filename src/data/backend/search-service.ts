@@ -60,6 +60,18 @@ export class Pf2eSearchBackendService {
     return this.catalog.listFilterValues(query, normalizedFilters);
   }
 
+  async discoverFilterValues(
+    query: FilterValueQuery,
+    request: Readonly<SearchRequest>,
+  ): Promise<FilterValueResult> {
+    const normalizedFilters = this.normalizeRequest(request);
+    validateSearchFilters(normalizedFilters, request.mode === "browse" ? "list" : "search");
+    const recordKeys = await this.resolveDiscoveryRecordKeys(request, normalizedFilters);
+    return this.catalog.listFilterValues(query, normalizedFilters, {
+      ...(recordKeys ? { recordKeys } : {}),
+    });
+  }
+
   listRecords(request: SearchRequest): SearchResult {
     const normalizedFilters = this.normalizeRequest(request);
     validateSearchFilters(normalizedFilters, "list");
@@ -225,6 +237,22 @@ export class Pf2eSearchBackendService {
 
   private normalizeRequest(request: SearchRequest) {
     return this.normalizeExecutionFilters(this.compileRequest(request));
+  }
+
+  private async resolveDiscoveryRecordKeys(
+    request: Readonly<SearchRequest>,
+    normalizedFilters: ReturnType<Pf2eSearchBackendService["normalizeRequest"]>,
+  ): Promise<string[] | undefined> {
+    if (request.mode === "browse") {
+      return undefined;
+    }
+
+    if (!normalizedFilters.query && !normalizedFilters.nameQuery && !normalizedFilters.excludeQuery) {
+      return undefined;
+    }
+
+    const snapshot = await buildSearchWindowSnapshot(normalizedFilters, this.runtimeSearchDependencies());
+    return snapshot.records.map((record) => record.recordKey);
   }
 
   private runtimeSearchDependencies() {

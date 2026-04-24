@@ -113,7 +113,7 @@ function createVocabulary(summary: SearchSemanticsBootstrapSummaryResult): Searc
 function createDataService(options: {
   includeSummary?: boolean;
   includeVocabulary?: boolean;
-} = {}): Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+} = {}): Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
   getPack: ReturnType<typeof vi.fn>;
   getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
   getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
@@ -121,7 +121,7 @@ function createDataService(options: {
   const summary = createSummary();
   const vocabulary = createVocabulary(summary);
 
-  const service: Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+  const service: Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
     getPack: ReturnType<typeof vi.fn>;
     getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
     getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
@@ -149,9 +149,10 @@ function createDataService(options: {
                 { value: "fogbound", count: 2 },
                 { value: "snag_line", count: 1 },
               ]
-          : [],
+      : [],
       }),
     ),
+    discoverFilterValues: vi.fn(async (query) => service.listFilterValues(query)),
     listRecords: vi.fn((request: SearchRequest) => ({
       searchProfile: null,
       mode: "structured" as const,

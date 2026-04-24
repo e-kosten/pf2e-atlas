@@ -227,6 +227,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     return { values: [] };
   });
   const discovery = createPf2eApplicationSearchDiscoveryService({
+    discoverFilterValues: vi.fn(async (query) => listFilterValues(query)),
     getPack: vi.fn(() => undefined),
     listFilterValues,
   });

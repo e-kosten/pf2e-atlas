@@ -22,6 +22,8 @@ export type {
   FilterExplorerComposeMode,
   FilterExplorerComposeTarget,
   FilterExplorerControllerContext,
+  FilterExplorerDiscoveryMode,
+  FilterExplorerDiscoveryState,
   FilterExplorerDomainId,
   FilterExplorerInspectAndOpenMode,
   FilterExplorerInspectResult,

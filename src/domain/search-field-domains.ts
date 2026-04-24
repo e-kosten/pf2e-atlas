@@ -1,4 +1,12 @@
-import type { SearchRequestMode } from "./search-request-types.js";
+import {
+  buildAllOfFilter,
+  buildAnyOfFilter,
+  buildScopeFilter,
+  type SearchFilterNode,
+  type SearchRequest,
+  type SearchRequestMode,
+} from "./search-request-types.js";
+import type { SearchCategoryInput, SearchSubcategoryInput } from "./search-types.js";
 
 export type SearchValueOrderingSpec =
   | { kind: "alpha" }
@@ -87,7 +95,7 @@ export type SearchFilterDiscoveryOption = {
 
 export type SearchFilterDiscoveryRequest = {
   mode: SearchFilterDiscoveryMode;
-  applicability: SearchFilterDiscoveryApplicability;
+  context: SearchFilterDiscoveryContext;
   target: SearchFilterDiscoveryTarget;
 };
 
@@ -96,3 +104,118 @@ export type SearchFilterDiscoveryResult = {
   target: SearchFilterDiscoveryTarget;
   options: SearchFilterDiscoveryOption[];
 };
+
+export type SearchFilterDiscoveryContext = {
+  request: Readonly<SearchRequest>;
+  applicability: SearchFilterDiscoveryApplicability;
+};
+
+function buildApplicabilityScopeKey(scope: {
+  category: string;
+  subcategory?: string | null;
+}): string {
+  return `${scope.category}|${scope.subcategory ?? ""}`;
+}
+
+function addApplicabilityScope(
+  scopes: Map<string, SearchFilterDiscoveryApplicability["scopes"][number]>,
+  category: string,
+  subcategory?: string | null,
+): void {
+  const scope = subcategory === undefined ? { category } : { category, subcategory };
+  scopes.set(buildApplicabilityScopeKey(scope), scope);
+}
+
+function collectDiscoveryApplicability(
+  filter: SearchFilterNode | undefined,
+  scopes: Map<string, SearchFilterDiscoveryApplicability["scopes"][number]>,
+  packs: Set<string>,
+): void {
+  if (!filter) {
+    return;
+  }
+
+  switch (filter.kind) {
+    case "pack":
+      packs.add(filter.value);
+      return;
+    case "scope":
+      addApplicabilityScope(
+        scopes,
+        filter.category,
+        filter.subcategory.kind === "eq"
+          ? filter.subcategory.value
+          : filter.subcategory.kind === "isNull"
+            ? null
+            : undefined,
+      );
+      return;
+    case "allOf":
+    case "anyOf":
+      for (const child of filter.children) {
+        collectDiscoveryApplicability(child, scopes, packs);
+      }
+      return;
+    case "not":
+      return;
+    default:
+      return;
+  }
+}
+
+export function extractSearchFilterDiscoveryApplicability(
+  request: Readonly<SearchRequest>,
+): SearchFilterDiscoveryApplicability {
+  const scopes = new Map<string, SearchFilterDiscoveryApplicability["scopes"][number]>();
+  const packs = new Set<string>();
+  collectDiscoveryApplicability(request.filter, scopes, packs);
+  const [pack] = packs;
+
+  return {
+    mode: request.mode,
+    ...(pack ? { pack } : {}),
+    scopes: [...scopes.values()],
+  };
+}
+
+export function createSearchFilterDiscoveryContext(
+  request: Readonly<SearchRequest>,
+): SearchFilterDiscoveryContext {
+  return {
+    request,
+    applicability: extractSearchFilterDiscoveryApplicability(request),
+  };
+}
+
+export function buildSearchFilterDiscoveryApplicabilityFilter(
+  applicability: SearchFilterDiscoveryApplicability,
+): SearchFilterNode | undefined {
+  return buildAllOfFilter([
+    applicability.pack ? { kind: "pack", value: applicability.pack } : undefined,
+    applicability.scopes.length > 0
+      ? buildAnyOfFilter(
+          applicability.scopes.map((scope) =>
+            scope.subcategory === null
+              ? ({
+                  kind: "scope",
+                  category: scope.category as SearchCategoryInput,
+                  subcategory: { kind: "isNull" },
+                } satisfies SearchFilterNode)
+              : buildScopeFilter(
+                  scope.category as SearchCategoryInput,
+                  (scope.subcategory ?? undefined) as SearchSubcategoryInput | undefined,
+                ),
+          ),
+        )
+      : undefined,
+  ]);
+}
+
+export function buildSearchFilterDiscoveryCatalogRequest(
+  applicability: SearchFilterDiscoveryApplicability,
+): SearchRequest {
+  return {
+    mode: "browse",
+    filter: buildSearchFilterDiscoveryApplicabilityFilter(applicability),
+  };
+}

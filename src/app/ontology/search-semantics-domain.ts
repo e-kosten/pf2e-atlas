@@ -179,8 +179,7 @@ export function buildSearchSemanticsDomain(
   ): Map<string, number> {
     return new Map(
       discoveryService
-        .discoverFilterValues({
-          mode: "catalog",
+        .discoverCatalogFilterValues({
           applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
           target: { field: "derivedTags" },
         })
@@ -335,8 +334,7 @@ export function buildSearchSemanticsDomain(
               loadChildren: fieldSemantics.discoverable
                 ? () => {
                     const liveValues = discoveryService
-                      .discoverFilterValues({
-                        mode: "catalog",
+                      .discoverCatalogFilterValues({
                         applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
                         target: { field },
                       })

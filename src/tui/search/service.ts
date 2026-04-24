@@ -191,8 +191,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     getFacetValueOptions: (field, category, subcategory) =>
       createFacetValueOptions(
         dependencies.discovery
-          .discoverFilterValues({
-            mode: "catalog",
+          .discoverCatalogFilterValues({
             applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
             target: { field },
           })
@@ -209,8 +208,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     getRarityOptions: (category, subcategory) =>
       createFacetValueOptions(
         dependencies.discovery
-          .discoverFilterValues({
-            mode: "catalog",
+          .discoverCatalogFilterValues({
             applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
             target: { field: "rarity" },
           })
@@ -226,8 +224,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       isActionCostRelevant(category, subcategory)
         ? createFacetValueOptions(
             dependencies.discovery
-              .discoverFilterValues({
-                mode: "catalog",
+              .discoverCatalogFilterValues({
                 applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
                 target: { field: "actionCost" },
               })

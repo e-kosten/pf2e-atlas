@@ -462,6 +462,7 @@ export function buildPagedCandidateQuery(
 export function buildFilterValueQuery(
   query: FilterValueQuery,
   filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
 ): { sql: string; params: SqlValue[] } {
   const { field } = query;
   if (field !== "actorMetrics" && field !== "itemMetrics" && (query.metricPrefix || query.metric)) {
@@ -573,7 +574,7 @@ export function buildFilterValueQuery(
     actor: "a",
     item: "i",
     spell: "s",
-  });
+  }, options);
   sql.push(...postFilterClauses);
   params.push(...postFilterParams);
   sql.push("GROUP BY value");

@@ -175,7 +175,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     searchIndicator,
   };
 
-  const interactionActions = getFilterExplorerInteractionActions(options.mode, browserContext);
+  const interactionActions = getFilterExplorerInteractionActions(options.mode, browserContext, options.discovery);
 
   const handleRoute = React.useCallback(
     (route: FilterExplorerInteractionRoute) => {

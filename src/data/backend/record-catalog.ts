@@ -86,8 +86,12 @@ export class Pf2eRecordCatalog {
     return listPacksRuntime(this.packs);
   }
 
-  listFilterValues(query: FilterValueQuery, normalizedFilters: NormalizedSearchFilters): FilterValueResult {
-    return listFilterValuesRuntime(this.db, query, normalizedFilters);
+  listFilterValues(
+    query: FilterValueQuery,
+    normalizedFilters: NormalizedSearchFilters,
+    options: { recordKeys?: string[] } = {},
+  ): FilterValueResult {
+    return listFilterValuesRuntime(this.db, query, normalizedFilters, options);
   }
 
   getAliases(recordKey: string): string[] {

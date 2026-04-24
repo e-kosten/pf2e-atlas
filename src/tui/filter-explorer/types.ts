@@ -1,4 +1,5 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type {
   DerivedTagTerminalLine,
   DerivedTagTerminalPolicySelection,
@@ -15,6 +16,13 @@ export type FilterExplorerSelectionMap = Record<string, FilterExplorerSelection>
 export type FilterExplorerModeKind = "inspect-and-open" | "compose";
 export type FilterExplorerLineTone = DerivedTagTerminalTone;
 export type FilterExplorerDomainId = string;
+export type FilterExplorerDiscoveryMode = SearchFilterDiscoveryMode;
+
+export type FilterExplorerDiscoveryState = {
+  readonly mode: FilterExplorerDiscoveryMode;
+  readonly availableModes?: readonly FilterExplorerDiscoveryMode[];
+  readonly onModeChange?: (mode: FilterExplorerDiscoveryMode) => void;
+};
 
 export interface FilterExplorerTextLine {
   readonly text: string;
@@ -228,6 +236,7 @@ export type FilterExplorerOptions = {
   rootDepth?: number;
   exitAtRootDepth?: boolean;
   mode: FilterExplorerMode;
+  discovery?: FilterExplorerDiscoveryState;
   onExit: () => void;
   title?: string;
   transitionStatus?: RouteTransitionStatus | null;
@@ -244,6 +253,7 @@ export type FilterExplorerControllerContext = {
   selectedPolicyState?: FilterExplorerPolicyState;
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
+  discovery?: FilterExplorerDiscoveryState;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 };

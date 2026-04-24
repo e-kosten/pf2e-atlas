@@ -54,7 +54,7 @@ function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> =
   };
 }
 
-function createOptions(): FilterExplorerOptions {
+function createOptions(overrides: Partial<FilterExplorerOptions> = {}): FilterExplorerOptions {
   return {
     model: createModel(),
     mode: {
@@ -62,6 +62,7 @@ function createOptions(): FilterExplorerOptions {
       resolveSelectionTarget: () => undefined,
     },
     onExit: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -161,5 +162,46 @@ describe("filter explorer controller routing", () => {
     });
 
     expect(layoutDispatch).toHaveBeenCalledWith({ type: "toggle_layout" });
+  });
+
+  it("routes discovery-mode switching through the shared command palette path", async () => {
+    const onModeChange = vi.fn();
+    const promptCommandPalette = vi.fn(() => Promise.resolve("switchToMatching"));
+
+    handleFilterExplorerInteractionRoute({
+      route: {
+        event: createEvent(),
+        interactionAction: { id: "commands" },
+      },
+      adapters: {
+        promptCommandPalette,
+      } as never,
+      browserContext: createBrowserContext(),
+      options: createOptions({
+        discovery: {
+          mode: "catalog",
+          onModeChange,
+        },
+      }),
+      draft: createDraft(),
+      updateDraft: () => {},
+      dispatch: vi.fn(),
+      showNotification: vi.fn(),
+    });
+
+    await Promise.resolve();
+
+    expect(promptCommandPalette).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Filter Explorer Commands",
+        entries: expect.arrayContaining([
+          expect.objectContaining({
+            value: "switchToMatching",
+            label: "Use Matching Counts",
+          }),
+        ]),
+      }),
+    );
+    expect(onModeChange).toHaveBeenCalledWith("matching");
   });
 });

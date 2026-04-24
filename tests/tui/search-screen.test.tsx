@@ -214,6 +214,7 @@ function createServices(
     return { values: [] };
   });
   const discovery = createPf2eApplicationSearchDiscoveryService({
+    discoverFilterValues: vi.fn(async (query) => listFilterValues(query)),
     getPack: vi.fn(() => undefined),
     listFilterValues,
   });

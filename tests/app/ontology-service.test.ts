@@ -246,6 +246,7 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
 
 function createDiscoveryService(dataService: Pick<Pf2eDataService, "listFilterValues">) {
   return createPf2eApplicationSearchDiscoveryService({
+    discoverFilterValues: vi.fn(async (query) => dataService.listFilterValues(query)),
     getPack: vi.fn(() => undefined),
     listFilterValues: dataService.listFilterValues,
   });

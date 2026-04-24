@@ -106,6 +106,10 @@ export class Pf2eDataService {
     return this.searchService.listFilterValues(query);
   }
 
+  async discoverFilterValues(query: FilterValueQuery, request: Readonly<SearchRequest>): Promise<FilterValueResult> {
+    return this.searchService.discoverFilterValues(query, request);
+  }
+
   close(): void {
     this.rankingConfigStore?.close();
     this.db.close();

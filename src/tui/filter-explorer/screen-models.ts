@@ -27,6 +27,8 @@ import {
 } from "./policy-presentation.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
+  FilterExplorerDiscoveryMode,
+  FilterExplorerDiscoveryState,
   FilterExplorerComposeMode,
   FilterExplorerBrowserContext,
   FilterExplorerControllerContext,
@@ -54,9 +56,17 @@ function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBro
     : "return to the previous level";
 }
 
+function shouldShowCommandPalette(
+  mode: FilterExplorerMode,
+  discovery?: FilterExplorerDiscoveryState,
+): boolean {
+  return mode.kind === "inspect-and-open" || Boolean(discovery?.onModeChange);
+}
+
 export function getFilterExplorerInteractionActions(
   mode: FilterExplorerMode,
   controller: FilterExplorerBrowserContext,
+  discovery?: FilterExplorerDiscoveryState,
 ): TerminalInteractionAction[] {
   if (mode.kind === "compose") {
     const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
@@ -72,6 +82,7 @@ export function getFilterExplorerInteractionActions(
         { id: "layout", label: "split-view" },
         { id: "back" },
         { id: "search" },
+        ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
         { id: "help" },
         { id: "quit", label: "back" },
       ];
@@ -89,6 +100,7 @@ export function getFilterExplorerInteractionActions(
         ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
         { id: "back" },
         { id: "search" },
+        ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
         { id: "help" },
         { id: "quit", label: "back" },
       ];
@@ -103,6 +115,7 @@ export function getFilterExplorerInteractionActions(
       { id: "layout", label: "detail-only" },
       { id: "back" },
       { id: "search" },
+      ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
       { id: "help" },
       { id: "quit", label: "back" },
     ];
@@ -352,15 +365,51 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
   ).map((row) => row.line);
 }
 
+type FilterExplorerCommandValue =
+  | "openSelection"
+  | "openQuery"
+  | "openResults"
+  | "switchToMatching"
+  | "switchToCatalog";
+
+function buildDiscoveryModeCommandEntries(
+  discovery: FilterExplorerDiscoveryState | undefined,
+): DerivedTagTerminalCommandOption<FilterExplorerCommandValue>[] {
+  if (!discovery?.onModeChange) {
+    return [];
+  }
+
+  const availableModes = discovery.availableModes ?? (["matching", "catalog"] as const);
+  const labelByMode: Record<FilterExplorerDiscoveryMode, string> = {
+    matching: "Matching",
+    catalog: "Catalog",
+  };
+  const descriptionByMode: Record<FilterExplorerDiscoveryMode, string> = {
+    matching: "Show values and counts from the current matching query context.",
+    catalog: "Show values and counts from the wider applicability slice only.",
+  };
+
+  return availableModes
+    .filter((mode) => mode !== discovery.mode)
+    .map((mode) => ({
+      value: mode === "matching" ? "switchToMatching" : "switchToCatalog",
+      label: `Use ${labelByMode[mode]} Counts`,
+      description: descriptionByMode[mode],
+      keywords: ["discovery", "counts", "mode", labelByMode[mode].toLowerCase()],
+    }));
+}
+
 export function buildFilterExplorerCommandEntries(
   controller: FilterExplorerControllerContext,
-): DerivedTagTerminalCommandOption<"openSelection" | "openQuery" | "openResults">[] {
+): DerivedTagTerminalCommandOption<FilterExplorerCommandValue>[] {
+  const commands = buildDiscoveryModeCommandEntries(controller.discovery);
+
   if (
     controller.mode.kind !== "inspect-and-open" ||
     (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQueryIntent) ||
     !controller.selectedInspectResult
   ) {
-    return [];
+    return commands;
   }
 
   const result = controller.selectedInspectResult;
@@ -372,6 +421,7 @@ export function buildFilterExplorerCommandEntries(
     : "Seed the browse/search editor from the focused selection.";
 
   return [
+    ...commands,
     ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? [
           {
@@ -400,7 +450,11 @@ export function buildFilterExplorerCommandEntries(
 }
 
 export function buildFilterExplorerHelpLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
-  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.browser);
+  const interactionActions = getFilterExplorerInteractionActions(
+    controller.mode,
+    controller.browser,
+    controller.discovery,
+  );
   const commandEntries = buildFilterExplorerCommandEntries(controller);
   const actionActions = interactionActions
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
@@ -424,7 +478,9 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
                     : action.id === "search"
                       ? "start live filtering"
                       : action.id === "commands"
-                        ? "open the explorer command palette"
+                        ? controller.discovery?.onModeChange
+                          ? "open explorer commands, including discovery-mode switching when available"
+                          : "open the explorer command palette"
                         : action.id === "help"
                           ? "show this help"
                           : "leave the explorer",
@@ -537,10 +593,15 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
 ): TerminalListDetailScreenModel {
-  const interactionActions = getFilterExplorerInteractionActions(controller.mode, controller.browser);
+  const interactionActions = getFilterExplorerInteractionActions(
+    controller.mode,
+    controller.browser,
+    controller.discovery,
+  );
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
+  const statusText = controller.discovery ? `${statusSuffix} | ${controller.discovery.mode} counts` : statusSuffix;
 
   return buildTerminalListDetailScreenModel({
     title: controller.screenTitle,
@@ -565,7 +626,7 @@ export function buildFilterExplorerScreenModel(
     footer: [
       {
         text: controller.browser.state.searchMode
-          ? TERMINAL_LIVE_FILTER_FOOTER
+            ? TERMINAL_LIVE_FILTER_FOOTER
           : formatTerminalInteractionFooter(interactionActions),
         tone: "dim",
       },
@@ -573,8 +634,8 @@ export function buildFilterExplorerScreenModel(
         text: controller.browser.state.searchMode
           ? `Search /${controller.browser.state.searchInput}`
           : controller.browser.layoutMode === "detail-only"
-            ? `detail focus | focused detail view | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`
-            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusSuffix} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
+            ? `detail focus | focused detail view | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`
+            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
         tone: "accent",
       },
     ],

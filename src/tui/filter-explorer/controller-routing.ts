@@ -60,6 +60,7 @@ export function buildFilterExplorerControllerContext(args: {
       args.options.mode.kind === "inspect-and-open"
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode)
         : undefined,
+    discovery: args.options.discovery,
     notification: args.notification,
     transitionStatus: args.options.transitionStatus,
   };

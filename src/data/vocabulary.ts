@@ -402,8 +402,9 @@ export function listFilterValues(
   db: DatabaseSync,
   query: FilterValueQuery,
   filters: NormalizedSearchFilters,
+  options: { recordKeys?: string[] } = {},
 ): FilterValueResult {
-  const { sql, params } = buildFilterValueQuery(query, filters);
+  const { sql, params } = buildFilterValueQuery(query, filters, options);
   const values = (db.prepare(sql).all(...params) as Array<{ value: string; count: number | bigint }>).map((row) => ({
     value: row.value,
     count: toSqliteNumber(row.count, `filter values for ${query.field}`),
