@@ -11,7 +11,6 @@ import type {
   SearchWindowPage,
 } from "../../domain/search-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
-import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
 import {
@@ -24,6 +23,7 @@ import {
   searchStructured as searchStructuredRuntime,
 } from "../../search/runtime-search.js";
 import { compileSearchRequest } from "../../search/request-compilation.js";
+import { buildAllOfFilter, buildAnyOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
 import { getLookupMatchType } from "../rows.js";
 import { normalizeSearchFilters, validateSearchFilters } from "../../search/filters/normalization.js";
@@ -45,7 +45,17 @@ export class Pf2eSearchBackendService {
   }
 
   listFilterValues(query: FilterValueQuery): FilterValueResult {
-    const normalizedFilters = this.normalizeExecutionFilters(query);
+    const normalizedFilters = this.normalizeRequest({
+      mode: "browse",
+      filter:
+        query.scopes && query.scopes.length > 0
+          ? buildAnyOfFilter(
+              query.scopes.map((scope) => buildScopeFilter(scope.category, scope.subcategories?.[0] ?? null)),
+            )
+          : query.category
+            ? buildScopeFilter(query.category, query.subcategory ?? null)
+            : undefined,
+    });
     validateSearchFilters(normalizedFilters, "list");
     return this.catalog.listFilterValues(query, normalizedFilters);
   }
@@ -68,7 +78,7 @@ export class Pf2eSearchBackendService {
       limit: 1,
     });
 
-    if (normalizedRequest.intent === "browse") {
+    if (normalizedRequest.mode === "browse") {
       const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
       validateSearchFilters(normalizedFilters, "list");
       return countStructuredSearchRuntime(normalizedFilters, runtime);
@@ -81,7 +91,7 @@ export class Pf2eSearchBackendService {
     const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
 
-    if (normalizedRequest.intent === "lookup") {
+    if (normalizedRequest.mode === "lookup") {
       return countStructuredSearchRuntime(normalizedFilters, runtime);
     }
 
@@ -93,7 +103,7 @@ export class Pf2eSearchBackendService {
     const runtime = this.runtimeSearchDependencies();
     const normalizedFilters = this.normalizeRequest(normalizedRequest);
 
-    if (normalizedRequest.intent === "browse") {
+    if (normalizedRequest.mode === "browse") {
       validateSearchFilters(normalizedFilters, "list");
       const sort =
         normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
@@ -152,18 +162,12 @@ export class Pf2eSearchBackendService {
     options: LookupOptions = {},
   ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
     const filters = this.normalizeRequest({
-      intent: "lookup",
-      text: name,
-      pack: options.pack,
-      category: options.category,
-      parts: options.subcategory
-        ? [
-            {
-              kind: "subcategory",
-              subcategory: options.subcategory,
-            },
-          ]
-        : [],
+      mode: "lookup",
+      search: { query: name },
+      filter: buildAllOfFilter([
+        options.pack ? { kind: "pack", value: options.pack } : undefined,
+        options.category ? buildScopeFilter(options.category, options.subcategory ?? null) : undefined,
+      ]),
       limit: 5,
     });
     validateSearchFilters(filters, "search");
@@ -178,24 +182,16 @@ export class Pf2eSearchBackendService {
         }
 
         const results = this.searchStructured({
-          intent: "lookup",
-          text: query.name,
-          pack: query.pack,
-          category: query.category,
-          parts: [
-            ...(query.subcategory
-              ? [
-                  {
-                    kind: "subcategory" as const,
-                    subcategory: query.subcategory,
-                  },
-                ]
-              : []),
+          mode: "lookup",
+          search: { query: query.name },
+          filter: buildAllOfFilter([
+            query.pack ? { kind: "pack", value: query.pack } : undefined,
+            query.category ? buildScopeFilter(query.category, query.subcategory ?? null) : undefined,
             {
-              kind: "metadataPredicate" as const,
+              kind: "metadataPredicate",
               predicate: { field: "sourceCategory", op: "eq", value: "core" },
             },
-          ],
+          ]),
           limit: 5,
         }).records;
         return {

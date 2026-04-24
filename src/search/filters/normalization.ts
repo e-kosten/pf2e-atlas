@@ -5,12 +5,192 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import type { NormalizedSearchFilters, SearchExecutionFilters } from "../contracts.js";
+import { getSearchPromotedFieldDomain } from "../../domain/search-field-domains.js";
+import type {
+  NormalizedSearchFilters,
+  SearchExecutionFilterNode,
+  SearchExecutionFilters,
+} from "../contracts.js";
 import { hasStructuredFilterSignal, resolveSearchMode } from "../ranking.js";
-import { normalizeMetadataFilterNode } from "./metadata.js";
-import { normalizeSearchScope } from "./scope.js";
+import { normalizeMetadataAtomicPredicate, normalizeSearchMetricKey } from "./metadata.js";
 
 export type SearchFilterContext = "list" | "search";
+
+function normalizeRecordKey(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error("linksTo target must not be empty.");
+  }
+  return normalized;
+}
+
+function normalizeDeclaredStringValue(field: "rarity", value: string): string {
+  const domain = getSearchPromotedFieldDomain(field).valueDomain;
+  if (domain.kind !== "closedEnum") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!domain.values.includes(normalized)) {
+    throw new Error(`Unknown ${field} value "${value}".`);
+  }
+  return normalized;
+}
+
+function normalizeDeclaredNumberValue(field: "actionCost", value: number): number {
+  const domain = getSearchPromotedFieldDomain(field).valueDomain;
+  if (domain.kind !== "boundedNumber") {
+    return value;
+  }
+  if (!Number.isFinite(value)) {
+    throw new Error(`${field} must be a finite number.`);
+  }
+  if (!domain.values.includes(value)) {
+    throw new Error(`Unsupported ${field} value "${value}".`);
+  }
+  return value;
+}
+
+function normalizeScopeFilterNode(node: Extract<SearchExecutionFilterNode, { kind: "scope" }>): SearchExecutionFilterNode {
+  const category = normalizeSearchCategory(node.category);
+  if (!category) {
+    throw new Error(getSearchCategoryErrorMessage(String(node.category)));
+  }
+
+  if (node.subcategory.kind !== "eq") {
+    return {
+      ...node,
+      category,
+    };
+  }
+
+  const subcategory = normalizeSearchSubcategory(node.subcategory.value);
+  if (!subcategory) {
+    throw new Error(getSearchSubcategoryErrorMessage(String(node.subcategory.value)));
+  }
+  if (!categorySupportsSubcategory(category, subcategory)) {
+    throw new Error(`Subcategory "${subcategory}" does not belong to category "${category}".`);
+  }
+
+  return {
+    kind: "scope",
+    category,
+    subcategory: {
+      kind: "eq",
+      value: subcategory,
+    },
+  };
+}
+
+function normalizeNumericMatch<T extends { kind: string } & Record<string, unknown>>(match: T): T {
+  if (match.kind === "between") {
+    if (!Number.isFinite(match.min as number) || !Number.isFinite(match.max as number)) {
+      throw new Error("between match requires finite min/max values.");
+    }
+    return match;
+  }
+  if (match.kind !== "isNull" && match.kind !== "isNotNull" && !Number.isFinite(match.value as number)) {
+    throw new Error(`${match.kind} match requires a finite numeric value.`);
+  }
+  return match;
+}
+
+function normalizeFilterNode(
+  node: SearchExecutionFilterNode,
+  resolvePackName: (packValue: string) => string | undefined,
+): SearchExecutionFilterNode {
+  switch (node.kind) {
+    case "pack":
+      return {
+        kind: "pack",
+        value: resolvePackName(node.value) ?? node.value,
+      };
+    case "scope":
+      return normalizeScopeFilterNode(node);
+    case "level":
+      return { kind: "level", match: normalizeNumericMatch(node.match) };
+    case "price":
+      return { kind: "price", match: normalizeNumericMatch(node.match) };
+    case "rarity":
+      if (node.match.kind !== "eq") {
+        return node;
+      }
+      return {
+        kind: "rarity",
+        match: {
+          kind: "eq",
+          value: normalizeDeclaredStringValue("rarity", node.match.value),
+        },
+      };
+    case "actionCost":
+      if (node.match.kind === "isNull" || node.match.kind === "isNotNull") {
+        return node;
+      }
+      if (node.match.kind === "between") {
+        return { kind: "actionCost", match: normalizeNumericMatch(node.match) };
+      }
+      return {
+        kind: "actionCost",
+        match: {
+          kind: node.match.kind,
+          value: normalizeDeclaredNumberValue(
+            "actionCost",
+            (node.match as Extract<typeof node.match, { kind: "eq" | "gte" | "lte" }>).value,
+          ),
+        },
+      };
+    case "linksTo":
+      return {
+        kind: "linksTo",
+        target: normalizeRecordKey(node.target),
+      };
+    case "metadataPredicate":
+      return {
+        kind: "metadataPredicate",
+        predicate: normalizeMetadataAtomicPredicate(node.predicate),
+      };
+    case "metric":
+      return {
+        ...node,
+        metric: normalizeSearchMetricKey(node.metric),
+      };
+    case "metricCompare":
+      return {
+        ...node,
+        leftMetric: normalizeSearchMetricKey(node.leftMetric),
+        rightMetric: normalizeSearchMetricKey(node.rightMetric),
+      };
+    case "anyOf":
+    case "allOf": {
+      const children = node.children.map((child) => normalizeFilterNode(child, resolvePackName));
+      if (children.length < 2) {
+        throw new Error(`${node.kind} must contain at least 2 child filters.`);
+      }
+      return {
+        kind: node.kind,
+        children,
+      };
+    }
+    case "not":
+      return {
+        kind: "not",
+        child: normalizeFilterNode(node.child, resolvePackName),
+      };
+  }
+}
+
+function validateFilterNode(node: SearchExecutionFilterNode): void {
+  if (node.kind === "anyOf" || node.kind === "allOf") {
+    if (node.children.length < 2) {
+      throw new Error(`${node.kind} must contain at least 2 child filters.`);
+    }
+    node.children.forEach(validateFilterNode);
+    return;
+  }
+
+  if (node.kind === "not") {
+    validateFilterNode(node.child);
+  }
+}
 
 export function validateSearchFilters(filters: NormalizedSearchFilters, context: SearchFilterContext): void {
   const mode = resolveSearchMode(filters, context);
@@ -19,96 +199,41 @@ export function validateSearchFilters(filters: NormalizedSearchFilters, context:
     throw new Error("searchProfile is only supported for pf2e_search.");
   }
 
-  if (context === "list" && mode !== "structured") {
-    throw new Error("List mode only supports structured retrieval.");
-  }
-
   if (context === "list" && filters.query) {
     throw new Error("query is only supported for pf2e_search.");
+  }
+
+  if (context === "list" && filters.nameQuery) {
+    throw new Error("nameQuery is only supported for pf2e_lookup/pf2e_search.");
   }
 
   if (context === "list" && filters.excludeQuery) {
     throw new Error("excludeQuery is only supported for pf2e_search.");
   }
 
+  if (context === "list" && mode !== "structured") {
+    throw new Error("List mode only supports structured retrieval.");
+  }
+
   if (mode === "structured" && filters.query) {
     throw new Error("query requires a themed search profile such as balanced or concept.");
   }
 
-  if (
-    context === "search" &&
-    !filters.query?.trim() &&
-    !filters.nameQuery?.trim() &&
-    !hasStructuredFilterSignal(filters)
-  ) {
+  if (context === "search" && !filters.query?.trim() && !filters.nameQuery?.trim() && !hasStructuredFilterSignal(filters)) {
     throw new Error("pf2e_search requires search text and/or at least one structured filter.");
   }
 
-  if (filters.linksTo !== undefined && filters.linksTo.length === 0) {
-    throw new Error("linksTo must contain at least one record key.");
+  if (filters.filter) {
+    validateFilterNode(filters.filter);
   }
-
-  if (filters.excludeLinksTo !== undefined && filters.excludeLinksTo.length === 0) {
-    throw new Error("excludeLinksTo must contain at least one record key.");
-  }
-
-  if (filters.linksToMode && (!filters.linksTo || filters.linksTo.length === 0)) {
-    throw new Error("linksToMode requires linksTo.");
-  }
-
-  if (filters.scopes && filters.scopes.length > 0 && (filters.category || filters.subcategory)) {
-    throw new Error("scopes can't be combined with top-level category or subcategory filters.");
-  }
-
-  if (filters.category && filters.subcategory && !categorySupportsSubcategory(filters.category, filters.subcategory)) {
-    throw new Error(`Subcategory "${filters.subcategory}" does not belong to category "${filters.category}".`);
-  }
-
-  if (filters.scopes) {
-    for (const scope of filters.scopes) {
-      for (const subcategory of scope.subcategories ?? []) {
-        if (!categorySupportsSubcategory(scope.category, subcategory)) {
-          throw new Error(`Subcategory "${subcategory}" does not belong to category "${scope.category}".`);
-        }
-      }
-    }
-  }
-}
-
-function normalizeRecordKeyFilter(values: string[] | undefined): string[] | undefined {
-  if (values === undefined) {
-    return undefined;
-  }
-
-  const normalized = values.map((value) => value.trim()).filter((value) => value.length > 0);
-  return [...new Set(normalized)];
 }
 
 export function normalizeSearchFilters(
   filters: SearchExecutionFilters,
   resolvePackName: (packValue: string) => string | undefined,
 ): NormalizedSearchFilters {
-  const normalizedCategory = filters.category !== undefined ? normalizeSearchCategory(filters.category) : null;
-  if (filters.category !== undefined && !normalizedCategory) {
-    throw new Error(getSearchCategoryErrorMessage(String(filters.category)));
-  }
-
-  const normalizedSubcategory =
-    filters.subcategory !== undefined ? normalizeSearchSubcategory(filters.subcategory) : null;
-  if (filters.subcategory !== undefined && !normalizedSubcategory) {
-    throw new Error(getSearchSubcategoryErrorMessage(String(filters.subcategory)));
-  }
-
-  const normalizedScopes = filters.scopes?.map((scope) => normalizeSearchScope(scope));
-
   return {
     ...filters,
-    pack: filters.pack ? (resolvePackName(filters.pack) ?? filters.pack) : filters.pack,
-    linksTo: normalizeRecordKeyFilter(filters.linksTo),
-    excludeLinksTo: normalizeRecordKeyFilter(filters.excludeLinksTo),
-    category: normalizedCategory ?? undefined,
-    subcategory: normalizedSubcategory ?? undefined,
-    metadata: filters.metadata ? normalizeMetadataFilterNode(filters.metadata) : undefined,
-    scopes: normalizedScopes,
+    filter: filters.filter ? normalizeFilterNode(filters.filter, resolvePackName) : undefined,
   };
 }

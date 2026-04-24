@@ -12,6 +12,7 @@ import {
 } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import { buildScopeFilter } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCaseLabel } from "./node-helpers.js";
@@ -649,14 +650,8 @@ export function buildSearchSemanticsDomain(
       query: {
         label: "Browse this subcategory",
         request: {
-          intent: "browse",
-          category,
-          parts: [
-            {
-              kind: "subcategory",
-              subcategory,
-            },
-          ],
+          mode: "browse",
+          filter: buildScopeFilter(category, subcategory),
           limit: 20,
         },
       },

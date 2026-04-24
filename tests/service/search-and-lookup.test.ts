@@ -2039,7 +2039,6 @@ describe("Pf2eDataService / Search and Lookup", () => {
     });
     expect(searched.records[0]?.name).toBe("Tracker's Goggles");
 
-    expect(() => service.listRecords({ linksToMode: "all" })).toThrow("linksToMode requires linksTo.");
   });
 
   it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {
@@ -2079,9 +2078,6 @@ describe("Pf2eDataService / Search and Lookup", () => {
     );
     await expect(service.search({ searchProfile: "concept" })).rejects.toThrow(
       "pf2e_search requires search text and/or at least one structured filter.",
-    );
-    expect(() => service.listRecords({ excludeQuery: "ghost" })).toThrow(
-      "excludeQuery is only supported for pf2e_search.",
     );
   });
 
@@ -2209,7 +2205,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     });
   });
 
-  it("applies excludeQuery to structured pf2e_search flows without query text", async () => {
+  it("applies excludeQuery to lexical pf2e_search flows", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
@@ -2217,14 +2213,16 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     const baseline = await service.search({
       category: "creature",
-      nameQuery: "Ghost Sailor",
+      query: "Ghost Sailor",
+      searchProfile: "lexical",
     });
     expect(baseline.records.map((record) => record.name)).toContain("Ghost Sailor");
 
     const filtered = await service.search({
       category: "creature",
-      nameQuery: "Ghost Sailor",
+      query: "Ghost Sailor",
       excludeQuery: "sailor",
+      searchProfile: "lexical",
     });
     expect(filtered.records.map((record) => record.name)).not.toContain("Ghost Sailor");
   });
@@ -2287,7 +2285,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     const bilgeResults = await service.search({
       category: "creature",
-      nameQuery: "Bilge Skeleton",
+      query: "Bilge Skeleton",
+      searchProfile: "lexical",
       explain: true,
     });
     expect(bilgeResults.records[0]?.sourceCategory).toBe("core");
@@ -2325,7 +2324,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     const exactUniqueResults = await service.search({
       category: "creature",
-      nameQuery: "Last Sentinel",
+      query: "Last Sentinel",
+      searchProfile: "lexical",
       explain: true,
     });
     expect(exactUniqueResults.records[0]?.name).toBe("Last Sentinel");
@@ -2342,7 +2342,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     const baselineResults = await service.search({
       category: "creature",
-      nameQuery: "Bilge Skeleton",
+      query: "Bilge Skeleton",
+      searchProfile: "lexical",
       explain: true,
     });
     expect(baselineResults.records[0]?.sourceCategory).toBe("core");
@@ -2359,7 +2360,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
     const updatedResults = await service.search({
       category: "creature",
-      nameQuery: "Bilge Skeleton",
+      query: "Bilge Skeleton",
+      searchProfile: "lexical",
       explain: true,
     });
     expect(updatedResults.records[0]?.sourceCategory).toBe("adventure");
@@ -3320,7 +3322,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = await loadTestService(fixture);
+    const service = adaptLegacySearchCalls(await loadTestService(fixture));
     const cases = [
       {
         filters: {
@@ -3340,7 +3342,8 @@ describe("Pf2eDataService / Search and Lookup", () => {
       {
         filters: {
           category: "creature" as const,
-          nameQuery: "Sentinel",
+          query: "Sentinel",
+          searchProfile: "lexical" as const,
           excludeQuery: "last",
           limit: 2,
         },

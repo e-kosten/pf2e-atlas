@@ -1,7 +1,7 @@
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
-import type { SearchRequest, SearchRequestPart } from "../../domain/search-request-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
@@ -20,6 +20,7 @@ import type {
   FilterExplorerComposeDraft,
   FilterExplorerSelectionMap,
 } from "../filter-explorer/types.js";
+import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
   value: SearchCategory | null;
@@ -78,7 +79,7 @@ export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTermi
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
 
-export type Pf2eTerminalSearchStructuredPart = SearchRequestPart;
+export type Pf2eTerminalSearchStructuredPart = Pf2eTerminalQueryPart;
 
 export type Pf2eTerminalSearchFilters = {
   category: SearchCategory | null;

@@ -20,6 +20,8 @@ import {
   type MetadataPredicateVariantSpec,
 } from "../domain/metadata-predicate-spec.js";
 import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
+import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
+import type { SearchFilterNode } from "../domain/search-request-types.js";
 import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
@@ -223,3 +225,189 @@ export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(
 );
 
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);
+
+const searchCollectionPredicateSchema: z.ZodType<MetadataAtomicPredicate> = buildStrictObjectSchema({
+  field: metadataSetFieldSchema,
+  op: z.enum(["includes", "isNull", "isNotNull"]),
+  value: z.string().optional(),
+}) as unknown as z.ZodType<MetadataAtomicPredicate>;
+
+const searchEnumPredicateSchema: z.ZodType<MetadataAtomicPredicate> = buildStrictObjectSchema({
+  field: metadataEnumStringFieldSchema,
+  op: z.enum(["eq", "notEq", "isNull", "isNotNull"]),
+  value: z.string().optional(),
+}) as unknown as z.ZodType<MetadataAtomicPredicate>;
+
+const searchTextPredicateSchema: z.ZodType<MetadataAtomicPredicate> = buildStrictObjectSchema({
+  field: metadataTextStringFieldSchema,
+  op: z.enum(["eq", "notEq", "contains", "notContains", "isNull", "isNotNull"]),
+  value: z.string().optional(),
+}) as unknown as z.ZodType<MetadataAtomicPredicate>;
+
+const searchNumberPredicateSchema: z.ZodType<MetadataAtomicPredicate> = z.union([
+  buildStrictObjectSchema({
+    field: metadataNumberFieldSchema,
+    op: z.enum(["eq", "notEq", "gt", "gte", "lt", "lte"]),
+    value: z.number(),
+  }),
+  buildStrictObjectSchema({
+    field: metadataNumberFieldSchema,
+    op: z.literal("between"),
+    min: z.number(),
+    max: z.number(),
+  }),
+  buildStrictObjectSchema({
+    field: metadataNumberFieldSchema,
+    op: z.enum(["isNull", "isNotNull"]),
+  }),
+]) as unknown as z.ZodType<MetadataAtomicPredicate>;
+
+const searchBooleanPredicateSchema: z.ZodType<MetadataAtomicPredicate> = z.union([
+  buildStrictObjectSchema({
+    field: metadataBooleanFieldSchema,
+    op: z.enum(["eq", "notEq"]),
+    value: z.boolean(),
+  }),
+  buildStrictObjectSchema({
+    field: metadataBooleanFieldSchema,
+    op: z.enum(["isNull", "isNotNull"]),
+  }),
+]) as unknown as z.ZodType<MetadataAtomicPredicate>;
+
+export const metadataAtomicPredicateSchema: z.ZodType<MetadataAtomicPredicate> = z.union([
+  searchCollectionPredicateSchema,
+  searchEnumPredicateSchema,
+  searchTextPredicateSchema,
+  searchNumberPredicateSchema,
+  searchBooleanPredicateSchema,
+]);
+
+const searchScopeSubcategoryMatchSchema = z.union([
+  buildStrictObjectSchema({ kind: z.literal("any") }),
+  buildStrictObjectSchema({ kind: z.literal("eq"), value: searchSubcategorySchema }),
+  buildStrictObjectSchema({ kind: z.literal("isNull") }),
+  buildStrictObjectSchema({ kind: z.literal("isNotNull") }),
+]);
+
+const searchNumericMatchSchema = z.union([
+  buildStrictObjectSchema({ kind: z.literal("eq"), value: z.number() }),
+  buildStrictObjectSchema({ kind: z.literal("gte"), value: z.number() }),
+  buildStrictObjectSchema({ kind: z.literal("lte"), value: z.number() }),
+  buildStrictObjectSchema({ kind: z.literal("between"), min: z.number(), max: z.number() }),
+]);
+
+const searchNullableNumericMatchSchema = z.union([
+  searchNumericMatchSchema,
+  buildStrictObjectSchema({ kind: z.literal("isNull") }),
+  buildStrictObjectSchema({ kind: z.literal("isNotNull") }),
+]);
+
+const searchNullableStringMatchSchema = z.union([
+  buildStrictObjectSchema({ kind: z.literal("eq"), value: z.string() }),
+  buildStrictObjectSchema({ kind: z.literal("isNull") }),
+  buildStrictObjectSchema({ kind: z.literal("isNotNull") }),
+]);
+
+export const searchFilterSchema: z.ZodType<SearchFilterNode> = z.lazy(
+  () =>
+    z.union([
+      buildStrictObjectSchema({
+        kind: z.literal("pack"),
+        value: z.string().trim().min(1),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("scope"),
+        category: searchCategorySchema,
+        subcategory: searchScopeSubcategoryMatchSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("level"),
+        match: searchNumericMatchSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("price"),
+        match: searchNumericMatchSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("rarity"),
+        match: searchNullableStringMatchSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("actionCost"),
+        match: searchNullableNumericMatchSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("linksTo"),
+        target: z.string().trim().min(1),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("metadataPredicate"),
+        predicate: metadataAtomicPredicateSchema,
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("metric"),
+        metric: z.string().trim().min(1),
+        op: z.enum(["eq", "notEq", "gt", "gte", "lt", "lte"]),
+        value: z.union([z.string(), z.number(), z.boolean()]),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("metricCompare"),
+        leftMetric: z.string().trim().min(1),
+        op: z.enum(["eq", "notEq", "gt", "gte", "lt", "lte"]),
+        rightMetric: z.string().trim().min(1),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("anyOf"),
+        children: z.array(searchFilterSchema).min(2),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("allOf"),
+        children: z.array(searchFilterSchema).min(2),
+      }),
+      buildStrictObjectSchema({
+        kind: z.literal("not"),
+        child: searchFilterSchema,
+      }),
+    ]) as unknown as z.ZodType<SearchFilterNode>,
+);
+
+export const listRecordsToolInputSchema = buildStrictObjectSchema({
+  filter: searchFilterSchema
+    .optional()
+    .describe(
+      "Canonical structured filter tree. Use atomic leaves plus anyOf/allOf/not for scope, links, ranges, metadata predicates, and metrics.",
+    ),
+  offset: z.number().int().optional().describe("Pagination offset."),
+  limit: z.number().int().optional().describe("Pagination limit, max 100."),
+});
+
+export const searchToolInputSchema = buildStrictObjectSchema({
+  searchProfile: searchProfileSchema
+    .optional()
+    .describe(
+      "User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search.",
+    ),
+  explain: z
+    .boolean()
+    .optional()
+    .describe("Include score breakdowns and query-analysis details in the response."),
+  query: z
+    .string()
+    .optional()
+    .describe(
+      "General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile.",
+    ),
+  excludeQuery: z
+    .string()
+    .optional()
+    .describe(
+      "Optional free-text exclusion terms. Remove results whose indexed search text mentions these normalized terms.",
+    ),
+  filter: searchFilterSchema
+    .optional()
+    .describe(
+      "Canonical structured filter tree. Use atomic leaves plus anyOf/allOf/not for scope, links, ranges, metadata predicates, and metrics.",
+    ),
+  offset: z.number().int().optional().describe("Pagination offset."),
+  limit: z.number().int().optional().describe("Pagination limit, max 100."),
+});

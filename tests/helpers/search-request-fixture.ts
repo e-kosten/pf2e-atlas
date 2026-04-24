@@ -1,13 +1,16 @@
-import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../../src/domain/metadata-filter-types.js";
 import {
-  metadataFilterNodeToSearchRequestParts,
+  buildAllOfFilter,
+  buildAnyOfFilter,
+  type BrowseSortSpec,
+  type LookupSortSpec,
+  type SearchFilterNode,
   type SearchRequest,
-  type SearchRequestPart,
 } from "../../src/domain/search-request-types.js";
-import type { SearchCategoryInput, SearchScope, SearchSubcategoryInput } from "../../src/domain/search-types.js";
+import type { SearchCategoryInput, SearchProfile, SearchScope, SearchSort, SearchSubcategoryInput } from "../../src/domain/search-types.js";
 
 type SearchRequestFixtureInput = {
-  searchProfile?: SearchRequest["searchProfile"];
+  searchProfile?: SearchProfile;
   explain?: boolean;
   nameQuery?: string;
   query?: string;
@@ -28,107 +31,247 @@ type SearchRequestFixtureInput = {
   actionCost?: number;
   offset?: number;
   limit?: number;
-  sort?: SearchRequest["sort"];
+  sort?: SearchSort;
   sortSeed?: number;
 };
 
-function buildParts(input: SearchRequestFixtureInput): SearchRequestPart[] {
-  return [
-    ...(input.subcategory
-      ? [
-          {
-            kind: "subcategory" as const,
-            subcategory: input.subcategory,
-          },
-        ]
-      : []),
-    ...(input.levelMin !== undefined || input.levelMax !== undefined
-      ? [
-          {
-            kind: "levelRange" as const,
-            levelMin: input.levelMin ?? null,
-            levelMax: input.levelMax ?? null,
-          },
-        ]
-      : []),
-    ...(input.rarity
-      ? [
-          {
-            kind: "rarityPolicy" as const,
-            policy: {
-              any: [input.rarity],
-              all: [],
-              exclude: [],
-            },
-          },
-        ]
-      : []),
-    ...(input.actionCost !== undefined
-      ? [
-          {
-            kind: "actionCostPolicy" as const,
-            policy: {
-              any: [input.actionCost],
-              all: [],
-              exclude: [],
-            },
-          },
-        ]
-      : []),
-    ...metadataFilterNodeToSearchRequestParts(input.metadata ?? null),
-  ];
+function metadataPredicateToFilter(predicate: MetadataPredicate): SearchFilterNode {
+  if (predicate.field === "actorMetric" || predicate.field === "itemMetric") {
+    return {
+      kind: "metric",
+      metric: predicate.metric,
+      op:
+        predicate.op === "=="
+          ? "eq"
+          : predicate.op === "!="
+            ? "notEq"
+            : predicate.op === ">"
+              ? "gt"
+              : predicate.op === ">="
+                ? "gte"
+                : predicate.op === "<"
+                  ? "lt"
+                  : "lte",
+      value: predicate.value,
+    };
+  }
+
+  if (predicate.field === "actorMetricCompare" || predicate.field === "itemMetricCompare") {
+    return {
+      kind: "metricCompare",
+      leftMetric: predicate.leftMetric,
+      op:
+        predicate.op === "=="
+          ? "eq"
+          : predicate.op === "!="
+            ? "notEq"
+            : predicate.op === ">"
+              ? "gt"
+              : predicate.op === ">="
+                ? "gte"
+                : predicate.op === "<"
+                  ? "lt"
+                  : "lte",
+      rightMetric: predicate.rightMetric,
+    };
+  }
+
+  if ("values" in predicate) {
+    const op = predicate.op === "in" || predicate.op === "notIn" ? "eq" : "includes";
+    const nodes = predicate.values.map(
+      (value) =>
+        ({
+          kind: "metadataPredicate",
+          predicate: { field: predicate.field, op, value },
+        }) as SearchFilterNode,
+    );
+
+    if (predicate.op === "includesAll") {
+      return nodes.length === 1 ? nodes[0]! : { kind: "allOf", children: nodes };
+    }
+
+    if (predicate.op === "includesAny" || predicate.op === "in") {
+      return nodes.length === 1 ? nodes[0]! : { kind: "anyOf", children: nodes };
+    }
+
+    return {
+      kind: "not",
+      child: nodes.length === 1 ? nodes[0]! : { kind: "anyOf", children: nodes },
+    };
+  }
+
+  if ("min" in predicate && "max" in predicate) {
+    return {
+      kind: "metadataPredicate",
+      predicate: { field: predicate.field, op: "between", min: predicate.min, max: predicate.max } as never,
+    };
+  }
+
+  return {
+    kind: "metadataPredicate",
+    predicate: ("value" in predicate
+      ? { field: predicate.field, op: predicate.op, value: predicate.value }
+      : predicate) as never,
+  };
 }
 
-function buildBaseRequest(input: SearchRequestFixtureInput): Omit<SearchRequest, "intent"> {
+function metadataFilterNodeToFilter(node: MetadataFilterNode | null): SearchFilterNode | undefined {
+  if (!node) {
+    return undefined;
+  }
+
+  if ("and" in node) {
+    return buildAllOfFilter(node.and.map((child) => metadataFilterNodeToFilter(child)));
+  }
+
+  if ("or" in node) {
+    return buildAnyOfFilter(node.or.map((child) => metadataFilterNodeToFilter(child)));
+  }
+
+  if ("not" in node) {
+    const child = metadataFilterNodeToFilter(node.not);
+    return child ? { kind: "not", child } : undefined;
+  }
+
+  return metadataPredicateToFilter(node);
+}
+
+function buildScopeFilter(input: SearchRequestFixtureInput): SearchFilterNode | undefined {
+  if (input.scopes && input.scopes.length > 0) {
+    return buildAnyOfFilter(
+      input.scopes.map((scope) => ({
+        kind: "scope",
+        category: scope.category,
+        subcategory: scope.subcategories?.[0]
+          ? { kind: "eq", value: scope.subcategories[0] }
+          : { kind: "any" },
+      })),
+    );
+  }
+
+  if (!input.category) {
+    return undefined;
+  }
+
   return {
-    text: input.nameQuery ?? input.query,
-    excludeQuery: input.excludeQuery,
-    searchProfile: input.searchProfile,
-    sort: input.sort,
-    sortSeed: input.sortSeed,
-    explain: input.explain,
-    pack: input.pack,
-    linksTo: input.linksTo,
-    linksToMode: input.linksToMode,
-    excludeLinksTo: input.excludeLinksTo,
+    kind: "scope",
     category: input.category,
-    scopes: input.scopes,
-    parts: buildParts(input),
-    priceMin: input.priceMin,
-    priceMax: input.priceMax,
-    offset: input.offset,
-    limit: input.limit,
+    subcategory: input.subcategory ? { kind: "eq", value: input.subcategory } : { kind: "any" },
   };
+}
+
+function buildLinksFilter(input: SearchRequestFixtureInput): SearchFilterNode | undefined {
+  const links = input.linksTo?.map((target) => ({ kind: "linksTo", target }) as SearchFilterNode) ?? [];
+  const linksFilter =
+    links.length === 0
+      ? undefined
+      : input.linksToMode === "all"
+        ? buildAllOfFilter(links)
+        : buildAnyOfFilter(links);
+
+  const excludedLinks = input.excludeLinksTo?.map((target) => ({ kind: "linksTo", target }) as SearchFilterNode) ?? [];
+  const excludedFilter =
+    excludedLinks.length === 0
+      ? undefined
+      : {
+          kind: "not",
+          child: excludedLinks.length === 1 ? excludedLinks[0]! : ({ kind: "anyOf", children: excludedLinks } as SearchFilterNode),
+        };
+
+  return buildAllOfFilter([linksFilter, excludedFilter]);
+}
+
+function buildRangeFilter(
+  kind: "level" | "price",
+  min: number | undefined,
+  max: number | undefined,
+): SearchFilterNode | undefined {
+  if (min === undefined && max === undefined) {
+    return undefined;
+  }
+
+  if (min !== undefined && max !== undefined) {
+    return min === max
+      ? { kind, match: { kind: "eq", value: min } }
+      : { kind, match: { kind: "between", min, max } };
+  }
+
+  return min !== undefined ? { kind, match: { kind: "gte", value: min } } : { kind, match: { kind: "lte", value: max! } };
+}
+
+function buildFilter(input: SearchRequestFixtureInput): SearchFilterNode | undefined {
+  return buildAllOfFilter([
+    input.pack ? ({ kind: "pack", value: input.pack } as SearchFilterNode) : undefined,
+    buildScopeFilter(input),
+    buildLinksFilter(input),
+    buildRangeFilter("level", input.levelMin, input.levelMax),
+    buildRangeFilter("price", input.priceMin, input.priceMax),
+    input.rarity ? ({ kind: "rarity", match: { kind: "eq", value: input.rarity } } as SearchFilterNode) : undefined,
+    input.actionCost !== undefined
+      ? ({ kind: "actionCost", match: { kind: "eq", value: input.actionCost } } as SearchFilterNode)
+      : undefined,
+    metadataFilterNodeToFilter(input.metadata ?? null),
+  ]);
+}
+
+function buildBrowseSort(sort: SearchSort | undefined, sortSeed: number | undefined): BrowseSortSpec | undefined {
+  if (!sort || sort === "ranked") {
+    return undefined;
+  }
+  return sort === "random" ? { kind: "random", seed: sortSeed } : { kind: sort };
+}
+
+function buildLookupSort(sort: SearchSort | undefined): LookupSortSpec | undefined {
+  if (!sort || sort === "ranked" || sort === "random") {
+    return undefined;
+  }
+  return { kind: sort, policy: "tiered" };
 }
 
 export function browseRequest(input: SearchRequestFixtureInput = {}): SearchRequest {
   return {
-    intent: "browse",
-    ...buildBaseRequest(input),
+    mode: "browse",
+    filter: buildFilter(input),
+    sort: buildBrowseSort(input.sort, input.sortSeed),
+    offset: input.offset,
+    limit: input.limit,
   };
 }
 
 export function searchRequest(input: SearchRequestFixtureInput = {}): SearchRequest {
   if (input.nameQuery && !input.query) {
     return {
-      intent: "lookup",
-      ...buildBaseRequest(input),
-      text: input.nameQuery,
+      mode: "lookup",
+      search: { query: input.nameQuery },
+      filter: buildFilter(input),
+      sort: buildLookupSort(input.sort),
+      offset: input.offset,
+      limit: input.limit,
     };
   }
 
   return {
-    intent: "search",
-    ...buildBaseRequest(input),
-    text: input.query,
+    mode: "search",
+    search: {
+      query: input.query ?? "",
+      exclude: input.excludeQuery,
+      profile: input.searchProfile,
+    },
+    explain: input.explain,
+    filter: buildFilter(input),
+    offset: input.offset,
+    limit: input.limit,
   };
 }
 
 export function lookupRequest(input: SearchRequestFixtureInput = {}): SearchRequest {
   return {
-    intent: "lookup",
-    ...buildBaseRequest(input),
-    text: input.nameQuery,
+    mode: "lookup",
+    search: { query: input.nameQuery ?? "" },
+    filter: buildFilter(input),
+    sort: buildLookupSort(input.sort),
+    offset: input.offset,
+    limit: input.limit,
   };
 }
 
@@ -176,10 +319,7 @@ export function adaptLegacySearchCalls<
 
       const value: unknown = Reflect.get(target, property, receiver);
       if (typeof value === "function") {
-        return (...args: unknown[]): unknown => {
-          const result: unknown = Reflect.apply(value, target, args);
-          return result;
-        };
+        return (...args: unknown[]): unknown => Reflect.apply(value, target, args);
       }
       return value;
     },

@@ -372,7 +372,7 @@ export function buildFilterExplorerCommandEntries(
     : "Seed the browse/search editor from the focused selection.";
 
   return [
-    ...(request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+    ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? [
           {
             value: "openResults" as const,
@@ -384,14 +384,14 @@ export function buildFilterExplorerCommandEntries(
         ]
       : []),
     {
-      value: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+      value: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? "openQuery"
         : "openSelection",
-      label: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+      label: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? "Open Search Query"
         : "Open Query",
       description: queryDescription,
-      aliases: request.intent === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+      aliases: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? ["Open Query"]
         : undefined,
       keywords: ["search", "browse", "editor", "query", "open"],
@@ -504,9 +504,9 @@ function buildInspectCommandDescription(result: FilterExplorerInspectResult): st
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "Open the focused selection in results."
-      : request.intent === "lookup"
+      : request.mode === "lookup"
         ? "Open the focused selection in lookup."
-        : request.intent === "search"
+        : request.mode === "search"
           ? "Open the focused selection in search."
           : "Open the focused selection in browse.";
 
@@ -525,9 +525,9 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   const openLabel =
     result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? "open results"
-      : request.intent === "lookup"
+      : request.mode === "lookup"
         ? "open lookup"
-        : request.intent === "search"
+        : request.mode === "search"
           ? "open search"
           : "open browse";
 

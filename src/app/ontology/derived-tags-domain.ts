@@ -1,4 +1,5 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import {
   type DerivedTagOntologyExplorerCategoryNode,
   type DerivedTagOntologyExplorerFamilyNode,
@@ -30,17 +31,11 @@ function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): Onto
     query: {
       label: "Open exact record lookup",
       request: {
-        intent: "lookup",
-        text: recordNode.record.name,
-        category: recordNode.record.category,
-        parts: recordNode.record.subcategory
-          ? [
-              {
-                kind: "subcategory",
-                subcategory: recordNode.record.subcategory,
-              },
-            ]
-          : [],
+        mode: "lookup",
+        search: {
+          query: recordNode.record.name,
+        },
+        filter: buildScopeFilter(recordNode.record.category, recordNode.record.subcategory),
         limit: 5,
       },
     },
@@ -121,22 +116,14 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
     query: {
       label: "List records with this derived tag",
       request: {
-        intent: "browse",
-        category: tag.category,
-        parts: [
-          ...(tag.subcategories?.length === 1 && tag.subcategories[0]
-            ? [
-                {
-                  kind: "subcategory" as const,
-                  subcategory: tag.subcategories[0],
-                },
-              ]
-            : []),
+        mode: "browse",
+        filter: buildAllOfFilter([
+          buildScopeFilter(tag.category, tag.subcategories?.length === 1 ? (tag.subcategories[0] ?? null) : null),
           {
-            kind: "metadataPredicate" as const,
-            predicate: { field: "derivedTags", op: "includesAny", values: [tag.tag] },
+            kind: "metadataPredicate",
+            predicate: { field: "derivedTags", op: "includes", value: tag.tag },
           },
-        ],
+        ]),
         limit: 20,
       },
     },

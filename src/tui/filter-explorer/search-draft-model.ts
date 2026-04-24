@@ -1,12 +1,12 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
-import { searchRequestPartsToMetadataFilterNode } from "../../domain/search-request-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import { isMetadataPredicate } from "../search/query-core.js";
 import type { Pf2eTerminalQueryField, Pf2eTerminalQueryFieldOption } from "../search/service-types.js";
 import type { FilterExplorerComposeTarget } from "./types.js";
+import { canonicalFilterToMetadataNode } from "../search/query-parts.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
 
@@ -308,7 +308,7 @@ export function buildSearchFilterExplorerTargetResolver(
     }
 
     const predicate = node.query
-      ? searchRequestPartsToMetadataFilterNode(node.query.request.parts ?? [])
+      ? canonicalFilterToMetadataNode(node.query.request.filter)
       : null;
     if (!predicate || !isMetadataPredicate(predicate)) {
       return fieldOptions

@@ -4,6 +4,7 @@ import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import { buildAllOfFilter, buildScopeFilter, findSearchScopeFilter } from "../../domain/search-request-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
 import {
   buildNormalizedRecordNode,
@@ -22,7 +23,7 @@ function buildOntologyQueryRecordChildren(
   }
 
   const request = query.request;
-  if (request.intent !== "browse") {
+  if (request.mode !== "browse") {
     return [];
   }
 
@@ -81,35 +82,16 @@ function buildInspectMetricQuery(node: OntologyNode): OntologyNodeQuery | undefi
   return {
     label: `Browse records with the ${scope.metricKey} metric`,
     request: {
-      intent: "browse",
-      category: scope.category,
-      parts: [
-        ...(scope.subcategory
-          ? [
-              {
-                kind: "subcategory" as const,
-                subcategory: scope.subcategory,
-              },
-            ]
-          : []),
+      mode: "browse",
+      filter: buildAllOfFilter([
+        buildScopeFilter(scope.category, scope.subcategory),
         {
-          kind: "metadataPredicate" as const,
-          predicate:
-            scope.metricField === "actorMetrics"
-              ? {
-                  field: "actorMetricCompare",
-                  leftMetric: scope.metricKey,
-                  op: ">=",
-                  rightMetric: scope.metricKey,
-                }
-              : {
-                  field: "itemMetricCompare",
-                  leftMetric: scope.metricKey,
-                  op: ">=",
-                  rightMetric: scope.metricKey,
-                },
+          kind: "metricCompare",
+          leftMetric: scope.metricKey,
+          op: "gte",
+          rightMetric: scope.metricKey,
         },
-      ],
+      ]),
       limit: 20,
     },
   };
@@ -145,7 +127,7 @@ function decorateNodeForInspectAndOpen(
     };
   }
 
-  if (cloned.query && cloned.query.request.intent === "browse") {
+  if (cloned.query && cloned.query.request.mode === "browse") {
     return {
       ...cloned,
       loadChildren: () => buildOntologyQueryRecordChildren(dataService, cloned.query),

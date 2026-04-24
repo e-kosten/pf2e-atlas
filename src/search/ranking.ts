@@ -97,6 +97,7 @@ export function rarityPreferenceScore(
   rankingConfig: RankingConfig,
 ): number {
   const normalizedRarity = normalizeText(record.rarity ?? "");
+  const normalizedQuery = normalizeText(filters.query ?? "");
   let score = 0;
 
   if (normalizedRarity === "common" || normalizedRarity === "uncommon") {
@@ -108,7 +109,7 @@ export function rarityPreferenceScore(
     score += rankingConfig.rarityPreference.unique;
   }
 
-  if (record.isUnique && filters.query?.trim()) {
+  if (record.isUnique && normalizedQuery && normalizedQuery !== record.normalizedName) {
     score += rankingConfig.rarityPreference.themeQueryUniquePenalty;
   }
 
@@ -232,21 +233,32 @@ export function resolveSearchMode(filters: SearchExecutionFilters, context: "lis
 }
 
 export function hasStructuredFilterSignal(filters: SearchExecutionFilters): boolean {
-  return Boolean(
-    filters.pack ||
-    (filters.linksTo && filters.linksTo.length > 0) ||
-    (filters.excludeLinksTo && filters.excludeLinksTo.length > 0) ||
-    filters.category ||
-    filters.subcategory ||
-    (filters.scopes && filters.scopes.length > 0) ||
-    filters.levelMin !== undefined ||
-    filters.levelMax !== undefined ||
-    filters.rarity ||
-    filters.metadata ||
-    filters.priceMin !== undefined ||
-    filters.priceMax !== undefined ||
-    filters.actionCost !== undefined,
-  );
+  const hasFilterNodeSignal = (filter: SearchExecutionFilters["filter"] | undefined): boolean => {
+    if (!filter) {
+      return false;
+    }
+
+    switch (filter.kind) {
+      case "pack":
+      case "scope":
+      case "level":
+      case "price":
+      case "rarity":
+      case "actionCost":
+      case "linksTo":
+      case "metadataPredicate":
+      case "metric":
+      case "metricCompare":
+        return true;
+      case "anyOf":
+      case "allOf":
+        return filter.children.some((child) => hasFilterNodeSignal(child));
+      case "not":
+        return hasFilterNodeSignal(filter.child);
+    }
+  };
+
+  return hasFilterNodeSignal(filters.filter);
 }
 
 export function resolveSearchProfile(

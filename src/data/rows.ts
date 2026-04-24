@@ -344,6 +344,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     variantSource: parseVariantSource(row.variantSource, row.recordKey),
     sourcePath: row.sourcePath,
     ...metadata,
+    isUnique: Boolean(row.isUnique),
     itemMetrics: parseMetricsJson(row.itemMetricsJson, "itemMetricsJson", row.recordKey),
     actorMetrics: parseMetricsJson(row.actorMetricsJson, "actorMetricsJson", row.recordKey),
     aliases: [],

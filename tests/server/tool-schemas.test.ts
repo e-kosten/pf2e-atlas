@@ -2,15 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   CATEGORY_HINT_DESCRIPTION,
+  listRecordsToolInputSchema,
   linksToModeSchema,
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
   metadataFilterSchema,
   recordKeyArraySchema,
+  searchFilterSchema,
   searchCategorySchema,
   searchProfileSchema,
   searchScopeSchema,
+  searchToolInputSchema,
   searchSubcategorySchema,
 } from "../../src/server/tool-schemas.js";
 
@@ -60,6 +63,76 @@ describe("tool schemas", () => {
     expect(filterValueFieldSchema.safeParse("isComplex")).toMatchObject({ success: true, data: "isComplex" });
     expect(filterValueFieldSchema.safeParse("packs")).toMatchObject({ success: true, data: "packs" });
     expect(filterValueFieldSchema.safeParse("foo").success).toBe(false);
+  });
+
+  it("accepts canonical filter trees and rejects legacy flat filter payloads", () => {
+    expect(
+      searchFilterSchema.safeParse({
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "creature",
+            subcategory: { kind: "any" },
+          },
+          {
+            kind: "metadataPredicate",
+            predicate: {
+              field: "traits",
+              op: "includes",
+              value: "undead",
+            },
+          },
+        ],
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchFilterSchema.safeParse({
+        field: "traits",
+        op: "includesAny",
+        values: ["undead"],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects legacy flat root filter fields on list and search tool inputs", () => {
+    expect(
+      listRecordsToolInputSchema.safeParse({
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+        limit: 20,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      listRecordsToolInputSchema.safeParse({
+        category: "creature",
+        limit: 20,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        query: "ghost sailor ship",
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        query: "ghost sailor ship",
+        category: "creature",
+        levelMin: 1,
+      }).success,
+    ).toBe(false);
   });
 
   it("validates grouped metadata filter predicates", () => {

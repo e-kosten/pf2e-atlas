@@ -10,6 +10,7 @@ import {
   createDefaultQuery,
   normalizeSearchQuery,
 } from "./query-state.js";
+import { extractLegacyQueryPartsFromCanonicalFilter } from "./query-parts.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalSearchQuery,
@@ -33,21 +34,21 @@ export function createSearchQueryFromOntologyQuery(
 ): Pf2eTerminalSearchQuery {
   const defaultQuery = createDefaultQuery();
   const request = query.request;
-  const category = normalizeSearchCategory(request.category) ?? null;
-  const parts = request.parts ?? [];
+  const legacyState = extractLegacyQueryPartsFromCanonicalFilter(request.filter);
+  const category = normalizeSearchCategory(legacyState.category) ?? null;
 
   return normalizeSearchQuery(
     {
       ...defaultQuery,
-      mode: request.intent,
+      mode: request.mode,
       limit: request.limit ?? defaultQuery.limit,
-      queryText: request.text ?? "",
-      searchProfile: request.searchProfile ?? defaultQuery.searchProfile,
+      queryText: request.mode === "browse" ? "" : request.search.query,
+      searchProfile: request.mode === "search" ? request.search.profile ?? defaultQuery.searchProfile : defaultQuery.searchProfile,
       sourceLabel: query.label ?? null,
       filters: {
         ...defaultQuery.filters,
         category,
-        parts: parts.map((part) =>
+        parts: legacyState.parts.map((part) =>
           part.kind === "subcategory"
             ? { kind: "subcategory", subcategory: normalizeScopedSubcategory(category, normalizeSearchSubcategory(part.subcategory) ?? null) ?? part.subcategory }
             : part,

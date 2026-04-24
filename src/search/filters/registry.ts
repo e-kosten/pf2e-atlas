@@ -730,16 +730,6 @@ export const METADATA_FIELD_REGISTRY = [
     presentation: "summary",
   }),
   defineMetadataField({
-    field: "isUnique",
-    recordProperty: "isUnique",
-    fieldType: "boolean",
-    categories: ALL_CATEGORIES,
-    selectClause: "r.is_unique AS isUnique",
-    rowValueSource: { key: "isUnique", kind: "booleanNumber" },
-    buildSqlExpression: (context) => buildRecordScalarSql(context, "is_unique"),
-    presentation: "detail",
-  }),
-  defineMetadataField({
     field: "hasDescription",
     recordProperty: "hasDescription",
     fieldType: "boolean",

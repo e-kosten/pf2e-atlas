@@ -35,6 +35,13 @@ import {
   type MetadataMetricComparePredicateSpec,
   type MetadataMetricValuePredicateSpec,
 } from "../../domain/metadata-predicate-spec.js";
+import type {
+  MetadataAtomicPredicate,
+} from "../../domain/search-filter-metadata.js";
+import type {
+  MetricOperator,
+  NumericMetricOperator,
+} from "../../domain/search-filter-operators.js";
 import {
   type MetadataBooleanField,
   type MetadataBooleanPredicate,
@@ -795,6 +802,449 @@ export function appendMetadataFilterClauses(
 
   const compiled = buildMetadataFilterClause(metadata, context);
   appendClause(sql, params, `AND ${compiled.clause}`, ...compiled.params);
+}
+
+export function normalizeMetadataAtomicPredicate(predicate: MetadataAtomicPredicate): MetadataAtomicPredicate {
+  if (isMetadataSetField(predicate.field)) {
+    if (predicate.op === "isNull" || predicate.op === "isNotNull") {
+      return predicate;
+    }
+
+    if (typeof predicate.value !== "string" || predicate.value.trim().length === 0) {
+      throw new Error(`metadata predicate "${predicate.field}" requires a string value.`);
+    }
+
+    return {
+      field: predicate.field,
+      op: predicate.op,
+      value: normalizeMetadataValue(predicate.field, predicate.value),
+    } as MetadataAtomicPredicate;
+  }
+
+  if (isMetadataEnumStringField(predicate.field)) {
+    if (predicate.op === "isNull" || predicate.op === "isNotNull") {
+      return predicate;
+    }
+
+    if (typeof predicate.value !== "string" || predicate.value.trim().length === 0) {
+      throw new Error(`metadata predicate "${predicate.field}" requires a string value.`);
+    }
+
+    return {
+      field: predicate.field,
+      op: predicate.op,
+      value: normalizeMetadataValue(predicate.field, predicate.value),
+    } as MetadataAtomicPredicate;
+  }
+
+  if (isMetadataTextField(predicate.field)) {
+    if (predicate.op === "isNull" || predicate.op === "isNotNull") {
+      return predicate;
+    }
+
+    if (typeof predicate.value !== "string") {
+      throw new Error(`metadata predicate "${predicate.field}" requires a string value.`);
+    }
+
+    return {
+      field: predicate.field,
+      op: predicate.op,
+      value: normalizeMetadataTextMatchValue(predicate.value),
+    } as MetadataAtomicPredicate;
+  }
+
+  if (isMetadataNumberField(predicate.field)) {
+    if (predicate.op === "isNull" || predicate.op === "isNotNull") {
+      return predicate;
+    }
+
+    if (predicate.op === "between") {
+      if (!Number.isFinite(predicate.min) || !Number.isFinite(predicate.max)) {
+        throw new Error(`metadata predicate "${predicate.field}" requires finite min/max values.`);
+      }
+      return predicate;
+    }
+
+    if (!Number.isFinite(predicate.value)) {
+      throw new Error(`metadata predicate "${predicate.field}" requires a finite numeric value.`);
+    }
+
+    return predicate;
+  }
+
+  if (predicate.op === "isNull" || predicate.op === "isNotNull") {
+    return predicate;
+  }
+
+  if (typeof predicate.value !== "boolean") {
+    throw new Error(`metadata predicate "${predicate.field}" requires a boolean value.`);
+  }
+
+  return predicate;
+}
+
+export function buildMetadataAtomicPredicateClause(
+  predicate: MetadataAtomicPredicate,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  const normalized = normalizeMetadataAtomicPredicate(predicate) as MetadataAtomicPredicate & Record<string, unknown>;
+
+  if (isMetadataSetField(normalized.field)) {
+    if (normalized.op === "isNull") {
+      const expression = buildMetadataJsonArraySql(context, normalized.field);
+      return {
+        clause: `COALESCE(json_array_length(${expression}), 0) = 0`,
+        params: [],
+      };
+    }
+
+    if (normalized.op === "isNotNull") {
+      const expression = buildMetadataJsonArraySql(context, normalized.field);
+      return {
+        clause: `COALESCE(json_array_length(${expression}), 0) > 0`,
+        params: [],
+      };
+    }
+
+    return buildMetadataSetPredicateClause(normalized.field, "includesAny", [normalized.value as string], context);
+  }
+
+  const expression = buildMetadataScalarSqlExpression(context, normalized.field as never);
+
+  if (isMetadataEnumStringField(normalized.field)) {
+    if (normalized.op === "isNull") {
+      return { clause: `${expression} IS NULL OR TRIM(${expression}) = ''`, params: [] };
+    }
+    if (normalized.op === "isNotNull") {
+      return { clause: `${expression} IS NOT NULL AND TRIM(${expression}) <> ''`, params: [] };
+    }
+    return {
+      clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notEq" ? "<>" : "="} ?`,
+      params: [normalized.value as SqlValue],
+    };
+  }
+
+  if (isMetadataTextField(normalized.field)) {
+    if (normalized.op === "isNull") {
+      return { clause: `${expression} IS NULL OR TRIM(${expression}) = ''`, params: [] };
+    }
+    if (normalized.op === "isNotNull") {
+      return { clause: `${expression} IS NOT NULL AND TRIM(${expression}) <> ''`, params: [] };
+    }
+    if (normalized.op === "contains" || normalized.op === "notContains") {
+      return {
+        clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notContains" ? "NOT " : ""}LIKE ?`,
+        params: [`%${normalized.value as string}%`],
+      };
+    }
+    return {
+      clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notEq" ? "<>" : "="} ?`,
+      params: [normalized.value as SqlValue],
+    };
+  }
+
+  if (isMetadataNumberField(normalized.field)) {
+    if (normalized.op === "isNull") {
+      return { clause: `${expression} IS NULL`, params: [] };
+    }
+    if (normalized.op === "isNotNull") {
+      return { clause: `${expression} IS NOT NULL`, params: [] };
+    }
+    if (normalized.op === "between") {
+      return {
+        clause: `(${expression} >= ? AND ${expression} <= ?)`,
+        params: [normalized.min as number, normalized.max as number],
+      };
+    }
+
+    const operator =
+      normalized.op === "eq"
+        ? "="
+        : normalized.op === "notEq"
+          ? "<>"
+          : normalized.op === "gt"
+            ? ">"
+            : normalized.op === "gte"
+              ? ">="
+              : normalized.op === "lt"
+                ? "<"
+                : "<=";
+    return {
+      clause: `${expression} ${operator} ?`,
+      params: [normalized.value as SqlValue],
+    };
+  }
+
+  if (normalized.op === "isNull") {
+    return { clause: `${expression} IS NULL`, params: [] };
+  }
+  if (normalized.op === "isNotNull") {
+    return { clause: `${expression} IS NOT NULL`, params: [] };
+  }
+
+  return {
+    clause: `COALESCE(${expression}, 0) ${normalized.op === "notEq" ? "<>" : "="} ?`,
+    params: [normalized.value ? 1 : 0],
+  };
+}
+
+export function recordMatchesMetadataAtomicPredicate(record: NormalizedRecord, predicate: MetadataAtomicPredicate): boolean {
+  const normalized = normalizeMetadataAtomicPredicate(predicate) as MetadataAtomicPredicate & Record<string, unknown>;
+
+  if (isMetadataSetField(normalized.field)) {
+    const normalizedValues = new Set(
+      getMetadataSetRecordValues(record, normalized.field as MetadataSetField)
+        .map((value) => normalizeMetadataValue(normalized.field as MetadataSetField, value))
+        .filter(Boolean),
+    );
+    if (normalized.op === "isNull") {
+      return normalizedValues.size === 0;
+    }
+    if (normalized.op === "isNotNull") {
+      return normalizedValues.size > 0;
+    }
+    return normalizedValues.has(normalized.value as string);
+  }
+
+  if (isMetadataEnumStringField(normalized.field)) {
+    const value = getMetadataStringRecordValue(record, normalized.field);
+    const normalizedValue = value === null ? null : normalizeMetadataValue(normalized.field, value);
+    if (normalized.op === "isNull") {
+      return normalizedValue === null || normalizedValue === "";
+    }
+    if (normalized.op === "isNotNull") {
+      return normalizedValue !== null && normalizedValue !== "";
+    }
+    return normalized.op === "eq" ? normalizedValue === normalized.value : normalizedValue !== normalized.value;
+  }
+
+  if (isMetadataTextField(normalized.field)) {
+    const value = getMetadataStringRecordValue(record, normalized.field);
+    const normalizedValue = value === null ? null : normalizeMetadataTextMatchValue(value);
+    if (normalized.op === "isNull") {
+      return normalizedValue === null || normalizedValue === "";
+    }
+    if (normalized.op === "isNotNull") {
+      return normalizedValue !== null && normalizedValue !== "";
+    }
+    if (normalized.op === "contains") {
+      return Boolean(normalizedValue?.includes(normalized.value as string));
+    }
+    if (normalized.op === "notContains") {
+      return !normalizedValue?.includes(normalized.value as string);
+    }
+    return normalized.op === "eq" ? normalizedValue === normalized.value : normalizedValue !== normalized.value;
+  }
+
+  if (isMetadataNumberField(normalized.field)) {
+    const value = getMetadataNumberRecordValue(record, normalized.field);
+    if (normalized.op === "isNull") {
+      return value === null;
+    }
+    if (normalized.op === "isNotNull") {
+      return value !== null;
+    }
+    if (value === null) {
+      return false;
+    }
+    if (normalized.op === "between") {
+      return value >= (normalized.min as number) && value <= (normalized.max as number);
+    }
+    if (normalized.op === "eq") {
+      return value === (normalized.value as number);
+    }
+    if (normalized.op === "notEq") {
+      return value !== (normalized.value as number);
+    }
+    if (normalized.op === "gt") {
+      return value > (normalized.value as number);
+    }
+    if (normalized.op === "gte") {
+      return value >= (normalized.value as number);
+    }
+    if (normalized.op === "lt") {
+      return value < (normalized.value as number);
+    }
+    return value <= (normalized.value as number);
+  }
+
+  const value = getMetadataBooleanRecordValue(record, normalized.field);
+  if (normalized.op === "isNull") {
+    return value === null;
+  }
+  if (normalized.op === "isNotNull") {
+    return value !== null;
+  }
+  return normalized.op === "eq" ? value === normalized.value : value !== normalized.value;
+}
+
+export function normalizeSearchMetricKey(metric: string): string {
+  const actorMetric = normalizeActorMetricKey(metric);
+  if (actorMetric && inferActorMetricValueType(actorMetric)) {
+    return actorMetric;
+  }
+
+  const itemMetric = normalizeItemMetricKey(metric);
+  if (itemMetric && inferItemMetricValueType(itemMetric)) {
+    return itemMetric;
+  }
+
+  throw new Error(`Unknown metric "${metric}".`);
+}
+
+export function buildMetricPredicateClause(
+  metric: string,
+  op: MetricOperator,
+  value: string | number | boolean,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  const normalizedMetric = normalizeSearchMetricKey(metric);
+  const actorMetricType = inferActorMetricValueType(normalizedMetric);
+  const itemMetricType = inferItemMetricValueType(normalizedMetric);
+  const sqlOperator = metricSqlOperator(
+    op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=",
+  );
+
+  const actorClause = actorMetricType
+    ? buildActorMetricPredicateClause(
+        {
+          field: "actorMetric",
+          metric: normalizedMetric,
+          op: op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=",
+          value: typeof value === "string" && actorMetricType === "text" ? normalizeActorMetricTextValue(value) : value,
+        } as Extract<MetadataPredicate, { field: "actorMetric" }>,
+        context,
+      )
+    : null;
+  const itemClause = itemMetricType
+    ? buildItemMetricPredicateClause(
+        {
+          field: "itemMetric",
+          metric: normalizedMetric,
+          op: op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=",
+          value: typeof value === "string" && itemMetricType === "text" ? normalizeActorMetricTextValue(value) : value,
+        } as Extract<MetadataPredicate, { field: "itemMetric" }>,
+        context,
+      )
+    : null;
+
+  if (actorClause && itemClause) {
+    return {
+      clause: `(${actorClause.clause} OR ${itemClause.clause})`,
+      params: [...actorClause.params, ...itemClause.params],
+    };
+  }
+
+  if (actorClause) {
+    return actorClause;
+  }
+
+  if (itemClause) {
+    return itemClause;
+  }
+
+  throw new Error(`Unknown metric "${metric}".`);
+}
+
+export function buildMetricCompareClause(
+  leftMetric: string,
+  op: NumericMetricOperator,
+  rightMetric: string,
+  context: MetadataSqlContext,
+): { clause: string; params: SqlValue[] } {
+  const normalizedLeftMetric = normalizeSearchMetricKey(leftMetric);
+  const normalizedRightMetric = normalizeSearchMetricKey(rightMetric);
+  const actorLeft = inferActorMetricValueType(normalizedLeftMetric) === "number";
+  const actorRight = inferActorMetricValueType(normalizedRightMetric) === "number";
+  const itemLeft = inferItemMetricValueType(normalizedLeftMetric) === "number";
+  const itemRight = inferItemMetricValueType(normalizedRightMetric) === "number";
+  const metricOp =
+    op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=";
+
+  const actorClause =
+    actorLeft && actorRight
+      ? buildActorMetricCompareClause(
+          { field: "actorMetricCompare", leftMetric: normalizedLeftMetric, op: metricOp, rightMetric: normalizedRightMetric },
+          context,
+        )
+      : null;
+  const itemClause =
+    itemLeft && itemRight
+      ? buildItemMetricCompareClause(
+          { field: "itemMetricCompare", leftMetric: normalizedLeftMetric, op: metricOp, rightMetric: normalizedRightMetric },
+          context,
+        )
+      : null;
+
+  if (actorClause && itemClause) {
+    return {
+      clause: `(${actorClause.clause} OR ${itemClause.clause})`,
+      params: [...actorClause.params, ...itemClause.params],
+    };
+  }
+
+  if (actorClause) {
+    return actorClause;
+  }
+
+  if (itemClause) {
+    return itemClause;
+  }
+
+  throw new Error(`Unknown numeric metric comparison "${leftMetric}" ${op} "${rightMetric}".`);
+}
+
+export function recordMatchesMetricPredicate(
+  record: NormalizedRecord,
+  metric: string,
+  op: MetricOperator,
+  value: string | number | boolean,
+): boolean {
+  const normalizedMetric = normalizeSearchMetricKey(metric);
+  const actorMetricType = inferActorMetricValueType(normalizedMetric);
+  const itemMetricType = inferItemMetricValueType(normalizedMetric);
+  const metricOp =
+    op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=";
+
+  const actorValue = actorMetricType ? record.actorMetrics[normalizedMetric] : undefined;
+  if (actorValue !== undefined) {
+    const normalizedValue = typeof value === "string" && actorMetricType === "text" ? normalizeActorMetricTextValue(value) : value;
+    return compareActorMetricValues(actorValue, metricOp, normalizedValue as ActorMetricValue);
+  }
+
+  const itemValue = itemMetricType ? record.itemMetrics[normalizedMetric] : undefined;
+  if (itemValue !== undefined) {
+    const normalizedValue = typeof value === "string" && itemMetricType === "text" ? normalizeActorMetricTextValue(value) : value;
+    return compareActorMetricValues(itemValue, metricOp, normalizedValue as ActorMetricValue);
+  }
+
+  return false;
+}
+
+export function recordMatchesMetricComparePredicate(
+  record: NormalizedRecord,
+  leftMetric: string,
+  op: NumericMetricOperator,
+  rightMetric: string,
+): boolean {
+  const normalizedLeftMetric = normalizeSearchMetricKey(leftMetric);
+  const normalizedRightMetric = normalizeSearchMetricKey(rightMetric);
+  const metricOp =
+    op === "eq" ? "==" : op === "notEq" ? "!=" : op === "gt" ? ">" : op === "gte" ? ">=" : op === "lt" ? "<" : "<=";
+
+  const actorLeftValue = record.actorMetrics[normalizedLeftMetric];
+  const actorRightValue = record.actorMetrics[normalizedRightMetric];
+  if (typeof actorLeftValue === "number" && typeof actorRightValue === "number") {
+    return compareActorMetricValues(actorLeftValue, metricOp, actorRightValue);
+  }
+
+  const itemLeftValue = record.itemMetrics[normalizedLeftMetric];
+  const itemRightValue = record.itemMetrics[normalizedRightMetric];
+  if (typeof itemLeftValue === "number" && typeof itemRightValue === "number") {
+    return compareActorMetricValues(itemLeftValue, metricOp, itemRightValue);
+  }
+
+  return false;
 }
 
 function compareActorMetricValues(

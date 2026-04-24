@@ -1,20 +1,54 @@
 import type { EmbeddingProvider } from "../embeddings.js";
 import type {
   SearchCategory,
-  SearchCategoryInput,
   SearchExplainResult,
   SearchProfile,
-  SearchScope,
   SearchSort,
   SearchSubcategory,
-  SearchSubcategoryInput,
 } from "../domain/search-types.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
-import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
+import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
+import type { MetricOperator, NumericMetricOperator } from "../domain/search-filter-operators.js";
 
 export type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
+
+export type SearchExecutionScopeSubcategoryMatch =
+  | { kind: "any" }
+  | { kind: "eq"; value: SearchSubcategory }
+  | { kind: "isNull" }
+  | { kind: "isNotNull" };
+
+export type SearchExecutionNumericMatch =
+  | { kind: "eq"; value: number }
+  | { kind: "gte"; value: number }
+  | { kind: "lte"; value: number }
+  | { kind: "between"; min: number; max: number };
+
+export type SearchExecutionNullableNumericMatch = SearchExecutionNumericMatch | { kind: "isNull" | "isNotNull" };
+export type SearchExecutionNullableStringMatch =
+  | { kind: "eq"; value: string }
+  | { kind: "isNull" | "isNotNull" };
+
+export type SearchExecutionFilterNode =
+  | { kind: "pack"; value: string }
+  | {
+      kind: "scope";
+      category: SearchCategory;
+      subcategory: SearchExecutionScopeSubcategoryMatch;
+    }
+  | { kind: "level"; match: SearchExecutionNumericMatch }
+  | { kind: "price"; match: SearchExecutionNumericMatch }
+  | { kind: "rarity"; match: SearchExecutionNullableStringMatch }
+  | { kind: "actionCost"; match: SearchExecutionNullableNumericMatch }
+  | { kind: "linksTo"; target: string }
+  | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
+  | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
+  | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
+  | { kind: "anyOf"; children: SearchExecutionFilterNode[] }
+  | { kind: "allOf"; children: SearchExecutionFilterNode[] }
+  | { kind: "not"; child: SearchExecutionFilterNode };
 
 export interface SearchExecutionFilters {
   searchProfile?: SearchProfile;
@@ -24,34 +58,12 @@ export interface SearchExecutionFilters {
   nameQuery?: string;
   query?: string;
   excludeQuery?: string;
-  linksTo?: string[];
-  linksToMode?: "any" | "all";
-  excludeLinksTo?: string[];
-  pack?: string;
-  category?: SearchCategoryInput;
-  subcategory?: SearchSubcategoryInput;
-  scopes?: SearchScope[];
-  levelMin?: number;
-  levelMax?: number;
-  rarity?: string;
-  metadata?: MetadataFilterNode;
-  priceMin?: number;
-  priceMax?: number;
-  actionCost?: number;
+  filter?: SearchExecutionFilterNode;
   offset?: number;
   limit?: number;
 }
 
-export type NormalizedSearchScope = {
-  category: SearchCategory;
-  subcategories?: SearchSubcategory[];
-};
-
-export type NormalizedSearchFilters = Omit<SearchExecutionFilters, "category" | "subcategory" | "scopes"> & {
-  category?: SearchCategory;
-  subcategory?: SearchSubcategory;
-  scopes?: NormalizedSearchScope[];
-};
+export type NormalizedSearchFilters = SearchExecutionFilters;
 
 export type SearchCandidate = {
   record: NormalizedRecord;

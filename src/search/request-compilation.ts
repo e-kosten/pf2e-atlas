@@ -1,114 +1,138 @@
-import type { SearchRequest, SearchRequestPart } from "../domain/search-request-types.js";
-import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
-import type { SearchExecutionFilters } from "./contracts.js";
-import { searchRequestPartsToMetadataFilterNode } from "../domain/search-request-types.js";
+import {
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "../domain/categories.js";
+import type { SearchFilterNode, SearchRequest } from "../domain/search-request-types.js";
+import type { SearchCategory, SearchSort, SearchSubcategory } from "../domain/search-types.js";
+import type {
+  SearchExecutionFilterNode,
+  SearchExecutionFilters,
+  SearchExecutionNumericMatch,
+  SearchExecutionNullableNumericMatch,
+  SearchExecutionNullableStringMatch,
+  SearchExecutionScopeSubcategoryMatch,
+} from "./contracts.js";
 
-function buildDiscretePolicyNodes(request: SearchRequest): MetadataFilterNode[] {
-  const nodes: MetadataFilterNode[] = [];
-
-  for (const part of request.parts ?? []) {
-    if (part.kind === "rarityPolicy") {
-      if (part.policy.any.length === 1) {
-        nodes.push({ field: "rarity", op: "eq", value: part.policy.any[0]! });
-      } else if (part.policy.any.length > 1) {
-        nodes.push({ field: "rarity", op: "in", values: part.policy.any });
-      }
-
-      if (part.policy.exclude.length > 0) {
-        nodes.push({ field: "rarity", op: "notIn", values: part.policy.exclude });
-      }
-      continue;
-    }
-
-    if (part.kind === "actionCostPolicy") {
-      if (part.policy.any.length === 1) {
-        nodes.push({ field: "actionCost", op: "eq", value: part.policy.any[0]! });
-      } else if (part.policy.any.length > 1) {
-        nodes.push({
-          or: part.policy.any.map((value) => ({
-            field: "actionCost",
-            op: "eq",
-            value,
-          })),
-        });
-      }
-
-      if (part.policy.exclude.length === 1) {
-        nodes.push({
-          not: {
-            field: "actionCost",
-            op: "eq",
-            value: part.policy.exclude[0]!,
-          },
-        });
-      } else if (part.policy.exclude.length > 1) {
-        nodes.push({
-          not: {
-            or: part.policy.exclude.map((value) => ({
-              field: "actionCost",
-              op: "eq",
-              value,
-            })),
-          },
-        });
-      }
-    }
+function compileScopeSubcategoryMatch(
+  subcategory: Extract<SearchFilterNode, { kind: "scope" }>["subcategory"],
+): SearchExecutionScopeSubcategoryMatch {
+  if (subcategory.kind === "any" || subcategory.kind === "isNull" || subcategory.kind === "isNotNull") {
+    return subcategory;
   }
 
-  return nodes;
-}
-
-function getSubcategoryPart(parts: readonly SearchRequestPart[]): SearchExecutionFilters["subcategory"] {
-  return parts.find((part): part is Extract<SearchRequestPart, { kind: "subcategory" }> => part.kind === "subcategory")
-    ?.subcategory;
-}
-
-function getLevelRange(
-  parts: readonly SearchRequestPart[],
-): Pick<SearchExecutionFilters, "levelMin" | "levelMax"> {
-  const part = parts.find(
-    (candidate): candidate is Extract<SearchRequestPart, { kind: "levelRange" }> => candidate.kind === "levelRange",
-  );
-  if (!part) {
-    return {};
+  const normalized = normalizeSearchSubcategory(subcategory.value);
+  if (!normalized) {
+    throw new Error(`Unknown subcategory "${subcategory.value}".`);
   }
+
   return {
-    levelMin: part.levelMin ?? undefined,
-    levelMax: part.levelMax ?? undefined,
+    kind: "eq",
+    value: normalized,
   };
 }
 
-export function compileSearchRequest(request: SearchRequest): SearchExecutionFilters {
-  const parts = request.parts ?? [];
-  const metadataTree = searchRequestPartsToMetadataFilterNode(parts);
-  const metadataClauses = [...buildDiscretePolicyNodes(request), ...(metadataTree ? [metadataTree] : [])];
-  const metadata =
-    metadataClauses.length === 0
-      ? undefined
-      : metadataClauses.length === 1
-        ? metadataClauses[0]
-        : { and: metadataClauses };
-  const text = request.text?.trim();
+function compileScopeFilter(node: Extract<SearchFilterNode, { kind: "scope" }>): SearchExecutionFilterNode {
+  const normalizedCategory = normalizeSearchCategory(node.category);
+  if (!normalizedCategory) {
+    throw new Error(`Unknown category "${node.category}".`);
+  }
 
   return {
-    searchProfile: request.intent === "search" ? request.searchProfile : undefined,
-    sort: request.sort,
-    sortSeed: request.sortSeed,
-    explain: request.explain,
-    nameQuery: request.intent === "lookup" ? text : undefined,
-    query: request.intent === "search" ? text : undefined,
-    excludeQuery: request.excludeQuery,
-    linksTo: request.linksTo,
-    linksToMode: request.linksToMode,
-    excludeLinksTo: request.excludeLinksTo,
-    pack: request.pack,
-    category: request.category,
-    subcategory: getSubcategoryPart(parts),
-    scopes: request.scopes,
-    ...getLevelRange(parts),
-    metadata,
-    priceMin: request.priceMin,
-    priceMax: request.priceMax,
+    kind: "scope",
+    category: normalizedCategory,
+    subcategory: compileScopeSubcategoryMatch(node.subcategory),
+  };
+}
+
+function compileNumericMatch(
+  match: Extract<SearchFilterNode, { kind: "level" | "price" }>["match"],
+): SearchExecutionNumericMatch {
+  return match;
+}
+
+function compileNullableNumericMatch(
+  match: Extract<SearchFilterNode, { kind: "actionCost" }>["match"],
+): SearchExecutionNullableNumericMatch {
+  return match;
+}
+
+function compileNullableStringMatch(
+  match: Extract<SearchFilterNode, { kind: "rarity" }>["match"],
+): SearchExecutionNullableStringMatch {
+  return match;
+}
+
+function compileFilterNode(node: SearchFilterNode): SearchExecutionFilterNode {
+  switch (node.kind) {
+    case "pack":
+    case "linksTo":
+    case "metric":
+    case "metricCompare":
+      return node;
+    case "scope":
+      return compileScopeFilter(node);
+    case "level":
+      return { kind: "level", match: compileNumericMatch(node.match) };
+    case "price":
+      return { kind: "price", match: compileNumericMatch(node.match) };
+    case "rarity":
+      return { kind: "rarity", match: compileNullableStringMatch(node.match) };
+    case "actionCost":
+      return { kind: "actionCost", match: compileNullableNumericMatch(node.match) };
+    case "metadataPredicate":
+      return node;
+    case "anyOf":
+      return { kind: "anyOf", children: node.children.map(compileFilterNode) };
+    case "allOf":
+      return { kind: "allOf", children: node.children.map(compileFilterNode) };
+    case "not":
+      return { kind: "not", child: compileFilterNode(node.child) };
+  }
+}
+
+function compileSort(request: SearchRequest): Pick<SearchExecutionFilters, "sort" | "sortSeed"> {
+  if (request.mode === "browse") {
+    if (!request.sort) {
+      return {};
+    }
+
+    if (request.sort.kind === "random") {
+      return {
+        sort: "random",
+        sortSeed: request.sort.seed,
+      };
+    }
+
+    return {
+      sort: request.sort.kind,
+    };
+  }
+
+  if (request.mode === "lookup") {
+    if (!request.sort) {
+      return {};
+    }
+
+    return {
+      sort: request.sort.kind,
+    };
+  }
+
+  return {};
+}
+
+export function compileSearchRequest(request: SearchRequest): SearchExecutionFilters {
+  const filter = request.filter ? compileFilterNode(request.filter) : undefined;
+  const searchQuery = request.mode === "browse" ? undefined : request.search.query.trim();
+
+  return {
+    ...compileSort(request),
+    explain: request.mode === "search" ? request.explain : undefined,
+    nameQuery: request.mode === "lookup" ? searchQuery : undefined,
+    query: request.mode === "search" ? searchQuery : undefined,
+    excludeQuery: request.mode === "search" ? request.search.exclude : undefined,
+    searchProfile: request.mode === "search" ? request.search.profile : undefined,
+    filter,
     offset: request.offset,
     limit: request.limit,
   };

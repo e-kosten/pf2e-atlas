@@ -1,17 +1,28 @@
 import {
-  getCategoryForSubcategory,
   getSearchCategoryErrorMessage,
   getSearchSubcategoryErrorMessage,
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
-import type { SearchCategory, SearchScope, SearchSubcategory } from "../../domain/search-types.js";
+import type { SearchScope } from "../../domain/search-types.js";
 import { normalizeText, uniqueSorted } from "../../shared/utils.js";
-import type { NormalizedSearchFilters, NormalizedSearchScope } from "../contracts.js";
-import { recordMatchesMetadataFilter } from "./metadata.js";
+import type {
+  NormalizedSearchFilters,
+  SearchExecutionNumericMatch,
+  SearchExecutionFilterNode,
+  SearchExecutionScopeSubcategoryMatch,
+} from "../contracts.js";
+import {
+  recordMatchesMetadataAtomicPredicate,
+  recordMatchesMetricComparePredicate,
+  recordMatchesMetricPredicate,
+} from "./metadata.js";
 
-export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope {
+export function normalizeSearchScope(scope: SearchScope): {
+  category: ReturnType<typeof normalizeSearchCategory> extends infer T ? Exclude<T, null> : never;
+  subcategories?: ReturnType<typeof normalizeSearchSubcategory>[];
+} {
   const category = normalizeSearchCategory(scope.category);
   if (!category) {
     throw new Error(getSearchCategoryErrorMessage(String(scope.category)));
@@ -33,74 +44,105 @@ export function normalizeSearchScope(scope: SearchScope): NormalizedSearchScope 
   };
 }
 
-export function resolveEffectiveCategory(
-  filters: Pick<NormalizedSearchFilters, "category" | "subcategory" | "scopes">,
-): SearchCategory | null {
-  if (filters.scopes && filters.scopes.length > 0) {
-    return null;
-  }
-
-  const inferredCategoryFromSubcategory =
-    !filters.category && filters.subcategory ? getCategoryForSubcategory(filters.subcategory) : null;
-  return filters.category ?? inferredCategoryFromSubcategory;
-}
-
-function recordMatchesScope(record: NormalizedRecord, scope: NormalizedSearchScope): boolean {
-  if (record.category !== scope.category) {
-    return false;
-  }
-
-  if (!scope.subcategories || scope.subcategories.length === 0) {
+function recordMatchesScopeSubcategory(
+  record: NormalizedRecord,
+  match: SearchExecutionScopeSubcategoryMatch,
+): boolean {
+  if (match.kind === "any") {
     return true;
   }
+  if (match.kind === "isNull") {
+    return record.subcategory === null;
+  }
+  if (match.kind === "isNotNull") {
+    return record.subcategory !== null;
+  }
+  return record.subcategory === match.value;
+}
 
-  return record.subcategory !== null && scope.subcategories.includes(record.subcategory);
+function recordMatchesNumericMatch(
+  value: number | null,
+  match: SearchExecutionNumericMatch,
+): boolean {
+  if (value === null) {
+    return false;
+  }
+  if (match.kind === "eq") {
+    return value === match.value;
+  }
+  if (match.kind === "gte") {
+    return value >= match.value;
+  }
+  if (match.kind === "lte") {
+    return value <= match.value;
+  }
+  return value >= match.min && value <= match.max;
+}
+
+function recordMatchesNullableNumericMatch(
+  value: number | null,
+  match: Extract<SearchExecutionFilterNode, { kind: "actionCost" }>["match"],
+): boolean {
+  if (match.kind === "isNull") {
+    return value === null;
+  }
+  if (match.kind === "isNotNull") {
+    return value !== null;
+  }
+  return recordMatchesNumericMatch(value, match as SearchExecutionNumericMatch);
+}
+
+function recordMatchesNullableStringMatch(
+  value: string | null,
+  match: Extract<SearchExecutionFilterNode, { kind: "rarity" }>["match"],
+): boolean {
+  const normalizedValue = value ? normalizeText(value) : null;
+  if (match.kind === "isNull") {
+    return normalizedValue === null || normalizedValue === "";
+  }
+  if (match.kind === "isNotNull") {
+    return normalizedValue !== null && normalizedValue !== "";
+  }
+  return normalizedValue === normalizeText((match as Extract<typeof match, { kind: "eq" }>).value);
+}
+
+function recordMatchesFilterNode(record: NormalizedRecord, filter: SearchExecutionFilterNode): boolean {
+  switch (filter.kind) {
+    case "pack": {
+      const normalizedPack = normalizeText(filter.value);
+      return normalizeText(record.packName) === normalizedPack || normalizeText(record.packLabel) === normalizedPack;
+    }
+    case "scope":
+      return record.category === filter.category && recordMatchesScopeSubcategory(record, filter.subcategory);
+    case "level":
+      return recordMatchesNumericMatch(record.level, filter.match);
+    case "price":
+      return recordMatchesNumericMatch(record.priceCp, filter.match);
+    case "rarity":
+      return recordMatchesNullableStringMatch(record.rarity, filter.match);
+    case "actionCost":
+      return recordMatchesNullableNumericMatch(record.actionCost, filter.match);
+    case "linksTo":
+      return true;
+    case "metadataPredicate":
+      return recordMatchesMetadataAtomicPredicate(record, filter.predicate);
+    case "metric":
+      return recordMatchesMetricPredicate(record, filter.metric, filter.op, filter.value);
+    case "metricCompare":
+      return recordMatchesMetricComparePredicate(record, filter.leftMetric, filter.op, filter.rightMetric);
+    case "anyOf":
+      return filter.children.some((child) => recordMatchesFilterNode(record, child));
+    case "allOf":
+      return filter.children.every((child) => recordMatchesFilterNode(record, child));
+    case "not":
+      return !recordMatchesFilterNode(record, filter.child);
+  }
 }
 
 export function recordMatchesFilters(record: NormalizedRecord, filters: NormalizedSearchFilters): boolean {
-  if (filters.pack) {
-    const normalizedPack = normalizeText(filters.pack);
-    if (normalizeText(record.packName) !== normalizedPack && normalizeText(record.packLabel) !== normalizedPack) {
-      return false;
-    }
+  if (!filters.filter) {
+    return true;
   }
 
-  if (filters.scopes && filters.scopes.length > 0) {
-    if (!filters.scopes.some((scope) => recordMatchesScope(record, scope))) {
-      return false;
-    }
-  } else {
-    const effectiveCategory = resolveEffectiveCategory(filters);
-    if (effectiveCategory && record.category !== effectiveCategory) {
-      return false;
-    }
-    if (filters.subcategory && record.subcategory !== filters.subcategory) {
-      return false;
-    }
-  }
-  if (filters.levelMin !== undefined && (record.level === null || record.level < filters.levelMin)) {
-    return false;
-  }
-  if (filters.levelMax !== undefined && (record.level === null || record.level > filters.levelMax)) {
-    return false;
-  }
-  if (filters.rarity && normalizeText(record.rarity ?? "") !== normalizeText(filters.rarity)) {
-    return false;
-  }
-  if (filters.priceMin !== undefined && (record.priceCp === null || record.priceCp < filters.priceMin)) {
-    return false;
-  }
-  if (filters.priceMax !== undefined && (record.priceCp === null || record.priceCp > filters.priceMax)) {
-    return false;
-  }
-  if (filters.actionCost !== undefined && record.actionCost !== filters.actionCost) {
-    return false;
-  }
-  if (filters.metadata && !recordMatchesMetadataFilter(record, filters.metadata)) {
-    return false;
-  }
-
-  return true;
+  return recordMatchesFilterNode(record, filters.filter);
 }
-
-export type { NormalizedSearchScope, SearchSubcategory };

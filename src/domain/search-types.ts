@@ -131,7 +131,6 @@ export const FILTER_VALUE_FIELDS = [
   "hands",
   "rangeValue",
   "areaValue",
-  "isUnique",
   "hasDescription",
   "publicationRemaster",
   "sustained",

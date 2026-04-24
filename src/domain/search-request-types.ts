@@ -1,213 +1,155 @@
-import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-types.js";
-import type { SearchCategoryInput, SearchProfile, SearchScope, SearchSort, SearchSubcategoryInput } from "./search-types.js";
+import type { SearchProfile, SearchCategoryInput, SearchSubcategoryInput } from "./search-types.js";
+import type { MetadataAtomicPredicate } from "./search-filter-metadata.js";
+import type { MetricOperator, NullOperator, NumericMetricOperator, NumericOperator } from "./search-filter-operators.js";
 
-export type SearchRequestIntent = "browse" | "search" | "lookup";
+export type SearchRequestMode = "browse" | "search" | "lookup";
 
-export type SearchRequestPartKind =
-  | "subcategory"
-  | "levelRange"
-  | "rarityPolicy"
-  | "actionCostPolicy"
-  | "metadataPredicate"
-  | "metadataGroup"
-  | "metadataNot";
+export type SearchScopeSubcategoryMatch =
+  | { kind: "any" }
+  | { kind: "eq"; value: SearchSubcategoryInput }
+  | { kind: "isNull" }
+  | { kind: "isNotNull" };
 
-export type SearchRequestPartPolicy<T extends string | number> = {
-  any: T[];
-  all: T[];
-  exclude: T[];
-};
+export type SearchNumericMatch =
+  | { kind: "eq"; value: number }
+  | { kind: "gte"; value: number }
+  | { kind: "lte"; value: number }
+  | { kind: "between"; min: number; max: number };
 
-export type SearchRequestMetadataPredicatePart = {
-  kind: "metadataPredicate";
-  predicate: MetadataPredicate;
-};
+export type SearchNullableNumericMatch = SearchNumericMatch | { kind: NullOperator };
+export type SearchNullableStringMatch =
+  | { kind: "eq"; value: string }
+  | { kind: NullOperator };
 
-export type SearchRequestMetadataGroupPart = {
-  kind: "metadataGroup";
-  operator: "and" | "or";
-  children: SearchRequestMetadataPart[];
-};
-
-export type SearchRequestMetadataNotPart = {
-  kind: "metadataNot";
-  child: SearchRequestMetadataPart;
-};
-
-export type SearchRequestMetadataPart =
-  | SearchRequestMetadataPredicatePart
-  | SearchRequestMetadataGroupPart
-  | SearchRequestMetadataNotPart;
-
-export type SearchRequestPart =
+export type SearchFilterNode =
+  | { kind: "pack"; value: string }
   | {
-      kind: "subcategory";
-      subcategory: SearchSubcategoryInput;
+      kind: "scope";
+      category: SearchCategoryInput;
+      subcategory: SearchScopeSubcategoryMatch;
     }
   | {
-      kind: "levelRange";
-      levelMin: number | null;
-      levelMax: number | null;
+      kind: "level";
+      match: SearchNumericMatch;
     }
   | {
-      kind: "rarityPolicy";
-      policy: SearchRequestPartPolicy<string>;
+      kind: "price";
+      match: SearchNumericMatch;
     }
   | {
-      kind: "actionCostPolicy";
-      policy: SearchRequestPartPolicy<number>;
+      kind: "rarity";
+      match: SearchNullableStringMatch;
     }
-  | SearchRequestMetadataPart;
+  | {
+      kind: "actionCost";
+      match: SearchNullableNumericMatch;
+    }
+  | { kind: "linksTo"; target: string }
+  | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
+  | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
+  | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
+  | { kind: "anyOf"; children: SearchFilterNode[] }
+  | { kind: "allOf"; children: SearchFilterNode[] }
+  | { kind: "not"; child: SearchFilterNode };
 
-export interface SearchRequest {
-  intent: SearchRequestIntent;
-  text?: string;
-  excludeQuery?: string;
-  searchProfile?: SearchProfile;
-  sort?: SearchSort;
-  sortSeed?: number;
-  explain?: boolean;
-  pack?: string;
-  linksTo?: string[];
-  linksToMode?: "any" | "all";
-  excludeLinksTo?: string[];
-  category?: SearchCategoryInput;
-  scopes?: SearchScope[];
-  parts?: SearchRequestPart[];
-  priceMin?: number;
-  priceMax?: number;
+export type BrowseSortSpec =
+  | { kind: "alphabetical" | "levelAsc" | "levelDesc" }
+  | { kind: "random"; seed?: number };
+
+export type LookupSortSpec = {
+  kind: "alphabetical" | "levelAsc" | "levelDesc";
+  policy?: "tiered" | "global";
+};
+
+export type SearchRequestBase = {
+  filter?: SearchFilterNode;
   offset?: number;
   limit?: number;
-}
+};
 
-export function isSearchRequestMetadataPart(part: SearchRequestPart): part is SearchRequestMetadataPart {
-  return part.kind === "metadataPredicate" || part.kind === "metadataGroup" || part.kind === "metadataNot";
-}
+export type BrowseRequest = SearchRequestBase & {
+  mode: "browse";
+  sort?: BrowseSortSpec;
+};
 
-function metadataFilterNodeToPart(node: MetadataFilterNode): SearchRequestMetadataPart {
-  if ("and" in node) {
-    return {
-      kind: "metadataGroup",
-      operator: "and",
-      children: node.and.map(metadataFilterNodeToPart),
-    };
-  }
+export type SearchModeRequest = SearchRequestBase & {
+  mode: "search";
+  search: {
+    query: string;
+    exclude?: string;
+    profile?: SearchProfile;
+  };
+  explain?: boolean;
+};
 
-  if ("or" in node) {
-    return {
-      kind: "metadataGroup",
-      operator: "or",
-      children: node.or.map(metadataFilterNodeToPart),
-    };
-  }
+export type LookupRequest = SearchRequestBase & {
+  mode: "lookup";
+  search: {
+    query: string;
+  };
+  sort?: LookupSortSpec;
+};
 
-  if ("not" in node) {
-    return {
-      kind: "metadataNot",
-      child: metadataFilterNodeToPart(node.not),
-    };
-  }
+export type SearchRequest = BrowseRequest | SearchModeRequest | LookupRequest;
 
+export function buildScopeFilter(
+  category: SearchCategoryInput,
+  subcategory?: SearchSubcategoryInput | null,
+): SearchFilterNode {
   return {
-    kind: "metadataPredicate",
-    predicate: node,
+    kind: "scope",
+    category,
+    subcategory: subcategory ? { kind: "eq", value: subcategory } : { kind: "any" },
   };
 }
 
-export function metadataFilterNodeToSearchRequestParts(node: MetadataFilterNode | null): SearchRequestMetadataPart[] {
-  if (!node) {
-    return [];
+export function buildAllOfFilter(
+  children: Array<SearchFilterNode | null | undefined>,
+): SearchFilterNode | undefined {
+  const nodes = children.filter((child): child is SearchFilterNode => Boolean(child));
+  if (nodes.length === 0) {
+    return undefined;
   }
-
-  if ("and" in node) {
-    return node.and.map(metadataFilterNodeToPart);
+  if (nodes.length === 1) {
+    return nodes[0];
   }
-
-  return [metadataFilterNodeToPart(node)];
+  return { kind: "allOf", children: nodes };
 }
 
-export function normalizeSearchRequestMetadataPart(part: SearchRequestMetadataPart | null): SearchRequestMetadataPart | null {
-  if (!part) {
+export function buildAnyOfFilter(
+  children: Array<SearchFilterNode | null | undefined>,
+): SearchFilterNode | undefined {
+  const nodes = children.filter((child): child is SearchFilterNode => Boolean(child));
+  if (nodes.length === 0) {
+    return undefined;
+  }
+  if (nodes.length === 1) {
+    return nodes[0];
+  }
+  return { kind: "anyOf", children: nodes };
+}
+
+export function findSearchScopeFilter(filter: SearchFilterNode | undefined): Extract<SearchFilterNode, { kind: "scope" }> | null {
+  if (!filter) {
     return null;
   }
 
-  if (part.kind === "metadataPredicate") {
-    return part;
+  if (filter.kind === "scope") {
+    return filter;
   }
 
-  if (part.kind === "metadataNot") {
-    const child = normalizeSearchRequestMetadataPart(part.child);
-    if (!child) {
-      return null;
+  if (filter.kind === "not") {
+    return null;
+  }
+
+  if (filter.kind === "anyOf" || filter.kind === "allOf") {
+    for (const child of filter.children) {
+      const scope = findSearchScopeFilter(child);
+      if (scope) {
+        return scope;
+      }
     }
-    return {
-      kind: "metadataNot",
-      child,
-    };
   }
 
-  const children = part.children
-    .map((child) => normalizeSearchRequestMetadataPart(child))
-    .filter((child): child is SearchRequestMetadataPart => Boolean(child));
-
-  if (children.length === 0) {
-    return null;
-  }
-
-  if (children.length === 1) {
-    return children[0]!;
-  }
-
-  return {
-    kind: "metadataGroup",
-    operator: part.operator,
-    children,
-  };
-}
-
-function searchRequestMetadataPartToNode(part: SearchRequestMetadataPart): MetadataFilterNode | null {
-  const normalized = normalizeSearchRequestMetadataPart(part);
-  if (!normalized) {
-    return null;
-  }
-
-  if (normalized.kind === "metadataPredicate") {
-    return normalized.predicate;
-  }
-
-  if (normalized.kind === "metadataNot") {
-    const child = searchRequestMetadataPartToNode(normalized.child);
-    return child ? { not: child } : null;
-  }
-
-  const children = normalized.children
-    .map((child) => searchRequestMetadataPartToNode(child))
-    .filter((child): child is MetadataFilterNode => Boolean(child));
-
-  if (children.length === 0) {
-    return null;
-  }
-
-  if (children.length === 1) {
-    return children[0]!;
-  }
-
-  return normalized.operator === "and" ? { and: children } : { or: children };
-}
-
-export function searchRequestPartsToMetadataFilterNode(parts: readonly SearchRequestPart[]): MetadataFilterNode | null {
-  const metadataNodes = parts
-    .filter(isSearchRequestMetadataPart)
-    .map((part) => searchRequestMetadataPartToNode(part))
-    .filter((part): part is MetadataFilterNode => Boolean(part));
-
-  if (metadataNodes.length === 0) {
-    return null;
-  }
-
-  if (metadataNodes.length === 1) {
-    return metadataNodes[0]!;
-  }
-
-  return { and: metadataNodes };
+  return null;
 }

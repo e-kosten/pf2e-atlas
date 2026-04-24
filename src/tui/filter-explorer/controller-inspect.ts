@@ -1,6 +1,6 @@
 import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import {
-  metadataFilterNodeToSearchRequestParts,
+  buildAllOfFilter,
 } from "../../domain/search-request-types.js";
 import { createEmptyFilterExplorerComposeDraft, isFilterExplorerScalarTarget } from "./compose-state.js";
 import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
@@ -16,12 +16,13 @@ import {
   type FilterExplorerQueryTarget,
   type FilterExplorerScalarClause,
 } from "./types.js";
+import { metadataFilterNodeToCanonicalFilter } from "../search/query-parts.js";
 
 export function resolveFilterExplorerLaunchIntent(
   mode: FilterExplorerInspectAndOpenMode,
   query: FilterExplorerQueryTarget,
 ): FilterExplorerLaunchIntent {
-  if (query.request.intent !== "browse") {
+  if (query.request.mode !== "browse") {
     return FILTER_EXPLORER_LAUNCH_INTENT.EDITOR;
   }
 
@@ -126,12 +127,17 @@ export function buildCompiledFilterExplorerInspectResult(
   clause: FilterExplorerScalarClause,
 ): FilterExplorerInspectResult | null {
   const request = result.query.request;
-  if (request.intent !== "browse" || !isFilterExplorerScalarTarget(result.target)) {
+  if (request.mode !== "browse" || !isFilterExplorerScalarTarget(result.target)) {
     return null;
   }
 
   const metadata = buildInspectScalarPredicate(result.target, clause);
   if (!metadata) {
+    return null;
+  }
+
+  const metadataFilter = metadataFilterNodeToCanonicalFilter(metadata);
+  if (!metadataFilter) {
     return null;
   }
 
@@ -142,12 +148,7 @@ export function buildCompiledFilterExplorerInspectResult(
       label: `Browse records where ${result.target.subjectLabel} ${formatInspectScalarClauseSummary(clause)}`,
       request: {
         ...request,
-        parts: [
-          ...(request.parts ?? []).filter(
-            (part) => part.kind !== "metadataPredicate" && part.kind !== "metadataGroup" && part.kind !== "metadataNot",
-          ),
-          ...metadataFilterNodeToSearchRequestParts(metadata),
-        ],
+        filter: buildAllOfFilter([request.filter, metadataFilter]),
       },
     },
     launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
@@ -257,5 +258,5 @@ export function shouldOpenImmediateFilterExplorerInspectResult(
   node: FilterExplorerNode | undefined,
   result: FilterExplorerInspectResult | undefined,
 ): boolean {
-  return Boolean(result && result.query.request.intent === "browse" && node?.kind !== "record");
+  return Boolean(result && result.query.request.mode === "browse" && node?.kind !== "record");
 }

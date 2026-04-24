@@ -7,11 +7,14 @@ import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
+  listRecordsToolInputSchema,
   linksToModeSchema,
   metadataFilterSchema,
   recordKeyArraySchema,
+  searchToolInputSchema,
   SCOPES_HINT_DESCRIPTION,
   searchCategorySchema,
+  searchFilterSchema,
   searchProfileSchema,
   searchScopeSchema,
   searchSubcategorySchema,
@@ -110,22 +113,16 @@ export function registerSearchTools(
                 "Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default.",
             },
             {
-              name: "excludeQuery",
+              name: "search.exclude",
               strength: "literal exclusion",
               description:
                 "Optional free-text exclusion terms. Remove ranked-search results whose indexed search text mentions these normalized terms.",
             },
             {
-              name: "linksTo",
-              strength: "exact indexed link filter",
+              name: "filter",
+              strength: "canonical filter tree",
               description:
-                "Require records to reference one or more canonical PF2E record keys through indexed UUID-derived links.",
-            },
-            {
-              name: "excludeLinksTo",
-              strength: "exact indexed link exclusion",
-              description:
-                "Remove records that reference one or more canonical PF2E record keys through indexed UUID-derived links.",
+                "Use one canonical filter tree with atomic leaves plus anyOf, allOf, and not for scope, ranges, links, metadata predicates, and metric predicates.",
             },
           ],
           retrievalPatterns: [
@@ -166,24 +163,21 @@ export function registerSearchTools(
             },
           ],
           topLevelGuidance: {
-            subcategory: "Structured within-category inclusion. Useful for narrowing to a specific public family.",
-            rarity: "Keep rarity top-level for the common common/uncommon/rare/unique boundary.",
-            levelMin: "Numeric lower level bound.",
-            levelMax: "Numeric upper level bound.",
-            priceMin: "Numeric lower price bound in copper pieces.",
-            priceMax: "Numeric upper price bound in copper pieces.",
-            actionCost: "Numeric action-cost boundary shared by spells and item activations.",
-            linksTo:
-              "Exact indexed reverse-link filter over canonical record keys. Use linksToMode to require any or all targets.",
-            linksToMode: "Controls whether linksTo requires any supplied target or all supplied targets.",
-            excludeLinksTo: "Exact indexed reverse-link exclusion over canonical record keys.",
-            note: "Use top-level boundaries first; use metadata for typed field predicates and boolean composition.",
+            mode: "The top-level discriminant is mode: browse, search, or lookup.",
+            search:
+              "search mode carries search.query and may include search.exclude plus search.profile. lookup carries search.query only. browse carries no search object.",
+            filter:
+              "All structural narrowing belongs in the root filter tree, including scope, pack, links, ranges, metadata predicates, and metric predicates.",
+            booleanComposition:
+              "Use anyOf, allOf, and not for boolean composition across heterogeneous clause kinds.",
+            note:
+              "Use mode and search first, then express structural narrowing through the canonical filter tree rather than flat root filter fields.",
           },
           metadataFilters: {
             ...metadataSemantics,
             notes: {
               useCase:
-                "Use metadata filters for category-specific facets after top-level category, subcategory, scopes, and numeric bounds.",
+                "Use metadata predicates inside the shared filter tree for category-specific facets after scope and other first-class filter leaves.",
               applicability:
                 "metadataFieldsByCategory is the primary discovery surface for which metadata fields are meaningful within a category.",
               subcategoryNarrowing:
@@ -306,38 +300,7 @@ export function registerSearchTools(
     {
       description:
         "List PF2E records using deterministic, non-ranked structured filters and pagination. Use this for browse-and-page flows when stable listing matters more than ranked retrieval.",
-      inputSchema: {
-        pack: z.string().optional().describe("Optional pack name or label."),
-        linksTo: recordKeyArraySchema
-          .optional()
-          .describe(
-            "Canonical target record keys that candidate records must reference through indexed UUID-derived links.",
-          ),
-        linksToMode: linksToModeSchema
-          .optional()
-          .describe("How linksTo behaves when multiple target record keys are provided. Defaults to any."),
-        excludeLinksTo: recordKeyArraySchema
-          .optional()
-          .describe(
-            "Canonical target record keys that candidate records must not reference through indexed UUID-derived links.",
-          ),
-        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
-        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
-        scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
-        levelMin: z.number().int().optional().describe("Minimum level inclusive."),
-        levelMax: z.number().int().optional().describe("Maximum level inclusive."),
-        rarity: z.string().optional().describe("Rarity filter, for example common or uncommon."),
-        metadata: metadataFilterSchema
-          .optional()
-          .describe(
-            "Typed metadata filter DSL. Use grouped boolean predicates over metadata fields such as traits, families, sourceCategory, usage, weaponGroup, or damageTypes.",
-          ),
-        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
-        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
-        actionCost: z.number().int().optional().describe("Action cost filter."),
-        offset: z.number().int().optional().describe("Pagination offset."),
-        limit: z.number().int().optional().describe("Pagination limit, max 100."),
-      },
+      inputSchema: listRecordsToolInputSchema.shape,
     },
     (input) => {
       const result = dataService.listRecords(buildSearchRequestFromTransportInput("browse", input));
@@ -363,60 +326,7 @@ export function registerSearchTools(
     {
       description:
         "Search PF2E records using ranked retrieval with natural-language text and/or structured filters. Best for exploratory discovery; use pf2e_list_records for deterministic listing and pf2e_lookup for exact names.",
-      inputSchema: {
-        searchProfile: searchProfileSchema
-          .optional()
-          .describe(
-            "User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search.",
-          ),
-        explain: z
-          .boolean()
-          .optional()
-          .describe("Include score breakdowns and query-analysis details in the response."),
-        nameQuery: z.string().optional().describe("Name text to search for."),
-        query: z
-          .string()
-          .optional()
-          .describe(
-            "General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile.",
-          ),
-        excludeQuery: z
-          .string()
-          .optional()
-          .describe(
-            "Optional free-text exclusion terms. Remove results whose indexed search text mentions these normalized terms.",
-          ),
-        linksTo: recordKeyArraySchema
-          .optional()
-          .describe(
-            "Canonical target record keys that candidate records must reference through indexed UUID-derived links.",
-          ),
-        linksToMode: linksToModeSchema
-          .optional()
-          .describe("How linksTo behaves when multiple target record keys are provided. Defaults to any."),
-        excludeLinksTo: recordKeyArraySchema
-          .optional()
-          .describe(
-            "Canonical target record keys that candidate records must not reference through indexed UUID-derived links.",
-          ),
-        pack: z.string().optional().describe("Optional pack name or label."),
-        category: searchCategorySchema.optional().describe(CATEGORY_HINT_DESCRIPTION),
-        subcategory: searchSubcategorySchema.optional().describe(SUBCATEGORY_HINT_DESCRIPTION),
-        scopes: z.array(searchScopeSchema).min(1).optional().describe(SCOPES_HINT_DESCRIPTION),
-        levelMin: z.number().int().optional().describe("Minimum level inclusive."),
-        levelMax: z.number().int().optional().describe("Maximum level inclusive."),
-        rarity: z.string().optional().describe("Rarity filter."),
-        metadata: metadataFilterSchema
-          .optional()
-          .describe(
-            "Typed metadata filter DSL. Use grouped boolean predicates over metadata fields such as traits, families, sourceCategory, usage, weaponGroup, or damageTypes.",
-          ),
-        priceMin: z.number().optional().describe("Minimum item price in copper pieces."),
-        priceMax: z.number().optional().describe("Maximum item price in copper pieces."),
-        actionCost: z.number().int().optional().describe("Action cost filter."),
-        offset: z.number().int().optional().describe("Pagination offset."),
-        limit: z.number().int().optional().describe("Pagination limit, max 100."),
-      },
+      inputSchema: searchToolInputSchema.shape,
     },
     async (input) => {
       const result = await dataService.search(buildSearchRequestFromTransportInput("search", input));

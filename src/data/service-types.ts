@@ -1,1 +1,1 @@
-export type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "../search/contracts.js";
+export type { NormalizedSearchFilters, SqlValue } from "../search/contracts.js";

@@ -61,7 +61,6 @@ export const METADATA_NUMBER_FIELDS = [
 ] as const;
 
 export const METADATA_BOOLEAN_FIELDS = [
-  "isUnique",
   "hasDescription",
   "publicationRemaster",
   "sustained",

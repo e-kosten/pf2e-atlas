@@ -11,92 +11,181 @@ import {
   type MetadataFilterValueSource,
 } from "../search/filters/registry.js";
 import {
-  SearchCategory,
   SearchSort,
-  SearchSubcategory,
   type FilterValueQuery,
 } from "../domain/search-types.js";
-import type { NormalizedSearchFilters, NormalizedSearchScope, SqlValue } from "./contracts.js";
+import type { NormalizedSearchFilters, SearchExecutionFilterNode, SqlValue } from "./contracts.js";
 import { normalizeText } from "../shared/utils.js";
-import { appendMetadataFilterClauses } from "./filters/metadata.js";
-import { resolveEffectiveCategory } from "./filters/scope.js";
+import {
+  buildMetadataAtomicPredicateClause,
+  buildMetricCompareClause,
+  buildMetricPredicateClause,
+} from "./filters/metadata.js";
 
 function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ...values: SqlValue[]): void {
   sql.push(clause);
   params.push(...values);
 }
 
-function appendExactLinkFilterClauses(
-  sql: string[],
-  params: SqlValue[],
-  filters: Pick<NormalizedSearchFilters, "linksTo" | "linksToMode" | "excludeLinksTo">,
-  recordKeyExpr: string,
-): void {
-  const includeTargets = filters.linksTo ?? [];
-  const excludeTargets = filters.excludeLinksTo ?? [];
+type SearchSqlFilterContext = {
+  recordKeyExpr: string;
+  categoryExpr: string;
+  subcategoryExpr: string;
+  packNameExpr: string;
+  packLabelExpr?: string;
+  levelExpr: string;
+  rarityExpr: string;
+  priceExpr: string;
+  actionCostExpr: string;
+  metadata: {
+    recordKeyExpr: string;
+    recordsAlias?: string;
+    actorAlias?: string;
+    itemAlias?: string;
+    spellAlias?: string;
+  };
+};
 
-  if (includeTargets.length > 0) {
-    const placeholders = includeTargets.map(() => "?").join(", ");
-    if ((filters.linksToMode ?? "any") === "all") {
-      appendWhereClause(
-        sql,
-        params,
-        `AND (
-          SELECT COUNT(DISTINCT re_include.to_record_key)
-          FROM reference_edges re_include
-          WHERE re_include.from_record_key = ${recordKeyExpr}
-            AND re_include.to_record_key IN (${placeholders})
-        ) = ?`,
-        ...includeTargets,
-        includeTargets.length,
-      );
-    } else {
-      appendWhereClause(
-        sql,
-        params,
-        `AND EXISTS (
-          SELECT 1
-          FROM reference_edges re_include
-          WHERE re_include.from_record_key = ${recordKeyExpr}
-            AND re_include.to_record_key IN (${placeholders})
-        )`,
-        ...includeTargets,
-      );
-    }
-  }
-
-  if (excludeTargets.length > 0) {
-    const placeholders = excludeTargets.map(() => "?").join(", ");
-    appendWhereClause(
-      sql,
-      params,
-      `AND NOT EXISTS (
-        SELECT 1
-        FROM reference_edges re_exclude
-        WHERE re_exclude.from_record_key = ${recordKeyExpr}
-          AND re_exclude.to_record_key IN (${placeholders})
-      )`,
-      ...excludeTargets,
-    );
-  }
+function buildLinksToClause(target: string, recordKeyExpr: string): { clause: string; params: SqlValue[] } {
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM reference_edges re_link
+      WHERE re_link.from_record_key = ${recordKeyExpr}
+        AND re_link.to_record_key = ?
+    )`,
+    params: [target],
+  };
 }
 
-function appendScopedCategoryClauses(
-  sql: string[],
-  params: SqlValue[],
-  scopes: NormalizedSearchScope[],
-  renderTerm: (
-    category: SearchCategory,
-    subcategories: SearchSubcategory[] | undefined,
-  ) => { clause: string; values: SqlValue[] },
-): void {
-  const renderedScopes = scopes.map((scope) => renderTerm(scope.category, scope.subcategories));
-  appendWhereClause(
-    sql,
-    params,
-    `AND (${renderedScopes.map((entry) => entry.clause).join(" OR ")})`,
-    ...renderedScopes.flatMap((entry) => entry.values),
-  );
+function buildSearchFilterClause(
+  filter: SearchExecutionFilterNode,
+  context: SearchSqlFilterContext,
+): { clause: string; params: SqlValue[] } {
+  switch (filter.kind) {
+    case "pack":
+      return {
+        clause: context.packLabelExpr
+          ? `(LOWER(${context.packNameExpr}) = LOWER(?) OR LOWER(${context.packLabelExpr}) = LOWER(?))`
+          : `LOWER(${context.packNameExpr}) = LOWER(?)`,
+        params: context.packLabelExpr ? [filter.value, filter.value] : [filter.value],
+      };
+    case "scope": {
+      if (filter.subcategory.kind === "any") {
+        return {
+          clause: `LOWER(${context.categoryExpr}) = LOWER(?)`,
+          params: [filter.category],
+        };
+      }
+      if (filter.subcategory.kind === "isNull") {
+        return {
+          clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND (${context.subcategoryExpr} IS NULL OR TRIM(${context.subcategoryExpr}) = ''))`,
+          params: [filter.category],
+        };
+      }
+      if (filter.subcategory.kind === "isNotNull") {
+        return {
+          clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND ${context.subcategoryExpr} IS NOT NULL AND TRIM(${context.subcategoryExpr}) <> '')`,
+          params: [filter.category],
+        };
+      }
+      return {
+        clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND LOWER(COALESCE(${context.subcategoryExpr}, '')) = LOWER(?))`,
+        params: [filter.category, filter.subcategory.value],
+      };
+    }
+    case "level":
+      if (filter.match.kind === "eq") {
+        return { clause: `${context.levelExpr} = ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "gte") {
+        return { clause: `${context.levelExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lte") {
+        return { clause: `${context.levelExpr} <= ?`, params: [filter.match.value] };
+      }
+      return {
+        clause: `(${context.levelExpr} >= ? AND ${context.levelExpr} <= ?)`,
+        params: [filter.match.min, filter.match.max],
+      };
+    case "price":
+      if (filter.match.kind === "eq") {
+        return { clause: `${context.priceExpr} = ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "gte") {
+        return { clause: `${context.priceExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lte") {
+        return { clause: `${context.priceExpr} <= ?`, params: [filter.match.value] };
+      }
+      return {
+        clause: `(${context.priceExpr} >= ? AND ${context.priceExpr} <= ?)`,
+        params: [filter.match.min, filter.match.max],
+      };
+    case "rarity":
+      if (filter.match.kind === "isNull") {
+        return { clause: `${context.rarityExpr} IS NULL OR TRIM(${context.rarityExpr}) = ''`, params: [] };
+      }
+      if (filter.match.kind === "isNotNull") {
+        return { clause: `${context.rarityExpr} IS NOT NULL AND TRIM(${context.rarityExpr}) <> ''`, params: [] };
+      }
+      return {
+        clause: `LOWER(COALESCE(${context.rarityExpr}, '')) = LOWER(?)`,
+        params: [(filter.match as Extract<typeof filter.match, { kind: "eq" }>).value],
+      };
+    case "actionCost":
+      if (filter.match.kind === "isNull") {
+        return { clause: `${context.actionCostExpr} IS NULL`, params: [] };
+      }
+      if (filter.match.kind === "isNotNull") {
+        return { clause: `${context.actionCostExpr} IS NOT NULL`, params: [] };
+      }
+      if (filter.match.kind === "eq") {
+        return { clause: `${context.actionCostExpr} = ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "gte") {
+        return { clause: `${context.actionCostExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lte") {
+        return { clause: `${context.actionCostExpr} <= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind !== "between") {
+        throw new Error(`Unsupported actionCost matcher "${filter.match.kind}".`);
+      }
+      return {
+        clause: `(${context.actionCostExpr} >= ? AND ${context.actionCostExpr} <= ?)`,
+        params: [filter.match.min, filter.match.max],
+      };
+    case "linksTo":
+      return buildLinksToClause(filter.target, context.recordKeyExpr);
+    case "metadataPredicate":
+      return buildMetadataAtomicPredicateClause(filter.predicate, context.metadata);
+    case "metric":
+      return buildMetricPredicateClause(filter.metric, filter.op, filter.value, context.metadata);
+    case "metricCompare":
+      return buildMetricCompareClause(filter.leftMetric, filter.op, filter.rightMetric, context.metadata);
+    case "anyOf": {
+      const children = filter.children.map((child) => buildSearchFilterClause(child, context));
+      return {
+        clause: `(${children.map((child) => child.clause).join(" OR ")})`,
+        params: children.flatMap((child) => child.params),
+      };
+    }
+    case "allOf": {
+      const children = filter.children.map((child) => buildSearchFilterClause(child, context));
+      return {
+        clause: `(${children.map((child) => child.clause).join(" AND ")})`,
+        params: children.flatMap((child) => child.params),
+      };
+    }
+    case "not": {
+      const child = buildSearchFilterClause(filter.child, context);
+      return {
+        clause: `(NOT ${child.clause})`,
+        params: child.params,
+      };
+    }
+  }
 }
 
 function applySearchFilterClauses(
@@ -125,91 +214,27 @@ function applySearchFilterClauses(
     appendWhereClause(sql, params, `AND ${recordAlias}.record_key IN (${placeholders})`, ...options.recordKeys);
   }
 
-  appendExactLinkFilterClauses(sql, params, filters, `${recordAlias}.record_key`);
-
-  if (filters.pack) {
-    appendWhereClause(
-      sql,
-      params,
-      `AND (LOWER(${recordAlias}.pack_name) = LOWER(?) OR LOWER(${recordAlias}.pack_label) = LOWER(?))`,
-      filters.pack,
-      filters.pack,
-    );
-  }
-
-  if (filters.scopes && filters.scopes.length > 0) {
-    appendScopedCategoryClauses(sql, params, filters.scopes, (category, subcategories) => {
-      if (!subcategories || subcategories.length === 0) {
-        return {
-          clause: `LOWER(${recordAlias}.category) = LOWER(?)`,
-          values: [category],
-        };
-      }
-
-      const placeholders = subcategories.map(() => "?").join(", ");
-      return {
-        clause: `(LOWER(${recordAlias}.category) = LOWER(?) AND LOWER(COALESCE(${recordAlias}.subcategory, '')) IN (${placeholders}))`,
-        values: [category, ...subcategories.map((subcategory) => normalizeText(subcategory))],
-      };
-    });
-  } else {
-    const effectiveCategory = resolveEffectiveCategory(filters);
-    if (effectiveCategory) {
-      appendWhereClause(sql, params, `AND LOWER(${recordAlias}.category) = LOWER(?)`, effectiveCategory);
-    }
-
-    if (filters.subcategory) {
-      appendWhereClause(
-        sql,
-        params,
-        `AND LOWER(COALESCE(${recordAlias}.subcategory, '')) = LOWER(?)`,
-        filters.subcategory,
-      );
-    }
-  }
-
-  if (filters.levelMin !== undefined) {
-    appendWhereClause(sql, params, `AND ${recordAlias}.level >= ?`, filters.levelMin);
-  }
-
-  if (filters.levelMax !== undefined) {
-    appendWhereClause(sql, params, `AND ${recordAlias}.level <= ?`, filters.levelMax);
-  }
-
-  if (filters.rarity) {
-    appendWhereClause(sql, params, `AND LOWER(COALESCE(${recordAlias}.rarity, '')) = LOWER(?)`, filters.rarity);
-  }
-
-  if (filters.priceMin !== undefined) {
-    appendWhereClause(sql, params, `AND ${itemAlias}.price_cp >= ?`, filters.priceMin);
-  }
-
-  if (filters.priceMax !== undefined) {
-    appendWhereClause(sql, params, `AND ${itemAlias}.price_cp <= ?`, filters.priceMax);
-  }
-
-  if (filters.actionCost !== undefined) {
-    appendWhereClause(
-      sql,
-      params,
-      `AND COALESCE(${spellAlias}.action_cost, ${itemAlias}.action_cost) = ?`,
-      filters.actionCost,
-    );
-  }
-
-  appendMetadataFilterClauses(
-    sql,
-    params,
-    filters.metadata,
-    {
+  if (filters.filter) {
+    const compiled = buildSearchFilterClause(filters.filter, {
       recordKeyExpr: `${recordAlias}.record_key`,
-      recordsAlias: recordAlias,
-      actorAlias,
-      itemAlias,
-      spellAlias,
-    },
-    appendWhereClause,
-  );
+      categoryExpr: `${recordAlias}.category`,
+      subcategoryExpr: `${recordAlias}.subcategory`,
+      packNameExpr: `${recordAlias}.pack_name`,
+      packLabelExpr: `${recordAlias}.pack_label`,
+      levelExpr: `${recordAlias}.level`,
+      rarityExpr: `${recordAlias}.rarity`,
+      priceExpr: `${itemAlias}.price_cp`,
+      actionCostExpr: `COALESCE(${spellAlias}.action_cost, ${itemAlias}.action_cost)`,
+      metadata: {
+        recordKeyExpr: `${recordAlias}.record_key`,
+        recordsAlias: recordAlias,
+        actorAlias,
+        itemAlias,
+        spellAlias,
+      },
+    });
+    appendWhereClause(sql, params, `AND ${compiled.clause}`, ...compiled.params);
+  }
 }
 
 const BASE_RECORD_SELECT_FIELDS = [
@@ -230,6 +255,7 @@ const BASE_RECORD_SELECT_FIELDS = [
   "r.variant_confidence AS variantConfidence",
   "r.variant_source AS variantSource",
   "r.source_path AS sourcePath",
+  "r.is_unique AS isUnique",
   "r.is_search_canonical AS isSearchCanonical",
   `COALESCE((
     SELECT json_group_array(json_object(
@@ -583,7 +609,7 @@ export function buildLexicalRetrievalQuery(
 }
 
 export function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
-  return filters.metadata || filters.linksTo?.length || filters.excludeLinksTo?.length
+  return filters.filter
     ? Math.min(1000, Math.max(baseLimit * 2, baseLimit + 50))
     : baseLimit;
 }
@@ -604,66 +630,27 @@ export function buildSemanticRetrievalQuery(
   ];
   const params: SqlValue[] = [];
 
-  appendExactLinkFilterClauses(sql, params, filters, "record_embeddings.record_key");
-
-  if (filters.scopes && filters.scopes.length > 0) {
-    appendScopedCategoryClauses(sql, params, filters.scopes, (category, subcategories) => {
-      if (!subcategories || subcategories.length === 0) {
-        return {
-          clause: "category = ?",
-          values: [normalizeVectorText(category)],
-        };
-      }
-
-      const placeholders = subcategories.map(() => "?").join(", ");
-      return {
-        clause: `(category = ? AND subcategory IN (${placeholders}))`,
-        values: [
-          normalizeVectorText(category),
-          ...subcategories.map((subcategory) => normalizeVectorText(subcategory)),
-        ],
-      };
-    });
-  } else {
-    const effectiveCategory = resolveEffectiveCategory(filters);
-    if (effectiveCategory) {
-      appendWhereClause(sql, params, "AND category = ?", normalizeVectorText(effectiveCategory));
-    }
-    if (filters.subcategory) {
-      appendWhereClause(sql, params, "AND subcategory = ?", normalizeVectorText(filters.subcategory));
-    }
-  }
-  if (filters.pack) {
-    appendWhereClause(sql, params, "AND pack_name = ?", normalizeVectorText(filters.pack));
-  }
-  if (filters.levelMin !== undefined) {
-    appendWhereClause(sql, params, "AND level >= ?", BigInt(filters.levelMin));
-  }
-  if (filters.levelMax !== undefined) {
-    appendWhereClause(sql, params, "AND level <= ?", BigInt(filters.levelMax));
-  }
-  if (filters.rarity) {
-    appendWhereClause(sql, params, "AND rarity = ?", normalizeVectorText(filters.rarity));
-  }
-  if (filters.priceMin !== undefined) {
-    appendWhereClause(sql, params, "AND price_cp >= ?", BigInt(filters.priceMin));
-  }
-  if (filters.priceMax !== undefined) {
-    appendWhereClause(sql, params, "AND price_cp <= ?", BigInt(filters.priceMax));
-  }
-  if (filters.actionCost !== undefined) {
-    appendWhereClause(sql, params, "AND action_cost = ?", BigInt(filters.actionCost));
-  }
-
-  appendMetadataFilterClauses(
-    sql,
-    params,
-    filters.metadata,
-    {
+  if (filters.filter) {
+    const compiled = buildSearchFilterClause(filters.filter, {
       recordKeyExpr: "record_embeddings.record_key",
-    },
-    appendWhereClause,
-  );
+      categoryExpr: "category",
+      subcategoryExpr: "subcategory",
+      packNameExpr: "pack_name",
+      levelExpr: "level",
+      rarityExpr: "rarity",
+      priceExpr: "price_cp",
+      actionCostExpr: "action_cost",
+      metadata: {
+        recordKeyExpr: "record_embeddings.record_key",
+      },
+    });
+    appendWhereClause(sql, params, `AND ${compiled.clause}`, ...compiled.params.map((value) => {
+      if (typeof value === "number" && Number.isInteger(value)) {
+        return BigInt(value);
+      }
+      return value;
+    }));
+  }
 
   return { sql: sql.join("\n"), params };
 }

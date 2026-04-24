@@ -17,7 +17,6 @@ const METADATA_FIELD_LABELS: Partial<Record<MetadataFieldName, string>> = {
   hands: "Hands",
   hasDescription: "Has Description",
   isComplex: "Complex Hazard",
-  isUnique: "Unique Record",
   itemCategory: "Item Category",
   priceCp: "Price",
   publicationRemaster: "Publication Remaster",

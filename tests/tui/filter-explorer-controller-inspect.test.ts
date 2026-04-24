@@ -12,13 +12,13 @@ import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerInspectAndOpenMode,
 } from "../../src/tui/filter-explorer/index.js";
-import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
+import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import type { FilterExplorerKeyContext } from "../../src/tui/filter-explorer/controller-types.js";
 import type {
   FilterExplorerNode,
   FilterExplorerOptions,
 } from "../../src/tui/filter-explorer/types.js";
-import { searchRequest } from "../helpers/search-request-fixture.js";
+import { browseRequest, searchRequest } from "../helpers/search-request-fixture.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {
@@ -29,12 +29,7 @@ function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorer
     detailLines: [{ text: "Hit Points" }],
     query: {
       label: "Browse by hit points",
-      request: {
-        category: "creature",
-        intent: "browse",
-        parts: [],
-        limit: 20,
-      },
+      request: browseRequest({ category: "creature", limit: 20 }),
     },
     ...overrides,
   };
@@ -153,13 +148,12 @@ describe("filter explorer controller inspect", () => {
       query: {
         label: "Browse records where Hit Points between 40 and 80",
         request: {
-          category: "creature",
-          intent: "browse",
           limit: 20,
+          mode: "browse",
         },
       },
     });
-    expect(searchRequestPartsToMetadataFilterNode(compiled?.query.request.parts ?? [])).toEqual({
+    expect(canonicalFilterToMetadataNode(compiled?.query.request.filter)).toEqual({
       and: [
         {
           field: "actorMetric",
@@ -232,23 +226,20 @@ describe("filter explorer controller inspect", () => {
           label: "Browse records where Land Speed >= 12",
           request: {
             ...createNode().query!.request,
-            parts: [
-              {
-                kind: "metadataPredicate",
-                predicate: {
-                  field: "actorMetric",
-                  metric: "speed.land",
-                  op: ">=",
-                  value: 12,
-                },
-              },
-            ],
+            filter: expect.anything(),
           },
         },
         launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
       },
       expect.any(Object),
     );
+    const [[call]] = onOpenQueryIntent.mock.calls;
+    expect(canonicalFilterToMetadataNode(call.query.request.filter)).toEqual({
+      field: "actorMetric",
+      metric: "speed.land",
+      op: ">=",
+      value: 12,
+    });
   });
 
   it("opens non-record list nodes immediately but record nodes only on leaves", () => {

@@ -4,7 +4,7 @@ import type {
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
-import type { SearchRequest } from "../../domain/search-request-types.js";
+import { buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
 import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
@@ -103,17 +103,11 @@ export function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNod
     query: {
       label: "Open exact record lookup",
       request: {
-        intent: "lookup",
-        text: record.name,
-        category: record.category,
-        parts: record.subcategory
-          ? [
-              {
-                kind: "subcategory",
-                subcategory: record.subcategory,
-              },
-            ]
-          : [],
+        mode: "lookup",
+        search: {
+          query: record.name,
+        },
+        filter: buildScopeFilter(record.category, record.subcategory),
         limit: 5,
       },
     },

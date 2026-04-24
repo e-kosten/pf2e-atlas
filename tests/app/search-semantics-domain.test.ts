@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
-import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
+import { findSearchScopeFilter } from "../../src/domain/search-request-types.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
+import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -43,7 +44,7 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
 }
 
 function getRequestMetadata(node: OntologyNode | undefined) {
-  return node?.query ? searchRequestPartsToMetadataFilterNode(node.query.request.parts ?? []) : null;
+  return node?.query ? canonicalFilterToMetadataNode(node.query.request.filter) : null;
 }
 
 function createSummary(): SearchSemanticsBootstrapSummaryResult {
@@ -193,8 +194,8 @@ describe("buildSearchSemanticsDomain", () => {
       "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line",
     );
 
-    expect(fogboundTag?.query?.request.parts).toContainEqual({ kind: "subcategory", subcategory: "trap" });
-    expect(trapTag?.query?.request.parts).toContainEqual({ kind: "subcategory", subcategory: "trap" });
+    expect(findSearchScopeFilter(fogboundTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
+    expect(findSearchScopeFilter(trapTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
   });

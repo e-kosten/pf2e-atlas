@@ -12,7 +12,8 @@ import type {
 } from "../../domain/metadata-filter-types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
-import { metadataFilterNodeToSearchRequestParts } from "../../domain/search-request-types.js";
+import type { MetadataAtomicPredicate } from "../../domain/search-filter-metadata.js";
+import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode } from "../../domain/search-request-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
@@ -197,21 +198,156 @@ export function buildSearchSemanticsMetadataQuery(
   return {
     label,
     request: {
-      intent: "browse",
-      category,
-      parts: [
-        ...(subcategory
-          ? [
-              {
-                kind: "subcategory" as const,
-                subcategory,
-              },
-            ]
-          : []),
-        ...metadataFilterNodeToSearchRequestParts(cloneMetadataFilterNode(metadata)),
-      ],
+      mode: "browse",
+      filter: buildAllOfFilter([buildScopeFilter(category, subcategory), buildSearchFilterFromMetadataNode(metadata)]),
       limit: 20,
     },
+  };
+}
+
+export function buildSearchFilterFromMetadataNode(metadata: MetadataFilterNode): SearchFilterNode {
+  if ("and" in metadata) {
+    return {
+      kind: "allOf",
+      children: metadata.and.map((child) => buildSearchFilterFromMetadataNode(child)),
+    };
+  }
+
+  if ("or" in metadata) {
+    return {
+      kind: "anyOf",
+      children: metadata.or.map((child) => buildSearchFilterFromMetadataNode(child)),
+    };
+  }
+
+  if ("not" in metadata) {
+    return {
+      kind: "not",
+      child: buildSearchFilterFromMetadataNode(metadata.not),
+    };
+  }
+
+  if (metadata.field === "actorMetric" || metadata.field === "itemMetric") {
+    const op =
+      metadata.op === "=="
+        ? "eq"
+        : metadata.op === "!="
+          ? "notEq"
+          : metadata.op === ">"
+            ? "gt"
+            : metadata.op === ">="
+              ? "gte"
+              : metadata.op === "<"
+                ? "lt"
+                : "lte";
+    return {
+      kind: "metric",
+      metric: metadata.metric,
+      op,
+      value: metadata.value,
+    };
+  }
+
+  if (metadata.field === "actorMetricCompare" || metadata.field === "itemMetricCompare") {
+    const op =
+      metadata.op === "=="
+        ? "eq"
+        : metadata.op === "!="
+          ? "notEq"
+          : metadata.op === ">"
+            ? "gt"
+            : metadata.op === ">="
+              ? "gte"
+              : metadata.op === "<"
+                ? "lt"
+                : "lte";
+    return {
+      kind: "metricCompare",
+      leftMetric: metadata.leftMetric,
+      op,
+      rightMetric: metadata.rightMetric,
+    };
+  }
+
+  if ("values" in metadata) {
+    if (metadata.op === "includesAny") {
+      return metadata.values.length === 1
+        ? {
+            kind: "metadataPredicate",
+            predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
+          }
+        : {
+            kind: "anyOf",
+            children: metadata.values.map((value) => ({
+              kind: "metadataPredicate",
+              predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
+            })),
+          };
+    }
+
+    if (metadata.op === "includesAll") {
+      return metadata.values.length === 1
+        ? {
+            kind: "metadataPredicate",
+            predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
+          }
+        : {
+            kind: "allOf",
+            children: metadata.values.map((value) => ({
+              kind: "metadataPredicate",
+              predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
+            })),
+          };
+    }
+
+    return {
+      kind: "not",
+      child:
+        metadata.values.length === 1
+          ? {
+              kind: "metadataPredicate",
+              predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
+            }
+          : {
+              kind: "anyOf",
+              children: metadata.values.map((value) => ({
+                kind: "metadataPredicate",
+                predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
+              })),
+            },
+    };
+  }
+
+  if ("min" in metadata && "max" in metadata) {
+    return {
+      kind: "metadataPredicate",
+      predicate: { field: metadata.field, op: "between", min: metadata.min, max: metadata.max },
+    };
+  }
+
+  const op =
+    metadata.op === "eq"
+      ? "eq"
+      : metadata.op === "notEq"
+        ? "notEq"
+        : metadata.op === "gte"
+          ? "gte"
+          : metadata.op === "lte"
+            ? "lte"
+            : metadata.op === "contains"
+              ? "contains"
+              : metadata.op === "notContains"
+                ? "notContains"
+                : "eq";
+
+  return {
+    kind: "metadataPredicate",
+    predicate:
+      {
+        field: metadata.field,
+        op,
+        ...("value" in metadata ? { value: metadata.value } : null),
+      } as MetadataAtomicPredicate,
   };
 }
 
@@ -333,7 +469,7 @@ function buildQueryRecordChildren(
   }
 
   const request = query.request;
-  if (request.intent !== "browse") {
+  if (request.mode !== "browse") {
     return [];
   }
 
