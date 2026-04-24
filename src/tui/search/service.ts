@@ -295,7 +295,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           limit,
         }),
       );
-      return createSearchSessionFromWindow(normalizedQuery, result);
+      return createSearchSessionFromWindow(normalizedQuery, result, { sort, sortSeed });
     },
     loadMore: (session, options = {}) => {
       if (!session.hasMore || session.nextOffset === null) {
@@ -328,6 +328,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       return Promise.resolve(replaceSearchSessionWindowPage(session, result));
     },
     changeSort: async (session, sort) => {
+      if (session.query.mode === "search") {
+        return session;
+      }
+
       dependencies.closeSearchWindow(session.windowId);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
       const result = await dependencies.openSearchWindow(
@@ -337,7 +341,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
           limit: Math.max(session.query.limit ?? DEFAULT_QUERY_LIMIT, session.loadedCount),
         }),
       );
-      return createSearchSessionFromWindow(session.query, result);
+      return createSearchSessionFromWindow(session.query, result, { sort, sortSeed });
     },
   };
 }

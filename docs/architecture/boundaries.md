@@ -134,12 +134,15 @@ Search execution should flow through backend services instead of one-off SQL or 
 3. `Pf2eSearchBackendService` compiles that semantic request into search-execution filters and coordinates execution
 4. `src/search/runtime-search.ts` owns ranked runtime search behavior
 
+For server and TUI callers, that means local affordances may add sugar at the edge, but the durable shared contract is still the canonical `mode` / `search` / `filter` model. Do not add alias request fields, compatibility readers, or alternate long-lived public query shapes once the semantic request crosses into the shared boundary.
+
 That is why server registration files are blocked from importing low-level SQL/query helpers directly, and why search modules are blocked from reaching into storage leaf modules.
 
 The durable ownership split is:
 
 - `src/domain/search-request-types.ts` owns the shared semantic query contract
 - `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the shared metadata query vocabulary carried inside that contract
+- surface-local transport or editor sugar may exist only at the edge and must lower to `SearchRequest` before backend execution; do not preserve alias readers for retired `intent`, `parts`, or flat-root-filter shapes
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own execution-facing compiled filter shapes
 - `src/search/filters/` owns normalization and validation for execution filters
 - `src/app/**`, `src/domain/**`, `src/server/**`, and `src/tui/**` must not import the search execution DTOs or compiler directly
@@ -152,6 +155,7 @@ Ontology browsing is an app-layer concern assembled by `src/app/ontology-service
 Important expectations:
 
 - load ontology domains through `createPf2eApplicationOntologyService`
+- route cross-surface search discovery semantics through `src/app/search-discovery-service.ts` rather than rebuilding applicability, ordering, or pack-resolution logic from raw `listFilterValues(...)` calls
 - treat ontology nodes as readonly browse models
 - keep helper caches alongside ontology helpers rather than mutating shared nodes from UI code
 - move shared vocabulary into `src/domain/` when the concept is no longer ontology-specific
@@ -168,6 +172,7 @@ First, TUI feature code should consume explicit facades such as:
 - `src/tui/app-services.ts`
 - `src/tui/search/service.ts`
 - `src/app/ontology-service.ts`
+- `src/app/search-discovery-service.ts` through the app-services wiring for shared discovery behavior
 - tag workbench services routed through `app-services`
 
 The shared TUI app-services context should stay narrow. Feature code should consume `services.user.*` and `services.dev.*`, not a broad backend facade exposed for convenience.

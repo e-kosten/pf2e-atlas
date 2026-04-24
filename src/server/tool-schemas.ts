@@ -21,7 +21,7 @@ import {
 } from "../domain/metadata-predicate-spec.js";
 import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
-import type { SearchFilterNode } from "../domain/search-request-types.js";
+import type { BrowseSortSpec, SearchFilterNode } from "../domain/search-request-types.js";
 import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
@@ -282,6 +282,16 @@ export const metadataAtomicPredicateSchema: z.ZodType<MetadataAtomicPredicate> =
   searchBooleanPredicateSchema,
 ]);
 
+export const browseSortSchema = z.union([
+  buildStrictObjectSchema({
+    kind: z.enum(["alphabetical", "levelAsc", "levelDesc"]),
+  }),
+  buildStrictObjectSchema({
+    kind: z.literal("random"),
+    seed: z.number().int().optional(),
+  }),
+]) as unknown as z.ZodType<BrowseSortSpec>;
+
 const searchScopeSubcategoryMatchSchema = z.union([
   buildStrictObjectSchema({ kind: z.literal("any") }),
   buildStrictObjectSchema({ kind: z.literal("eq"), value: searchSubcategorySchema }),
@@ -372,37 +382,53 @@ export const searchFilterSchema: z.ZodType<SearchFilterNode> = z.lazy(
 );
 
 export const listRecordsToolInputSchema = buildStrictObjectSchema({
+  mode: z
+    .literal("browse")
+    .describe('Canonical request mode for browse/list flows. This tool only accepts `mode: "browse"`.'),
   filter: searchFilterSchema
     .optional()
     .describe(
       "Canonical structured filter tree. Use atomic leaves plus anyOf/allOf/not for scope, links, ranges, metadata predicates, and metrics.",
+    ),
+  sort: browseSortSchema
+    .optional()
+    .describe(
+      "Optional browse sort. Use alphabetical, levelAsc, or levelDesc for deterministic ordering, or random with an optional seed for stable shuffled paging.",
     ),
   offset: z.number().int().optional().describe("Pagination offset."),
   limit: z.number().int().optional().describe("Pagination limit, max 100."),
 });
 
 export const searchToolInputSchema = buildStrictObjectSchema({
-  searchProfile: searchProfileSchema
-    .optional()
-    .describe(
-      "User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search.",
-    ),
+  mode: z
+    .literal("search")
+    .describe('Canonical request mode for ranked retrieval. This tool only accepts `mode: "search"`.'),
+  search: buildStrictObjectSchema({
+    query: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Required search text. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Use pf2e_list_records with mode:\"browse\" when you only need structural filtering and paging.",
+      ),
+    exclude: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe(
+        "Optional free-text exclusion terms. Remove ranked-search results whose indexed search text mentions these normalized terms.",
+      ),
+    profile: searchProfileSchema
+      .optional()
+      .describe(
+        "User-facing retrieval profile. lexical is lexical-first, balanced is the default hybrid profile for broad themed search, and concept is semantic-forward hybrid search.",
+      ),
+  }).describe("Canonical search branch. `search.query` is required on this tool; `search.exclude` and `search.profile` are optional."),
   explain: z
     .boolean()
     .optional()
-    .describe("Include score breakdowns and query-analysis details in the response."),
-  query: z
-    .string()
-    .optional()
-    .describe(
-      "General free-text search input. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default. If searchProfile is omitted, query defaults search to the balanced profile.",
-    ),
-  excludeQuery: z
-    .string()
-    .optional()
-    .describe(
-      "Optional free-text exclusion terms. Remove results whose indexed search text mentions these normalized terms.",
-    ),
+    .describe("Include score breakdowns and query-analysis details in the response. Valid only on search mode."),
   filter: searchFilterSchema
     .optional()
     .describe(

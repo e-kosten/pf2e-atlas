@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../../src/tui/search/service-types.js";
-import { buildResultDetailLines } from "../../src/tui/search-screen/results.js";
+import { buildResultDetailLines, buildResultLines } from "../../src/tui/search-screen/results.js";
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
   return {
@@ -83,17 +83,17 @@ function createQuery(): Pf2eTerminalSearchQuery {
   return {
     mode: "search",
     limit: 20,
-    queryText: "alarm ward",
-    searchProfile: "balanced",
-    sourceLabel: null,
-    filters: {
-      category: "spell",
-      parts: [],
+    search: {
+      query: "alarm ward",
+      profile: "balanced",
     },
   };
 }
 
-function createSession(record: NormalizedRecord): Pf2eTerminalSearchSession {
+function createSession(
+  record: NormalizedRecord,
+  overrides: Partial<Pf2eTerminalSearchSession> = {},
+): Pf2eTerminalSearchSession {
   return {
     windowId: "window-1",
     query: createQuery(),
@@ -107,6 +107,7 @@ function createSession(record: NormalizedRecord): Pf2eTerminalSearchSession {
     searchProfile: "balanced",
     sort: "ranked",
     sortSeed: null,
+    ...overrides,
   };
 }
 
@@ -128,5 +129,76 @@ describe("search result detail lines", () => {
     expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
     expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
     expect(linkLine?.href).toContain("include-traits=fortune+mental");
+  });
+
+  it("adds a light match-type metadata line for lookup previews", () => {
+    const lines = buildResultDetailLines(
+      createRecord({ name: "Fire Ball" }),
+      createSession(createRecord({ name: "Fire Ball" }), {
+        query: {
+          mode: "lookup",
+          limit: 20,
+          search: {
+            query: "Fire Ball",
+          },
+        },
+        searchProfile: null,
+        resultMode: "lexical",
+        sort: "alphabeticalTiered",
+      }),
+      0,
+    );
+
+    expect(lines[1]?.text).toBe("Showing: result 1/1");
+    expect(lines[2]?.text).toBe("Sort: Alphabetical (tiered)");
+    expect(lines[3]?.text).toBe("Match: Exact");
+    expect(lines[4]?.text).toBe("Source: Spells");
+  });
+
+  it("renders lookup tiered sections without per-row badges and global lookup badges without sections", () => {
+    const exact = createRecord({ name: "Fire Ball", recordKey: "spell:exact" });
+    const normalized = createRecord({ name: "fire ball", recordKey: "spell:normalized" });
+    const fuzzy = createRecord({ name: "Firewall", recordKey: "spell:fuzzy" });
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "lookup",
+      limit: 20,
+      search: {
+        query: "Fire Ball",
+      },
+    };
+
+    const tieredLines = buildResultLines(
+      createSession(exact, {
+        query,
+        results: [exact, normalized, fuzzy],
+        total: 3,
+        loadedCount: 3,
+        sort: "alphabeticalTiered",
+      }),
+      0,
+      12,
+      false,
+    );
+    const globalLines = buildResultLines(
+      createSession(exact, {
+        query,
+        results: [normalized, exact, fuzzy],
+        total: 3,
+        loadedCount: 3,
+        sort: "alphabeticalGlobal",
+      }),
+      0,
+      12,
+      false,
+    );
+
+    expect(tieredLines.map((line) => line.text)).toContain("Exact");
+    expect(tieredLines.map((line) => line.text)).toContain("Normalized Exact");
+    expect(tieredLines.map((line) => line.text)).toContain("Fuzzy");
+    expect(tieredLines.some((line) => line.text.includes("[exact]"))).toBe(false);
+    expect(globalLines.some((line) => line.text === "Exact")).toBe(false);
+    expect(globalLines.some((line) => line.text.includes("[normalized]"))).toBe(true);
+    expect(globalLines.some((line) => line.text.includes("[exact]"))).toBe(true);
+    expect(globalLines.some((line) => line.text.includes("[fuzzy]"))).toBe(true);
   });
 });

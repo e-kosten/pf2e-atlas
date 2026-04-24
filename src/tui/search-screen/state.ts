@@ -1,7 +1,7 @@
 import type { SearchCountResult } from "../../domain/search-types.js";
-import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession, Pf2eTerminalSearchSort } from "../search/service.js";
 import { moveSelection } from "../framework/input.js";
+import { formatSearchSortLabel } from "../search/service-options.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "../two-pane-state.js";
 export type {
   SearchQueryFieldBuilderDraft,
@@ -70,16 +70,7 @@ const RESULT_PRELOAD_JUMP_MULTIPLIER = 6;
 export const RESULT_WINDOW_FETCH_DEBOUNCE_MS = 40;
 
 export function formatSort(sort: Pf2eTerminalSearchSort): string {
-  switch (sort) {
-    case "ranked":
-    case "alphabetical":
-    case "random":
-      return humanizeOntologySearchIdentifier(sort);
-    case "levelAsc":
-      return "Level Low-High";
-    case "levelDesc":
-      return "Level High-Low";
-  }
+  return formatSearchSortLabel(sort);
 }
 
 export function formatCount(value: number): string {

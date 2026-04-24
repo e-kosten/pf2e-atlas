@@ -6,16 +6,15 @@ import {
 } from "../../src/server/search-request-adapter.js";
 
 describe("search request adapter", () => {
-  it("builds browse requests without a search branch", () => {
-    const request = buildSearchRequestFromTransportInput("browse", {
-      query: "ghost sailor ship",
-      searchProfile: "lexical",
-      explain: true,
+  it("passes through canonical browse requests", () => {
+    const request = buildSearchRequestFromTransportInput({
+      mode: "browse",
       filter: {
         kind: "scope",
         category: "creature",
         subcategory: { kind: "any" },
       },
+      sort: { kind: "alphabetical" },
       limit: 20,
       offset: 5,
     });
@@ -27,6 +26,7 @@ describe("search request adapter", () => {
         category: "creature",
         subcategory: { kind: "any" },
       },
+      sort: { kind: "alphabetical" },
       limit: 20,
       offset: 5,
     });
@@ -34,38 +34,14 @@ describe("search request adapter", () => {
     expect("explain" in request).toBe(false);
   });
 
-  it("builds lookup requests from nameQuery only", () => {
-    const request = buildSearchRequestFromTransportInput("lookup", {
-      nameQuery: "Last Sentinel",
-      query: "ignored broad query",
-      filter: {
-        kind: "scope",
-        category: "creature",
-        subcategory: { kind: "any" },
-      },
-      limit: 5,
-    });
-
-    expect(request).toEqual({
-      mode: "lookup",
+  it("passes through canonical search requests", () => {
+    const request = buildSearchRequestFromTransportInput({
+      mode: "search",
       search: {
-        query: "Last Sentinel",
+        query: "ghost sailor ship",
+        exclude: "harbor",
+        profile: "concept",
       },
-      filter: {
-        kind: "scope",
-        category: "creature",
-        subcategory: { kind: "any" },
-      },
-      limit: 5,
-      offset: undefined,
-    });
-  });
-
-  it("builds search requests with the search branch fields only", () => {
-    const request = buildSearchRequestFromTransportInput("search", {
-      query: "ghost sailor ship",
-      excludeQuery: "harbor",
-      searchProfile: "concept",
       explain: true,
       limit: 10,
       offset: 2,

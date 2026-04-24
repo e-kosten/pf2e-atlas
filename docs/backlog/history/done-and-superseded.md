@@ -33,6 +33,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
   Actor and item metric predicates now run through the shared search/filter pipeline and are wired through both MCP semantics and TUI compose flows. Status: done.
 
+- [Remove isUnique metadata](./items/remove-isunique-metadata.md)
+  Search/filter vocabulary no longer exposes `isUnique` as a standalone public metadata concept; rarity remains the durable public owner of uniqueness semantics. Status: done.
+
 - [Derived-tag ontology future shape](./items/derived-tag-ontology-future-shape.md)
   The durable documentation-preservation goal is now complete; active implementation follow-through is tracked separately under the derived-tag concept-model implementation backlog item. Status: done.
 

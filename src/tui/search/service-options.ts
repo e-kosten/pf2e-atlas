@@ -1,9 +1,11 @@
 import { orderFilterValues, type FilterValueOrdering } from "../../domain/filter-value-ordering.js";
+import type { LookupSortSpec } from "../../domain/search-request-types.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFacetValueOption,
+  Pf2eTerminalLookupSort,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchModeOption,
   Pf2eTerminalSearchProfileOption,
@@ -70,58 +72,37 @@ export const SEARCH_SORT_OPTIONS: Record<Pf2eTerminalSearchMode, Pf2eTerminalSea
       description: "Shuffle browse results into a stable random session order.",
     },
   ],
-  search: [
-    {
-      value: "ranked",
-      label: "Ranked",
-      description: "Keep the current search profile's relevance order.",
-    },
-    {
-      value: "alphabetical",
-      label: "Alphabetical",
-      description: "Read matched results in name order.",
-    },
-    {
-      value: "levelAsc",
-      label: "Level Low-High",
-      description: "Read matched results from lowest level to highest level.",
-    },
-    {
-      value: "levelDesc",
-      label: "Level High-Low",
-      description: "Read matched results from highest level to lowest level.",
-    },
-    {
-      value: "random",
-      label: "Random",
-      description: "Shuffle matched results into a stable random session order.",
-    },
-  ],
+  search: [],
   lookup: [
     {
-      value: "ranked",
-      label: "Closest Match",
-      description: "Keep the best name-match ordering for lookup results.",
+      value: "alphabeticalTiered",
+      label: "Alphabetical (Tiered)",
+      description: "Group exact, normalized, and fuzzy matches, then sort each tier alphabetically.",
     },
     {
-      value: "alphabetical",
-      label: "Alphabetical",
-      description: "Read lookup matches in name order.",
+      value: "alphabeticalGlobal",
+      label: "Alphabetical (Global)",
+      description: "Keep one flat alphabetical list with per-row match badges.",
     },
     {
-      value: "levelAsc",
-      label: "Level Low-High",
-      description: "Read lookup matches from lowest level to highest level.",
+      value: "levelAscTiered",
+      label: "Level Low-High (Tiered)",
+      description: "Group lookup matches by strength, then read each tier from lowest level to highest level.",
     },
     {
-      value: "levelDesc",
-      label: "Level High-Low",
-      description: "Read lookup matches from highest level to lowest level.",
+      value: "levelAscGlobal",
+      label: "Level Low-High (Global)",
+      description: "Keep one flat level-sorted list with per-row match badges.",
     },
     {
-      value: "random",
-      label: "Random",
-      description: "Shuffle lookup matches into a stable random session order.",
+      value: "levelDescTiered",
+      label: "Level High-Low (Tiered)",
+      description: "Group lookup matches by strength, then read each tier from highest level to lowest level.",
+    },
+    {
+      value: "levelDescGlobal",
+      label: "Level High-Low (Global)",
+      description: "Keep one flat reverse-level list with per-row match badges.",
     },
   ],
 };
@@ -164,7 +145,14 @@ export function createFacetValueOptions(
 }
 
 export function getDefaultSort(mode: Pf2eTerminalSearchMode): Pf2eTerminalSearchSort {
-  return mode === "browse" ? "alphabetical" : "ranked";
+  switch (mode) {
+    case "browse":
+      return "alphabetical";
+    case "lookup":
+      return "alphabeticalTiered";
+    case "search":
+      return "ranked";
+  }
 }
 
 export function createSortSeed(sort: Pf2eTerminalSearchSort): number | null {
@@ -173,4 +161,47 @@ export function createSortSeed(sort: Pf2eTerminalSearchSort): number | null {
   }
 
   return Math.trunc(Date.now() % 2147483647);
+}
+
+export function isLookupSort(sort: Pf2eTerminalSearchSort): sort is Pf2eTerminalLookupSort {
+  return sort.endsWith("Tiered") || sort.endsWith("Global");
+}
+
+export function buildLookupSortSpec(sort: Pf2eTerminalLookupSort): LookupSortSpec {
+  if (sort.startsWith("alphabetical")) {
+    return { kind: "alphabetical", policy: sort.endsWith("Global") ? "global" : "tiered" };
+  }
+  if (sort.startsWith("levelAsc")) {
+    return { kind: "levelAsc", policy: sort.endsWith("Global") ? "global" : "tiered" };
+  }
+  return { kind: "levelDesc", policy: sort.endsWith("Global") ? "global" : "tiered" };
+}
+
+export function getLookupSortPolicy(sort: Pf2eTerminalSearchSort): "tiered" | "global" | null {
+  return isLookupSort(sort) ? (sort.endsWith("Global") ? "global" : "tiered") : null;
+}
+
+export function formatSearchSortLabel(sort: Pf2eTerminalSearchSort): string {
+  switch (sort) {
+    case "ranked":
+    case "alphabetical":
+    case "random":
+      return formatOntologySearchVocabularyLabel(sort);
+    case "levelAsc":
+      return "Level Low-High";
+    case "levelDesc":
+      return "Level High-Low";
+    case "alphabeticalTiered":
+      return "Alphabetical (tiered)";
+    case "alphabeticalGlobal":
+      return "Alphabetical (global)";
+    case "levelAscTiered":
+      return "Level Low-High (tiered)";
+    case "levelAscGlobal":
+      return "Level Low-High (global)";
+    case "levelDescTiered":
+      return "Level High-Low (tiered)";
+    case "levelDescGlobal":
+      return "Level High-Low (global)";
+  }
 }

@@ -24,4 +24,4 @@ Add a searchable casting-time concept that covers longer or non-standard casting
 ## Related
 
 - [Filter shape convergence](./filter-shape-convergence.md)
-- [Remove isUnique metadata](./remove-isunique-metadata.md)
+- [Remove isUnique metadata](../history/items/remove-isunique-metadata.md)

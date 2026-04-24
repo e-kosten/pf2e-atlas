@@ -174,7 +174,7 @@ export class Pf2eDataService {
   lookup(
     name: string,
     options: LookupOptions = {},
-  ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
+  ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[]; matchType: LookupResult["matchType"] } {
     return this.searchService.lookup(name, options);
   }
 }

@@ -72,7 +72,7 @@ function createDependencies(
       derivedTagOntologyTags: [],
       derivedTagCatalog: [],
     }),
-    lookup: vi.fn(() => ({ match: null, alternatives: [] })),
+    lookup: vi.fn(() => ({ match: null, alternatives: [], matchType: "none" as const })),
     listRecords: vi.fn((filters: SearchRequest) => ({
       searchProfile: null,
       mode: "structured" as const,
@@ -139,6 +139,64 @@ function createSearchSemanticsDomain(rootNodes: OntologyNode[]): OntologyDomainM
 }
 
 describe("createPf2eTerminalSearchService", () => {
+  it("keeps mode-specific result-sort choices explicit", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+
+    expect(service.getDefaultSort("browse")).toBe("alphabetical");
+    expect(service.getDefaultSort("search")).toBe("ranked");
+    expect(service.getDefaultSort("lookup")).toBe("alphabeticalTiered");
+    expect(service.getResultSortOptions("browse").map((option) => option.value)).toEqual([
+      "alphabetical",
+      "levelAsc",
+      "levelDesc",
+      "random",
+    ]);
+    expect(service.getResultSortOptions("search").map((option) => option.value)).toEqual([]);
+    expect(service.getResultSortOptions("lookup").map((option) => option.value)).toEqual([
+      "alphabeticalTiered",
+      "alphabeticalGlobal",
+      "levelAscTiered",
+      "levelAscGlobal",
+      "levelDescTiered",
+      "levelDescGlobal",
+    ]);
+  });
+
+  it("builds lookup search-window requests with explicit tiered or global sort policy", async () => {
+    const openSearchWindow = vi.fn(async () => ({
+      id: "window-1",
+      searchProfile: null,
+      mode: "lexical" as const,
+      sort: "alphabetical" as const,
+      sortSeed: null,
+      total: 0,
+      offset: 0,
+      limit: 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [],
+    }));
+    const service = createPf2eTerminalSearchService(createDependencies({ openSearchWindow }));
+
+    await service.executeQuery(service.createDefaultQuery("lookup"));
+    await service.executeQuery(service.createDefaultQuery("lookup"), { sort: "levelDescGlobal" });
+
+    expect(openSearchWindow).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        mode: "lookup",
+        sort: { kind: "alphabetical", policy: "tiered" },
+      }),
+    );
+    expect(openSearchWindow).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        mode: "lookup",
+        sort: { kind: "levelDesc", policy: "global" },
+      }),
+    );
+  });
+
   it("prefers the cached category summary when building category options", () => {
     const getSearchVocabulary = vi.fn(() => ({
       categories: [{ value: "spell", count: 99 }],

@@ -85,9 +85,9 @@ It does not own SQL, fusion, reranking, or corpus normalization.
 
 The backend deliberately routes similar requests through different runtime modes:
 
-- `pf2e_search` calls `dataService.search(...)` and can resolve to `structured`, `lexical`, or `hybrid` execution.
-- `pf2e_lookup` calls `dataService.lookup(...)`, which builds a lookup `SearchRequest` with `intent: "lookup"`, `text`, and `limit: 5` before running the structured runtime path.
-- `pf2e_list_records` calls `dataService.listRecords(...)`, which uses structured SQL listing only and never enters ranked retrieval.
+- `pf2e_search` exposes the `mode: "search"` branch of `SearchRequest`: it requires `search.query`, may include `search.exclude` and `search.profile`, and can resolve to `lexical` or `hybrid` execution depending on profile.
+- `pf2e_lookup` calls `dataService.lookup(...)`, which builds a lookup `SearchRequest` with `mode: "lookup"`, `search.query`, and `limit: 5` before running the structured runtime path.
+- `pf2e_list_records` exposes the `mode: "browse"` branch of `SearchRequest`: it uses the canonical root `filter`, optional browse `sort`, and pagination, then stays on structured SQL listing only.
 
 So lookup is not a separate search engine. It is a constrained structured search path optimized for exact-name matching and small alternative sets.
 
@@ -101,7 +101,7 @@ flowchart TD
   D --> E[resolveSearchMode + resolveSearchProfile]
 
   E -->|structured| F[fetchCandidates]
-  F --> G[optional excludeQuery token filter]
+  F --> G[optional search.exclude token filter]
   G --> H[structured scoring<br/>nameScore or default 0.5<br/>+ rerank adjustments]
   H --> I[sort results]
 
@@ -119,7 +119,7 @@ flowchart TD
   Q --> S[union candidate keys]
   R --> S
   S --> T[fetchCandidates for union]
-  T --> U[excludeQuery + recordMatchesFilters]
+  T --> U[search.exclude + recordMatchesFilters]
   U --> V[rerank lexical top K]
   V --> W[weighted RRF fusion<br/>+ rerank adjustments]
   W --> I
@@ -138,14 +138,16 @@ That shared semantic contract includes the metadata query subtree. Metadata fiel
 
 `compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
 
-- mapping `intent` and `text` onto `query` or `nameQuery`
-- lowering first-class request parts such as `subcategory`, `levelRange`, `rarityPolicy`, and `actionCostPolicy`
-- converting metadata request parts into the metadata filter DSL
-- preserving shared pagination, link, pack, price, explain, and exclusion settings
+- reading the canonical `mode` branch and its mode-specific fields
+- lowering the root `filter` tree into execution-facing constraints such as scope, ranges, links, metadata predicates, and metric predicates
+- mapping `search.query`, `search.exclude`, and `search.profile` onto the appropriate ranked-search execution inputs
+- preserving shared pagination, explain, pack-label resolution, and browse or lookup sort settings where that mode allows them
 
 Search-execution filters are not the shared contract. They are search-owned compiled output used by normalization, validation, SQL construction, and runtime execution.
 
-The backend does not preserve a hidden compatibility path for legacy filter-shaped inputs. Surface adapters and ontology query carriers must provide real `SearchRequest` values before execution begins.
+The backend does not preserve a hidden compatibility path for legacy `intent` / `parts` / flat-root-filter inputs. Surface adapters and ontology query carriers must provide real `SearchRequest` values before execution begins.
+
+This request-model convergence also does not introduce a durable migration surface. There is no persisted search-session or query document format to rewrite, and the prepared index/runtime assets stay unchanged. The cleanup is a live contract change at the transport and UI edges, not a database or cache migration.
 
 ### 2. Filter normalization and validation
 
@@ -153,17 +155,17 @@ The backend does not preserve a hidden compatibility path for legacy filter-shap
 
 `normalizeSearchFilters(...)` in `src/search/filters/normalization.ts`:
 
-- canonicalizes `category`, `subcategory`, and `scopes`
+- canonicalizes scope, range, and boolean filter nodes
 - resolves a user-supplied pack label back to its canonical pack name when possible
-- deduplicates `linksTo` and `excludeLinksTo`
-- normalizes the metadata filter DSL
+- lowers boolean filter composition and negated link clauses into the execution filter shape
+- normalizes atomic metadata predicates and metric predicates inside the filter tree
 
 `validateSearchFilters(...)` then enforces mode rules such as:
 
-- `pf2e_list_records` cannot use `query`, `excludeQuery`, or `searchProfile`
-- `pf2e_search` must provide text and/or structured filters
-- `scopes` cannot be combined with top-level `category` or `subcategory`
-- subcategories must belong to their categories
+- browse/list requests cannot carry a `search` branch or `explain`
+- search requests must carry `search.query`
+- lookup requests carry `search.query` but not ranked-search profile controls
+- scope leaves and their category/subcategory pairings must stay semantically valid
 
 ### 3. Runtime dependency assembly
 
@@ -186,15 +188,15 @@ This keeps `runtime-search.ts` independent from direct `DatabaseSync` and catalo
 
 `src/search/ranking.ts` decides which runtime path to use:
 
-- `structured`: no free-text `query`, including browse/list flows and lookup-style `nameQuery` searches
-- `lexical`: `searchProfile: "lexical"` with a free-text `query`
-- `hybrid`: free-text `query` with `balanced`, `concept`, or default search behavior
+- `structured`: browse/list flows and lookup-style name matching
+- `lexical`: `mode: "search"` with `search.profile: "lexical"`
+- `hybrid`: `mode: "search"` with `balanced`, `concept`, or default search behavior
 
 Default MCP search behavior is important here:
 
-- `pf2e_search` with `query` but no explicit profile becomes `balanced` hybrid search
-- `pf2e_search` with only structured filters stays structured
-- `pf2e_lookup` always stays structured because lookup intent compiles to `nameQuery`, not `query`
+- `pf2e_search` with `search.query` but no explicit profile becomes `balanced` hybrid search
+- `pf2e_search` does not have a structured-only public branch; structured browse belongs on `pf2e_list_records`
+- `pf2e_lookup` always stays structured because lookup compiles to exact-name matching rather than ranked free-text retrieval
 
 ### 5. SQL candidate filtering
 
@@ -204,10 +206,10 @@ The SQL filter stage is shared across browse, lexical retrieval, semantic retrie
 
 - `is_search_canonical = 1`
 - exact pack or pack-label match
-- `category`, `subcategory`, or multi-scope category/subcategory pairs
-- `levelMin`, `levelMax`, `rarity`, `priceMin`, `priceMax`, and `actionCost`
-- metadata DSL predicates
-- exact link inclusion/exclusion against `reference_edges`
+- scope-derived category/subcategory pairs
+- level, rarity, price, and action-cost constraints lowered from canonical filter leaves
+- metadata and metric predicates lowered from the canonical filter tree
+- exact link inclusion and negated-link constraints against `reference_edges`
 
 This stage feeds several query builders:
 
@@ -227,10 +229,10 @@ Structured execution is used by browse flows and lookup-like name matching.
 - fetches SQL-filtered candidates
 - optionally removes records whose `search_text` contains excluded query tokens
 - scores each record with either:
-  - `nameScore(...)` when `nameQuery` is present
+  - `nameScore(...)` when lookup-style name matching is present
   - or a neutral baseline of `0.5` when it is not
 - adds rerank adjustments from ranking config
-- sorts either by ranked score or explicit user sort
+- sorts either by explicit browse or lookup sort, or by the default structured ordering for that mode
 
 The rerank adjustments come from `src/search/ranking.ts` and currently include:
 

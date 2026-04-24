@@ -19,6 +19,10 @@ function withWindowLimit(query: Pf2eTerminalSearchQuery, limit: number): Pf2eTer
 export function createSearchSessionFromWindow(
   query: Pf2eTerminalSearchQuery,
   result: SearchWindowPage,
+  options: {
+    sort: Pf2eTerminalSearchSort;
+    sortSeed: number | null;
+  },
 ): Pf2eTerminalSearchSession {
   return {
     windowId: result.id,
@@ -31,8 +35,8 @@ export function createSearchSessionFromWindow(
     hasMore: result.hasMore,
     nextOffset: result.nextOffset,
     searchProfile: result.searchProfile,
-    sort: result.sort,
-    sortSeed: result.sortSeed,
+    sort: options.sort,
+    sortSeed: options.sortSeed,
   };
 }
 

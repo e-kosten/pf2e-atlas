@@ -3,7 +3,7 @@
 Status: done  
 Priority: soon  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-24
 
 ## Problem
 
@@ -19,8 +19,8 @@ That scratch work mixed together several concerns, some of which have already la
 
 The useful part of that worktree is now fully landed:
 
-- `query.filters.parts` should stay the canonical TUI structured-query representation
-- TUI search state should not keep parallel compatibility fields for subcategory, level range, rarity, action cost, and metadata when those values can be derived from query parts
+- the TUI search path stopped keeping parallel compatibility fields for subcategory, level range, rarity, action cost, and metadata beside its canonical structured state
+- at the time this item landed that canonical state still centered on `query.filters.parts`; ADR 0013 later replaced that long-lived owner with `SearchRequest` plus `query.filter`
 - filter-explorer compose state should converge on one durable draft shape instead of carrying side-channel compatibility fields such as `structuredMetadata`
 - workflow/session ownership should carry exploration scope such as `scopedFields`, rather than baking that scope into the draft object itself
 
@@ -30,7 +30,7 @@ This outcome is now landed.
 
 The landed cleanup provides:
 
-- `query.filters.parts` as the sole canonical TUI structured-query representation
+- one canonical TUI structured-query representation instead of duplicated compatibility fields
 - one canonical filter-explorer compose draft shape
 - metadata owned directly by the compose draft when compose mode needs it
 - workflow/session-level ownership of scope such as `scopedFields`
@@ -40,7 +40,7 @@ The landed cleanup provides:
 
 - Do not replay the dropped worktree literally. Several edited paths there no longer match the current split `src/tui/search-screen/` layout.
 - Preserve the current architecture where shared policy presentation lives in `src/tui/framework/` and ontology presenter/cache ownership lives under `src/app/ontology/`.
-- Keep `query.filters.parts` canonical rather than reintroducing parallel field copies for convenience.
+- Keep one canonical structured-query owner rather than reintroducing parallel field copies for convenience.
 - Do not hide this cleanup inside a renderer-only feature. If summary/document rendering work needs this foundation, make the state cleanup explicit.
 - Keep filter-explorer mode boundaries clear: compose state should own compose concerns, while workflow/session objects own launch scope and host-specific context.
 

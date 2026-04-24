@@ -3,7 +3,7 @@
 Status: done  
 Priority: n/a  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-24
 
 ## Outcome
 
@@ -11,8 +11,9 @@ The live search workspace now derives a first-class summary/document model from 
 
 The landed shape is:
 
-- `query.filters.parts` remains the canonical structured-query state
-- `src/tui/search-screen/workspace/query-summary.ts` derives a stable summary/document model from that state
+- the workspace summary/document model derives from the durable canonical query state owned by `SearchRequest`
+- today that means `SearchRequest` plus `query.filter`, not the older `query.filters.parts` state model that existed when this item first landed
+- `src/tui/search-screen/workspace/query-summary.ts` derives a stable summary/document model from that canonical state
 - `src/tui/search-screen/workspace/workspace.ts` renders workspace rows and summary/detail panes from that summary model instead of re-deriving structured meaning from raw query state in each helper
 
 The summary/document layer provides:
@@ -25,7 +26,7 @@ The summary/document layer provides:
   - summary/document modeling
   - visible editor row rendering
 
-This closes the remaining architectural gap left after canonical `query.filters.parts` ownership had already landed.
+This closes the remaining architectural gap between canonical query ownership and editor-facing rendering. ADR 0013 later tightened the canonical-owner side of that same seam by making `SearchRequest` the long-lived TUI search state.
 
 ## Notes
 

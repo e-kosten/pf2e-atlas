@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import {
+  buildLookupMatchTypeGroup,
   buildSearchResultRowLine,
   buildTerminalListDetailGroupLine,
   buildTerminalListDetailMetadataLines,
   buildTerminalResultRowLine,
+  formatLookupMatchTypeBadge,
+  formatLookupMatchTypeLabel,
   formatTerminalBreadcrumb,
 } from "../../src/tui/list-detail-formatting.js";
 
@@ -122,5 +125,20 @@ describe("list detail formatting", () => {
       { text: "Showing: result 1/3", noWrap: true },
       { text: "Sort: Ranked", noWrap: true },
     ]);
+  });
+
+  it("formats lookup match grouping and badges through the shared row-presentation owner", () => {
+    expect(formatLookupMatchTypeLabel("normalized_exact")).toBe("Normalized Exact");
+    expect(formatLookupMatchTypeBadge("normalized_exact")).toBe("normalized");
+    expect(buildLookupMatchTypeGroup("fuzzy")).toEqual({
+      key: "fuzzy",
+      label: "Fuzzy",
+    });
+    expect(
+      buildSearchResultRowLine(createRecord(), {
+        selected: false,
+        badges: ["exact"],
+      }).text,
+    ).toBe("Guardian Adept | L4 | Rare | Pathfinder Monster Core | [exact]");
   });
 });

@@ -14,14 +14,14 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Filter shape convergence](./items/filter-shape-convergence.md)
+  Finish the remaining public-surface convergence on the canonical `mode` / `search` / `filter` model, especially the lookup-specific MCP follow-through that still sits outside the landed search/list and TUI cleanup. Status: in_progress.
+
 - [Search interaction cleanup](./items/search-interaction-cleanup.md)
   Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
 
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
-
-- [Remove isUnique metadata](./items/remove-isunique-metadata.md)
-  Stop exposing `isUnique` as standalone metadata where it only duplicates rarity semantics. Status: proposed.
 
 ## Soon
 
@@ -33,9 +33,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
-
-- [Filter shape convergence](./items/filter-shape-convergence.md)
-  Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
 - Move bottom aligned "modals" into the floating modal model. Catalog the current uses, and decide wether things should stay as they are (ex. the action palette is a good candidate to stay where it is) where as other stuff like level pickers and the exemplar filter menus should be floating. The action menu though is a good candidate to stay in the footer. 
 

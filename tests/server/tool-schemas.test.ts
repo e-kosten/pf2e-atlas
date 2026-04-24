@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  browseSortSchema,
   CATEGORY_HINT_DESCRIPTION,
   listRecordsToolInputSchema,
   linksToModeSchema,
@@ -97,13 +98,19 @@ describe("tool schemas", () => {
   });
 
   it("rejects legacy flat root filter fields on list and search tool inputs", () => {
+    expect(browseSortSchema.safeParse({ kind: "alphabetical" }).success).toBe(true);
+    expect(browseSortSchema.safeParse({ kind: "random", seed: 7 }).success).toBe(true);
+    expect(browseSortSchema.safeParse({ kind: "ranked" }).success).toBe(false);
+
     expect(
       listRecordsToolInputSchema.safeParse({
+        mode: "browse",
         filter: {
           kind: "scope",
           category: "creature",
           subcategory: { kind: "any" },
         },
+        sort: { kind: "alphabetical" },
         limit: 20,
       }).success,
     ).toBe(true);
@@ -116,8 +123,21 @@ describe("tool schemas", () => {
     ).toBe(false);
 
     expect(
+      listRecordsToolInputSchema.safeParse({
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(
       searchToolInputSchema.safeParse({
-        query: "ghost sailor ship",
+        mode: "search",
+        search: {
+          query: "ghost sailor ship",
+        },
         filter: {
           kind: "scope",
           category: "creature",
@@ -128,9 +148,51 @@ describe("tool schemas", () => {
 
     expect(
       searchToolInputSchema.safeParse({
+        mode: "search",
+        search: {
+          query: "ghost sailor ship",
+          profile: "balanced",
+          exclude: "harbor",
+        },
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        mode: "search",
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        mode: "search",
         query: "ghost sailor ship",
         category: "creature",
         levelMin: 1,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        mode: "search",
+        search: {
+          query: "ghost sailor ship",
+        },
+        searchProfile: "balanced",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      searchToolInputSchema.safeParse({
+        mode: "search",
+        search: {
+          query: "   ",
+        },
       }).success,
     ).toBe(false);
   });

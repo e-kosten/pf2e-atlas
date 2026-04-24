@@ -3,9 +3,9 @@ import type { DatabaseSync } from "node:sqlite";
 import type {
   FilterValueQuery,
   FilterValueResult,
+  LookupResult,
   LookupOptions,
   LookupQuery,
-  LookupResult,
   SearchCountResult,
   SearchResult,
   SearchWindowPage,
@@ -25,12 +25,32 @@ import {
 import { compileSearchRequest } from "../../search/request-compilation.js";
 import { buildAllOfFilter, buildAnyOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
-import { getLookupMatchType } from "../rows.js";
+import { getLookupMatchType } from "../../domain/lookup-match-type.js";
 import { normalizeSearchFilters, validateSearchFilters } from "../../search/filters/normalization.js";
 import { hashRecordSortSeed } from "../../search/runtime-search-sorting.js";
 import { createRuntimeSearchDependencies } from "./runtime-search-dependencies.js";
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
+
+function applyLookupTieredOrdering(
+  query: string,
+  records: readonly NormalizedRecord[],
+): NormalizedRecord[] {
+  const buckets: Record<Exclude<LookupResult["matchType"], "none">, NormalizedRecord[]> = {
+    exact: [],
+    normalized_exact: [],
+    fuzzy: [],
+  };
+
+  for (const record of records) {
+    const matchType = getLookupMatchType(query, record);
+    if (matchType !== "none") {
+      buckets[matchType].push(record);
+    }
+  }
+
+  return [...buckets.exact, ...buckets.normalized_exact, ...buckets.fuzzy];
+}
 
 export class Pf2eSearchBackendService {
   private readonly searchWindows: Pf2eSearchWindowStore;
@@ -142,14 +162,18 @@ export class Pf2eSearchBackendService {
 
     validateSearchFilters(normalizedFilters, "search");
     const snapshot = await buildSearchWindowSnapshot(normalizedFilters, runtime);
+    const records =
+      normalizedRequest.mode === "lookup" && (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
+        ? applyLookupTieredOrdering(normalizedRequest.search.query, snapshot.records)
+        : snapshot.records;
     const window = this.searchWindows.openWindow({
       kind: "recordKeys",
       mode: snapshot.mode,
       searchProfile: snapshot.searchProfile,
       sort: snapshot.sort,
       sortSeed: normalizedFilters.sortSeed ?? null,
-      total: snapshot.records.length,
-      orderedRecordKeys: snapshot.records.map((record) => record.recordKey),
+      total: records.length,
+      orderedRecordKeys: records.map((record) => record.recordKey),
     });
     return this.searchWindows.readWindowPage(window.id, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
   }
@@ -172,7 +196,7 @@ export class Pf2eSearchBackendService {
   lookup(
     name: string,
     options: LookupOptions = {},
-  ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[] } {
+  ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[]; matchType: LookupResult["matchType"] } {
     const filters = this.normalizeRequest({
       mode: "lookup",
       search: { query: name },
@@ -183,7 +207,11 @@ export class Pf2eSearchBackendService {
       limit: 5,
     });
     validateSearchFilters(filters, "search");
-    return lookupRuntime(name, filters, this.runtimeSearchDependencies());
+    const lookup = lookupRuntime(name, filters, this.runtimeSearchDependencies());
+    return {
+      ...lookup,
+      matchType: getLookupMatchType(name, lookup.match),
+    };
   }
 
   lookupMany(queries: LookupQuery[], options: { coreOnly?: boolean } = {}): LookupResult[] {
@@ -209,6 +237,7 @@ export class Pf2eSearchBackendService {
         return {
           match: results[0] ?? null,
           alternatives: results.slice(1),
+          matchType: getLookupMatchType(query.name, results[0] ?? null),
         };
       })();
 
@@ -216,7 +245,7 @@ export class Pf2eSearchBackendService {
         query,
         match: lookup.match,
         alternatives: lookup.alternatives,
-        matchType: getLookupMatchType(query.name, lookup.match),
+        matchType: lookup.matchType,
       };
     });
   }

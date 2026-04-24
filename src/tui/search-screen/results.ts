@@ -4,12 +4,32 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import { clampWindowStart } from "../list-utils.js";
-import { buildSearchResultRowLine, buildTerminalListDetailMetadataLines } from "../list-detail-formatting.js";
+import { getLookupMatchType } from "../../domain/lookup-match-type.js";
+import {
+  buildLookupMatchTypeGroup,
+  buildSearchResultRowLine,
+  buildTerminalListDetailMetadataLines,
+  formatLookupMatchTypeBadge,
+  formatLookupMatchTypeLabel,
+} from "../list-detail-formatting.js";
 import { buildTerminalGroupedListLines } from "../list-detail-presentation.js";
 import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
+
+function getLookupPresentation(
+  session: Pf2eTerminalSearchSession | null,
+): { policy: "tiered" | "global"; query: string } | null {
+  if (!session || session.query.mode !== "lookup") {
+    return null;
+  }
+
+  return {
+    policy: session.sort.endsWith("Global") ? "global" : "tiered",
+    query: session.query.search.query,
+  };
+}
 
 export function parseJumpToResultInput(input: string, total: number): number | string {
   const normalized = input.replace(/[,_\s]+/g, "");
@@ -48,14 +68,28 @@ export function buildResultLines(
   const safeIndex = Math.max(0, Math.min(localSelectedIndex, session.results.length - 1));
   const windowStart = clampWindowStart(safeIndex, session.results.length, resultWindowCount);
   const visibleRecords = session.results.slice(windowStart, windowStart + resultWindowCount);
+  const lookupPresentation = getLookupPresentation(session);
   const lines: DerivedTagTerminalLine[] = buildTerminalGroupedListLines({
     items: visibleRecords,
     selectedIndex:
       localSelectedIndex >= 0 && localSelectedIndex < session.results.length ? localSelectedIndex - windowStart : 0,
-    buildItemLine: (record, options) =>
-      buildSearchResultRowLine(record, {
+    getGroup:
+      lookupPresentation?.policy === "tiered"
+        ? (record) => {
+            const matchType = getLookupMatchType(lookupPresentation.query, record);
+            return matchType === "none" ? null : buildLookupMatchTypeGroup(matchType);
+          }
+        : undefined,
+    buildItemLine: (record, options) => {
+      const matchType = lookupPresentation ? getLookupMatchType(lookupPresentation.query, record) : "none";
+      return buildSearchResultRowLine(record, {
         selected: options.selected,
-      }),
+        badges:
+          lookupPresentation?.policy === "global" && matchType !== "none"
+            ? [formatLookupMatchTypeBadge(matchType)]
+            : undefined,
+      });
+    },
   });
 
   if (loadingMore) {
@@ -86,11 +120,20 @@ export function buildResultDetailLines(
   session: Pf2eTerminalSearchSession,
   resultIndex: number,
 ): DerivedTagTerminalLine[] {
+  const lookupPresentation = getLookupPresentation(session);
+  const lookupMatchType = lookupPresentation ? getLookupMatchType(lookupPresentation.query, record) : "none";
+  const matchType =
+    lookupMatchType === "none"
+      ? null
+      : lookupMatchType === "exact" || lookupMatchType === "normalized_exact" || lookupMatchType === "fuzzy"
+        ? formatLookupMatchTypeLabel(lookupMatchType)
+        : null;
   return [
     { text: "Result Preview", tone: "section" },
     ...buildTerminalListDetailMetadataLines([
       { label: "Showing", value: `result ${formatResultPosition(resultIndex, session.total)}` },
       { label: "Sort", value: formatSort(session.sort) },
+      ...(matchType ? [{ label: "Match", value: matchType }] : []),
       { label: "Source", value: record.packLabel },
     ]),
     { text: "" },
@@ -109,14 +152,18 @@ export function buildResultCommandPaletteEntries(
       description: "Jump to an absolute result position in the active result set.",
       keywords: ["position", "goto"],
     },
-    {
-      value: "sortResults",
-      label: "Change Sort",
-      description: state.session
-        ? `Switch result ordering from ${formatSort(state.session.sort)}.`
-        : "Change the active result ordering.",
-      keywords: ["order", "ranking"],
-    },
+    ...(state.session?.query.mode === "search"
+      ? []
+      : [
+          {
+            value: "sortResults" as const,
+            label: "Change Sort",
+            description: state.session
+              ? `Switch result ordering from ${formatSort(state.session.sort)}.`
+              : "Change the active result ordering.",
+            keywords: ["order", "ranking"],
+          },
+        ]),
     ...(origin === "ontology"
       ? [
           {

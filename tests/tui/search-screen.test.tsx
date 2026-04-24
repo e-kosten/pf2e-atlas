@@ -247,7 +247,7 @@ function createServices(
       nextOffset: null,
       records: [record],
     }));
-  const lookup: LookupFn = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [] }));
+  const lookup: LookupFn = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [], matchType: "exact" as const }));
   const search: SearchFn =
     overrides.search ??
     vi.fn((request: SearchRequest) =>

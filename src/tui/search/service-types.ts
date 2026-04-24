@@ -8,12 +8,12 @@ import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type {
   LookupOptions,
+  LookupResult,
   SearchCategory,
   SearchCountResult,
   SearchMode,
   SearchProfile,
   SearchResult,
-  SearchSort,
   SearchSubcategory,
   SearchWindowPage,
 } from "../../domain/search-types.js";
@@ -77,7 +77,17 @@ export type Pf2eTerminalMetricQueryField = "actorMetric" | "itemMetric";
 export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTerminalMetricQueryField;
 
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
-export type Pf2eTerminalSearchSort = SearchSort;
+export type Pf2eTerminalBrowseSort = "alphabetical" | "levelAsc" | "levelDesc" | "random";
+export type Pf2eTerminalSearchModeSort = "ranked";
+export type Pf2eTerminalLookupSort =
+  | "alphabeticalTiered"
+  | "alphabeticalGlobal"
+  | "levelAscTiered"
+  | "levelAscGlobal"
+  | "levelDescTiered"
+  | "levelDescGlobal";
+export type Pf2eTerminalSearchSort = Pf2eTerminalBrowseSort | Pf2eTerminalSearchModeSort | Pf2eTerminalLookupSort;
+export type Pf2eTerminalLookupMatchType = LookupResult["matchType"];
 
 export type Pf2eTerminalSearchQuery = SearchRequest;
 
@@ -207,7 +217,7 @@ export type SearchServiceDependencies = {
   lookup: (
     name: string,
     options?: LookupOptions,
-  ) => { match: NormalizedRecord | null; alternatives: NormalizedRecord[] };
+  ) => { match: NormalizedRecord | null; alternatives: NormalizedRecord[]; matchType: Pf2eTerminalLookupMatchType };
   listRecords: (request: SearchRequest) => SearchResult;
   openSearchWindow: (request: SearchRequest) => Promise<SearchWindowPage>;
   readSearchWindowPage: (windowId: string, offset: number, limit: number) => SearchWindowPage;

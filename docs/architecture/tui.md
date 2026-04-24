@@ -178,7 +178,7 @@ Within the search screen, the live workspace no longer renders structured rows d
 - staged structured-query summaries
 - query-status/detail summaries
 
-That summary layer owns stable anchors for major query parts and metadata nodes. The durable rule is:
+That summary layer owns stable anchors for major query branches and filter nodes. The durable rule is:
 
 - `SearchRequest` is the canonical TUI query state, including the structured filter tree
 - query-state helpers own normalization, projection, and interpretation of canonical `query.filter`

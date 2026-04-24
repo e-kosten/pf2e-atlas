@@ -2,20 +2,16 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 
 import { CATEGORY_SUBCATEGORY_MAP } from "../domain/categories.js";
+import type { BrowseRequest, SearchModeRequest } from "../domain/search-request-types.js";
 import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
 import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
   listRecordsToolInputSchema,
-  linksToModeSchema,
-  metadataFilterSchema,
-  recordKeyArraySchema,
   searchToolInputSchema,
   SCOPES_HINT_DESCRIPTION,
   searchCategorySchema,
-  searchFilterSchema,
-  searchProfileSchema,
   searchScopeSchema,
   searchSubcategorySchema,
   SUBCATEGORY_HINT_DESCRIPTION,
@@ -57,66 +53,71 @@ export function registerSearchTools(
         structuredContent: {
           supportedFilters: [
             {
-              name: "category",
-              strength: "strong boundary",
+              name: "mode",
+              strength: "request discriminant",
               description:
-                "Best first cut for separating creature, hazard, spell, equipment, lore, and other user-facing PF2E families.",
+                "Choose the canonical request branch first. browse carries filter plus optional sort, search carries a required search branch, and lookup carries exact-name search.query semantics.",
             },
             {
-              name: "subcategory",
-              strength: "within-category boundary",
-              description: "Include one narrower family such as hazard/haunt, equipment/consumable, or lore/deity.",
-            },
-            {
-              name: "scopes",
-              strength: "paired multi-family boundary",
+              name: "filter.scope.category",
+              strength: "scope boundary",
               description:
-                "Use for multi-category search when each category needs its own optional subcategory list, such as feat/archetype plus rule/action.",
+                "Use inside a scope leaf for the strongest first cut between creature, hazard, spell, equipment, lore, and other PF2E families.",
             },
             {
-              name: "metadata",
-              strength: "typed metadata DSL",
+              name: "filter.scope.subcategory",
+              strength: "within-scope boundary",
               description:
-                "Use grouped boolean predicates for metadata filtering. Prefer top-level category, subcategory, scopes, and numeric bounds before metadata predicates.",
+                "Use inside a scope leaf to narrow to one family such as hazard/haunt, equipment/consumable, or lore/deity, or to express any/null presence semantics.",
             },
             {
-              name: "actorMetric",
-              strength: "actor metric predicate",
+              name: "filter.anyOf / filter.allOf / filter.not",
+              strength: "boolean composition",
+              description: "Compose heterogeneous scope, range, link, metadata, and metric leaves through one canonical filter tree.",
+            },
+            {
+              name: "filter.metadataPredicate",
+              strength: "typed metadata leaf",
               description:
-                "Use inside metadata for creature and hazard stat filters with symbolic operators such as >= or ==.",
+                "Use atomic typed metadata predicates inside the shared filter tree. Prefer scope and other first-class leaves before metadata predicates.",
             },
             {
-              name: "itemMetric",
-              strength: "equipment metric predicate",
+              name: "filter.metric",
+              strength: "metric leaf",
+              description: "Use for keyed metric predicates such as creature, hazard, weapon, armor, or shield metrics.",
+            },
+            {
+              name: "filter.metricCompare",
+              strength: "metric comparison leaf",
+              description: "Use for numeric metric-to-metric comparisons when one metric should be greater or lower than another.",
+            },
+            {
+              name: "filter.linksTo",
+              strength: "exact reference leaf",
+              description: "Use to require indexed UUID-derived links to a canonical record key; negate it through filter.not when needed.",
+            },
+            {
+              name: "search.query",
+              strength: "required ranked-search text",
               description:
-                "Use inside metadata for weapon, armor, and shield stat filters with symbolic operators such as >= or ==.",
+                "Required for mode:\"search\" behavior. Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms.",
             },
             {
-              name: "spellKinds",
-              strength: "metadata field example",
-              description: "Use in metadata predicates for spell refinement such as focus, ritual, or cantrip.",
-            },
-            {
-              name: "saveType",
-              strength: "metadata field example",
-              description: "Use in metadata predicates for spell defense targeting such as reflex or will.",
-            },
-            {
-              name: "areaType",
-              strength: "metadata field example",
-              description: "Use in metadata predicates for spell area shapes such as burst, cone, or line.",
-            },
-            {
-              name: "query",
-              strength: "literal text",
-              description:
-                "Prefer one short natural-language phrase or sentence with 1-3 concrete anchor terms. Avoid long comma-separated keyword lists by default.",
+              name: "search.profile",
+              strength: "retrieval strategy",
+              description: "Optional search retrieval profile: lexical, balanced, or concept.",
             },
             {
               name: "search.exclude",
               strength: "literal exclusion",
               description:
-                "Optional free-text exclusion terms. Remove ranked-search results whose indexed search text mentions these normalized terms.",
+                "Optional exclusion text for mode:\"search\". Remove ranked-search results whose indexed search text mentions these normalized terms.",
+            },
+            {
+              name: "sort",
+              strength: "browse-mode ordering",
+              description:
+                "Optional on mode:\"browse\". Use alphabetical, levelAsc, or levelDesc for deterministic ordering, or random with an optional seed for stable shuffled paging.",
             },
             {
               name: "filter",
@@ -168,10 +169,12 @@ export function registerSearchTools(
               "search mode carries search.query and may include search.exclude plus search.profile. lookup carries search.query only. browse carries no search object.",
             filter:
               "All structural narrowing belongs in the root filter tree, including scope, pack, links, ranges, metadata predicates, and metric predicates.",
+            toolMapping:
+              "The public MCP tools expose subsets of that same contract: pf2e_list_records is browse-shaped with filter plus optional browse sort, while pf2e_search is search-shaped with a required search branch.",
             booleanComposition:
               "Use anyOf, allOf, and not for boolean composition across heterogeneous clause kinds.",
             note:
-              "Use mode and search first, then express structural narrowing through the canonical filter tree rather than flat root filter fields.",
+              "Use the canonical search and filter branches rather than flat root filter fields or alias request shapes.",
           },
           metadataFilters: {
             ...metadataSemantics,
@@ -299,11 +302,12 @@ export function registerSearchTools(
     "pf2e_list_records",
     {
       description:
-        "List PF2E records using deterministic, non-ranked structured filters and pagination. Use this for browse-and-page flows when stable listing matters more than ranked retrieval.",
+        "Browse PF2E records using the mode:\"browse\" branch of the shared search contract. Use canonical filter tree input, optional browse sort, and pagination when stable listing matters more than ranked retrieval.",
       inputSchema: listRecordsToolInputSchema.shape,
     },
     (input) => {
-      const result = dataService.listRecords(buildSearchRequestFromTransportInput("browse", input));
+      const request = buildSearchRequestFromTransportInput(input as BrowseRequest);
+      const result = dataService.listRecords(request);
       return {
         content: [
           {
@@ -325,11 +329,12 @@ export function registerSearchTools(
     "pf2e_search",
     {
       description:
-        "Search PF2E records using ranked retrieval with natural-language text and/or structured filters. Best for exploratory discovery; use pf2e_list_records for deterministic listing and pf2e_lookup for exact names.",
+        "Search PF2E records using the mode:\"search\" branch of the shared search contract. Provide search.query, optionally refine with search.exclude or search.profile, and use the canonical filter tree for structural narrowing.",
       inputSchema: searchToolInputSchema.shape,
     },
     async (input) => {
-      const result = await dataService.search(buildSearchRequestFromTransportInput("search", input));
+      const request = buildSearchRequestFromTransportInput(input as SearchModeRequest);
+      const result = await dataService.search(request);
       return {
         content: [
           {

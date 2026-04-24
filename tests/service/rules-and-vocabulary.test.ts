@@ -32,6 +32,13 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
 
     const service = await loadTestService(fixture);
 
+    expect(service.lookup("Refocus")).toEqual(
+      expect.objectContaining({
+        matchType: "exact",
+        match: expect.objectContaining({ name: "Refocus" }),
+      }),
+    );
+
     const lookups = service.lookupMany([{ name: "Refocus" }, { name: "Deep Focus" }], { coreOnly: true });
     expect(lookups.map((result) => result.match?.name)).toEqual(["Refocus", "Deep Focus"]);
     expect(lookups.map((result) => result.matchType)).toEqual(["exact", "exact"]);

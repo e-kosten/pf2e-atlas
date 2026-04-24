@@ -1,6 +1,8 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { SearchProfile, SearchSort } from "../../domain/search-types.js";
 import type { Pf2eTerminalSearchQuery } from "./service-types.js";
+import type { Pf2eTerminalSearchSort } from "./service-types.js";
+import { buildLookupSortSpec, isLookupSort } from "./service-options.js";
 
 export function buildSearchRequest(
   query: Pf2eTerminalSearchQuery,
@@ -10,7 +12,7 @@ export function buildSearchRequest(
     text?: string;
     exclude?: string;
     searchProfile?: SearchProfile;
-    sort?: SearchSort;
+    sort?: Pf2eTerminalSearchSort;
     sortSeed?: number | null;
   } = {},
 ): SearchRequest {
@@ -19,9 +21,9 @@ export function buildSearchRequest(
       ? undefined
       : options.sort === "random"
         ? ({ kind: "random", seed: options.sortSeed ?? undefined } as const)
-        : options.sort === "ranked"
+        : options.sort === "ranked" || isLookupSort(options.sort)
           ? undefined
-          : ({ kind: options.sort } as const);
+          : ({ kind: options.sort satisfies SearchSort } as const);
 
   if (query.mode === "browse") {
     return {
@@ -42,10 +44,7 @@ export function buildSearchRequest(
       filter: query.filter,
       limit: options.limit ?? query.limit,
       offset: options.offset ?? 0,
-      sort:
-        options.sort && options.sort !== "random" && options.sort !== "ranked"
-          ? ({ kind: options.sort, policy: "tiered" } as const)
-          : undefined,
+      sort: options.sort && isLookupSort(options.sort) ? buildLookupSortSpec(options.sort) : undefined,
     };
   }
 

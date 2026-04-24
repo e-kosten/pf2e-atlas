@@ -53,6 +53,7 @@ export function registerLookupTools(server: McpServer, dataService: Pf2eDataServ
           },
         ],
         structuredContent: {
+          matchType: lookup.matchType,
           match: summarizeRecord(lookup.match, detail),
           alternatives: includeAlternatives ? lookup.alternatives.map((record) => summarizeRecord(record, detail)) : [],
         },

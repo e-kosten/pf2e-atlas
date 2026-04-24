@@ -3,7 +3,8 @@ import type {
   SourceCategory,
   VariantSource,
 } from "../domain/record-types.js";
-import type { SearchCategory, SearchSubcategory, LookupResult } from "../domain/search-types.js";
+import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
+import { getLookupMatchType } from "../domain/lookup-match-type.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { ActorMetricMap } from "../domain/actor-metrics.js";
 import type { ItemMetricMap } from "../domain/item-metrics.js";
@@ -355,21 +356,6 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
 
 export function buildPlaceholders(values: readonly unknown[]): string {
   return values.map(() => "?").join(", ");
-}
-
-export function getLookupMatchType(query: string, record: NormalizedRecord | null): LookupResult["matchType"] {
-  if (!record) {
-    return "none";
-  }
-
-  const normalizedQuery = normalizeText(query);
-  if (normalizeText(record.name) === normalizedQuery) {
-    return normalizeText(query) === normalizeText(record.name) && query.trim() === record.name
-      ? "exact"
-      : "normalized_exact";
-  }
-
-  return "fuzzy";
 }
 
 export function edgeRowToReferenceEdge(

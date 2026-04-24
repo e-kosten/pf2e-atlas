@@ -250,7 +250,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     nextOffset: null,
     records: [record],
   }));
-  const lookup = vi.fn(() => ({ match: record, alternatives: [] }));
+  const lookup = vi.fn(() => ({ match: record, alternatives: [], matchType: "exact" as const }));
   const openSearchWindow = vi.fn(() =>
     Promise.resolve({
       id: "window-1",

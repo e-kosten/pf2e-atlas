@@ -1,4 +1,5 @@
 import type { NormalizedRecord } from "../domain/record-types.js";
+import type { LookupMatchType } from "../domain/lookup-match-type.js";
 import {
   formatOntologySearchVocabularyLabel,
   humanizeOntologySearchIdentifier,
@@ -49,6 +50,35 @@ export function buildSearchResultRowMetadata(record: NormalizedRecord): Terminal
   };
 }
 
+export function formatLookupMatchTypeLabel(matchType: Exclude<LookupMatchType, "none">): string {
+  switch (matchType) {
+    case "exact":
+      return "Exact";
+    case "normalized_exact":
+      return "Normalized Exact";
+    case "fuzzy":
+      return "Fuzzy";
+  }
+}
+
+export function formatLookupMatchTypeBadge(matchType: Exclude<LookupMatchType, "none">): string {
+  switch (matchType) {
+    case "exact":
+      return "exact";
+    case "normalized_exact":
+      return "normalized";
+    case "fuzzy":
+      return "fuzzy";
+  }
+}
+
+export function buildLookupMatchTypeGroup(matchType: Exclude<LookupMatchType, "none">): TerminalListDetailGroup {
+  return {
+    key: matchType,
+    label: formatLookupMatchTypeLabel(matchType),
+  };
+}
+
 export function buildTerminalListDetailGroupLine(group: TerminalListDetailGroup): DerivedTagTerminalLine {
   return {
     text: group.label,
@@ -92,10 +122,14 @@ export function buildSearchResultRowLine(
   record: NormalizedRecord,
   options: {
     selected: boolean;
+    badges?: string[];
   },
 ): DerivedTagTerminalLine {
   return buildTerminalResultRowLine(record.name, {
     selected: options.selected,
-    metadata: buildSearchResultRowMetadata(record),
+    metadata: {
+      ...buildSearchResultRowMetadata(record),
+      badges: options.badges,
+    },
   });
 }

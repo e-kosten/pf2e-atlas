@@ -113,10 +113,15 @@ export function useSearchSessionWorkflow({
       return;
     }
 
+    const sortOptions = user.search.getResultSortOptions(state.session.query.mode);
+    if (sortOptions.length === 0) {
+      return;
+    }
+
     const result = await prompts.promptSelectOption({
       title: "Result Sort",
       prompt: "Choose how the current result reader should be ordered",
-      entries: user.search.getResultSortOptions(state.session.query.mode).map((option) => ({
+      entries: sortOptions.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
