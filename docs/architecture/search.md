@@ -134,7 +134,7 @@ flowchart TD
 
 `SearchRequest` is the cross-surface search contract. MCP adapters, TUI query adapters, and ontology-origin queries all converge on that one semantic model before backend execution begins.
 
-That shared semantic contract includes the metadata query subtree. Metadata field names, field kinds, predicate operators, and metadata boolean-group AST nodes are domain-owned because they are part of cross-surface query meaning, not search-runtime execution details.
+That shared semantic contract includes metadata field names, field kinds, and atomic metadata predicate operators as part of cross-surface query meaning. Boolean composition is owned by the canonical `SearchFilterNode` tree itself via `allOf`, `anyOf`, and `not`, not by a separate metadata-owned grouped AST.
 
 `compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
 

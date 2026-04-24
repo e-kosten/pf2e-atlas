@@ -46,11 +46,12 @@ Search and list responses include:
 ## Search Notes
 
 - The server is read-only.
-- Search is category-first. Use `category`, `subcategory`, `scopes`, numeric bounds, and typed `metadata` predicates instead of raw Foundry `recordType`, `documentType`, or `itemCategory`.
-- `pf2e_search` supports `searchProfile: "lexical" | "balanced" | "concept"` as the primary retrieval control.
-- `pf2e_search` defaults to the `balanced` profile when `query` is present and `searchProfile` is omitted.
-- `pf2e_lookup` and `pf2e_lookup_many` remain the exact-name lookup tools; `searchProfile: "lexical"` is the lexical-first ranked-search mode.
-- Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `query`. Avoid long comma-separated keyword lists by default.
+- Search requests use the canonical `mode` / `search` / `filter` contract.
+- Scope boundaries, numeric bounds, links, metrics, and ordinary metadata predicates are expressed through the canonical `filter` tree rather than a flat root filter shape.
+- `pf2e_search` supports `search.profile: "lexical" | "balanced" | "concept"` as the primary retrieval control.
+- `pf2e_search` defaults to the `balanced` profile when `search.query` is present and `search.profile` is omitted.
+- `pf2e_lookup` and `pf2e_lookup_many` remain the exact-name lookup tools; `search.profile: "lexical"` is the lexical-first ranked-search mode.
+- Prefer a short natural-language phrase or sentence with 1-3 concrete anchor terms for `search.query`. Avoid long comma-separated keyword lists by default.
 - `pf2e_get_search_semantics` is the primary discovery surface for categories, subcategories, Pathfinder-native tags, metadata filters, and supported search patterns.
 - `pf2e_list_filter_values` enumerates live filter values after you know which category/subcategory or metadata field you want to inspect.
 - Search uses a local SQLite index with shared structured filters, FTS-backed lexical search, and hybrid semantic reranking over filtered candidates.
