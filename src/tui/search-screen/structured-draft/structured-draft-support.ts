@@ -12,27 +12,12 @@ import type {
   SearchStructuredDraftEntry,
   SearchStructuredDraftEntryKind,
 } from "../../search/structured-draft-session.js";
-import {
-  getSearchQueryActionCostPolicy,
-  getSearchQueryCategory,
-  getSearchQueryRarityPolicy,
-  getSearchQueryRootOperator,
-  getSearchQuerySubcategory,
-} from "../../search/query-state.js";
-import type {
-  Pf2eTerminalFacetValueOption,
-  Pf2eTerminalSearchQuery,
-} from "../../search/service.js";
+import { getSearchQueryCategory, getSearchQueryRootOperator } from "../../search/query-state.js";
+import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import {
   projectSearchQueryFilter,
   type Pf2eTerminalSearchQueryBase,
 } from "../../search/query-projection.js";
-import {
-  formatFilterPolicy,
-  formatLevelRange,
-  formatSearchCategory,
-  formatSearchSubcategory,
-} from "../model.js";
 
 export type SearchStructuredDraftState = {
   anchor: SearchStructuredDraftAnchor;
@@ -73,6 +58,7 @@ function buildFilterTreeEntries(
   node: SearchFilterNode | undefined,
   options: {
     category: ReturnType<typeof getSearchQueryCategory>;
+    packLabelResolver?: (packValue: string) => string | null | undefined;
     moveSourcePath: number[] | null;
     rootOperator: "allOf" | "anyOf";
   },
@@ -101,6 +87,7 @@ function buildFilterTreeEntries(
     const isGroup = isSearchFilterBooleanGroup(current) || current.kind === "not";
     const menuLabel = `${formatTreePrefix(ancestorContinuations, false)}${formatSearchFilterNodePresentationAlias(current, {
       category: options.category,
+      packLabelResolver: options.packLabelResolver,
       style: "tree",
     })}`;
 
@@ -109,13 +96,13 @@ function buildFilterTreeEntries(
       key: `queryNode:${path.length > 0 ? path.join(".") : "rootNode"}`,
       label: formatSearchFilterNodePresentationAlias(current, {
         category: options.category,
+        packLabelResolver: options.packLabelResolver,
         style: "compact",
       }),
       description: "Open node actions for wrapping, regrouping, moving, or removing the selected filter node.",
       disabled: !canSelectNode(path),
       disabledReason: moveSourcePath ? "Move mode only allows the anchored node or destination slots." : undefined,
       treePath: path,
-      metadataPath: path,
       indent: depth,
       menuLabel,
     });
@@ -173,68 +160,15 @@ export function buildStructuredDraftEntries(
   draftQuery: Pf2eTerminalSearchQuery,
   metadataFocusPath: number[] | null,
   options: {
-    getActionCostOptions: (
-      category: ReturnType<typeof getSearchQueryCategory>,
-      subcategory: ReturnType<typeof getSearchQuerySubcategory>,
-    ) => Pf2eTerminalFacetValueOption[];
-    hasSelectableSubcategories: (category: ReturnType<typeof getSearchQueryCategory>) => boolean;
+    packLabelResolver?: (packValue: string) => string | null | undefined;
     moveSourcePath?: number[] | null;
   },
 ): SearchStructuredDraftEntry[] {
   const draftCategory = getSearchQueryCategory(draftQuery);
-  const draftSubcategory = getSearchQuerySubcategory(draftQuery);
-  const draftRarityPolicy = getSearchQueryRarityPolicy(draftQuery);
-  const draftActionCostPolicy = getSearchQueryActionCostPolicy(draftQuery);
   const entries: SearchStructuredDraftEntry[] = [
-    {
-      kind: "category",
-      key: "category",
-      label: "Category",
-      value: formatSearchCategory(draftCategory),
-      description: "Choose the category boundary for the staged structured query.",
-    },
-  ];
-
-  if (options.hasSelectableSubcategories(draftCategory)) {
-    entries.push({
-      kind: "subcategory",
-      key: "subcategory",
-      label: "Subcategory",
-      value: formatSearchSubcategory(draftSubcategory),
-      description: "Choose the staged subcategory boundary within the current category.",
-    });
-  }
-
-  entries.push(
-    {
-      kind: "levelRange",
-      key: "levelRange",
-      label: "Level Range",
-      value: formatLevelRange(draftQuery),
-      description: "Constrain the staged query by minimum or maximum level.",
-    },
-    {
-      kind: "rarity",
-      key: "rarity",
-      label: "Rarity",
-      value: formatFilterPolicy(draftRarityPolicy),
-      description: "Stage include or exclude rarity filters.",
-    },
-  );
-
-  if (options.getActionCostOptions(draftCategory, draftSubcategory).length > 0) {
-    entries.push({
-      kind: "actionCost",
-      key: "actionCost",
-      label: "Action Cost",
-      value: formatFilterPolicy(draftActionCostPolicy),
-      description: "Stage include or exclude action-cost filters.",
-    });
-  }
-
-  entries.push(
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,
+      packLabelResolver: options.packLabelResolver,
       moveSourcePath: options.moveSourcePath ?? null,
       rootOperator: getSearchQueryRootOperator(draftQuery),
     }),
@@ -252,7 +186,7 @@ export function buildStructuredDraftEntries(
       value: "Discard staged query",
       description: "Discard the staged structured query and keep the live query unchanged.",
     },
-  );
+  ];
 
   if (metadataFocusPath) {
     const focusedNode = getSearchFilterNodeAtPath(draftQuery.filter, metadataFocusPath);

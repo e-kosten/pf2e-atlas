@@ -1,6 +1,5 @@
 import type { Pf2eTerminalSearchQuery } from "../search/service.js";
 import { useSearchQueryFieldEditing } from "./query-field-editing.js";
-import { useSearchQueryFieldBuilderActions } from "./query-field-builder/query-field-builder-actions.js";
 import type { SearchQueryFieldBuilderSession } from "./query-field-builder/query-field-builder-session.js";
 import { useSearchStructuredDraftActions } from "./structured-draft/structured-draft-actions.js";
 import { useSearchStructuredDraftEditing } from "./structured-draft/structured-draft-editing.js";
@@ -53,29 +52,16 @@ export function useSearchStructuredEditorActions({
     user,
   });
 
-  const queryFieldBuilderActions = useSearchQueryFieldBuilderActions({
-    appendStructuredDraftMetadataNode: structuredDraftActions.appendStructuredDraftMetadataNode,
-    editFieldClause,
-    getScopedFieldOptions,
-    openOntologyFieldEditor,
-    terminal,
-  });
-
   const structuredEditorSession = useSearchStructuredDraftEditing({
     appendStructuredDraftMetadataNode: structuredDraftActions.appendStructuredDraftMetadataNode,
     cancelStructuredDraftSession: structuredDraftActions.cancelStructuredDraftSession,
     clearStructuredDraftMoveSource: structuredDraftActions.clearStructuredDraftMoveSource,
-    chooseQueryField,
     editFieldClause,
     enterStructuredDraftMoveMode: structuredDraftActions.enterStructuredDraftMoveMode,
     finishStructuredDraftSession: structuredDraftActions.finishStructuredDraftSession,
-    getExplorerBackedFieldOptions,
     getScopedFieldOptions,
     moveStructuredDraftSelection: structuredDraftActions.moveStructuredDraftSelection,
-    openFilterExplorer,
     openOntologyFieldEditor,
-    openOntologyFieldExplorer,
-    openQueryFieldBuilder: queryFieldBuilderActions.openQueryFieldBuilder,
     prompts,
     replaceStructuredDraftProjection: structuredDraftActions.replaceStructuredDraftProjection,
     structuredDraftEntries: structuredDraftActions.structuredDraftEntries,
@@ -88,6 +74,6 @@ export function useSearchStructuredEditorActions({
 
   return {
     openStructuredDraftSession: structuredDraftActions.openStructuredDraftSession,
-    structuredEditorSession: queryFieldBuilderActions.queryFieldBuilderSession ?? structuredEditorSession,
+    structuredEditorSession,
   };
 }

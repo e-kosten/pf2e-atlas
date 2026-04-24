@@ -179,7 +179,13 @@ export function useSearchScreenController({
     user,
   });
 
-  const workspaceEntries = buildWorkspaceEntries(state, countState);
+  const renderOptions = React.useMemo(
+    () => ({
+      packLabelResolver: user.search.getPackLabel,
+    }),
+    [user.search],
+  );
+  const workspaceEntries = buildWorkspaceEntries(state, countState, renderOptions);
   const workspaceSelectedIndex = Math.max(
     0,
     Math.min(state.workspaceSelectedIndex, Math.max(0, workspaceEntries.length - 1)),
@@ -201,8 +207,8 @@ export function useSearchScreenController({
         ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
         : buildPendingResultDetailLines(state.session, resultSelectedIndex)
       : selectedWorkspaceEntry
-        ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState)
-        : buildQuerySummaryLines(state, countState);
+        ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState, renderOptions)
+        : buildQuerySummaryLines(state, countState, renderOptions);
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,

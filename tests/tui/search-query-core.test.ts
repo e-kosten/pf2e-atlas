@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import type { SearchFilterNode } from "../../src/domain/search-request-types.js";
+import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import {
   canLiftSearchFilterNodeAtPath,
   canUnwrapSearchFilterNodeAtPath,
@@ -74,6 +75,94 @@ describe("search query-core metric labels", () => {
         },
       ).label,
     ).toBe("Item Properties");
+  });
+
+  it("renders pack clauses with user-facing labels while keeping canonical pack names in the filter node", () => {
+    expect(
+      formatSearchFilterNodePresentationAlias(
+        {
+          kind: "pack",
+          value: "pathfinder-npc-core",
+        },
+        {
+          packLabelResolver: (packValue) => (packValue === "pathfinder-npc-core" ? "Pathfinder NPC Core" : packValue),
+        },
+      ),
+    ).toBe("Pack: Pathfinder NPC Core");
+  });
+
+  it("infers creature-statistics labels from real metric keys instead of naive prefixes", () => {
+    expect(
+      formatSearchFilterNodePresentationAlias(
+        {
+          kind: "metric",
+          metric: "hp.value",
+          op: "gte",
+          value: 10,
+        },
+        {
+          category: "creature",
+        },
+      ),
+    ).toBe("Creature Statistics: hp.value gte 10");
+
+    expect(
+      formatSearchFilterNodePresentationAlias(
+        {
+          kind: "metricCompare",
+          leftMetric: "hp.value",
+          op: "gte",
+          rightMetric: "ac.value",
+        },
+        {
+          category: "creature",
+        },
+      ),
+    ).toBe("Creature Statistics: hp.value gte ac.value");
+  });
+
+  it("round-trips canonical metric families through metadata conversion using metric inference", () => {
+    expect(
+      canonicalFilterToMetadataNode({
+        kind: "metric",
+        metric: "hp.value",
+        op: "gte",
+        value: 10,
+      }),
+    ).toMatchObject({
+      field: "actorMetric",
+      metric: "hp.value",
+      op: ">=",
+      value: 10,
+    });
+
+    expect(
+      canonicalFilterToMetadataNode({
+        kind: "metricCompare",
+        leftMetric: "hp.value",
+        op: "gte",
+        rightMetric: "ac.value",
+      }),
+    ).toMatchObject({
+      field: "actorMetricCompare",
+      leftMetric: "hp.value",
+      op: ">=",
+      rightMetric: "ac.value",
+    });
+
+    expect(
+      canonicalFilterToMetadataNode({
+        kind: "metric",
+        metric: "weapon.range_increment",
+        op: "eq",
+        value: 30,
+      }),
+    ).toMatchObject({
+      field: "itemMetric",
+      metric: "weapon.range_increment",
+      op: "==",
+      value: 30,
+    });
   });
 
   it("preserves explicit single-child groups when wrapping and unwrapping nodes in the editor tree", () => {

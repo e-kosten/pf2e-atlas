@@ -2,6 +2,8 @@ import {
   CATEGORY_SUBCATEGORY_MAP,
 } from "../../domain/categories.js";
 import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
+import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import {
@@ -90,6 +92,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
   const fieldSemanticsByName = new Map<Pf2eTerminalFacetField, MetadataFieldSemantics>(
     filterSemantics.metadataFields.map((entry) => [entry.field, entry]),
   );
+  const getPackLabel = (packValue: string): string => {
+    const pack = dependencies.getPack?.(packValue);
+    return pack?.label ?? pack?.name ?? packValue;
+  };
 
   function getFieldValueOrdering(field: MetadataFieldName) {
     return fieldSemanticsByName.get(field)?.valueOrdering;
@@ -164,6 +170,48 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         fieldType: field.fieldType,
       }));
     },
+    getMetricKeyOptions: (category, subcategory, field, options = {}) => {
+      if (!category) {
+        return [];
+      }
+
+      const metricField = field === "actorMetric" ? "actorMetrics" : "itemMetrics";
+      return dependencies.discovery
+        .discoverMetricKeys({
+          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          metricField,
+        })
+        .filter(
+          (entry) =>
+            !options.numericOnly ||
+            (field === "actorMetric"
+              ? inferActorMetricValueType(String(entry.value)) === "number"
+              : inferItemMetricValueType(String(entry.value)) === "number"),
+        )
+        .map((entry) => ({
+          value: String(entry.value),
+          label: String(entry.value),
+          description: `${entry.count} indexed canonical record${entry.count === 1 ? "" : "s"} in the current scope.`,
+          count: entry.count,
+        }));
+    },
+    getPackLabel,
+    getPackOptions: (category, subcategory) =>
+      dependencies.discovery
+        .discoverCatalogFilterValues({
+          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          target: { field: "packs" },
+        })
+        .options.map((entry) => {
+          const entryValue = String(entry.value);
+          return {
+            value: entryValue,
+            label: getPackLabel(entryValue),
+            description: `${entry.count} indexed canonical record${entry.count === 1 ? "" : "s"} in this pack.`,
+            count: entry.count,
+          };
+        })
+        .sort((left, right) => left.label.localeCompare(right.label)),
     getQueryFieldOptions: (category, subcategory) =>
       getQueryFieldOptions(
         dependencies.discovery.getScopedMetadataFields(category ? { category, subcategory } : null),

@@ -19,6 +19,7 @@ import { formatFilterExplorerPolicySummary } from "../../framework/policy-presen
 import {
   countMetadataPredicates,
   formatSearchFilterNodePresentationAlias,
+  type SearchFilterRenderOptions,
 } from "../../search/query-core.js";
 import type { SearchStructuredDraftAnchor } from "../../search/structured-draft-session.js";
 
@@ -121,7 +122,10 @@ function getVisibleRootChildren(
   return [{ node: filter, path: [] }];
 }
 
-function buildFilterSummaryEntries(query: Pf2eTerminalSearchQuery): SearchQuerySummaryEntry[] {
+function buildFilterSummaryEntries(
+  query: Pf2eTerminalSearchQuery,
+  renderOptions: SearchFilterRenderOptions = {},
+): SearchQuerySummaryEntry[] {
   const category = getSearchQueryCategory(query);
   const children = getVisibleRootChildren(query.filter);
   if (children.length === 0) {
@@ -137,7 +141,7 @@ function buildFilterSummaryEntries(query: Pf2eTerminalSearchQuery): SearchQueryS
       key: "queryTree:root",
       anchor: { kind: "queryTreeRoot" },
       label: "Query Logic",
-      value: formatSearchFilterNodePresentationAlias(rootNode, { category, style: "compact" }),
+      value: formatSearchFilterNodePresentationAlias(rootNode, { ...renderOptions, category, style: "compact" }),
       description: "Open the dedicated filter builder for the full boolean filter tree.",
       visible: true,
     },
@@ -146,7 +150,7 @@ function buildFilterSummaryEntries(query: Pf2eTerminalSearchQuery): SearchQueryS
       key: `queryNode:${entry.path.length > 0 ? entry.path.join(".") : "rootNode"}`,
       anchor: { kind: "queryNode" as const, path: entry.path },
       label: "Filter",
-      value: formatSearchFilterNodePresentationAlias(entry.node, { category, style: "compact" }),
+      value: formatSearchFilterNodePresentationAlias(entry.node, { ...renderOptions, category, style: "compact" }),
       description: "Open this top-level filter node in the dedicated builder.",
       visible: true,
       indent: 1,
@@ -154,7 +158,10 @@ function buildFilterSummaryEntries(query: Pf2eTerminalSearchQuery): SearchQueryS
   ];
 }
 
-export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQuerySummary {
+export function buildSearchQuerySummary(
+  query: Pf2eTerminalSearchQuery,
+  renderOptions: SearchFilterRenderOptions = {},
+): SearchQuerySummary {
   const queryText = getSearchQueryText(query);
   const excludeText = getSearchQueryExcludeText(query);
   const searchProfile = getSearchQuerySearchProfile(query);
@@ -206,7 +213,7 @@ export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQ
         description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
         visible: query.mode === "search",
       },
-      ...buildFilterSummaryEntries(query),
+      ...buildFilterSummaryEntries(query, renderOptions),
     ],
   };
 }

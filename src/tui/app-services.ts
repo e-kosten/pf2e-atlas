@@ -102,6 +102,7 @@ export function createPf2eTerminalAppServices(
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (request, options) => dataService.countRecords(request, options),
         discovery,
+        getPack: (packValue) => dataService.getPack(packValue),
         getSearchCategorySummary: () => dataService.getSearchCategorySummary(),
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
         lookup: (name, options) => dataService.lookup(name, options),

@@ -10,11 +10,6 @@ export type SearchStructuredDraftAnchor =
     };
 
 export type SearchStructuredDraftEntryKind =
-  | "category"
-  | "subcategory"
-  | "levelRange"
-  | "rarity"
-  | "actionCost"
   | "queryTreeRoot"
   | "queryNode"
   | "queryInsertionSlot"
@@ -33,7 +28,6 @@ export type SearchStructuredDraftEntry = {
   insertionPath?: number[];
   indent?: number;
   menuLabel?: string;
-  metadataPath?: number[];
 };
 
 export type SearchStructuredDraftSession = {

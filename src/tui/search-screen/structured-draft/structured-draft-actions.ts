@@ -12,10 +12,7 @@ import {
   stripSearchQueryFilter,
 } from "../../search/query-projection.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
-import {
-  getSearchQueryCategory,
-  getSearchQueryRootOperator,
-} from "../../search/query-state.js";
+import { getSearchQueryRootOperator } from "../../search/query-state.js";
 import {
   canonicalFilterToMetadataNode,
   metadataFilterNodeToCanonicalFilter,
@@ -58,23 +55,12 @@ export function useSearchStructuredDraftActions({
 } {
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
 
-  const hasSelectableSubcategories = React.useCallback(
-    (category: ReturnType<typeof getSearchQueryCategory>): boolean => {
-      if (!category) {
-        return false;
-      }
-      return user.search.getSubcategoryOptions(category).length > 1;
-    },
-    [user.search],
-  );
-
   const openStructuredDraftSession = React.useCallback(
     (anchor: SearchStructuredDraftState["anchor"], query: Pf2eTerminalSearchQuery = currentQuery) => {
       const draftQuery = user.search.normalizeQuery(query);
       const metadataFocusPath = anchor.kind === "queryNode" ? [...anchor.path] : null;
       const entries = buildStructuredDraftEntries(draftQuery, metadataFocusPath, {
-        hasSelectableSubcategories,
-        getActionCostOptions: user.search.getActionCostOptions,
+        packLabelResolver: user.search.getPackLabel,
       });
 
       setStructuredDraftState({
@@ -86,7 +72,7 @@ export function useSearchStructuredDraftActions({
         selectedIndex: getStructuredDraftSelectionIndex(anchor, entries),
       });
     },
-    [currentQuery, hasSelectableSubcategories, user.search],
+    [currentQuery, user.search],
   );
 
   const replaceStructuredDraftProjection = React.useCallback(
@@ -98,8 +84,7 @@ export function useSearchStructuredDraftActions({
 
         const nextDraftQuery = user.search.normalizeQuery(update(buildStructuredDraftQuery(current)));
         const entries = buildStructuredDraftEntries(nextDraftQuery, current.metadataFocusPath, {
-          hasSelectableSubcategories,
-          getActionCostOptions: user.search.getActionCostOptions,
+          packLabelResolver: user.search.getPackLabel,
           moveSourcePath: current.moveSourcePath,
         });
 
@@ -111,7 +96,7 @@ export function useSearchStructuredDraftActions({
         };
       });
     },
-    [hasSelectableSubcategories, user.search],
+    [user.search],
   );
 
   const appendStructuredDraftMetadataNode = React.useCallback(
@@ -174,8 +159,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
-        hasSelectableSubcategories,
-        getActionCostOptions: user.search.getActionCostOptions,
+        packLabelResolver: user.search.getPackLabel,
       });
       const selectionIndex = current.moveSourcePath
         ? entries.findIndex(
@@ -191,7 +175,7 @@ export function useSearchStructuredDraftActions({
         selectedIndex: clampStructuredDraftSelection(selectionIndex >= 0 ? selectionIndex : current.selectedIndex, entries.length),
       };
     });
-  }, [hasSelectableSubcategories, user.search]);
+  }, [user.search]);
 
   const clearStructuredDraftMoveSource = React.useCallback(() => {
     setStructuredDraftState((current) => {
@@ -201,8 +185,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
-        hasSelectableSubcategories,
-        getActionCostOptions: user.search.getActionCostOptions,
+        packLabelResolver: user.search.getPackLabel,
       });
       return {
         ...current,
@@ -210,7 +193,7 @@ export function useSearchStructuredDraftActions({
         selectedIndex: clampStructuredDraftSelection(current.selectedIndex, entries.length),
       };
     });
-  }, [hasSelectableSubcategories, user.search]);
+  }, [user.search]);
 
   const enterStructuredDraftMoveMode = React.useCallback(
     (path: number[]) => {
@@ -221,8 +204,7 @@ export function useSearchStructuredDraftActions({
 
         const currentQuery = buildStructuredDraftQuery(current);
         const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
-          hasSelectableSubcategories,
-          getActionCostOptions: user.search.getActionCostOptions,
+          packLabelResolver: user.search.getPackLabel,
           moveSourcePath: path,
         });
         const firstSlotIndex = entries.findIndex((entry) => entry.kind === "queryInsertionSlot");
@@ -234,7 +216,7 @@ export function useSearchStructuredDraftActions({
         };
       });
     },
-    [hasSelectableSubcategories, user.search],
+    [user.search],
   );
 
   const moveStructuredDraftSelection = React.useCallback((delta: number, itemCount: number) => {
@@ -245,8 +227,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
-        hasSelectableSubcategories,
-        getActionCostOptions: user.search.getActionCostOptions,
+        packLabelResolver: user.search.getPackLabel,
         moveSourcePath: current.moveSourcePath,
       });
       const selectableIndexes = entries.flatMap((entry, index) =>
@@ -269,18 +250,17 @@ export function useSearchStructuredDraftActions({
             : clampStructuredDraftSelection(current.selectedIndex + delta, itemCount),
       };
     });
-  }, [hasSelectableSubcategories, user.search]);
+  }, [user.search]);
 
   const structuredDraftEntries = React.useMemo(
     () =>
       structuredDraftState
         ? buildStructuredDraftEntries(buildStructuredDraftQuery(structuredDraftState), structuredDraftState.metadataFocusPath, {
-            hasSelectableSubcategories,
-            getActionCostOptions: user.search.getActionCostOptions,
+            packLabelResolver: user.search.getPackLabel,
             moveSourcePath: structuredDraftState.moveSourcePath,
           })
         : [],
-    [hasSelectableSubcategories, structuredDraftState, user.search],
+    [structuredDraftState, user.search],
   );
 
   const structuredDraftQuery = React.useMemo(

@@ -149,6 +149,17 @@ export type Pf2eTerminalSearchService = {
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetFieldOption[];
+  getMetricKeyOptions: (
+    category: SearchCategory | null,
+    subcategory: SearchSubcategory | null,
+    field: Pf2eTerminalMetricQueryField,
+    options?: { numericOnly?: boolean },
+  ) => Pf2eTerminalFacetValueOption[];
+  getPackLabel: (packValue: string) => string;
+  getPackOptions: (
+    category: SearchCategory | null,
+    subcategory: SearchSubcategory | null,
+  ) => Pf2eTerminalFacetValueOption[];
   getQueryFieldOptions: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
@@ -215,6 +226,7 @@ export type SearchServiceDependencies = {
     options?: { lexicalOnly?: boolean },
   ) => Promise<SearchCountResult>;
   discovery: Pf2eApplicationSearchDiscoveryService;
+  getPack?: (packValue: string) => { name: string; label?: string } | undefined;
   getSearchCategorySummary?: () => SearchCategorySummaryResult;
   getSearchVocabulary: () => SearchVocabularyResult;
   lookup: (

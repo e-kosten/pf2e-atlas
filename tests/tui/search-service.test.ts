@@ -26,7 +26,7 @@ type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchServi
 
 function createDependencies(
   overrides: Partial<SearchServiceDependencies> & {
-    getPack?: (packValue: string) => { name: string } | undefined;
+    getPack?: (packValue: string) => { name: string; label?: string } | undefined;
     listFilterValues?: (query: { field: string }) => { values: Array<{ value: string; count: number }> };
   } = {},
 ): SearchServiceDependencies {
@@ -334,6 +334,86 @@ describe("createPf2eTerminalSearchService", () => {
       },
     ]);
     expect(getSearchVocabulary).not.toHaveBeenCalled();
+  });
+
+  it("builds metric-key options and can restrict them to numeric keys", () => {
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        listFilterValues: vi.fn(({ field }) => {
+          if (field === "actorMetrics") {
+            return {
+              values: [
+                { value: "hp.value", count: 2 },
+                { value: "save.best", count: 1 },
+              ],
+            };
+          }
+          return { values: [] };
+        }),
+      }),
+    );
+
+    expect(service.getMetricKeyOptions("creature", null, "actorMetric")).toEqual([
+      {
+        value: "hp.value",
+        label: "hp.value",
+        description: "2 indexed canonical records in the current scope.",
+        count: 2,
+      },
+      {
+        value: "save.best",
+        label: "save.best",
+        description: "1 indexed canonical record in the current scope.",
+        count: 1,
+      },
+    ]);
+    expect(service.getMetricKeyOptions("creature", null, "actorMetric", { numericOnly: true })).toEqual([
+      {
+        value: "hp.value",
+        label: "hp.value",
+        description: "2 indexed canonical records in the current scope.",
+        count: 2,
+      },
+    ]);
+  });
+
+  it("builds pack options from canonical pack values and human-facing labels", () => {
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        getPack: (packValue) =>
+          packValue === "pathfinder-npc-core"
+            ? { name: "pathfinder-npc-core", label: "Pathfinder NPC Core" }
+            : packValue === "bestiary"
+              ? { name: "bestiary", label: "Bestiary" }
+              : undefined,
+        listFilterValues: vi.fn(({ field }) => {
+          if (field === "packs") {
+            return {
+              values: [
+                { value: "pathfinder-npc-core", count: 4 },
+                { value: "bestiary", count: 2 },
+              ],
+            };
+          }
+          return { values: [] };
+        }),
+      }),
+    );
+
+    expect(service.getPackOptions("creature", null)).toEqual([
+      {
+        value: "bestiary",
+        label: "Bestiary",
+        description: "2 indexed canonical records in this pack.",
+        count: 2,
+      },
+      {
+        value: "pathfinder-npc-core",
+        label: "Pathfinder NPC Core",
+        description: "4 indexed canonical records in this pack.",
+        count: 4,
+      },
+    ]);
   });
 
   it("normalizes canonical structured parts and trims unavailable action cost", () => {

@@ -13,6 +13,7 @@ import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "..
 import { clampWindowStart } from "../../list-utils.js";
 import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "../state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "../state.js";
+import type { SearchFilterRenderOptions } from "../../search/query-core.js";
 export { parseLevelRangeInput } from "../../filter-explorer/scalar-editor.js";
 export {
   formatFilterPolicy,
@@ -182,8 +183,12 @@ function buildSummaryLines(summary: SearchQuerySummary, title: string): DerivedT
   return lines;
 }
 
-export function buildWorkspaceEntries(state: SearchScreenState, countState: SearchCountState): SearchWorkspaceEntry[] {
-  const summary = buildSearchQuerySummary(state.query);
+export function buildWorkspaceEntries(
+  state: SearchScreenState,
+  countState: SearchCountState,
+  renderOptions: SearchFilterRenderOptions = {},
+): SearchWorkspaceEntry[] {
+  const summary = buildSearchQuerySummary(state.query, renderOptions);
   const executeAvailability = getExecuteAvailability(state.query);
   const modeEntry = summary.entries.find((entry) => entry.kind === "mode");
   const queryEntry = summary.entries.find((entry) => entry.kind === "query");
@@ -265,8 +270,11 @@ export function buildWorkspaceLines(
   }));
 }
 
-export function buildStructuredQuerySummaryLines(query: Pf2eTerminalSearchQuery): DerivedTagTerminalLine[] {
-  return buildSummaryLines(buildSearchQuerySummary(query), "Staged Structured Query");
+export function buildStructuredQuerySummaryLines(
+  query: Pf2eTerminalSearchQuery,
+  renderOptions: SearchFilterRenderOptions = {},
+): DerivedTagTerminalLine[] {
+  return buildSummaryLines(buildSearchQuerySummary(query, renderOptions), "Staged Structured Query");
 }
 
 export function buildStructuredWorkspaceEntryFocusLines(entry: SearchWorkspaceEntry): DerivedTagTerminalLine[] {
@@ -284,8 +292,9 @@ export function buildStructuredWorkspaceEntryFocusLines(entry: SearchWorkspaceEn
 export function buildQuerySummaryLines(
   state: SearchScreenState,
   countState: SearchCountState,
+  renderOptions: SearchFilterRenderOptions = {},
 ): DerivedTagTerminalLine[] {
-  const summary = buildSearchQuerySummary(state.query);
+  const summary = buildSearchQuerySummary(state.query, renderOptions);
   const executeAvailability = getExecuteAvailability(state.query);
   const lines = buildSummaryLines(summary, "Query Summary");
 
@@ -327,6 +336,7 @@ export function buildWorkspaceEntryDetailLines(
   entry: SearchWorkspaceEntry,
   state: SearchScreenState,
   countState: SearchCountState,
+  renderOptions: SearchFilterRenderOptions = {},
 ): DerivedTagTerminalLine[] {
   const descriptionTone = entry.disabled ? "warning" : "default";
   return [
@@ -347,7 +357,7 @@ export function buildWorkspaceEntryDetailLines(
           ]
         : [{ text: "Press Enter, Right, or Space to edit or act on this item.", tone: "accent" as const }]),
     { text: "" },
-    ...buildQuerySummaryLines(state, countState),
+    ...buildQuerySummaryLines(state, countState, renderOptions),
   ];
 }
 

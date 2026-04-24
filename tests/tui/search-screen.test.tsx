@@ -904,6 +904,15 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Field filter");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Derived Tags");
+    app.stdin.write("\r");
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
@@ -2002,6 +2011,15 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Field filter");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Derived Tags");
+    app.stdin.write("\r");
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
@@ -2035,7 +2053,6 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Filter: Derived Tags: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
     pressLeft(app);
@@ -2083,13 +2100,18 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expect(app.lastFrame()).toContain("Action Cost: 2");
 
-    for (let step = 0; step < 7; step += 1) {
+    for (let step = 0; step < 2; step += 1) {
       pressUp(app);
       await flushInk();
     }
-    expect(app.lastFrame()).toContain("Rarity | ∪ Common");
+    expect(app.lastFrame()).toContain("Rarity: Common");
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2101,10 +2123,11 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
 
-    pressDown(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Action Cost | ∪ 2");
+    expect(app.lastFrame()).toContain("Action Cost: 2");
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2159,11 +2182,14 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    for (let step = 0; step < 7; step += 1) {
+    for (let step = 0; step < 2; step += 1) {
       pressUp(app);
       await flushInk();
     }
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2197,7 +2223,7 @@ describe("search screen", () => {
     });
   });
 
-  it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {
+  it("routes staged ontology composition through clause-kind and field pickers before opening the shared explorer", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -2295,8 +2321,13 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Field filter");
     await flushInk();
-    expect(app.lastFrame()).toContain("Filter Explorer");
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Field Filter");
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Filters >");
@@ -2305,7 +2336,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Filter Explorer");
+    expect(app.lastFrame()).toContain("Traits Explorer > Illusion");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("illusion");
 
@@ -2315,14 +2346,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("include any");
     expect(app.lastFrame()).toContain("Traits:");
     expect(app.lastFrame()).toContain("illusion");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Filter Explorer");
-    expect(app.lastFrame()).toContain("Traits");
-    expect(app.lastFrame()).toContain("Derived Tags");
-    expect(app.lastFrame()).toContain("illusion");
-    expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
@@ -2376,37 +2399,52 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Category | Any Category");
+    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("[+ add here]");
 
-    pressUp(app);
+    app.stdin.write("\r");
     await flushInk();
-    pressUp(app);
+    expect(app.lastFrame()).toContain("Insertion Slot");
+
+    app.stdin.write("\r");
     await flushInk();
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Scope");
+
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Category Scope");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Scope");
+    expect(app.lastFrame()).toContain("Creature");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Subcategory Mode");
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Scope: Creature");
+    expect(app.lastFrame()).toContain("allOf");
 
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Category | Creature");
-
-    app.stdin.write("G");
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("allOf");
-
+    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Field filter");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Derived Tags");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2415,6 +2453,193 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
     expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
+  });
+
+  it("covers metric comparison through the dedicated structured-editor clause-kind flow", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live statistic keys and author exact or numeric literal filters for the current scope.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.search.getMetricKeyOptions = vi.fn((category, subcategory, field) =>
+      field === "actorMetric"
+        ? [
+            {
+              value: "hp.value",
+              label: "hp.value",
+              description: "2 indexed canonical records in the current scope.",
+              count: 2,
+            },
+            {
+              value: "ac.value",
+              label: "ac.value",
+              description: "1 indexed canonical record in the current scope.",
+              count: 1,
+            },
+          ]
+        : [],
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse creatures", {
+              category: "creature",
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Metric filter");
+    expect(app.lastFrame()).toContain("Metric comparison");
+
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Creature Statistics");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Left Metric");
+    expect(app.lastFrame()).toContain("hp.value");
+    expect(app.lastFrame()).toContain("ac.value");
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Comparison Operator");
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Right Metric");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Creature Statistics: hp.value gte ac.value");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Metric Comparison");
+  });
+
+  it("covers pack clauses through the dedicated structured-editor clause-kind flow", async () => {
+    const services = createServices();
+    services.user.search.getPackOptions = vi.fn(() => [
+      {
+        value: "pathfinder-npc-core",
+        label: "Pathfinder NPC Core",
+        description: "4 indexed canonical records in this pack.",
+        count: 4,
+      },
+      {
+        value: "monster-core",
+        label: "Monster Core",
+        description: "2 indexed canonical records in this pack.",
+        count: 2,
+      },
+    ]);
+    services.user.search.getPackLabel = vi.fn((packValue: string) =>
+      packValue === "pathfinder-npc-core"
+        ? "Pathfinder NPC Core"
+        : packValue === "monster-core"
+          ? "Monster Core"
+          : packValue,
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse creatures", {
+              category: "creature",
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Pack");
+
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Pack");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("Monster Core");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Pack");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
   });
 
   it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {

@@ -1,5 +1,24 @@
+import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import type { SearchFilterNode } from "../../domain/search-request-types.js";
+
+function inferMetricMetadataField(
+  metric: string,
+  options: { comparison?: boolean } = {},
+): "actorMetric" | "itemMetric" | "actorMetricCompare" | "itemMetricCompare" {
+  const actorValueType = inferActorMetricValueType(metric);
+  const itemValueType = inferItemMetricValueType(metric);
+
+  if (actorValueType && !itemValueType) {
+    return options.comparison ? "actorMetricCompare" : "actorMetric";
+  }
+  if (itemValueType && !actorValueType) {
+    return options.comparison ? "itemMetricCompare" : "itemMetric";
+  }
+
+  return options.comparison ? "actorMetricCompare" : "actorMetric";
+}
 
 function metadataPredicateToCanonicalFilter(node: Exclude<MetadataFilterNode, { and: MetadataFilterNode[] } | { or: MetadataFilterNode[] } | { not: MetadataFilterNode }>): SearchFilterNode {
   if (node.field === "actorMetric" || node.field === "itemMetric") {
@@ -158,9 +177,7 @@ export function canonicalFilterToMetadataNode(filter: SearchFilterNode | undefin
   switch (filter.kind) {
     case "metric":
       return {
-        field: filter.metric.startsWith("attributes.") || filter.metric.startsWith("speed.")
-          ? "actorMetric"
-          : "itemMetric",
+        field: inferMetricMetadataField(filter.metric),
         metric: filter.metric,
         op:
           filter.op === "eq"
@@ -178,9 +195,7 @@ export function canonicalFilterToMetadataNode(filter: SearchFilterNode | undefin
       } as MetadataFilterNode;
     case "metricCompare":
       return {
-        field: filter.leftMetric.startsWith("attributes.") || filter.leftMetric.startsWith("speed.")
-          ? "actorMetricCompare"
-          : "itemMetricCompare",
+        field: inferMetricMetadataField(filter.leftMetric, { comparison: true }),
         leftMetric: filter.leftMetric,
         op:
           filter.op === "eq"

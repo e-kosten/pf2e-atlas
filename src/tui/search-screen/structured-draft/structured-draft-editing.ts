@@ -10,7 +10,7 @@ import type {
 import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
 import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
-import { useSearchStructuredDraftPartActions } from "./structured-draft-part-actions.js";
+import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -22,17 +22,12 @@ export function useSearchStructuredDraftEditing({
   appendStructuredDraftMetadataNode,
   cancelStructuredDraftSession,
   clearStructuredDraftMoveSource,
-  chooseQueryField,
   editFieldClause,
   enterStructuredDraftMoveMode,
   finishStructuredDraftSession,
-  getExplorerBackedFieldOptions,
   getScopedFieldOptions,
   moveStructuredDraftSelection,
-  openFilterExplorer,
   openOntologyFieldEditor,
-  openOntologyFieldExplorer,
-  openQueryFieldBuilder,
   prompts,
   replaceStructuredDraftProjection,
   structuredDraftEntries,
@@ -45,7 +40,6 @@ export function useSearchStructuredDraftEditing({
   appendStructuredDraftMetadataNode: (path: number[], nextNode: MetadataFilterNode) => void;
   cancelStructuredDraftSession: () => void;
   clearStructuredDraftMoveSource: () => void;
-  chooseQueryField: (query: Pf2eTerminalSearchQuery) => Promise<Pf2eTerminalQueryFieldOption | null>;
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
@@ -53,10 +47,8 @@ export function useSearchStructuredDraftEditing({
   ) => Promise<MetadataFilterNode | null | undefined>;
   enterStructuredDraftMoveMode: (path: number[]) => void;
   finishStructuredDraftSession: () => void;
-  getExplorerBackedFieldOptions: (fieldOptions: Pf2eTerminalQueryFieldOption[]) => Pf2eTerminalQueryFieldOption[];
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   moveStructuredDraftSelection: (delta: number, itemCount: number) => void;
-  openFilterExplorer: OpenSearchFilterExplorer;
   openOntologyFieldEditor: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
@@ -64,12 +56,6 @@ export function useSearchStructuredDraftEditing({
     onApply: (nextNode: MetadataFilterNode | null) => void,
     onReturn?: () => void,
   ) => Promise<boolean>;
-  openOntologyFieldExplorer: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOptions: Pf2eTerminalQueryFieldOption[],
-    onApply: (nextNode: MetadataFilterNode | null) => void,
-  ) => Promise<boolean>;
-  openQueryFieldBuilder: (query: Pf2eTerminalSearchQuery, path?: number[]) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
   structuredDraftEntries: SearchStructuredDraftEntry[];
@@ -82,38 +68,20 @@ export function useSearchStructuredDraftEditing({
   ) => void;
   user: SearchWorkspaceUser;
 }): SearchQueryFieldBuilderSession | null {
-  const {
-    editStructuredDraftActionCost,
-    editStructuredDraftCategory,
-    editStructuredDraftLevelRange,
-    editStructuredDraftRarity,
-    editStructuredDraftSubcategory,
-  } = useSearchStructuredDraftPartActions({
-    openFilterExplorer,
-    prompts,
-    replaceStructuredDraftProjection,
-    structuredDraftQuery,
-    terminal,
-    user,
-  });
-
   const { editStructuredDraftMetadata } = useSearchStructuredDraftMetadataActions({
     appendStructuredDraftMetadataNode,
     clearStructuredDraftMoveSource,
-    chooseQueryField,
     editFieldClause,
     enterStructuredDraftMoveMode,
-    getExplorerBackedFieldOptions,
     getScopedFieldOptions,
     moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
     openOntologyFieldEditor,
-    openOntologyFieldExplorer,
-    openQueryFieldBuilder,
     prompts,
     replaceStructuredDraftProjection,
     structuredDraftQuery,
     terminal,
     updateStructuredDraftMetadataNode,
+    user,
   });
 
   const selectCurrentStructuredDraftEntry = React.useCallback(() => {
@@ -136,36 +104,11 @@ export function useSearchStructuredDraftEditing({
       cancelStructuredDraftSession();
       return;
     }
-    if (selectedEntry.kind === "category") {
-      void editStructuredDraftCategory();
-      return;
-    }
-    if (selectedEntry.kind === "subcategory") {
-      void editStructuredDraftSubcategory();
-      return;
-    }
-    if (selectedEntry.kind === "levelRange") {
-      void editStructuredDraftLevelRange();
-      return;
-    }
-    if (selectedEntry.kind === "rarity") {
-      void editStructuredDraftRarity();
-      return;
-    }
-    if (selectedEntry.kind === "actionCost") {
-      void editStructuredDraftActionCost();
-      return;
-    }
     void editStructuredDraftMetadata(selectedEntry);
   }, [
     cancelStructuredDraftSession,
     clearStructuredDraftMoveSource,
-    editStructuredDraftActionCost,
-    editStructuredDraftCategory,
-    editStructuredDraftLevelRange,
     editStructuredDraftMetadata,
-    editStructuredDraftRarity,
-    editStructuredDraftSubcategory,
     enterStructuredDraftMoveMode,
     finishStructuredDraftSession,
     structuredDraftEntries,
@@ -187,25 +130,17 @@ export function useSearchStructuredDraftEditing({
         ? "Move mode: select a visible destination slot, Enter confirms, Left/Esc cancels the move."
         : "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
       projectedQuery: structuredDraftQuery,
+      summaryLines: structuredDraftQuery
+        ? buildStructuredQuerySummaryLines(structuredDraftQuery, {
+            packLabelResolver: user.search.getPackLabel,
+          })
+        : undefined,
       items: structuredDraftEntries.map((entry) =>
         entry.kind === "finish" || entry.kind === "cancel"
           ? { kind: entry.kind, label: entry.label }
-          : entry.kind === "queryTreeRoot" || entry.kind === "queryNode" || entry.kind === "queryInsertionSlot"
-            ? {
-                kind: "treeEntry" as const,
-                label: entry.menuLabel ?? entry.label,
-              }
           : {
-              kind: "workspaceEntry" as const,
-              label: `${entry.label} | ${entry.value}`,
-              workspaceEntry: {
-                action: "addQueryPart",
-                label: entry.label,
-                value: entry.value ?? "",
-                description: entry.description,
-                disabled: entry.disabled,
-                disabledReason: entry.disabledReason,
-              },
+              kind: "treeEntry" as const,
+              label: entry.menuLabel ?? entry.label,
             },
       ),
       selectedIndex: clampStructuredDraftSelection(structuredDraftState.selectedIndex, structuredDraftEntries.length),

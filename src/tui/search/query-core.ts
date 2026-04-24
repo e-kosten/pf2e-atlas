@@ -1,5 +1,7 @@
 import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
 import type { SearchFilterNode } from "../../domain/search-request-types.js";
+import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
 import { formatMetadataFieldLabel, humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory } from "../../domain/search-types.js";
@@ -19,9 +21,48 @@ export type SearchMetadataTreeEntry = {
 
 export type SearchMetadataPresentationAliasStyle = "compact" | "tree";
 export type SearchFilterPresentationAliasStyle = "compact" | "tree";
+export type SearchFilterRenderOptions = {
+  category?: SearchCategory | null;
+  packLabelResolver?: (packValue: string) => string | null | undefined;
+};
+
+type MetricQueryFieldPresentation =
+  | "actorMetric"
+  | "actorMetricCompare"
+  | "itemMetric"
+  | "itemMetricCompare";
 
 export function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
   return !("and" in node) && !("or" in node) && !("not" in node);
+}
+
+function formatPackPresentationValue(
+  packValue: string,
+  resolver?: (packValue: string) => string | null | undefined,
+): string {
+  return resolver?.(packValue) ?? packValue;
+}
+
+function resolveMetricQueryFieldPresentation(
+  metric: string,
+  comparison: boolean,
+  category: SearchCategory | null | undefined,
+): MetricQueryFieldPresentation {
+  const actorValueType = inferActorMetricValueType(metric);
+  const itemValueType = inferItemMetricValueType(metric);
+
+  if (actorValueType && !itemValueType) {
+    return comparison ? "actorMetricCompare" : "actorMetric";
+  }
+  if (itemValueType && !actorValueType) {
+    return comparison ? "itemMetricCompare" : "itemMetric";
+  }
+
+  if (category === "equipment") {
+    return comparison ? "itemMetricCompare" : "itemMetric";
+  }
+
+  return comparison ? "actorMetricCompare" : "actorMetric";
 }
 
 export function isMetadataBooleanGroup(
@@ -963,8 +1004,7 @@ function formatCanonicalMetadataPredicateValue(
 
 export function formatSearchFilterNodePresentationAlias(
   node: SearchFilterNode,
-  options: {
-    category?: SearchCategory | null;
+  options: SearchFilterRenderOptions & {
     style?: SearchFilterPresentationAliasStyle;
   } = {},
 ): string {
@@ -992,7 +1032,7 @@ export function formatSearchFilterNodePresentationAlias(
     case "actionCost":
       return `Action Cost: ${formatSearchNullableMatch(node.match)}`;
     case "pack":
-      return `Pack: ${node.value}`;
+      return `Pack: ${formatPackPresentationValue(node.value, options.packLabelResolver)}`;
     case "linksTo":
       return `Links To: ${node.target}`;
     case "metadataPredicate": {
@@ -1000,9 +1040,15 @@ export function formatSearchFilterNodePresentationAlias(
       return `${formatMetadataFieldLabel(node.predicate.field)}: ${predicateValue}`;
     }
     case "metric":
-      return `${getMetricQueryFieldLabel(node.metric.startsWith("attributes.") || node.metric.startsWith("speed.") ? "actorMetric" : "itemMetric", options.category ?? null)}: ${node.metric} ${node.op} ${String(node.value)}`;
+      return `${getMetricQueryFieldLabel(
+        resolveMetricQueryFieldPresentation(node.metric, false, options.category ?? null),
+        options.category ?? null,
+      )}: ${node.metric} ${node.op} ${String(node.value)}`;
     case "metricCompare":
-      return `${getMetricQueryFieldLabel(node.leftMetric.startsWith("attributes.") || node.leftMetric.startsWith("speed.") ? "actorMetricCompare" : "itemMetricCompare", options.category ?? null)}: ${node.leftMetric} ${node.op} ${node.rightMetric}`;
+      return `${getMetricQueryFieldLabel(
+        resolveMetricQueryFieldPresentation(node.leftMetric, true, options.category ?? null),
+        options.category ?? null,
+      )}: ${node.leftMetric} ${node.op} ${node.rightMetric}`;
   }
 }
 
