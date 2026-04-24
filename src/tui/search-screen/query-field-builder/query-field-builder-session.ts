@@ -28,9 +28,7 @@ export type SearchFilterExplorerSession = {
   title?: string;
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
-  loadModelForDiscoveryMode?: (
-    mode: SearchFilterDiscoveryMode,
-  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
+  loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   draft: Pf2eTerminalFilterExplorerDraft;
   resolveSelectionTarget: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;

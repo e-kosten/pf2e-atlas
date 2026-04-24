@@ -140,11 +140,10 @@ function decorateNodeForInspectAndOpen(
 export function buildInspectAndOpenOntologyExplorerModel(
   ontology: OntologyExplorerOntologyService,
   dataService: OntologyExplorerDataService,
-): OntologyDomainModel {
-  const domain = ontology.loadSearchSemanticsDomain();
-  return {
+): Promise<OntologyDomainModel> {
+  return ontology.loadSearchSemanticsDomain().then((domain) => ({
     ...domain,
     description: `${domain.description} Inspect matching records inline and open search results when needed.`,
     rootNodes: domain.rootNodes.map((node) => decorateNodeForInspectAndOpen(node, dataService)),
-  };
+  }));
 }

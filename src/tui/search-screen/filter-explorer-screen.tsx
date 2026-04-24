@@ -43,7 +43,8 @@ export function SearchFilterExplorerScreen({
 
       const requestId = refreshRequestIdRef.current + 1;
       refreshRequestIdRef.current = requestId;
-      void Promise.resolve(session.loadModelForDiscoveryMode(nextMode))
+      void session
+        .loadModelForDiscoveryMode(nextMode)
         .then((nextModel) => {
           if (refreshRequestIdRef.current !== requestId) {
             return;

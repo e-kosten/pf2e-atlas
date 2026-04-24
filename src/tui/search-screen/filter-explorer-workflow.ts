@@ -73,8 +73,8 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const loadModelForDiscoveryMode = (discoveryMode: SearchFilterDiscoveryMode) => {
-        const searchSemanticsDomain = services.ontology.loadSearchSemanticsDomain(discoveryMode);
+      const loadModelForDiscoveryMode = async (discoveryMode: SearchFilterDiscoveryMode) => {
+        const searchSemanticsDomain = await services.ontology.loadSearchSemanticsDomain(discoveryMode);
         return buildSearchFilterExplorerModel(searchSemanticsDomain, {
           category: scopeCategory,
           subcategory: scopeSubcategory,
@@ -82,7 +82,7 @@ export function useSearchFilterExplorerWorkflow({
           singleFieldBehavior,
         });
       };
-      const model = loadModelForDiscoveryMode("matching");
+      const model = await loadModelForDiscoveryMode("matching");
       if (model.rootNodes.length === 0) {
         await onUnavailable("No ontology-backed query explorer is available for that field.");
         return false;

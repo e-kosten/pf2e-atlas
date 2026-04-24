@@ -264,7 +264,7 @@ describe("application ontology service", () => {
     expect(typeof service.loadSearchSemanticsDomain).toBe("function");
   });
 
-  it("caches ontology domain models across repeated loads", () => {
+  it("caches ontology domain models across repeated loads", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
@@ -272,13 +272,13 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    const first = service.loadSearchSemanticsDomain();
-    const second = service.loadSearchSemanticsDomain();
+    const first = await service.loadSearchSemanticsDomain();
+    const second = await service.loadSearchSemanticsDomain();
 
     expect(second).toBe(first);
   });
 
-  it("loads search semantics without any derived-tag explorer storage dependency", () => {
+  it("caches ontology domain loads by discovery mode", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
@@ -286,17 +286,35 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    service.loadSearchSemanticsDomain();
+    const matchingFirst = await service.loadSearchSemanticsDomain("matching");
+    const matchingSecond = await service.loadSearchSemanticsDomain("matching");
+    const catalogFirst = await service.loadSearchSemanticsDomain("catalog");
+    const catalogSecond = await service.loadSearchSemanticsDomain("catalog");
+
+    expect(matchingSecond).toBe(matchingFirst);
+    expect(catalogSecond).toBe(catalogFirst);
+    expect(catalogFirst).not.toBe(matchingFirst);
   });
 
-  it("builds valid field-specific browse queries for search semantics values", () => {
+  it("loads search semantics without any derived-tag explorer storage dependency", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = service.loadSearchSemanticsDomain();
+
+    await service.loadSearchSemanticsDomain();
+  });
+
+  it("builds valid field-specific browse queries for search semantics values", async () => {
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+    const domain = await service.loadSearchSemanticsDomain();
     const metadataFieldsNode = findNodeById(domain.rootNodes, "spell:metadataFields");
 
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith({ field: "saveType", category: "spell" });
@@ -365,7 +383,7 @@ describe("application ontology service", () => {
     );
   });
 
-  it("enriches trait nodes from the metadata glossary artifact when available", () => {
+  it("enriches trait nodes from the metadata glossary artifact when available", async () => {
     const tempRoot = mkdtempSync(path.join(tmpdir(), "pf2e-trait-glossary-"));
     const config = createTestConfig(path.join(tempRoot, "pf2e-index.sqlite"));
     const artifact: MetadataGlossaryArtifact = {
@@ -390,7 +408,7 @@ describe("application ontology service", () => {
 
       const dataService = createDataService();
       const service = createPf2eApplicationOntologyService(config, dataService, createDiscoveryService(dataService));
-      const domain = service.loadSearchSemanticsDomain();
+      const domain = await service.loadSearchSemanticsDomain();
       const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
       const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
@@ -415,7 +433,7 @@ describe("application ontology service", () => {
     }
   });
 
-  it("loads the full discoverable value set instead of truncating to a common subset", () => {
+  it("loads the full discoverable value set instead of truncating to a common subset", async () => {
     const values = Array.from({ length: 14 }, (_, index) => ({
       value: `trait-${index + 1}`,
       count: index + 1,
@@ -457,7 +475,7 @@ describe("application ontology service", () => {
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = service.loadSearchSemanticsDomain();
+    const domain = await service.loadSearchSemanticsDomain();
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
     const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
 
@@ -465,14 +483,14 @@ describe("application ontology service", () => {
     expect(traitValueNodes[0]?.id).toBe("spell:traits:trait-14");
   });
 
-  it("uses live record inspection and live metric discovery instead of shallow examples", () => {
+  it("uses live record inspection and live metric discovery instead of shallow examples", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = service.loadSearchSemanticsDomain();
+    const domain = await service.loadSearchSemanticsDomain();
     const booleanGroupNode = findNodeById(domain.rootNodes, "spell:booleanGroup:and");
     const actorMetricCompareNode = findNodeById(domain.rootNodes, "creature:advanced:actorMetricCompare");
     const itemMetricCompareNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetricCompare");

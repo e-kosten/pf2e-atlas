@@ -7,7 +7,7 @@ import type { Pf2eApplicationSearchDiscoveryService } from "./search-discovery-s
 import { buildSearchSemanticsDomain } from "./ontology/search-semantics-domain.js";
 
 export type Pf2eApplicationOntologyService = {
-  loadSearchSemanticsDomain: (discoveryMode?: SearchFilterDiscoveryMode) => OntologyDomainModel;
+  loadSearchSemanticsDomain: (discoveryMode?: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
 };
 
 type OntologyDomainDataService = Pick<Pf2eDataService, "listRecords"> & {
@@ -22,18 +22,23 @@ export function createPf2eApplicationOntologyService(
   dataService: OntologyDomainDataService,
   discoveryService: Pf2eApplicationSearchDiscoveryService,
 ): Pf2eApplicationOntologyService {
-  const searchSemanticsDomains = new Map<SearchFilterDiscoveryMode | "default", OntologyDomainModel>();
+  const searchSemanticsDomains = new Map<SearchFilterDiscoveryMode | "default", Promise<OntologyDomainModel>>();
 
-  const loadSearchSemanticsDomain = (discoveryMode?: SearchFilterDiscoveryMode): OntologyDomainModel => {
+  const loadSearchSemanticsDomain = (discoveryMode?: SearchFilterDiscoveryMode): Promise<OntologyDomainModel> => {
     const cacheKey = discoveryMode ?? "default";
     const cached = searchSemanticsDomains.get(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const domain = buildSearchSemanticsDomain(config, dataService, discoveryService);
-    searchSemanticsDomains.set(cacheKey, domain);
-    return domain;
+    const domainPromise = Promise.resolve().then(() => buildSearchSemanticsDomain(config, dataService, discoveryService));
+    searchSemanticsDomains.set(cacheKey, domainPromise);
+    void domainPromise.catch(() => {
+      if (searchSemanticsDomains.get(cacheKey) === domainPromise) {
+        searchSemanticsDomains.delete(cacheKey);
+      }
+    });
+    return domainPromise;
   };
 
   return {

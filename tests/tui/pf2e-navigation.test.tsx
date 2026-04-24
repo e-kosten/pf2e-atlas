@@ -132,8 +132,12 @@ function createNavigationTestServices({
   model = createOntologyModel(),
   executeQuery = vi.fn(() => Promise.resolve(createSearchSession())),
   createQueryFromOntologyQuery = vi.fn((query: OntologyNodeQuery) => ({ query } as never)),
+}: {
+  model?: OntologyDomainModel | Promise<OntologyDomainModel>;
+  executeQuery?: ReturnType<typeof vi.fn>;
+  createQueryFromOntologyQuery?: ReturnType<typeof vi.fn>;
 } = {}) {
-  const loadSearchSemanticsDomain = vi.fn(() => model);
+  const loadSearchSemanticsDomain = vi.fn(async () => await model);
   const services = {
     user: {
       ontology: {
@@ -219,10 +223,11 @@ describe("pf2e navigation", () => {
     expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
     expect(capture.current!.state.routeStack).toEqual([
       { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      {
-        kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+      createPf2eOntologyRoute({
         model,
-      },
+        initialDiscoveryMode: "matching",
+        loadModelForDiscoveryMode: loadSearchSemanticsDomain,
+      }),
     ]);
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
@@ -234,7 +239,7 @@ describe("pf2e navigation", () => {
     const model = createOntologyModel();
     const deferredModel = createDeferred<OntologyDomainModel>();
     const { services } = createNavigationTestServices({
-      model: deferredModel.promise as unknown as OntologyDomainModel,
+      model: deferredModel.promise,
     });
     const { capture, renderer } = await renderNavigationHarness({ services, terminal });
     renderers.push(renderer);
@@ -259,10 +264,13 @@ describe("pf2e navigation", () => {
 
     expect(capture.current!.state.routeStack).toEqual([
       { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      {
-        kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+      createPf2eOntologyRoute({
         model,
-      },
+        initialDiscoveryMode: "matching",
+        loadModelForDiscoveryMode: capture.current!.state.routeStack[1]?.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY
+          ? capture.current!.state.routeStack[1].loadModelForDiscoveryMode
+          : undefined,
+      }),
     ]);
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
@@ -359,7 +367,7 @@ describe("pf2e navigation", () => {
     expect(capture.current!.navigation.route).toEqual({
       kind: PF2E_APP_ROUTE_KIND.SEARCH,
       entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
-      initialQuery: query,
+      initialRequest: query.request,
       origin: {
         kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
         route: preparedOntologyRoute,

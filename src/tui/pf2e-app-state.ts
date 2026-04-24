@@ -40,9 +40,7 @@ export type Pf2eOntologyRoute = {
   kind: (typeof PF2E_APP_ROUTE_KIND)["ONTOLOGY"];
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
-  loadModelForDiscoveryMode?: (
-    mode: SearchFilterDiscoveryMode,
-  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
+  loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
@@ -110,9 +108,7 @@ export function createPf2eOntologyRoute({
 }: {
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
-  loadModelForDiscoveryMode?: (
-    mode: SearchFilterDiscoveryMode,
-  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
+  loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 }): Pf2eOntologyRoute {
   return {

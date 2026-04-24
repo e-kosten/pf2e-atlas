@@ -24,9 +24,7 @@ export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions[
 export type OntologyInspectRouteData = {
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
-  loadModelForDiscoveryMode?: (
-    mode: SearchFilterDiscoveryMode,
-  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
+  loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
@@ -156,7 +154,8 @@ export function OntologyInspectScreen({
 
       const requestId = refreshRequestIdRef.current + 1;
       refreshRequestIdRef.current = requestId;
-      void Promise.resolve(routeData.loadModelForDiscoveryMode(nextMode))
+      void routeData
+        .loadModelForDiscoveryMode(nextMode)
         .then((nextModel) => {
           if (refreshRequestIdRef.current !== requestId) {
             return;

@@ -322,7 +322,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
     user: {
       search: searchService,
       ontology: {
-        loadSearchSemanticsDomain: vi.fn(() => createSearchSemanticsModel()),
+        loadSearchSemanticsDomain: vi.fn(async () => createSearchSemanticsModel()),
       },
     },
     dev: {
@@ -438,7 +438,7 @@ describe("pf2e terminal app", () => {
         ],
       };
     };
-    const loadSearchSemanticsDomain = vi.fn((mode?: "matching" | "catalog") =>
+    const loadSearchSemanticsDomain = vi.fn(async (mode?: "matching" | "catalog") =>
       mode === "catalog" ? createModeSpecificModel("catalog-only") : createModeSpecificModel("matching-only"),
     );
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
@@ -477,7 +477,7 @@ describe("pf2e terminal app", () => {
 
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {
     const services = createFakeServices();
-    const loadSearchSemanticsDomain = vi.fn(() => createSearchSemanticsModel());
+    const loadSearchSemanticsDomain = vi.fn(async () => createSearchSemanticsModel());
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
     const app = render(
       <DerivedTagTerminalProvider>
@@ -501,9 +501,7 @@ describe("pf2e terminal app", () => {
   it("keeps the area menu mounted while Search Semantics prepares", async () => {
     const services = createFakeServices();
     const pendingModel = createDeferred<OntologyDomainModel>();
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(
-      () => pendingModel.promise as unknown as OntologyDomainModel,
-    );
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => pendingModel.promise);
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
@@ -536,9 +534,7 @@ describe("pf2e terminal app", () => {
   it("keeps the area menu mounted and clears pending status when Search Semantics preparation fails", async () => {
     const services = createFakeServices();
     const pendingModel = createDeferred<OntologyDomainModel>();
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(
-      () => pendingModel.promise as unknown as OntologyDomainModel,
-    );
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => pendingModel.promise);
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
