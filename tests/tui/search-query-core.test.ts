@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import type { SearchFilterNode } from "../../src/domain/search-request-types.js";
 import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import {
+  appendSearchFilterNodesAtPath,
   canLiftSearchFilterNodeAtPath,
   canUnwrapSearchFilterNodeAtPath,
   canLiftMetadataNodeAtPath,
@@ -234,6 +235,51 @@ describe("search query-core metric labels", () => {
           field: "traits",
           op: "includesAny",
           values: ["electricity"],
+        },
+      ],
+    });
+  });
+
+  it("appends multiple peer canonical nodes into the selected group without wrapping them", () => {
+    const tree: SearchFilterNode = {
+      kind: "allOf",
+      children: [
+        {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+        {
+          kind: "anyOf",
+          children: [{ kind: "pack", value: "alpha" }],
+        },
+      ],
+    };
+
+    expect(
+      appendSearchFilterNodesAtPath(
+        tree,
+        [1],
+        [
+          { kind: "pack", value: "monster-core" },
+          { kind: "pack", value: "pathfinder-npc-core" },
+        ],
+      ),
+    ).toEqual({
+      kind: "allOf",
+      children: [
+        {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+        {
+          kind: "anyOf",
+          children: [
+            { kind: "pack", value: "alpha" },
+            { kind: "pack", value: "monster-core" },
+            { kind: "pack", value: "pathfinder-npc-core" },
+          ],
         },
       ],
     });

@@ -2,8 +2,11 @@ import React from "react";
 
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
-import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type {
+  Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalFilterExplorerInsertionResult,
+  Pf2eTerminalPreparedFilterExplorerContext,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -53,7 +56,11 @@ export function useSearchStructuredDraftEditing({
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode: MetadataFilterNode | null,
-    onApply: (nextNode: MetadataFilterNode | null) => void,
+    onApply: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
     onReturn?: () => void,
   ) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;

@@ -1,4 +1,4 @@
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
 import type { SearchFilterNode } from "../../domain/search-request-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
@@ -665,6 +665,18 @@ export function appendSearchFilterNodeAtPath(
     }
     return { kind: "allOf", children: [current, nextNode] };
   });
+}
+
+export function appendSearchFilterNodesAtPath(
+  node: SearchFilterNode | undefined,
+  path: readonly number[],
+  nextNodes: readonly SearchFilterNode[],
+  rootOperator: "allOf" | "anyOf" = "allOf",
+): SearchFilterNode | undefined {
+  return nextNodes.reduce<SearchFilterNode | undefined>(
+    (current, nextNode) => appendSearchFilterNodeAtPath(current, path, nextNode, rootOperator),
+    node,
+  );
 }
 
 export function wrapSearchFilterNodeAtPath(

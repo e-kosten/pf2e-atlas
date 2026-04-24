@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import {
   appendSearchFilterNodeAtPath,

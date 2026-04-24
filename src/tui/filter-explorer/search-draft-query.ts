@@ -1,7 +1,12 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
+import type {
+  MetadataBooleanField,
+  MetadataEnumStringField,
+  MetadataSetField,
+} from "../../domain/metadata-field-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "../search/metadata-filter-draft.js";
 import { isMetadataPredicate, normalizeMetadataNode } from "../search/query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "../search/discoverable-fields.js";
 import { createEmptyStringPolicy, normalizeQueryFieldPolicy } from "../search/policies.js";
@@ -16,6 +21,7 @@ import {
 } from "../search/query-state.js";
 import type {
   Pf2eTerminalFacetField,
+  Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalPreparedFilterExplorerDraft,
@@ -551,6 +557,153 @@ function buildMetadataNodeForSelectionKey(
   return buildMetadataNodeForQueryFieldSelection(key as Pf2eTerminalFacetField, policy, fieldSemanticsByName);
 }
 
+function buildInsertionMetadataNodesForSelectionKey(
+  key: string,
+  policy: Pf2eTerminalFilterValuePolicy<string>,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): MetadataFilterNode[] {
+  if (isTopLevelSearchFilterExplorerField(key)) {
+    return [];
+  }
+
+  const metricKey = parseMetricSelectionKey(key);
+  if (metricKey) {
+    const normalized = normalizeMetricPolicy(policy);
+    return [
+      ...normalized.any.map(
+        (value) =>
+          ({
+            field: metricKey.field,
+            metric: metricKey.metric,
+            op: "==",
+            value: normalizeMetricSelectionValue(value),
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalized.all.map(
+        (value) =>
+          ({
+            field: metricKey.field,
+            metric: metricKey.metric,
+            op: "==",
+            value: normalizeMetricSelectionValue(value),
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalized.exclude.map(
+        (value) =>
+          ({
+            field: metricKey.field,
+            metric: metricKey.metric,
+            op: "!=",
+            value: normalizeMetricSelectionValue(value),
+          }) satisfies MetadataFilterNode,
+      ),
+    ];
+  }
+
+  const fieldSemantics = fieldSemanticsByName.get(key as Pf2eTerminalFacetField);
+  const normalizedPolicy = normalizeQueryFieldPolicy(key as Pf2eTerminalFacetField, policy, fieldSemanticsByName);
+  if (!fieldSemantics || !normalizedPolicy) {
+    return [];
+  }
+
+  if (fieldSemantics.fieldType === "set") {
+    const field = key as MetadataSetField;
+    return [
+      ...normalizedPolicy.any.map(
+        (value) =>
+          ({
+            field,
+            op: "includesAny",
+            values: [value],
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.all.map(
+        (value) =>
+          ({
+            field,
+            op: "includesAny",
+            values: [value],
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.exclude.map(
+        (value) =>
+          ({
+            field,
+            op: "excludesAny",
+            values: [value],
+          }) satisfies MetadataFilterNode,
+      ),
+    ];
+  }
+
+  if (fieldSemantics.fieldType === "enumString") {
+    const field = key as MetadataEnumStringField;
+    return [
+      ...normalizedPolicy.any.map(
+        (value) =>
+          ({
+            field,
+            op: "eq",
+            value,
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.all.map(
+        (value) =>
+          ({
+            field,
+            op: "eq",
+            value,
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.exclude.map(
+        (value) =>
+          ({
+            not: {
+              field,
+              op: "eq",
+              value,
+            },
+          }) satisfies MetadataFilterNode,
+      ),
+    ];
+  }
+
+  if (fieldSemantics.fieldType === "boolean") {
+    const field = key as MetadataBooleanField;
+    const toBoolean = (value: string) => value === "true";
+    return [
+      ...normalizedPolicy.any.map(
+        (value) =>
+          ({
+            field,
+            op: "eq",
+            value: toBoolean(value),
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.all.map(
+        (value) =>
+          ({
+            field,
+            op: "eq",
+            value: toBoolean(value),
+          }) satisfies MetadataFilterNode,
+      ),
+      ...normalizedPolicy.exclude.map(
+        (value) =>
+          ({
+            not: {
+              field,
+              op: "eq",
+              value: toBoolean(value),
+            },
+          }) satisfies MetadataFilterNode,
+      ),
+    ];
+  }
+
+  return [];
+}
+
 export function prepareFilterExplorerDraftFromMetadataNode(
   node: MetadataFilterNode | null,
   scopedFields: readonly Pf2eTerminalQueryField[],
@@ -677,6 +830,37 @@ export function buildFilterExplorerMetadataNode(
     return metadataClauses[0]!;
   }
   return normalizeMetadataNode({ and: metadataClauses });
+}
+
+export function buildFilterExplorerInsertionResult(
+  draft: Pf2eTerminalFilterExplorerDraft,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+  options: { preservedMetadata?: MetadataFilterNode | null } = {},
+): Pf2eTerminalFilterExplorerInsertionResult {
+  if (options.preservedMetadata) {
+    return {
+      kind: "replace",
+      node: buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, options),
+    };
+  }
+
+  const normalizedSelections = normalizeFilterExplorerSelectionMap(draft.selection, fieldSemanticsByName);
+  const insertionNodes: MetadataFilterNode[] = [];
+
+  for (const [field, policy] of Object.entries(normalizedSelections)) {
+    insertionNodes.push(...buildInsertionMetadataNodesForSelectionKey(field, policy, fieldSemanticsByName));
+  }
+
+  for (const [key, clause] of Object.entries(draft.scalarClauses)) {
+    const metadataNode = buildMetricScalarClauseMetadataNode(key, clause);
+    if (metadataNode) {
+      insertionNodes.push(metadataNode);
+    }
+  }
+
+  return insertionNodes.length > 0
+    ? { kind: "insert", nodes: insertionNodes }
+    : { kind: "replace", node: null };
 }
 
 function hasStringPolicyValues(policy: Pf2eTerminalFilterValuePolicy<string> | undefined): boolean {

@@ -112,6 +112,19 @@ describe("metadata search semantics", () => {
     }
   });
 
+  it("routes promoted-field ordering through the shared promoted-field domain owner", () => {
+    const semantics = getMetadataFilterSemantics();
+
+    expect(semantics.metadataFields.find((entry) => entry.field === "rarity")?.valueOrdering).toEqual({
+      kind: "canonical",
+      order: ["common", "uncommon", "rare", "unique"],
+    });
+    expect(semantics.metadataFields.find((entry) => entry.field === "actionCost")?.valueOrdering).toEqual({
+      kind: "canonical",
+      order: ["0", "1", "2", "3"],
+    });
+  });
+
   it("keeps derived tags category-bounded", () => {
     const semantics = getMetadataFilterSemantics();
     const derivedTags = semantics.metadataFields.find((entry) => entry.field === "derivedTags");
@@ -167,5 +180,36 @@ describe("metadata search semantics", () => {
     expect(semantics.itemMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
       expect.arrayContaining(["weapon.", "armor.", "shield."]),
     );
+  });
+
+  it("keeps example filters on the canonical SearchFilterNode model", () => {
+    const semantics = getMetadataFilterSemantics();
+
+    expect(semantics.examplesByCategory.creature?.[0]?.filter).toEqual({
+      kind: "allOf",
+      children: expect.arrayContaining([
+        {
+          kind: "metadataPredicate",
+          predicate: { field: "sourceCategory", op: "eq", value: "core" },
+        },
+        {
+          kind: "metadataPredicate",
+          predicate: { field: "traits", op: "includes", value: "undead" },
+        },
+        {
+          kind: "not",
+          child: {
+            kind: "metadataPredicate",
+            predicate: { field: "traits", op: "includes", value: "water" },
+          },
+        },
+      ]),
+    });
+    expect(semantics.advancedPredicates.find((entry) => entry.name === "actorMetricCompare")?.example).toEqual({
+      kind: "metricCompare",
+      leftMetric: "ability.int.mod",
+      op: "gt",
+      rightMetric: "ability.cha.mod",
+    });
   });
 });

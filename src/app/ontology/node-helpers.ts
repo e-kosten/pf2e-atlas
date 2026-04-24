@@ -1,6 +1,3 @@
-import type {
-  MetadataFilterNode,
-} from "../../domain/metadata-filter-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
@@ -37,10 +34,6 @@ export function buildKeyValueDetailLines(
     lines.push({ text: `${label}: ${rendered}` });
   }
   return lines;
-}
-
-export function cloneMetadataFilterNode(metadata: MetadataFilterNode): MetadataFilterNode {
-  return structuredClone(metadata);
 }
 
 function cloneSearchRequest(request: Readonly<SearchRequest>): SearchRequest {

@@ -11,8 +11,8 @@ It also covers the startup and index lifecycle that make runtime search possible
 The search runtime is shared infrastructure, not an MCP-only feature. The same backend search stack also supports count and search-window behavior used by the TUI. The important ownership split is:
 
 - `src/index.ts` and `src/server/` own MCP registration and wire-format responses.
-- `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic query contract.
-- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the metadata field vocabulary and metadata query AST carried by `SearchRequest`.
+- `src/domain/search-request-types.ts` owns `SearchRequest` and the canonical shared filter tree.
+- `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts` own the metadata field vocabulary and atomic metadata predicates carried by that contract.
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own the lowering from `SearchRequest` into search-execution filters.

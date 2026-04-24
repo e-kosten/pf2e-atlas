@@ -1,4 +1,4 @@
-import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import {
   buildAllOfFilter,
 } from "../../domain/search-request-types.js";

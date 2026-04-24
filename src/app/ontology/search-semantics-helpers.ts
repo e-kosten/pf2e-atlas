@@ -5,14 +5,12 @@ import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,
-  MetadataFilterNode,
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
-} from "../../domain/metadata-filter-types.js";
+} from "../../domain/metadata-field-types.js";
 import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../domain/metadata-glossary-types.js";
 import type { OntologyNode } from "../../domain/ontology-types.js";
-import type { MetadataAtomicPredicate } from "../../domain/search-filter-metadata.js";
 import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode } from "../../domain/search-request-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
@@ -22,7 +20,6 @@ import {
   buildFilterText,
   buildKeyValueDetailLines,
   buildNormalizedRecordNode,
-  cloneMetadataFilterNode,
   titleCaseLabel,
 } from "./node-helpers.js";
 
@@ -196,179 +193,33 @@ export function buildSearchSemanticsMetadataQuery(
   category: SearchCategory,
   subcategory: SearchSubcategory | null,
   label: string,
-  metadata: MetadataFilterNode,
+  filter: SearchFilterNode,
 ): OntologyNode["query"] {
   return {
     label,
     request: {
       mode: "browse",
-      filter: buildAllOfFilter([buildScopeFilter(category, subcategory), buildSearchFilterFromMetadataNode(metadata)]),
+      filter: buildAllOfFilter([buildScopeFilter(category, subcategory), filter]),
       limit: 20,
     },
-  };
-}
-
-export function buildSearchFilterFromMetadataNode(metadata: MetadataFilterNode): SearchFilterNode {
-  if ("and" in metadata) {
-    return {
-      kind: "allOf",
-      children: metadata.and.map((child) => buildSearchFilterFromMetadataNode(child)),
-    };
-  }
-
-  if ("or" in metadata) {
-    return {
-      kind: "anyOf",
-      children: metadata.or.map((child) => buildSearchFilterFromMetadataNode(child)),
-    };
-  }
-
-  if ("not" in metadata) {
-    return {
-      kind: "not",
-      child: buildSearchFilterFromMetadataNode(metadata.not),
-    };
-  }
-
-  if (metadata.field === "actorMetric" || metadata.field === "itemMetric") {
-    const op =
-      metadata.op === "=="
-        ? "eq"
-        : metadata.op === "!="
-          ? "notEq"
-          : metadata.op === ">"
-            ? "gt"
-            : metadata.op === ">="
-              ? "gte"
-              : metadata.op === "<"
-                ? "lt"
-                : "lte";
-    return {
-      kind: "metric",
-      metric: metadata.metric,
-      op,
-      value: metadata.value,
-    };
-  }
-
-  if (metadata.field === "actorMetricCompare" || metadata.field === "itemMetricCompare") {
-    const op =
-      metadata.op === "=="
-        ? "eq"
-        : metadata.op === "!="
-          ? "notEq"
-          : metadata.op === ">"
-            ? "gt"
-            : metadata.op === ">="
-              ? "gte"
-              : metadata.op === "<"
-                ? "lt"
-                : "lte";
-    return {
-      kind: "metricCompare",
-      leftMetric: metadata.leftMetric,
-      op,
-      rightMetric: metadata.rightMetric,
-    };
-  }
-
-  if ("values" in metadata) {
-    if (metadata.op === "includesAny") {
-      return metadata.values.length === 1
-        ? {
-            kind: "metadataPredicate",
-            predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
-          }
-        : {
-            kind: "anyOf",
-            children: metadata.values.map((value) => ({
-              kind: "metadataPredicate",
-              predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
-            })),
-          };
-    }
-
-    if (metadata.op === "includesAll") {
-      return metadata.values.length === 1
-        ? {
-            kind: "metadataPredicate",
-            predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
-          }
-        : {
-            kind: "allOf",
-            children: metadata.values.map((value) => ({
-              kind: "metadataPredicate",
-              predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
-            })),
-          };
-    }
-
-    return {
-      kind: "not",
-      child:
-        metadata.values.length === 1
-          ? {
-              kind: "metadataPredicate",
-              predicate: { field: metadata.field, op: "includes", value: metadata.values[0]! } as MetadataAtomicPredicate,
-            }
-          : {
-              kind: "anyOf",
-              children: metadata.values.map((value) => ({
-                kind: "metadataPredicate",
-                predicate: { field: metadata.field, op: "includes", value } as MetadataAtomicPredicate,
-              })),
-            },
-    };
-  }
-
-  if ("min" in metadata && "max" in metadata) {
-    return {
-      kind: "metadataPredicate",
-      predicate: { field: metadata.field, op: "between", min: metadata.min, max: metadata.max },
-    };
-  }
-
-  const op =
-    metadata.op === "eq"
-      ? "eq"
-      : metadata.op === "notEq"
-        ? "notEq"
-        : metadata.op === "gte"
-          ? "gte"
-          : metadata.op === "lte"
-            ? "lte"
-            : metadata.op === "contains"
-              ? "contains"
-              : metadata.op === "notContains"
-                ? "notContains"
-                : "eq";
-
-  return {
-    kind: "metadataPredicate",
-    predicate:
-      {
-        field: metadata.field,
-        op,
-        ...("value" in metadata ? { value: metadata.value } : null),
-      } as MetadataAtomicPredicate,
   };
 }
 
 function buildMetricInspectMetadataQuery(
   metricField: "actorMetrics" | "itemMetrics",
   metricKey: string,
-): MetadataFilterNode {
+): SearchFilterNode {
   return metricField === "actorMetrics"
     ? {
-        field: "actorMetricCompare",
+        kind: "metricCompare",
         leftMetric: metricKey,
-        op: ">=",
+        op: "gte",
         rightMetric: metricKey,
       }
     : {
-        field: "itemMetricCompare",
+        kind: "metricCompare",
         leftMetric: metricKey,
-        op: ">=",
+        op: "gte",
         rightMetric: metricKey,
       };
 }
@@ -406,33 +257,45 @@ function parseOntologyBooleanValue(value: string): boolean | undefined {
 function buildMetadataValueQuery(
   fieldSemantics: Pick<MetadataFieldSemantics, "field" | "fieldType">,
   value: string,
-): MetadataFilterNode | undefined {
+): SearchFilterNode | undefined {
   switch (fieldSemantics.fieldType) {
     case "set":
       return {
-        field: fieldSemantics.field as MetadataSetField,
-        op: "includesAny",
-        values: [value],
+        kind: "metadataPredicate",
+        predicate: {
+          field: fieldSemantics.field as MetadataSetField,
+          op: "includes",
+          value,
+        },
       };
     case "enumString":
       return {
-        field: fieldSemantics.field as MetadataEnumStringField,
-        op: "eq",
-        value,
+        kind: "metadataPredicate",
+        predicate: {
+          field: fieldSemantics.field as MetadataEnumStringField,
+          op: "eq",
+          value,
+        },
       };
     case "text":
       return {
-        field: fieldSemantics.field as MetadataTextStringField,
-        op: "eq",
-        value,
+        kind: "metadataPredicate",
+        predicate: {
+          field: fieldSemantics.field as MetadataTextStringField,
+          op: "eq",
+          value,
+        },
       };
     case "number": {
       const numericValue = Number(value);
       return Number.isFinite(numericValue)
         ? {
-            field: fieldSemantics.field as MetadataNumberField,
-            op: "eq",
-            value: numericValue,
+            kind: "metadataPredicate",
+            predicate: {
+              field: fieldSemantics.field as MetadataNumberField,
+              op: "eq",
+              value: numericValue,
+            },
           }
         : undefined;
     }
@@ -441,9 +304,12 @@ function buildMetadataValueQuery(
       return booleanValue === undefined
         ? undefined
         : {
-            field: fieldSemantics.field as MetadataBooleanField,
-            op: "eq",
-            value: booleanValue,
+            kind: "metadataPredicate",
+            predicate: {
+              field: fieldSemantics.field as MetadataBooleanField,
+              op: "eq",
+              value: booleanValue,
+            },
           };
     }
   }
@@ -454,11 +320,11 @@ function buildMetricScalarMetadataQuery(
   metric: string,
   valueType: "text" | "boolean",
   value: string,
-): MetadataFilterNode {
+): SearchFilterNode {
   return {
-    field,
+    kind: "metric",
     metric,
-    op: "==",
+    op: "eq",
     value: valueType === "boolean" ? value === "true" : value,
   };
 }

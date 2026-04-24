@@ -3,9 +3,10 @@ import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { Pf2eApplicationSearchDiscoveryService } from "../../app/search-discovery-service.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
-import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "./metadata-filter-draft.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type {
   LookupOptions,
   LookupResult,
@@ -13,6 +14,7 @@ import type {
   SearchCountResult,
   SearchMode,
   SearchProfile,
+  SearchResultRecord,
   SearchResult,
   SearchSubcategory,
   SearchWindowPage,
@@ -88,9 +90,7 @@ export type Pf2eTerminalLookupSort =
   | "levelDescGlobal";
 export type Pf2eTerminalSearchSort = Pf2eTerminalBrowseSort | Pf2eTerminalSearchModeSort | Pf2eTerminalLookupSort;
 export type Pf2eTerminalLookupMatchType = LookupResult["matchType"];
-export type Pf2eTerminalSearchResultRecord = NormalizedRecord & {
-  matchType?: Pf2eTerminalLookupMatchType;
-};
+export type Pf2eTerminalSearchResultRecord = SearchResultRecord;
 
 export type Pf2eTerminalSearchQuery = SearchRequest;
 
@@ -115,6 +115,9 @@ export type Pf2eTerminalPreparedFilterExplorerDraft = {
 };
 
 export type Pf2eTerminalPreparedFilterExplorerContext = Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">;
+export type Pf2eTerminalFilterExplorerInsertionResult =
+  | { kind: "replace"; node: MetadataFilterNode | null }
+  | { kind: "insert"; nodes: MetadataFilterNode[] };
 
 export type Pf2eTerminalSearchSession = {
   windowId: string;
@@ -149,17 +152,17 @@ export type Pf2eTerminalSearchService = {
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetFieldOption[];
-  getMetricKeyOptions: (
-    category: SearchCategory | null,
-    subcategory: SearchSubcategory | null,
+  loadMetricKeyOptions: (
+    query: Pf2eTerminalSearchQuery,
     field: Pf2eTerminalMetricQueryField,
+    discoveryMode: SearchFilterDiscoveryMode,
     options?: { numericOnly?: boolean },
-  ) => Pf2eTerminalFacetValueOption[];
+  ) => Promise<Pf2eTerminalFacetValueOption[]>;
   getPackLabel: (packValue: string) => string;
-  getPackOptions: (
-    category: SearchCategory | null,
-    subcategory: SearchSubcategory | null,
-  ) => Pf2eTerminalFacetValueOption[];
+  loadPackOptions: (
+    query: Pf2eTerminalSearchQuery,
+    discoveryMode: SearchFilterDiscoveryMode,
+  ) => Promise<Pf2eTerminalFacetValueOption[]>;
   getQueryFieldOptions: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
@@ -176,6 +179,10 @@ export type Pf2eTerminalSearchService = {
     draft: Pf2eTerminalFilterExplorerDraft,
     options?: { preservedMetadata?: MetadataFilterNode | null },
   ) => MetadataFilterNode | null;
+  buildFilterExplorerInsertionResult: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    options?: { preservedMetadata?: MetadataFilterNode | null },
+  ) => Pf2eTerminalFilterExplorerInsertionResult;
   applyFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     draft: Pf2eTerminalFilterExplorerDraft,

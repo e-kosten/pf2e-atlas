@@ -140,8 +140,8 @@ That is why server registration files are blocked from importing low-level SQL/q
 
 The durable ownership split is:
 
-- `src/domain/search-request-types.ts` owns the shared semantic query contract
-- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the shared metadata query vocabulary carried inside that contract
+- `src/domain/search-request-types.ts` owns the shared semantic query contract and canonical filter tree
+- `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts` own the shared metadata field vocabulary and atomic metadata predicates carried inside that contract
 - surface-local transport or editor sugar may exist only at the edge and must lower to `SearchRequest` before backend execution; do not preserve alias readers for retired `intent`, `parts`, or flat-root-filter shapes
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own execution-facing compiled filter shapes
 - `src/search/filters/` owns normalization and validation for execution filters

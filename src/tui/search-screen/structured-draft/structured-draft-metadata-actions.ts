@@ -1,7 +1,7 @@
 import React from "react";
 
 import { inferActorMetricValueType } from "../../../domain/actor-metrics.js";
-import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../../domain/categories.js";
 import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
 import type {
@@ -9,8 +9,10 @@ import type {
   SearchFilterNode,
   SearchScopeSubcategoryMatch,
 } from "../../../domain/search-request-types.js";
+import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import {
   appendSearchFilterNodeAtPath,
+  appendSearchFilterNodesAtPath,
   canLiftSearchFilterNodeAtPath,
   canUnwrapSearchFilterNodeAtPath,
   getSearchFilterNodeAtPath,
@@ -25,7 +27,13 @@ import {
 } from "../../search/query-core.js";
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchQueryCategory, getSearchQueryRootOperator, getSearchQuerySubcategory } from "../../search/query-state.js";
-import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
+import type {
+  Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalFilterExplorerInsertionResult,
+  Pf2eTerminalPreparedFilterExplorerContext,
+  Pf2eTerminalQueryFieldOption,
+  Pf2eTerminalSearchQuery,
+} from "../../search/service.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { promptLevelRangeDraft } from "../../filter-explorer/scalar-editor.js";
 import type {
@@ -37,6 +45,7 @@ import type {
 type ClauseKind = "field" | "metric" | "metricCompare" | "pack" | "scope" | "level" | "price" | "rarity" | "actionCost";
 type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
+type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | null | undefined;
 
 function isMetricFieldOptionValue(value: Pf2eTerminalQueryFieldOption["value"]): boolean {
   return value === "actorMetric" || value === "itemMetric";
@@ -95,6 +104,19 @@ function formatNumericMatch(match: SearchNumericMatch): string {
   }
 }
 
+function buildDiscoveryModeSubtitle(discoveryMode: SearchFilterDiscoveryMode): string {
+  return discoveryMode === "matching" ? "Matching counts" : "Catalog counts";
+}
+
+async function waitForPromptTransition(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 export function useSearchStructuredDraftMetadataActions({
   appendStructuredDraftMetadataNode,
   clearStructuredDraftMoveSource,
@@ -123,7 +145,11 @@ export function useSearchStructuredDraftMetadataActions({
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode: MetadataFilterNode | null,
-    onApply: (nextNode: MetadataFilterNode | null) => void,
+    onApply: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
     onReturn?: () => void,
   ) => Promise<boolean>;
   moveSourcePath: number[] | null;
@@ -149,12 +175,41 @@ export function useSearchStructuredDraftMetadataActions({
     [replaceStructuredDraftProjection],
   );
 
+  const promptForPickerDiscoveryMode = React.useCallback(
+    async (
+      title: string,
+      discoveryMode: SearchFilterDiscoveryMode,
+    ): Promise<SearchFilterDiscoveryMode | undefined> => {
+      const selected = await prompts.promptCommandPalette({
+        title: `${title} Commands`,
+        prompt: "Choose how this picker should source counts",
+        entries: [
+          {
+            value: "matching",
+            label: "Use Matching Counts",
+            description: "Show values and counts from the active query context.",
+          },
+          {
+            value: "catalog",
+            label: "Use Catalog Counts",
+            description: "Show values and counts from the broader applicability slice.",
+          },
+        ],
+      });
+      if (!selected) {
+        return undefined;
+      }
+      return selected === discoveryMode ? discoveryMode : selected;
+    },
+    [prompts],
+  );
+
   const promptForFieldClause = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
       family: "field" | "metric",
       currentNode: MetadataFilterNode | null = null,
-    ): Promise<SearchFilterNode | null | undefined> => {
+    ): Promise<SearchFilterNodeEditorResult> => {
       const fieldOptions = getScopedFieldOptions(query).filter((fieldOption) =>
         family === "metric" ? isMetricFieldOptionValue(fieldOption.value) : !isMetricFieldOptionValue(fieldOption.value),
       );
@@ -198,9 +253,18 @@ export function useSearchStructuredDraftMetadataActions({
       }
 
       if (fieldOption.editor === "sharedExplorer") {
-        return new Promise<SearchFilterNode | null | undefined>((resolve) => {
-          void openOntologyFieldEditor(query, fieldOption, currentNode, (appliedNode) => {
-            resolve(metadataFilterNodeToCanonicalFilter(appliedNode) ?? null);
+        return new Promise<SearchFilterNodeEditorResult>((resolve) => {
+          void openOntologyFieldEditor(query, fieldOption, currentNode, (result) => {
+            if (result.kind === "insert") {
+              resolve(
+                result.nodes
+                  .map((node) => metadataFilterNodeToCanonicalFilter(node))
+                  .filter((node): node is SearchFilterNode => Boolean(node)),
+              );
+              return;
+            }
+
+            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
           });
         });
       }
@@ -212,14 +276,12 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const getAvailableMetricFamilies = React.useCallback(
-    (query: Pf2eTerminalSearchQuery, options: { numericOnly?: boolean } = {}): MetricFieldFamily[] => {
-      const category = getSearchQueryCategory(query);
-      const subcategory = getSearchQuerySubcategory(query);
+    async (query: Pf2eTerminalSearchQuery, options: { numericOnly?: boolean } = {}): Promise<MetricFieldFamily[]> => {
       const families: MetricFieldFamily[] = [];
-      if (user.search.getMetricKeyOptions(category, subcategory, "actorMetric", options).length > 0) {
+      if ((await user.search.loadMetricKeyOptions(query, "actorMetric", "matching", options)).length > 0) {
         families.push("actorMetric");
       }
-      if (user.search.getMetricKeyOptions(category, subcategory, "itemMetric", options).length > 0) {
+      if ((await user.search.loadMetricKeyOptions(query, "itemMetric", "matching", options)).length > 0) {
         families.push("itemMetric");
       }
       return families;
@@ -269,29 +331,44 @@ export function useSearchStructuredDraftMetadataActions({
       currentMetric?: string,
       options: { numericOnly?: boolean } = {},
     ): Promise<string | undefined> => {
-      const category = getSearchQueryCategory(query);
-      const subcategory = getSearchQuerySubcategory(query);
-      const metricOptions = user.search.getMetricKeyOptions(category, subcategory, family, options);
-      if (metricOptions.length === 0) {
-        return undefined;
-      }
+      let discoveryMode: SearchFilterDiscoveryMode = "matching";
 
-      const selection = await prompts.promptSelectOption({
-        title,
-        prompt,
-        entries: metricOptions.map((metricOption) => ({
-          value: metricOption.value,
-          label: metricOption.label,
-          description: metricOption.description,
-        })),
-        selectedValue:
-          currentMetric && metricOptions.some((metricOption) => metricOption.value === currentMetric)
-            ? currentMetric
-            : metricOptions[0]!.value,
-      });
-      return selection.kind === "selected" ? selection.value : undefined;
+      while (true) {
+        const metricOptions = await user.search.loadMetricKeyOptions(query, family, discoveryMode, options);
+        if (metricOptions.length === 0) {
+          return undefined;
+        }
+
+        const selection = await prompts.promptSelectOption({
+          title,
+          subtitle: buildDiscoveryModeSubtitle(discoveryMode),
+          prompt,
+          entries: metricOptions.map((metricOption) => ({
+            value: metricOption.value,
+            label: metricOption.label,
+            description: metricOption.description,
+          })),
+          selectedValue:
+            currentMetric && metricOptions.some((metricOption) => metricOption.value === currentMetric)
+              ? currentMetric
+              : metricOptions[0]!.value,
+          supportsCommands: true,
+        });
+        if (selection.kind === "selected") {
+          return selection.value;
+        }
+        if (selection.kind !== "commands") {
+          return undefined;
+        }
+
+        const nextMode = await promptForPickerDiscoveryMode(title, discoveryMode);
+        if (!nextMode) {
+          return undefined;
+        }
+        discoveryMode = nextMode;
+      }
     },
-    [prompts, user.search],
+    [promptForPickerDiscoveryMode, prompts, user.search],
   );
 
   const promptForMetricCompareClause = React.useCallback(
@@ -299,7 +376,7 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "metricCompare" }>,
     ): Promise<Extract<SearchFilterNode, { kind: "metricCompare" }> | undefined> => {
-      const availableFamilies = getAvailableMetricFamilies(query, { numericOnly: true });
+      const availableFamilies = await getAvailableMetricFamilies(query, { numericOnly: true });
       if (availableFamilies.length === 0) {
         await terminal.pauseForAnyKey("No numeric metric comparisons are available for the current query.");
         return undefined;
@@ -374,36 +451,72 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-    ): Promise<Extract<SearchFilterNode, { kind: "pack" }> | undefined> => {
-      const packOptions = user.search.getPackOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query));
-      if (packOptions.length === 0) {
-        await terminal.pauseForAnyKey("No packs are available for the current query.");
-        return undefined;
-      }
+    ): Promise<Extract<SearchFilterNode, { kind: "pack" }> | Extract<SearchFilterNode, { kind: "pack" }>[] | undefined> => {
+      let discoveryMode: SearchFilterDiscoveryMode = "matching";
 
-      const selection = await prompts.promptSelectOption({
-        title: "Pack",
-        prompt: "Choose the pack for this clause",
-        entries: packOptions.map((packOption) => ({
-          value: packOption.value,
-          label: packOption.label,
-          description: packOption.description,
-        })),
-        selectedValue:
-          currentNode?.value && packOptions.some((packOption) => packOption.value === currentNode.value)
-            ? currentNode.value
-            : packOptions[0]!.value,
-      });
-      if (selection.kind !== "selected") {
-        return undefined;
-      }
+      while (true) {
+        const packOptions = await user.search.loadPackOptions(query, discoveryMode);
+        if (packOptions.length === 0) {
+          await terminal.pauseForAnyKey("No packs are available for the current query.");
+          return undefined;
+        }
 
-      return {
-        kind: "pack",
-        value: selection.value,
-      };
+        if (currentNode) {
+          const selection = await prompts.promptSelectOption({
+            title: "Pack",
+            subtitle: buildDiscoveryModeSubtitle(discoveryMode),
+            prompt: "Choose the pack for this clause",
+            entries: packOptions.map((packOption) => ({
+              value: packOption.value,
+              label: packOption.label,
+              description: packOption.description,
+            })),
+            selectedValue:
+              currentNode.value && packOptions.some((packOption) => packOption.value === currentNode.value)
+                ? currentNode.value
+                : packOptions[0]!.value,
+            supportsCommands: true,
+          });
+          if (selection.kind === "selected") {
+            return {
+              kind: "pack",
+              value: selection.value,
+            };
+          }
+          if (selection.kind !== "commands") {
+            return undefined;
+          }
+        } else {
+          const selection = await prompts.promptMultiSelectOption({
+            title: "Pack",
+            subtitle: buildDiscoveryModeSubtitle(discoveryMode),
+            prompt: "Choose one or more packs for this clause",
+            entries: packOptions.map((packOption) => ({
+              value: packOption.value,
+              label: packOption.label,
+              description: packOption.description,
+            })),
+            supportsCommands: true,
+          });
+          if (selection.kind === "selected") {
+            return selection.values.map((value) => ({
+              kind: "pack" as const,
+              value,
+            }));
+          }
+          if (selection.kind !== "commands") {
+            return undefined;
+          }
+        }
+
+        const nextMode = await promptForPickerDiscoveryMode("Pack", discoveryMode);
+        if (!nextMode) {
+          return undefined;
+        }
+        discoveryMode = nextMode;
+      }
     },
-    [prompts, terminal, user.search],
+    [promptForPickerDiscoveryMode, prompts, terminal, user.search],
   );
 
   const promptForScopeClause = React.useCallback(
@@ -541,8 +654,8 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       node?: Extract<SearchFilterNode, { kind: "rarity" }>,
-    ): Promise<SearchFilterNode | null | undefined> => {
-      return new Promise<SearchFilterNode | null | undefined>((resolve) => {
+    ): Promise<SearchFilterNodeEditorResult> => {
+      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
         void openOntologyFieldEditor(
           query,
           buildExplorerOnlyFieldOption(
@@ -552,8 +665,16 @@ export function useSearchStructuredDraftMetadataActions({
             "enumString",
           ),
           node ? canonicalFilterToMetadataNode(node) : null,
-          (appliedNode) => {
-            resolve(metadataFilterNodeToCanonicalFilter(appliedNode) ?? null);
+          (result) => {
+            if (result.kind === "insert") {
+              resolve(
+                result.nodes
+                  .map((metadataNode) => metadataFilterNodeToCanonicalFilter(metadataNode))
+                  .filter((candidate): candidate is SearchFilterNode => Boolean(candidate)),
+              );
+              return;
+            }
+            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
           },
         );
       });
@@ -565,8 +686,8 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       node?: Extract<SearchFilterNode, { kind: "actionCost" }>,
-    ): Promise<SearchFilterNode | null | undefined> => {
-      return new Promise<SearchFilterNode | null | undefined>((resolve) => {
+    ): Promise<SearchFilterNodeEditorResult> => {
+      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
         void openOntologyFieldEditor(
           query,
           buildExplorerOnlyFieldOption(
@@ -576,8 +697,16 @@ export function useSearchStructuredDraftMetadataActions({
             "number",
           ),
           node ? canonicalFilterToMetadataNode(node) : null,
-          (appliedNode) => {
-            resolve(metadataFilterNodeToCanonicalFilter(appliedNode) ?? null);
+          (result) => {
+            if (result.kind === "insert") {
+              resolve(
+                result.nodes
+                  .map((metadataNode) => metadataFilterNodeToCanonicalFilter(metadataNode))
+                  .filter((candidate): candidate is SearchFilterNode => Boolean(candidate)),
+              );
+              return;
+            }
+            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
           },
         );
       });
@@ -590,7 +719,7 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       clauseKind: ClauseKind,
       currentNode?: SearchFilterNode,
-    ): Promise<SearchFilterNode | null | undefined> => {
+    ): Promise<SearchFilterNodeEditorResult> => {
       switch (clauseKind) {
         case "field":
           return promptForFieldClause(query, "field", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
@@ -628,8 +757,8 @@ export function useSearchStructuredDraftMetadataActions({
       const fieldOptions = getScopedFieldOptions(query);
       const hasFieldClauses = fieldOptions.some((fieldOption) => !isMetricFieldOptionValue(fieldOption.value));
       const hasMetricClauses = fieldOptions.some((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
-      const hasMetricCompareClauses = getAvailableMetricFamilies(query, { numericOnly: true }).length > 0;
-      const hasPackClauses = user.search.getPackOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
+      const hasMetricCompareClauses = (await getAvailableMetricFamilies(query, { numericOnly: true })).length > 0;
+      const hasPackClauses = (await user.search.loadPackOptions(query, "matching")).length > 0;
       const hasPrice = fieldOptions.some((fieldOption) => fieldOption.value === "priceCp");
       const hasActionCost = user.search.getActionCostOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
       const entries = [
@@ -690,12 +819,22 @@ export function useSearchStructuredDraftMetadataActions({
       }
       const wrappedNode =
         wrapper === "allOf" || wrapper === "anyOf"
-          ? { kind: wrapper, children: [nextNode] as SearchFilterNode[] }
+          ? ({
+              kind: wrapper,
+              children: Array.isArray(nextNode) ? nextNode : [nextNode],
+            } as SearchFilterNode)
           : wrapper === "not"
-            ? ({ kind: "not", child: nextNode } as SearchFilterNode)
+            ? ({
+                kind: "not",
+                child: Array.isArray(nextNode)
+                  ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
+                  : nextNode,
+              } as SearchFilterNode)
             : nextNode;
       applyNextTree(
-        appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
+        Array.isArray(wrappedNode)
+          ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
+          : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
       );
     },
     [applyNextTree, promptForClauseKind, promptForClauseNode],
@@ -823,8 +962,11 @@ export function useSearchStructuredDraftMetadataActions({
         }
         if ((editableClauseKind === "field" || editableClauseKind === "metric") && fieldOption && editableMetadataNode) {
           if (fieldOption.editor === "sharedExplorer") {
-            await openOntologyFieldEditor(query, fieldOption, editableMetadataNode, (nextNode) => {
-              updateStructuredDraftMetadataNode(path, () => nextNode);
+            await openOntologyFieldEditor(query, fieldOption, editableMetadataNode, (result) => {
+              if (result.kind !== "replace") {
+                return;
+              }
+              updateStructuredDraftMetadataNode(path, () => result.node);
             });
             return;
           }
@@ -836,7 +978,7 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         const nextNode = await promptForClauseNode(query, editableClauseKind, node);
-        if (nextNode === undefined) {
+        if (nextNode === undefined || Array.isArray(nextNode)) {
           return;
         }
         applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNode ?? undefined));

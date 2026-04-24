@@ -6,7 +6,7 @@ import {
   formatMetadataFieldLabel,
 } from "../../domain/presentation-vocabulary.js";
 import { normalizeMetadataNode } from "./query-core.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   createEmptyStringPolicy,

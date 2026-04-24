@@ -1,6 +1,6 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
-import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "./metadata-filter-draft.js";
 import type { SearchFilterNode } from "../../domain/search-request-types.js";
 
 function inferMetricMetadataField(

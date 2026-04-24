@@ -21,7 +21,7 @@ The shortest useful mental model is:
 - `src/app/` wires runtime and app-level facades together
 - `src/data/` owns index-backed catalog, search, and rule-graph access
 - `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic search contract
-- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the shared metadata query vocabulary carried by `SearchRequest`
+- `src/domain/metadata-field-types.ts`, `src/domain/search-filter-metadata.ts`, and `src/domain/search-request-types.ts` own the shared metadata filter vocabulary carried by `SearchRequest`
 - `src/search/` owns reusable ranked-search mechanics
 - `src/server/` translates MCP tools to backend calls
 - `src/tui/` translates user interaction flows to backend and app services

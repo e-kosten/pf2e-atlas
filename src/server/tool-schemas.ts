@@ -19,7 +19,6 @@ import {
   type MetadataPredicatePayloadKind,
   type MetadataPredicateVariantSpec,
 } from "../domain/metadata-predicate-spec.js";
-import type { MetadataFilterNode } from "../domain/metadata-filter-types.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
 import type { BrowseSortSpec, SearchFilterNode } from "../domain/search-request-types.js";
 import {
@@ -187,41 +186,6 @@ const metadataNumberPredicateSchema = buildMetadataFieldPredicateSchema(
 const metadataBooleanPredicateSchema = buildMetadataFieldPredicateSchema(
   metadataBooleanFieldSchema,
   METADATA_FIELD_PREDICATE_VARIANTS.boolean,
-);
-
-const actorMetricPredicateSchema = buildMetricValuePredicateSchema(ACTOR_METRIC_PREDICATE_SPEC);
-const actorMetricComparePredicateSchema = buildMetricComparePredicateSchema(ACTOR_METRIC_COMPARE_PREDICATE_SPEC);
-const itemMetricPredicateSchema = buildMetricValuePredicateSchema(ITEM_METRIC_PREDICATE_SPEC);
-const itemMetricComparePredicateSchema = buildMetricComparePredicateSchema(ITEM_METRIC_COMPARE_PREDICATE_SPEC);
-
-export const metadataFilterSchema: z.ZodType<MetadataFilterNode> = z.lazy(
-  () =>
-    z.union([
-      metadataSetPredicateSchema,
-      metadataEnumStringPredicateSchema,
-      metadataTextStringPredicateSchema,
-      metadataNumberPredicateSchema,
-      metadataBooleanPredicateSchema,
-      actorMetricPredicateSchema,
-      actorMetricComparePredicateSchema,
-      itemMetricPredicateSchema,
-      itemMetricComparePredicateSchema,
-      z
-        .object({
-          and: z.array(metadataFilterSchema).min(2),
-        })
-        .strict(),
-      z
-        .object({
-          or: z.array(metadataFilterSchema).min(2),
-        })
-        .strict(),
-      z
-        .object({
-          not: metadataFilterSchema,
-        })
-        .strict(),
-    ]) as z.ZodType<MetadataFilterNode>,
 );
 
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);

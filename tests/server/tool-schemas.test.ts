@@ -8,7 +8,6 @@ import {
   SCOPES_HINT_DESCRIPTION,
   SUBCATEGORY_HINT_DESCRIPTION,
   filterValueFieldSchema,
-  metadataFilterSchema,
   recordKeyArraySchema,
   searchFilterSchema,
   searchCategorySchema,
@@ -197,149 +196,89 @@ describe("tool schemas", () => {
     ).toBe(false);
   });
 
-  it("validates grouped metadata filter predicates", () => {
+  it("validates canonical metadata and metric filter leaves", () => {
     expect(
-      metadataFilterSchema.safeParse({
-        and: [
-          { field: "traits", op: "includesAny", values: ["undead"] },
-          { field: "sourceCategory", op: "eq", value: "core" },
-        ],
+      searchFilterSchema.safeParse({
+        kind: "metadataPredicate",
+        predicate: {
+          field: "traits",
+          op: "includes",
+          value: "undead",
+        },
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "publicationTitle",
-        op: "contains",
-        value: "Player Core",
+      searchFilterSchema.safeParse({
+        kind: "metadataPredicate",
+        predicate: {
+          field: "publicationTitle",
+          op: "contains",
+          value: "Player Core",
+        },
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "hands",
-        op: "between",
-        min: 1,
-        max: 2,
+      searchFilterSchema.safeParse({
+        kind: "metadataPredicate",
+        predicate: {
+          field: "hands",
+          op: "between",
+          min: 1,
+          max: 2,
+        },
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "saveType",
-        op: "eq",
-        value: "reflex",
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "areaType",
-        op: "in",
-        values: ["burst", "cone"],
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "durationUnit",
-        op: "eq",
-        value: "minute",
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "rangeText",
-        op: "contains",
-        value: "feet",
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "sustained",
-        op: "eq",
-        value: true,
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "senses",
-        op: "includesAny",
-        values: ["darkvision"],
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "disableSkills",
-        op: "includesAny",
-        values: ["thievery"],
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "actorMetric",
+      searchFilterSchema.safeParse({
+        kind: "metric",
         metric: "ability.int.mod",
-        op: ">=",
+        op: "gte",
         value: 4,
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "actorMetric",
+      searchFilterSchema.safeParse({
+        kind: "metric",
         metric: "save.best",
-        op: "==",
+        op: "eq",
         value: "will",
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "actorMetricCompare",
+      searchFilterSchema.safeParse({
+        kind: "metricCompare",
         leftMetric: "ability.int.mod",
-        op: ">",
+        op: "gt",
         rightMetric: "ability.cha.mod",
       }).success,
     ).toBe(true);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "itemMetric",
-        metric: "weapon.reload",
-        op: "==",
-        value: 1,
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "itemMetricCompare",
-        leftMetric: "shield.hp",
-        op: ">",
-        rightMetric: "shield.bt",
-      }).success,
-    ).toBe(true);
-
-    expect(
-      metadataFilterSchema.safeParse({
-        field: "traits",
-        op: "eq",
-        value: "undead",
+      searchFilterSchema.safeParse({
+        kind: "metadataPredicate",
+        predicate: {
+          field: "traits",
+          op: "eq",
+          value: "undead",
+        },
       }).success,
     ).toBe(false);
 
     expect(
-      metadataFilterSchema.safeParse({
-        field: "publicationTitle",
-        op: "eq",
-        value: "Player Core",
+      searchFilterSchema.safeParse({
+        kind: "metadataPredicate",
+        predicate: {
+          field: "publicationTitle",
+          op: "eq",
+          value: "Player Core",
+        },
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("accepts the canonical search category labels", () => {

@@ -1,11 +1,14 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import {
   isMetadataPredicate,
 } from "../search/query-core.js";
 import type {
   Pf2eTerminalFacetField,
+  Pf2eTerminalFilterExplorerInsertionResult,
+  Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalPreparedFilterExplorerContext,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -50,7 +53,11 @@ export function useSearchQueryFieldEditing({
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode: MetadataFilterNode | null,
-    onApply: (nextNode: MetadataFilterNode | null) => void,
+    onApply: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
     onReturn?: () => void,
   ) => Promise<boolean>;
   openOntologyFieldExplorer: (
@@ -104,7 +111,11 @@ export function useSearchQueryFieldEditing({
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
-      onApply: (nextNode: MetadataFilterNode | null) => void,
+      onApply: (
+        result: Pf2eTerminalFilterExplorerInsertionResult,
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void,
       onReturn?: () => void,
     ): Promise<boolean> => {
       if (fieldOption.editor !== "sharedExplorer") {
@@ -118,7 +129,11 @@ export function useSearchQueryFieldEditing({
         onReturn,
         singleFieldBehavior: "directValues",
         onApply: (draft, context) =>
-          onApply(user.search.buildFilterExplorerMetadataNode(draft, { preservedMetadata: context.preservedMetadata })),
+          onApply(
+            user.search.buildFilterExplorerInsertionResult(draft, { preservedMetadata: context.preservedMetadata }),
+            draft,
+            context,
+          ),
       });
     },
     [openFilterExplorer, user.search],

@@ -8,7 +8,7 @@ import {
   type MetadataPredicateOperator,
   type MetricComparePredicateFromSpec,
   type MetricValuePredicateFromSpec,
-} from "./metadata-predicate-spec.js";
+} from "../../domain/metadata-predicate-spec.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,
@@ -17,7 +17,7 @@ import type {
   MetadataNumberField,
   MetadataSetField,
   MetadataTextStringField,
-} from "./metadata-field-types.js";
+} from "../../domain/metadata-field-types.js";
 
 type MetadataFieldNameByPredicateType<FieldType extends MetadataFieldType> = MetadataFieldNameByType<FieldType>;
 

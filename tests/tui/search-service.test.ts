@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
-import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
+import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import {
@@ -27,12 +27,15 @@ type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchServi
 function createDependencies(
   overrides: Partial<SearchServiceDependencies> & {
     getPack?: (packValue: string) => { name: string; label?: string } | undefined;
-    listFilterValues?: (query: { field: string }) => { values: Array<{ value: string; count: number }> };
+    listFilterValues?: (query: { field?: string; target?: { field: string } }) => {
+      values: Array<{ value: string; count: number }>;
+    };
   } = {},
 ): SearchServiceDependencies {
   const listFilterValues =
     overrides.listFilterValues ??
-    vi.fn(({ field }) => {
+    vi.fn((query: { field?: string; target?: { field: string } }) => {
+      const field = query.field ?? query.target?.field;
       if (field === "rarity") {
         return { values: [{ value: "rare", count: 1 }] };
       }
@@ -197,7 +200,7 @@ describe("createPf2eTerminalSearchService", () => {
     );
   });
 
-  it("annotates lookup session results with explicit match type metadata", async () => {
+  it("preserves explicit lookup match type metadata from search-window pages", async () => {
     const record = {
       id: "spell-fire-ball",
       recordKey: "spell:fire-ball",
@@ -281,7 +284,7 @@ describe("createPf2eTerminalSearchService", () => {
           limit: 20,
           hasMore: false,
           nextOffset: null,
-          records: [record],
+          records: [{ ...record, matchType: "exact" as const }],
         })),
       }),
     );
@@ -336,84 +339,143 @@ describe("createPf2eTerminalSearchService", () => {
     expect(getSearchVocabulary).not.toHaveBeenCalled();
   });
 
-  it("builds metric-key options and can restrict them to numeric keys", () => {
+  it("loads metric-key options from the query-aware shared discovery service and can restrict them to numeric keys", async () => {
+    const discoverFilterValues = vi.fn(async (request: { mode: string; context: unknown; target: { field: string } }) => {
+      if (request.target.field === "actorMetrics") {
+        return {
+          mode: "matching" as const,
+          target: request.target,
+          options: [
+            { id: "hp.value", value: "hp.value", count: 2 },
+            { id: "save.best", value: "save.best", count: 1 },
+          ],
+        };
+      }
+      return { mode: "matching" as const, target: request.target, options: [] };
+    });
+    const discovery = createDependencies().discovery;
+    discovery.discoverFilterValues = discoverFilterValues;
     const service = createPf2eTerminalSearchService(
       createDependencies({
-        listFilterValues: vi.fn(({ field }) => {
-          if (field === "actorMetrics") {
-            return {
-              values: [
-                { value: "hp.value", count: 2 },
-                { value: "save.best", count: 1 },
-              ],
-            };
-          }
-          return { values: [] };
-        }),
+        discovery,
       }),
     );
+    const query = {
+      ...service.createDefaultQuery("browse"),
+      filter: {
+        kind: "scope" as const,
+        category: "creature" as const,
+        subcategory: { kind: "any" as const },
+      },
+    };
 
-    expect(service.getMetricKeyOptions("creature", null, "actorMetric")).toEqual([
+    expect(await service.loadMetricKeyOptions(query, "actorMetric", "matching")).toEqual([
       {
         value: "hp.value",
         label: "hp.value",
-        description: "2 indexed canonical records in the current scope.",
+        description: "2 matching canonical records.",
         count: 2,
       },
       {
         value: "save.best",
         label: "save.best",
-        description: "1 indexed canonical record in the current scope.",
+        description: "1 matching canonical record.",
         count: 1,
       },
     ]);
-    expect(service.getMetricKeyOptions("creature", null, "actorMetric", { numericOnly: true })).toEqual([
+    expect(discoverFilterValues).toHaveBeenCalledWith({
+      mode: "matching",
+      context: expect.objectContaining({
+        request: expect.objectContaining({
+          mode: "browse",
+          filter: expect.objectContaining({
+            kind: "scope",
+            category: "creature",
+          }),
+        }),
+      }),
+      target: { field: "actorMetrics" },
+    });
+    expect(await service.loadMetricKeyOptions(query, "actorMetric", "matching", { numericOnly: true })).toEqual([
       {
         value: "hp.value",
         label: "hp.value",
-        description: "2 indexed canonical records in the current scope.",
+        description: "2 matching canonical records.",
         count: 2,
       },
     ]);
   });
 
-  it("builds pack options from canonical pack values and human-facing labels", () => {
+  it("loads pack options from canonical pack values and human-facing labels through query-aware catalog discovery", async () => {
+    const discoverFilterValues = vi.fn(async (request: { mode: string; context: unknown; target: { field: string } }) => {
+      if (request.target.field === "packs") {
+        return {
+          mode: "catalog" as const,
+          target: request.target,
+          options: [
+            { id: "pathfinder-npc-core", value: "pathfinder-npc-core", count: 4 },
+            { id: "bestiary", value: "bestiary", count: 2 },
+          ],
+        };
+      }
+      return { mode: "catalog" as const, target: request.target, options: [] };
+    });
+    const discovery = createDependencies({
+      getPack: (packValue) =>
+        packValue === "pathfinder-npc-core"
+          ? { name: "pathfinder-npc-core", label: "Pathfinder NPC Core" }
+          : packValue === "bestiary"
+            ? { name: "bestiary", label: "Bestiary" }
+            : undefined,
+    }).discovery;
+    discovery.discoverFilterValues = discoverFilterValues;
     const service = createPf2eTerminalSearchService(
       createDependencies({
+        discovery,
         getPack: (packValue) =>
           packValue === "pathfinder-npc-core"
             ? { name: "pathfinder-npc-core", label: "Pathfinder NPC Core" }
             : packValue === "bestiary"
               ? { name: "bestiary", label: "Bestiary" }
               : undefined,
-        listFilterValues: vi.fn(({ field }) => {
-          if (field === "packs") {
-            return {
-              values: [
-                { value: "pathfinder-npc-core", count: 4 },
-                { value: "bestiary", count: 2 },
-              ],
-            };
-          }
-          return { values: [] };
-        }),
       }),
     );
+    const query = {
+      ...service.createDefaultQuery("browse"),
+      filter: {
+        kind: "scope" as const,
+        category: "creature" as const,
+        subcategory: { kind: "any" as const },
+      },
+    };
 
-    expect(service.getPackOptions("creature", null)).toEqual([
+    expect(await service.loadPackOptions(query, "catalog")).toEqual([
       {
         value: "bestiary",
         label: "Bestiary",
-        description: "2 indexed canonical records in this pack.",
+        description: "2 applicable canonical records.",
         count: 2,
       },
       {
         value: "pathfinder-npc-core",
         label: "Pathfinder NPC Core",
-        description: "4 indexed canonical records in this pack.",
+        description: "4 applicable canonical records.",
         count: 4,
       },
     ]);
+    expect(discoverFilterValues).toHaveBeenCalledWith({
+      mode: "catalog",
+      context: expect.objectContaining({
+        request: expect.objectContaining({
+          mode: "browse",
+          filter: expect.objectContaining({
+            kind: "scope",
+            category: "creature",
+          }),
+        }),
+      }),
+      target: { field: "packs" },
+    });
   });
 
   it("normalizes canonical structured parts and trims unavailable action cost", () => {
@@ -593,6 +655,37 @@ describe("createPf2eTerminalSearchService", () => {
       op: ">=",
       value: 12,
     } satisfies MetadataFilterNode);
+  });
+
+  it("emits peer metadata leaves when explorer-backed categorical drafts are inserted into the current group", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+
+    expect(
+      service.buildFilterExplorerInsertionResult({
+        selection: {
+          traits: {
+            any: ["evocation", "illusion"],
+            all: [],
+            exclude: [],
+          },
+        },
+        scalarClauses: {},
+      }),
+    ).toEqual({
+      kind: "insert",
+      nodes: [
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["evocation"],
+        },
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["illusion"],
+        },
+      ],
+    });
   });
 
   it("round-trips scoped rarity and action-cost explorer drafts through top-level query parts", () => {

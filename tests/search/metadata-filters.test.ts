@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeMetadataFilterNode } from "../../src/search/filters/metadata.js";
+import { normalizeMetadataAtomicPredicate } from "../../src/search/filters/metadata.js";
 
-describe("metadata filter normalization", () => {
-  it("normalizes text equality predicates even when the tool schema only exposes contains operators", () => {
+describe("metadata predicate normalization", () => {
+  it("normalizes text equality predicates even when the public schema only exposes contains operators", () => {
     expect(
-      normalizeMetadataFilterNode({
+      normalizeMetadataAtomicPredicate({
         field: "publicationTitle",
         op: "eq",
         value: "  Player Core  ",
@@ -17,31 +17,31 @@ describe("metadata filter normalization", () => {
     });
   });
 
-  it("normalizes enum-string membership predicates through the shared variant spec", () => {
+  it("normalizes enum-string equality predicates through the shared variant spec", () => {
     expect(
-      normalizeMetadataFilterNode({
+      normalizeMetadataAtomicPredicate({
         field: "saveType",
-        op: "in",
-        values: ["Reflex", " reflex ", "Fortitude"],
+        op: "eq",
+        value: " Reflex ",
       }),
     ).toEqual({
       field: "saveType",
-      op: "in",
-      values: ["reflex", "fortitude"],
+      op: "eq",
+      value: "reflex",
     });
   });
 
   it("preserves hyphenated set values for exact membership predicates", () => {
     expect(
-      normalizeMetadataFilterNode({
+      normalizeMetadataAtomicPredicate({
         field: "families",
-        op: "includesAny",
-        values: ["  ancestry-npcs  ", "ghost"],
+        op: "includes",
+        value: "  ancestry-npcs  ",
       }),
     ).toEqual({
       field: "families",
-      op: "includesAny",
-      values: ["ancestry-npcs", "ghost"],
+      op: "includes",
+      value: "ancestry-npcs",
     });
   });
 });

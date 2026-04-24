@@ -369,7 +369,7 @@ describe("eslint local architecture rules", () => {
 
     await expectNoRuleMessages(
       "src/domain/search-request-types.ts",
-      'import type { MetadataFilterNode } from "./metadata-filter-types.js";\nexport type Value = MetadataFilterNode;\n',
+      'import type { MetadataAtomicPredicate } from "./search-filter-metadata.js";\nexport type Value = MetadataAtomicPredicate;\n',
     );
   });
 

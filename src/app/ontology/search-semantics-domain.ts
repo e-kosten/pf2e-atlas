@@ -106,9 +106,12 @@ export function buildSearchSemanticsDomain(
       subcategory,
       label,
       {
-        field: "derivedTags",
-        op: "includesAny",
-        values: [tag],
+        kind: "metadataPredicate",
+        predicate: {
+          field: "derivedTags",
+          op: "includes",
+          value: tag,
+        },
       },
     );
   }
@@ -835,9 +838,12 @@ export async function buildPreparedSearchFilterExplorerDomain(
       subcategory,
       label,
       {
-        field: "derivedTags",
-        op: "includesAny",
-        values: [tag],
+        kind: "metadataPredicate",
+        predicate: {
+          field: "derivedTags",
+          op: "includes",
+          value: tag,
+        },
       },
     );
   }

@@ -16,7 +16,7 @@ import type {
   MetadataEnumStringField,
   MetadataFilterNode,
   MetadataSetField,
-} from "../../domain/metadata-filter-types.js";
+} from "./metadata-filter-draft.js";
 import type {
   SearchCategory,
   SearchProfile,
@@ -50,26 +50,6 @@ function trimOptionalText(value: string | undefined): string | undefined {
 }
 
 type QueryRootOperator = "allOf" | "anyOf";
-
-type QueryFilterState = {
-  rootOperator: QueryRootOperator;
-  scope: Extract<SearchFilterNode, { kind: "scope" }> | null;
-  level: Extract<SearchFilterNode, { kind: "level" }> | null;
-  rarityPolicy: Pf2eTerminalFilterValuePolicy<string>;
-  actionCostPolicy: Pf2eTerminalFilterValuePolicy<number>;
-  otherChildren: SearchFilterNode[];
-};
-
-function createEmptyFilterState(rootOperator: QueryRootOperator = "allOf"): QueryFilterState {
-  return {
-    rootOperator,
-    scope: null,
-    level: null,
-    rarityPolicy: createEmptyStringPolicy(),
-    actionCostPolicy: createEmptyNumberPolicy(),
-    otherChildren: [],
-  };
-}
 
 function hasPolicyValues<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
   return policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0;
@@ -253,99 +233,137 @@ export function tryExtractSearchFilterValuePolicy(
   return null;
 }
 
-function decomposeQueryFilter(filter: SearchFilterNode | undefined): QueryFilterState {
-  const rootOperator: QueryRootOperator = filter?.kind === "anyOf" ? "anyOf" : "allOf";
-  const topLevelChildren =
-    filter?.kind === "allOf" || filter?.kind === "anyOf" ? filter.children : filter ? [filter] : [];
-  const state = createEmptyFilterState(rootOperator);
-
-  for (const child of topLevelChildren) {
-    if (child.kind === "scope" && !state.scope) {
-      state.scope = child;
-      continue;
-    }
-
-    if (child.kind === "level" && !state.level) {
-      state.level = child;
-      continue;
-    }
-
-    if (!hasPolicyValues(state.rarityPolicy)) {
-      const rarityPolicy = extractPolicyFilter(child, "rarity");
-      if (rarityPolicy && hasPolicyValues(rarityPolicy)) {
-        state.rarityPolicy = cloneStringPolicy(rarityPolicy as Pf2eTerminalFilterValuePolicy<string>);
-        continue;
-      }
-    }
-
-    if (!hasPolicyValues(state.actionCostPolicy)) {
-      const actionCostPolicy = extractPolicyFilter(child, "actionCost");
-      if (actionCostPolicy && hasPolicyValues(actionCostPolicy)) {
-        state.actionCostPolicy = cloneNumberPolicy(actionCostPolicy as Pf2eTerminalFilterValuePolicy<number>);
-        continue;
-      }
-    }
-
-    if (isCanonicalMetadataFilterCandidate(child) && canonicalFilterToMetadataNode(child)) {
-      continue;
-    }
-
-    state.otherChildren.push(child);
-  }
-
-  return state;
+function getQueryRootOperator(filter: SearchFilterNode | undefined): QueryRootOperator {
+  return filter?.kind === "anyOf" ? "anyOf" : "allOf";
 }
 
-function rebuildQueryWithFilterState(
+function getTopLevelQueryChildren(filter: SearchFilterNode | undefined): SearchFilterNode[] {
+  if (!filter) {
+    return [];
+  }
+
+  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+    return [...filter.children];
+  }
+
+  return [filter];
+}
+
+function buildQueryFromTopLevelChildren(
   query: Pf2eTerminalSearchQuery,
-  state: QueryFilterState,
-  metadataTree: MetadataFilterNode | null,
+  rootOperator: QueryRootOperator,
+  children: SearchFilterNode[],
 ): Pf2eTerminalSearchQuery {
-  const children: SearchFilterNode[] = [];
-
-  if (state.scope) {
-    children.push(state.scope);
-  }
-  if (state.level) {
-    children.push(state.level);
-  }
-
-  const rarityFilter = buildPolicyFilter("rarity", state.rarityPolicy);
-  if (rarityFilter) {
-    children.push(rarityFilter);
-  }
-
-  const actionCostFilter = buildPolicyFilter("actionCost", state.actionCostPolicy);
-  if (actionCostFilter) {
-    children.push(actionCostFilter);
-  }
-
-  const metadataFilter = metadataFilterNodeToCanonicalFilter(metadataTree);
-  if (metadataFilter) {
-    children.push(metadataFilter);
-  }
-
-  children.push(...state.otherChildren);
-
-  const filter =
-    state.rootOperator === "anyOf"
-      ? buildAnyOfFilter(children)
-      : buildAllOfFilter(children);
+  const filter = rootOperator === "anyOf" ? buildAnyOfFilter(children) : buildAllOfFilter(children);
   return {
     ...query,
     ...(filter ? { filter } : { filter: undefined }),
   };
 }
 
+function removeFirstMatchingTopLevelChild(
+  children: SearchFilterNode[],
+  predicate: (child: SearchFilterNode) => boolean,
+): SearchFilterNode[] {
+  let removed = false;
+  return children.filter((child) => {
+    if (!removed && predicate(child)) {
+      removed = true;
+      return false;
+    }
+    return true;
+  });
+}
+
+function removeAllMatchingTopLevelChildren(
+  children: SearchFilterNode[],
+  predicate: (child: SearchFilterNode) => boolean,
+): SearchFilterNode[] {
+  return children.filter((child) => !predicate(child));
+}
+
+function insertAfterCanonicalPrefix(
+  children: SearchFilterNode[],
+  node: SearchFilterNode,
+  predicate: (child: SearchFilterNode) => boolean,
+): SearchFilterNode[] {
+  let index = 0;
+  while (index < children.length && predicate(children[index]!)) {
+    index += 1;
+  }
+  return [...children.slice(0, index), node, ...children.slice(index)];
+}
+
+function isTopLevelPolicyChild(
+  child: SearchFilterNode,
+  kind: "rarity" | "actionCost",
+): boolean {
+  const policy = extractPolicyFilter(child, kind);
+  return Boolean(policy && hasPolicyValues(policy));
+}
+
+function isTopLevelMetadataChild(child: SearchFilterNode): boolean {
+  return isCanonicalMetadataFilterCandidate(child) && Boolean(canonicalFilterToMetadataNode(child));
+}
+
+function buildLevelFilter(levelRange: {
+  levelMin: number | null;
+  levelMax: number | null;
+}): Extract<SearchFilterNode, { kind: "level" }> | null {
+  const { levelMin, levelMax } = levelRange;
+  if (levelMin === null && levelMax === null) {
+    return null;
+  }
+
+  if (levelMin !== null && levelMax !== null) {
+    return levelMin === levelMax
+      ? { kind: "level", match: { kind: "eq", value: levelMin } }
+      : {
+          kind: "level",
+          match: {
+            kind: "between",
+            min: Math.min(levelMin, levelMax),
+            max: Math.max(levelMin, levelMax),
+          },
+        };
+  }
+
+  return levelMin !== null
+    ? { kind: "level", match: { kind: "gte", value: levelMin } }
+    : { kind: "level", match: { kind: "lte", value: levelMax! } };
+}
+
+function findTopLevelLevelFilter(
+  filter: SearchFilterNode | undefined,
+): Extract<SearchFilterNode, { kind: "level" }> | null {
+  for (const child of getTopLevelQueryChildren(filter)) {
+    if (child.kind === "level") {
+      return child;
+    }
+  }
+
+  return null;
+}
+
+function findTopLevelPolicyFilter<K extends "rarity" | "actionCost">(
+  filter: SearchFilterNode | undefined,
+  kind: K,
+): Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> | null {
+  for (const child of getTopLevelQueryChildren(filter)) {
+    const policy = extractPolicyFilter(child, kind);
+    if (policy && hasPolicyValues(policy)) {
+      return policy;
+    }
+  }
+
+  return null;
+}
+
 function extractQueryMetadataTree(
   filter: SearchFilterNode | undefined,
 ): MetadataFilterNode | null {
-  const rootOperator: QueryRootOperator = filter?.kind === "anyOf" ? "anyOf" : "allOf";
-  const topLevelChildren =
-    filter?.kind === "allOf" || filter?.kind === "anyOf" ? filter.children : filter ? [filter] : [];
-  const metadataChildren = topLevelChildren.filter(
-    (child) => isCanonicalMetadataFilterCandidate(child) && canonicalFilterToMetadataNode(child),
-  );
+  const rootOperator = getQueryRootOperator(filter);
+  const metadataChildren = getTopLevelQueryChildren(filter).filter((child) => isTopLevelMetadataChild(child));
 
   if (metadataChildren.length === 0) {
     return null;
@@ -472,7 +490,7 @@ export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {
   levelMin: number | null;
   levelMax: number | null;
 } {
-  const part = decomposeQueryFilter(query.filter).level;
+  const part = findTopLevelLevelFilter(query.filter);
   return {
     levelMin:
       part?.match.kind === "eq"
@@ -494,11 +512,11 @@ export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {
 }
 
 export function getSearchQueryRarityPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<string> {
-  return cloneStringPolicy(decomposeQueryFilter(query.filter).rarityPolicy);
+  return cloneStringPolicy(findTopLevelPolicyFilter(query.filter, "rarity") ?? createEmptyStringPolicy());
 }
 
 export function getSearchQueryActionCostPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<number> {
-  return cloneNumberPolicy(decomposeQueryFilter(query.filter).actionCostPolicy);
+  return cloneNumberPolicy(findTopLevelPolicyFilter(query.filter, "actionCost") ?? createEmptyNumberPolicy());
 }
 
 export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
@@ -506,40 +524,48 @@ export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): Meta
 }
 
 export function getSearchQueryRootOperator(query: Pf2eTerminalSearchQuery): QueryRootOperator {
-  return decomposeQueryFilter(query.filter).rootOperator;
+  return getQueryRootOperator(query.filter);
 }
 
 export function setSearchQueryCategory(
   query: Pf2eTerminalSearchQuery,
   category: SearchCategory | null,
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  state.scope = category
-    ? {
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "scope");
+  if (category) {
+    children = [
+      {
         kind: "scope",
         category,
         subcategory: { kind: "any" },
-      }
-    : null;
-  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+      },
+      ...children,
+    ];
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
 export function setSearchQuerySubcategory(
   query: Pf2eTerminalSearchQuery,
   subcategory: SearchSubcategory | null,
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  const category = normalizeSearchCategory(state.scope?.category ?? null) ?? null;
+  const currentScope = findSearchScopeFilter(query.filter);
+  const category = normalizeSearchCategory(currentScope?.category ?? null) ?? null;
   if (!category) {
     return query;
   }
 
-  state.scope = {
-    kind: "scope",
-    category,
-    subcategory: subcategory ? { kind: "eq", value: subcategory } : { kind: "any" },
-  };
-  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+  const rootOperator = getQueryRootOperator(query.filter);
+  const children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "scope");
+  return buildQueryFromTopLevelChildren(query, rootOperator, [
+    {
+      kind: "scope",
+      category,
+      subcategory: subcategory ? { kind: "eq", value: subcategory } : { kind: "any" },
+    },
+    ...children,
+  ]);
 }
 
 export function setSearchQueryLevelRange(
@@ -549,52 +575,70 @@ export function setSearchQueryLevelRange(
     levelMax: number | null;
   },
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  const { levelMin, levelMax } = levelRange;
-  state.level =
-    levelMin === null && levelMax === null
-      ? null
-      : levelMin !== null && levelMax !== null
-        ? levelMin === levelMax
-          ? { kind: "level", match: { kind: "eq", value: levelMin } }
-          : {
-              kind: "level",
-              match: {
-                kind: "between",
-                min: Math.min(levelMin, levelMax),
-                max: Math.max(levelMin, levelMax),
-              },
-            }
-        : levelMin !== null
-          ? { kind: "level", match: { kind: "gte", value: levelMin } }
-          : { kind: "level", match: { kind: "lte", value: levelMax! } };
-  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "level");
+  const levelFilter = buildLevelFilter(levelRange);
+  if (levelFilter) {
+    children = insertAfterCanonicalPrefix(children, levelFilter, (child) => child.kind === "scope");
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
 export function setSearchQueryRarityPolicy(
   query: Pf2eTerminalSearchQuery,
   policy: Pf2eTerminalFilterValuePolicy<string>,
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  state.rarityPolicy = cloneStringPolicy(policy);
-  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeFirstMatchingTopLevelChild(
+    getTopLevelQueryChildren(query.filter),
+    (child) => isTopLevelPolicyChild(child, "rarity"),
+  );
+  const rarityFilter = buildPolicyFilter("rarity", cloneStringPolicy(policy));
+  if (rarityFilter) {
+    children = insertAfterCanonicalPrefix(children, rarityFilter, (child) => child.kind === "scope" || child.kind === "level");
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
 export function setSearchQueryActionCostPolicy(
   query: Pf2eTerminalSearchQuery,
   policy: Pf2eTerminalFilterValuePolicy<number>,
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  state.actionCostPolicy = cloneNumberPolicy(policy);
-  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeFirstMatchingTopLevelChild(
+    getTopLevelQueryChildren(query.filter),
+    (child) => isTopLevelPolicyChild(child, "actionCost"),
+  );
+  const actionCostFilter = buildPolicyFilter("actionCost", cloneNumberPolicy(policy));
+  if (actionCostFilter) {
+    children = insertAfterCanonicalPrefix(
+      children,
+      actionCostFilter,
+      (child) => child.kind === "scope" || child.kind === "level" || isTopLevelPolicyChild(child, "rarity"),
+    );
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
 export function setSearchQueryMetadataTree(
   query: Pf2eTerminalSearchQuery,
   node: MetadataFilterNode | null,
 ): Pf2eTerminalSearchQuery {
-  const state = decomposeQueryFilter(query.filter);
-  return rebuildQueryWithFilterState(query, state, node);
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeAllMatchingTopLevelChildren(getTopLevelQueryChildren(query.filter), isTopLevelMetadataChild);
+  const metadataFilter = metadataFilterNodeToCanonicalFilter(node);
+  if (metadataFilter) {
+    children = insertAfterCanonicalPrefix(
+      children,
+      metadataFilter,
+      (child) =>
+        child.kind === "scope" ||
+        child.kind === "level" ||
+        isTopLevelPolicyChild(child, "rarity") ||
+        isTopLevelPolicyChild(child, "actionCost"),
+    );
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
 export function isActionCostAvailableInScope(

@@ -16,8 +16,8 @@ That mixed ownership made it too easy for one surface to gain a new search conce
 
 ## Decision
 
-- `src/domain/search-request-types.ts` owns `SearchRequest` as the shared semantic query contract
-- `src/domain/metadata-field-types.ts` and `src/domain/metadata-filter-types.ts` own the metadata query vocabulary and AST carried by `SearchRequest`
+- `src/domain/search-request-types.ts` owns `SearchRequest` as the shared semantic query contract and canonical filter tree
+- `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts` own the shared metadata field vocabulary and atomic metadata predicates carried by `SearchRequest`
 - MCP, TUI, and ontology-origin flows may keep their own surface-local editing or transport models, but they must adapt to `SearchRequest` before crossing into shared backend code
 - `src/search/request-compilation.ts` lowers `SearchRequest` into search-execution filters owned by `src/search/contracts.ts`
 - execution filters are search-owned compiled output, not the shared semantic contract

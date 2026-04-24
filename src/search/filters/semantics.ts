@@ -6,8 +6,12 @@ import {
 import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "../../domain/item-metrics.js";
 import { SEARCH_CATEGORIES } from "../../domain/categories.js";
 import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
-import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
 import { METADATA_FIELD_KIND_OPERATORS, type MetadataFieldName, type MetadataFieldType } from "../../domain/metadata-field-types.js";
+import type { SearchFilterNode } from "../../domain/search-request-types.js";
+import {
+  getSearchPromotedFieldValueOrdering,
+  isSearchPromotedFieldDomainKey,
+} from "../../domain/search-field-domains.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { METADATA_FIELD_REGISTRY } from "./registry.js";
 
@@ -30,7 +34,7 @@ export interface MetadataFieldTypeGroup {
 
 export interface MetadataCategoryExample {
   label: string;
-  metadata: MetadataFilterNode;
+  filter: SearchFilterNode;
   notes?: string;
 }
 
@@ -39,7 +43,7 @@ export interface MetadataAdvancedPredicateSemantics {
   categories: SearchCategory[];
   operators: string[];
   description: string;
-  example: MetadataFilterNode;
+  example: SearchFilterNode;
 }
 
 export interface MetadataFilterSemantics {
@@ -81,20 +85,25 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   equipment: [
     {
       label: "One-handed bombs",
-      metadata: {
-        and: [
-          { field: "weaponGroup", op: "eq", value: "bomb" },
-          { field: "hands", op: "eq", value: 1 },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "weaponGroup", op: "eq", value: "bomb" } },
+          { kind: "metadataPredicate", predicate: { field: "hands", op: "eq", value: 1 } },
         ],
       },
       notes: "Use equipment boundaries first, then item-native metadata for the final cut.",
     },
     {
       label: "Worn disguises",
-      metadata: {
-        and: [
-          { field: "usage", op: "eq", value: "worn" },
-          { field: "derivedTags", op: "includesAny", values: ["social_infiltration"] },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "usage", op: "eq", value: "worn" } },
+          {
+            kind: "metadataPredicate",
+            predicate: { field: "derivedTags", op: "includes", value: "social_infiltration" },
+          },
         ],
       },
     },
@@ -102,20 +111,25 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   creature: [
     {
       label: "Core undead without the water trait",
-      metadata: {
-        and: [
-          { field: "sourceCategory", op: "eq", value: "core" },
-          { field: "traits", op: "includesAny", values: ["undead"] },
-          { field: "traits", op: "excludesAny", values: ["water"] },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "sourceCategory", op: "eq", value: "core" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "undead" } },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "water" } },
+          },
         ],
       },
     },
     {
       label: "Ghosts with fire resistance",
-      metadata: {
-        and: [
-          { field: "families", op: "includesAny", values: ["ghost"] },
-          { field: "resistances", op: "includesAny", values: ["fire"] },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "families", op: "includes", value: "ghost" } },
+          { kind: "metadataPredicate", predicate: { field: "resistances", op: "includes", value: "fire" } },
         ],
       },
     },
@@ -123,29 +137,32 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   spell: [
     {
       label: "Primal focus spells with cold damage",
-      metadata: {
-        and: [
-          { field: "traditions", op: "includesAny", values: ["primal"] },
-          { field: "spellKinds", op: "includesAny", values: ["focus"] },
-          { field: "damageTypes", op: "includesAny", values: ["cold"] },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "traditions", op: "includes", value: "primal" } },
+          { kind: "metadataPredicate", predicate: { field: "spellKinds", op: "includes", value: "focus" } },
+          { kind: "metadataPredicate", predicate: { field: "damageTypes", op: "includes", value: "cold" } },
         ],
       },
     },
     {
       label: "Reflex burst spells",
-      metadata: {
-        and: [
-          { field: "saveType", op: "eq", value: "reflex" },
-          { field: "areaType", op: "eq", value: "burst" },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "saveType", op: "eq", value: "reflex" } },
+          { kind: "metadataPredicate", predicate: { field: "areaType", op: "eq", value: "burst" } },
         ],
       },
     },
     {
       label: "Sustained minute-duration spells",
-      metadata: {
-        and: [
-          { field: "sustained", op: "eq", value: true },
-          { field: "durationUnit", op: "eq", value: "minute" },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "sustained", op: "eq", value: true } },
+          { kind: "metadataPredicate", predicate: { field: "durationUnit", op: "eq", value: "minute" } },
         ],
       },
     },
@@ -153,10 +170,11 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   hazard: [
     {
       label: "Complex hazards disabled with Thievery",
-      metadata: {
-        and: [
-          { field: "isComplex", op: "eq", value: true },
-          { field: "disableSkills", op: "includesAny", values: ["thievery"] },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "isComplex", op: "eq", value: true } },
+          { kind: "metadataPredicate", predicate: { field: "disableSkills", op: "includes", value: "thievery" } },
         ],
       },
     },
@@ -171,9 +189,9 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
     description:
       "Generic keyed actor metric predicate for creature and hazard stats, saves, and other actor-shaped metrics.",
     example: {
-      field: "actorMetric",
+      kind: "metric",
       metric: "ability.int.mod",
-      op: ">=",
+      op: "gte",
       value: 4,
     },
   },
@@ -183,9 +201,9 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
     operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
     description: "Numeric actor metric comparison between two metric keys on the same creature or hazard record.",
     example: {
-      field: "actorMetricCompare",
+      kind: "metricCompare",
       leftMetric: "ability.int.mod",
-      op: ">",
+      op: "gt",
       rightMetric: "ability.cha.mod",
     },
   },
@@ -195,9 +213,9 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
     operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
     description: "Generic keyed equipment metric predicate for weapon, armor, and shield stats.",
     example: {
-      field: "itemMetric",
+      kind: "metric",
       metric: "weapon.reload",
-      op: "==",
+      op: "eq",
       value: 1,
     },
   },
@@ -207,9 +225,9 @@ const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
     operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
     description: "Numeric equipment metric comparison between two metric keys on the same item record.",
     example: {
-      field: "itemMetricCompare",
+      kind: "metricCompare",
       leftMetric: "shield.hp",
-      op: ">",
+      op: "gt",
       rightMetric: "shield.bt",
     },
   },
@@ -282,7 +300,9 @@ export function getMetadataFieldSemantics(): MetadataFieldSemantics[] {
     subcategories: entry.subcategories ? [...entry.subcategories] : undefined,
     discoverable: Boolean(entry.discoverable),
     notes: entry.notes,
-    valueOrdering: entry.valueOrdering,
+    valueOrdering: isSearchPromotedFieldDomainKey(entry.field)
+      ? getSearchPromotedFieldValueOrdering(entry.field)
+      : entry.valueOrdering,
   }));
 }
 
