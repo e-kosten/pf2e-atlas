@@ -6,6 +6,7 @@ import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-grou
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
+import { useFilterExplorerDiscoveryState } from "../filter-explorer/discovery-state.js";
 import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
 import type {
   FilterExplorerComposeTarget,
@@ -127,6 +128,9 @@ export function OntologyInspectScreen({
     },
     [prompts, terminal],
   );
+  const discovery = useFilterExplorerDiscoveryState({
+    resetKey: model.id,
+  });
 
   return (
     <FilterExplorerScreen
@@ -134,6 +138,7 @@ export function OntologyInspectScreen({
       model={model}
       initialSnapshot={initialSnapshot}
       onExit={onExit}
+      discovery={discovery}
       transitionStatus={transitionStatus}
       mode={{
         kind: "inspect-and-open",

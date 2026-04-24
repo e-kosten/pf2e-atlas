@@ -2081,6 +2081,65 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2 actions");
   });
 
+  it("routes structured-draft shared explorers through the discovery mode command path", async () => {
+    const services = createServices();
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              actionCost: 2,
+              category: "spell",
+              limit: 20,
+              levelMax: 1,
+              levelMin: 1,
+              rarity: "common",
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Rarity Explorer");
+    expect(app.lastFrame()).toContain("matching counts");
+
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Rarity Explorer Commands");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    for (const character of "catalog") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("catalog counts");
+  });
+
   it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [

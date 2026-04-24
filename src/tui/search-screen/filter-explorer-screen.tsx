@@ -1,5 +1,6 @@
 import React from "react";
 
+import { useFilterExplorerDiscoveryState } from "../filter-explorer/discovery-state.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import { cloneFilterExplorerComposeDraft } from "../filter-explorer/compose-state.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
@@ -22,6 +23,9 @@ export function SearchFilterExplorerScreen({
     draftRef.current = nextDraft;
     setDraft(nextDraft);
   }, [session.draft]);
+  const discovery = useFilterExplorerDiscoveryState({
+    resetKey: `${session.title ?? ""}:${session.model.id}`,
+  });
 
   const applyDraft = React.useCallback(() => {
     session.onApply(draftRef.current);
@@ -40,6 +44,7 @@ export function SearchFilterExplorerScreen({
       rootDepth={0}
       exitAtRootDepth
       onExit={applyDraft}
+      discovery={discovery}
       mode={{
         kind: "compose",
         draft,

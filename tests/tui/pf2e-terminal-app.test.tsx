@@ -392,6 +392,35 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Spell");
   });
 
+  it("exposes ontology discovery mode switching through the shared explorer commands", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    await openOntologyBrowser(app);
+    expect(app.lastFrame()).toContain("matching counts");
+
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Search Semantics Commands");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    for (const character of "catalog") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("catalog counts");
+  });
+
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {
     const services = createFakeServices();
     const loadSearchSemanticsDomain = vi.fn(() => createSearchSemanticsModel());
