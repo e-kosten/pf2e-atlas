@@ -4,6 +4,7 @@ import type {
   SearchExplainResult,
   SearchMode,
   SearchProfile,
+  SearchResultRecord,
   SearchRecordExplanation,
   SearchResult,
   SearchSort,
@@ -27,7 +28,7 @@ export type SearchWindowSnapshot = {
   searchProfile: SearchProfile | null;
   mode: SearchMode;
   sort: SearchSort;
-  records: NormalizedRecord[];
+  records: SearchResultRecord[];
   explanations: SearchRecordExplanation[];
   explainContext?: {
     fusionMethod: SearchExplainResult["fusionMethod"];

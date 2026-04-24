@@ -133,7 +133,7 @@ describe("search result detail lines", () => {
 
   it("adds a light match-type metadata line for lookup previews", () => {
     const lines = buildResultDetailLines(
-      createRecord({ name: "Fire Ball" }),
+      { ...createRecord({ name: "Fire Ball" }), matchType: "exact" as const },
       createSession(createRecord({ name: "Fire Ball" }), {
         query: {
           mode: "lookup",
@@ -156,9 +156,12 @@ describe("search result detail lines", () => {
   });
 
   it("renders lookup tiered sections without per-row badges and global lookup badges without sections", () => {
-    const exact = createRecord({ name: "Fire Ball", recordKey: "spell:exact" });
-    const normalized = createRecord({ name: "fire ball", recordKey: "spell:normalized" });
-    const fuzzy = createRecord({ name: "Firewall", recordKey: "spell:fuzzy" });
+    const exact = { ...createRecord({ name: "Fire Ball", recordKey: "spell:exact" }), matchType: "exact" as const };
+    const normalized = {
+      ...createRecord({ name: "fire ball", recordKey: "spell:normalized" }),
+      matchType: "normalized_exact" as const,
+    };
+    const fuzzy = { ...createRecord({ name: "Firewall", recordKey: "spell:fuzzy" }), matchType: "fuzzy" as const };
     const query: Pf2eTerminalSearchQuery = {
       mode: "lookup",
       limit: 20,

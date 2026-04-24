@@ -7,6 +7,7 @@ import type {
   LookupOptions,
   LookupQuery,
   SearchCountResult,
+  SearchResultRecord,
   SearchResult,
   SearchWindowPage,
 } from "../../domain/search-types.js";
@@ -34,22 +35,39 @@ import { Pf2eSearchWindowStore } from "./search-window-store.js";
 
 function applyLookupTieredOrdering(
   query: string,
-  records: readonly NormalizedRecord[],
-): NormalizedRecord[] {
-  const buckets: Record<Exclude<LookupResult["matchType"], "none">, NormalizedRecord[]> = {
+  records: readonly SearchResultRecord[],
+): SearchResultRecord[] {
+  const buckets: Record<Exclude<LookupResult["matchType"], "none">, SearchResultRecord[]> = {
     exact: [],
     normalized_exact: [],
     fuzzy: [],
   };
 
   for (const record of records) {
-    const matchType = getLookupMatchType(query, record);
+    const matchType = record.matchType ?? getLookupMatchType(query, record);
     if (matchType !== "none") {
-      buckets[matchType].push(record);
+      buckets[matchType].push(
+        record.matchType === undefined
+          ? {
+              ...record,
+              matchType,
+            }
+          : record,
+      );
     }
   }
 
   return [...buckets.exact, ...buckets.normalized_exact, ...buckets.fuzzy];
+}
+
+function annotateLookupRecords(
+  query: string,
+  records: readonly NormalizedRecord[],
+): SearchResultRecord[] {
+  return records.map((record) => ({
+    ...record,
+    matchType: getLookupMatchType(query, record),
+  }));
 }
 
 export class Pf2eSearchBackendService {
@@ -155,7 +173,7 @@ export class Pf2eSearchBackendService {
         sort,
         sortSeed,
         total: orderedRecordKeys.length,
-        orderedRecordKeys,
+        orderedRecords: orderedRecordKeys.map((recordKey) => ({ recordKey })),
       });
       return this.searchWindows.readWindowPage(window.id, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
     }
@@ -163,17 +181,24 @@ export class Pf2eSearchBackendService {
     validateSearchFilters(normalizedFilters, "search");
     const snapshot = await buildSearchWindowSnapshot(normalizedFilters, runtime);
     const records =
-      normalizedRequest.mode === "lookup" && (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
-        ? applyLookupTieredOrdering(normalizedRequest.search.query, snapshot.records)
+      normalizedRequest.mode === "lookup"
+        ? annotateLookupRecords(normalizedRequest.search.query, snapshot.records)
         : snapshot.records;
+    const orderedRecords =
+      normalizedRequest.mode === "lookup" && (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
+        ? applyLookupTieredOrdering(normalizedRequest.search.query, records)
+        : records;
     const window = this.searchWindows.openWindow({
       kind: "recordKeys",
       mode: snapshot.mode,
       searchProfile: snapshot.searchProfile,
       sort: snapshot.sort,
       sortSeed: normalizedFilters.sortSeed ?? null,
-      total: records.length,
-      orderedRecordKeys: records.map((record) => record.recordKey),
+      total: orderedRecords.length,
+      orderedRecords: orderedRecords.map((record) => ({
+        recordKey: record.recordKey,
+        matchType: record.matchType,
+      })),
     });
     return this.searchWindows.readWindowPage(window.id, normalizedFilters.offset ?? 0, normalizedFilters.limit ?? 20);
   }
@@ -190,7 +215,15 @@ export class Pf2eSearchBackendService {
     const executionFilters = this.compileRequest(request);
     const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
-    return searchRuntime(executionFilters, normalizedFilters, this.runtimeSearchDependencies());
+    const result = await searchRuntime(executionFilters, normalizedFilters, this.runtimeSearchDependencies());
+    if (request.mode !== "lookup") {
+      return result;
+    }
+
+    return {
+      ...result,
+      records: annotateLookupRecords(request.search.query, result.records),
+    };
   }
 
   lookup(

@@ -2357,6 +2357,30 @@ describe("Pf2eDataService / Search and Lookup", () => {
     );
   });
 
+  it("carries explicit lookup match type metadata on windowed result pages", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const windowPage = await service.openSearchWindow(
+      lookupRequest({
+        search: { query: "Raise a Shield" },
+        filter: scopeFilter("rule", "action"),
+        sort: { kind: "alphabetical", policy: "tiered" },
+        limit: 5,
+      }),
+    );
+
+    expect(windowPage.records[0]?.name).toBe("Raise a Shield");
+    expect(windowPage.records[0]?.matchType).toBe("exact");
+    expect(windowPage.records.every((record) => record.matchType !== undefined)).toBe(true);
+
+    if (windowPage.nextOffset !== null) {
+      const nextWindowPage = service.readSearchWindowPage(windowPage.id, windowPage.nextOffset, 5);
+      expect(nextWindowPage.records.every((record) => record.matchType !== undefined)).toBe(true);
+    }
+  });
+
   it("keeps ranked search pages aligned with equivalent search windows", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

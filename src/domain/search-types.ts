@@ -184,6 +184,10 @@ export interface LookupResult {
   matchType: "exact" | "normalized_exact" | "fuzzy" | "none";
 }
 
+export type SearchResultRecord = NormalizedRecord & {
+  matchType?: LookupResult["matchType"];
+};
+
 export interface SearchResult {
   searchProfile: SearchProfile | null;
   mode: SearchMode;
@@ -193,7 +197,7 @@ export interface SearchResult {
   limit: number;
   hasMore: boolean;
   nextOffset: number | null;
-  records: NormalizedRecord[];
+  records: SearchResultRecord[];
   explain?: SearchExplainResult;
 }
 
@@ -217,7 +221,7 @@ export interface SearchWindowPage extends SearchWindow {
   limit: number;
   hasMore: boolean;
   nextOffset: number | null;
-  records: NormalizedRecord[];
+  records: SearchResultRecord[];
 }
 
 export interface SearchQueryAnalysis {

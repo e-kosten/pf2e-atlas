@@ -4,7 +4,6 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import { clampWindowStart } from "../list-utils.js";
-import { getLookupMatchType } from "../../domain/lookup-match-type.js";
 import {
   buildLookupMatchTypeGroup,
   buildSearchResultRowLine,
@@ -20,26 +19,25 @@ export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor
 
 function getLookupPresentation(
   session: Pf2eTerminalSearchSession | null,
-): { policy: "tiered" | "global"; query: string } | null {
+): { policy: "tiered" | "global" } | null {
   if (!session || session.query.mode !== "lookup") {
     return null;
   }
 
   return {
     policy: session.sort.endsWith("Global") ? "global" : "tiered",
-    query: session.query.search.query,
   };
 }
 
 function getResultLookupMatchType(
   record: Pf2eTerminalSearchSession["results"][number],
-  presentation: { policy: "tiered" | "global"; query: string } | null,
+  presentation: { policy: "tiered" | "global" } | null,
 ) {
   if (!presentation) {
     return "none" as const;
   }
 
-  return record.matchType ?? getLookupMatchType(presentation.query, record);
+  return record.matchType ?? "none";
 }
 
 export function parseJumpToResultInput(input: string, total: number): number | string {

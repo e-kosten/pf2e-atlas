@@ -1,5 +1,10 @@
 import type { NormalizedRecord } from "../../domain/record-types.js";
-import type { SearchSort, SearchWindow, SearchWindowPage } from "../../domain/search-types.js";
+import type { SearchResultRecord, SearchSort, SearchWindow, SearchWindowPage } from "../../domain/search-types.js";
+
+type RuntimeSearchWindowRecord = {
+  recordKey: string;
+  matchType?: SearchResultRecord["matchType"];
+};
 
 type RuntimeSearchWindow = {
   id: string;
@@ -9,7 +14,7 @@ type RuntimeSearchWindow = {
   sort: SearchSort;
   sortSeed: number | null;
   total: number;
-  orderedRecordKeys: string[];
+  orderedRecords: RuntimeSearchWindowRecord[];
 };
 
 const MAX_SEARCH_WINDOWS = 24;
@@ -44,8 +49,24 @@ export class Pf2eSearchWindowStore {
       throw new Error(`Search window "${windowId}" is no longer available.`);
     }
 
-    const recordKeys = window.orderedRecordKeys.slice(offset, offset + limit);
-    const records = this.getRecordsByKeys(recordKeys);
+    const windowRecords = window.orderedRecords.slice(offset, offset + limit);
+    const recordKeys = windowRecords.map((record) => record.recordKey);
+    const recordsByKey = new Map(this.getRecordsByKeys(recordKeys).map((record) => [record.recordKey, record]));
+    const records = windowRecords.flatMap<SearchResultRecord>((windowRecord) => {
+      const record = recordsByKey.get(windowRecord.recordKey);
+      if (!record) {
+        return [];
+      }
+
+      return [
+        windowRecord.matchType === undefined
+          ? record
+          : {
+              ...record,
+              matchType: windowRecord.matchType,
+            },
+      ];
+    });
     const hasMore = offset + records.length < window.total;
 
     return {
