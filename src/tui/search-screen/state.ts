@@ -61,6 +61,7 @@ export type SearchScreenAction =
 
 export const SEARCH_LEFT_WIDTH = 44;
 export const LIVE_COUNT_DEBOUNCE_MS = 150;
+const DEFAULT_QUERY_LIMIT = 50;
 const EAGER_RESULT_BUFFER_LIMIT = 250;
 const MIN_RESULT_WINDOW_LIMIT = 120;
 const RESULT_WINDOW_PAGE_MULTIPLIER = 8;
@@ -175,7 +176,7 @@ export function getSearchResultWindowTarget(
       : { offset: 0, limit: session.total };
   }
 
-  const windowSize = Math.min(session.total, Math.max(session.query.limit, metrics.windowLimit));
+  const windowSize = Math.min(session.total, Math.max(session.query.limit ?? DEFAULT_QUERY_LIMIT, metrics.windowLimit));
   const windowStart = session.windowOffset;
   const windowEnd = session.windowOffset + session.results.length;
   const minimumBuffer = Math.min(metrics.preloadThreshold, Math.max(1, Math.floor(windowSize / 3)));

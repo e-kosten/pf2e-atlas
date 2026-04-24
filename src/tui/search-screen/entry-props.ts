@@ -1,4 +1,4 @@
-import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
@@ -12,7 +12,7 @@ type SearchScreenCommonProps = {
 
 export type SearchScreenEditorEntryProps = SearchScreenCommonProps & {
   entry?: "editor";
-  initialQuery?: OntologyNodeQuery;
+  initialRequest?: SearchRequest;
   initialSession?: never;
 };
 

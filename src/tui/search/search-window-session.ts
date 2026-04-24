@@ -49,8 +49,9 @@ export function buildSearchWindowFilters(
   return buildSearchRequest(query, {
     limit: options.limit,
     offset,
-    text: query.mode === "browse" ? undefined : query.queryText,
-    searchProfile: query.mode === "search" ? query.searchProfile : undefined,
+    text: query.mode === "browse" ? undefined : query.search.query,
+    exclude: query.mode === "search" ? query.search.exclude : undefined,
+    searchProfile: query.mode === "search" ? query.search.profile : undefined,
     sort: options.sort,
     sortSeed: options.sortSeed,
   });

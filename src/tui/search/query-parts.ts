@@ -327,6 +327,103 @@ function buildPolicyFilter(
   return buildAllOfFilter([anyFilter, allFilter, excludeFilter]);
 }
 
+type PolicyFilterKind = "rarity" | "actionCost";
+type PolicyValue<K extends PolicyFilterKind> = K extends "rarity" ? string : number;
+type PolicyPart<K extends PolicyFilterKind> = Pf2eTerminalQueryPartPolicy<PolicyValue<K>>;
+
+function collectPolicyValues<K extends PolicyFilterKind>(
+  filter: SearchFilterNode,
+  kind: K,
+): Array<PolicyValue<K>> | null {
+  if (filter.kind === kind && filter.match.kind === "eq") {
+    return [filter.match.value] as Array<PolicyValue<K>>;
+  }
+
+  if (filter.kind === "anyOf" || filter.kind === "allOf") {
+    const values: Array<PolicyValue<K>> = [];
+    for (const child of filter.children) {
+      const childValues = collectPolicyValues(child, kind);
+      if (!childValues) {
+        return null;
+      }
+      values.push(...childValues);
+    }
+    return values;
+  }
+
+  return null;
+}
+
+function extractPolicyPart<K extends PolicyFilterKind>(
+  filter: SearchFilterNode,
+  kind: K,
+): PolicyPart<K> | null {
+  if (filter.kind === kind && filter.match.kind === "eq") {
+    const value = filter.match.value as PolicyValue<K>;
+    return {
+      any: [value],
+      all: [],
+      exclude: [],
+    };
+  }
+
+  if (filter.kind === "anyOf") {
+    const values = collectPolicyValues(filter, kind);
+    return values
+      ? {
+          any: values,
+          all: [],
+          exclude: [],
+        } as PolicyPart<K>
+      : null;
+  }
+
+  if (filter.kind === "allOf") {
+    const policy: PolicyPart<K> = {
+      any: [],
+      all: [],
+      exclude: [],
+    };
+
+    for (const child of filter.children) {
+      if (child.kind === "not") {
+        const excludedValues = collectPolicyValues(child.child, kind);
+        if (!excludedValues) {
+          return null;
+        }
+        policy.exclude.push(...excludedValues);
+        continue;
+      }
+
+      const values = collectPolicyValues(child, kind);
+      if (!values) {
+        return null;
+      }
+
+      if (child.kind === "anyOf") {
+        policy.any.push(...values);
+      } else {
+        policy.any.push(...values);
+      }
+    }
+
+    return policy;
+  }
+
+  if (filter.kind === "not") {
+    const excludedValues = collectPolicyValues(filter.child, kind);
+    return excludedValues
+      ? {
+          any: [],
+          all: [],
+          exclude: excludedValues,
+        } as PolicyPart<K>
+      : null;
+  }
+
+  return null;
+}
+
 export function legacyQueryPartsToCanonicalFilter(
   category: SearchCategory | null,
   parts: readonly Pf2eTerminalQueryPart[],
@@ -513,6 +610,24 @@ export function extractLegacyQueryPartsFromCanonicalFilter(
               : child.match.kind === "between"
                 ? child.match.max
                 : null,
+      });
+      continue;
+    }
+
+    const rarityPolicy = extractPolicyPart(child, "rarity");
+    if (rarityPolicy) {
+      parts.push({
+        kind: "rarityPolicy",
+        policy: rarityPolicy as Pf2eTerminalQueryPartPolicy<string>,
+      });
+      continue;
+    }
+
+    const actionCostPolicy = extractPolicyPart(child, "actionCost");
+    if (actionCostPolicy) {
+      parts.push({
+        kind: "actionCostPolicy",
+        policy: actionCostPolicy as Pf2eTerminalQueryPartPolicy<number>,
       });
       continue;
     }

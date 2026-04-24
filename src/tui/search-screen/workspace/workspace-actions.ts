@@ -13,7 +13,13 @@ import {
   isQueryNodeAction,
   type SearchWorkspaceAction,
 } from "../model.js";
-import { setSearchQueryMetadataTree } from "../../search/query-state.js";
+import {
+  getSearchQuerySearchProfile,
+  getSearchQueryText,
+  setSearchQueryMetadataTree,
+  setSearchQuerySearchProfile,
+  setSearchQueryText,
+} from "../../search/query-state.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
 import { useSearchStructuredEditorActions } from "../structured-editor-actions.js";
 import type {
@@ -70,7 +76,7 @@ export function useSearchWorkspaceActions({
         state.query.mode === "lookup"
           ? "Enter an exact or near-exact record name"
           : "Enter search text for the current query",
-      defaultValue: state.query.queryText,
+      defaultValue: getSearchQueryText(state.query),
       hint: state.query.mode === "lookup" ? "Example: Raise Shield" : "Example: ghost ship captain",
     });
 
@@ -78,11 +84,8 @@ export function useSearchWorkspaceActions({
       return;
     }
 
-    applyQueryUpdate((request) => ({
-      ...request,
-      queryText,
-    }));
-  }, [applyQueryUpdate, prompts, state.query.mode, state.query.queryText]);
+    applyQueryUpdate((request) => setSearchQueryText(request, queryText));
+  }, [applyQueryUpdate, prompts, state.query]);
 
   const chooseMode = React.useCallback(async () => {
     const result = await prompts.promptSelectOption({
@@ -96,13 +99,13 @@ export function useSearchWorkspaceActions({
       selectedValue: state.query.mode,
     });
 
-    if (result.kind !== "selected") {
+    if (result.kind !== "selected" || result.value === state.query.mode) {
       return;
     }
 
     applyQueryUpdate((request) => ({
-      ...request,
-      mode: result.value,
+      ...user.search.createDefaultQuery(result.value),
+      limit: request.limit,
     }));
   }, [applyQueryUpdate, prompts, state.query.mode, user.search]);
 
@@ -115,16 +118,13 @@ export function useSearchWorkspaceActions({
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.query.searchProfile,
+      selectedValue: getSearchQuerySearchProfile(state.query) ?? "balanced",
     });
 
     if (result.kind === "selected") {
-      applyQueryUpdate((request) => ({
-        ...request,
-        searchProfile: result.value,
-      }));
+      applyQueryUpdate((request) => setSearchQuerySearchProfile(request, result.value));
     }
-  }, [applyQueryUpdate, prompts, state.query.searchProfile, user.search]);
+  }, [applyQueryUpdate, prompts, state.query, user.search]);
   const { openStructuredDraftSession, structuredEditorSession } = useSearchStructuredEditorActions({
     applyQueryUpdate,
     currentQuery: state.query,

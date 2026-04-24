@@ -81,20 +81,7 @@ export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
 
 export type Pf2eTerminalSearchStructuredPart = Pf2eTerminalQueryPart;
-
-export type Pf2eTerminalSearchFilters = {
-  category: SearchCategory | null;
-  parts: Pf2eTerminalSearchStructuredPart[];
-};
-
-export type Pf2eTerminalSearchQuery = {
-  mode: Pf2eTerminalSearchMode;
-  limit: number;
-  queryText: string;
-  searchProfile: SearchProfile;
-  sourceLabel: string | null;
-  filters: Pf2eTerminalSearchFilters;
-};
+export type Pf2eTerminalSearchQuery = SearchRequest;
 
 export type Pf2eTerminalQueryFieldOption = {
   value: Pf2eTerminalQueryField;
@@ -134,7 +121,7 @@ export type Pf2eTerminalSearchSession = {
 };
 
 export type Pf2eTerminalSearchService = {
-  createDefaultQuery: () => Pf2eTerminalSearchQuery;
+  createDefaultQuery: (mode?: Pf2eTerminalSearchMode) => Pf2eTerminalSearchQuery;
   createQueryFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchQuery;
   countQuery: (query: Pf2eTerminalSearchQuery) => Promise<SearchCountResult>;
   disposeSession: (session: Pf2eTerminalSearchSession) => void;

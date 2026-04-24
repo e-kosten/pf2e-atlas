@@ -1,9 +1,5 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { SearchProfile, SearchSort } from "../../domain/search-types.js";
-import {
-  getSearchQueryCategory,
-} from "./query-state.js";
-import { legacyQueryPartsToCanonicalFilter } from "./query-parts.js";
 import type { Pf2eTerminalSearchQuery } from "./service-types.js";
 
 export function buildSearchRequest(
@@ -12,12 +8,12 @@ export function buildSearchRequest(
     limit?: number;
     offset?: number;
     text?: string;
+    exclude?: string;
     searchProfile?: SearchProfile;
     sort?: SearchSort;
     sortSeed?: number | null;
   } = {},
 ): SearchRequest {
-  const filter = legacyQueryPartsToCanonicalFilter(getSearchQueryCategory(query), query.filters.parts);
   const sort =
     options.sort === undefined
       ? undefined
@@ -30,7 +26,7 @@ export function buildSearchRequest(
   if (query.mode === "browse") {
     return {
       mode: "browse",
-      filter,
+      filter: query.filter,
       limit: options.limit ?? query.limit,
       offset: options.offset ?? 0,
       sort,
@@ -41,9 +37,9 @@ export function buildSearchRequest(
     return {
       mode: "lookup",
       search: {
-        query: options.text ?? query.queryText,
+        query: options.text ?? query.search.query,
       },
-      filter,
+      filter: query.filter,
       limit: options.limit ?? query.limit,
       offset: options.offset ?? 0,
       sort:
@@ -56,11 +52,12 @@ export function buildSearchRequest(
   return {
     mode: "search",
     search: {
-      query: options.text ?? query.queryText,
-      profile: options.searchProfile ?? query.searchProfile,
+      query: options.text ?? query.search.query,
+      ...(options.exclude ?? query.search.exclude ? { exclude: options.exclude ?? query.search.exclude } : {}),
+      profile: options.searchProfile ?? query.search.profile,
     },
     explain: false,
-    filter,
+    filter: query.filter,
     limit: options.limit ?? query.limit,
     offset: options.offset ?? 0,
   };

@@ -27,9 +27,15 @@ import { buildSearchRequest } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
   createDefaultQuery,
+  getSearchQueryCategory,
+  getSearchQuerySubcategory,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
 } from "./query-state.js";
+import {
+  extractLegacyQueryPartsFromCanonicalFilter,
+  legacyQueryPartsToCanonicalFilter,
+} from "./query-parts.js";
 import {
   appendSearchSessionWindowPage,
   buildSearchWindowFilters,
@@ -66,7 +72,6 @@ export type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchCategoryOption,
-  Pf2eTerminalSearchFilters,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchModeOption,
   Pf2eTerminalSearchProfileOption,
@@ -79,6 +84,9 @@ export type {
   Pf2eTerminalSearchSubcategoryOption,
   SearchServiceDependencies,
 } from "./service-types.js";
+
+const DEFAULT_QUERY_LIMIT = 50;
+
 export function createPf2eTerminalSearchService(dependencies: SearchServiceDependencies): Pf2eTerminalSearchService {
   const filterSemantics = getMetadataFilterSemantics();
   const fieldSemanticsByName = new Map<Pf2eTerminalFacetField, MetadataFieldSemantics>(
@@ -93,8 +101,23 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     return isActionCostAvailableInScope(dependencies, category, subcategory);
   }
 
+  function normalizeServiceQuery(query: import("./service-types.js").Pf2eTerminalSearchQuery) {
+    const normalizedQuery = normalizeSearchQuery(query);
+    const category = getSearchQueryCategory(normalizedQuery);
+    const subcategory = getSearchQuerySubcategory(normalizedQuery);
+    const rootParts = extractLegacyQueryPartsFromCanonicalFilter(normalizedQuery.filter).parts;
+    const nextParts = rootParts.filter(
+      (part) => part.kind !== "actionCostPolicy" || isActionCostRelevant(category, subcategory),
+    );
+
+    return {
+      ...normalizedQuery,
+      filter: legacyQueryPartsToCanonicalFilter(category, nextParts),
+    };
+  }
+
   return {
-    createDefaultQuery: () => createDefaultQuery(),
+    createDefaultQuery: (mode) => createDefaultQuery(mode),
     createQueryFromOntologyQuery: (query) =>
       createSearchQueryFromOntologyQuery(query, dependencies, fieldSemanticsByName),
     getAvailableRootQueryPartKinds: (category, subcategory) => [
@@ -104,18 +127,13 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       ...(isActionCostRelevant(category, subcategory) ? (["actionCostPolicy"] as const) : []),
       ...(category ? (["metadataPredicate", "metadataGroup", "metadataNot"] as const) : []),
     ],
-    getRootQueryParts: (query) => normalizeSearchQuery(query, dependencies, fieldSemanticsByName).filters.parts,
+    getRootQueryParts: (query) => extractLegacyQueryPartsFromCanonicalFilter(normalizeServiceQuery(query).filter).parts,
     applyRootQueryParts: (query, parts) =>
-      normalizeSearchQuery(
+      normalizeServiceQuery(
         {
           ...query,
-          filters: {
-            ...query.filters,
-            parts,
-          },
+          filter: legacyQueryPartsToCanonicalFilter(getSearchQueryCategory(query), parts),
         },
-        dependencies,
-        fieldSemanticsByName,
       ),
     prepareFilterExplorerDraft: (query, scopedFields) =>
       prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
@@ -249,11 +267,11 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     },
     getModeOptions: () => SEARCH_MODE_OPTIONS,
     getDefaultSort: (mode) => getDefaultSort(mode),
-    normalizeQuery: (query) => normalizeSearchQuery(query, dependencies, fieldSemanticsByName),
+    normalizeQuery: (query) => normalizeServiceQuery(query),
     countQuery: (query) => {
-      const normalizedQuery = normalizeSearchQuery(query, dependencies, fieldSemanticsByName);
+      const normalizedQuery = normalizeServiceQuery(query);
       if (normalizedQuery.mode === "lookup") {
-        if (!normalizedQuery.queryText) {
+        if (!normalizedQuery.search.query) {
           return Promise.resolve({
             searchProfile: null,
             mode: "structured",
@@ -263,21 +281,22 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         return dependencies.countRecords(
           buildSearchRequest(normalizedQuery, {
             limit: 1,
-            text: normalizedQuery.queryText,
+            text: normalizedQuery.search.query,
           }),
           {},
         );
       }
 
-      if (normalizedQuery.mode === "browse" || !normalizedQuery.queryText) {
+      if (normalizedQuery.mode === "browse" || !normalizedQuery.search.query) {
         return dependencies.countRecords(buildSearchRequest(normalizedQuery, { limit: 1 }));
       }
 
       return dependencies.countRecords(
         buildSearchRequest(normalizedQuery, {
           limit: 1,
-          text: normalizedQuery.queryText,
-          searchProfile: normalizedQuery.searchProfile,
+          text: normalizedQuery.search.query,
+          exclude: normalizedQuery.search.exclude,
+          searchProfile: normalizedQuery.search.profile,
         }),
         { lexicalOnly: true },
       );
@@ -286,10 +305,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       dependencies.closeSearchWindow(session.windowId);
     },
     executeQuery: async (query, options = {}) => {
-      const normalizedQuery = normalizeSearchQuery(query, dependencies, fieldSemanticsByName);
+      const normalizedQuery = normalizeServiceQuery(query);
       const sort = options.sort ?? getDefaultSort(normalizedQuery.mode);
       const sortSeed = sort === "random" ? createSortSeed(sort) : null;
-      const limit = options.limit ?? normalizedQuery.limit;
+      const limit = options.limit ?? normalizedQuery.limit ?? DEFAULT_QUERY_LIMIT;
       const result = await dependencies.openSearchWindow(
         buildSearchWindowFilters(normalizedQuery, {
           sort,
@@ -306,7 +325,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
 
       const minimumLoadedCount = Math.max(
         session.loadedCount + 1,
-        options.minimumLoadedCount ?? session.loadedCount + session.query.limit,
+        options.minimumLoadedCount ?? session.loadedCount + (session.query.limit ?? DEFAULT_QUERY_LIMIT),
       );
       let nextSession = session;
 
@@ -314,7 +333,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         const result = dependencies.readSearchWindowPage(
           nextSession.windowId,
           nextSession.nextOffset,
-          nextSession.query.limit,
+          nextSession.query.limit ?? DEFAULT_QUERY_LIMIT,
         );
 
         nextSession = appendSearchSessionWindowPage(nextSession, result);
@@ -336,7 +355,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         buildSearchWindowFilters(session.query, {
           sort,
           sortSeed,
-          limit: Math.max(session.query.limit, session.loadedCount),
+          limit: Math.max(session.query.limit ?? DEFAULT_QUERY_LIMIT, session.loadedCount),
         }),
       );
       return createSearchSessionFromWindow(session.query, result);

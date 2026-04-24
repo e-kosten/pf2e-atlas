@@ -1,4 +1,6 @@
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
+import { extractLegacyQueryPartsFromCanonicalFilter } from "../../search/query-parts.js";
+import { getSearchQueryText } from "../../search/query-state.js";
 import {
   buildSearchQuerySummary,
   formatMode,
@@ -114,24 +116,27 @@ export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number
 }
 
 function hasStructuredSignal(request: Pf2eTerminalSearchQuery): boolean {
-  return Boolean(request.filters.category || request.filters.parts.length > 0);
+  const legacyState = extractLegacyQueryPartsFromCanonicalFilter(request.filter);
+  return Boolean(legacyState.category || legacyState.parts.length > 0);
 }
 
 export function getExecuteAvailability(request: Pf2eTerminalSearchQuery): {
   disabled: boolean;
   reason: string | null;
 } {
-  if (request.mode === "lookup" && !request.queryText.trim()) {
+  const queryText = getSearchQueryText(request).trim();
+
+  if (request.mode === "lookup" && !queryText) {
     return {
       disabled: true,
       reason: "Unavailable until you enter a lookup name.",
     };
   }
 
-  if (request.mode === "search" && !request.queryText.trim() && !hasStructuredSignal(request)) {
+  if (request.mode === "search" && !queryText) {
     return {
       disabled: true,
-      reason: "Unavailable until search mode has text or at least one structured filter.",
+      reason: "Unavailable until you enter search text.",
     };
   }
 
@@ -206,17 +211,17 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
   const executeAvailability = getExecuteAvailability(state.query);
   const modeEntry = summary.entries.find((entry) => entry.kind === "mode");
   const queryEntry = summary.entries.find((entry) => entry.kind === "query");
-  if (!modeEntry || !queryEntry) {
-    throw new Error("Search query summary must include mode and query entries.");
+  if (!modeEntry) {
+    throw new Error("Search query summary must include mode entries.");
   }
   const entries: SearchWorkspaceEntry[] = [
     buildWorkspaceEntryFromSummary(modeEntry),
-    buildWorkspaceEntryFromSummary(queryEntry),
+    ...(queryEntry?.visible ? [buildWorkspaceEntryFromSummary(queryEntry)] : []),
     {
       action: "addQueryPart",
-      label: "Add Query Part",
+      label: "Filters >",
       value: summary.activeStructuredPartCount > 0 ? `${summary.activeStructuredPartCount} active` : "None yet",
-      description: "Add another root query part or append explicit metadata clauses and logic groups.",
+      description: "Open the dedicated filter builder for the canonical filter tree.",
     },
   ];
 
@@ -300,10 +305,6 @@ export function buildQuerySummaryLines(
   const summary = buildSearchQuerySummary(state.query);
   const executeAvailability = getExecuteAvailability(state.query);
   const lines = buildSummaryLines(summary, "Query Summary");
-
-  if (summary.sourceLabel) {
-    lines.push({ text: `Seeded from: ${summary.sourceLabel}` });
-  }
 
   lines.push({ text: "" });
   lines.push({ text: "Live Count", tone: "section" });

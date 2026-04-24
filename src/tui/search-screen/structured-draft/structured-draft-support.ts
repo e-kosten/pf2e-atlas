@@ -34,9 +34,9 @@ export function buildStructuredDraftEntries(
   draftQuery: Pf2eTerminalSearchQuery,
   metadataFocusPath: number[] | null,
   options: {
-    hasSelectableSubcategories: (category: Pf2eTerminalSearchQuery["filters"]["category"]) => boolean;
+    hasSelectableSubcategories: (category: ReturnType<typeof getSearchQueryCategory>) => boolean;
     getActionCostOptions: (
-      category: Pf2eTerminalSearchQuery["filters"]["category"],
+      category: ReturnType<typeof getSearchQueryCategory>,
       subcategory: ReturnType<typeof getSearchQuerySubcategory>,
     ) => Pf2eTerminalFacetValueOption[];
   },

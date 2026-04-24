@@ -8,14 +8,20 @@ import type {
 } from "../../search/service.js";
 import {
   getSearchQueryActionCostPolicy,
+  getSearchQueryCategory,
   getSearchQueryLevelRange,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
+  getSearchQuerySearchProfile,
   getSearchQuerySubcategory,
+  getSearchQueryText,
 } from "../../search/query-state.js";
 import { formatFilterExplorerPolicySummary } from "../../framework/policy-presentation.js";
 import { countMetadataPredicates, flattenMetadataTree } from "../../search/query-core.js";
+import { extractLegacyQueryPartsFromCanonicalFilter } from "../../search/query-parts.js";
 import type { SearchStructuredDraftAnchor } from "../../search/structured-draft-session.js";
+
+const DEFAULT_SEARCH_PROFILE = "balanced";
 
 export type SearchQuerySummaryAnchor =
   | { kind: "mode" }
@@ -47,7 +53,6 @@ export type SearchQuerySummaryEntry = {
 };
 
 export type SearchQuerySummary = {
-  sourceLabel: string | null;
   activeStructuredPartCount: number;
   metadataPredicateCount: number;
   entries: SearchQuerySummaryEntry[];
@@ -89,7 +94,8 @@ export function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalF
 }
 
 function countStructuredQueryParts(request: Pf2eTerminalSearchQuery): number {
-  return (request.filters.category ? 1 : 0) + request.filters.parts.length;
+  const legacyState = extractLegacyQueryPartsFromCanonicalFilter(request.filter);
+  return (legacyState.category ? 1 : 0) + legacyState.parts.length;
 }
 
 export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
@@ -124,6 +130,9 @@ function buildMetadataSummaryEntries(
 }
 
 export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQuerySummary {
+  const category = getSearchQueryCategory(query);
+  const queryText = getSearchQueryText(query);
+  const searchProfile = getSearchQuerySearchProfile(query);
   const subcategory = getSearchQuerySubcategory(query);
   const levelRange = getSearchQueryLevelRange(query);
   const rarityPolicy = getSearchQueryRarityPolicy(query);
@@ -132,7 +141,6 @@ export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQ
   const metadataPredicateCount = countMetadataPredicates(metadataTree);
 
   return {
-    sourceLabel: query.sourceLabel,
     activeStructuredPartCount: countStructuredQueryParts(query),
     metadataPredicateCount,
     entries: [
@@ -151,19 +159,19 @@ export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQ
         key: "query",
         anchor: { kind: "query" },
         label: "Query",
-        value: query.queryText || "(none)",
+        value: queryText || "(none)",
         description:
           query.mode === "lookup"
             ? "Edit the lookup text used to find near-exact record names."
-            : "Edit the free-text portion of the query. Browse mode can leave this empty.",
-        visible: true,
+            : "Edit the free-text portion of the query.",
+        visible: query.mode !== "browse",
       },
       {
         kind: "profile",
         key: "profile",
         anchor: { kind: "profile" },
         label: "Profile",
-        value: query.searchProfile,
+        value: searchProfile ?? DEFAULT_SEARCH_PROFILE,
         description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
         visible: query.mode === "search",
       },
@@ -172,7 +180,7 @@ export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQ
         key: "queryPart:category",
         anchor: { kind: "queryPart", part: "category" },
         label: "Category",
-        value: formatSearchCategory(query.filters.category),
+        value: formatSearchCategory(category),
         description: "Set the root category. Changing category clears every other active query part.",
         visible: true,
       },
@@ -212,7 +220,7 @@ export function buildSearchQuerySummary(query: Pf2eTerminalSearchQuery): SearchQ
         description: "Adjust the action-cost filter policy for the current scope.",
         visible: hasFilterPolicy(actionCostPolicy),
       },
-      ...(metadataTree ? buildMetadataSummaryEntries(metadataTree, query.filters.category) : []),
+      ...(metadataTree ? buildMetadataSummaryEntries(metadataTree, category) : []),
     ],
   };
 }

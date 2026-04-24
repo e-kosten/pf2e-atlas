@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import {
   createDefaultQuery,
+  setSearchQuerySearchProfile,
   setSearchQueryCategory,
   setSearchQueryMetadataTree,
   setSearchQueryPart,
+  setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
 import { createInitialSearchScreenState, SEARCH_COUNT_STATUS, type SearchCountState } from "../../src/tui/search-screen/state.js";
 import {
@@ -36,13 +38,9 @@ function createMetadataTree(): MetadataFilterNode {
 }
 
 function createStructuredQuery(options: { includeRarity?: boolean } = {}) {
-  let query = {
-    ...createDefaultQuery(),
-    mode: "search" as const,
-    queryText: "ghost captain",
-    searchProfile: "concept" as const,
-    sourceLabel: "Ontology > Creature > Ghost",
-  };
+  let query = createDefaultQuery("search");
+  query = setSearchQueryText(query, "ghost captain");
+  query = setSearchQuerySearchProfile(query, "concept");
   query = setSearchQueryCategory(query, "creature");
   query = setSearchQueryPart(query, {
     kind: "levelRange",
@@ -83,7 +81,6 @@ describe("search query summary", () => {
     const summary = buildSearchQuerySummary(createStructuredQuery());
     const visibleEntries = getVisibleSearchQuerySummaryEntries(summary);
 
-    expect(summary.sourceLabel).toBe("Ontology > Creature > Ghost");
     expect(summary.activeStructuredPartCount).toBe(5);
     expect(summary.metadataPredicateCount).toBe(2);
     expect(visibleEntries.map((entry) => entry.key)).toEqual([

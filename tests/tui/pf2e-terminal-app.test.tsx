@@ -662,7 +662,7 @@ describe("pf2e terminal app", () => {
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse | Creature |");
     expect(searchFrame).toContain("Category | Creature");
-    expect(searchFrame).toContain("Seeded from: Browse records with this value");
+    expect(searchFrame).toContain("Filters > | 1 active");
 
     pressLeft(app);
     await flushFrames(2);

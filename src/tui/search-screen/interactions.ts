@@ -9,7 +9,7 @@ import {
 import type { SearchScreenState } from "./state.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort } from "./state.js";
-import { getSearchQuerySubcategory } from "../search/query-state.js";
+import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchWorkspaceEntry } from "./workspace/workspace.js";
 import {
   buildEditorCommandPaletteEntries,
@@ -249,7 +249,7 @@ export function buildSearchSubtitle(
   countState: import("./state.js").SearchCountState,
 ): string {
   const query = `${formatMode(state.query.mode)} | ${formatSearchScope(
-    state.query.filters.category,
+    getSearchQueryCategory(state.query),
     getSearchQuerySubcategory(state.query),
   )}`;
   if (state.layout === "editor") {

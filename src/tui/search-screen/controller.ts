@@ -58,7 +58,7 @@ export function useSearchScreenController({
   onBack,
   ...routeEntry
 }: SearchScreenProps): SearchScreenControllerResult {
-  const initialQuery = entry === "results" ? undefined : routeEntry.initialQuery;
+  const initialRequest = entry === "results" ? undefined : ("initialRequest" in routeEntry ? routeEntry.initialRequest : undefined);
   const initialSession = entry === "results" ? routeEntry.initialSession : undefined;
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
@@ -68,8 +68,8 @@ export function useSearchScreenController({
   const initialQueryState = React.useMemo(
     () =>
       initialSession?.query ??
-      (initialQuery ? user.search.createQueryFromOntologyQuery(initialQuery) : user.search.createDefaultQuery()),
-    [initialQuery, initialSession, user.search],
+      (initialRequest ? user.search.normalizeQuery(initialRequest) : user.search.createDefaultQuery()),
+    [initialRequest, initialSession, user.search],
   );
   const initialLayout: import("./state.js").SearchScreenLayout = entry === "results" ? "results" : "editor";
   const [state, dispatch] = React.useReducer(
@@ -122,7 +122,7 @@ export function useSearchScreenController({
   }, [state.query]);
 
   React.useEffect(() => {
-    if (entry !== "editor" || initialQuery || !promptForInitialMode || promptedForInitialModeRef.current) {
+    if (entry !== "editor" || initialRequest || !promptForInitialMode || promptedForInitialModeRef.current) {
       return;
     }
 
@@ -147,11 +147,11 @@ export function useSearchScreenController({
           return;
         }
         applyQueryUpdate((query) => ({
-          ...query,
-          mode: result.value,
+          ...user.search.createDefaultQuery(result.value),
+          limit: query.limit,
         }));
       });
-  }, [applyQueryUpdate, entry, initialQuery, promptForInitialMode, prompts, state.query.mode, user.search]);
+  }, [applyQueryUpdate, entry, initialRequest, promptForInitialMode, prompts, state.query.mode, user.search]);
 
   const {
     busy,

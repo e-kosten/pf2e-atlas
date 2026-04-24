@@ -8,6 +8,7 @@ import {
 } from "../../search/query-core.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import {
+  getSearchQueryCategory,
   getSearchQueryMetadataTree,
   setSearchQueryMetadataTree,
 } from "../../search/query-state.js";
@@ -46,7 +47,7 @@ export function useSearchStructuredDraftActions({
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
 
   const hasSelectableSubcategories = React.useCallback(
-    (category: Pf2eTerminalSearchQuery["filters"]["category"]): boolean => {
+    (category: ReturnType<typeof getSearchQueryCategory>): boolean => {
       if (!category) {
         return false;
       }

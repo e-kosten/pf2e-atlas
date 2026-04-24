@@ -96,7 +96,7 @@ export function useSearchSessionWorkflow({
             : user.search.getDefaultSort(query.mode);
         const session = await user.search.executeQuery(query, {
           sort,
-          limit: Math.max(query.limit, resultWindowLimit),
+          limit: Math.max(query.limit ?? 50, resultWindowLimit),
         });
         dispatch({ type: "set_session", session });
       } catch (error) {

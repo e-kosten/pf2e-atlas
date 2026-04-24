@@ -13,6 +13,8 @@ import {
   buildStructuredWorkspaceEntryFocusLines,
   formatSearchWorkspaceEntryLine,
 } from "../workspace/workspace.js";
+import { extractLegacyQueryPartsFromCanonicalFilter } from "../../search/query-parts.js";
+import { getSearchQueryCategory } from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
@@ -181,7 +183,7 @@ export function buildSearchStructuredEditorHelpLines(
 function buildLegacyMetadataNodeLines(
   node: MetadataFilterNode,
   indentBase = 0,
-  category: Pf2eTerminalSearchQuery["filters"]["category"] = null,
+  category = null as ReturnType<typeof getSearchQueryCategory>,
 ): DerivedTagTerminalLine[] {
   return flattenMetadataTree(node, { rootLabel: "node", category }).map((entry) => ({
     text: `${entry.summary.label}: ${entry.summary.value}`,
@@ -217,7 +219,7 @@ function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSessio
       lines.push({ text: "" });
     }
     lines.push({ text: item.fieldOption.label, tone: "accent" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery?.filters.category ?? null));
+    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery ? getSearchQueryCategory(session.draftQuery) : null));
   });
   return lines;
 }
@@ -237,7 +239,7 @@ function buildLegacyFieldFocusLines(
   if (node) {
     lines.push({ text: "" });
     lines.push({ text: "Current staged field", tone: "section" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery?.filters.category ?? null));
+    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery ? getSearchQueryCategory(session.draftQuery) : null));
   } else {
     lines.push({ text: "" });
     lines.push({ text: "No staged field selection for this field yet.", tone: "dim" });
@@ -284,7 +286,8 @@ function getSelectedItem(session: SearchStructuredEditorSession): SearchStructur
 
 function countStructuredSelections(session: SearchStructuredEditorSession): number {
   if (session.draftQuery) {
-    return (session.draftQuery.filters.category ? 1 : 0) + session.draftQuery.filters.parts.length;
+    const legacyState = extractLegacyQueryPartsFromCanonicalFilter(session.draftQuery.filter);
+    return (legacyState.category ? 1 : 0) + legacyState.parts.length;
   }
   return Object.values(session.fieldDrafts ?? {}).filter((node) => Boolean(node)).length;
 }

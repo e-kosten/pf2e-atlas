@@ -21,7 +21,7 @@ import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/qu
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
+import { browseQuery, browseRequest, searchRequest } from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 type CloseSearchWindowFn = SearchServiceDependencies["closeSearchWindow"];
@@ -156,17 +156,7 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 function createSearchSession(
   overrides: Partial<Pf2eTerminalSearchSession> = {},
 ): Pf2eTerminalSearchSession {
-  const query = overrides.query ?? {
-    mode: "browse",
-    limit: 20,
-    queryText: "",
-    searchProfile: "balanced",
-    sourceLabel: "Seeded from: Browse illusion spells",
-    filters: {
-      category: "spell",
-      parts: [],
-    },
-  };
+  const query = overrides.query ?? browseRequest({ category: "spell", limit: 20 });
   const results = overrides.results ?? [createRecord()];
 
   return {
@@ -657,7 +647,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Execute Query");
     expect(app.lastFrame()).not.toContain("Profile |");
     expect(app.lastFrame()).not.toContain("Action Cost |");
-    expect(app.lastFrame()).toContain("Add Query Part | None yet");
+    expect(app.lastFrame()).toContain("Filters > | None yet");
     expect(app.lastFrame()).toContain("Mode");
     pressRight(app);
     await flushInk();
@@ -810,7 +800,7 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Add Query Part | None yet");
+    expect(app.lastFrame()).toContain("Filters > | None yet");
     expect(app.lastFrame()).not.toContain("Subcategory |");
   });
 
@@ -850,14 +840,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={browseQuery("Browse spells", {
+            initialRequest={browseQuery("Browse spells", {
               actionCost: 2,
               category: "spell",
               limit: 20,
               levelMax: 1,
               levelMin: 1,
               rarity: "common",
-            })}
+            }).request}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -867,11 +857,11 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-    for (let step = 0; step < 2; step += 1) {
+    for (let step = 0; step < 1; step += 1) {
       pressDown(app);
       await flushInk();
     }
-    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Filters >");
 
     app.stdin.write(" ");
     await flushInk();
@@ -1658,26 +1648,17 @@ describe("search screen", () => {
       }),
     );
 
-    expect(request).toEqual({
-      mode: "browse",
-      limit: 20,
-      queryText: "",
-      searchProfile: "balanced",
-      sourceLabel: "Browse records with this trait",
-      filters: {
+    expect(request).toEqual(
+      browseQuery("Browse records with this trait", {
         category: "spell",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "traits",
-              op: "includesAny",
-              values: ["illusion"],
-            },
-          },
-        ],
-      },
-    });
+        metadata: {
+          field: "traits",
+          op: "includesAny",
+          values: ["illusion"],
+        },
+        limit: 20,
+      }).request,
+    );
   });
 
   it("shows seeded metadata clauses in the query editor when launched from ontology", async () => {
@@ -1685,11 +1666,11 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
           <SearchScreen
-            initialQuery={browseQuery("Browse illusion spells", {
+            initialRequest={browseQuery("Browse illusion spells", {
               category: "spell",
               metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
               limit: 20,
-            })}
+            }).request}
             origin="ontology"
             onBack={vi.fn()}
           />
@@ -1700,10 +1681,9 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Add Query Part | 2 active");
+    expect(app.lastFrame()).toContain("Filters > | 2 active");
     expect(app.lastFrame()).toContain("Category | Spell");
     expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
-    expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
   });
 
   it("does not auto-execute seeded route entry without a prepared session", async () => {
@@ -1712,11 +1692,11 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
-            initialQuery={browseQuery("Browse illusion spells", {
+            initialRequest={browseQuery("Browse illusion spells", {
               category: "spell",
               metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
               limit: 20,
-            })}
+            }).request}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -1727,7 +1707,6 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Seeded from: Browse illusion spells");
     expect(app.lastFrame()).not.toContain("[RESULTS]");
     expect(openSearchWindow).not.toHaveBeenCalled();
   });
@@ -1803,15 +1782,15 @@ describe("search screen", () => {
     );
     const services = createServices({ search });
 
-    await services.user.search.executeQuery({
-      mode: "search",
-      limit: 20,
-      queryText: "ghost",
-      searchProfile: "balanced",
-      sourceLabel: null,
-      filters: {
-        category: "spell",
-        parts: [
+    await services.user.search.executeQuery(
+      services.user.search.applyRootQueryParts(
+        searchRequest({
+          category: "spell",
+          limit: 20,
+          query: "ghost",
+          searchProfile: "balanced",
+        }),
+        [
           {
             kind: "rarityPolicy",
             policy: {
@@ -1859,8 +1838,8 @@ describe("search screen", () => {
             ],
           },
         ],
-      },
-    });
+      ),
+    );
 
     expect(search).toHaveBeenCalledWith({
       mode: "search",
@@ -1873,31 +1852,36 @@ describe("search screen", () => {
             subcategory: { kind: "any" },
           },
           {
-            kind: "anyOf",
+            kind: "allOf",
             children: [
               {
                 kind: "rarity",
                 match: { kind: "eq", value: "common" },
               },
+              {
+                kind: "not",
+                child: {
+                  kind: "rarity",
+                  match: { kind: "eq", value: "rare" },
+                },
+              },
             ],
           },
           {
-            kind: "not",
-            child: {
-              kind: "rarity",
-              match: { kind: "eq", value: "rare" },
-            },
-          },
-          {
-            kind: "actionCost",
-            match: { kind: "eq", value: 2 },
-          },
-          {
-            kind: "not",
-            child: {
-              kind: "actionCost",
-              match: { kind: "eq", value: 1 },
-            },
+            kind: "allOf",
+            children: [
+              {
+                kind: "actionCost",
+                match: { kind: "eq", value: 2 },
+              },
+              {
+                kind: "not",
+                child: {
+                  kind: "actionCost",
+                  match: { kind: "eq", value: 1 },
+                },
+              },
+            ],
           },
           {
             kind: "allOf",
@@ -1948,14 +1932,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={browseQuery("Browse spells", {
+            initialRequest={browseQuery("Browse spells", {
               actionCost: 2,
               category: "spell",
               limit: 20,
               levelMax: 1,
               levelMin: 1,
               rarity: "common",
-            })}
+            }).request}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -1965,12 +1949,12 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-    for (let step = 0; step < 2; step += 1) {
+    for (let step = 0; step < 1; step += 1) {
       pressDown(app);
       await flushInk();
     }
 
-    expect(app.lastFrame()).toContain("Add Query Part");
+    expect(app.lastFrame()).toContain("Filters >");
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
@@ -2027,7 +2011,7 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Add Query Part | 5 active");
+    expect(app.lastFrame()).toContain("Filters > | 5 active");
     expect(app.lastFrame()).toContain("Query clauses: 1");
     expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
@@ -2041,14 +2025,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={browseQuery("Browse spells", {
+            initialRequest={browseQuery("Browse spells", {
               actionCost: 2,
               category: "spell",
               limit: 20,
               levelMax: 1,
               levelMin: 1,
               rarity: "common",
-            })}
+            }).request}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -2058,7 +2042,7 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-    for (let step = 0; step < 2; step += 1) {
+    for (let step = 0; step < 1; step += 1) {
       pressDown(app);
       await flushInk();
     }
@@ -2161,14 +2145,14 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialQuery={browseQuery("Browse spells", {
+            initialRequest={browseQuery("Browse spells", {
               actionCost: 2,
               category: "spell",
               limit: 20,
               levelMax: 1,
               levelMin: 1,
               rarity: "common",
-            })}
+            }).request}
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -2178,7 +2162,7 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-    for (let step = 0; step < 2; step += 1) {
+    for (let step = 0; step < 1; step += 1) {
       pressDown(app);
       await flushInk();
     }
@@ -2194,7 +2178,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Filter Explorer");
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
-    expect(app.lastFrame()).not.toContain("Add Query Part");
+    expect(app.lastFrame()).not.toContain("Filters >");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
     app.stdin.write("\r");
@@ -2217,13 +2201,13 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).toContain("illusion");
-    expect(app.lastFrame()).not.toContain("Add Query Part");
+    expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
-    expect(app.lastFrame()).not.toContain("Add Query Part");
+    expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
@@ -2263,7 +2247,7 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
-    for (let step = 0; step < 2; step += 1) {
+    for (let step = 0; step < 1; step += 1) {
       pressDown(app);
       await flushInk();
     }

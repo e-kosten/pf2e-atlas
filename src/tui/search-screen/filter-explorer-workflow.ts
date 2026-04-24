@@ -11,7 +11,7 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
-import { getSearchQuerySubcategory } from "../search/query-state.js";
+import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 
@@ -60,9 +60,10 @@ export function useSearchFilterExplorerWorkflow({
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = queryOverride ?? query;
+      const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
       const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
-      if (!scopeQuery.filters.category) {
+      if (!scopeCategory) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
       }
@@ -73,7 +74,7 @@ export function useSearchFilterExplorerWorkflow({
 
       const searchSemanticsDomain = services.ontology.loadSearchSemanticsDomain();
       const model = buildSearchFilterExplorerModel(searchSemanticsDomain, {
-        category: scopeQuery.filters.category,
+        category: scopeCategory,
         subcategory: scopeSubcategory,
         fieldOptions,
         singleFieldBehavior,

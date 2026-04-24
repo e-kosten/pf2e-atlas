@@ -122,7 +122,7 @@ function buildOntologySearchCommit({
           origin,
         })
       : createPf2eSearchEditorRoute({
-          initialQuery: intent.query,
+          initialRequest: intent.query.request,
           origin,
         });
 
