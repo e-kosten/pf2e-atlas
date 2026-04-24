@@ -7,7 +7,7 @@ import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import { OntologyInspectScreen } from "../../src/tui/ontology-explorer/inspect-screen.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
+import { browseQuery, scopeFilter } from "../helpers/search-request-fixture.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -30,7 +30,7 @@ function createOntologyModel(): OntologyDomainModel {
         detailTitle: "Filter Value",
         detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
         query: browseQuery("Browse records with this value", {
-          category: "creature",
+          filter: scopeFilter("creature"),
           limit: 20,
         }),
       },

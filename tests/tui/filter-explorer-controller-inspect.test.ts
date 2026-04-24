@@ -18,7 +18,7 @@ import type {
   FilterExplorerNode,
   FilterExplorerOptions,
 } from "../../src/tui/filter-explorer/types.js";
-import { browseRequest, searchRequest } from "../helpers/search-request-fixture.js";
+import { browseRequest, searchRequest, scopeFilter } from "../helpers/search-request-fixture.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {
@@ -29,7 +29,7 @@ function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorer
     detailLines: [{ text: "Hit Points" }],
     query: {
       label: "Browse by hit points",
-      request: browseRequest({ category: "creature", limit: 20 }),
+      request: browseRequest({ filter: scopeFilter("creature"), limit: 20 }),
     },
     ...overrides,
   };
@@ -108,7 +108,7 @@ describe("filter explorer controller inspect", () => {
 
     expect(
       resolveFilterExplorerLaunchIntent(mode, {
-        request: searchRequest({ limit: 20 }),
+        request: searchRequest({ search: { query: "" }, limit: 20 }),
       }),
     ).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
     expect(

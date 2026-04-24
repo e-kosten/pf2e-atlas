@@ -28,7 +28,18 @@ import {
   setSearchQueryMetadataTree,
   setSearchQueryRarityPolicy,
 } from "../../src/tui/search/query-state.js";
-import { browseQuery, browseRequest, searchRequest } from "../helpers/search-request-fixture.js";
+import {
+  actionCostFilter,
+  allOfFilter,
+  browseQuery,
+  browseRequest,
+  levelFilter,
+  metricCompareFilter,
+  metadataPredicateFilter,
+  rarityFilter,
+  scopeFilter,
+  searchRequest,
+} from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 type CloseSearchWindowFn = SearchServiceDependencies["closeSearchWindow"];
@@ -49,6 +60,22 @@ function flushDebouncedWindowRead(): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, 60);
   });
+}
+
+async function waitForFrameToContain(
+  app: ReturnType<typeof render>,
+  text: string,
+  attempts = 12,
+): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (app.lastFrame().includes(text)) {
+      return;
+    }
+    await flushInk();
+  }
+  if (app.lastFrame().includes(text)) {
+    return;
+  }
 }
 
 function pressDown(app: ReturnType<typeof render>): void {
@@ -163,7 +190,7 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 function createSearchSession(
   overrides: Partial<Pf2eTerminalSearchSession> = {},
 ): Pf2eTerminalSearchSession {
-  const query = overrides.query ?? browseRequest({ category: "spell", limit: 20 });
+  const query = overrides.query ?? browseRequest({ filter: scopeFilter("spell"), limit: 20 });
   const results = overrides.results ?? [createRecord()];
 
   return {
@@ -195,7 +222,8 @@ function createServices(
   } = {},
 ): Pf2eTerminalAppServices {
   const record = createRecord();
-  const listFilterValues = vi.fn(({ field }) => {
+  const listFilterValues = vi.fn((query: { field?: string; target?: { field: string } }) => {
+    const field = query.field ?? query.target?.field;
     if (field === "rarity") {
       return {
         values: [
@@ -582,15 +610,12 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
             detailTitle: "Metric Details",
             detailLines: [{ text: "Hit Points", tone: "section" }],
             query: browseQuery("Browse records with Hit Points", {
-                category: "creature",
-                metadata: {
-                  field: "actorMetricCompare",
-                  leftMetric: "hp.value",
-                  op: ">=",
-                  rightMetric: "hp.value",
-                },
-                limit: 20,
-              }),
+              filter: allOfFilter([
+                scopeFilter("creature"),
+                metricCompareFilter("hp.value", "gte", "hp.value"),
+              ]),
+              limit: 20,
+            }),
           },
         ],
       },
@@ -605,7 +630,7 @@ describe("search screen", () => {
 
   it("does not expose the text-query shortcut while browsing", () => {
     const browseState = createInitialSearchScreenState(browseRequest({ limit: 20 }));
-    const searchState = createInitialSearchScreenState(searchRequest({ query: "ghost", limit: 20 }));
+    const searchState = createInitialSearchScreenState(searchRequest({ search: { query: "ghost" }, limit: 20 }));
 
     expect(getSearchEditorInteractionActions(browseState).some((action) => action.id === "search")).toBe(false);
     expect(getSearchEditorInteractionActions(searchState).some((action) => action.id === "search")).toBe(true);
@@ -798,7 +823,7 @@ describe("search screen", () => {
     }
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Query Mode");
 
     expect(app.lastFrame()).toContain("Query Mode");
   });
@@ -872,12 +897,13 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse spells", {
-              actionCost: 2,
-              category: "spell",
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                levelFilter({ kind: "between", min: 1, max: 1 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
               limit: 20,
-              levelMax: 1,
-              levelMin: 1,
-              rarity: "common",
             }).request}
             onBack={vi.fn()}
           />
@@ -903,6 +929,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
+    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Field filter");
@@ -1686,20 +1713,20 @@ describe("search screen", () => {
     const services = createServices();
     const request = services.user.search.createQueryFromOntologyQuery(
       browseQuery("Browse records with this trait", {
-        category: "spell",
-        metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+        filter: allOfFilter([
+          scopeFilter("spell"),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+        ]),
         limit: 20,
       }),
     );
 
     expect(request).toEqual(
       browseQuery("Browse records with this trait", {
-        category: "spell",
-        metadata: {
-          field: "traits",
-          op: "includesAny",
-          values: ["illusion"],
-        },
+        filter: allOfFilter([
+          scopeFilter("spell"),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+        ]),
         limit: 20,
       }).request,
     );
@@ -1711,8 +1738,10 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={createServices()}>
           <SearchScreen
             initialRequest={browseQuery("Browse illusion spells", {
-              category: "spell",
-              metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+              ]),
               limit: 20,
             }).request}
             origin="ontology"
@@ -1737,8 +1766,10 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
             initialRequest={browseQuery("Browse illusion spells", {
-              category: "spell",
-              metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+              ]),
               limit: 20,
             }).request}
             onBack={vi.fn()}
@@ -1831,10 +1862,12 @@ describe("search screen", () => {
         setSearchQueryActionCostPolicy(
           setSearchQueryRarityPolicy(
             searchRequest({
-              category: "spell",
               limit: 20,
-              query: "ghost",
-              searchProfile: "balanced",
+              filter: scopeFilter("spell"),
+              search: {
+                query: "ghost",
+                profile: "balanced",
+              },
             }),
             {
               any: ["common"],
@@ -1968,12 +2001,13 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse spells", {
-              actionCost: 2,
-              category: "spell",
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                levelFilter({ kind: "between", min: 1, max: 1 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
               limit: 20,
-              levelMax: 1,
-              levelMin: 1,
-              rarity: "common",
             }).request}
             onBack={vi.fn()}
           />
@@ -2010,6 +2044,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
+    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Field filter");
@@ -2076,12 +2111,13 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse spells", {
-              actionCost: 2,
-              category: "spell",
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                levelFilter({ kind: "between", min: 1, max: 1 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
               limit: 20,
-              levelMax: 1,
-              levelMin: 1,
-              rarity: "common",
             }).request}
             onBack={vi.fn()}
           />
@@ -2103,10 +2139,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Action Cost: 2");
 
-    for (let step = 0; step < 2; step += 1) {
-      pressUp(app);
-      await flushInk();
-    }
+    pressUp(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("Rarity: Common");
 
     app.stdin.write("\r");
@@ -2120,10 +2154,15 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("rare");
 
     pressLeft(app);
-    await flushInk();
+    await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
 
     expect(app.lastFrame()).toContain("Action Cost: 2");
+
+    for (let step = 0; step < 2; step += 1) {
+      pressUp(app);
+      await flushInk();
+    }
 
     app.stdin.write("\r");
     await flushInk();
@@ -2160,12 +2199,13 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse spells", {
-              actionCost: 2,
-              category: "spell",
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                levelFilter({ kind: "between", min: 1, max: 1 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
               limit: 20,
-              levelMax: 1,
-              levelMin: 1,
-              rarity: "common",
             }).request}
             onBack={vi.fn()}
           />
@@ -2182,10 +2222,8 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    for (let step = 0; step < 2; step += 1) {
-      pressUp(app);
-      await flushInk();
-    }
+    pressUp(app);
+    await flushInk();
 
     app.stdin.write("\r");
     await flushInk();
@@ -2204,7 +2242,7 @@ describe("search screen", () => {
     });
 
     app.stdin.write(":");
-    await flushInk();
+    await waitForFrameToContain(app, "Rarity Explorer Commands");
     expect(app.lastFrame()).toContain("Rarity Explorer Commands");
     for (const character of "catalog") {
       app.stdin.write(character);
@@ -2289,12 +2327,13 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse spells", {
-              actionCost: 2,
-              category: "spell",
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                levelFilter({ kind: "between", min: 1, max: 1 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
               limit: 20,
-              levelMax: 1,
-              levelMin: 1,
-              rarity: "common",
             }).request}
             onBack={vi.fn()}
           />
@@ -2320,6 +2359,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
+    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Field filter");
@@ -2408,6 +2448,7 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Scope");
 
@@ -2466,19 +2507,19 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.search.getMetricKeyOptions = vi.fn((category, subcategory, field) =>
+    services.user.search.loadMetricKeyOptions = vi.fn(async (query, field, discoveryMode) =>
       field === "actorMetric"
         ? [
             {
               value: "hp.value",
               label: "hp.value",
-              description: "2 indexed canonical records in the current scope.",
+              description: discoveryMode === "matching" ? "2 matching canonical records." : "4 applicable canonical records.",
               count: 2,
             },
             {
               value: "ac.value",
               label: "ac.value",
-              description: "1 indexed canonical record in the current scope.",
+              description: discoveryMode === "matching" ? "1 matching canonical record." : "3 applicable canonical records.",
               count: 1,
             },
           ]
@@ -2490,7 +2531,7 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse creatures", {
-              category: "creature",
+              filter: scopeFilter("creature"),
               limit: 20,
             }).request}
             onBack={vi.fn()}
@@ -2514,6 +2555,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metric filter");
     expect(app.lastFrame()).toContain("Metric comparison");
@@ -2532,6 +2574,30 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Left Metric");
     expect(app.lastFrame()).toContain("hp.value");
     expect(app.lastFrame()).toContain("ac.value");
+    expect(app.lastFrame()).toContain("Matching counts");
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write(":");
+    await waitForFrameToContain(app, "Left Metric Commands");
+    expect(app.lastFrame()).toContain("Left Metric Commands");
+    for (const character of "catalog") {
+      app.stdin.write(character);
+      await flushInk();
+    }
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Catalog counts");
+    expect(services.user.search.loadMetricKeyOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "browse",
+      }),
+      "actorMetric",
+      "catalog",
+      { numericOnly: true },
+    );
 
     await flushInk();
     app.stdin.write("\r");
@@ -2561,17 +2627,18 @@ describe("search screen", () => {
 
   it("covers pack clauses through the dedicated structured-editor clause-kind flow", async () => {
     const services = createServices();
-    services.user.search.getPackOptions = vi.fn(() => [
+    services.user.search.getQueryFieldOptions = vi.fn(() => []);
+    services.user.search.loadPackOptions = vi.fn(async (query, discoveryMode) => [
       {
         value: "pathfinder-npc-core",
         label: "Pathfinder NPC Core",
-        description: "4 indexed canonical records in this pack.",
+        description: discoveryMode === "matching" ? "4 matching canonical records." : "6 applicable canonical records.",
         count: 4,
       },
       {
         value: "monster-core",
         label: "Monster Core",
-        description: "2 indexed canonical records in this pack.",
+        description: discoveryMode === "matching" ? "2 matching canonical records." : "5 applicable canonical records.",
         count: 2,
       },
     ]);
@@ -2588,7 +2655,7 @@ describe("search screen", () => {
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             initialRequest={browseQuery("Browse creatures", {
-              category: "creature",
+              filter: scopeFilter("creature"),
               limit: 20,
             }).request}
             onBack={vi.fn()}
@@ -2612,34 +2679,53 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Pack");
 
-    await flushInk();
-    pressDown(app);
-    await flushInk();
-    pressDown(app);
-    await flushInk();
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await waitForFrameToContain(app, "Pathfinder NPC Core");
     expect(app.lastFrame()).toContain("Pack");
     expect(app.lastFrame()).toContain("Pathfinder NPC Core");
     expect(app.lastFrame()).toContain("Monster Core");
+    expect(app.lastFrame()).toContain("Matching counts");
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write(":");
+    await waitForFrameToContain(app, "Pack Commands");
+    expect(app.lastFrame()).toContain("Pack Commands");
+    for (const character of "catalog") {
+      app.stdin.write(character);
+      await flushInk();
+    }
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Catalog counts");
+    expect(services.user.search.loadPackOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "browse",
+      }),
+      "catalog",
+    );
 
     app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[x] Pathfinder NPC Core");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[x] Monster Core");
+
+    app.stdin.write("\u007f");
+    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
-
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Pack");
-    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("Pack: Monster Core");
   });
 
   it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {
@@ -2684,7 +2770,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Selected: Equals");
 
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Enter a numeric value. Leave blank to clear.");
     expect(app.lastFrame()).toContain("Enter a numeric value. Leave blank to clear.");
     await flushInk();
 

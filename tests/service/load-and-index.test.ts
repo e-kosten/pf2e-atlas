@@ -13,7 +13,7 @@ import {
   TEST_HASH_EMBEDDING,
   writeJson,
 } from "../helpers/pf2e-fixture.js";
-import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
+import { scopeFilter, searchRequest } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 type DerivedRawRecord = {
@@ -331,7 +331,7 @@ describe("Pf2eDataService / Load and Index", () => {
       },
     });
 
-    const service = adaptLegacySearchCalls(await loadTestService(fixture, { indexPath }));
+    const service = await loadTestService(fixture, { indexPath });
 
     const ghoulFever = service.lookup("Ghoul Fever", { category: "affliction" }).match;
     expect(ghoulFever?.packName).toBe("derived-afflictions");
@@ -343,7 +343,12 @@ describe("Pf2eDataService / Load and Index", () => {
     expect(lethargyPoison?.packName).toBe("derived-afflictions");
     expect(lethargyPoison?.subcategory).toBe("poison");
 
-    const afflictionResults = await service.search({ category: "affliction", query: "ghoul fever" });
+    const afflictionResults = await service.search(
+      searchRequest({
+        search: { query: "ghoul fever" },
+        filter: scopeFilter("affliction"),
+      }),
+    );
     expect(afflictionResults.records.map((record) => record.name)).toContain("Ghoul Fever");
     expect(service.lookup("Lethargy Poison", { category: "affliction" }).match?.derivedTags).toEqual(
       expect.arrayContaining(["mobility_impairment", "sedation"]),
@@ -352,7 +357,12 @@ describe("Pf2eDataService / Load and Index", () => {
       expect.arrayContaining(["physical_debilitation", "sedation"]),
     );
 
-    const creatureResults = await service.search({ category: "creature", query: "ghoul fever" });
+    const creatureResults = await service.search(
+      searchRequest({
+        search: { query: "ghoul fever" },
+        filter: scopeFilter("creature"),
+      }),
+    );
     expect(creatureResults.records.map((record) => record.name)).toContain("Ghoul Brute");
 
     const graph = service.getRuleGraph([ghoulFever!.recordKey], {

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadTestService, writeJson } from "../helpers/pf2e-fixture.js";
-import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
+import { browseRequest, metadataPredicateFilter, scopeFilter } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Creature explicit assignments, true seeds, and legacy seed migrations", () => {
@@ -192,7 +192,7 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
       }),
     ]);
 
-    const service = adaptLegacySearchCalls(await loadTestService(fixture));
+    const service = await loadTestService(fixture);
 
     expect(service.lookup("Departmental Chair", { category: "creature" }).match?.derivedTags).toEqual(
       expect.arrayContaining(["profession_npc", "civic_npc"]),
@@ -217,10 +217,17 @@ describe("Pf2eDataService / Creature explicit assignments, true seeds, and legac
     ).toEqual(expect.arrayContaining(["disguised_pretender", "dragon_spellcaster", "urban_setting"]));
     expect(
       service
-        .listRecords({
-          category: "creature",
-          metadata: { field: "derivedTags", op: "includesAny", values: ["sinspawn_family"] },
-        })
+        .listRecords(
+          browseRequest({
+            filter: {
+              kind: "allOf",
+              children: [
+                scopeFilter("creature"),
+                metadataPredicateFilter({ field: "derivedTags", op: "includes", value: "sinspawn_family" }),
+              ],
+            },
+          }),
+        )
         .records.map((record) => record.name),
     ).toContain("Envyspawn");
   });

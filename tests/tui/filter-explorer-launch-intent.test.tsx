@@ -10,7 +10,7 @@ import {
   type FilterExplorerQueryOpenIntent,
 } from "../../src/tui/filter-explorer/index.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
+import { browseQuery, metadataPredicateFilter, scopeFilter } from "../helpers/search-request-fixture.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -33,8 +33,13 @@ function createModel(): FilterExplorerModel {
         detailTitle: "Filter Value",
         detailLines: [{ text: "Illusion", tone: "section" }],
         query: browseQuery("Browse illusion spells", {
-          category: "spell",
-          metadata: { field: "traits", op: "includesAny", values: ["illusion"] },
+          filter: {
+            kind: "allOf",
+            children: [
+              scopeFilter("spell"),
+              metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+            ],
+          },
           limit: 20,
         }),
       },

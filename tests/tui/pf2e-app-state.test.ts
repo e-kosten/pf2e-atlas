@@ -12,7 +12,7 @@ import {
   getCurrentPf2eAppRoute,
   pf2eAppReducer,
 } from "../../src/tui/pf2e-app-state.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
+import { browseQuery, scopeFilter } from "../helpers/search-request-fixture.js";
 
 describe("pf2e app state", () => {
   it("pushes and pops nested routes with a stack", () => {
@@ -72,7 +72,7 @@ describe("pf2e app state", () => {
       type: "push_route",
       route: createPf2eSearchEditorRoute({
         initialQuery: browseQuery("Browse records with this value", {
-          category: "creature",
+          filter: scopeFilter("creature"),
           limit: 20,
         }),
         origin: {
@@ -86,7 +86,7 @@ describe("pf2e app state", () => {
       kind: PF2E_APP_ROUTE_KIND.SEARCH,
       entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
       initialQuery: browseQuery("Browse records with this value", {
-        category: "creature",
+        filter: scopeFilter("creature"),
         limit: 20,
       }),
       origin: {

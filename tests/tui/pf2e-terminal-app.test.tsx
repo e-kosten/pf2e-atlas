@@ -12,7 +12,7 @@ import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
+import { browseQuery, scopeFilter } from "../helpers/search-request-fixture.js";
 
 type WorkbenchPrompts = Parameters<Pf2eTerminalAppServices["dev"]["tagRefinement"]["promptAndCreateSession"]>[2];
 
@@ -188,7 +188,7 @@ function createSearchSemanticsModel(): OntologyDomainModel {
                     detailTitle: "Filter Value",
                     detailLines: [{ text: "Pathfinder Player Core", tone: "section" }],
                     query: browseQuery("Browse records with this value", {
-                      category: "spell",
+                      filter: scopeFilter("spell"),
                       limit: 20,
                     }),
                   },
@@ -658,7 +658,7 @@ describe("pf2e terminal app", () => {
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
           query: browseQuery("Browse records with this value", {
-            category: "creature",
+            filter: scopeFilter("creature"),
             limit: 20,
           }),
         },
@@ -674,7 +674,7 @@ describe("pf2e terminal app", () => {
             ...Array.from({ length: 30 }, (_, index) => ({ text: `Detail line ${index + 1}` })),
           ],
           query: browseQuery("Browse records with this value", {
-            category: "creature",
+            filter: scopeFilter("creature"),
             limit: 20,
           }),
         },
@@ -732,7 +732,7 @@ describe("pf2e terminal app", () => {
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
           query: browseQuery("Browse records with this value", {
-            category: "creature",
+            filter: scopeFilter("creature"),
             limit: 20,
           }),
         },
@@ -745,7 +745,7 @@ describe("pf2e terminal app", () => {
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Rage of Elements", tone: "section" }],
           query: browseQuery("Browse records with this value", {
-            category: "creature",
+            filter: scopeFilter("creature"),
             limit: 20,
           }),
         },
@@ -784,7 +784,7 @@ describe("pf2e terminal app", () => {
     const services = createFakeServices();
     const pendingSession = createDeferred<Awaited<ReturnType<typeof services.user.search.executeQuery>>>();
     const preparedQuery = browseQuery("Browse records with this value", {
-      category: "creature",
+      filter: scopeFilter("creature"),
       limit: 20,
     });
     services.user.search.executeQuery = vi.fn(() =>
@@ -871,7 +871,7 @@ describe("pf2e terminal app", () => {
           detailTitle: "Filter Value",
           detailLines: [{ text: "Pathfinder Monster Core", tone: "section" }],
           query: browseQuery("Browse records with this value", {
-            category: "creature",
+            filter: scopeFilter("creature"),
             limit: 20,
           }),
         },

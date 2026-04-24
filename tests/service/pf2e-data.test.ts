@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadTestService } from "../helpers/pf2e-fixture.js";
-import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
+import { browseRequest, packFilter, scopeFilter, searchRequest } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService", () => {
@@ -15,7 +15,7 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = adaptLegacySearchCalls(await loadTestService(fixture));
+    const service = await loadTestService(fixture);
 
     const stats = service.getStats();
     expect(service.listPacks()).toHaveLength(16);
@@ -28,10 +28,19 @@ describe("Pf2eDataService", () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
 
-    const service = adaptLegacySearchCalls(await loadTestService(fixture));
+    const service = await loadTestService(fixture);
 
     expect(service.lookup("Raise Shield").match?.name).toBe("Raise a Shield");
-    expect(service.listRecords({ pack: "actions" }).records).toHaveLength(4);
-    expect((await service.search({ category: "creature", query: "ghost ship" })).records.length).toBeGreaterThan(0);
+    expect(service.listRecords(browseRequest({ filter: packFilter("actions") })).records).toHaveLength(4);
+    expect(
+      (
+        await service.search(
+          searchRequest({
+            search: { query: "ghost ship" },
+            filter: scopeFilter("creature"),
+          }),
+        )
+      ).records.length,
+    ).toBeGreaterThan(0);
   });
 });

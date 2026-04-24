@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { writeJson, loadTestService } from "../helpers/pf2e-fixture.js";
-import { adaptLegacySearchCalls } from "../helpers/search-request-fixture.js";
+import { browseRequest, metadataPredicateFilter, scopeFilter } from "../helpers/search-request-fixture.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 
 describe("Pf2eDataService / Hazard manual seeds", () => {
@@ -98,7 +98,7 @@ describe("Pf2eDataService / Hazard manual seeds", () => {
       }),
     ]);
 
-    const service = adaptLegacySearchCalls(await loadTestService(fixture));
+    const service = await loadTestService(fixture);
 
     expect(service.lookup("Mukradi Summoning Runes", { category: "hazard" }).match?.derivedTags).toEqual(
       expect.arrayContaining(["spawned_attackers", "ward_trigger"]),
@@ -109,10 +109,17 @@ describe("Pf2eDataService / Hazard manual seeds", () => {
     );
     expect(
       service
-        .listRecords({
-          category: "hazard",
-          metadata: { field: "derivedTags", op: "includesAny", values: ["planar_breach"] },
-        })
+        .listRecords(
+          browseRequest({
+            filter: {
+              kind: "allOf",
+              children: [
+                scopeFilter("hazard"),
+                metadataPredicateFilter({ field: "derivedTags", op: "includes", value: "planar_breach" }),
+              ],
+            },
+          }),
+        )
         .records.map((record) => record.name),
     ).toContain("Time Rift");
   });
