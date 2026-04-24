@@ -197,6 +197,106 @@ describe("createPf2eTerminalSearchService", () => {
     );
   });
 
+  it("annotates lookup session results with explicit match type metadata", async () => {
+    const record = {
+      id: "spell-fire-ball",
+      recordKey: "spell:fire-ball",
+      name: "Fire Ball",
+      normalizedName: "fire ball",
+      type: "spell",
+      category: "spell",
+      subcategory: null,
+      packName: "spell",
+      packLabel: "Spells",
+      documentType: "Item",
+      level: 3,
+      rarity: "common",
+      traits: [],
+      derivedTags: [],
+      publicationTitle: "Player Core",
+      publicationRemaster: true,
+      descriptionText: null,
+      blurbText: null,
+      hasDescription: false,
+      descriptionSnippet: null,
+      sourceCategory: "core",
+      folderId: null,
+      families: [],
+      variantFamilyKey: null,
+      variantBaseName: null,
+      variantLabel: null,
+      variantAxes: [],
+      variantConfidence: null,
+      variantSource: "none",
+      sourcePath: "packs/spells/fire-ball.json",
+      isUnique: false,
+      size: null,
+      itemCategory: null,
+      baseItem: null,
+      priceCp: null,
+      bulkValue: null,
+      actionCost: 2,
+      usage: null,
+      hands: null,
+      damageTypes: [],
+      weaponGroup: null,
+      armorGroup: null,
+      traditions: ["arcane"],
+      spellKinds: ["spell"],
+      rangeText: "500 feet",
+      saveType: "reflex",
+      areaType: "burst",
+      durationText: null,
+      durationUnit: null,
+      targetText: null,
+      areaValue: 20,
+      sustained: false,
+      basicSave: true,
+      languages: [],
+      speedTypes: [],
+      senses: [],
+      immunities: [],
+      resistances: [],
+      weaknesses: [],
+      disableText: null,
+      disableSkills: [],
+      isComplex: false,
+      actorMetrics: {},
+      itemMetrics: {},
+      rangeValue: 500,
+      aliases: [],
+      legacyRecordLinks: [],
+      raw: {},
+    } as const;
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        openSearchWindow: vi.fn(async () => ({
+          id: "window-1",
+          searchProfile: null,
+          mode: "lexical" as const,
+          sort: "alphabetical" as const,
+          sortSeed: null,
+          total: 1,
+          offset: 0,
+          limit: 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [record],
+        })),
+      }),
+    );
+
+    const session = await service.executeQuery({
+      mode: "lookup",
+      limit: 20,
+      search: {
+        query: "Fire Ball",
+      },
+    });
+
+    expect(session.results[0]?.matchType).toBe("exact");
+  });
+
   it("prefers the cached category summary when building category options", () => {
     const getSearchVocabulary = vi.fn(() => ({
       categories: [{ value: "spell", count: 99 }],

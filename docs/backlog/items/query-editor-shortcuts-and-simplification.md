@@ -28,5 +28,5 @@ Add deliberate editor shortcuts and simplification affordances only after the ve
 
 ## Related
 
-- [Filter shape convergence](./filter-shape-convergence.md)
+- [Filter shape convergence](../history/items/filter-shape-convergence.md)
 - [Remove isUnique metadata](../history/items/remove-isunique-metadata.md)

@@ -88,6 +88,9 @@ export type Pf2eTerminalLookupSort =
   | "levelDescGlobal";
 export type Pf2eTerminalSearchSort = Pf2eTerminalBrowseSort | Pf2eTerminalSearchModeSort | Pf2eTerminalLookupSort;
 export type Pf2eTerminalLookupMatchType = LookupResult["matchType"];
+export type Pf2eTerminalSearchResultRecord = NormalizedRecord & {
+  matchType?: Pf2eTerminalLookupMatchType;
+};
 
 export type Pf2eTerminalSearchQuery = SearchRequest;
 
@@ -116,7 +119,7 @@ export type Pf2eTerminalPreparedFilterExplorerContext = Omit<Pf2eTerminalPrepare
 export type Pf2eTerminalSearchSession = {
   windowId: string;
   query: Pf2eTerminalSearchQuery;
-  results: NormalizedRecord[];
+  results: Pf2eTerminalSearchResultRecord[];
   windowOffset: number;
   resultMode: SearchMode;
   total: number;

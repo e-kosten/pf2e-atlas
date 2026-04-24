@@ -31,6 +31,17 @@ function getLookupPresentation(
   };
 }
 
+function getResultLookupMatchType(
+  record: Pf2eTerminalSearchSession["results"][number],
+  presentation: { policy: "tiered" | "global"; query: string } | null,
+) {
+  if (!presentation) {
+    return "none" as const;
+  }
+
+  return record.matchType ?? getLookupMatchType(presentation.query, record);
+}
+
 export function parseJumpToResultInput(input: string, total: number): number | string {
   const normalized = input.replace(/[,_\s]+/g, "");
   if (!/^\d+$/.test(normalized)) {
@@ -76,12 +87,12 @@ export function buildResultLines(
     getGroup:
       lookupPresentation?.policy === "tiered"
         ? (record) => {
-            const matchType = getLookupMatchType(lookupPresentation.query, record);
+            const matchType = getResultLookupMatchType(record, lookupPresentation);
             return matchType === "none" ? null : buildLookupMatchTypeGroup(matchType);
           }
         : undefined,
     buildItemLine: (record, options) => {
-      const matchType = lookupPresentation ? getLookupMatchType(lookupPresentation.query, record) : "none";
+      const matchType = getResultLookupMatchType(record, lookupPresentation);
       return buildSearchResultRowLine(record, {
         selected: options.selected,
         badges:
@@ -121,7 +132,7 @@ export function buildResultDetailLines(
   resultIndex: number,
 ): DerivedTagTerminalLine[] {
   const lookupPresentation = getLookupPresentation(session);
-  const lookupMatchType = lookupPresentation ? getLookupMatchType(lookupPresentation.query, record) : "none";
+  const lookupMatchType = getResultLookupMatchType(record, lookupPresentation);
   const matchType =
     lookupMatchType === "none"
       ? null

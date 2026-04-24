@@ -81,7 +81,7 @@ But the TUI keeps UI concerns local:
 - screen controllers own transient selection, pane focus, and detail-scroll state
 - workflows own prompt flows, modal handoffs, session cleanup, and live-count/result-window behavior
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
-- shared list/detail owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, shared breadcrumb formatting, and the reusable rightward behavior contract for screens that follow the common list/detail pattern
+- shared list/detail owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, shared breadcrumb formatting, the reusable rightward behavior contract for screens that follow the common list/detail pattern, and the shared grouped-result presentation path for compatible result readers
 
 This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
@@ -145,6 +145,7 @@ It owns the repeated mechanics that several screens were previously rebuilding:
 - reusable rightward list behavior contracts such as `drill`, `open`, `preview`, or `none`
 - shared dead-end handling for qualifying list/detail screens, including notification-vs-noop policy and preview-already-visible behavior
 - shared breadcrumb and default result-row formatting for list/detail search and explorer surfaces, using the shared ontology/search vocabulary owner for friendly fallback rendering where no explicit alias exists
+- shared grouped-result presentation mechanics such as optional section headers, row badges, and light detail metadata lines when a caller supplies grouping or row-presentation metadata
 
 It does not own feature-domain workflows. Search, filter explorer, and review still decide:
 
@@ -159,6 +160,8 @@ The current qualifying callers are the search result reader and the filter explo
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 
+Lookup stays a consumer of this shared result-view pathway rather than becoming its own durable presentation owner. Lookup supplies `matchType` plus the selected `tiered` or `global` sort policy, and the shared list/detail presentation layer decides whether that becomes grouped sections, row badges, or a light detail metadata line in the result reader.
+
 ### Search Service Layer
 
 `src/tui/search/service.ts` is the TUI-facing search facade. It is not the ranking engine itself. Instead, it:
@@ -168,7 +171,7 @@ Use this layer when a screen is fundamentally a list/detail surface with shared 
 - exposes category, subcategory, sort, and facet options for the UI
 - converts ontology-origin queries into canonical TUI query state
 - opens and reads search windows through the shared backend
-- owns TUI session concepts such as result buffers, sort changes, and session disposal
+- owns TUI session concepts such as result buffers, sort changes, session disposal, and lookup match-type metadata on prepared result rows
 
 This keeps query editing and result reading logic in the TUI while leaving shared query semantics in `src/domain/` and search execution in backend/search-owned services.
 

@@ -36,6 +36,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Remove isUnique metadata](./items/remove-isunique-metadata.md)
   Search/filter vocabulary no longer exposes `isUnique` as a standalone public metadata concept; rarity remains the durable public owner of uniqueness semantics. Status: done.
 
+- [Filter shape convergence](./items/filter-shape-convergence.md)
+  MCP, TUI, and docs now describe the same canonical `SearchRequest` contract on `mode`, optional `search`, and root `filter`, with lookup-specific sort and match-presentation behavior routed through the shared result-view path. Status: done.
+
 - [Derived-tag ontology future shape](./items/derived-tag-ontology-future-shape.md)
   The durable documentation-preservation goal is now complete; active implementation follow-through is tracked separately under the derived-tag concept-model implementation backlog item. Status: done.
 

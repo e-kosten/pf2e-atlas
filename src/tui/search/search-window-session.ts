@@ -1,8 +1,10 @@
 import type { SearchWindowPage } from "../../domain/search-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
+import { getLookupMatchType } from "../../domain/lookup-match-type.js";
 import { buildSearchRequest } from "./filter-building.js";
 import type {
   Pf2eTerminalSearchQuery,
+  Pf2eTerminalSearchResultRecord,
   Pf2eTerminalSearchSession,
   Pf2eTerminalSearchSort,
 } from "./service-types.js";
@@ -16,6 +18,20 @@ function withWindowLimit(query: Pf2eTerminalSearchQuery, limit: number): Pf2eTer
       };
 }
 
+function annotateWindowRecords(
+  query: Pf2eTerminalSearchQuery,
+  records: SearchWindowPage["records"],
+): Pf2eTerminalSearchResultRecord[] {
+  if (query.mode !== "lookup") {
+    return records;
+  }
+
+  return records.map((record) => ({
+    ...record,
+    matchType: getLookupMatchType(query.search.query, record),
+  }));
+}
+
 export function createSearchSessionFromWindow(
   query: Pf2eTerminalSearchQuery,
   result: SearchWindowPage,
@@ -27,7 +43,7 @@ export function createSearchSessionFromWindow(
   return {
     windowId: result.id,
     query: withWindowLimit(query, result.limit),
-    results: result.records,
+    results: annotateWindowRecords(query, result.records),
     windowOffset: result.offset,
     resultMode: result.mode,
     total: result.total,
@@ -68,7 +84,7 @@ export function appendSearchSessionWindowPage(
   return {
     ...session,
     query: withWindowLimit(session.query, result.limit),
-    results: [...session.results, ...result.records],
+    results: [...session.results, ...annotateWindowRecords(session.query, result.records)],
     total: result.total,
     loadedCount: session.results.length + result.records.length,
     hasMore: result.hasMore,
@@ -85,7 +101,7 @@ export function replaceSearchSessionWindowPage(
   return {
     ...session,
     query: withWindowLimit(session.query, result.limit),
-    results: result.records,
+    results: annotateWindowRecords(session.query, result.records),
     windowOffset: result.offset,
     total: result.total,
     loadedCount: result.records.length,

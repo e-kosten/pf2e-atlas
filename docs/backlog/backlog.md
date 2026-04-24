@@ -14,9 +14,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Filter shape convergence](./items/filter-shape-convergence.md)
-  Finish the remaining public-surface convergence on the canonical `mode` / `search` / `filter` model, especially the lookup-specific MCP follow-through that still sits outside the landed search/list and TUI cleanup. Status: in_progress.
-
 - [Search interaction cleanup](./items/search-interaction-cleanup.md)
   Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
 
