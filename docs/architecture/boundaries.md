@@ -123,7 +123,7 @@ Direct `DatabaseSync` construction is intentionally scarce. The enforced ownersh
 
 This keeps connection lifetime, read/write policy, and schema-touching behavior centralized.
 
-Search-semantics ontology loading should stay on the shared data facade and config inputs. If an app-layer workflow genuinely needs direct SQLite access, route that through `src/app/storage-service.ts` or another explicitly documented owner instead of hanging feature-specific loaders off the storage facade.
+Search-semantics ontology loading should stay on the documented app/data boundary: config inputs, the shared data facade, and the shared app-layer discovery service. If an app-layer workflow genuinely needs direct SQLite access, route that through `src/app/storage-service.ts` or another explicitly documented owner instead of hanging feature-specific loaders off the storage facade.
 
 ### Search Boundary
 

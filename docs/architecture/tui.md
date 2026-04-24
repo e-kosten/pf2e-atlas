@@ -28,7 +28,7 @@ Those responsibilities stay below the TUI behind app-layer and backend facades.
 
 - `loadPf2eApplicationRuntime()` from `src/app/runtime.ts` loads config and the long-lived `Pf2eDataService`
 - `createPf2eApplicationStorageService()` supplies app-scoped storage helpers for workflows that need direct index access, such as editorial workbench flows
-- `createPf2eApplicationOntologyService()` builds the cached search-semantics browse model used by the ontology area from config and the shared data facade
+- `createPf2eApplicationOntologyService()` prepares cached search-semantics browse models for the ontology area from config, the shared data facade, and the shared app-layer discovery service
 - `createPf2eTerminalSearchService()` adapts shared catalog/search capabilities into a TUI-facing query/session API
 - the derived-tag workbench services are wired in as a development/editorial area, not mixed into the user search and ontology APIs
 
@@ -50,12 +50,15 @@ flowchart TD
   Runtime --> Data["`Pf2eDataService`"]
 
   Load --> Storage["`createPf2eApplicationStorageService()`"]
-  Load --> Ontology["`createPf2eApplicationOntologyService(config, dataService)`"]
+  Load --> Discovery["`createPf2eApplicationSearchDiscoveryService(dataService)`"]
+  Load --> Ontology["`createPf2eApplicationOntologyService(config, dataService, discovery)`"]
   Load --> Search["`createPf2eTerminalSearchService(...)`"]
   Load --> Dev["Derived-tag workbench services"]
 
+  Data --> Discovery
   Data --> Search
   Data --> Ontology
+  Discovery --> Ontology
   Storage --> Dev
 
   Load --> App["`Pf2eTerminalApp`"]
