@@ -323,6 +323,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       search: searchService,
       ontology: {
         loadSearchSemanticsDomain: vi.fn(async () => createSearchSemanticsModel()),
+        loadSearchFilterExplorerDomain: vi.fn(async () => createSearchSemanticsModel()),
       },
     },
     dev: {

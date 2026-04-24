@@ -9,7 +9,7 @@ import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/searc
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import { buildScopeFilter, type SearchRequest } from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
@@ -262,6 +262,38 @@ describe("application ontology service", () => {
     );
 
     expect(typeof service.loadSearchSemanticsDomain).toBe("function");
+    expect(typeof service.loadSearchFilterExplorerDomain).toBe("function");
+  });
+
+  it("caches contextual search filter explorer models by request and discovery mode", async () => {
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+    const request: SearchRequest = {
+      mode: "browse",
+      filter: buildScopeFilter("spell"),
+      limit: 20,
+    };
+
+    const first = await service.loadSearchFilterExplorerDomain({
+      request,
+      discoveryMode: "matching",
+    });
+    const second = await service.loadSearchFilterExplorerDomain({
+      request,
+      discoveryMode: "matching",
+    });
+    const catalog = await service.loadSearchFilterExplorerDomain({
+      request,
+      discoveryMode: "catalog",
+    });
+
+    expect(second).toBe(first);
+    expect(catalog).not.toBe(first);
+    expect(first.rootNodes).toEqual([expect.objectContaining({ id: "searchSemantics:spell" })]);
   });
 
   it("caches ontology domain models across repeated loads", async () => {

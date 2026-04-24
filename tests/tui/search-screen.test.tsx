@@ -322,6 +322,7 @@ function createServices(
       search: searchService,
       ontology: {
         loadSearchSemanticsDomain: vi.fn(() => createFacetPickerOntologyDomain()),
+        loadSearchFilterExplorerDomain: vi.fn(async () => createFacetPickerOntologyDomain()),
       },
     },
     dev: {
@@ -835,7 +836,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomain());
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createFacetPickerOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -1927,7 +1928,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomain());
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createFacetPickerOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -2020,7 +2021,9 @@ describe("search screen", () => {
 
   it("opens the shared explorer for staged rarity and action-cost rows", async () => {
     const services = createServices();
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
+      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    );
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -2081,10 +2084,24 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2 actions");
   });
 
-  it("keeps structured-draft shared explorer commands neutral until mode-aware loaders land", async () => {
+  it("defaults structured-draft shared explorers to matching counts and can switch to catalog counts", async () => {
     const services = createServices();
-    const loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
-    services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
+    const loadSearchFilterExplorerDomain = vi.fn(
+      async ({ discoveryMode }: { discoveryMode: "matching" | "catalog" }) => {
+        const domain = createFacetPickerOntologyDomainWithDiscreteFields();
+        const metadataFields = domain.rootNodes[0]?.children?.[0];
+        const rarityField = metadataFields?.children?.find((node) => node.id === "spell:field:rarity");
+        if (rarityField?.children?.[0]) {
+          rarityField.children[0] = {
+            ...rarityField.children[0],
+            listLabel: discoveryMode === "matching" ? "Common | 1" : "Common | 3",
+            detailLines: [{ text: discoveryMode === "matching" ? "Matching records: 1" : "Applicable records: 3" }],
+          };
+        }
+        return domain;
+      },
+    );
+    services.user.ontology.loadSearchFilterExplorerDomain = loadSearchFilterExplorerDomain;
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -2123,10 +2140,32 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Rarity Explorer");
-    expect(app.lastFrame()).not.toContain("matching counts");
-    expect(app.lastFrame()).not.toContain("catalog counts");
-    expect(app.lastFrame()).not.toContain("commands");
-    expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
+    expect(app.lastFrame()).toContain("matching counts");
+    expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith({
+      discoveryMode: "matching",
+      request: expect.objectContaining({
+        mode: "browse",
+      }),
+    });
+
+    app.stdin.write(":");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Rarity Explorer Commands");
+    for (const character of "catalog") {
+      app.stdin.write(character);
+      await flushInk();
+    }
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("catalog counts");
+    expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith({
+      discoveryMode: "catalog",
+      request: expect.objectContaining({
+        mode: "browse",
+      }),
+    });
   });
 
   it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {
@@ -2147,7 +2186,7 @@ describe("search screen", () => {
         editor: "sharedExplorer",
       },
     ]);
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => {
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => {
       const domain = createFacetPickerOntologyDomain();
       const metadataFields = domain.rootNodes[0]?.children?.[0];
       if (metadataFields?.children) {
@@ -2283,7 +2322,7 @@ describe("search screen", () => {
           ]
         : [],
     );
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createCreatureDerivedTagsOntologyDomain());
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createCreatureDerivedTagsOntologyDomain());
 
     const app = render(
       <DerivedTagTerminalProvider>

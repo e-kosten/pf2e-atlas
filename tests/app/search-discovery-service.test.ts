@@ -204,4 +204,121 @@ describe("application search discovery service", () => {
       },
     );
   });
+
+  it("prepares a matching search-semantics reader from the active canonical request", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "ghost", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(
+      async (
+        {
+          field,
+          metric,
+          metricPrefix,
+        }: {
+          field: string;
+          metric?: string;
+          metricPrefix?: string;
+        },
+        currentRequest: import("../../src/domain/search-request-types.js").SearchRequest,
+      ) => ({
+        field,
+        values:
+          field === "traits"
+            ? [{ value: "undead", count: 2 }]
+            : field === "actorMetrics" && metricPrefix === "save."
+              ? [{ value: "save.best", count: 2 }]
+              : field === "actorMetrics" && metric === "save.best"
+                ? [{ value: "fort", count: 2 }]
+                : [],
+        requestMode: currentRequest.mode,
+      }),
+    );
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching");
+
+    expect(reader.scope).toEqual({ category: "creature", subcategory: null });
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "traits" })).toEqual([
+      { id: "undead", value: "undead", count: 2 },
+    ]);
+    expect(
+      reader.discoverMetricKeys({
+        category: "creature",
+        subcategory: null,
+        metricField: "actorMetrics",
+        metricPrefix: "save.",
+      }),
+    ).toEqual([{ id: "save.best", value: "save.best", count: 2 }]);
+    expect(
+      reader.discoverMetricValues({
+        category: "creature",
+        subcategory: null,
+        metricField: "actorMetrics",
+        metricKey: "save.best",
+      }),
+    ).toEqual([{ id: "fort", value: "fort", count: 2 }]);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "traits", category: "creature" }),
+      request,
+    );
+  });
+
+  it("prepares a catalog search-semantics reader from the applicability slice only", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "dragon", profile: "balanced" as const },
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "pack", value: "bestiary" },
+          buildScopeFilter("creature"),
+          {
+            kind: "metadataPredicate",
+            predicate: { field: "rarity", op: "eq", value: "rare" },
+          },
+        ],
+      },
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values: [{ value: "rare", count: 4 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "rarity", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "catalog");
+
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "rarity" })).toEqual([
+      { id: "rare", value: "rare", count: 4 },
+    ]);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "rarity", category: "creature" }),
+      {
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            { kind: "pack", value: "bestiary" },
+            {
+              kind: "scope",
+              category: "creature",
+              subcategory: { kind: "any" },
+            },
+          ],
+        },
+      },
+    );
+  });
 });

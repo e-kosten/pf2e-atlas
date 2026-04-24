@@ -1,6 +1,10 @@
-import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../../domain/categories.js";
 import {
-  createScopedSearchDiscoveryApplicability,
+  CATEGORY_SUBCATEGORY_MAP,
+  SEARCH_CATEGORIES,
+  normalizeSearchCategory,
+  normalizeSearchSubcategory,
+} from "../../domain/categories.js";
+import {
   type Pf2eApplicationSearchDiscoveryService,
   type SearchDiscoveryField,
 } from "../search-discovery-service.js";
@@ -10,6 +14,7 @@ import type { Pf2eDataService } from "../../data/service.js";
 import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { AppConfig } from "../../domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import {
   formatMetadataFieldLabel,
@@ -18,7 +23,8 @@ import {
 } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
-import { buildScopeFilter } from "../../domain/search-request-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
+import { buildScopeFilter, findSearchScopeFilter } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { getOntologyDomainSummary } from "./domain-summaries.js";
 import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCaseLabel } from "./node-helpers.js";
@@ -59,6 +65,7 @@ export function buildSearchSemanticsDomain(
   dataService: SearchSemanticsDataService,
   discoveryService: Pf2eApplicationSearchDiscoveryService,
 ): OntologyDomainModel {
+  const searchSemanticsReader = discoveryService.createCatalogSearchSemanticsReader();
   const semantics = getMetadataFilterSemantics();
   const summary = loadSearchSemanticsSummary(dataService);
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
@@ -178,12 +185,13 @@ export function buildSearchSemanticsDomain(
     subcategory: SearchSubcategory | null,
   ): Map<string, number> {
     return new Map(
-      discoveryService
-        .discoverCatalogFilterValues({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-          target: { field: "derivedTags" },
+      searchSemanticsReader
+        .discoverFieldValues({
+          category,
+          subcategory,
+          field: "derivedTags",
         })
-        .options.map((entry) => [String(entry.value), entry.count]),
+        .map((entry) => [String(entry.value), entry.count]),
     );
   }
 
@@ -333,12 +341,13 @@ export function buildSearchSemanticsDomain(
           : {
               loadChildren: fieldSemantics.discoverable
                 ? () => {
-                    const liveValues = discoveryService
-                      .discoverCatalogFilterValues({
-                        applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-                        target: { field },
+                    const liveValues = searchSemanticsReader
+                      .discoverFieldValues({
+                        category,
+                        subcategory,
+                        field,
                       })
-                      .options.map((entry) => ({
+                      .map((entry) => ({
                         value: String(entry.value),
                         count: entry.count,
                       }));
@@ -510,7 +519,7 @@ export function buildSearchSemanticsDomain(
 
   function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     return discoveryService.getMetricDiscoveryGroups({ category, subcategory }).map((group) =>
-      buildMetricDiscoveryGroup(dataService, discoveryService, {
+      buildMetricDiscoveryGroup(dataService, searchSemanticsReader, {
         category,
         subcategory,
         metricField: group.metricField,
@@ -757,5 +766,429 @@ export function buildSearchSemanticsDomain(
   return {
     ...getOntologyDomainSummary("searchSemantics"),
     rootNodes,
+  };
+}
+
+function resolvePreparedSearchFilterExplorerScope(
+  request: Readonly<SearchRequest>,
+): { category: SearchCategory; subcategory: SearchSubcategory | null } | null {
+  const scope = findSearchScopeFilter(request.filter);
+  if (!scope) {
+    return null;
+  }
+
+  const category = normalizeSearchCategory(scope.category);
+  const subcategory =
+    scope.subcategory.kind === "eq" ? normalizeSearchSubcategory(scope.subcategory.value) : null;
+  if (!category || (scope.subcategory.kind === "eq" && !subcategory)) {
+    return null;
+  }
+
+  return {
+    category,
+    subcategory,
+  };
+}
+
+function getPreparedSearchFilterExplorerCountLabel(mode: SearchFilterDiscoveryMode): string {
+  return mode === "matching" ? "Matching records" : "Applicable records";
+}
+
+export async function buildPreparedSearchFilterExplorerDomain(
+  config: AppConfig,
+  dataService: SearchSemanticsDataService,
+  discoveryService: Pf2eApplicationSearchDiscoveryService,
+  options: {
+    request: Readonly<SearchRequest>;
+    discoveryMode: SearchFilterDiscoveryMode;
+  },
+): Promise<OntologyDomainModel> {
+  const scope = resolvePreparedSearchFilterExplorerScope(options.request);
+  if (!scope) {
+    throw new Error("Search filter explorer requires a category-scoped canonical search request.");
+  }
+
+  const preparedReader = await discoveryService.prepareSearchSemanticsReader(options.request, options.discoveryMode);
+  const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
+  const summary = loadSearchSemanticsSummary(dataService);
+  const countLabel = getPreparedSearchFilterExplorerCountLabel(options.discoveryMode);
+  const derivedTagCatalogByCategory = new Map<SearchCategory, DerivedTagCatalogEntry[]>(
+    SEARCH_CATEGORIES.map((category) => [
+      category,
+      summary.derivedTagCatalog.filter((entry) => entry.category === category),
+    ]),
+  );
+
+  const getCategoryScopedFields = (
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+  ): readonly SearchDiscoveryField[] => discoveryService.getScopedMetadataFields({ category, subcategory });
+
+  function buildDerivedTagQuery(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+    tag: string,
+    label: string,
+  ): OntologyNode["query"] {
+    return buildSearchSemanticsMetadataQuery(
+      category,
+      subcategory,
+      label,
+      {
+        field: "derivedTags",
+        op: "includesAny",
+        values: [tag],
+      },
+    );
+  }
+
+  function getDerivedTagNodeSubcategory(
+    activeSubcategory: SearchSubcategory | null,
+    familyEntry: DerivedTagCatalogEntry,
+  ): SearchSubcategory | null {
+    if (activeSubcategory) {
+      return activeSubcategory;
+    }
+    return familyEntry.subcategories?.length === 1 ? familyEntry.subcategories[0]! : null;
+  }
+
+  function buildDerivedTagTagNode(
+    category: SearchCategory,
+    activeSubcategory: SearchSubcategory | null,
+    familyEntry: DerivedTagCatalogEntry,
+    tag: DerivedTagCatalogTag,
+    liveRecordCount: number,
+    idPrefix: string,
+  ): OntologyNode {
+    const querySubcategory = getDerivedTagNodeSubcategory(activeSubcategory, familyEntry);
+    const familyLabel = formatOntologySearchVocabularyLabel(familyEntry.family);
+    const axisLabel = formatOntologySearchVocabularyLabel(familyEntry.axis);
+    const tagLabel = formatOntologySearchVocabularyLabel(tag.value);
+    return {
+      id: `${idPrefix}:tag:${tag.value}`,
+      kind: "tag",
+      label: tagLabel,
+      filterText: buildFilterText(
+        category,
+        activeSubcategory ?? "",
+        familyEntry.axis,
+        familyEntry.family,
+        tag.value,
+        tag.description ?? "",
+      ),
+      detailTitle: "Derived Tag",
+      detailLines: [
+        { text: tagLabel, tone: "section" },
+        ...(tag.description ? [{ text: tag.description }] : []),
+        { text: `Family: ${familyLabel}` },
+        { text: `Axis: ${axisLabel}` },
+        { text: `${countLabel}: ${liveRecordCount}` },
+      ],
+      query: buildDerivedTagQuery(
+        category,
+        querySubcategory,
+        tag.value,
+        `Browse records with the ${tagLabel} derived tag`,
+      ),
+      listLabel: `${tagLabel} | ${liveRecordCount}`,
+    };
+  }
+
+  function getDerivedTagCountsByScope(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+  ): Map<string, number> {
+    return new Map(
+      preparedReader
+        .discoverFieldValues({
+          category,
+          subcategory,
+          field: "derivedTags",
+        })
+        .map((entry) => [String(entry.value), entry.count]),
+    );
+  }
+
+  function buildDerivedTagFamilyNode(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+    familyEntry: DerivedTagCatalogEntry,
+    idPrefix: string,
+  ): OntologyNode | null {
+    if (
+      subcategory &&
+      familyEntry.subcategories?.length &&
+      !familyEntry.subcategories.includes(subcategory)
+    ) {
+      return null;
+    }
+
+    const liveCountsByTag = getDerivedTagCountsByScope(category, subcategory);
+    const tagNodes = familyEntry.tags
+      .filter((tag) => liveCountsByTag.has(tag.value))
+      .map((tag) =>
+        buildDerivedTagTagNode(
+          category,
+          subcategory,
+          familyEntry,
+          tag,
+          liveCountsByTag.get(tag.value) ?? 0,
+          `${idPrefix}:family:${normalizeText(familyEntry.family)}`,
+        ),
+      );
+    if (tagNodes.length === 0) {
+      return null;
+    }
+
+    const familyLabel = formatOntologySearchVocabularyLabel(familyEntry.family);
+    return {
+      id: `${idPrefix}:family:${normalizeText(familyEntry.family)}`,
+      kind: "family",
+      label: familyLabel,
+      filterText: buildFilterText(
+        category,
+        subcategory ?? "",
+        familyEntry.axis,
+        familyEntry.family,
+        familyEntry.description,
+        ...familyEntry.tags.map((tag) => tag.value),
+      ),
+      listLabel: `${familyLabel} | ${tagNodes.length} tags`,
+      detailTitle: "Derived Tag Family",
+      detailLines: buildKeyValueDetailLines(
+        familyLabel,
+        [
+          ["Category", formatOntologySearchVocabularyLabel(category)],
+          ["Subcategory", subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"],
+          ["Axis", formatOntologySearchVocabularyLabel(familyEntry.axis)],
+          ["Tags", tagNodes.length],
+        ],
+        familyEntry.description,
+      ),
+      children: tagNodes,
+      childPresentation: {
+        mode: "grouped",
+        groupBy: "axis",
+        render: "inline",
+      },
+    };
+  }
+
+  function buildDerivedTagFamilyNodes(
+    category: SearchCategory,
+    subcategory: SearchSubcategory | null,
+    idPrefix: string,
+  ): OntologyNode[] {
+    return (derivedTagCatalogByCategory.get(category) ?? [])
+      .map((entry) => buildDerivedTagFamilyNode(category, subcategory, entry, idPrefix))
+      .filter((node): node is OntologyNode => Boolean(node));
+  }
+
+  function buildMetadataFieldNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
+    const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+    return getCategoryScopedFields(category, subcategory).map((fieldSemantics): OntologyNode => {
+      const field = fieldSemantics.field;
+      const fieldLabel = formatMetadataFieldLabel(field);
+      const fieldTypeLabel = formatMetadataFieldTypeLabel(fieldSemantics.fieldType);
+      const derivedTagChildren =
+        field === "derivedTags" ? buildDerivedTagFamilyNodes(category, subcategory, `${idPrefix}:field:${field}`) : null;
+      return {
+        id: `${idPrefix}:field:${field}`,
+        kind: "field",
+        label: fieldLabel,
+        filterText: buildFilterText(category, subcategory ?? "", field, fieldLabel, fieldTypeLabel),
+        listLabel: fieldLabel,
+        detailTitle: "Metadata Field Details",
+        detailLines: [
+          { text: fieldLabel, tone: "section" },
+          { text: `Category: ${formatOntologySearchVocabularyLabel(category)}` },
+          { text: `Subcategory: ${subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"}` },
+          { text: `Field type: ${fieldTypeLabel}` },
+          {
+            text:
+              options.discoveryMode === "matching"
+                ? "Drill in to browse values from the current matching query context."
+                : "Drill in to browse values from the current applicability slice.",
+          },
+        ],
+        groupValues: {
+          fieldType: fieldTypeLabel,
+        },
+        ...(field === "derivedTags" && derivedTagChildren && derivedTagChildren.length > 0
+          ? {
+              children: derivedTagChildren,
+              childPresentation: {
+                mode: "grouped",
+                groupBy: "axis",
+                render: "inline",
+              } as const,
+            }
+          : {
+              loadChildren: fieldSemantics.discoverable
+                ? () =>
+                    buildFieldValueNodes(
+                      dataService,
+                      category,
+                      subcategory,
+                      fieldSemantics,
+                      preparedReader.discoverFieldValues({
+                        category,
+                        subcategory,
+                        field,
+                      }).map((entry) => ({
+                        value: String(entry.value),
+                        count: entry.count,
+                      })),
+                      metadataGlossary,
+                      { countLabel },
+                    )
+                : undefined,
+            }),
+      };
+    });
+  }
+
+  function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
+    return discoveryService.getMetricDiscoveryGroups({ category, subcategory }).map((group) =>
+      buildMetricDiscoveryGroup(dataService, preparedReader, {
+        category,
+        subcategory,
+        metricField: group.metricField,
+        metadataField: group.metadataField,
+        label: getMetricDiscoveryGroupLabel(category, group.metricField),
+        namespaces: group.namespaces,
+        countLabel,
+      }),
+    );
+  }
+
+  function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
+    const metadataFieldNodes = buildMetadataFieldNodes(category, subcategory);
+    const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, subcategory);
+    const children: OntologyNode[] = [];
+
+    if (metadataFieldNodes.length > 0) {
+      children.push({
+        id: `${category}:${subcategory}:metadataFields`,
+        kind: "group",
+        label: "Metadata Fields",
+        filterText: buildFilterText(category, subcategory, "metadata fields"),
+        listLabel: `Metadata fields | ${metadataFieldNodes.length}`,
+        detailTitle: "Metadata Fields",
+        detailLines: buildKeyValueDetailLines(
+          "Metadata Fields",
+          [
+            ["Category", formatOntologySearchVocabularyLabel(category)],
+            ["Subcategory", formatOntologySearchVocabularyLabel(subcategory)],
+            ["Fields", metadataFieldNodes.length],
+          ],
+          "Use these typed fields within the active subcategory scope.",
+        ),
+        children: metadataFieldNodes,
+        childPresentation: {
+          mode: "grouped",
+          groupBy: "fieldType",
+          render: "inline",
+        },
+      });
+    }
+
+    children.push(...metricDiscoveryGroups);
+
+    return {
+      id: `${category}:subcategory:${subcategory}`,
+      kind: "subcategory",
+      label: formatOntologySearchVocabularyLabel(subcategory),
+      filterText: buildFilterText(category, subcategory, ...children.map((node) => node.label)),
+      listLabel: formatOntologySearchVocabularyLabel(subcategory),
+      detailTitle: "Subcategory Boundary",
+      detailLines: buildKeyValueDetailLines(
+        formatOntologySearchVocabularyLabel(subcategory),
+        [
+          ["Category", formatOntologySearchVocabularyLabel(category)],
+          ["Subcategory", formatOntologySearchVocabularyLabel(subcategory)],
+        ],
+        options.discoveryMode === "matching"
+          ? "This explorer is showing values from the current matching query context."
+          : "This explorer is showing values from the current applicability slice.",
+      ),
+      children,
+    };
+  }
+
+  const category = scope.category;
+  const categoryFields = getCategoryScopedFields(category, null);
+  const metadataFieldNodes = buildMetadataFieldNodes(category, null);
+  const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, null);
+  const children: OntologyNode[] = [];
+
+  if (scope.subcategory) {
+    children.push({
+      id: `${category}:subcategories`,
+      kind: "group",
+      label: "Subcategories",
+      filterText: buildFilterText(category, scope.subcategory, "subcategories"),
+      listLabel: "Subcategories | 1",
+      detailTitle: "Category Boundaries",
+      detailLines: buildKeyValueDetailLines("Subcategories", [
+        ["Category", formatOntologySearchVocabularyLabel(category)],
+        ["Subcategories", 1],
+      ]),
+      children: [buildSubcategoryNode(category, scope.subcategory)],
+    });
+  } else {
+    if (metadataFieldNodes.length > 0) {
+      children.push({
+        id: `${category}:metadataFields`,
+        kind: "group",
+        label: "Metadata Fields",
+        filterText: buildFilterText(category, "metadata fields", ...categoryFields.map((field) => field.field)),
+        listLabel: `Metadata fields | ${categoryFields.length}`,
+        detailTitle: "Metadata Fields",
+        detailLines: buildKeyValueDetailLines(
+          "Metadata Fields",
+          [
+            ["Category", formatOntologySearchVocabularyLabel(category)],
+            ["Fields", categoryFields.length],
+          ],
+          options.discoveryMode === "matching"
+            ? "Showing values from the current matching query context."
+            : "Showing values from the current applicability slice.",
+        ),
+        children: metadataFieldNodes,
+        childPresentation: {
+          mode: "grouped",
+          groupBy: "fieldType",
+          render: "inline",
+        },
+      });
+    }
+    children.push(...metricDiscoveryGroups);
+  }
+
+  return {
+    ...getOntologyDomainSummary("searchSemantics"),
+    rootNodes: [
+      {
+        id: `searchSemantics:${category}`,
+        kind: "category",
+        label: titleCaseLabel(category),
+        shortLabel: category,
+        filterText: buildFilterText(category, ...children.map((node) => node.label)),
+        listLabel: `${formatOntologySearchVocabularyLabel(category)} | ${children.length} groups`,
+        detailTitle: "Search Semantics",
+        detailLines: buildKeyValueDetailLines(
+          titleCaseLabel(category),
+          [
+            ["Category", formatOntologySearchVocabularyLabel(category)],
+            ["Metadata fields", categoryFields.length],
+            ["Metric discovery groups", metricDiscoveryGroups.length],
+            ["Discovery mode", options.discoveryMode],
+          ],
+          "Use the shared explorer to compose scoped filters from this prepared value space.",
+        ),
+        children,
+      },
+    ],
   };
 }

@@ -59,7 +59,7 @@ export function useSearchFilterExplorerWorkflow({
       onReturn?: () => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
-      const scopeQuery = queryOverride ?? query;
+      const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
       const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
@@ -72,13 +72,22 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const searchSemanticsDomain = await services.ontology.loadSearchSemanticsDomain();
-      const model = buildSearchFilterExplorerModel(searchSemanticsDomain, {
-        category: scopeCategory,
-        subcategory: scopeSubcategory,
-        fieldOptions,
-        singleFieldBehavior,
-      });
+      const buildPreparedModel = async (
+        discoveryMode: "matching" | "catalog",
+      ): Promise<ReturnType<typeof buildSearchFilterExplorerModel>> => {
+        const preparedDomain = await services.ontology.loadSearchFilterExplorerDomain({
+          request: scopeQuery,
+          discoveryMode,
+        });
+        return buildSearchFilterExplorerModel(preparedDomain, {
+          category: scopeCategory,
+          subcategory: scopeSubcategory,
+          fieldOptions,
+          singleFieldBehavior,
+        });
+      };
+
+      const model = await buildPreparedModel("matching");
       if (model.rootNodes.length === 0) {
         await onUnavailable("No ontology-backed query explorer is available for that field.");
         return false;
@@ -89,6 +98,8 @@ export function useSearchFilterExplorerWorkflow({
       setFilterExplorerSession({
         title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
         model,
+        initialDiscoveryMode: "matching",
+        loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         draft: preparedDraft.draft,
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
