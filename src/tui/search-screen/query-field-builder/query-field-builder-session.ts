@@ -1,5 +1,6 @@
 import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
+import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
 import {
   buildTerminalInteractionHelpLines,
@@ -26,6 +27,10 @@ import type { DerivedTagTerminalLine } from "../../framework/types.js";
 export type SearchFilterExplorerSession = {
   title?: string;
   model: OntologyDomainModel;
+  initialDiscoveryMode?: SearchFilterDiscoveryMode;
+  loadModelForDiscoveryMode?: (
+    mode: SearchFilterDiscoveryMode,
+  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
   draft: Pf2eTerminalFilterExplorerDraft;
   resolveSelectionTarget: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;

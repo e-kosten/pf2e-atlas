@@ -394,6 +394,54 @@ describe("pf2e terminal app", () => {
 
   it("exposes ontology discovery mode switching through the shared explorer commands", async () => {
     const services = createFakeServices();
+    const createModeSpecificModel = (valueLabel: string): OntologyDomainModel => {
+      const baseModel = createSearchSemanticsModel();
+      const baseRootNode = baseModel.rootNodes[0]!;
+      const baseMetadataGroup = baseRootNode.children![0]!;
+      const baseFieldNode = baseMetadataGroup.children![0]!;
+
+      return {
+        ...baseModel,
+        rootNodes: [
+          {
+            ...baseRootNode,
+            detailLines: [
+              ...baseRootNode.detailLines,
+              { text: `Discovery fixture: ${valueLabel}` },
+            ],
+            children: [
+              {
+                ...baseMetadataGroup,
+                children: [
+                  {
+                    ...baseFieldNode,
+                    children: [
+                      {
+                        id: `spell:publicationTitle:${valueLabel}`,
+                        kind: "value",
+                        label: valueLabel,
+                        filterText: valueLabel,
+                        listLabel: `${valueLabel} | 1`,
+                        detailTitle: "Filter Value",
+                        detailLines: [{ text: valueLabel, tone: "section" }],
+                        query: browseQuery("Browse records with this value", {
+                          category: "spell",
+                          limit: 20,
+                        }),
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+    };
+    const loadSearchSemanticsDomain = vi.fn((mode?: "matching" | "catalog") =>
+      mode === "catalog" ? createModeSpecificModel("catalog-only") : createModeSpecificModel("matching-only"),
+    );
+    services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
@@ -404,6 +452,8 @@ describe("pf2e terminal app", () => {
 
     await openOntologyBrowser(app);
     expect(app.lastFrame()).toContain("matching counts");
+    expect(app.lastFrame()).toContain("Discovery fixture: matching-only");
+    expect(app.lastFrame()).not.toContain("Discovery fixture: catalog-only");
 
     app.stdin.write(":");
     await flushInk();
@@ -419,6 +469,10 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("catalog counts");
+    expect(app.lastFrame()).toContain("Discovery fixture: catalog-only");
+    expect(app.lastFrame()).not.toContain("Discovery fixture: matching-only");
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1);
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, "catalog");
   });
 
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {

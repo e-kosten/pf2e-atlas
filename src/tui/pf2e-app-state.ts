@@ -1,4 +1,5 @@
 import type { OntologyDomainModel } from "../domain/ontology-types.js";
+import type { SearchFilterDiscoveryMode } from "../domain/search-field-domains.js";
 import type { SearchRequest } from "../domain/search-request-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
@@ -38,6 +39,10 @@ export type Pf2eAppAreaId = (typeof PF2E_APP_AREA_ID)[keyof typeof PF2E_APP_AREA
 export type Pf2eOntologyRoute = {
   kind: (typeof PF2E_APP_ROUTE_KIND)["ONTOLOGY"];
   model: OntologyDomainModel;
+  initialDiscoveryMode?: SearchFilterDiscoveryMode;
+  loadModelForDiscoveryMode?: (
+    mode: SearchFilterDiscoveryMode,
+  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
@@ -99,14 +104,22 @@ type Pf2eAppAction =
 
 export function createPf2eOntologyRoute({
   model,
+  initialDiscoveryMode,
+  loadModelForDiscoveryMode,
   snapshot,
 }: {
   model: OntologyDomainModel;
+  initialDiscoveryMode?: SearchFilterDiscoveryMode;
+  loadModelForDiscoveryMode?: (
+    mode: SearchFilterDiscoveryMode,
+  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 }): Pf2eOntologyRoute {
   return {
     kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
     model,
+    ...(initialDiscoveryMode ? { initialDiscoveryMode } : {}),
+    ...(loadModelForDiscoveryMode ? { loadModelForDiscoveryMode } : {}),
     snapshot,
   };
 }

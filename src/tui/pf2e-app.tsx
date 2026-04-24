@@ -133,7 +133,12 @@ export function Pf2eTerminalApp({
   if (route.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY) {
     screen = (
       <OntologyInspectScreen
-        routeData={{ model: route.model, snapshot: route.snapshot }}
+        routeData={{
+          model: route.model,
+          initialDiscoveryMode: route.initialDiscoveryMode,
+          loadModelForDiscoveryMode: route.loadModelForDiscoveryMode,
+          snapshot: route.snapshot,
+        }}
         onOpenQueryIntent={(intent, snapshot) => openOntologySearch(intent, snapshot)}
         onExit={navigation.backOrExit}
         transitionStatus={transitionStatus}

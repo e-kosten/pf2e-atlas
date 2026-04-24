@@ -2081,9 +2081,50 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2 actions");
   });
 
-  it("routes structured-draft shared explorers through the discovery mode command path", async () => {
+  it("rebuilds structured-draft shared explorer data when discovery mode changes", async () => {
     const services = createServices();
-    services.user.ontology.loadSearchSemanticsDomain = vi.fn(() => createFacetPickerOntologyDomainWithDiscreteFields());
+    const createModeSpecificDomain = (valueLabel: string): OntologyDomainModel => {
+      const domain = createFacetPickerOntologyDomainWithDiscreteFields();
+      return {
+        ...domain,
+        rootNodes: domain.rootNodes.map((rootNode, rootIndex) =>
+          rootIndex !== 0
+            ? rootNode
+            : {
+                ...rootNode,
+                children: (rootNode.children ?? []).map((childNode, childIndex) =>
+                  childIndex !== 0
+                    ? childNode
+                    : {
+                        ...childNode,
+                        children: (childNode.children ?? []).map((node) =>
+                          node.id !== "spell:field:rarity"
+                            ? node
+                            : {
+                                ...node,
+                                children: [
+                                  {
+                                    id: `spell:field:rarity:value:${valueLabel}`,
+                                    kind: "value",
+                                    label: valueLabel,
+                                    filterText: valueLabel,
+                                    listLabel: valueLabel,
+                                    detailTitle: "Value Details",
+                                    detailLines: [{ text: valueLabel, tone: "section" }],
+                                  },
+                                ],
+                              },
+                        ),
+                      },
+                ),
+              },
+        ),
+      };
+    };
+    const loadSearchSemanticsDomain = vi.fn((mode?: "matching" | "catalog") =>
+      mode === "catalog" ? createModeSpecificDomain("catalog-only") : createModeSpecificDomain("matching-only"),
+    );
+    services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -2123,6 +2164,8 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("matching counts");
+    expect(app.lastFrame()).toContain("matching-only");
+    expect(app.lastFrame()).not.toContain("catalog-only");
 
     app.stdin.write(":");
     await flushInk();
@@ -2138,6 +2181,10 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("catalog counts");
+    expect(app.lastFrame()).toContain("catalog-only");
+    expect(app.lastFrame()).not.toContain("matching-only");
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1, "matching");
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, "catalog");
   });
 
   it("opens the shared explorer directly for multi-field ontology composition and returns to the staged query", async () => {

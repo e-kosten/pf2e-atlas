@@ -4,12 +4,13 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
-import { useFilterExplorerDiscoveryState } from "../filter-explorer/discovery-state.js";
 import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
 import type {
   FilterExplorerComposeTarget,
+  FilterExplorerDiscoveryState,
   FilterExplorerScalarClause,
   FilterExplorerScalarEditRequest,
 } from "../filter-explorer/types.js";
@@ -22,6 +23,10 @@ import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;
 export type OntologyInspectRouteData = {
   model: OntologyDomainModel;
+  initialDiscoveryMode?: SearchFilterDiscoveryMode;
+  loadModelForDiscoveryMode?: (
+    mode: SearchFilterDiscoveryMode,
+  ) => OntologyDomainModel | Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
 
@@ -107,9 +112,19 @@ export function OntologyInspectScreen({
   onOpenQueryIntent?: (intent: FilterExplorerQueryOpenIntent, snapshot: OntologyInspectExplorerSnapshot) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
-  const { model, snapshot: initialSnapshot } = routeData;
+  const { snapshot: initialSnapshot } = routeData;
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
+  const initialDiscoveryMode = routeData.initialDiscoveryMode ?? "matching";
+  const [model, setModel] = React.useState(routeData.model);
+  const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
+  const refreshRequestIdRef = React.useRef(0);
+
+  React.useEffect(() => {
+    setModel(routeData.model);
+    setDiscoveryMode(initialDiscoveryMode);
+  }, [initialDiscoveryMode, routeData.model]);
+
   const resolveInspectTarget = React.useCallback((node: OntologyDomainModel["rootNodes"][number] | undefined) => {
     return node ? buildOntologyInspectScalarTarget(node) : undefined;
   }, []);
@@ -128,9 +143,43 @@ export function OntologyInspectScreen({
     },
     [prompts, terminal],
   );
-  const discovery = useFilterExplorerDiscoveryState({
-    resetKey: model.id,
-  });
+  const onDiscoveryModeChange = React.useCallback(
+    (nextMode: SearchFilterDiscoveryMode) => {
+      if (nextMode === discoveryMode) {
+        return;
+      }
+
+      if (!routeData.loadModelForDiscoveryMode) {
+        setDiscoveryMode(nextMode);
+        return;
+      }
+
+      const requestId = refreshRequestIdRef.current + 1;
+      refreshRequestIdRef.current = requestId;
+      void Promise.resolve(routeData.loadModelForDiscoveryMode(nextMode))
+        .then((nextModel) => {
+          if (refreshRequestIdRef.current !== requestId) {
+            return;
+          }
+          setModel(nextModel);
+          setDiscoveryMode(nextMode);
+        })
+        .catch((error) => {
+          if (refreshRequestIdRef.current !== requestId) {
+            return;
+          }
+          void terminal.pauseForAnyKey(`Could not refresh explorer data.\n\n${(error as Error).message}`);
+        });
+    },
+    [discoveryMode, routeData, terminal],
+  );
+  const discovery = React.useMemo<FilterExplorerDiscoveryState>(
+    () => ({
+      mode: discoveryMode,
+      onModeChange: onDiscoveryModeChange,
+    }),
+    [discoveryMode, onDiscoveryModeChange],
+  );
 
   return (
     <FilterExplorerScreen

@@ -108,6 +108,8 @@ function buildOntologySearchCommit({
 }): Pf2eNavigationCommit {
   const preparedOntologyRoute = createPf2eOntologyRoute({
     model: ontologyRoute.model,
+    initialDiscoveryMode: ontologyRoute.initialDiscoveryMode,
+    loadModelForDiscoveryMode: ontologyRoute.loadModelForDiscoveryMode,
     snapshot: intent.snapshot,
   });
   const origin = {
@@ -143,15 +145,21 @@ function buildOntologySearchCommit({
 
 function buildOntologyBrowserCommit({
   model,
+  initialDiscoveryMode,
+  loadModelForDiscoveryMode,
   snapshot,
 }: {
   model: Pf2eOntologyRoute["model"];
+  initialDiscoveryMode?: Pf2eOntologyRoute["initialDiscoveryMode"];
+  loadModelForDiscoveryMode?: Pf2eOntologyRoute["loadModelForDiscoveryMode"];
   snapshot?: OntologyInspectExplorerSnapshot;
 }): Pf2eNavigationCommit {
   return {
     kind: "push",
     route: createPf2eOntologyRoute({
       model,
+      ...(initialDiscoveryMode ? { initialDiscoveryMode } : {}),
+      ...(loadModelForDiscoveryMode ? { loadModelForDiscoveryMode } : {}),
       snapshot,
     }),
   };
@@ -347,6 +355,8 @@ export function usePf2eNavigation({
           const model = isPromiseLike(loadedModel) ? await loadedModel : loadedModel;
           return buildOntologyBrowserCommit({
             model,
+            initialDiscoveryMode: "matching",
+            loadModelForDiscoveryMode: (discoveryMode) => services.user.ontology.loadSearchSemanticsDomain(discoveryMode),
             snapshot,
           });
         },
