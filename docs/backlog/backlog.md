@@ -37,7 +37,17 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Filter shape convergence](./items/filter-shape-convergence.md)
   Bring MCP and TUI filter modeling back into alignment, especially around rarity and level no longer being treated as special cases. Status: proposed.
 
+- Move bottom aligned "modals" into the floating modal model. Catalog the current uses, and decide wether things should stay as they are (ex. the action palette is a good candidate to stay where it is) where as other stuff like level pickers and the exemplar filter menus should be floating. The action menu though is a good candidate to stay in the footer. 
+
+- Extend the action palette with "quick select". Basically once in the action menu vim motion shoudl still navigate, but each option should get a home-row friendly key binding option for select. It should be consistent per page. Need to think how this maps into our shared key binding rules. Could be that `: + <keys>` is considered special and allowed to use a predefined set of options that are fine to use at the same time as `:`. Ex. h/j/k/l, q, and esc shouldn't be allowed, but many other are find in this specific context. But the "fine" list should still be shared. 
+
 ## Later
+
+- [Casting time filter gap](./items/casting-time-filter-gap.md)
+  Track the missing searchable concept for non-action casting times such as `1 minute` or `10 minutes`. Status: proposed.
+
+- [Query editor shortcuts and simplification](./items/query-editor-shortcuts-and-simplification.md)
+  Track follow-up shortcut and simplification affordances after the verbose canonical query-tree editor lands and real friction points are visible. Status: proposed.
 
 - [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
   Explore shared grouping keys and user-cyclable presentation modes for list/detail search and explorer surfaces without regressing back into per-screen experiments. Status: deferred.
@@ -65,5 +75,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed. Deferred for now, don't prioritize.
+
+- Evaluate the SQL data model now that the search infrastructure, filter shape, etc. have evolved
 
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.

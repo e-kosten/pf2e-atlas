@@ -27,10 +27,10 @@ That work should:
 
 - Avoid breaking stable external surface behavior without a clear migration story.
 - Keep the canonical search/filter pipeline shared rather than creating surface-specific parallel models.
-- Coordinate with ongoing TUI query-model work such as [Structured query summary model](./structured-query-summary-model.md).
+- Coordinate with the landed TUI query-model work captured in [Structured query summary model](../history/items/structured-query-summary-model.md).
 
 ## Related
 
 - [Search architecture](../../architecture/search.md)
 - [TUI architecture](../../architecture/tui.md)
-- [Structured query summary model](./structured-query-summary-model.md)
+- [Structured query summary model](../history/items/structured-query-summary-model.md)

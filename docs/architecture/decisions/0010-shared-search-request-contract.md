@@ -1,6 +1,6 @@
 # ADR 0010: Shared SearchRequest Semantic Contract
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0011 and ADR 0013
 - Date: 2026-04-21
 
 ## Context
@@ -33,3 +33,7 @@ That mixed ownership made it too easy for one surface to gain a new search conce
 - MCP compatibility input stays at the transport edge instead of leaking execution DTO ownership back into shared callers
 - metadata field names and metadata boolean-group structure can evolve once in the domain contract and then be reused by MCP schemas, ontology queries, TUI editors, and search execution
 - backend search normalization and validation remain search-owned and operate on compiled execution filters rather than on transport- or UI-shaped input
+
+## Superseded Notes
+
+ADR 0011 replaces the older shared-contract shape assumptions that kept `intent` / `parts` as the durable public model. ADR 0013 also replaces the assumption that the TUI may keep query parts as its preferred durable local editing model.

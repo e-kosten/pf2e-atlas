@@ -71,7 +71,7 @@ A future implementation should:
 
 ## Related
 
-- [Structured query summary model](./structured-query-summary-model.md)
+- [Structured query summary model](../history/items/structured-query-summary-model.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
 - [TUI architecture](../../architecture/tui.md)
 - [Architectural boundaries](../../architecture/boundaries.md)
