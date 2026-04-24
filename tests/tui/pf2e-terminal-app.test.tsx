@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
+import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
 import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
@@ -203,6 +204,32 @@ function createSearchSemanticsModel(): OntologyDomainModel {
 
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
+  const listFilterValues = vi.fn(({ field }) => {
+    if (field === "rarity") {
+      return {
+        values: [
+          { value: "common", count: 1 },
+          { value: "rare", count: 1 },
+          { value: "unique", count: 1 },
+          { value: "uncommon", count: 1 },
+        ],
+      };
+    }
+    if (field === "actionCost") {
+      return {
+        values: [
+          { value: "1", count: 1 },
+          { value: "2", count: 1 },
+          { value: "3", count: 1 },
+        ],
+      };
+    }
+    return { values: [] };
+  });
+  const discovery = createPf2eApplicationSearchDiscoveryService({
+    getPack: vi.fn(() => undefined),
+    listFilterValues,
+  });
   const closeSearchWindow = vi.fn();
   const countRecords = vi.fn(() =>
     Promise.resolve({
@@ -267,6 +294,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
   const searchService = createPf2eTerminalSearchService({
     closeSearchWindow,
     countRecords,
+    discovery,
     getSearchVocabulary: () => ({
       categories: [{ value: "spell", count: 1 }],
       subcategories: [],
@@ -280,28 +308,6 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       derivedTagOntologyFamilies: [],
       derivedTagOntologyTags: [],
       derivedTagCatalog: [],
-    }),
-    listFilterValues: vi.fn(({ field }) => {
-      if (field === "rarity") {
-        return {
-          values: [
-            { value: "common", count: 1 },
-            { value: "rare", count: 1 },
-            { value: "unique", count: 1 },
-            { value: "uncommon", count: 1 },
-          ],
-        };
-      }
-      if (field === "actionCost") {
-        return {
-          values: [
-            { value: "1", count: 1 },
-            { value: "2", count: 1 },
-            { value: "3", count: 1 },
-          ],
-        };
-      }
-      return { values: [] };
     }),
     lookup,
     listRecords,
@@ -350,6 +356,11 @@ describe("pf2e terminal app", () => {
     await flushInk();
     app.stdin.write("j");
     await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Choose Search Mode");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();

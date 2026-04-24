@@ -8,6 +8,7 @@ import type { SearchCountResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
+import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { FilterExplorerComposeTarget } from "../../src/tui/filter-explorer/index.js";
 import {
   createPf2eTerminalSearchService,
@@ -197,6 +198,35 @@ function createServices(
   } = {},
 ): Pf2eTerminalAppServices {
   const record = createRecord();
+  const listFilterValues = vi.fn(({ field }) => {
+    if (field === "rarity") {
+      return {
+        values: [
+          { value: "unique", count: 1 },
+          { value: "common", count: 1 },
+          { value: "rare", count: 1 },
+          { value: "uncommon", count: 1 },
+        ],
+      };
+    }
+    if (field === "actionCost") {
+      return {
+        values: [
+          { value: "3", count: 1 },
+          { value: "1", count: 1 },
+          { value: "2", count: 1 },
+        ],
+      };
+    }
+    if (field === "traits") {
+      return { values: [{ value: "illusion", count: 1 }] };
+    }
+    return { values: [] };
+  });
+  const discovery = createPf2eApplicationSearchDiscoveryService({
+    getPack: vi.fn(() => undefined),
+    listFilterValues,
+  });
   const countRecords: CountRecordsFn =
     overrides.countRecords ??
     vi.fn(() =>
@@ -224,9 +254,9 @@ function createServices(
     overrides.search ??
     vi.fn((request: SearchRequest) =>
       Promise.resolve({
-        searchProfile: request.searchProfile ?? "balanced",
+        searchProfile: request.mode === "search" ? request.search.profile ?? "balanced" : null,
         mode: "hybrid" as const,
-        sort: request.sort ?? "ranked",
+        sort: "ranked" as const,
         total: 1,
         offset: request.offset ?? 0,
         limit: request.limit ?? 20,
@@ -238,13 +268,13 @@ function createServices(
   const openSearchWindow: OpenSearchWindowFn =
     overrides.openSearchWindow ??
     vi.fn(async (request: SearchRequest) => {
-      const result = request.intent === "browse" ? listRecords(request) : await search(request);
+      const result = request.mode === "browse" ? listRecords(request) : await search(request);
       return {
         id: "window-1",
         searchProfile: result.searchProfile,
         mode: result.mode,
         sort: result.sort,
-        sortSeed: request.sortSeed ?? null,
+        sortSeed: request.mode === "browse" && request.sort?.kind === "random" ? (request.sort.seed ?? null) : null,
         total: result.total,
         offset: result.offset,
         limit: result.limit,
@@ -273,6 +303,7 @@ function createServices(
   const searchService = createPf2eTerminalSearchService({
     closeSearchWindow,
     countRecords,
+    discovery,
     getSearchVocabulary: () => ({
       categories: [{ value: "spell", count: 1 }],
       subcategories: [],
@@ -286,31 +317,6 @@ function createServices(
       derivedTagOntologyFamilies: [],
       derivedTagOntologyTags: [],
       derivedTagCatalog: [],
-    }),
-    listFilterValues: vi.fn(({ field }) => {
-      if (field === "rarity") {
-        return {
-          values: [
-            { value: "unique", count: 1 },
-            { value: "common", count: 1 },
-            { value: "rare", count: 1 },
-            { value: "uncommon", count: 1 },
-          ],
-        };
-      }
-      if (field === "actionCost") {
-        return {
-          values: [
-            { value: "3", count: 1 },
-            { value: "1", count: 1 },
-            { value: "2", count: 1 },
-          ],
-        };
-      }
-      if (field === "traits") {
-        return { values: [{ value: "illusion", count: 1 }] };
-      }
-      return { values: [] };
     }),
     lookup,
     listRecords,
@@ -680,14 +686,12 @@ describe("search screen", () => {
 
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({
-        category: undefined,
-        intent: "search",
+        mode: "search",
         offset: 0,
-        parts: [],
-        searchProfile: "balanced",
-        sort: "ranked",
-        sortSeed: undefined,
-        text: "ghost",
+        search: {
+          query: "ghost",
+          profile: "balanced",
+        },
       }),
     );
     expect(search.mock.calls[0]?.[0]?.limit).toBeGreaterThan(50);
@@ -1786,9 +1790,9 @@ describe("search screen", () => {
   it("translates policy-based query filters into metadata clauses", async () => {
     const search = vi.fn((request: SearchRequest) =>
       Promise.resolve({
-        searchProfile: request.searchProfile ?? "balanced",
+        searchProfile: request.mode === "search" ? request.search.profile ?? "balanced" : null,
         mode: "hybrid" as const,
-        sort: request.sort ?? "ranked",
+        sort: "ranked" as const,
         total: 1,
         offset: 0,
         limit: request.limit ?? 20,
@@ -1807,20 +1811,6 @@ describe("search screen", () => {
       sourceLabel: null,
       filters: {
         category: "spell",
-        subcategory: null,
-        levelMin: null,
-        levelMax: null,
-        rarity: {
-          any: [],
-          all: [],
-          exclude: [],
-        },
-        actionCost: {
-          any: [],
-          all: [],
-          exclude: [],
-        },
-        metadata: null,
         parts: [
           {
             kind: "rarityPolicy",
@@ -1873,42 +1863,71 @@ describe("search screen", () => {
     });
 
     expect(search).toHaveBeenCalledWith({
-      category: "spell",
-      intent: "search",
+      mode: "search",
+      filter: {
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "spell",
+            subcategory: { kind: "any" },
+          },
+          {
+            kind: "anyOf",
+            children: [
+              {
+                kind: "rarity",
+                match: { kind: "eq", value: "common" },
+              },
+            ],
+          },
+          {
+            kind: "not",
+            child: {
+              kind: "rarity",
+              match: { kind: "eq", value: "rare" },
+            },
+          },
+          {
+            kind: "actionCost",
+            match: { kind: "eq", value: 2 },
+          },
+          {
+            kind: "not",
+            child: {
+              kind: "actionCost",
+              match: { kind: "eq", value: 1 },
+            },
+          },
+          {
+            kind: "allOf",
+            children: [
+              {
+                kind: "metadataPredicate",
+                predicate: { field: "traits", op: "includes", value: "illusion" },
+              },
+              {
+                kind: "metadataPredicate",
+                predicate: { field: "traits", op: "includes", value: "auditory" },
+              },
+              {
+                kind: "not",
+                child: {
+                  kind: "metadataPredicate",
+                  predicate: { field: "traits", op: "includes", value: "emotion" },
+                },
+              },
+            ],
+          },
+        ],
+      },
       limit: 20,
       offset: 0,
-      parts: [
-        {
-          kind: "rarityPolicy",
-          policy: { any: ["common"], all: [], exclude: ["rare"] },
-        },
-        {
-          kind: "actionCostPolicy",
-          policy: { any: [2], all: [], exclude: [1] },
-        },
-        {
-          kind: "metadataGroup",
-          operator: "and",
-          children: [
-            {
-              kind: "metadataPredicate",
-              predicate: { field: "traits", op: "includesAny", values: ["illusion"] },
-            },
-            {
-              kind: "metadataPredicate",
-              predicate: { field: "traits", op: "includesAll", values: ["auditory"] },
-            },
-            {
-              kind: "metadataPredicate",
-              predicate: { field: "traits", op: "excludesAny", values: ["emotion"] },
-            },
-          ],
-        },
-      ],
-      searchProfile: "balanced",
-      sort: "ranked",
-      sortSeed: undefined,
-      text: "ghost",
+      search: {
+        query: "ghost",
+        profile: "balanced",
+      },
+      explain: false,
     });
   });
 
