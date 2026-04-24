@@ -205,6 +205,52 @@ describe("application search discovery service", () => {
     );
   });
 
+  it("retries matching discovery after a transient failure instead of caching the rejection", async () => {
+    const discoverFilterValues = vi
+      .fn<
+        (
+          query: { field: string; category?: string },
+          request: import("../../src/domain/search-request-types.js").SearchRequest,
+        ) => Promise<{ field: string; values: Array<{ value: string; count: number }> }>
+      >()
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce({
+        field: "traits",
+        values: [{ value: "undead", count: 2 }],
+      });
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+    const context = createSearchFilterDiscoveryContext({
+      mode: "search",
+      search: { query: "ghost", profile: "balanced" },
+      filter: buildScopeFilter("creature"),
+    });
+
+    await expect(
+      service.discoverFilterValues({
+        mode: "matching",
+        context,
+        target: { field: "traits" },
+      }),
+    ).rejects.toThrow("temporary failure");
+
+    await expect(
+      service.discoverFilterValues({
+        mode: "matching",
+        context,
+        target: { field: "traits" },
+      }),
+    ).resolves.toEqual({
+      mode: "matching",
+      target: { field: "traits" },
+      options: [{ id: "undead", value: "undead", count: 2 }],
+    });
+    expect(discoverFilterValues).toHaveBeenCalledTimes(2);
+  });
+
   it("prepares a matching search-semantics reader from the active canonical request", async () => {
     const request = {
       mode: "search",

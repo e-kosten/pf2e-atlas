@@ -316,6 +316,11 @@ export function createPf2eApplicationSearchDiscoveryService(
         })),
       );
     asyncDiscoveryOptionCache.set(cacheKey, promise);
+    void promise.catch(() => {
+      if (asyncDiscoveryOptionCache.get(cacheKey) === promise) {
+        asyncDiscoveryOptionCache.delete(cacheKey);
+      }
+    });
     return promise;
   }
 
@@ -342,6 +347,11 @@ export function createPf2eApplicationSearchDiscoveryService(
       }),
     );
     asyncFilterValueCache.set(cacheKey, promise);
+    void promise.catch(() => {
+      if (asyncFilterValueCache.get(cacheKey) === promise) {
+        asyncFilterValueCache.delete(cacheKey);
+      }
+    });
     return promise;
   }
 
