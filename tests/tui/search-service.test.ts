@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
@@ -14,11 +15,27 @@ import {
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
 } from "../../src/tui/search/query-state.js";
-import { browseQuery } from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 
-function createDependencies(overrides: Partial<SearchServiceDependencies> = {}): SearchServiceDependencies {
+function createDependencies(
+  overrides: Partial<SearchServiceDependencies> & {
+    getPack?: (packValue: string) => { name: string } | undefined;
+    listFilterValues?: (query: { field: string }) => { values: Array<{ value: string; count: number }> };
+  } = {},
+): SearchServiceDependencies {
+  const listFilterValues =
+    overrides.listFilterValues ??
+    vi.fn(({ field }) => {
+      if (field === "rarity") {
+        return { values: [{ value: "rare", count: 1 }] };
+      }
+      if (field === "traits") {
+        return { values: [{ value: "illusion", count: 1 }] };
+      }
+      return { values: [] };
+    });
+
   return {
     closeSearchWindow: vi.fn(),
     countRecords: vi.fn(() =>
@@ -28,6 +45,12 @@ function createDependencies(overrides: Partial<SearchServiceDependencies> = {}):
         total: 0,
       }),
     ),
+    discovery:
+      overrides.discovery ??
+      createPf2eApplicationSearchDiscoveryService({
+        getPack: overrides.getPack ?? vi.fn(() => undefined),
+        listFilterValues,
+      }),
     getSearchVocabulary: () => ({
       categories: [{ value: "spell", count: 1 }],
       subcategories: [],
@@ -41,15 +64,6 @@ function createDependencies(overrides: Partial<SearchServiceDependencies> = {}):
       derivedTagOntologyFamilies: [],
       derivedTagOntologyTags: [],
       derivedTagCatalog: [],
-    }),
-    listFilterValues: vi.fn(({ field }) => {
-      if (field === "rarity") {
-        return { values: [{ value: "rare", count: 1 }] };
-      }
-      if (field === "traits") {
-        return { values: [{ value: "illusion", count: 1 }] };
-      }
-      return { values: [] };
     }),
     lookup: vi.fn(() => ({ match: null, alternatives: [] })),
     listRecords: vi.fn((filters: SearchRequest) => ({
@@ -858,15 +872,6 @@ describe("createPf2eTerminalSearchService", () => {
       filterText: "perception modifier",
       detailTitle: "Metric",
       detailLines: [{ text: "Perception Modifier" }],
-      query: browseQuery("Perception Modifier", {
-          category: "creature",
-          metadata: {
-            field: "actorMetricCompare",
-            op: ">=",
-            leftMetric: "perception.mod",
-            rightMetric: "perception.mod",
-          },
-        }),
     } as OntologyNode);
 
     expect(target).toEqual({
@@ -891,21 +896,12 @@ describe("createPf2eTerminalSearchService", () => {
     ]);
 
     const target = resolver({
-      id: "item:actorMetrics:weapon.range_increment",
+      id: "item:itemMetrics:weapon.range_increment",
       kind: "metric",
       label: "Range Increment",
       filterText: "range increment",
       detailTitle: "Metric",
       detailLines: [{ text: "Range Increment" }],
-      query: browseQuery("Range Increment", {
-          category: "equipment",
-          metadata: {
-            field: "itemMetricCompare",
-            op: ">=",
-            leftMetric: "weapon.range_increment",
-            rightMetric: "weapon.range_increment",
-          },
-        }),
     } as OntologyNode);
 
     expect(target).toEqual({

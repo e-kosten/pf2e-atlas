@@ -3,6 +3,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
+import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type {
   MetadataBooleanField,
@@ -172,12 +173,9 @@ export function isActionCostAvailableInScope(
     return false;
   }
 
-  return (
-    dependencies.listFilterValues({
-      field: "actionCost",
-      category,
-      ...(subcategory ? { subcategory } : {}),
-    }).values.length > 0
+  return dependencies.discovery.isPromotedFieldAvailable(
+    "actionCost",
+    createScopedSearchDiscoveryApplicability("browse", category, subcategory),
   );
 }
 

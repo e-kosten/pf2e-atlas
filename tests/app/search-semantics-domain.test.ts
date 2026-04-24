@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
+import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import { findSearchScopeFilter } from "../../src/domain/search-request-types.js";
@@ -113,6 +114,7 @@ function createDataService(options: {
   includeSummary?: boolean;
   includeVocabulary?: boolean;
 } = {}): Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+  getPack: ReturnType<typeof vi.fn>;
   getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
   getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
 } {
@@ -120,9 +122,11 @@ function createDataService(options: {
   const vocabulary = createVocabulary(summary);
 
   const service: Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+    getPack: ReturnType<typeof vi.fn>;
     getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
     getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
   } = {
+    getPack: vi.fn(() => undefined),
     listFilterValues: vi.fn(
       ({
         field,
@@ -174,7 +178,11 @@ function createDataService(options: {
 describe("buildSearchSemanticsDomain", () => {
   it("scopes derived-tag families and tag queries to the active subcategory", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
+    const domain = buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+    );
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
@@ -202,7 +210,11 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("loads derived-tag family children with scoped live counts", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
+    const domain = buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+    );
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
     const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
     const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
@@ -221,7 +233,11 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", () => {
     const dataService = createDataService();
-    const domain = buildSearchSemanticsDomain(createTestConfig(), dataService);
+    const domain = buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+    );
 
     const commonTraitsNode = findNodeById(domain.rootNodes, "hazard:commonTraits");
     const magicalTraitNode = commonTraitsNode?.children?.[0];
@@ -244,7 +260,11 @@ describe("buildSearchSemanticsDomain", () => {
   it("falls back to the full vocabulary loader when a summary loader is unavailable", () => {
     const dataService = createDataService({ includeSummary: false, includeVocabulary: true });
 
-    buildSearchSemanticsDomain(createTestConfig(), dataService);
+    buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+    );
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toBeUndefined();
     expect(dataService.getSearchVocabulary).toHaveBeenCalledTimes(1);

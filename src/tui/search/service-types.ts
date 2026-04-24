@@ -1,5 +1,6 @@
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { Pf2eApplicationSearchDiscoveryService } from "../../app/search-discovery-service.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { MetadataFilterNode } from "../../domain/metadata-filter-types.js";
@@ -224,13 +225,9 @@ export type SearchServiceDependencies = {
     request: SearchRequest,
     options?: { lexicalOnly?: boolean },
   ) => Promise<SearchCountResult>;
+  discovery: Pf2eApplicationSearchDiscoveryService;
   getSearchCategorySummary?: () => SearchCategorySummaryResult;
   getSearchVocabulary: () => SearchVocabularyResult;
-  listFilterValues: (query: {
-    field: MetadataFieldName | "actionCost" | "rarity";
-    category?: SearchCategory;
-    subcategory?: SearchSubcategory;
-  }) => { values: Array<{ value: string; count: number }> };
   lookup: (
     name: string,
     options?: LookupOptions,

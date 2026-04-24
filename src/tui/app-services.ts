@@ -1,4 +1,5 @@
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
+import { createPf2eApplicationSearchDiscoveryService } from "../app/search-discovery-service.js";
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import type { AppConfig } from "../domain/config-types.js";
@@ -92,16 +93,17 @@ export function createPf2eTerminalAppServices(
 ): Pf2eTerminalAppServices {
   const { config, dataService } = runtime;
   const storage = createPf2eApplicationStorageService(config);
+  const discovery = createPf2eApplicationSearchDiscoveryService(dataService);
   return {
     config,
     user: {
-      ontology: createPf2eApplicationOntologyService(config, dataService),
+      ontology: createPf2eApplicationOntologyService(config, dataService, discovery),
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (request, options) => dataService.countRecords(request, options),
+        discovery,
         getSearchCategorySummary: () => dataService.getSearchCategorySummary(),
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
-        listFilterValues: (query) => dataService.listFilterValues(query),
         lookup: (name, options) => dataService.lookup(name, options),
         listRecords: (request) => dataService.listRecords(request),
         openSearchWindow: (request) => dataService.openSearchWindow(request),

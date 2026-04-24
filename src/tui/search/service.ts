@@ -1,6 +1,7 @@
 import {
   CATEGORY_SUBCATEGORY_MAP,
 } from "../../domain/categories.js";
+import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import {
@@ -15,7 +16,6 @@ import {
   applyDiscoverableQueryFieldSelections,
   buildDiscoverableQueryFieldSelections,
   getQueryFieldOptions,
-  getScopedMetadataFields,
 } from "./discoverable-fields.js";
 import {
   applyFilterExplorerDraft,
@@ -147,20 +147,14 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       ];
     },
     getFacetFieldOptions: (category, subcategory) => {
-      const candidateFields = getScopedMetadataFields(filterSemantics, category, subcategory)
-        .map((field) => fieldSemanticsByName.get(field))
-        .filter((field): field is MetadataFieldSemantics => Boolean(field))
+      const candidateFields = dependencies.discovery
+        .getScopedMetadataFields(category ? { category, subcategory } : null)
         .filter(
           (field) =>
             field.discoverable &&
             !FACET_FIELD_EXCLUSIONS.has(field.field) &&
             (["set", "enumString", "boolean"].includes(field.fieldType) ||
-              (field.field === "actionCost" &&
-                dependencies.listFilterValues({
-                  field: "actionCost",
-                  ...(category ? { category } : {}),
-                  ...(subcategory ? { subcategory } : {}),
-                }).values.length > 0)),
+              (field.field === "actionCost" && isActionCostRelevant(category, subcategory))),
         );
 
       return candidateFields.map((field) => ({
@@ -171,14 +165,23 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       }));
     },
     getQueryFieldOptions: (category, subcategory) =>
-      getQueryFieldOptions(filterSemantics, fieldSemanticsByName, category, subcategory),
+      getQueryFieldOptions(
+        dependencies.discovery.getScopedMetadataFields(category ? { category, subcategory } : null),
+        dependencies.discovery.getMetricDiscoveryGroups(category ? { category, subcategory } : null),
+        category,
+      ),
     getFacetValueOptions: (field, category, subcategory) =>
       createFacetValueOptions(
-        dependencies.listFilterValues({
-          field,
-          ...(category ? { category } : {}),
-          ...(subcategory ? { subcategory } : {}),
-        }).values,
+        dependencies.discovery
+          .discoverFilterValues({
+            mode: "catalog",
+            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            target: { field },
+          })
+          .options.map((entry) => ({
+            value: String(entry.value),
+            count: entry.count,
+          })),
         {
           ordering: getFieldValueOrdering(field),
         },
@@ -187,11 +190,16 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     getResultSortOptions: (mode) => SEARCH_SORT_OPTIONS[mode],
     getRarityOptions: (category, subcategory) =>
       createFacetValueOptions(
-        dependencies.listFilterValues({
-          field: "rarity",
-          ...(category ? { category } : {}),
-          ...(subcategory ? { subcategory } : {}),
-        }).values,
+        dependencies.discovery
+          .discoverFilterValues({
+            mode: "catalog",
+            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            target: { field: "rarity" },
+          })
+          .options.map((entry) => ({
+            value: String(entry.value),
+            count: entry.count,
+          })),
         {
           ordering: getFieldValueOrdering("rarity"),
         },
@@ -199,11 +207,16 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     getActionCostOptions: (category, subcategory) =>
       isActionCostRelevant(category, subcategory)
         ? createFacetValueOptions(
-            dependencies.listFilterValues({
-              field: "actionCost",
-              ...(category ? { category } : {}),
-              ...(subcategory ? { subcategory } : {}),
-            }).values,
+            dependencies.discovery
+              .discoverFilterValues({
+                mode: "catalog",
+                applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+                target: { field: "actionCost" },
+              })
+              .options.map((entry) => ({
+                value: String(entry.value),
+                count: entry.count,
+              })),
             {
               ordering: getFieldValueOrdering("actionCost"),
               labelFormatter: (value) => `${value} action${value === "1" ? "" : "s"}`,

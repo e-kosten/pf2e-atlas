@@ -1,10 +1,16 @@
 import { CATEGORY_SUBCATEGORY_MAP, SEARCH_CATEGORIES } from "../../domain/categories.js";
+import {
+  createScopedSearchDiscoveryApplicability,
+  type Pf2eApplicationSearchDiscoveryService,
+  type SearchDiscoveryField,
+} from "../search-discovery-service.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { AppConfig } from "../../domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import {
   formatMetadataFieldLabel,
   formatMetadataFieldTypeLabel,
@@ -20,10 +26,9 @@ import {
   buildFieldValueNodes,
   buildMetricDiscoveryGroup,
   buildSearchSemanticsMetadataQuery,
-  getMetricDiscoveryGroupLabel,
 } from "./search-semantics-helpers.js";
 
-type SearchSemanticsDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords"> & {
+type SearchSemanticsDataService = Pick<Pf2eDataService, "listRecords"> & {
   getSearchSemanticsBootstrapSummary?: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
   getSearchVocabulary?: () => SearchVocabularyResult;
 };
@@ -52,36 +57,17 @@ function loadSearchSemanticsSummary(dataService: SearchSemanticsDataService): Se
 export function buildSearchSemanticsDomain(
   config: AppConfig,
   dataService: SearchSemanticsDataService,
+  discoveryService: Pf2eApplicationSearchDiscoveryService,
 ): OntologyDomainModel {
   const semantics = getMetadataFilterSemantics();
   const summary = loadSearchSemanticsSummary(dataService);
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const metadataFieldsByName = new Map(semantics.metadataFields.map((entry) => [entry.field, entry]));
-  const filterValuesCache = new Map<string, readonly { value: string; count: number }[]>();
 
-  const getCachedFilterValues = (
+  const getCategoryScopedFields = (
     category: SearchCategory,
     subcategory: SearchSubcategory | null,
-    field: MetadataFieldSemantics["field"],
-  ): readonly { value: string; count: number }[] => {
-    const cacheKey = `${category}:${subcategory ?? "all"}:${field}`;
-    const cached = filterValuesCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    const values = dataService.listFilterValues({ field, category, subcategory: subcategory ?? undefined }).values;
-    filterValuesCache.set(cacheKey, values);
-    return values;
-  };
-
-  const getCategoryScopedFields = (category: SearchCategory, subcategory: SearchSubcategory | null) =>
-    semantics.metadataFieldsByCategory[category].filter((field) => {
-      const fieldSemantics = metadataFieldsByName.get(field);
-      if (!fieldSemantics) {
-        return false;
-      }
-      return !subcategory || !fieldSemantics.subcategories || fieldSemantics.subcategories.includes(subcategory);
-    });
+  ): readonly SearchDiscoveryField[] => discoveryService.getScopedMetadataFields({ category, subcategory });
 
   const commonTraitsByCategory = new Map(
     summary.commonTraitsByCategory.map((entry) => [entry.category, entry.traits]),
@@ -192,7 +178,13 @@ export function buildSearchSemanticsDomain(
     subcategory: SearchSubcategory | null,
   ): Map<string, number> {
     return new Map(
-      getCachedFilterValues(category, subcategory, "derivedTags").map((entry) => [entry.value, entry.count]),
+      discoveryService
+        .discoverFilterValues({
+          mode: "catalog",
+          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          target: { field: "derivedTags" },
+        })
+        .options.map((entry) => [String(entry.value), entry.count]),
     );
   }
 
@@ -282,8 +274,8 @@ export function buildSearchSemanticsDomain(
 
   function buildMetadataFieldNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     const idPrefix = subcategory ? `${category}:${subcategory}` : category;
-    return getCategoryScopedFields(category, subcategory).map((field): OntologyNode => {
-      const fieldSemantics = metadataFieldsByName.get(field)!;
+    return getCategoryScopedFields(category, subcategory).map((fieldSemantics): OntologyNode => {
+      const field = fieldSemantics.field;
       const fieldLabel = formatMetadataFieldLabel(field);
       const fieldTypeLabel = formatMetadataFieldTypeLabel(fieldSemantics.fieldType);
       const derivedTagChildren =
@@ -342,7 +334,16 @@ export function buildSearchSemanticsDomain(
           : {
               loadChildren: fieldSemantics.discoverable
                 ? () => {
-                    const liveValues = getCachedFilterValues(category, subcategory, field);
+                    const liveValues = discoveryService
+                      .discoverFilterValues({
+                        mode: "catalog",
+                        applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+                        target: { field },
+                      })
+                      .options.map((entry) => ({
+                        value: String(entry.value),
+                        count: entry.count,
+                      }));
                     return liveValues.length > 0
                       ? buildFieldValueNodes(
                           dataService,
@@ -510,42 +511,16 @@ export function buildSearchSemanticsDomain(
   }
 
   function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
-    const groups: OntologyNode[] = [];
-    if (
-      semantics.actorMetricDiscovery &&
-      semantics.advancedPredicates.some(
-        (predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category),
-      )
-    ) {
-      groups.push(
-        buildMetricDiscoveryGroup(dataService, {
-          category,
-          subcategory,
-          metricField: "actorMetrics",
-          metadataField: "actorMetric",
-          label: getMetricDiscoveryGroupLabel(category, "actorMetrics"),
-          namespaces: semantics.actorMetricDiscovery.namespaces,
-        }),
-      );
-    }
-    if (
-      semantics.itemMetricDiscovery &&
-      semantics.advancedPredicates.some(
-        (predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category),
-      )
-    ) {
-      groups.push(
-        buildMetricDiscoveryGroup(dataService, {
-          category,
-          subcategory,
-          metricField: "itemMetrics",
-          metadataField: "itemMetric",
-          label: getMetricDiscoveryGroupLabel(category, "itemMetrics"),
-          namespaces: semantics.itemMetricDiscovery.namespaces,
-        }),
-      );
-    }
-    return groups;
+    return discoveryService.getMetricDiscoveryGroups({ category, subcategory }).map((group) =>
+      buildMetricDiscoveryGroup(dataService, discoveryService, {
+        category,
+        subcategory,
+        metricField: group.metricField,
+        metadataField: group.metadataField,
+        label: getMetricDiscoveryGroupLabel(category, group.metricField),
+        namespaces: group.namespaces,
+      }),
+    );
   }
 
   function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
@@ -699,7 +674,7 @@ export function buildSearchSemanticsDomain(
         id: `${category}:metadataFields`,
         kind: "group",
         label: "Metadata Fields",
-        filterText: buildFilterText(category, "metadata fields", ...categoryFields),
+        filterText: buildFilterText(category, "metadata fields", ...categoryFields.map((field) => field.field)),
         listLabel: `Metadata fields | ${categoryFields.length}`,
         detailTitle: "Metadata Fields",
         detailLines: buildKeyValueDetailLines(
@@ -762,7 +737,7 @@ export function buildSearchSemanticsDomain(
       kind: "category",
       label: titleCaseLabel(category),
       shortLabel: category,
-      filterText: buildFilterText(category, ...categoryFields),
+      filterText: buildFilterText(category, ...categoryFields.map((field) => field.field)),
       listLabel: `${formatOntologySearchVocabularyLabel(category)} | ${children.length} groups`,
       detailTitle: "Search Semantics",
       detailLines: buildKeyValueDetailLines(

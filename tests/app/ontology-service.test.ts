@@ -5,16 +5,17 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
+import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import { searchRequestPartsToMetadataFilterNode } from "../../src/domain/search-request-types.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
+import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -51,7 +52,7 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
 }
 
 function getRequestMetadata(request: SearchRequest | undefined) {
-  return request ? searchRequestPartsToMetadataFilterNode(request.parts ?? []) : null;
+  return request ? canonicalFilterToMetadataNode(request.filter) : null;
 }
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
@@ -243,16 +244,32 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
   };
 }
 
+function createDiscoveryService(dataService: Pick<Pf2eDataService, "listFilterValues">) {
+  return createPf2eApplicationSearchDiscoveryService({
+    getPack: vi.fn(() => undefined),
+    listFilterValues: dataService.listFilterValues,
+  });
+}
+
 describe("application ontology service", () => {
   it("exposes an explicit search-semantics loader", () => {
-    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
 
     expect(typeof service.loadSearchSemanticsDomain).toBe("function");
   });
 
   it("caches ontology domain models across repeated loads", () => {
     const dataService = createDataService();
-    const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
 
     const first = service.loadSearchSemanticsDomain();
     const second = service.loadSearchSemanticsDomain();
@@ -261,14 +278,23 @@ describe("application ontology service", () => {
   });
 
   it("loads search semantics without any derived-tag explorer storage dependency", () => {
-    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
 
     service.loadSearchSemanticsDomain();
   });
 
   it("builds valid field-specific browse queries for search semantics values", () => {
     const dataService = createDataService();
-    const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
     const domain = service.loadSearchSemanticsDomain();
     const metadataFieldsNode = findNodeById(domain.rootNodes, "spell:metadataFields");
 
@@ -361,7 +387,8 @@ describe("application ontology service", () => {
         "utf8",
       );
 
-      const service = createPf2eApplicationOntologyService(config, createDataService());
+      const dataService = createDataService();
+      const service = createPf2eApplicationOntologyService(config, dataService, createDiscoveryService(dataService));
       const domain = service.loadSearchSemanticsDomain();
       const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
@@ -424,17 +451,26 @@ describe("application ontology service", () => {
       }) satisfies SearchResult),
     };
 
-    const service = createPf2eApplicationOntologyService(createTestConfig(), dataService);
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
     const domain = service.loadSearchSemanticsDomain();
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
     const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
 
     expect(traitValueNodes).toHaveLength(14);
-    expect(traitValueNodes.at(-1)?.id).toBe("spell:traits:trait-14");
+    expect(traitValueNodes[0]?.id).toBe("spell:traits:trait-14");
   });
 
   it("uses live record inspection and live metric discovery instead of shallow examples", () => {
-    const service = createPf2eApplicationOntologyService(createTestConfig(), createDataService());
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
     const domain = service.loadSearchSemanticsDomain();
     const booleanGroupNode = findNodeById(domain.rootNodes, "spell:booleanGroup:and");
     const actorMetricCompareNode = findNodeById(domain.rootNodes, "creature:advanced:actorMetricCompare");
@@ -469,38 +505,46 @@ describe("application ontology service", () => {
     expect(actorMetricCompareNode?.query).toEqual({
       label: "Browse records matching the Actor Metric Compare example",
       request: {
-        category: "creature",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "actorMetricCompare",
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "creature",
+              subcategory: { kind: "any" },
+            },
+            {
+              kind: "metricCompare",
               leftMetric: "ability.int.mod",
-              op: ">",
+              op: "gt",
               rightMetric: "ability.cha.mod",
             },
-          },
-        ],
+          ],
+        },
         limit: 20,
       },
     });
     expect(itemMetricCompareNode?.query).toEqual({
       label: "Browse records matching the Item Metric Compare example",
       request: {
-        category: "equipment",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "itemMetricCompare",
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "equipment",
+              subcategory: { kind: "any" },
+            },
+            {
+              kind: "metricCompare",
               leftMetric: "shield.hp",
-              op: ">",
+              op: "gt",
               rightMetric: "shield.bt",
             },
-          },
-        ],
+          ],
+        },
         limit: 20,
       },
     });
@@ -512,19 +556,23 @@ describe("application ontology service", () => {
     expect(actorMetricValueNode?.query).toEqual({
       label: "Browse records where Best Save = fort",
       request: {
-        category: "creature",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "actorMetric",
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "creature",
+              subcategory: { kind: "any" },
+            },
+            {
+              kind: "metric",
               metric: "save.best",
-              op: "==",
+              op: "eq",
               value: "fort",
             },
-          },
-        ],
+          ],
+        },
         limit: 20,
       },
     });
@@ -533,19 +581,23 @@ describe("application ontology service", () => {
     expect(itemMetricNode?.query).toEqual({
       label: "Browse records with Weapon Reload",
       request: {
-        category: "equipment",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "itemMetricCompare",
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "equipment",
+              subcategory: { kind: "any" },
+            },
+            {
+              kind: "metricCompare",
               leftMetric: "weapon.reload",
-              op: ">=",
+              op: "gte",
               rightMetric: "weapon.reload",
             },
-          },
-        ],
+          ],
+        },
         limit: 20,
       },
     });
@@ -553,36 +605,50 @@ describe("application ontology service", () => {
     expect(commonTraitNode?.query).toEqual({
       label: "Browse records with this trait",
       request: {
-        category: "spell",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "traits",
-              op: "includesAny",
-              values: ["fire"],
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "spell",
+              subcategory: { kind: "any" },
             },
-          },
-        ],
+            {
+              kind: "metadataPredicate",
+              predicate: {
+                field: "traits",
+                op: "includes",
+                value: "fire",
+              },
+            },
+          ],
+        },
         limit: 20,
       },
     });
     expect(saveTypeValueNode?.query).toEqual({
       label: "Browse records with this value",
       request: {
-        category: "spell",
-        intent: "browse",
-        parts: [
-          {
-            kind: "metadataPredicate",
-            predicate: {
-              field: "saveType",
-              op: "eq",
-              value: "fortitude",
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "spell",
+              subcategory: { kind: "any" },
             },
-          },
-        ],
+            {
+              kind: "metadataPredicate",
+              predicate: {
+                field: "saveType",
+                op: "eq",
+                value: "fortitude",
+              },
+            },
+          ],
+        },
         limit: 20,
       },
     });

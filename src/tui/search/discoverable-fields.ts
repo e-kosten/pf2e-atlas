@@ -1,4 +1,5 @@
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { SearchDiscoveryField, SearchDiscoveryMetricGroup } from "../../app/search-discovery-service.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import {
   describeMetadataFieldType,
@@ -166,37 +167,15 @@ export function partitionDiscoverableQueryFieldSelections(
   return extractScopedQueryFieldSelections(node, new Set(scopedFields), fieldSemanticsByName);
 }
 
-export function getQueryFieldEditor(field: MetadataFieldSemantics): Pf2eTerminalQueryFieldEditor {
+export function getQueryFieldEditor(field: Pick<MetadataFieldSemantics, "fieldType">): Pf2eTerminalQueryFieldEditor {
   if (["set", "enumString", "boolean"].includes(field.fieldType)) {
     return "sharedExplorer";
   }
   return "structuredForm";
 }
 
-export function getScopedMetadataFields(
-  filterSemantics: {
-    metadataFieldsByCategory: Record<string, MetadataFieldSemantics["field"][]>;
-    metadataFieldsByCategoryAndSubcategory: Record<string, Record<string, MetadataFieldSemantics["field"][]>>;
-  },
-  category: SearchCategory | null,
-  subcategory: SearchSubcategory | null,
-): MetadataFieldSemantics["field"][] {
-  if (!category) {
-    return [];
-  }
-
-  const categoryFields = filterSemantics.metadataFieldsByCategory[category] ?? [];
-  const scopedFields = subcategory
-    ? (filterSemantics.metadataFieldsByCategoryAndSubcategory[category]?.[subcategory] ?? [])
-    : [];
-
-  return [...new Set([...categoryFields, ...scopedFields])];
-}
-
 function getMetricQueryFieldOptions(
-  filterSemantics: {
-    advancedPredicates: Array<{ name: string; categories: string[] }>;
-  },
+  metricGroups: readonly SearchDiscoveryMetricGroup[],
   category: SearchCategory | null,
 ): Pf2eTerminalQueryFieldOption[] {
   if (!category) {
@@ -204,11 +183,7 @@ function getMetricQueryFieldOptions(
   }
 
   const options: Pf2eTerminalQueryFieldOption[] = [];
-  if (
-    filterSemantics.advancedPredicates.some(
-      (predicate) => predicate.name === "actorMetric" && predicate.categories.includes(category),
-    )
-  ) {
+  if (metricGroups.some((group) => group.metadataField === "actorMetric")) {
     options.push({
       value: "actorMetric",
       label: getMetricDiscoveryGroupLabel(category, "actorMetrics"),
@@ -218,11 +193,7 @@ function getMetricQueryFieldOptions(
     });
   }
 
-  if (
-    filterSemantics.advancedPredicates.some(
-      (predicate) => predicate.name === "itemMetric" && predicate.categories.includes(category),
-    )
-  ) {
+  if (metricGroups.some((group) => group.metadataField === "itemMetric")) {
     options.push({
       value: "itemMetric",
       label: getMetricDiscoveryGroupLabel(category, "itemMetrics"),
@@ -236,32 +207,25 @@ function getMetricQueryFieldOptions(
 }
 
 export function getQueryFieldOptions(
-  filterSemantics: {
-    metadataFieldsByCategory: Record<string, MetadataFieldSemantics["field"][]>;
-    metadataFieldsByCategoryAndSubcategory: Record<string, Record<string, MetadataFieldSemantics["field"][]>>;
-    advancedPredicates: Array<{ name: string; categories: string[] }>;
-  },
-  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+  scopedFields: readonly SearchDiscoveryField[],
+  metricGroups: readonly SearchDiscoveryMetricGroup[],
   category: SearchCategory | null,
-  subcategory: SearchSubcategory | null,
 ): Pf2eTerminalQueryFieldOption[] {
   return [
-    ...getScopedMetadataFields(filterSemantics, category, subcategory)
-    .map((field) => fieldSemanticsByName.get(field))
-    .filter((field): field is MetadataFieldSemantics => Boolean(field))
-    .filter((field) => field.discoverable && !["rarity", "actionCost"].includes(field.field))
-    .map((field) => ({
-      value: field.field,
-      label: formatMetadataFieldLabel(field.field),
-      description:
-        field.notes ??
-        (field.field === "derivedTags"
-          ? "Derived-tag field with hierarchy-capable ontology browsing."
-          : `${describeMetadataFieldType(field.fieldType)} query field for the current browse scope.`),
-      fieldType: field.fieldType,
-      editor: getQueryFieldEditor(field),
-    })),
-    ...getMetricQueryFieldOptions(filterSemantics, category),
+    ...scopedFields
+      .filter((field) => field.discoverable && !["rarity", "actionCost"].includes(field.field))
+      .map((field) => ({
+        value: field.field,
+        label: formatMetadataFieldLabel(field.field),
+        description:
+          field.notes ??
+          (field.field === "derivedTags"
+            ? "Derived-tag field with hierarchy-capable ontology browsing."
+            : `${describeMetadataFieldType(field.fieldType)} query field for the current browse scope.`),
+        fieldType: field.fieldType,
+        editor: getQueryFieldEditor(field),
+      })),
+    ...getMetricQueryFieldOptions(metricGroups, category),
   ];
 }
 

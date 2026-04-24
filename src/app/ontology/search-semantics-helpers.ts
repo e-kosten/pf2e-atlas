@@ -1,7 +1,7 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
+import { createScopedSearchDiscoveryApplicability, type Pf2eApplicationSearchDiscoveryService } from "../search-discovery-service.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
-import type { Pf2eDataService } from "../../data/service.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,
@@ -14,8 +14,9 @@ import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../../doma
 import type { OntologyNode } from "../../domain/ontology-types.js";
 import type { MetadataAtomicPredicate } from "../../domain/search-filter-metadata.js";
 import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode } from "../../domain/search-request-types.js";
+import type { SearchRequest } from "../../domain/search-request-types.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import type { SearchCategory, SearchResult, SearchSubcategory } from "../../domain/search-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import {
   buildFilterText,
@@ -25,8 +26,14 @@ import {
   titleCaseLabel,
 } from "./node-helpers.js";
 
-type SearchSemanticsRecordsDataService = Pick<Pf2eDataService, "listRecords">;
-type SearchSemanticsDiscoveryDataService = Pick<Pf2eDataService, "listFilterValues" | "listRecords">;
+type SearchSemanticsRecordsDataService = {
+  listRecords: (request: SearchRequest) => SearchResult;
+};
+
+type SearchSemanticsDiscoveryService = Pick<
+  Pf2eApplicationSearchDiscoveryService,
+  "discoverMetricKeys" | "discoverMetricValues"
+>;
 
 const METRIC_SEGMENT_LABELS: Readonly<Record<string, string>> = {
   ac: "AC",
@@ -480,7 +487,7 @@ export function buildFieldValueNodes(
   dataService: SearchSemanticsRecordsDataService,
   category: SearchCategory,
   subcategory: SearchSubcategory | null,
-  fieldSemantics: MetadataFieldSemantics,
+  fieldSemantics: Pick<MetadataFieldSemantics, "field" | "fieldType">,
   values: ReadonlyArray<{ value: string; count: number }>,
   metadataGlossary: MetadataGlossaryArtifact | null,
 ): readonly OntologyNode[] {
@@ -545,7 +552,7 @@ export function buildFieldValueNodes(
 }
 
 function buildMetricValueNodes(
-  dataService: SearchSemanticsDiscoveryDataService,
+  recordsService: SearchSemanticsRecordsDataService,
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
@@ -597,13 +604,14 @@ function buildMetricValueNodes(
         buildResultReaderHint(),
       ),
       query,
-      loadChildren: () => buildQueryRecordChildren(dataService, query),
+      loadChildren: () => buildQueryRecordChildren(recordsService, query),
     };
   });
 }
 
 function buildMetricKeyNode(
-  dataService: SearchSemanticsDiscoveryDataService,
+  recordsService: SearchSemanticsRecordsDataService,
+  discoveryService: SearchSemanticsDiscoveryService,
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
@@ -623,6 +631,7 @@ function buildMetricKeyNode(
     valueType === "number"
       ? buildMetricInspectQuery(category, subcategory, metricField, metricKey, metricLabel)
       : undefined;
+  const applicability = createScopedSearchDiscoveryApplicability("browse", category, subcategory);
 
   return {
     id: `${idPrefix}:${metricField}:${metricKey}`,
@@ -664,7 +673,7 @@ function buildMetricKeyNode(
     loadChildren:
       valueType === "text" || valueType === "boolean"
         ? () =>
-            buildMetricValueNodes(dataService, {
+            buildMetricValueNodes(recordsService, {
               category,
               subcategory,
               groupLabel,
@@ -672,19 +681,22 @@ function buildMetricKeyNode(
               metadataField,
               metricKey,
               valueType,
-              values: dataService.listFilterValues({
-                field: metricField,
-                category,
-                subcategory: subcategory ?? undefined,
-                metric: metricKey,
-              }).values,
+              values: discoveryService.discoverMetricValues({
+                applicability,
+                metricField,
+                metricKey,
+              }).map((entry) => ({
+                value: String(entry.value),
+                count: entry.count,
+              })),
             })
         : undefined,
   };
 }
 
 function buildMetricNamespaceNode(
-  dataService: SearchSemanticsDiscoveryDataService,
+  recordsService: SearchSemanticsRecordsDataService,
+  discoveryService: SearchSemanticsDiscoveryService,
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
@@ -697,6 +709,7 @@ function buildMetricNamespaceNode(
 ): OntologyNode {
   const { category, subcategory, groupLabel, metricField, metadataField, prefix, description } = options;
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  const applicability = createScopedSearchDiscoveryApplicability("browse", category, subcategory);
   return {
     id: `${idPrefix}:${metricField}:namespace:${prefix}`,
     kind: "metricNamespace",
@@ -715,21 +728,20 @@ function buildMetricNamespaceNode(
       },
     ],
     loadChildren: () =>
-      dataService
-        .listFilterValues({
-          field: metricField,
-          category,
-          subcategory: subcategory ?? undefined,
+      discoveryService
+        .discoverMetricKeys({
+          applicability,
+          metricField,
           metricPrefix: prefix,
         })
-        .values.map((entry) =>
-          buildMetricKeyNode(dataService, {
+        .map((entry) =>
+          buildMetricKeyNode(recordsService, discoveryService, {
             category,
             subcategory,
             groupLabel,
             metricField,
             metadataField,
-            metricKey: entry.value,
+            metricKey: String(entry.value),
             liveRecordCount: entry.count,
           }),
         ),
@@ -737,7 +749,8 @@ function buildMetricNamespaceNode(
 }
 
 export function buildMetricDiscoveryGroup(
-  dataService: SearchSemanticsDiscoveryDataService,
+  recordsService: SearchSemanticsRecordsDataService,
+  discoveryService: SearchSemanticsDiscoveryService,
   options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
@@ -766,7 +779,7 @@ export function buildMetricDiscoveryGroup(
       `Explore live ${label.toLowerCase()} namespaces, keys, and exact scalar values from the indexed corpus.`,
     ),
     children: namespaces.map((namespace) =>
-      buildMetricNamespaceNode(dataService, {
+      buildMetricNamespaceNode(recordsService, discoveryService, {
         category,
         subcategory,
         groupLabel: label,
