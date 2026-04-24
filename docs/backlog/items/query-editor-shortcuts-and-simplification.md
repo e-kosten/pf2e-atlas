@@ -7,9 +7,9 @@ Last reviewed: 2026-04-23
 
 ## Problem
 
-The canonical query-tree editor should land first in its verbose, explicit form so the core workflow is clear and stable.
+The canonical query-tree editor is now landed in its verbose, explicit form, which makes the core workflow clear but also exposes the places where follow-up simplification may be worthwhile.
 
-That will likely leave follow-up opportunities for simplification once the new editor is in use, such as:
+That already leaves follow-up opportunities such as:
 
 - shortcut actions for common filter patterns
 - automatic or semi-automatic regrouping helpers
@@ -18,7 +18,7 @@ That will likely leave follow-up opportunities for simplification once the new e
 
 ## Desired Outcome
 
-Add deliberate editor shortcuts and simplification affordances only after the verbose/core query editor has landed and its friction points are better understood in practice.
+Add deliberate editor shortcuts and simplification affordances now that the verbose/core query editor is in use and its friction points can be judged from real usage rather than speculation.
 
 ## Constraints
 

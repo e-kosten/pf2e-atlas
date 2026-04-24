@@ -7,7 +7,7 @@ Last reviewed: 2026-04-22
 
 ## Problem
 
-The shared list/detail presentation cleanup now covers default result-row readability, breadcrumb formatting, and lightweight footer notifications, but it still exposes only one default presentation mode per surface.
+The shared list/detail presentation cleanup now covers default result-row readability, breadcrumb formatting, lightweight footer notifications, and lookup-specific tiered/global presentation through the shared grouping seam.
 
 Future grouping work should not grow as one-off experiments inside search, ontology, or review screens. If users need to pivot between grouped and flat presentations, that capability needs one shared owner and one shared vocabulary for the available modes.
 

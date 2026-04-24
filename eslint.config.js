@@ -1016,6 +1016,7 @@ export default defineConfig(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
       ),
+      "arch/no-direct-search-discovery-primitives": "error",
     },
   },
   {

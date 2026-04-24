@@ -101,6 +101,11 @@ const DATABASE_SYNC_ALLOWED_PATHS = [
   /^src\/tags\/cli\/.+\.ts$/,
 ];
 
+const SEARCH_DISCOVERY_PRIMITIVE_ALLOWED_PATHS = [
+  "src/app/search-discovery-service.ts",
+  "src/server/register-search-tools.ts",
+];
+
 const localRules = {
   "no-direct-json-parse": {
     meta: {
@@ -178,6 +183,37 @@ const localRules = {
       return {
         TSAsExpression: reportIfRestrictedAssertion,
         TSTypeAssertion: reportIfRestrictedAssertion,
+      };
+    },
+  },
+  "no-direct-search-discovery-primitives": {
+    meta: {
+      type: "problem",
+      docs: {
+        description:
+          "Keep low-level discovery primitive calls behind the shared app-facing discovery boundary or approved server surfaces.",
+      },
+      schema: [],
+      messages: {
+        noDirectSearchDiscoveryPrimitive:
+          "Do not call low-level discovery primitives here. Route discovery through src/app/search-discovery-service.ts or an approved server surface.",
+      },
+    },
+    create(context) {
+      const filename = toRepoRelativePath(context.filename);
+      if (matchesAllowedPath(filename, SEARCH_DISCOVERY_PRIMITIVE_ALLOWED_PATHS)) {
+        return {};
+      }
+
+      return {
+        CallExpression(node) {
+          if (
+            isMemberProperty(node.callee, "listFilterValues") ||
+            isMemberProperty(node.callee, "discoverFilterValues")
+          ) {
+            context.report({ node, messageId: "noDirectSearchDiscoveryPrimitive" });
+          }
+        },
       };
     },
   },
