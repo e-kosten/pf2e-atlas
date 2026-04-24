@@ -1,5 +1,5 @@
 export type TerminalModalLayoutKind = "dialog" | "text" | "command" | "select" | "multiselect" | "policy";
-export type TerminalModalPresentation = "inline" | "screen";
+export type TerminalModalPresentation = "inline" | "screen" | "centered";
 export type TerminalModalPaneMode = "single-column" | "two-pane";
 export type TerminalModalOverflowMode = "fit" | "scroll" | "window";
 
@@ -94,6 +94,7 @@ export type TerminalModalLayoutResult = {
   totalHeight: number;
   bodyHeight: number;
   showTopBorder: boolean;
+  panelWidth?: number;
   paneMode: TerminalModalPaneMode;
   paneWidths?: TerminalModalPaneWidths;
   visibleListCapacity: number;

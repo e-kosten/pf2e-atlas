@@ -234,6 +234,32 @@ function SelectPromptHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }, { text: `appJ=${appJPresses}` }]} />;
 }
 
+function CenteredModePromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Choose Search Mode",
+        prompt: "",
+        presentation: "centered",
+        choiceLayout: "horizontal",
+        filtering: false,
+        entries: [
+          { value: "browse", label: "Browse", description: "Explore records without text search." },
+          { value: "search", label: "Search", description: "Search named records and ranked text matches." },
+          { value: "lookup", label: "Lookup", description: "Jump straight to exact or fuzzy name lookup." },
+        ],
+      })
+      .then((selection) => {
+        setResult(formatSelectResult(selection));
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
 function TextPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -335,6 +361,60 @@ function PolicyPromptHarness(): React.JSX.Element {
   }, []);
 
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function FilterableChoicePromptHarness({
+  kind,
+}: {
+  kind: "select" | "multiselect" | "policy";
+}): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+  const entries = React.useMemo(
+    () => [
+      { value: "common", label: "Common", description: "Common rarity" },
+      { value: "rare", label: "Rare", description: "Rare rarity" },
+      { value: "cold", label: "Cold", description: "Cold damage" },
+    ],
+    [],
+  );
+
+  React.useEffect(() => {
+    if (kind === "select") {
+      void terminal
+        .promptSelectOption({
+          title: "Filterable Select",
+          prompt: "Choose a value",
+          entries,
+        })
+        .then((selection) => setResult(formatSelectResult(selection)));
+      return;
+    }
+    if (kind === "multiselect") {
+      void terminal
+        .promptMultiSelectOption({
+          title: "Filterable Multi",
+          prompt: "Choose values",
+          entries,
+        })
+        .then((selection) => setResult(selection.join(",") || "empty"));
+      return;
+    }
+    void terminal
+      .promptPolicySelectOption({
+        title: "Filterable Policy",
+        prompt: "Choose policies",
+        allowedStates: ["any", "all", "exclude"],
+        entries,
+      })
+      .then((selection) => {
+        setResult(
+          `any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`,
+        );
+      });
+  }, [entries, kind]);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `kind=${kind}` }, { text: `result=${result}` }]} />;
 }
 
 function LongSelectPromptHarness(): React.JSX.Element {
@@ -821,6 +901,29 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=item-6");
   });
 
+  it("renders centered horizontal choice dialogs through the shared select prompt path", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <CenteredModePromptHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    expect(app.lastFrame()).toContain("[ Browse ]   Search   Lookup");
+    expect(app.lastFrame()).toContain("←/→ change mode");
+
+    app.stdin.write("\u001b[C");
+    await flushInkFrames(2);
+    expect(app.lastFrame()).toContain("Browse   [ Search ]   Lookup");
+    expect(app.lastFrame()).toContain("Search named records and ranked text matches.");
+
+    app.stdin.write("\r");
+    await flushInkFrames(2);
+    expect(app.lastFrame()).toContain("result=search");
+  });
+
   it("supports typed all-selections without sentinel values", async () => {
     const allApp = render(
       <DerivedTagTerminalProvider>
@@ -871,6 +974,74 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\r");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=facet");
+  });
+
+  it("shares slash filtering across select, multiselect, and policy prompts", async () => {
+    const selectApp = render(
+      <DerivedTagTerminalProvider>
+        <FilterableChoicePromptHarness kind="select" />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    selectApp.stdin.write("/");
+    await flushInkFrames(2);
+    for (const character of "rare") {
+      selectApp.stdin.write(character);
+    }
+    await flushInkFrames(2);
+    expect(selectApp.lastFrame()).toContain("Search /rare");
+    expect(selectApp.lastFrame()).toContain("Rare");
+    expect(selectApp.lastFrame()).not.toContain("Common");
+    selectApp.stdin.write("\r");
+    await flushInkFrames();
+    selectApp.stdin.write("\r");
+    await flushInkFrames();
+    expect(selectApp.lastFrame()).toContain("result=rare");
+    selectApp.unmount();
+
+    const multiApp = render(
+      <DerivedTagTerminalProvider>
+        <FilterableChoicePromptHarness kind="multiselect" />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    multiApp.stdin.write("/");
+    await flushInkFrames(2);
+    for (const character of "rare") {
+      multiApp.stdin.write(character);
+    }
+    await flushInkFrames(2);
+    multiApp.stdin.write("\r");
+    await flushInkFrames();
+    multiApp.stdin.write("\r");
+    await flushInkFrames();
+    multiApp.stdin.write("\u007f");
+    await flushInkFrames();
+    expect(multiApp.lastFrame()).toContain("result=rare");
+    multiApp.unmount();
+
+    const policyApp = render(
+      <DerivedTagTerminalProvider>
+        <FilterableChoicePromptHarness kind="policy" />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    policyApp.stdin.write("/");
+    await flushInkFrames(2);
+    for (const character of "cold") {
+      policyApp.stdin.write(character);
+    }
+    await flushInkFrames(2);
+    policyApp.stdin.write("\r");
+    await flushInkFrames();
+    policyApp.stdin.write("\r");
+    await flushInkFrames();
+    policyApp.stdin.write("\u007f");
+    await flushInkFrames();
+    expect(policyApp.lastFrame()).toContain("result=any=cold|all=-|exclude=-");
   });
 
   it("uses the same inline list-capacity planning across command and select-like prompts", async () => {

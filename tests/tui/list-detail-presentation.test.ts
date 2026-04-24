@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTerminalGroupedListLines,
   buildTerminalListDetailScreenModel,
   buildTerminalListDetailNotificationLine,
   createTerminalListDetailNotification,
@@ -58,6 +59,25 @@ describe("list detail presentation", () => {
     expect(screen.props.left.active).toBe(false);
     expect(screen.props.right.active).toBe(true);
     expect(screen.props.right.lines).toEqual([{ text: "Detail 1" }]);
+  });
+
+  it("builds grouped list rows through the shared list/detail presentation owner", () => {
+    const lines = buildTerminalGroupedListLines({
+      items: [
+        { label: "Fireball", group: { key: "exact", label: "Exact" } },
+        { label: "Firewall", group: { key: "fuzzy", label: "Fuzzy" } },
+      ],
+      selectedIndex: 1,
+      getGroup: (item) => item.group,
+      buildItemLine: (item, options) => ({
+        text: item.label,
+        tone: options.selected ? "selected" : "default",
+      }),
+    });
+
+    expect(lines.map((line) => line.text)).toEqual(["Exact", "Fireball", "", "Fuzzy", "Firewall"]);
+    expect(lines[0]?.tone).toBe("section");
+    expect(lines[4]?.tone).toBe("selected");
   });
 
   it("builds a detail-only screen model and appends transition footer status", () => {

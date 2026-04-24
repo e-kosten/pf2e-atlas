@@ -119,6 +119,8 @@ export function DerivedTagTerminalProvider({
             kind: "select",
             options: modalOptions,
             selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+            filterText: "",
+            filterMode: false,
             resolve: resolve as (
               value:
                 | DerivedTagTerminalSelectPromptResult<unknown>
@@ -141,6 +143,8 @@ export function DerivedTagTerminalProvider({
             kind: "policy",
             options: options as PolicyPromptOptions<string>,
             selectedIndex,
+            filterText: "",
+            filterMode: false,
             valueStates,
             resolve: resolve as (value: DerivedTagTerminalPolicySelection<string>) => void,
           });
@@ -155,6 +159,8 @@ export function DerivedTagTerminalProvider({
             kind: "multiselect",
             options: options as MultiSelectPromptOptions<string>,
             selectedIndex,
+            filterText: "",
+            filterMode: false,
             selectedValues: options.selectedValues ? [...options.selectedValues] : [],
             resolve: resolve as (value: string[]) => void,
           });
@@ -166,6 +172,8 @@ export function DerivedTagTerminalProvider({
             kind: "select",
             options: modalOptions,
             selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+            filterText: "",
+            filterMode: false,
             resolve: resolve as (
               value:
                 | DerivedTagTerminalSelectPromptResult<unknown>
@@ -196,7 +204,7 @@ export function DerivedTagTerminalProvider({
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      {modal && modalLayout?.presentation === "screen" ? (
+      {modal && (modalLayout?.presentation === "screen" || modalLayout?.presentation === "centered") ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}

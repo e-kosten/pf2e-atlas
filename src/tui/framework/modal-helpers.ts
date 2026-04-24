@@ -2,12 +2,19 @@ import type {
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
   DerivedTagTerminalPolicySelection,
+  MultiSelectPromptOptions,
+  PolicyPromptOptions,
   SelectPromptOptions,
   OptionalSelectPromptOptions,
   TerminalSelectModalEntry,
   TerminalSelectModalOptions,
   TerminalSelectOptionDetails,
 } from "./types.js";
+
+export type IndexedTerminalPromptEntry<T> = {
+  entry: T;
+  originalIndex: number;
+};
 
 export function createEmptyPolicySelection<T extends string>(): DerivedTagTerminalPolicySelection<T> {
   return {
@@ -60,6 +67,8 @@ export function buildSelectModalOptions<T>(options: SelectPromptOptions<T>): Ter
       detailLines: entry.detailLines,
     })),
     presentation: options.presentation,
+    choiceLayout: options.choiceLayout ?? "list",
+    filtering: options.filtering ?? true,
   };
 }
 
@@ -86,6 +95,8 @@ export function buildOptionalSelectModalOptions<T>(
       })),
     ],
     presentation: options.presentation,
+    choiceLayout: options.choiceLayout ?? "list",
+    filtering: options.filtering ?? true,
   };
 }
 
@@ -102,23 +113,12 @@ export function filterCommandPaletteEntries(
   entries: DerivedTagTerminalCommandOption<string>[],
   filterText: string,
 ): DerivedTagTerminalCommandOption<string>[] {
-  const normalizedTerms = filterText
-    .toLowerCase()
-    .split(/\s+/)
-    .map((term) => term.trim())
-    .filter((term) => term.length > 0);
-
-  if (normalizedTerms.length === 0) {
-    return entries;
-  }
-
-  return entries.filter((entry) => {
-    const searchableText = [entry.label, entry.description ?? "", ...(entry.aliases ?? []), ...(entry.keywords ?? [])]
-      .join(" ")
-      .toLowerCase();
-
-    return normalizedTerms.every((term) => searchableText.includes(term));
-  });
+  return filterEntriesByTerms(entries, filterText, (entry) => [
+    entry.label,
+    entry.description ?? "",
+    ...(entry.aliases ?? []),
+    ...(entry.keywords ?? []),
+  ]);
 }
 
 export function getFirstEnabledCommandIndex(entries: DerivedTagTerminalCommandOption<string>[]): number {
@@ -151,4 +151,69 @@ export function buildCommandPaletteDetailLines(
     { text: "" },
     { text: `Filter: ${filterText || "(none)"}`, tone: "accent" as const },
   ];
+}
+
+export function filterPromptEntries<T extends TerminalSelectOptionDetails>(
+  entries: readonly T[],
+  filterText: string,
+): IndexedTerminalPromptEntry<T>[] {
+  const normalizedTerms = filterText
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0);
+
+  if (normalizedTerms.length === 0) {
+    return entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+  }
+
+  return entries.flatMap((entry, originalIndex) => {
+    const searchableText = [entry.label, entry.description ?? "", ...(entry.detailLines?.map((line) => line.text) ?? [])]
+      .join(" ")
+      .toLowerCase();
+    return normalizedTerms.every((term) => searchableText.includes(term)) ? [{ entry, originalIndex }] : [];
+  });
+}
+
+export function getFilteredPromptSelectionIndex<T extends TerminalSelectOptionDetails>(
+  entries: readonly T[],
+  selectedIndex: number,
+  filterText: string,
+): number {
+  const filteredEntries = filterPromptEntries(entries, filterText);
+  if (filteredEntries.length === 0) {
+    return clampPromptSelectionIndex(selectedIndex, entries.length);
+  }
+
+  const visibleSelected = filteredEntries.find((entry) => entry.originalIndex === selectedIndex);
+  return visibleSelected?.originalIndex ?? filteredEntries[0]!.originalIndex;
+}
+
+export function getMultiSelectPromptFilteringEnabled(options: MultiSelectPromptOptions<string>): boolean {
+  return options.filtering ?? true;
+}
+
+export function getPolicyPromptFilteringEnabled(options: PolicyPromptOptions<string>): boolean {
+  return options.filtering ?? true;
+}
+
+function filterEntriesByTerms<T>(
+  entries: readonly T[],
+  filterText: string,
+  buildSearchableTerms: (entry: T) => string[],
+): T[] {
+  const normalizedTerms = filterText
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0);
+
+  if (normalizedTerms.length === 0) {
+    return [...entries];
+  }
+
+  return entries.filter((entry) => {
+    const searchableText = buildSearchableTerms(entry).join(" ").toLowerCase();
+    return normalizedTerms.every((term) => searchableText.includes(term));
+  });
 }

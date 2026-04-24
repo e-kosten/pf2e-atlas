@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
-import { buildSearchResultRowLine, formatTerminalBreadcrumb } from "../../src/tui/list-detail-formatting.js";
+import {
+  buildSearchResultRowLine,
+  buildTerminalListDetailGroupLine,
+  buildTerminalListDetailMetadataLines,
+  buildTerminalResultRowLine,
+  formatTerminalBreadcrumb,
+} from "../../src/tui/list-detail-formatting.js";
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
   return {
@@ -89,5 +95,32 @@ describe("list detail formatting", () => {
 
     expect(line.text).toBe("Guardian Adept | L4 | Rare | Pathfinder Monster Core");
     expect(line.text).not.toContain("creature/npc");
+  });
+
+  it("formats shared row, group, and detail metadata hooks through the shared owner", () => {
+    expect(
+      buildTerminalResultRowLine("Guardian Adept", {
+        selected: false,
+        metadata: {
+          subtitle: "Creature",
+          badges: ["exact"],
+          metadataParts: ["L4"],
+        },
+      }).text,
+    ).toBe("Guardian Adept | Creature | L4 | [exact]");
+    expect(buildTerminalListDetailGroupLine({ key: "exact", label: "Exact Matches" })).toEqual({
+      text: "Exact Matches",
+      tone: "section",
+      noWrap: true,
+    });
+    expect(
+      buildTerminalListDetailMetadataLines([
+        { label: "Showing", value: "result 1/3" },
+        { label: "Sort", value: "Ranked" },
+      ]),
+    ).toEqual([
+      { text: "Showing: result 1/3", noWrap: true },
+      { text: "Sort: Ranked", noWrap: true },
+    ]);
   });
 });

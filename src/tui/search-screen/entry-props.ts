@@ -6,6 +6,7 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 type SearchScreenCommonProps = {
   transitionStatus?: RouteTransitionStatus | null;
   origin?: SearchScreenOrigin;
+  promptForInitialMode?: boolean;
   onBack: () => void;
 };
 

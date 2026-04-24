@@ -4,7 +4,8 @@ import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import { clampWindowStart } from "../list-utils.js";
-import { buildSearchResultRowLine } from "../list-detail-formatting.js";
+import { buildSearchResultRowLine, buildTerminalListDetailMetadataLines } from "../list-detail-formatting.js";
+import { buildTerminalGroupedListLines } from "../list-detail-presentation.js";
 import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
@@ -46,17 +47,16 @@ export function buildResultLines(
   const localSelectedIndex = selectedIndex - session.windowOffset;
   const safeIndex = Math.max(0, Math.min(localSelectedIndex, session.results.length - 1));
   const windowStart = clampWindowStart(safeIndex, session.results.length, resultWindowCount);
-
-  const lines: DerivedTagTerminalLine[] = session.results
-    .slice(windowStart, windowStart + resultWindowCount)
-    .map((record, offset) =>
+  const visibleRecords = session.results.slice(windowStart, windowStart + resultWindowCount);
+  const lines: DerivedTagTerminalLine[] = buildTerminalGroupedListLines({
+    items: visibleRecords,
+    selectedIndex:
+      localSelectedIndex >= 0 && localSelectedIndex < session.results.length ? localSelectedIndex - windowStart : 0,
+    buildItemLine: (record, options) =>
       buildSearchResultRowLine(record, {
-        selected:
-          localSelectedIndex >= 0 &&
-          localSelectedIndex < session.results.length &&
-          windowStart + offset === localSelectedIndex,
+        selected: options.selected,
       }),
-    );
+  });
 
   if (loadingMore) {
     lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
@@ -71,8 +71,10 @@ export function buildPendingResultDetailLines(
 ): DerivedTagTerminalLine[] {
   return [
     { text: "Result Preview", tone: "section" },
-    { text: `Showing result ${formatResultPosition(resultIndex, session.total)}` },
-    { text: `Sort: ${formatSort(session.sort)}` },
+    ...buildTerminalListDetailMetadataLines([
+      { label: "Showing", value: `result ${formatResultPosition(resultIndex, session.total)}` },
+      { label: "Sort", value: formatSort(session.sort) },
+    ]),
     { text: "" },
     { text: "Loading the result window around the current selection.", tone: "accent" },
     { text: `Current buffer: ${getSessionBufferRange(session)}`, tone: "dim" },
@@ -86,8 +88,11 @@ export function buildResultDetailLines(
 ): DerivedTagTerminalLine[] {
   return [
     { text: "Result Preview", tone: "section" },
-    { text: `Showing result ${formatResultPosition(resultIndex, session.total)}` },
-    { text: `Sort: ${formatSort(session.sort)}` },
+    ...buildTerminalListDetailMetadataLines([
+      { label: "Showing", value: `result ${formatResultPosition(resultIndex, session.total)}` },
+      { label: "Sort", value: formatSort(session.sort) },
+      { label: "Source", value: record.packLabel },
+    ]),
     { text: "" },
     ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
   ];

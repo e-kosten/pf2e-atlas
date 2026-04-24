@@ -16,7 +16,11 @@ import {
   clampPromptSelectionIndex,
   createEmptyPolicySelection,
   filterCommandPaletteEntries,
+  filterPromptEntries,
   getFirstEnabledCommandIndex,
+  getFilteredPromptSelectionIndex,
+  getMultiSelectPromptFilteringEnabled,
+  getPolicyPromptFilteringEnabled,
 } from "./modal-helpers.js";
 import {
   buildPolicySelection,
@@ -30,9 +34,53 @@ import {
   SelectPromptBody,
   TextPromptBody,
 } from "./modal-prompt-bodies.js";
-import { TerminalInlinePromptPanel } from "./screen-components.js";
+import { TerminalCenteredOverlayPanel, TerminalInlinePromptPanel } from "./screen-components.js";
 import type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
 import type { TerminalModalState } from "./types.js";
+
+function getChoicePromptFilteringEnabled(
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+): boolean {
+  if (modal.kind === "select") {
+    return modal.options.filtering;
+  }
+  return modal.kind === "multiselect"
+    ? getMultiSelectPromptFilteringEnabled(modal.options)
+    : getPolicyPromptFilteringEnabled(modal.options);
+}
+
+function getFilteredChoiceEntries(
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+) {
+  switch (modal.kind) {
+    case "select":
+      return !modal.options.filtering || modal.options.choiceLayout === "horizontal"
+        ? modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }))
+        : filterPromptEntries(modal.options.entries, modal.filterText);
+    case "multiselect":
+      return getMultiSelectPromptFilteringEnabled(modal.options)
+        ? filterPromptEntries(modal.options.entries, modal.filterText)
+        : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+    case "policy":
+      return getPolicyPromptFilteringEnabled(modal.options)
+        ? filterPromptEntries(modal.options.entries, modal.filterText)
+        : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+  }
+}
+
+function getChoicePromptSelectionIndex(
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+  filterText = modal.filterText,
+): number {
+  switch (modal.kind) {
+    case "select":
+      return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
+    case "multiselect":
+      return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
+    case "policy":
+      return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
+  }
+}
 
 export function DerivedTagTerminalModalHost({
   modal,
@@ -198,29 +246,142 @@ export function DerivedTagTerminalModalHost({
         return;
       }
 
-      if (modal.kind === "select" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
+      const filteredEntries = getFilteredChoiceEntries(modal);
+      const filteredSelectedIndex = getChoicePromptSelectionIndex(modal);
+
+      if (modal.filterMode) {
+        if (event.isConfirmKey()) {
+          setModal((current) =>
+            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+              ? { ...current, filterMode: false }
+              : current,
+          );
+          return;
+        }
+        if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
+          setModal((current) =>
+            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+              ? { ...current, filterMode: false, filterText: "" }
+              : current,
+          );
+          return;
+        }
+        if (event.textInputAction === "deleteBackward") {
+          setModal((current) =>
+            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+              ? {
+                  ...current,
+                  filterText: [...current.filterText].slice(0, -1).join(""),
+                  selectedIndex: getChoicePromptSelectionIndex(
+                    current,
+                    [...current.filterText].slice(0, -1).join(""),
+                  ),
+                }
+              : current,
+          );
+          return;
+        }
+        if (event.printable) {
+          setModal((current) =>
+            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+              ? {
+                  ...current,
+                  filterText: current.filterText + event.printable,
+                  selectedIndex: getChoicePromptSelectionIndex(current, current.filterText + event.printable),
+                }
+              : current,
+          );
+        }
+        return;
+      }
+
+      if (getChoicePromptFilteringEnabled(modal) && event.isSearchKey()) {
+        setModal((current) =>
+          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+            ? { ...current, filterMode: true }
+            : current,
+        );
+        return;
+      }
+
+      if (filteredEntries.length === 0) {
+        if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
+          setModal(null);
+          if (modal.kind === "select") {
+            modal.resolve({ kind: "cancelled" });
+            return;
+          }
+          if (modal.kind === "multiselect") {
+            modal.resolve([]);
+            return;
+          }
+          modal.resolve(createEmptyPolicySelection());
+        }
+        return;
+      }
+
+      if (modal.kind === "select" && (modal.options.choiceLayout === "horizontal" || layout.presentation === "centered")) {
+        const selectedVisibleIndex = Math.max(
+          0,
+          filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
+        );
+        if (event.isMoveLeftKey() || event.isMoveUpKey()) {
+          setModal((current) =>
+            current?.kind === "select"
+              ? {
+                  ...current,
+                  selectedIndex:
+                    filteredEntries[
+                      moveSelectionWrapped(selectedVisibleIndex, -1, Math.max(1, filteredEntries.length))
+                    ]?.originalIndex ?? current.selectedIndex,
+                }
+              : current,
+          );
+          return;
+        }
+        if (event.isMoveRightKey() || event.isMoveDownKey()) {
+          setModal((current) =>
+            current?.kind === "select"
+              ? {
+                  ...current,
+                  selectedIndex:
+                    filteredEntries[
+                      moveSelectionWrapped(selectedVisibleIndex, 1, Math.max(1, filteredEntries.length))
+                    ]?.originalIndex ?? current.selectedIndex,
+                }
+              : current,
+          );
+          return;
+        }
+        if (event.isTerminalBoundaryStartKey()) {
+          setModal((current) =>
+            current?.kind === "select" ? { ...current, selectedIndex: filteredEntries[0]?.originalIndex ?? 0 } : current,
+          );
+          return;
+        }
+        if (event.isTerminalBoundaryEndKey()) {
+          setModal((current) =>
+            current?.kind === "select"
+              ? { ...current, selectedIndex: filteredEntries.at(-1)?.originalIndex ?? current.selectedIndex }
+              : current,
+          );
+          return;
+        }
+        if (event.isConfirmKey()) {
+          const resolver = modal.resolve;
+          const selected = modal.options.entries[filteredSelectedIndex];
+          setModal(null);
+          if (!selected) {
+            resolver({ kind: "cancelled" });
+            return;
+          }
+          resolver(selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value });
+          return;
+        }
+        if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolver({ kind: "cancelled" });
-        }
-        return;
-      }
-
-      if (modal.kind === "multiselect" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolver([]);
-        }
-        return;
-      }
-
-      if (modal.kind === "policy" && modal.options.entries.length === 0) {
-        if (event.isBackNavigationKey() || event.isTerminalQuitKey()) {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolver(createEmptyPolicySelection());
         }
         return;
       }
@@ -236,11 +397,18 @@ export function DerivedTagTerminalModalHost({
 
       if (routed.route.navigationAction?.kind === "move") {
         const delta = routed.route.navigationAction.delta;
+        const selectedVisibleIndex = Math.max(
+          0,
+          filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
+        );
         setModal((current) =>
           current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
             ? {
                 ...current,
-                selectedIndex: moveSelectionWrapped(current.selectedIndex, delta, current.options.entries.length),
+                selectedIndex:
+                  filteredEntries[
+                    moveSelectionWrapped(selectedVisibleIndex, delta, Math.max(1, filteredEntries.length))
+                  ]?.originalIndex ?? current.selectedIndex,
               }
             : current,
         );
@@ -252,14 +420,17 @@ export function DerivedTagTerminalModalHost({
           current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
             ? {
                 ...current,
-                selectedIndex: boundary === "start" ? 0 : Math.max(0, current.options.entries.length - 1),
+                selectedIndex:
+                  boundary === "start"
+                    ? (filteredEntries[0]?.originalIndex ?? 0)
+                    : (filteredEntries.at(-1)?.originalIndex ?? current.selectedIndex),
               }
             : current,
         );
         return;
       }
       if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "toggle") {
-        const selected = modal.options.entries[modal.selectedIndex]?.value;
+        const selected = modal.options.entries[filteredSelectedIndex]?.value;
         if (!selected) {
           return;
         }
@@ -277,7 +448,7 @@ export function DerivedTagTerminalModalHost({
       }
       if (modal.kind === "select" && routed.route.interactionAction?.id === "select") {
         const resolver = modal.resolve;
-        const selected = modal.options.entries[modal.selectedIndex];
+        const selected = modal.options.entries[filteredSelectedIndex];
         setModal(null);
         if (!selected) {
           resolver({ kind: "cancelled" });
@@ -294,7 +465,7 @@ export function DerivedTagTerminalModalHost({
         return;
       }
       if (modal.kind === "policy" && routed.route.cycleDirection) {
-        const selected = modal.options.entries[modal.selectedIndex]?.value;
+        const selected = modal.options.entries[filteredSelectedIndex]?.value;
         if (!selected) {
           return;
         }
@@ -335,55 +506,78 @@ export function DerivedTagTerminalModalHost({
     return null;
   }
 
+  const panelWidth = layout.presentation === "centered" ? (layout.panelWidth ?? Math.max(24, width - 4)) : width;
+  const renderPanel = (panel: React.JSX.Element): React.JSX.Element =>
+    layout.presentation === "centered" ? (
+      <TerminalCenteredOverlayPanel width={panelWidth} height={layout.totalHeight}>{panel}</TerminalCenteredOverlayPanel>
+    ) : (
+      panel
+    );
+
   if (modal.kind === "dialog") {
-    return (
+    return renderPanel(
       <TerminalInlinePromptPanel
         title={modal.options.title}
         subtitle={modal.options.subtitle}
-        body={<InlinePromptMessageBody width={width} height={layout.bodyHeight} lines={modal.options.body} />}
+        body={<InlinePromptMessageBody width={panelWidth} height={layout.bodyHeight} lines={modal.options.body} />}
         footer={modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }]}
-        width={width}
+        width={panelWidth}
         height={layout.totalHeight}
         showTopBorder={layout.showTopBorder}
-      />
+      />,
     );
   }
   if (modal.kind === "text") {
-    return <TextPromptBody options={modal.options} currentValue={modal.value} width={width} layout={layout} />;
+    return renderPanel(
+      <TextPromptBody options={modal.options} currentValue={modal.value} width={panelWidth} layout={layout} />,
+    );
   }
   if (modal.kind === "command") {
-    return (
+    return renderPanel(
       <CommandPaletteBody
         options={modal.options}
         filterText={modal.filterText}
         selectedIndex={modal.selectedIndex}
-        width={width}
+        width={panelWidth}
         layout={layout}
-      />
+      />,
     );
   }
   if (modal.kind === "multiselect") {
-    return (
+    return renderPanel(
       <MultiSelectPromptBody
         options={modal.options}
         selectedIndex={modal.selectedIndex}
+        filterText={modal.filterText}
+        filterMode={modal.filterMode}
         selectedValues={modal.selectedValues}
-        width={width}
+        width={panelWidth}
         layout={layout}
-      />
+      />,
     );
   }
   if (modal.kind === "policy") {
-    return (
+    return renderPanel(
       <PolicyPromptBody
         options={modal.options}
         selectedIndex={modal.selectedIndex}
+        filterText={modal.filterText}
+        filterMode={modal.filterMode}
         valueStates={modal.valueStates}
-        width={width}
+        width={panelWidth}
         layout={layout}
-      />
+      />,
     );
   }
 
-  return <SelectPromptBody options={modal.options} selectedIndex={modal.selectedIndex} width={width} layout={layout} />;
+  return renderPanel(
+    <SelectPromptBody
+      options={modal.options}
+      selectedIndex={modal.selectedIndex}
+      filterText={modal.filterText}
+      filterMode={modal.filterMode}
+      width={panelWidth}
+      layout={layout}
+    />,
+  );
 }

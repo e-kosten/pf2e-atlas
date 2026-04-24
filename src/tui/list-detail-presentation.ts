@@ -29,6 +29,7 @@ import {
   getRouteTransitionFooterLineCount,
   type RouteTransitionStatus,
 } from "./route-transition-status.js";
+import { buildTerminalListDetailGroupLine, type TerminalListDetailGroup } from "./list-detail-formatting.js";
 import type {
   DerivedTagTerminalActionTargetOrientation,
   DerivedTagTerminalActionTargetState,
@@ -158,6 +159,42 @@ export type TerminalListDetailPresentationMetrics = {
 export type TerminalListDetailScreenModel =
   | { kind: "detail-only"; props: DerivedTagTerminalPaneScreenProps }
   | { kind: "two-pane"; props: DerivedTagTerminalTwoPaneScreenProps };
+
+export function buildTerminalGroupedListLines<T>(options: {
+  items: readonly T[];
+  selectedIndex: number;
+  buildItemLine: (item: T, options: { selected: boolean; itemIndex: number }) => DerivedTagTerminalLine;
+  getGroup?: ((item: T) => TerminalListDetailGroup | null | undefined) | null;
+}): DerivedTagTerminalLine[] {
+  if (!options.getGroup) {
+    return options.items.map((item, itemIndex) =>
+      options.buildItemLine(item, {
+        selected: itemIndex === options.selectedIndex,
+        itemIndex,
+      }),
+    );
+  }
+
+  const lines: DerivedTagTerminalLine[] = [];
+  let previousGroupKey: string | null = null;
+  options.items.forEach((item, itemIndex) => {
+    const group = options.getGroup?.(item) ?? null;
+    if (group && group.key !== previousGroupKey) {
+      if (lines.length > 0) {
+        lines.push({ text: "" });
+      }
+      lines.push(buildTerminalListDetailGroupLine(group));
+      previousGroupKey = group.key;
+    }
+    lines.push(
+      options.buildItemLine(item, {
+        selected: itemIndex === options.selectedIndex,
+        itemIndex,
+      }),
+    );
+  });
+  return lines;
+}
 
 export type MeasureTerminalListDetailPresentationOptions = {
   terminalWidth: number;

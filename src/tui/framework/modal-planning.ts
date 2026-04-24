@@ -12,6 +12,10 @@ import {
   buildPromptDetailLines,
   clampPromptSelectionIndex,
   filterCommandPaletteEntries,
+  filterPromptEntries,
+  getFilteredPromptSelectionIndex,
+  getMultiSelectPromptFilteringEnabled,
+  getPolicyPromptFilteringEnabled,
 } from "./modal-helpers.js";
 import { getPolicyStateForValue } from "./modal-policy-state.js";
 import {
@@ -60,6 +64,67 @@ function createChoicePromptDescriptor(terminalWidth: number, itemCount: number, 
       maxVisibleLineCount: 10,
     },
   });
+}
+
+function getCenteredChoicePromptWidth(
+  terminalWidth: number,
+  options: {
+    title: string;
+    subtitle?: string;
+    prompt: string;
+    entryLabels: readonly string[];
+    detailLines: readonly DerivedTagTerminalLine[];
+  },
+): number {
+  const detailWidth = Math.max(
+    options.title.length,
+    options.subtitle?.length ?? 0,
+    options.prompt.length,
+    options.entryLabels.join("   ").length,
+    ...options.detailLines.map((line) => line.text.length),
+  );
+  return Math.max(40, Math.min(terminalWidth, Math.max(56, detailWidth + 8)));
+}
+
+function createCenteredChoicePromptLayout(options: {
+  kind: "select";
+  terminalWidth: number;
+  terminalHeight: number;
+  title: string;
+  subtitle?: string;
+  prompt: string;
+  entryLabels: readonly string[];
+  detailLines: readonly DerivedTagTerminalLine[];
+}) {
+  const panelWidth = getCenteredChoicePromptWidth(options.terminalWidth, options);
+  const measuredWidth = Math.max(24, Math.min(panelWidth, options.terminalWidth - 2));
+  const bodyLineCount = getRenderedTerminalLineCount(
+    [
+      ...(options.prompt ? [{ text: options.prompt, tone: "section" as const }] : []),
+      { text: options.entryLabels.join("   "), noWrap: true },
+      { text: "" },
+      ...options.detailLines,
+    ],
+    Math.max(24, measuredWidth - 4),
+  );
+  const layout = planTerminalModalLayout({
+    kind: options.kind,
+    terminalWidth: measuredWidth,
+    terminalHeight: options.terminalHeight,
+    forcedPresentation: "inline",
+    headerRows: 3,
+    footerRows: 2,
+    descriptor: createTerminalMessageSizingDescriptor({
+      bodyLineCount,
+      minimumInlineWidth: measuredWidth,
+    }),
+  });
+
+  return {
+    ...layout,
+    presentation: "centered" as const,
+    panelWidth: measuredWidth,
+  };
 }
 
 export function planTerminalModalStateLayout(
@@ -141,19 +206,30 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "select") {
-    if (modal.options.entries.length === 0) {
+    const filteredEntries =
+      modal.options.filtering && modal.options.choiceLayout !== "horizontal"
+        ? filterPromptEntries(modal.options.entries, modal.filterText)
+        : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+
+    if (filteredEntries.length === 0) {
       return planTerminalModalLayout({
         kind: "select",
         terminalWidth,
         terminalHeight,
-        forcedPresentation: modal.options.presentation ?? "screen",
+        forcedPresentation: modal.options.presentation === "centered" ? "screen" : (modal.options.presentation ?? "screen"),
         headerRows: 3,
-        footerRows: 1,
+        footerRows: 2,
         descriptor: createTerminalMessageSizingDescriptor({
           bodyLineCount: getRenderedTerminalLineCount(
             [
               { text: modal.options.prompt, tone: "section" },
-              { text: "No options are available for this scope.", tone: "warning" },
+              ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
+              {
+                text: modal.filterText
+                  ? "No options match the current filter."
+                  : "No options are available for this scope.",
+                tone: "warning",
+              },
             ],
             terminalWidth,
           ),
@@ -161,7 +237,21 @@ export function planTerminalModalStateLayout(
       });
     }
 
-    const selectedOption = modal.options.entries[modal.selectedIndex];
+    const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
+    const selectedOption = modal.options.entries[selectedIndex];
+    if (modal.options.choiceLayout === "horizontal" || modal.options.presentation === "centered") {
+      return createCenteredChoicePromptLayout({
+        kind: "select",
+        terminalWidth,
+        terminalHeight,
+        title: modal.options.title,
+        subtitle: modal.options.subtitle,
+        prompt: modal.options.prompt,
+        entryLabels: filteredEntries.map((entry) => entry.entry.label),
+        detailLines: buildPromptDetailLines(selectedOption),
+      });
+    }
+
     return planTerminalModalLayout({
       kind: "select",
       terminalWidth,
@@ -169,7 +259,7 @@ export function planTerminalModalStateLayout(
       forcedPresentation: modal.options.presentation ?? "screen",
       headerRows: 3,
       footerRows: 3,
-      descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+      descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
         ...buildPromptDetailLines(selectedOption),
         { text: "" },
         { text: `Selected: ${selectedOption?.label ?? "(none)"}`, tone: "accent" },
@@ -178,19 +268,30 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "multiselect") {
-    if (modal.options.entries.length === 0) {
+    const filteringEnabled = getMultiSelectPromptFilteringEnabled(modal.options);
+    const filteredEntries = filteringEnabled
+      ? filterPromptEntries(modal.options.entries, modal.filterText)
+      : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+
+    if (filteredEntries.length === 0) {
       return planTerminalModalLayout({
         kind: "multiselect",
         terminalWidth,
         terminalHeight,
         forcedPresentation: modal.options.presentation ?? "screen",
         headerRows: 3,
-        footerRows: 1,
+        footerRows: 2,
         descriptor: createTerminalMessageSizingDescriptor({
           bodyLineCount: getRenderedTerminalLineCount(
             [
               { text: modal.options.prompt, tone: "section" },
-              { text: "No options are available for this scope.", tone: "warning" },
+              ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
+              {
+                text: modal.filterText
+                  ? "No options match the current filter."
+                  : "No options are available for this scope.",
+                tone: "warning",
+              },
             ],
             terminalWidth,
           ),
@@ -198,7 +299,8 @@ export function planTerminalModalStateLayout(
       });
     }
 
-    const selectedOption = modal.options.entries[modal.selectedIndex];
+    const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
+    const selectedOption = modal.options.entries[selectedIndex];
     const selectedSet = new Set(modal.selectedValues);
     const selectedLabels = modal.options.entries
       .filter((entry) => selectedSet.has(entry.value))
@@ -210,7 +312,7 @@ export function planTerminalModalStateLayout(
       forcedPresentation: modal.options.presentation ?? "screen",
       headerRows: 3,
       footerRows: 3,
-      descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+      descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
         ...buildPromptDetailLines(selectedOption),
         { text: "" },
         { text: "Current Selection", tone: "section" },
@@ -219,19 +321,28 @@ export function planTerminalModalStateLayout(
     });
   }
 
-  if (modal.options.entries.length === 0) {
+  const filteringEnabled = getPolicyPromptFilteringEnabled(modal.options);
+  const filteredEntries = filteringEnabled
+    ? filterPromptEntries(modal.options.entries, modal.filterText)
+    : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+
+  if (filteredEntries.length === 0) {
     return planTerminalModalLayout({
       kind: "policy",
       terminalWidth,
       terminalHeight,
       forcedPresentation: modal.options.presentation ?? "screen",
       headerRows: 3,
-      footerRows: 1,
+      footerRows: 2,
       descriptor: createTerminalMessageSizingDescriptor({
         bodyLineCount: getRenderedTerminalLineCount(
           [
             { text: modal.options.prompt, tone: "section" },
-            { text: "No options are available for this scope.", tone: "warning" },
+            ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
+            {
+              text: modal.filterText ? "No options match the current filter." : "No options are available for this scope.",
+              tone: "warning",
+            },
           ],
           terminalWidth,
         ),
@@ -239,7 +350,8 @@ export function planTerminalModalStateLayout(
     });
   }
 
-  const selectedOption = modal.options.entries[modal.selectedIndex];
+  const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
+  const selectedOption = modal.options.entries[selectedIndex];
   const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, modal.valueStates) : undefined;
   return planTerminalModalLayout({
     kind: "policy",
@@ -247,8 +359,8 @@ export function planTerminalModalStateLayout(
     terminalHeight,
     forcedPresentation: modal.options.presentation ?? "screen",
     headerRows: 3,
-    footerRows: 3,
-    descriptor: createChoicePromptDescriptor(terminalWidth, modal.options.entries.length, [
+    footerRows: 4,
+    descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
       ...buildPromptDetailLines(selectedOption),
       { text: "" },
       { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },

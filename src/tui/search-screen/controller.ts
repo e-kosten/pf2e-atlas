@@ -54,6 +54,7 @@ export function useSearchScreenController({
   entry = "editor",
   transitionStatus,
   origin = "app",
+  promptForInitialMode = false,
   onBack,
   ...routeEntry
 }: SearchScreenProps): SearchScreenControllerResult {
@@ -82,6 +83,7 @@ export function useSearchScreenController({
       createInitialSearchScreenState(initialQuery, { layout: initialLayout, session: initialSession }),
   );
   const queryRef = React.useRef(initialQueryState);
+  const promptedForInitialModeRef = React.useRef(false);
 
   const {
     selectionJumpSize,
@@ -118,6 +120,38 @@ export function useSearchScreenController({
   React.useEffect(() => {
     queryRef.current = state.query;
   }, [state.query]);
+
+  React.useEffect(() => {
+    if (entry !== "editor" || initialQuery || !promptForInitialMode || promptedForInitialModeRef.current) {
+      return;
+    }
+
+    promptedForInitialModeRef.current = true;
+    void prompts
+      .promptSelectOption({
+        title: "Choose Search Mode",
+        prompt: "",
+        presentation: "centered",
+        choiceLayout: "horizontal",
+        filtering: false,
+        selectedValue: state.query.mode,
+        entries: user.search.getModeOptions().map((option) => ({
+          value: option.value,
+          label: option.label,
+          description: option.description,
+          detailLines: [{ text: option.description }],
+        })),
+      })
+      .then((result) => {
+        if (result.kind !== "selected" || result.value === queryRef.current.mode) {
+          return;
+        }
+        applyQueryUpdate((query) => ({
+          ...query,
+          mode: result.value,
+        }));
+      });
+  }, [applyQueryUpdate, entry, initialQuery, promptForInitialMode, prompts, state.query.mode, user.search]);
 
   const {
     busy,

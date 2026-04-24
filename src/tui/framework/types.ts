@@ -43,6 +43,8 @@ export type DerivedTagTerminalSelectOption<T = string> = {
   detailLines?: DerivedTagTerminalLine[];
 };
 
+export type DerivedTagTerminalChoiceLayout = "list" | "horizontal";
+
 export type DerivedTagTerminalCommandOption<T extends string = string> = DerivedTagTerminalSelectOption<T> & {
   aliases?: string[];
   disabled?: boolean;
@@ -159,6 +161,8 @@ export type DerivedTagTerminalSelectPromptOptions<T = string> = {
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T;
   presentation?: TerminalModalPresentation;
+  choiceLayout?: DerivedTagTerminalChoiceLayout;
+  filtering?: boolean;
 };
 
 export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
@@ -169,6 +173,8 @@ export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T | null;
   presentation?: TerminalModalPresentation;
+  choiceLayout?: DerivedTagTerminalChoiceLayout;
+  filtering?: boolean;
 };
 
 export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string> = {
@@ -178,6 +184,7 @@ export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValues?: T[];
   presentation?: TerminalModalPresentation;
+  filtering?: boolean;
 };
 
 export type DerivedTagTerminalPolicyState = "any" | "all" | "exclude";
@@ -196,6 +203,7 @@ export type DerivedTagTerminalPolicyPromptOptions<T extends string = string> = {
   allowedStates: DerivedTagTerminalPolicyState[];
   selectedValues?: Partial<DerivedTagTerminalPolicySelection<T>>;
   presentation?: TerminalModalPresentation;
+  filtering?: boolean;
 };
 
 export type CommandPaletteOptions<T extends string = string> = {
@@ -232,6 +240,8 @@ export type TerminalSelectModalOptions = {
   prompt: string;
   entries: TerminalSelectModalEntry[];
   presentation?: TerminalModalPresentation;
+  choiceLayout: DerivedTagTerminalChoiceLayout;
+  filtering: boolean;
 };
 
 export type TerminalModalState =
@@ -251,6 +261,8 @@ export type TerminalModalState =
       kind: "select";
       options: TerminalSelectModalOptions;
       selectedIndex: number;
+      filterText: string;
+      filterMode: boolean;
       resolve: (
         value: DerivedTagTerminalSelectPromptResult<unknown> | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
       ) => void;
@@ -259,6 +271,8 @@ export type TerminalModalState =
       kind: "multiselect";
       options: MultiSelectPromptOptions<string>;
       selectedIndex: number;
+      filterText: string;
+      filterMode: boolean;
       selectedValues: string[];
       resolve: (value: string[]) => void;
     }
@@ -266,6 +280,8 @@ export type TerminalModalState =
       kind: "policy";
       options: PolicyPromptOptions<string>;
       selectedIndex: number;
+      filterText: string;
+      filterMode: boolean;
       valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
       resolve: (value: DerivedTagTerminalPolicySelection<string>) => void;
     }

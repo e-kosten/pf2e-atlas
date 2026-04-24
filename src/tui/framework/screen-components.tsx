@@ -131,6 +131,24 @@ export function TerminalInlinePromptPanel({
   );
 }
 
+export function TerminalCenteredOverlayPanel({
+  width,
+  height,
+  children,
+}: {
+  width: number;
+  height: number;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <Box width="100%" height="100%" justifyContent="center" alignItems="center">
+      <Box width={width} height={height}>
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
 export function TerminalTextScreen({
   title,
   subtitle,
