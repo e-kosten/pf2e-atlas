@@ -43,6 +43,13 @@ A good plan in this repo is execution-ready. It should usually include:
 
 Do not produce a vague task list that leaves architecture, ownership, or validation implicit.
 
+When the task is large, architectural, or contract-shaping, make the end state concrete enough that later implementation does not have to rediscover the intended model. Good ways to do that include:
+
+- a representative target shape for a new shared contract or model
+- an explicit list of resolved planning decisions
+- change-envelope rules that say what is allowed to move and what should stay stable during the refactor
+- clear user check-in triggers if the work would need to expand beyond that envelope
+
 ## Orchestration Expectations
 
 For large or architecture-impacting work, plan as an orchestrator:
@@ -51,6 +58,8 @@ For large or architecture-impacting work, plan as an orchestrator:
 - identify which slices are good candidates for sub-agent research, implementation, or validation
 - keep the main agent focused on coordination and end-state checks
 - make each slice produce a concrete artifact and a validation step
+- when helpful, group slices into orchestration blocks with explicit check-in points so the user can review progress between major phases
+- if one slice is still too large to be implementation-ready, split it into sub-slices with clear ownership and validation boundaries
 
 Use sub-agents for research and review when the task is large enough to benefit from parallel or isolated investigation. Planning should not assume one agent will carry all context alone if the work naturally decomposes.
 
@@ -93,6 +102,14 @@ Prefer plans with sections close to these:
 
 If the task is small, some sections can be brief. For large work, all of them should be present.
 
+For especially large or model-heavy work, it is often worth adding a few more explicit sections near the top instead of burying critical decisions inside slices:
+
+1. Target model or representative end-state shape
+2. Resolved planning decisions
+3. Change envelope or stability rules
+
+Use these when they materially reduce ambiguity. Do not add them as ceremony for small plans.
+
 ## Docs Expectations
 
 If the plan touches durable structure, the plan should call out the docs that must stay in sync.
@@ -127,6 +144,13 @@ Include:
 - checks that docs and code agree
 - checks that no intermediate migration state remains
 
+For larger plans, do not stop at command lists. Also include invariant-style validation, such as:
+
+- semantic or architectural properties that must be true after each slice
+- “no parallel abstraction remains” checks for refactors that are removing duplicated owners
+- explicit checks that route/state/presentation projections remain derived rather than becoming new durable models
+- surface-specific checks when a shared abstraction is being introduced and later consumed by multiple surfaces
+
 If the plan came from a `scratch/plans/` file, the final implementation pass must validate against that file before claiming completion.
 
 ## Good Planning Defaults
@@ -136,6 +160,9 @@ If the plan came from a `scratch/plans/` file, the final implementation pass mus
 - prefer explicit follow-up tracking over “later” prose
 - pause and ask the user if a blocker or architecture question prevents a clean end-state plan
 - keep plan prose concise, but make ownership and validation explicit
+- for very large plans, prefer explicit “what this plan is not changing” guidance so implementation does not sprawl
+- when the intended model is non-obvious, include a representative shape or examples rather than leaving the meaning implicit in prose alone
+- when a successful implementation will depend on a few non-negotiable architectural rules, state them directly in the plan instead of assuming they are obvious from the slice text
 
 ## Output Shape
 
