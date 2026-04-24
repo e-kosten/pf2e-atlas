@@ -55,7 +55,7 @@ export function getSearchInteractionActions(
 ): TerminalInteractionAction[] {
   switch (getSearchInteractionContext(state)) {
     case "editor":
-      return getSearchEditorInteractionActions(origin);
+      return getSearchEditorInteractionActions(state, origin);
     case "result-list":
       return getSearchResultListInteractionActions(origin);
     case "result-detail":
@@ -63,11 +63,14 @@ export function getSearchInteractionActions(
   }
 }
 
-export function getSearchEditorInteractionActions(origin: SearchScreenOrigin = "app"): TerminalInteractionAction[] {
+export function getSearchEditorInteractionActions(
+  state: SearchScreenState,
+  origin: SearchScreenOrigin = "app",
+): TerminalInteractionAction[] {
   return [
     { id: "edit" },
     { id: "execute" },
-    { id: "search", label: "query" },
+    ...(state.query.mode === "browse" ? [] : [{ id: "search", label: "query" } as const]),
     { id: "commands" },
     { id: "help" },
     { id: "back", label: origin === "ontology" ? "return" : undefined },
@@ -282,7 +285,7 @@ export function useSearchScreenInteractionRouter(options: {
     list: {
       interactionActions:
         options.state.layout === "editor"
-          ? getSearchEditorInteractionActions(options.origin)
+          ? getSearchEditorInteractionActions(options.state, options.origin)
           : getSearchResultListInteractionActions(options.origin),
       pageSize: options.pageSize,
       jumpSize: options.selectionJumpSize,

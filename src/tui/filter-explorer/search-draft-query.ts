@@ -10,9 +10,9 @@ import {
   getSearchQueryActionCostPolicy,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
-  removeSearchQueryPart,
+  setSearchQueryActionCostPolicy,
   setSearchQueryMetadataTree,
-  setSearchQueryPart,
+  setSearchQueryRarityPolicy,
 } from "../search/query-state.js";
 import type {
   Pf2eTerminalFacetField,
@@ -687,16 +687,11 @@ function applyRarityExplorerSelection(
   query: Pf2eTerminalSearchQuery,
   policy: Pf2eTerminalFilterValuePolicy<string> | undefined,
 ): Pf2eTerminalSearchQuery {
-  return hasStringPolicyValues(policy)
-    ? setSearchQueryPart(query, {
-        kind: "rarityPolicy",
-        policy: {
-          any: [...(policy?.any ?? [])],
-          all: [],
-          exclude: [...(policy?.exclude ?? [])],
-        },
-      })
-    : removeSearchQueryPart(query, "rarityPolicy");
+  return setSearchQueryRarityPolicy(query, {
+    any: [...(policy?.any ?? [])],
+    all: [],
+    exclude: [...(policy?.exclude ?? [])],
+  });
 }
 
 function applyActionCostExplorerSelection(
@@ -713,9 +708,7 @@ function applyActionCostExplorerSelection(
       .filter((value, index, values) => Number.isFinite(value) && values.indexOf(value) === index),
   };
 
-  return nextPolicy.any.length > 0 || nextPolicy.exclude.length > 0
-    ? setSearchQueryPart(query, { kind: "actionCostPolicy", policy: nextPolicy })
-    : removeSearchQueryPart(query, "actionCostPolicy");
+  return setSearchQueryActionCostPolicy(query, nextPolicy);
 }
 
 export function applyFilterExplorerDraft(

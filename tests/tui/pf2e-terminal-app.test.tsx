@@ -375,6 +375,34 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
   });
 
+  it("returns to the area menu if the initial search mode picker is cancelled", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("Choose a first-class TUI area");
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    app.stdin.write("q");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Choose a first-class TUI area");
+    expect(app.lastFrame()).not.toContain("Browse | Any Category | Counting matches...");
+  });
+
   it("opens the ontology browser directly in search semantics", async () => {
     const services = createFakeServices();
     const app = render(
@@ -678,7 +706,7 @@ describe("pf2e terminal app", () => {
     await flushFrames(2);
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse | Creature |");
-    expect(searchFrame).toContain("Category | Creature");
+    expect(searchFrame).toContain("Filter | Scope: Creature");
     expect(searchFrame).toContain("Filters > | 1 active");
 
     pressLeft(app);

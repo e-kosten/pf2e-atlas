@@ -15,6 +15,9 @@ import {
   getSearchQueryText,
   getSearchQueryMetadataTree,
   getSearchQueryRarityPolicy,
+  setSearchQueryActionCostPolicy,
+  setSearchQueryMetadataTree,
+  setSearchQueryRarityPolicy,
   setSearchQuerySearchProfile,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
@@ -180,7 +183,7 @@ describe("createPf2eTerminalSearchService", () => {
     let query = service.createDefaultQuery("search");
     query = setSearchQueryText(query, "  Alarm Ward  ");
     query = setSearchQuerySearchProfile(query, "balanced");
-    query = service.applyRootQueryParts(
+    query = setSearchQueryRarityPolicy(
       {
         ...query,
         filter: {
@@ -189,38 +192,25 @@ describe("createPf2eTerminalSearchService", () => {
           subcategory: { kind: "any" },
         },
       },
-      [
-        {
-          kind: "rarityPolicy",
-          policy: {
-            any: ["rare"],
-            all: [],
-            exclude: [],
-          },
-        },
-        {
-          kind: "actionCostPolicy",
-          policy: {
-            any: [2],
-            all: [],
-            exclude: [],
-          },
-        },
-      ],
+      {
+        any: ["rare"],
+        all: [],
+        exclude: [],
+      },
     );
+    query = setSearchQueryActionCostPolicy(query, {
+      any: [2],
+      all: [],
+      exclude: [],
+    });
     const normalized = service.normalizeQuery(query);
 
     expect(getSearchQueryText(normalized)).toBe("Alarm Ward");
-    expect(service.getRootQueryParts(normalized)).toEqual([
-      {
-        kind: "rarityPolicy",
-        policy: {
-          any: ["rare"],
-          all: [],
-          exclude: [],
-        },
-      },
-    ]);
+    expect(getSearchQueryRarityPolicy(normalized)).toEqual({
+      any: ["rare"],
+      all: [],
+      exclude: [],
+    });
     expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
       any: [],
       all: [],
@@ -244,7 +234,6 @@ describe("createPf2eTerminalSearchService", () => {
       } as unknown as never,
     });
 
-    expect(service.getRootQueryParts(normalized)).toEqual([]);
     expect(getSearchQueryRarityPolicy(normalized)).toEqual({
       any: [],
       all: [],
@@ -277,7 +266,7 @@ describe("createPf2eTerminalSearchService", () => {
       }),
     );
     const defaultQuery = service.createDefaultQuery();
-    const query = service.applyRootQueryParts(
+    const query = setSearchQueryMetadataTree(
       {
         ...defaultQuery,
         filter: {
@@ -286,30 +275,20 @@ describe("createPf2eTerminalSearchService", () => {
           subcategory: { kind: "any" },
         },
       },
-      [
-        {
-          kind: "metadataGroup",
-          operator: "and",
-          children: [
-            {
-              kind: "metadataPredicate",
-              predicate: {
-                field: "traits",
-                op: "includesAny",
-                values: ["illusion"],
-              },
-            },
-            {
-              kind: "metadataPredicate",
-              predicate: {
-                field: "sourceCategory",
-                op: "eq",
-                value: "core",
-              },
-            },
-          ],
-        },
-      ],
+      {
+        and: [
+          {
+            field: "traits",
+            op: "includesAny",
+            values: ["illusion"],
+          },
+          {
+            field: "sourceCategory",
+            op: "eq",
+            value: "core",
+          },
+        ],
+      },
     );
 
     const selections = service.buildDiscoverableQueryFieldSelections(query, ["traits"]);
@@ -404,41 +383,34 @@ describe("createPf2eTerminalSearchService", () => {
       }),
     );
     const defaultQuery = service.createDefaultQuery();
-    const query = service.applyRootQueryParts(
-      {
-        ...defaultQuery,
-        filter: {
-          kind: "scope",
-          category: "spell",
-          subcategory: { kind: "any" },
-        },
-      },
-      [
-        {
-          kind: "rarityPolicy",
-          policy: {
+    const query = setSearchQueryMetadataTree(
+      setSearchQueryActionCostPolicy(
+        setSearchQueryRarityPolicy(
+          {
+            ...defaultQuery,
+            filter: {
+              kind: "scope",
+              category: "spell",
+              subcategory: { kind: "any" },
+            },
+          },
+          {
             any: ["common"],
             all: [],
             exclude: ["rare"],
           },
-        },
+        ),
         {
-          kind: "actionCostPolicy",
-          policy: {
-            any: [2],
-            all: [],
-            exclude: [1],
-          },
+          any: [2],
+          all: [],
+          exclude: [1],
         },
-        {
-          kind: "metadataPredicate",
-          predicate: {
-            field: "traits",
-            op: "includesAny",
-            values: ["illusion"],
-          },
-        },
-      ],
+      ),
+      {
+        field: "traits",
+        op: "includesAny",
+        values: ["illusion"],
+      },
     );
 
     const preparedDraft = service.prepareFilterExplorerDraft(query, ["rarity", "actionCost"]);

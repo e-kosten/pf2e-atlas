@@ -166,8 +166,8 @@ export function Pf2eTerminalApp({
       ) : (
         <SearchScreen
           entry="editor"
-          initialRequest={route.initialRequest}
-          promptForInitialMode={!route.initialRequest && !route.origin}
+          initialRequest={route.initialQuery?.request}
+          promptForInitialMode={!route.initialQuery && !route.origin}
           transitionStatus={transitionStatus}
           origin={origin}
           onBack={() => navigation.returnFromSearch(route)}

@@ -21,7 +21,6 @@ import type {
   FilterExplorerComposeDraft,
   FilterExplorerSelectionMap,
 } from "../filter-explorer/types.js";
-import type { Pf2eTerminalQueryPart } from "./query-parts.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
   value: SearchCategory | null;
@@ -80,7 +79,6 @@ export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTermi
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalSearchSort = SearchSort;
 
-export type Pf2eTerminalSearchStructuredPart = Pf2eTerminalQueryPart;
 export type Pf2eTerminalSearchQuery = SearchRequest;
 
 export type Pf2eTerminalQueryFieldOption = {
@@ -142,15 +140,6 @@ export type Pf2eTerminalSearchService = {
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalQueryFieldOption[];
-  getAvailableRootQueryPartKinds: (
-    category: SearchCategory | null,
-    subcategory: SearchSubcategory | null,
-  ) => Pf2eTerminalSearchStructuredPart["kind"][];
-  getRootQueryParts: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchStructuredPart[];
-  applyRootQueryParts: (
-    query: Pf2eTerminalSearchQuery,
-    parts: Pf2eTerminalSearchStructuredPart[],
-  ) => Pf2eTerminalSearchQuery;
   prepareFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     scopedFields: readonly Pf2eTerminalQueryField[],

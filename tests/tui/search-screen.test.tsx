@@ -18,9 +18,16 @@ import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-conte
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
+import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
+import { createInitialSearchScreenState } from "../../src/tui/search-screen/state.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
+import {
+  setSearchQueryActionCostPolicy,
+  setSearchQueryMetadataTree,
+  setSearchQueryRarityPolicy,
+} from "../../src/tui/search/query-state.js";
 import { browseQuery, browseRequest, searchRequest } from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
@@ -596,6 +603,14 @@ describe("search screen", () => {
     cleanup();
   });
 
+  it("does not expose the text-query shortcut while browsing", () => {
+    const browseState = createInitialSearchScreenState(browseRequest({ limit: 20 }));
+    const searchState = createInitialSearchScreenState(searchRequest({ query: "ghost", limit: 20 }));
+
+    expect(getSearchEditorInteractionActions(browseState).some((action) => action.id === "search")).toBe(false);
+    expect(getSearchEditorInteractionActions(searchState).some((action) => action.id === "search")).toBe(true);
+  });
+
   it("does not append shared transition footer state twice in the result-reader host", async () => {
     const services = createServices();
     const app = render(
@@ -672,6 +687,19 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Exclude");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Exclude Text");
+    for (const character of "skeleton") {
+      app.stdin.write(character);
+    }
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
     app.stdin.write("\t");
     await flushInk();
     await flushInk();
@@ -681,6 +709,7 @@ describe("search screen", () => {
         mode: "search",
         offset: 0,
         search: {
+          exclude: "skeleton",
           query: "ghost",
           profile: "balanced",
         },
@@ -868,7 +897,11 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
+    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("[+ add here]");
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1684,8 +1717,8 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Filters > | 2 active");
-    expect(app.lastFrame()).toContain("Category | Spell");
-    expect(app.lastFrame()).toContain("Query Clause | includes any Illusion");
+    expect(app.lastFrame()).toContain("Filter | Scope: Spell");
+    expect(app.lastFrame()).toContain("Filter | Traits: includes any Illusion");
   });
 
   it("does not auto-execute seeded route entry without a prepared session", async () => {
@@ -1785,61 +1818,46 @@ describe("search screen", () => {
     const services = createServices({ search });
 
     await services.user.search.executeQuery(
-      services.user.search.applyRootQueryParts(
-        searchRequest({
-          category: "spell",
-          limit: 20,
-          query: "ghost",
-          searchProfile: "balanced",
-        }),
-        [
-          {
-            kind: "rarityPolicy",
-            policy: {
+      setSearchQueryMetadataTree(
+        setSearchQueryActionCostPolicy(
+          setSearchQueryRarityPolicy(
+            searchRequest({
+              category: "spell",
+              limit: 20,
+              query: "ghost",
+              searchProfile: "balanced",
+            }),
+            {
               any: ["common"],
               all: [],
               exclude: ["rare"],
             },
-          },
+          ),
           {
-            kind: "actionCostPolicy",
-            policy: {
-              any: [2],
-              all: [],
-              exclude: [1],
+            any: [2],
+            all: [],
+            exclude: [1],
+          },
+        ),
+        {
+          and: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["illusion"],
             },
-          },
-          {
-            kind: "metadataGroup",
-            operator: "and",
-            children: [
-              {
-                kind: "metadataPredicate",
-                predicate: {
-                  field: "traits",
-                  op: "includesAny",
-                  values: ["illusion"],
-                },
-              },
-              {
-                kind: "metadataPredicate",
-                predicate: {
-                  field: "traits",
-                  op: "includesAll",
-                  values: ["auditory"],
-                },
-              },
-              {
-                kind: "metadataPredicate",
-                predicate: {
-                  field: "traits",
-                  op: "excludesAny",
-                  values: ["emotion"],
-                },
-              },
-            ],
-          },
-        ],
+            {
+              field: "traits",
+              op: "includesAll",
+              values: ["auditory"],
+            },
+            {
+              field: "traits",
+              op: "excludesAny",
+              values: ["emotion"],
+            },
+          ],
+        },
       ),
     );
 
@@ -1894,7 +1912,13 @@ describe("search screen", () => {
               },
               {
                 kind: "metadataPredicate",
-                predicate: { field: "traits", op: "includes", value: "auditory" },
+                kind: "allOf",
+                children: [
+                  {
+                    kind: "metadataPredicate",
+                    predicate: { field: "traits", op: "includes", value: "auditory" },
+                  },
+                ],
               },
               {
                 kind: "not",
@@ -1960,7 +1984,8 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
+    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("[+ add here]");
     expect(app.lastFrame()).toContain("q return");
 
     app.stdin.write("?");
@@ -1972,6 +1997,9 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2007,15 +2035,16 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
+    expect(app.lastFrame()).toContain("Filter: Derived Tags: includes any Coastal Setting");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Filters > | 5 active");
-    expect(app.lastFrame()).toContain("Query clauses: 1");
-    expect(app.lastFrame()).toContain("Query Clause: includes any Coastal Setting");
+    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame()).toContain("Metadata predicates: 1");
+    expect(app.lastFrame()).toContain("Filter | Derived Tags: includes any Coas");
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
@@ -2055,11 +2084,11 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
 
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Rarity");
+    for (let step = 0; step < 7; step += 1) {
+      pressUp(app);
+      await flushInk();
+    }
+    expect(app.lastFrame()).toContain("Rarity | ∪ Common");
 
     app.stdin.write("\r");
     await flushInk();
@@ -2074,7 +2103,7 @@ describe("search screen", () => {
 
     pressDown(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Action Cost");
+    expect(app.lastFrame()).toContain("Action Cost | ∪ 2");
 
     app.stdin.write("\r");
     await flushInk();
@@ -2130,10 +2159,10 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    pressUp(app);
-    await flushInk();
-    pressUp(app);
-    await flushInk();
+    for (let step = 0; step < 7; step += 1) {
+      pressUp(app);
+      await flushInk();
+    }
 
     app.stdin.write("\r");
     await flushInk();
@@ -2258,8 +2287,12 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Query Logic | No staged clauses");
+    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("[+ add here]");
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2294,13 +2327,13 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
+    expect(app.lastFrame()).toContain("Filter: Traits: includes any Illusion");
     expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Query Clause: includes any Illusion");
+    expect(app.lastFrame()).toContain("Filter | Traits: includes any Illusion");
   });
 
   it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {
@@ -2345,6 +2378,14 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Category | Any Category");
 
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Category Scope");
@@ -2361,8 +2402,11 @@ describe("search screen", () => {
     await flushInk();
     pressUp(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Logic");
+    expect(app.lastFrame()).toContain("allOf");
 
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();

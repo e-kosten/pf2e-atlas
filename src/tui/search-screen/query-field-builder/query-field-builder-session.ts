@@ -9,12 +9,12 @@ import {
 } from "../../interaction-bindings.js";
 import type { SearchWorkspaceEntry } from "../workspace/workspace.js";
 import { flattenMetadataTree, isMetadataPredicate } from "../../search/query-core.js";
+import { buildSearchQuerySummary } from "../workspace/query-summary.js";
 import {
   buildStructuredQuerySummaryLines,
   buildStructuredWorkspaceEntryFocusLines,
   formatSearchWorkspaceEntryLine,
 } from "../workspace/workspace.js";
-import { extractLegacyQueryPartsFromCanonicalFilter } from "../../search/query-parts.js";
 import { getSearchQueryCategory } from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
@@ -39,6 +39,11 @@ export type SearchStructuredEditorItem =
       kind: "workspaceEntry";
       label: string;
       workspaceEntry: SearchWorkspaceEntry;
+      detailLines?: DerivedTagTerminalLine[];
+    }
+  | {
+      kind: "treeEntry";
+      label: string;
       detailLines?: DerivedTagTerminalLine[];
     }
   | {
@@ -85,7 +90,7 @@ export type SearchStructuredEditorSession = {
   leftTitle?: string;
   rightTitle?: string;
   statusText?: string;
-  draftQuery?: Pf2eTerminalSearchQuery | null;
+  projectedQuery?: Pf2eTerminalSearchQuery | null;
   summaryLines?: DerivedTagTerminalLine[];
   buildFocusedDetailLines?: (item: SearchStructuredEditorItem | undefined) => DerivedTagTerminalLine[];
   helpTitle?: string;
@@ -222,7 +227,9 @@ function buildLegacyStructuredSummaryLines(session: SearchStructuredEditorSessio
       lines.push({ text: "" });
     }
     lines.push({ text: item.fieldOption.label, tone: "accent" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery ? getSearchQueryCategory(session.draftQuery) : null));
+    lines.push(
+      ...buildLegacyMetadataNodeLines(node, 2, session.projectedQuery ? getSearchQueryCategory(session.projectedQuery) : null),
+    );
   });
   return lines;
 }
@@ -242,7 +249,9 @@ function buildLegacyFieldFocusLines(
   if (node) {
     lines.push({ text: "" });
     lines.push({ text: "Current staged field", tone: "section" });
-    lines.push(...buildLegacyMetadataNodeLines(node, 2, session.draftQuery ? getSearchQueryCategory(session.draftQuery) : null));
+    lines.push(
+      ...buildLegacyMetadataNodeLines(node, 2, session.projectedQuery ? getSearchQueryCategory(session.projectedQuery) : null),
+    );
   } else {
     lines.push({ text: "" });
     lines.push({ text: "No staged field selection for this field yet.", tone: "dim" });
@@ -266,6 +275,9 @@ function buildCompatibilityFocusedDetailLines(
   if (item.kind === "workspaceEntry") {
     return buildStructuredWorkspaceEntryFocusLines(item.workspaceEntry);
   }
+  if (item.kind === "treeEntry") {
+    return item.detailLines ?? [{ text: "Open this tree row to edit the selected node or insertion slot." }];
+  }
   if (item.kind === "field") {
     return buildLegacyFieldFocusLines(item, session);
   }
@@ -288,9 +300,8 @@ function getSelectedItem(session: SearchStructuredEditorSession): SearchStructur
 }
 
 function countStructuredSelections(session: SearchStructuredEditorSession): number {
-  if (session.draftQuery) {
-    const legacyState = extractLegacyQueryPartsFromCanonicalFilter(session.draftQuery.filter);
-    return (legacyState.category ? 1 : 0) + legacyState.parts.length;
+  if (session.projectedQuery) {
+    return buildSearchQuerySummary(session.projectedQuery).activeStructuredPartCount;
   }
   return Object.values(session.fieldDrafts ?? {}).filter((node) => Boolean(node)).length;
 }
@@ -299,6 +310,9 @@ export function buildSearchStructuredEditorMenuItems(session: SearchStructuredEd
   return session.items.map((item) => {
     if (item.kind === "workspaceEntry") {
       return { label: formatSearchWorkspaceEntryLine(item.workspaceEntry) };
+    }
+    if (item.kind === "treeEntry") {
+      return { label: item.label };
     }
     if (item.kind === "field" && session.fieldDrafts?.[item.fieldOption.value]) {
       return { label: `${item.label} | staged` };
@@ -313,8 +327,8 @@ export function buildSearchStructuredEditorDetailLines(
   const summaryLines =
     session.summaryLines && session.summaryLines.length > 0
       ? session.summaryLines
-      : session.draftQuery
-        ? buildStructuredQuerySummaryLines(session.draftQuery)
+      : session.projectedQuery
+        ? buildStructuredQuerySummaryLines(session.projectedQuery)
         : buildLegacyStructuredSummaryLines(session);
   const focusedLines =
     session.buildFocusedDetailLines?.(getSelectedItem(session)) ??

@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
 import {
   createDefaultQuery,
+  setSearchQueryActionCostPolicy,
+  setSearchQueryExcludeText,
+  setSearchQueryLevelRange,
   setSearchQuerySearchProfile,
   setSearchQueryCategory,
   setSearchQueryMetadataTree,
-  setSearchQueryPart,
+  setSearchQueryRarityPolicy,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
 import { createInitialSearchScreenState, SEARCH_COUNT_STATUS, type SearchCountState } from "../../src/tui/search-screen/state.js";
@@ -40,30 +43,24 @@ function createMetadataTree(): MetadataFilterNode {
 function createStructuredQuery(options: { includeRarity?: boolean } = {}) {
   let query = createDefaultQuery("search");
   query = setSearchQueryText(query, "ghost captain");
+  query = setSearchQueryExcludeText(query, "skeleton");
   query = setSearchQuerySearchProfile(query, "concept");
   query = setSearchQueryCategory(query, "creature");
-  query = setSearchQueryPart(query, {
-    kind: "levelRange",
+  query = setSearchQueryLevelRange(query, {
     levelMin: 5,
     levelMax: 7,
   });
   if (options.includeRarity ?? true) {
-    query = setSearchQueryPart(query, {
-      kind: "rarityPolicy",
-      policy: {
-        any: ["rare"],
-        all: [],
-        exclude: [],
-      },
-    });
-  }
-  query = setSearchQueryPart(query, {
-    kind: "actionCostPolicy",
-    policy: {
-      any: [2],
+    query = setSearchQueryRarityPolicy(query, {
+      any: ["rare"],
       all: [],
       exclude: [],
-    },
+    });
+  }
+  query = setSearchQueryActionCostPolicy(query, {
+    any: [2],
+    all: [],
+    exclude: [],
   });
   return setSearchQueryMetadataTree(query, createMetadataTree());
 }
@@ -86,39 +83,61 @@ describe("search query summary", () => {
     expect(visibleEntries.map((entry) => entry.key)).toEqual([
       "mode",
       "query",
+      "exclude",
       "profile",
-      "queryPart:category",
-      "queryPart:levelRange",
-      "queryPart:rarity",
-      "queryPart:actionCost",
-      "queryNode:root",
+      "queryTree:root",
       "queryNode:0",
       "queryNode:1",
-      "queryNode:1.0",
+      "queryNode:2",
+      "queryNode:3",
+      "queryNode:4",
     ]);
-    expect(visibleEntries.find((entry) => entry.key === "queryPart:category")).toMatchObject({
-      anchor: { kind: "queryPart", part: "category" },
-      value: "Creature",
+    expect(visibleEntries.find((entry) => entry.key === "queryTree:root")).toMatchObject({
+      anchor: { kind: "queryTreeRoot" },
+      label: "Query Logic",
+      value: "allOf(5 filters)",
     });
-    expect(visibleEntries.find((entry) => entry.key === "queryNode:1.0")).toMatchObject({
-      anchor: { kind: "queryNode", path: [1, 0] },
-      label: "Publication Remaster",
+    expect(visibleEntries.find((entry) => entry.key === "exclude")).toMatchObject({
+      anchor: { kind: "exclude" },
+      label: "Exclude",
+      value: "skeleton",
+    });
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:0")).toMatchObject({
+      anchor: { kind: "queryNode", path: [0] },
+      label: "Filter",
+      value: "Scope: Creature",
+    });
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:4")).toMatchObject({
+      anchor: { kind: "queryNode", path: [4] },
+      label: "Filter",
+      value: "anyOf(2 filters)",
     });
   });
 
-  it("keeps metadata anchors stable when unrelated visible sections appear", () => {
+  it("updates the root-tree projection when canonical children change", () => {
     const withoutRarity = buildSearchQuerySummary(createStructuredQuery({ includeRarity: false }));
     const withRarity = buildSearchQuerySummary(createStructuredQuery({ includeRarity: true }));
 
-    expect(
-      getVisibleSearchQuerySummaryEntries(withoutRarity)
-        .filter((entry) => entry.kind === "metadata")
-        .map((entry) => ({ key: entry.key, anchor: entry.anchor })),
-    ).toEqual(
-      getVisibleSearchQuerySummaryEntries(withRarity)
-        .filter((entry) => entry.kind === "metadata")
-        .map((entry) => ({ key: entry.key, anchor: entry.anchor })),
+    expect(withoutRarity.activeStructuredPartCount).toBe(4);
+    expect(withRarity.activeStructuredPartCount).toBe(5);
+    expect(getVisibleSearchQuerySummaryEntries(withoutRarity).find((entry) => entry.key === "queryTree:root")?.value).toBe(
+      "allOf(4 filters)",
     );
+    expect(getVisibleSearchQuerySummaryEntries(withRarity).find((entry) => entry.key === "queryTree:root")?.value).toBe(
+      "allOf(5 filters)",
+    );
+  });
+
+  it("preserves non-scope filters when clearing category back to any category", () => {
+    const clearedCategory = setSearchQueryCategory(createStructuredQuery(), null);
+    const summary = buildSearchQuerySummary(clearedCategory);
+    const visibleEntries = getVisibleSearchQuerySummaryEntries(summary);
+
+    expect(summary.activeStructuredPartCount).toBe(4);
+    expect(visibleEntries.find((entry) => entry.key === "queryTree:root")?.value).toBe("allOf(4 filters)");
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:0")?.value).toBe("Level: 5-7");
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:3")?.value).toBe("anyOf(2 filters)");
+    expect(visibleEntries.some((entry) => entry.value === "Scope: Creature")).toBe(false);
   });
 
   it("drives workspace structured rows from the same summary model", () => {
@@ -131,16 +150,22 @@ describe("search query summary", () => {
       workspaceEntries
         .filter(
           (entry) =>
+            entry.action === "exclude" ||
             entry.action === "profile" ||
+            entry.action === "queryTreeRoot" ||
             entry.action === "clearClauses" ||
-            entry.action.startsWith("queryPart:") ||
             entry.action.startsWith("queryNode:"),
         )
         .map((entry) => entry.label),
     ).toEqual([
-      ...getVisibleSearchQuerySummaryEntries(summary)
-        .filter((entry) => entry.kind !== "mode" && entry.kind !== "query")
-        .map((entry) => entry.label),
+      "Exclude",
+      "Query Logic",
+      "Profile",
+      "Filter",
+      "Filter",
+      "Filter",
+      "Filter",
+      "Filter",
       "Clear Query Clauses",
     ]);
     expect(workspaceEntries.find((entry) => entry.action === "addQueryPart")?.value).toBe("5 active");

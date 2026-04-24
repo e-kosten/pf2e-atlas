@@ -1,9 +1,14 @@
 import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
 import {
-  appendMetadataNodeAtPath,
+  appendSearchFilterNodeAtPath,
   normalizeMetadataNode,
 } from "../../search/query-core.js";
-import { getSearchQueryMetadataTree, setSearchQueryMetadataTree } from "../../search/query-state.js";
+import {
+  projectSearchQueryFilter,
+  type Pf2eTerminalSearchQueryBase,
+} from "../../search/query-projection.js";
+import { getSearchQueryRootOperator } from "../../search/query-state.js";
+import { metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -11,7 +16,8 @@ import type {
 import type { SearchQueryFieldBuilderSession } from "./query-field-builder-session.js";
 
 export type QueryFieldBuilderState = {
-  draftQuery: Pf2eTerminalSearchQuery;
+  baseQuery: Pf2eTerminalSearchQueryBase;
+  baseFilter: Pf2eTerminalSearchQuery["filter"];
   path: number[];
   items: SearchQueryFieldBuilderSession["items"];
   selectedIndex: number;
@@ -49,15 +55,26 @@ export function compileQueryFieldBuilderDrafts(
 }
 
 export function buildQueryFieldBuilderPreviewQuery(state: QueryFieldBuilderState): Pf2eTerminalSearchQuery {
+  const scopeQuery = projectSearchQueryFilter(state.baseQuery, state.baseFilter);
   const stagedNode = compileQueryFieldBuilderDrafts(state.fieldDrafts);
   if (!stagedNode) {
-    return state.draftQuery;
+    return scopeQuery;
   }
 
-  return setSearchQueryMetadataTree(
-    state.draftQuery,
-    appendMetadataNodeAtPath(getSearchQueryMetadataTree(state.draftQuery), state.path, stagedNode),
-  );
+  const canonicalNode = metadataFilterNodeToCanonicalFilter(stagedNode);
+  if (!canonicalNode) {
+    return scopeQuery;
+  }
+
+  return {
+    ...scopeQuery,
+    filter: appendSearchFilterNodeAtPath(
+      scopeQuery.filter,
+      state.path,
+      canonicalNode,
+      getSearchQueryRootOperator(scopeQuery),
+    ),
+  };
 }
 
 export function buildQueryFieldBuilderSessionItems(

@@ -393,13 +393,11 @@ describe("application ontology service", () => {
       op: "eq",
       value: true,
     });
-    expect(getRequestMetadata(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.request)).toEqual(
-      {
-        field: "hands",
-        op: "eq",
-        value: 1,
-      },
-    );
+    expect(getRequestMetadata(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.request)).toEqual({
+      field: "hands",
+      op: "eq",
+      value: 1,
+    });
     const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
     expect(getRequestMetadata(commonTraitNode?.query?.request)).toEqual({
       field: "traits",

@@ -5,9 +5,9 @@ import {
   getSearchQueryCategory,
   getSearchQueryLevelRange,
   getSearchQuerySubcategory,
-  removeSearchQueryPart,
   setSearchQueryCategory,
-  setSearchQueryPart,
+  setSearchQueryLevelRange,
+  setSearchQuerySubcategory,
 } from "../../search/query-state.js";
 import { formatLevelRange } from "../model.js";
 import { promptLevelRangeDraft } from "../../filter-explorer/scalar-editor.js";
@@ -37,15 +37,15 @@ function buildExplorerOnlyFieldOption(
 export function useSearchStructuredDraftPartActions({
   openFilterExplorer,
   prompts,
-  replaceStructuredDraftQuery,
-  structuredDraftState,
+  replaceStructuredDraftProjection,
+  structuredDraftQuery,
   terminal,
   user,
 }: {
   openFilterExplorer: OpenSearchFilterExplorer;
   prompts: SearchWorkspacePromptAdapters;
-  replaceStructuredDraftQuery: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
-  structuredDraftState: SearchStructuredDraftState | null;
+  replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
 }): {
@@ -56,7 +56,7 @@ export function useSearchStructuredDraftPartActions({
   editStructuredDraftSubcategory: () => Promise<void>;
 } {
   const editStructuredDraftCategory = React.useCallback(async () => {
-    const draftQuery = structuredDraftState?.draftQuery;
+    const draftQuery = structuredDraftQuery;
     if (!draftQuery) {
       return;
     }
@@ -82,11 +82,11 @@ export function useSearchStructuredDraftPartActions({
       return;
     }
 
-    replaceStructuredDraftQuery((query) => setSearchQueryCategory(query, result.kind === "all" ? null : result.value));
-  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search]);
+    replaceStructuredDraftProjection((query) => setSearchQueryCategory(query, result.kind === "all" ? null : result.value));
+  }, [prompts, replaceStructuredDraftProjection, structuredDraftQuery, user.search]);
 
   const editStructuredDraftSubcategory = React.useCallback(async () => {
-    const draftQuery = structuredDraftState?.draftQuery;
+    const draftQuery = structuredDraftQuery;
     if (!draftQuery) {
       return;
     }
@@ -123,17 +123,13 @@ export function useSearchStructuredDraftPartActions({
       return;
     }
 
-    replaceStructuredDraftQuery((query) =>
-      result.kind === "all"
-        ? removeSearchQueryPart(query, "subcategory")
-        : result.value
-          ? setSearchQueryPart(query, { kind: "subcategory", subcategory: result.value })
-          : query,
+    replaceStructuredDraftProjection((query) =>
+      result.kind === "all" ? setSearchQuerySubcategory(query, null) : result.value ? setSearchQuerySubcategory(query, result.value) : query,
     );
-  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal, user.search]);
+  }, [prompts, replaceStructuredDraftProjection, structuredDraftQuery, terminal, user.search]);
 
   const editStructuredDraftLevelRange = React.useCallback(async () => {
-    const draftQuery = structuredDraftState?.draftQuery;
+    const draftQuery = structuredDraftQuery;
     if (!draftQuery) {
       return;
     }
@@ -150,20 +146,17 @@ export function useSearchStructuredDraftPartActions({
       return;
     }
 
-    replaceStructuredDraftQuery((query) =>
-      parsed.levelMin === null && parsed.levelMax === null
-        ? removeSearchQueryPart(query, "levelRange")
-        : setSearchQueryPart(query, {
-            kind: "levelRange",
-            levelMin: parsed.levelMin,
-            levelMax: parsed.levelMax,
-          }),
+    replaceStructuredDraftProjection((query) =>
+      setSearchQueryLevelRange(query, {
+        levelMin: parsed.levelMin,
+        levelMax: parsed.levelMax,
+      }),
     );
-  }, [prompts, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, terminal]);
+  }, [prompts, replaceStructuredDraftProjection, structuredDraftQuery, terminal]);
 
   const editStructuredDraftExplorerField = React.useCallback(
     async (fieldOption: Pf2eTerminalQueryFieldOption) => {
-      const draftQuery = structuredDraftState?.draftQuery;
+      const draftQuery = structuredDraftQuery;
       if (!draftQuery) {
         return;
       }
@@ -174,11 +167,11 @@ export function useSearchStructuredDraftPartActions({
         initialPreparedDraft: user.search.prepareFilterExplorerDraft(draftQuery, [fieldOption.value]),
         singleFieldBehavior: "directValues",
         onApply: (draft, context) => {
-          replaceStructuredDraftQuery((query) => user.search.applyFilterExplorerDraft(query, draft, context));
+          replaceStructuredDraftProjection((query) => user.search.applyFilterExplorerDraft(query, draft, context));
         },
       });
     },
-    [openFilterExplorer, replaceStructuredDraftQuery, structuredDraftState?.draftQuery, user.search],
+    [openFilterExplorer, replaceStructuredDraftProjection, structuredDraftQuery, user.search],
   );
 
   const editStructuredDraftRarity = React.useCallback(async () => {

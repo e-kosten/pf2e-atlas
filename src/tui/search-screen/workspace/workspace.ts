@@ -1,5 +1,4 @@
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
-import { extractLegacyQueryPartsFromCanonicalFilter } from "../../search/query-parts.js";
 import { getSearchQueryText } from "../../search/query-state.js";
 import {
   buildSearchQuerySummary,
@@ -28,16 +27,15 @@ export {
 export type SearchWorkspaceAction =
   | "mode"
   | "query"
+  | "exclude"
   | "profile"
+  | "queryTreeRoot"
   | "addQueryPart"
   | "clearClauses"
   | "reset"
   | "clearResults"
   | "execute"
-  | `queryPart:${SearchWorkspaceQueryPart}`
   | `queryNode:${string}`;
-
-type SearchWorkspaceQueryPart = "category" | "subcategory" | "levelRange" | "rarity" | "actionCost";
 
 export type SearchWorkspaceEntry = {
   action: SearchWorkspaceAction;
@@ -57,22 +55,20 @@ function encodeQueryNodePath(path: number[]): string {
   return path.length > 0 ? path.join(".") : "root";
 }
 
-function encodeQueryPartAction(part: SearchWorkspaceQueryPart): SearchWorkspaceAction {
-  return `queryPart:${part}`;
-}
-
 function encodeSummaryAnchorAction(anchor: SearchQuerySummaryAnchor): SearchWorkspaceAction {
   switch (anchor.kind) {
     case "mode":
       return "mode";
     case "query":
       return "query";
+    case "exclude":
+      return "exclude";
     case "profile":
       return "profile";
+    case "queryTreeRoot":
+      return "queryTreeRoot";
     case "addQueryPart":
       return "addQueryPart";
-    case "queryPart":
-      return encodeQueryPartAction(anchor.part);
     case "queryNode":
       return `queryNode:${encodeQueryNodePath(anchor.path)}`;
   }
@@ -80,24 +76,6 @@ function encodeSummaryAnchorAction(anchor: SearchQuerySummaryAnchor): SearchWork
 
 export function isQueryNodeAction(action: SearchWorkspaceAction): action is `queryNode:${string}` {
   return action.startsWith("queryNode:");
-}
-
-export function isQueryPartAction(action: SearchWorkspaceAction): action is `queryPart:${SearchWorkspaceQueryPart}` {
-  return action.startsWith("queryPart:");
-}
-
-export function decodeQueryPartAction(action: SearchWorkspaceAction): SearchWorkspaceQueryPart | null {
-  if (!isQueryPartAction(action)) {
-    return null;
-  }
-  const part = action.slice("queryPart:".length);
-  return part === "category" ||
-    part === "subcategory" ||
-    part === "levelRange" ||
-    part === "rarity" ||
-    part === "actionCost"
-    ? part
-    : null;
 }
 
 export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number[] | null {
@@ -113,11 +91,6 @@ export function decodeQueryNodeActionPath(action: SearchWorkspaceAction): number
     .map((segment) => Number.parseInt(segment, 10))
     .filter((segment) => Number.isInteger(segment));
   return path.length > 0 ? path : null;
-}
-
-function hasStructuredSignal(request: Pf2eTerminalSearchQuery): boolean {
-  const legacyState = extractLegacyQueryPartsFromCanonicalFilter(request.filter);
-  return Boolean(legacyState.category || legacyState.parts.length > 0);
 }
 
 export function getExecuteAvailability(request: Pf2eTerminalSearchQuery): {
@@ -190,14 +163,17 @@ function buildSummaryLines(summary: SearchQuerySummary, title: string): DerivedT
   const lines: DerivedTagTerminalLine[] = [{ text: title, tone: "section" }];
   const visibleEntries = getVisibleSearchQuerySummaryEntries(summary);
 
-  for (const entry of visibleEntries.filter((entry) => entry.kind !== "metadata")) {
+  for (const entry of visibleEntries.filter((entry) => entry.kind !== "filterNode")) {
     lines.push({
       text: `${entry.label}: ${entry.value}`,
     });
   }
 
-  lines.push({ text: `Query clauses: ${summary.metadataPredicateCount}` });
-  for (const entry of visibleEntries.filter((entry) => entry.kind === "metadata")) {
+  lines.push({ text: `Top-level filters: ${summary.activeStructuredPartCount}` });
+  if (summary.metadataPredicateCount > 0) {
+    lines.push({ text: `Metadata predicates: ${summary.metadataPredicateCount}` });
+  }
+  for (const entry of visibleEntries.filter((entry) => entry.kind === "filterNode")) {
     lines.push({
       text: `${entry.label}: ${entry.value}`,
       indent: 2 + (entry.indent ?? 0) * 2,
@@ -211,12 +187,15 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
   const executeAvailability = getExecuteAvailability(state.query);
   const modeEntry = summary.entries.find((entry) => entry.kind === "mode");
   const queryEntry = summary.entries.find((entry) => entry.kind === "query");
+  const excludeEntry = summary.entries.find((entry) => entry.kind === "exclude");
   if (!modeEntry) {
     throw new Error("Search query summary must include mode entries.");
   }
+  const filterTreeRootEntry = summary.entries.find((entry) => entry.kind === "filterTreeRoot");
   const entries: SearchWorkspaceEntry[] = [
     buildWorkspaceEntryFromSummary(modeEntry),
     ...(queryEntry?.visible ? [buildWorkspaceEntryFromSummary(queryEntry)] : []),
+    ...(excludeEntry?.visible ? [buildWorkspaceEntryFromSummary(excludeEntry)] : []),
     {
       action: "addQueryPart",
       label: "Filters >",
@@ -225,8 +204,12 @@ export function buildWorkspaceEntries(state: SearchScreenState, countState: Sear
     },
   ];
 
+  if (filterTreeRootEntry?.visible) {
+    entries.push(buildWorkspaceEntryFromSummary(filterTreeRootEntry, { indentOffset: 1 }));
+  }
+
   const structuredEntries = getVisibleSearchQuerySummaryEntries(summary)
-    .filter((entry) => isStructuredSearchQuerySummaryEntry(entry))
+    .filter((entry) => isStructuredSearchQuerySummaryEntry(entry) && entry.kind !== "filterTreeRoot")
     .map((entry) => buildWorkspaceEntryFromSummary(entry, { indentOffset: 1 }));
   if (summary.metadataPredicateCount > 0) {
     structuredEntries.push({

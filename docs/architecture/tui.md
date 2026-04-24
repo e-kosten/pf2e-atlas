@@ -163,10 +163,10 @@ Use this layer when a screen is fundamentally a list/detail surface with shared 
 
 `src/tui/search/service.ts` is the TUI-facing search facade. It is not the ranking engine itself. Instead, it:
 
-- keeps `query.filters.parts` as the canonical TUI editor representation
-- lowers TUI query state into `SearchRequest` at the backend boundary
+- keeps canonical `SearchRequest` state as the TUI query model
+- uses `query.filter` as the shared semantic filter tree instead of a TUI-local parallel query-part model
 - exposes category, subcategory, sort, and facet options for the UI
-- converts ontology-origin queries into TUI query state
+- converts ontology-origin queries into canonical TUI query state
 - opens and reads search windows through the shared backend
 - owns TUI session concepts such as result buffers, sort changes, and session disposal
 
@@ -180,12 +180,16 @@ Within the search screen, the live workspace no longer renders structured rows d
 
 That summary layer owns stable anchors for major query parts and metadata nodes. The durable rule is:
 
-- `query.filters.parts` stays the canonical structured-query state
-- query-state helpers own normalization and interpretation
-- query-state helpers do not preserve a legacy filter-slot upgrade path at runtime
+- `SearchRequest` is the canonical TUI query state, including the structured filter tree
+- query-state helpers own normalization, projection, and interpretation of canonical `query.filter`
+- metadata-node adapters may convert between editor-facing metadata nodes and canonical filter nodes, but they do not own a parallel query semantics model
 - `SearchRequest` is the shared semantic contract once query state crosses out of the TUI
 - the workspace summary/document model owns editor-facing identity and display structure
 - terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane
+
+The dedicated structured editor presents a visible root boolean group for editing, but that editor framing is not itself the durable storage model. Single-child wrapper groups that exist only to support editor presentation should collapse back to the underlying canonical filter node when they do not carry additional shared semantics.
+
+Structured editing keeps only the staged canonical filter projection plus local cursor/move state. Focused add/edit flows such as the query-field builder keep short-lived dialog-local builder state and derive preview summaries from the canonical query shell plus the staged filter nodes they are about to commit.
 
 ### Ontology Explorer Layer
 

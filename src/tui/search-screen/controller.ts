@@ -143,7 +143,11 @@ export function useSearchScreenController({
         })),
       })
       .then((result) => {
-        if (result.kind !== "selected" || result.value === queryRef.current.mode) {
+        if (result.kind !== "selected") {
+          onBack();
+          return;
+        }
+        if (result.value === queryRef.current.mode) {
           return;
         }
         applyQueryUpdate((query) => ({
@@ -151,7 +155,7 @@ export function useSearchScreenController({
           limit: query.limit,
         }));
       });
-  }, [applyQueryUpdate, entry, initialRequest, promptForInitialMode, prompts, state.query.mode, user.search]);
+  }, [applyQueryUpdate, entry, initialRequest, onBack, promptForInitialMode, prompts, state.query.mode, user.search]);
 
   const {
     busy,

@@ -6,7 +6,6 @@ import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryFieldSelectionMap,
 } from "./service-types.js";
-import type { Pf2eTerminalQueryPartPolicy } from "./query-parts.js";
 
 export function createEmptyFilterPolicy<T extends number | string>(): Pf2eTerminalFilterValuePolicy<T> {
   return {
@@ -33,7 +32,7 @@ export function hasNumberPolicy(policy: Pf2eTerminalFilterValuePolicy<number>): 
 }
 
 export function cloneStringPolicy(
-  policy: Pf2eTerminalFilterValuePolicy<string> | Pf2eTerminalQueryPartPolicy<string>,
+  policy: Pf2eTerminalFilterValuePolicy<string>,
 ): Pf2eTerminalFilterValuePolicy<string> {
   return {
     any: [...policy.any],
@@ -43,7 +42,7 @@ export function cloneStringPolicy(
 }
 
 export function cloneNumberPolicy(
-  policy: Pf2eTerminalFilterValuePolicy<number> | Pf2eTerminalQueryPartPolicy<number>,
+  policy: Pf2eTerminalFilterValuePolicy<number>,
 ): Pf2eTerminalFilterValuePolicy<number> {
   return {
     any: [...policy.any],

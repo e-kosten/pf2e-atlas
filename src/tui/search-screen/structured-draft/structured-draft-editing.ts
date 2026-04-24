@@ -21,8 +21,10 @@ import type {
 export function useSearchStructuredDraftEditing({
   appendStructuredDraftMetadataNode,
   cancelStructuredDraftSession,
+  clearStructuredDraftMoveSource,
   chooseQueryField,
   editFieldClause,
+  enterStructuredDraftMoveMode,
   finishStructuredDraftSession,
   getExplorerBackedFieldOptions,
   getScopedFieldOptions,
@@ -32,8 +34,9 @@ export function useSearchStructuredDraftEditing({
   openOntologyFieldExplorer,
   openQueryFieldBuilder,
   prompts,
-  replaceStructuredDraftQuery,
+  replaceStructuredDraftProjection,
   structuredDraftEntries,
+  structuredDraftQuery,
   structuredDraftState,
   terminal,
   updateStructuredDraftMetadataNode,
@@ -41,12 +44,14 @@ export function useSearchStructuredDraftEditing({
 }: {
   appendStructuredDraftMetadataNode: (path: number[], nextNode: MetadataFilterNode) => void;
   cancelStructuredDraftSession: () => void;
+  clearStructuredDraftMoveSource: () => void;
   chooseQueryField: (query: Pf2eTerminalSearchQuery) => Promise<Pf2eTerminalQueryFieldOption | null>;
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode?: MetadataFilterNode | null,
   ) => Promise<MetadataFilterNode | null | undefined>;
+  enterStructuredDraftMoveMode: (path: number[]) => void;
   finishStructuredDraftSession: () => void;
   getExplorerBackedFieldOptions: (fieldOptions: Pf2eTerminalQueryFieldOption[]) => Pf2eTerminalQueryFieldOption[];
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
@@ -66,8 +71,9 @@ export function useSearchStructuredDraftEditing({
   ) => Promise<boolean>;
   openQueryFieldBuilder: (query: Pf2eTerminalSearchQuery, path?: number[]) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
-  replaceStructuredDraftQuery: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
   structuredDraftEntries: SearchStructuredDraftEntry[];
+  structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
   terminal: SearchWorkspaceTerminal;
   updateStructuredDraftMetadataNode: (
@@ -85,23 +91,27 @@ export function useSearchStructuredDraftEditing({
   } = useSearchStructuredDraftPartActions({
     openFilterExplorer,
     prompts,
-    replaceStructuredDraftQuery,
-    structuredDraftState,
+    replaceStructuredDraftProjection,
+    structuredDraftQuery,
     terminal,
     user,
   });
 
   const { editStructuredDraftMetadata } = useSearchStructuredDraftMetadataActions({
     appendStructuredDraftMetadataNode,
+    clearStructuredDraftMoveSource,
     chooseQueryField,
     editFieldClause,
+    enterStructuredDraftMoveMode,
     getExplorerBackedFieldOptions,
     getScopedFieldOptions,
+    moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
     openOntologyFieldEditor,
     openOntologyFieldExplorer,
     openQueryFieldBuilder,
     prompts,
-    structuredDraftState,
+    replaceStructuredDraftProjection,
+    structuredDraftQuery,
     terminal,
     updateStructuredDraftMetadataNode,
   });
@@ -146,15 +156,17 @@ export function useSearchStructuredDraftEditing({
       void editStructuredDraftActionCost();
       return;
     }
-    void editStructuredDraftMetadata(selectedEntry.metadataPath ?? []);
+    void editStructuredDraftMetadata(selectedEntry);
   }, [
     cancelStructuredDraftSession,
+    clearStructuredDraftMoveSource,
     editStructuredDraftActionCost,
     editStructuredDraftCategory,
     editStructuredDraftLevelRange,
     editStructuredDraftMetadata,
     editStructuredDraftRarity,
     editStructuredDraftSubcategory,
+    enterStructuredDraftMoveMode,
     finishStructuredDraftSession,
     structuredDraftEntries,
     structuredDraftState,
@@ -171,18 +183,25 @@ export function useSearchStructuredDraftEditing({
       subtitle: "Stage structured search changes before applying them to the live query",
       leftTitle: "[STAGED QUERY]",
       rightTitle: "Staged Summary & Detail",
-      statusText: "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
-      draftQuery: structuredDraftState.draftQuery,
+      statusText: structuredDraftState.moveSourcePath
+        ? "Move mode: select a visible destination slot, Enter confirms, Left/Esc cancels the move."
+        : "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
+      projectedQuery: structuredDraftQuery,
       items: structuredDraftEntries.map((entry) =>
         entry.kind === "finish" || entry.kind === "cancel"
           ? { kind: entry.kind, label: entry.label }
+          : entry.kind === "queryTreeRoot" || entry.kind === "queryNode" || entry.kind === "queryInsertionSlot"
+            ? {
+                kind: "treeEntry" as const,
+                label: entry.menuLabel ?? entry.label,
+              }
           : {
               kind: "workspaceEntry" as const,
               label: `${entry.label} | ${entry.value}`,
               workspaceEntry: {
                 action: "addQueryPart",
                 label: entry.label,
-                value: entry.value,
+                value: entry.value ?? "",
                 description: entry.description,
                 disabled: entry.disabled,
                 disabledReason: entry.disabledReason,
@@ -193,20 +212,26 @@ export function useSearchStructuredDraftEditing({
       moveSelection: moveStructuredDraftSelection,
       selectCurrent: selectCurrentStructuredDraftEntry,
       finish: finishStructuredDraftSession,
-      cancel: finishStructuredDraftSession,
+      cancel: structuredDraftState.moveSourcePath ? clearStructuredDraftMoveSource : finishStructuredDraftSession,
       helpTitle: "Structured Query Editor Help",
       helpBody: [
         { text: "Stage structured search changes before applying them to the live query.", tone: "section" },
         { text: "The summary stays visible while you move focus so prior staged selections do not disappear." },
-        { text: "Use Left or Esc to apply the staged query and return to the top editor." },
+        {
+          text: structuredDraftState.moveSourcePath
+            ? "Use Left or Esc to cancel move mode and keep the current tree unchanged."
+            : "Use Left or Esc to apply the staged query and return to the top editor.",
+        },
         { text: "Use the discard row only when you want to abandon the staged query entirely." },
       ],
     };
   }, [
+    clearStructuredDraftMoveSource,
     finishStructuredDraftSession,
     moveStructuredDraftSelection,
     selectCurrentStructuredDraftEntry,
     structuredDraftEntries,
+    structuredDraftQuery,
     structuredDraftState,
   ]);
 }

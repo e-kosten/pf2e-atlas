@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { describeMetadataNode } from "../../src/tui/search/query-core.js";
+import type { MetadataFilterNode } from "../../src/domain/metadata-filter-types.js";
+import type { SearchFilterNode } from "../../src/domain/search-request-types.js";
+import {
+  canLiftSearchFilterNodeAtPath,
+  canUnwrapSearchFilterNodeAtPath,
+  canLiftMetadataNodeAtPath,
+  canUnwrapMetadataNodeAtPath,
+  describeMetadataNode,
+  formatMetadataNodePresentationAlias,
+  formatSearchFilterNodePresentationAlias,
+  isValidMetadataMoveTargetGroupPath,
+  isValidSearchFilterMoveTargetGroupPath,
+  liftSearchFilterNodeAtPath,
+  moveMetadataNodeToGroupPath,
+  moveSearchFilterNodeToGroupPath,
+  toggleSearchFilterRootGroupOperator,
+  unwrapSearchFilterNodeAtPath,
+  unwrapMetadataNodeAtPath,
+  wrapSearchFilterNodeAtPath,
+  wrapMetadataNodeAtPath,
+} from "../../src/tui/search/query-core.js";
 
 describe("search query-core metric labels", () => {
   it("uses friendly creature statistics labels for actor metric predicates", () => {
@@ -54,5 +74,335 @@ describe("search query-core metric labels", () => {
         },
       ).label,
     ).toBe("Item Properties");
+  });
+
+  it("preserves explicit single-child groups when wrapping and unwrapping nodes in the editor tree", () => {
+    const predicate: MetadataFilterNode = {
+      field: "traits",
+      op: "includesAny",
+      values: ["fire"],
+    };
+
+    const wrapped = wrapMetadataNodeAtPath(predicate, [], "and");
+    expect(wrapped).toEqual({
+      and: [predicate],
+    });
+
+    expect(
+      unwrapMetadataNodeAtPath(
+        {
+          and: [wrapped!],
+        },
+        [0],
+      ),
+    ).toEqual({
+      and: [predicate],
+    });
+  });
+
+  it("moves nodes to visible group-bottom insertion targets without collapsing the source group", () => {
+    const tree: MetadataFilterNode = {
+      and: [
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["fire"],
+        },
+        {
+          or: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["cold"],
+            },
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["electricity"],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(moveMetadataNodeToGroupPath(tree, [1, 1], [])).toEqual({
+      and: [
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["fire"],
+        },
+        {
+          or: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["cold"],
+            },
+          ],
+        },
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["electricity"],
+        },
+      ],
+    });
+  });
+
+  it("keeps sibling-group move targets stable after removing a node from another nested branch", () => {
+    const tree: MetadataFilterNode = {
+      and: [
+        {
+          or: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["fire"],
+            },
+            {
+              and: [
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["cold"],
+                },
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["electricity"],
+                },
+              ],
+            },
+            {
+              or: [
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["acid"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(moveMetadataNodeToGroupPath(tree, [0, 1, 0], [0, 2])).toEqual({
+      and: [
+        {
+          or: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["fire"],
+            },
+            {
+              and: [
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["electricity"],
+                },
+              ],
+            },
+            {
+              or: [
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["acid"],
+                },
+                {
+                  field: "traits",
+                  op: "includesAny",
+                  values: ["cold"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("reports only valid move, unwrap, and lift targets for structural actions", () => {
+    const tree: MetadataFilterNode = {
+      and: [
+        {
+          not: {
+            field: "traits",
+            op: "includesAny",
+            values: ["fire"],
+          },
+        },
+        {
+          or: [
+            {
+              field: "traits",
+              op: "includesAny",
+              values: ["cold"],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(isValidMetadataMoveTargetGroupPath(tree, [0, 0], [0])).toBe(false);
+    expect(isValidMetadataMoveTargetGroupPath(tree, [0, 0], [1])).toBe(true);
+    expect(canUnwrapMetadataNodeAtPath(tree, [1])).toBe(true);
+    expect(canLiftMetadataNodeAtPath(tree, [0, 0])).toBe(false);
+  });
+
+  it("formats boolean-group presentation aliases for compact workspace and tree views", () => {
+    const tree: MetadataFilterNode = {
+      or: [
+        {
+          field: "traits",
+          op: "includesAny",
+          values: ["fire"],
+        },
+        {
+          not: {
+            field: "publicationRemaster",
+            op: "eq",
+            value: true,
+          },
+        },
+      ],
+    };
+
+    expect(formatMetadataNodePresentationAlias(tree, { style: "compact" })).toBe("anyOf(2 filters)");
+    expect(formatMetadataNodePresentationAlias(tree, { style: "tree" })).toBe("anyOf");
+  });
+
+  it("preserves explicit single-child canonical groups when wrapping and unwrapping nodes in the editor tree", () => {
+    const clause: SearchFilterNode = {
+      kind: "pack",
+      value: "spells",
+    };
+
+    const wrapped = wrapSearchFilterNodeAtPath(clause, [], "allOf");
+    expect(wrapped).toEqual({
+      kind: "allOf",
+      children: [clause],
+    });
+
+    expect(
+      unwrapSearchFilterNodeAtPath(
+        {
+          kind: "allOf",
+          children: [wrapped!],
+        },
+        [0],
+      ),
+    ).toEqual({
+      kind: "allOf",
+      children: [clause],
+    });
+  });
+
+  it("moves canonical nodes into later sibling groups without dropping the extracted node", () => {
+    const tree: SearchFilterNode = {
+      kind: "allOf",
+      children: [
+        {
+          kind: "anyOf",
+          children: [{ kind: "pack", value: "alpha" }],
+        },
+        {
+          kind: "pack",
+          value: "middle",
+        },
+        {
+          kind: "anyOf",
+          children: [{ kind: "pack", value: "beta" }],
+        },
+      ],
+    };
+
+    expect(moveSearchFilterNodeToGroupPath(tree, [0, 0], [2])).toEqual({
+      kind: "allOf",
+      children: [
+        {
+          kind: "pack",
+          value: "middle",
+        },
+        {
+          kind: "anyOf",
+          children: [
+            { kind: "pack", value: "beta" },
+            { kind: "pack", value: "alpha" },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("reports valid canonical move, unwrap, and lift targets for structural actions", () => {
+    const tree: SearchFilterNode = {
+      kind: "allOf",
+      children: [
+        {
+          kind: "not",
+          child: {
+            kind: "pack",
+            value: "alpha",
+          },
+        },
+        {
+          kind: "anyOf",
+          children: [
+            {
+              kind: "allOf",
+              children: [{ kind: "pack", value: "beta" }],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(isValidSearchFilterMoveTargetGroupPath(tree, [0, 0], [0])).toBe(false);
+    expect(isValidSearchFilterMoveTargetGroupPath(tree, [0, 0], [1])).toBe(true);
+    expect(canUnwrapSearchFilterNodeAtPath(tree, [1, 0])).toBe(true);
+    expect(canLiftSearchFilterNodeAtPath(tree, [1, 0, 0])).toBe(true);
+    expect(liftSearchFilterNodeAtPath(tree, [1, 0, 0])).toEqual({
+      kind: "allOf",
+      children: [
+        {
+          kind: "not",
+          child: {
+            kind: "pack",
+            value: "alpha",
+          },
+        },
+        {
+          kind: "anyOf",
+          children: [
+            {
+              kind: "pack",
+              value: "beta",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("formats and toggles canonical boolean-group aliases for workspace and tree views", () => {
+    const tree: SearchFilterNode = {
+      kind: "allOf",
+      children: [
+        { kind: "pack", value: "spells" },
+        { kind: "pack", value: "feats" },
+      ],
+    };
+
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "compact" })).toBe("allOf(2 filters)");
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "tree" })).toBe("allOf");
+    expect(toggleSearchFilterRootGroupOperator(tree)).toEqual({
+      kind: "anyOf",
+      children: tree.children,
+    });
   });
 });

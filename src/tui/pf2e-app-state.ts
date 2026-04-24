@@ -1,6 +1,6 @@
 import type { OntologyDomainModel } from "../domain/ontology-types.js";
+import type { OntologyNodeQuery } from "../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../domain/search-field-domains.js";
-import type { SearchRequest } from "../domain/search-request-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type {
   DerivedTagWorkbenchMode,
@@ -52,7 +52,7 @@ export type Pf2eSearchRouteOrigin = {
 export type Pf2eSearchEditorRoute = {
   kind: (typeof PF2E_APP_ROUTE_KIND)["SEARCH"];
   entry: (typeof PF2E_SEARCH_ROUTE_ENTRY_KIND)["EDITOR"];
-  initialRequest?: SearchRequest;
+  initialQuery?: OntologyNodeQuery;
   initialSession?: never;
   origin?: Pf2eSearchRouteOrigin;
 };
@@ -121,16 +121,16 @@ export function createPf2eOntologyRoute({
 }
 
 export function createPf2eSearchEditorRoute({
-  initialRequest,
+  initialQuery,
   origin,
 }: {
-  initialRequest?: SearchRequest;
+  initialQuery?: OntologyNodeQuery;
   origin?: Pf2eSearchRouteOrigin;
 } = {}): Pf2eSearchEditorRoute {
   return {
     kind: PF2E_APP_ROUTE_KIND.SEARCH,
     entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
-    ...(initialRequest ? { initialRequest } : {}),
+    ...(initialQuery ? { initialQuery } : {}),
     ...(origin ? { origin } : {}),
   };
 }

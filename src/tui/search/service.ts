@@ -27,15 +27,14 @@ import { buildSearchRequest } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
   createDefaultQuery,
+  getSearchQueryActionCostPolicy,
   getSearchQueryCategory,
+  getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
+  setSearchQueryActionCostPolicy,
 } from "./query-state.js";
-import {
-  extractLegacyQueryPartsFromCanonicalFilter,
-  legacyQueryPartsToCanonicalFilter,
-} from "./query-parts.js";
 import {
   appendSearchSessionWindowPage,
   buildSearchWindowFilters,
@@ -80,7 +79,6 @@ export type {
   Pf2eTerminalSearchSession,
   Pf2eTerminalSearchSort,
   Pf2eTerminalSearchSortOption,
-  Pf2eTerminalSearchStructuredPart,
   Pf2eTerminalSearchSubcategoryOption,
   SearchServiceDependencies,
 } from "./service-types.js";
@@ -105,36 +103,20 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     const normalizedQuery = normalizeSearchQuery(query);
     const category = getSearchQueryCategory(normalizedQuery);
     const subcategory = getSearchQuerySubcategory(normalizedQuery);
-    const rootParts = extractLegacyQueryPartsFromCanonicalFilter(normalizedQuery.filter).parts;
-    const nextParts = rootParts.filter(
-      (part) => part.kind !== "actionCostPolicy" || isActionCostRelevant(category, subcategory),
-    );
+    if (isActionCostRelevant(category, subcategory)) {
+      return normalizedQuery;
+    }
 
-    return {
-      ...normalizedQuery,
-      filter: legacyQueryPartsToCanonicalFilter(category, nextParts),
-    };
+    const actionCostPolicy = getSearchQueryActionCostPolicy(normalizedQuery);
+    return actionCostPolicy.any.length > 0 || actionCostPolicy.all.length > 0 || actionCostPolicy.exclude.length > 0
+      ? setSearchQueryActionCostPolicy(normalizedQuery, { any: [], all: [], exclude: [] })
+      : normalizedQuery;
   }
 
   return {
     createDefaultQuery: (mode) => createDefaultQuery(mode),
     createQueryFromOntologyQuery: (query) =>
       createSearchQueryFromOntologyQuery(query, dependencies, fieldSemanticsByName),
-    getAvailableRootQueryPartKinds: (category, subcategory) => [
-      ...(category && CATEGORY_SUBCATEGORY_MAP[category].length > 0 ? (["subcategory"] as const) : []),
-      "levelRange",
-      "rarityPolicy",
-      ...(isActionCostRelevant(category, subcategory) ? (["actionCostPolicy"] as const) : []),
-      ...(category ? (["metadataPredicate", "metadataGroup", "metadataNot"] as const) : []),
-    ],
-    getRootQueryParts: (query) => extractLegacyQueryPartsFromCanonicalFilter(normalizeServiceQuery(query).filter).parts,
-    applyRootQueryParts: (query, parts) =>
-      normalizeServiceQuery(
-        {
-          ...query,
-          filter: legacyQueryPartsToCanonicalFilter(getSearchQueryCategory(query), parts),
-        },
-      ),
     prepareFilterExplorerDraft: (query, scopedFields) =>
       prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
     prepareFilterExplorerDraftFromMetadataNode: (node, scopedFields) =>

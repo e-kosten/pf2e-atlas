@@ -1,6 +1,10 @@
 import React from "react";
 
 import type { MetadataFilterNode } from "../../../domain/metadata-filter-types.js";
+import {
+  projectSearchQueryFilter,
+  stripSearchQueryFilter,
+} from "../../search/query-projection.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import type {
   Pf2eTerminalQueryFieldOption,
@@ -69,7 +73,8 @@ export function useSearchQueryFieldBuilderActions({
       }
 
       setQueryFieldBuilderState({
-        draftQuery: query,
+        baseQuery: stripSearchQueryFilter(query),
+        baseFilter: query.filter,
         path,
         items: buildQueryFieldBuilderItems(fieldOptions),
         selectedIndex: 0,
@@ -100,12 +105,13 @@ export function useSearchQueryFieldBuilderActions({
 
   const editQueryFieldBuilderField = React.useCallback(
     async (fieldOption: Pf2eTerminalQueryFieldOption) => {
-      const scopeQuery = queryFieldBuilderState?.draftQuery;
-      if (!scopeQuery) {
+      const builderState = queryFieldBuilderState;
+      if (!builderState) {
         return;
       }
+      const scopeQuery = projectSearchQueryFilter(builderState.baseQuery, builderState.baseFilter);
 
-      const currentNode = queryFieldBuilderState.fieldDrafts[fieldOption.value] ?? null;
+      const currentNode = builderState.fieldDrafts[fieldOption.value] ?? null;
       if (fieldOption.editor === "sharedExplorer") {
         await openOntologyFieldEditor(scopeQuery, fieldOption, currentNode, (nextNode) => {
           updateQueryFieldBuilderDraft(fieldOption.value, nextNode);
@@ -154,7 +160,7 @@ export function useSearchQueryFieldBuilderActions({
       leftTitle: "[QUERY FIELDS]",
       rightTitle: "Staged Summary & Detail",
       statusText: "Field edits stay staged until you finish the structured query editor.",
-      draftQuery: buildQueryFieldBuilderPreviewQuery(queryFieldBuilderState),
+      projectedQuery: buildQueryFieldBuilderPreviewQuery(queryFieldBuilderState),
       items: buildQueryFieldBuilderSessionItems(queryFieldBuilderState),
       selectedIndex: clampStructuredDraftSelection(
         queryFieldBuilderState.selectedIndex,

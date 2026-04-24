@@ -3,7 +3,13 @@ import {
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
 import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
-import { findSearchScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
+import {
+  buildAllOfFilter,
+  buildAnyOfFilter,
+  findSearchScopeFilter,
+  type SearchFilterNode,
+  type SearchRequest,
+} from "../../domain/search-request-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type {
   MetadataBooleanField,
@@ -17,13 +23,8 @@ import type {
   SearchSubcategory,
 } from "../../domain/search-types.js";
 import {
-  extractLegacyQueryPartsFromCanonicalFilter,
-  isMetadataQueryPart,
-  legacyQueryPartsToCanonicalFilter,
-  metadataFilterNodeToRootQueryParts,
-  rootMetadataQueryPartsToFilterNode,
-  type Pf2eTerminalMetadataQueryPart,
-  type Pf2eTerminalQueryPart,
+  canonicalFilterToMetadataNode,
+  metadataFilterNodeToCanonicalFilter,
 } from "./query-parts.js";
 import {
   cloneNumberPolicy,
@@ -37,7 +38,6 @@ import type {
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
-  Pf2eTerminalSearchStructuredPart,
   SearchServiceDependencies,
 } from "./service-types.js";
 
@@ -49,24 +49,313 @@ function trimOptionalText(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function getLegacyQueryState(query: Pf2eTerminalSearchQuery): {
-  category: SearchCategory | null;
-  parts: Pf2eTerminalQueryPart[];
-} {
-  return extractLegacyQueryPartsFromCanonicalFilter(query.filter);
+type QueryRootOperator = "allOf" | "anyOf";
+
+type QueryFilterState = {
+  rootOperator: QueryRootOperator;
+  scope: Extract<SearchFilterNode, { kind: "scope" }> | null;
+  level: Extract<SearchFilterNode, { kind: "level" }> | null;
+  rarityPolicy: Pf2eTerminalFilterValuePolicy<string>;
+  actionCostPolicy: Pf2eTerminalFilterValuePolicy<number>;
+  otherChildren: SearchFilterNode[];
+};
+
+function createEmptyFilterState(rootOperator: QueryRootOperator = "allOf"): QueryFilterState {
+  return {
+    rootOperator,
+    scope: null,
+    level: null,
+    rarityPolicy: createEmptyStringPolicy(),
+    actionCostPolicy: createEmptyNumberPolicy(),
+    otherChildren: [],
+  };
 }
 
-function rebuildQueryFilter(
+function hasPolicyValues<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
+  return policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0;
+}
+
+function isCanonicalMetadataFilterCandidate(filter: SearchFilterNode): boolean {
+  return (
+    filter.kind === "metadataPredicate" ||
+    filter.kind === "metric" ||
+    filter.kind === "metricCompare" ||
+    filter.kind === "anyOf" ||
+    filter.kind === "allOf" ||
+    filter.kind === "not"
+  );
+}
+
+function buildPolicyLeaf(
+  kind: "rarity" | "actionCost",
+  value: string | number,
+): SearchFilterNode {
+  return kind === "rarity"
+    ? { kind, match: { kind: "eq", value: value as string } }
+    : { kind, match: { kind: "eq", value: value as number } };
+}
+
+function buildPolicyFilter(
+  kind: "rarity" | "actionCost",
+  policy: Pf2eTerminalFilterValuePolicy<string> | Pf2eTerminalFilterValuePolicy<number>,
+): SearchFilterNode | null {
+  const anyChildren = policy.any.map((value) => buildPolicyLeaf(kind, value));
+  const allChildren = policy.all.map((value) => buildPolicyLeaf(kind, value));
+  const excludeChildren = policy.exclude.map((value) => buildPolicyLeaf(kind, value));
+  const children: SearchFilterNode[] = [];
+
+  if (anyChildren.length === 1) {
+    children.push(anyChildren[0]!);
+  } else if (anyChildren.length > 1) {
+    children.push({ kind: "anyOf", children: anyChildren });
+  }
+
+  if (allChildren.length === 1) {
+    children.push(allChildren[0]!);
+  } else if (allChildren.length > 1) {
+    children.push({ kind: "allOf", children: allChildren });
+  }
+
+  if (excludeChildren.length === 1) {
+    children.push({ kind: "not", child: excludeChildren[0]! });
+  } else if (excludeChildren.length > 1) {
+    children.push({ kind: "not", child: { kind: "anyOf", children: excludeChildren } });
+  }
+
+  if (children.length === 0) {
+    return null;
+  }
+
+  return children.length === 1 ? children[0]! : { kind: "allOf", children };
+}
+
+export function buildSearchFilterValuePolicyNode(
+  kind: "rarity" | "actionCost",
+  policy: Pf2eTerminalFilterValuePolicy<string> | Pf2eTerminalFilterValuePolicy<number>,
+): SearchFilterNode | null {
+  return buildPolicyFilter(kind, policy);
+}
+
+function collectPolicyEqValues<K extends "rarity" | "actionCost">(
+  filter: SearchFilterNode,
+  kind: K,
+): Array<K extends "rarity" ? string : number> | null {
+  if (filter.kind === kind && filter.match.kind === "eq") {
+    return [filter.match.value] as Array<K extends "rarity" ? string : number>;
+  }
+
+  if (filter.kind === "anyOf" || filter.kind === "allOf") {
+    const values: Array<K extends "rarity" ? string : number> = [];
+    for (const child of filter.children) {
+      const childValues = collectPolicyEqValues(child, kind);
+      if (!childValues) {
+        return null;
+      }
+      values.push(...childValues);
+    }
+    return values;
+  }
+
+  return null;
+}
+
+function extractPolicyFilter<K extends "rarity" | "actionCost">(
+  filter: SearchFilterNode,
+  kind: K,
+): Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> | null {
+  if (filter.kind === kind && filter.match.kind === "eq") {
+    return {
+      any: [filter.match.value] as Array<K extends "rarity" ? string : number>,
+      all: [],
+      exclude: [],
+    };
+  }
+
+  if (filter.kind === "anyOf") {
+    const values = collectPolicyEqValues(filter, kind);
+    return values
+      ? {
+          any: values,
+          all: [],
+          exclude: [],
+        }
+      : null;
+  }
+
+  if (filter.kind === "allOf") {
+    const policy: Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> = {
+      any: [],
+      all: [],
+      exclude: [],
+    };
+
+    for (const child of filter.children) {
+      if (child.kind === "not") {
+        const excludedValues = collectPolicyEqValues(child.child, kind);
+        if (!excludedValues) {
+          return null;
+        }
+        policy.exclude.push(...excludedValues);
+        continue;
+      }
+
+      const values = collectPolicyEqValues(child, kind);
+      if (!values) {
+        return null;
+      }
+
+      if (child.kind === "allOf") {
+        policy.all.push(...values);
+      } else {
+        policy.any.push(...values);
+      }
+    }
+
+    return policy;
+  }
+
+  if (filter.kind === "not") {
+    const excludedValues = collectPolicyEqValues(filter.child, kind);
+    return excludedValues
+      ? {
+          any: [],
+          all: [],
+          exclude: excludedValues,
+        }
+      : null;
+  }
+
+  return null;
+}
+
+export function tryExtractSearchFilterValuePolicy(
+  filter: SearchFilterNode,
+):
+  | { kind: "rarity"; policy: Pf2eTerminalFilterValuePolicy<string> }
+  | { kind: "actionCost"; policy: Pf2eTerminalFilterValuePolicy<number> }
+  | null {
+  const rarityPolicy = extractPolicyFilter(filter, "rarity");
+  if (rarityPolicy && hasPolicyValues(rarityPolicy)) {
+    return {
+      kind: "rarity",
+      policy: cloneStringPolicy(rarityPolicy as Pf2eTerminalFilterValuePolicy<string>),
+    };
+  }
+
+  const actionCostPolicy = extractPolicyFilter(filter, "actionCost");
+  if (actionCostPolicy && hasPolicyValues(actionCostPolicy)) {
+    return {
+      kind: "actionCost",
+      policy: cloneNumberPolicy(actionCostPolicy as Pf2eTerminalFilterValuePolicy<number>),
+    };
+  }
+
+  return null;
+}
+
+function decomposeQueryFilter(filter: SearchFilterNode | undefined): QueryFilterState {
+  const rootOperator: QueryRootOperator = filter?.kind === "anyOf" ? "anyOf" : "allOf";
+  const topLevelChildren =
+    filter?.kind === "allOf" || filter?.kind === "anyOf" ? filter.children : filter ? [filter] : [];
+  const state = createEmptyFilterState(rootOperator);
+
+  for (const child of topLevelChildren) {
+    if (child.kind === "scope" && !state.scope) {
+      state.scope = child;
+      continue;
+    }
+
+    if (child.kind === "level" && !state.level) {
+      state.level = child;
+      continue;
+    }
+
+    if (!hasPolicyValues(state.rarityPolicy)) {
+      const rarityPolicy = extractPolicyFilter(child, "rarity");
+      if (rarityPolicy && hasPolicyValues(rarityPolicy)) {
+        state.rarityPolicy = cloneStringPolicy(rarityPolicy as Pf2eTerminalFilterValuePolicy<string>);
+        continue;
+      }
+    }
+
+    if (!hasPolicyValues(state.actionCostPolicy)) {
+      const actionCostPolicy = extractPolicyFilter(child, "actionCost");
+      if (actionCostPolicy && hasPolicyValues(actionCostPolicy)) {
+        state.actionCostPolicy = cloneNumberPolicy(actionCostPolicy as Pf2eTerminalFilterValuePolicy<number>);
+        continue;
+      }
+    }
+
+    if (isCanonicalMetadataFilterCandidate(child) && canonicalFilterToMetadataNode(child)) {
+      continue;
+    }
+
+    state.otherChildren.push(child);
+  }
+
+  return state;
+}
+
+function rebuildQueryWithFilterState(
   query: Pf2eTerminalSearchQuery,
-  category: SearchCategory | null,
-  parts: readonly Pf2eTerminalQueryPart[],
+  state: QueryFilterState,
+  metadataTree: MetadataFilterNode | null,
 ): Pf2eTerminalSearchQuery {
-  const filter = legacyQueryPartsToCanonicalFilter(category, parts);
+  const children: SearchFilterNode[] = [];
+
+  if (state.scope) {
+    children.push(state.scope);
+  }
+  if (state.level) {
+    children.push(state.level);
+  }
+
+  const rarityFilter = buildPolicyFilter("rarity", state.rarityPolicy);
+  if (rarityFilter) {
+    children.push(rarityFilter);
+  }
+
+  const actionCostFilter = buildPolicyFilter("actionCost", state.actionCostPolicy);
+  if (actionCostFilter) {
+    children.push(actionCostFilter);
+  }
+
+  const metadataFilter = metadataFilterNodeToCanonicalFilter(metadataTree);
+  if (metadataFilter) {
+    children.push(metadataFilter);
+  }
+
+  children.push(...state.otherChildren);
+
+  const filter =
+    state.rootOperator === "anyOf"
+      ? buildAnyOfFilter(children)
+      : buildAllOfFilter(children);
   return {
     ...query,
-    ...(filter ? { filter } : {}),
-    ...(!filter ? { filter: undefined } : {}),
+    ...(filter ? { filter } : { filter: undefined }),
   };
+}
+
+function extractQueryMetadataTree(
+  filter: SearchFilterNode | undefined,
+): MetadataFilterNode | null {
+  const rootOperator: QueryRootOperator = filter?.kind === "anyOf" ? "anyOf" : "allOf";
+  const topLevelChildren =
+    filter?.kind === "allOf" || filter?.kind === "anyOf" ? filter.children : filter ? [filter] : [];
+  const metadataChildren = topLevelChildren.filter(
+    (child) => isCanonicalMetadataFilterCandidate(child) && canonicalFilterToMetadataNode(child),
+  );
+
+  if (metadataChildren.length === 0) {
+    return null;
+  }
+
+  return canonicalFilterToMetadataNode(
+    metadataChildren.length === 1
+      ? metadataChildren[0]!
+      : { kind: rootOperator, children: metadataChildren },
+  );
 }
 
 export function createDefaultQuery(mode: Pf2eTerminalSearchMode = "browse"): Pf2eTerminalSearchQuery {
@@ -94,10 +383,6 @@ export function createDefaultQuery(mode: Pf2eTerminalSearchMode = "browse"): Pf2
         },
       };
   }
-}
-
-export function splitMetadataTreeIntoParts(node: MetadataFilterNode | null): Pf2eTerminalSearchStructuredPart[] {
-  return metadataFilterNodeToRootQueryParts(node);
 }
 
 export function getSearchQueryText(query: Pf2eTerminalSearchQuery): string {
@@ -174,17 +459,6 @@ export function getSearchQueryCategory(query: Pf2eTerminalSearchQuery): SearchCa
   return normalizeSearchCategory(findSearchScopeFilter(query.filter)?.category ?? null) ?? null;
 }
 
-export function getSearchQueryPart<TKind extends Pf2eTerminalSearchStructuredPart["kind"]>(
-  query: Pf2eTerminalSearchQuery,
-  kind: TKind,
-): Extract<Pf2eTerminalSearchStructuredPart, { kind: TKind }> | null {
-  return (
-    getLegacyQueryState(query).parts.find(
-      (part): part is Extract<Pf2eTerminalSearchStructuredPart, { kind: TKind }> => part.kind === kind,
-    ) ?? null
-  );
-}
-
 export function getSearchQuerySubcategory(query: Pf2eTerminalSearchQuery): SearchSubcategory | null {
   const scope = findSearchScopeFilter(query.filter);
   if (!scope || scope.subcategory.kind !== "eq") {
@@ -198,66 +472,129 @@ export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {
   levelMin: number | null;
   levelMax: number | null;
 } {
-  const part = getSearchQueryPart(query, "levelRange");
+  const part = decomposeQueryFilter(query.filter).level;
   return {
-    levelMin: part?.levelMin ?? null,
-    levelMax: part?.levelMax ?? null,
+    levelMin:
+      part?.match.kind === "eq"
+        ? part.match.value
+        : part?.match.kind === "gte"
+          ? part.match.value
+          : part?.match.kind === "between"
+            ? part.match.min
+            : null,
+    levelMax:
+      part?.match.kind === "eq"
+        ? part.match.value
+        : part?.match.kind === "lte"
+          ? part.match.value
+          : part?.match.kind === "between"
+            ? part.match.max
+            : null,
   };
 }
 
 export function getSearchQueryRarityPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<string> {
-  return cloneStringPolicy(getSearchQueryPart(query, "rarityPolicy")?.policy ?? createEmptyStringPolicy());
+  return cloneStringPolicy(decomposeQueryFilter(query.filter).rarityPolicy);
 }
 
 export function getSearchQueryActionCostPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<number> {
-  return cloneNumberPolicy(getSearchQueryPart(query, "actionCostPolicy")?.policy ?? createEmptyNumberPolicy());
+  return cloneNumberPolicy(decomposeQueryFilter(query.filter).actionCostPolicy);
 }
 
 export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
-  return rootMetadataQueryPartsToFilterNode(getLegacyQueryState(query).parts) ?? null;
+  return extractQueryMetadataTree(query.filter);
+}
+
+export function getSearchQueryRootOperator(query: Pf2eTerminalSearchQuery): QueryRootOperator {
+  return decomposeQueryFilter(query.filter).rootOperator;
 }
 
 export function setSearchQueryCategory(
   query: Pf2eTerminalSearchQuery,
   category: SearchCategory | null,
 ): Pf2eTerminalSearchQuery {
-  return rebuildQueryFilter(query, category, []);
+  const state = decomposeQueryFilter(query.filter);
+  state.scope = category
+    ? {
+        kind: "scope",
+        category,
+        subcategory: { kind: "any" },
+      }
+    : null;
+  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
 }
 
-export function setSearchQueryPart(
+export function setSearchQuerySubcategory(
   query: Pf2eTerminalSearchQuery,
-  part: Exclude<Pf2eTerminalSearchStructuredPart, Pf2eTerminalMetadataQueryPart>,
+  subcategory: SearchSubcategory | null,
 ): Pf2eTerminalSearchQuery {
-  const legacyState = getLegacyQueryState(query);
-  const nextParts = legacyState.parts.filter(
-    (candidate) => candidate.kind !== part.kind && !isMetadataQueryPart(candidate),
-  );
-  nextParts.push(part);
-  nextParts.push(...legacyState.parts.filter(isMetadataQueryPart));
-  return rebuildQueryFilter(query, legacyState.category, nextParts);
+  const state = decomposeQueryFilter(query.filter);
+  const category = normalizeSearchCategory(state.scope?.category ?? null) ?? null;
+  if (!category) {
+    return query;
+  }
+
+  state.scope = {
+    kind: "scope",
+    category,
+    subcategory: subcategory ? { kind: "eq", value: subcategory } : { kind: "any" },
+  };
+  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
 }
 
-export function removeSearchQueryPart(
+export function setSearchQueryLevelRange(
   query: Pf2eTerminalSearchQuery,
-  kind: Exclude<Pf2eTerminalSearchStructuredPart["kind"], Pf2eTerminalMetadataQueryPart["kind"]>,
+  levelRange: {
+    levelMin: number | null;
+    levelMax: number | null;
+  },
 ): Pf2eTerminalSearchQuery {
-  const legacyState = getLegacyQueryState(query);
-  return rebuildQueryFilter(
-    query,
-    legacyState.category,
-    legacyState.parts.filter((part) => part.kind !== kind),
-  );
+  const state = decomposeQueryFilter(query.filter);
+  const { levelMin, levelMax } = levelRange;
+  state.level =
+    levelMin === null && levelMax === null
+      ? null
+      : levelMin !== null && levelMax !== null
+        ? levelMin === levelMax
+          ? { kind: "level", match: { kind: "eq", value: levelMin } }
+          : {
+              kind: "level",
+              match: {
+                kind: "between",
+                min: Math.min(levelMin, levelMax),
+                max: Math.max(levelMin, levelMax),
+              },
+            }
+        : levelMin !== null
+          ? { kind: "level", match: { kind: "gte", value: levelMin } }
+          : { kind: "level", match: { kind: "lte", value: levelMax! } };
+  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+}
+
+export function setSearchQueryRarityPolicy(
+  query: Pf2eTerminalSearchQuery,
+  policy: Pf2eTerminalFilterValuePolicy<string>,
+): Pf2eTerminalSearchQuery {
+  const state = decomposeQueryFilter(query.filter);
+  state.rarityPolicy = cloneStringPolicy(policy);
+  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
+}
+
+export function setSearchQueryActionCostPolicy(
+  query: Pf2eTerminalSearchQuery,
+  policy: Pf2eTerminalFilterValuePolicy<number>,
+): Pf2eTerminalSearchQuery {
+  const state = decomposeQueryFilter(query.filter);
+  state.actionCostPolicy = cloneNumberPolicy(policy);
+  return rebuildQueryWithFilterState(query, state, extractQueryMetadataTree(query.filter));
 }
 
 export function setSearchQueryMetadataTree(
   query: Pf2eTerminalSearchQuery,
   node: MetadataFilterNode | null,
 ): Pf2eTerminalSearchQuery {
-  const legacyState = getLegacyQueryState(query);
-  return rebuildQueryFilter(query, legacyState.category, [
-    ...legacyState.parts.filter((part) => !isMetadataQueryPart(part)),
-    ...splitMetadataTreeIntoParts(node),
-  ]);
+  const state = decomposeQueryFilter(query.filter);
+  return rebuildQueryWithFilterState(query, state, node);
 }
 
 export function isActionCostAvailableInScope(

@@ -7,16 +7,16 @@ import type { SearchScreenOrigin } from "../workflow-types.js";
 import {
   buildEditorCommandPaletteEntries,
   buildResultCommandPaletteEntries,
-  decodeQueryPartAction,
   decodeQueryNodeActionPath,
-  isQueryPartAction,
   isQueryNodeAction,
   type SearchWorkspaceAction,
 } from "../model.js";
 import {
+  getSearchQueryExcludeText,
   getSearchQuerySearchProfile,
   getSearchQueryText,
   setSearchQueryMetadataTree,
+  setSearchQueryExcludeText,
   setSearchQuerySearchProfile,
   setSearchQueryText,
 } from "../../search/query-state.js";
@@ -70,6 +70,10 @@ export function useSearchWorkspaceActions({
   structuredEditorSession: SearchQueryFieldBuilderSession | null;
 } {
   const editQueryText = React.useCallback(async () => {
+    if (state.query.mode === "browse") {
+      return;
+    }
+
     const queryText = await prompts.promptTextInput({
       title: "Query Text",
       prompt:
@@ -85,6 +89,25 @@ export function useSearchWorkspaceActions({
     }
 
     applyQueryUpdate((request) => setSearchQueryText(request, queryText));
+  }, [applyQueryUpdate, prompts, state.query]);
+
+  const editExcludeText = React.useCallback(async () => {
+    if (state.query.mode !== "search") {
+      return;
+    }
+
+    const excludeText = await prompts.promptTextInput({
+      title: "Exclude Text",
+      prompt: "Enter text that ranked search should exclude from lexical matches",
+      defaultValue: getSearchQueryExcludeText(state.query),
+      hint: "Example: skeleton",
+    });
+
+    if (excludeText === undefined) {
+      return;
+    }
+
+    applyQueryUpdate((request) => setSearchQueryExcludeText(request, excludeText));
   }, [applyQueryUpdate, prompts, state.query]);
 
   const chooseMode = React.useCallback(async () => {
@@ -159,8 +182,16 @@ export function useSearchWorkspaceActions({
         void editQueryText();
         return;
       }
+      if (action === "exclude") {
+        void editExcludeText();
+        return;
+      }
       if (action === "profile") {
         void chooseSearchProfile();
+        return;
+      }
+      if (action === "queryTreeRoot") {
+        openStructuredDraftSession({ kind: "queryTreeRoot" });
         return;
       }
       if (action === "addQueryPart") {
@@ -188,20 +219,12 @@ export function useSearchWorkspaceActions({
         openStructuredDraftSession({ kind: "queryNode", path });
         return;
       }
-
-      if (isQueryPartAction(action)) {
-        const part = decodeQueryPartAction(action);
-        if (!part) {
-          return;
-        }
-        openStructuredDraftSession({ kind: "queryPart", part });
-        return;
-      }
     },
     [
       chooseMode,
       chooseSearchProfile,
       dispatch,
+      editExcludeText,
       editQueryText,
       executeRequest,
       openStructuredDraftSession,

@@ -357,7 +357,7 @@ describe("pf2e navigation", () => {
     expect(capture.current!.navigation.route).toEqual({
       kind: PF2E_APP_ROUTE_KIND.SEARCH,
       entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
-      initialRequest: query.request,
+      initialQuery: query,
       origin: {
         kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
         route: preparedOntologyRoute,
