@@ -160,6 +160,7 @@ function buildPickerFooterLines(options: {
   countText: string;
   primaryFooterText: string;
   secondaryFooterText: string;
+  supportsCommands?: boolean;
 }): DerivedTagTerminalLine[] {
   if (options.filterMode) {
     return [
@@ -173,8 +174,8 @@ function buildPickerFooterLines(options: {
     { text: options.primaryFooterText, tone: "dim" },
     {
       text: options.filteringEnabled
-        ? `${options.secondaryFooterText}  / filter`
-        : options.secondaryFooterText,
+        ? `${options.secondaryFooterText}${options.supportsCommands ? "  : commands" : ""}  / filter`
+        : `${options.secondaryFooterText}${options.supportsCommands ? "  : commands" : ""}`,
       tone: "dim",
     },
     { text: options.countText, tone: "accent" },
@@ -442,6 +443,7 @@ export function SelectPromptBody({
         countText: `${selectedVisibleIndex + 1}/${filteredEntries.length} focused`,
         primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
         secondaryFooterText: formatTerminalInteractionFooter([{ id: "select" }, { id: "back", label: "cancel" }]),
+        supportsCommands: options.supportsCommands,
       })}
       width={width}
       height={layout.totalHeight}
@@ -546,6 +548,7 @@ export function MultiSelectPromptBody({
         countText: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`,
         primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
         secondaryFooterText: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }]),
+        supportsCommands: options.supportsCommands,
       })}
       width={width}
       height={layout.totalHeight}

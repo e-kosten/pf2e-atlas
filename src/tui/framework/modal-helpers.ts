@@ -69,6 +69,7 @@ export function buildSelectModalOptions<T>(options: SelectPromptOptions<T>): Ter
     presentation: options.presentation,
     choiceLayout: options.choiceLayout ?? "list",
     filtering: options.filtering ?? true,
+    supportsCommands: options.supportsCommands ?? false,
   };
 }
 
@@ -97,6 +98,7 @@ export function buildOptionalSelectModalOptions<T>(
     presentation: options.presentation,
     choiceLayout: options.choiceLayout ?? "list",
     filtering: options.filtering ?? true,
+    supportsCommands: options.supportsCommands ?? false,
   };
 }
 

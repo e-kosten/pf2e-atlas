@@ -148,6 +148,10 @@ export type DerivedTagTerminalTextInputOptions = {
 };
 
 export type DerivedTagTerminalSelectPromptResult<T = string> = { kind: "cancelled" } | { kind: "selected"; value: T };
+export type DerivedTagTerminalPickerCommandResult = { kind: "commands" };
+export type DerivedTagTerminalPickerSelectPromptResult<T = string> =
+  | DerivedTagTerminalSelectPromptResult<T>
+  | DerivedTagTerminalPickerCommandResult;
 
 export type DerivedTagTerminalOptionalSelectPromptResult<T = string> =
   | { kind: "cancelled" }
@@ -163,6 +167,7 @@ export type DerivedTagTerminalSelectPromptOptions<T = string> = {
   presentation?: TerminalModalPresentation;
   choiceLayout?: DerivedTagTerminalChoiceLayout;
   filtering?: boolean;
+  supportsCommands?: boolean;
 };
 
 export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
@@ -175,6 +180,7 @@ export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
   presentation?: TerminalModalPresentation;
   choiceLayout?: DerivedTagTerminalChoiceLayout;
   filtering?: boolean;
+  supportsCommands?: boolean;
 };
 
 export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string> = {
@@ -185,7 +191,12 @@ export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string
   selectedValues?: T[];
   presentation?: TerminalModalPresentation;
   filtering?: boolean;
+  supportsCommands?: boolean;
 };
+export type DerivedTagTerminalMultiSelectPromptResult<T extends string = string> =
+  | { kind: "cancelled" }
+  | { kind: "selected"; values: T[] }
+  | DerivedTagTerminalPickerCommandResult;
 
 export type DerivedTagTerminalPolicyState = "any" | "all" | "exclude";
 
@@ -242,6 +253,7 @@ export type TerminalSelectModalOptions = {
   presentation?: TerminalModalPresentation;
   choiceLayout: DerivedTagTerminalChoiceLayout;
   filtering: boolean;
+  supportsCommands: boolean;
 };
 
 export type TerminalModalState =
@@ -264,7 +276,9 @@ export type TerminalModalState =
       filterText: string;
       filterMode: boolean;
       resolve: (
-        value: DerivedTagTerminalSelectPromptResult<unknown> | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+        value:
+          | DerivedTagTerminalPickerSelectPromptResult<unknown>
+          | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
       ) => void;
     }
   | {
@@ -274,7 +288,7 @@ export type TerminalModalState =
       filterText: string;
       filterMode: boolean;
       selectedValues: string[];
-      resolve: (value: string[]) => void;
+      resolve: (value: DerivedTagTerminalMultiSelectPromptResult<string>) => void;
     }
   | {
       kind: "policy";
@@ -304,11 +318,13 @@ export type DerivedTagTerminalContextValue = {
   promptOptionalSelectOption: <T>(
     options: OptionalSelectPromptOptions<T>,
   ) => Promise<DerivedTagTerminalOptionalSelectPromptResult<T>>;
+  promptMultiSelectOption: <T extends string>(
+    options: MultiSelectPromptOptions<T>,
+  ) => Promise<DerivedTagTerminalMultiSelectPromptResult<T>>;
   promptPolicySelectOption: <T extends string>(
     options: PolicyPromptOptions<T>,
   ) => Promise<DerivedTagTerminalPolicySelection<T>>;
-  promptMultiSelectOption: <T extends string>(options: MultiSelectPromptOptions<T>) => Promise<T[]>;
-  promptSelectOption: <T>(options: SelectPromptOptions<T>) => Promise<DerivedTagTerminalSelectPromptResult<T>>;
+  promptSelectOption: <T>(options: SelectPromptOptions<T>) => Promise<DerivedTagTerminalPickerSelectPromptResult<T>>;
   promptTextInput: (options: TextPromptOptions) => Promise<string | undefined>;
   showDialog: (options: DialogOptions) => Promise<void>;
 };

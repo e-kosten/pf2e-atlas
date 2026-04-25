@@ -286,7 +286,7 @@ export function createDerivedTagTerminalInputEvent(input: string, key: Key): Der
             ? "deleteBackward"
             : undefined,
     isBackNavigationKey: () => isBackNavigationKey(normalized),
-    isCommandPaletteKey: () => normalized === ":",
+    isCommandPaletteKey: () => normalized === ":" || printable === ":",
     isConfirmKey: () => isConfirmKey(normalized),
     isConfirmOrToggleKey: () => normalized === "enter" || normalized === "space",
     isExactPrintableKey: (expected) => isExactPrintableTerminalKey(input, key, expected),

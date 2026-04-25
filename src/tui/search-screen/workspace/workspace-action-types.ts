@@ -12,6 +12,7 @@ import type { DerivedTagTerminalApp } from "../../framework/types.js";
 export type SearchWorkspacePromptAdapters = Pick<
   SearchTerminalPromptAdapters,
   | "promptCommandPalette"
+  | "promptMultiSelectOption"
   | "promptOptionalSelectOption"
   | "promptPolicySelectOption"
   | "promptSelectOption"

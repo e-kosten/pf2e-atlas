@@ -18,10 +18,11 @@ import type {
   CommandPaletteOptions,
   DerivedTagTerminalContextValue,
   DerivedTagTerminalHyperlinkSupport,
+  DerivedTagTerminalMultiSelectPromptResult,
   DerivedTagTerminalOptionalSelectPromptResult,
   DerivedTagTerminalPolicySelection,
   DerivedTagTerminalProviderProps,
-  DerivedTagTerminalSelectPromptResult,
+  DerivedTagTerminalPickerSelectPromptResult,
   MultiSelectPromptOptions,
   OptionalSelectPromptOptions,
   PolicyPromptOptions,
@@ -123,7 +124,7 @@ export function DerivedTagTerminalProvider({
             filterMode: false,
             resolve: resolve as (
               value:
-                | DerivedTagTerminalSelectPromptResult<unknown>
+                | DerivedTagTerminalPickerSelectPromptResult<unknown>
                 | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
             ) => void,
           });
@@ -150,7 +151,7 @@ export function DerivedTagTerminalProvider({
           });
         }),
       promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
-        new Promise<T[]>((resolve) => {
+        new Promise<DerivedTagTerminalMultiSelectPromptResult<T>>((resolve) => {
           const selectedIndex = Math.max(
             0,
             options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)),
@@ -162,11 +163,11 @@ export function DerivedTagTerminalProvider({
             filterText: "",
             filterMode: false,
             selectedValues: options.selectedValues ? [...options.selectedValues] : [],
-            resolve: resolve as (value: string[]) => void,
+            resolve: resolve as (value: DerivedTagTerminalMultiSelectPromptResult<string>) => void,
           });
         }),
       promptSelectOption: async <T,>(options: SelectPromptOptions<T>) =>
-        new Promise<DerivedTagTerminalSelectPromptResult<T>>((resolve) => {
+        new Promise<DerivedTagTerminalPickerSelectPromptResult<T>>((resolve) => {
           const modalOptions = buildSelectModalOptions(options);
           setModal({
             kind: "select",
@@ -176,7 +177,7 @@ export function DerivedTagTerminalProvider({
             filterMode: false,
             resolve: resolve as (
               value:
-                | DerivedTagTerminalSelectPromptResult<unknown>
+                | DerivedTagTerminalPickerSelectPromptResult<unknown>
                 | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
             ) => void,
           });

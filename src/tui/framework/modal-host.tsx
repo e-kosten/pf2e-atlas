@@ -38,6 +38,12 @@ import { TerminalCenteredOverlayPanel, TerminalInlinePromptPanel } from "./scree
 import type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
 import type { TerminalModalState } from "./types.js";
 
+function resolveAfterModalClose<T>(resolver: (value: T) => void, value: T): void {
+  queueMicrotask(() => {
+    resolver(value);
+  });
+}
+
 function getChoicePromptFilteringEnabled(
   modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
 ): boolean {
@@ -172,7 +178,7 @@ export function DerivedTagTerminalModalHost({
           if (modal.filterText.length === 0) {
             const resolver = modal.resolve;
             setModal(null);
-            resolver(undefined);
+            resolveAfterModalClose(resolver, undefined);
             return;
           }
           setModal((current) =>
@@ -235,13 +241,13 @@ export function DerivedTagTerminalModalHost({
           const resolver = modal.resolve;
           const selected = selectedEntry?.value;
           setModal(null);
-          resolver(selected);
+          resolveAfterModalClose(resolver, selected);
           return;
         }
         if (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
-          resolver(undefined);
+          resolveAfterModalClose(resolver, undefined);
         }
         return;
       }
@@ -308,14 +314,14 @@ export function DerivedTagTerminalModalHost({
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           setModal(null);
           if (modal.kind === "select") {
-            modal.resolve({ kind: "cancelled" });
+            resolveAfterModalClose(modal.resolve, { kind: "cancelled" });
             return;
           }
           if (modal.kind === "multiselect") {
-            modal.resolve([]);
+            resolveAfterModalClose(modal.resolve, { kind: "cancelled" });
             return;
           }
-          modal.resolve(createEmptyPolicySelection());
+          resolveAfterModalClose(modal.resolve, createEmptyPolicySelection());
         }
         return;
       }
@@ -367,31 +373,54 @@ export function DerivedTagTerminalModalHost({
           );
           return;
         }
+        if (event.isCommandPaletteKey() && modal.options.supportsCommands) {
+          const resolver = modal.resolve;
+          setModal(null);
+          resolveAfterModalClose(resolver, { kind: "commands" });
+          return;
+        }
         if (event.isConfirmKey()) {
           const resolver = modal.resolve;
           const selected = modal.options.entries[filteredSelectedIndex];
           setModal(null);
           if (!selected) {
-            resolver({ kind: "cancelled" });
+            resolveAfterModalClose(resolver, { kind: "cancelled" });
             return;
           }
-          resolver(selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value });
+          resolveAfterModalClose(
+            resolver,
+            selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value },
+          );
           return;
         }
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
-          resolver({ kind: "cancelled" });
+          resolveAfterModalClose(resolver, { kind: "cancelled" });
         }
         return;
       }
 
       const choiceContext =
         modal.kind === "multiselect"
-          ? createTerminalMultiSelectPromptInteractionContext(pageSize)
+          ? createTerminalMultiSelectPromptInteractionContext(pageSize, modal.options.supportsCommands ?? false)
           : modal.kind === "policy"
             ? createTerminalPolicyPromptInteractionContext(pageSize)
-            : createTerminalSelectPromptInteractionContext(pageSize);
+            : createTerminalSelectPromptInteractionContext(pageSize, modal.options.supportsCommands);
+
+      if (modal.kind === "select" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "commands" });
+        return;
+      }
+      if (modal.kind === "multiselect" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "commands" });
+        return;
+      }
+
       const routed = routeTerminalInteractionContext(event, choiceContext, routerStateRef.current);
       routerStateRef.current = routed.state;
 
@@ -451,17 +480,36 @@ export function DerivedTagTerminalModalHost({
         const selected = modal.options.entries[filteredSelectedIndex];
         setModal(null);
         if (!selected) {
-          resolver({ kind: "cancelled" });
+          resolveAfterModalClose(resolver, { kind: "cancelled" });
           return;
         }
-        resolver(selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value });
+        resolveAfterModalClose(
+          resolver,
+          selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value },
+        );
+        return;
+      }
+      if (modal.kind === "select" && routed.route.interactionAction?.id === "commands" && modal.options.supportsCommands) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "commands" });
+        return;
+      }
+      if (
+        modal.kind === "multiselect" &&
+        routed.route.interactionAction?.id === "commands" &&
+        modal.options.supportsCommands
+      ) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "commands" });
         return;
       }
       if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "return") {
         const resolver = modal.resolve;
         const selectedValues = modal.selectedValues;
         setModal(null);
-        resolver(selectedValues);
+        resolveAfterModalClose(resolver, { kind: "selected", values: selectedValues });
         return;
       }
       if (modal.kind === "policy" && routed.route.cycleDirection) {
@@ -490,13 +538,19 @@ export function DerivedTagTerminalModalHost({
         const resolver = modal.resolve;
         const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
         setModal(null);
-        resolver(selection);
+        resolveAfterModalClose(resolver, selection);
         return;
       }
       if (modal.kind === "select" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
         const resolver = modal.resolve;
         setModal(null);
-        resolver({ kind: "cancelled" });
+        resolveAfterModalClose(resolver, { kind: "cancelled" });
+        return;
+      }
+      if (modal.kind === "multiselect" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "cancelled" });
       }
     },
     { isActive: modal !== null },

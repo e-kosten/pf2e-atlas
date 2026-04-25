@@ -18,6 +18,7 @@ import {
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
 } from "../../src/tui/terminal-ui.js";
+import { TerminalMenuScreen } from "../../src/tui/shared-screens.js";
 
 function flushInk(): Promise<void> {
   return new Promise((resolve) => {
@@ -330,8 +331,16 @@ function MultiSelectPromptHarness(): React.JSX.Element {
           { value: "rare", label: "Rare" },
         ],
       })
-      .then((values) => {
-        setResult(values.join(",") || "empty");
+      .then((selection) => {
+        if (selection.kind === "selected") {
+          setResult(selection.values.join(",") || "empty");
+          return;
+        }
+        if (selection.kind === "commands") {
+          setResult("commands");
+          return;
+        }
+        setResult("cancelled");
       });
   }, []);
 
@@ -397,7 +406,17 @@ function FilterableChoicePromptHarness({
           prompt: "Choose values",
           entries,
         })
-        .then((selection) => setResult(selection.join(",") || "empty"));
+        .then((selection) => {
+          if (selection.kind === "selected") {
+            setResult(selection.values.join(",") || "empty");
+            return;
+          }
+          if (selection.kind === "commands") {
+            setResult("commands");
+            return;
+          }
+          setResult("cancelled");
+        });
       return;
     }
     void terminal
@@ -524,6 +543,367 @@ function DisabledCommandPaletteHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
+function SelectThenCommandPaletteHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        supportsCommands: true,
+        entries: [
+          { value: "field", label: "Field filter", description: "Choose a metadata field." },
+          { value: "pack", label: "Pack", description: "Choose one or more packs." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind === "commands") {
+          const command = await terminal.promptCommandPalette({
+            title: "Clause Picker Commands",
+            prompt: "Picker commands",
+            entries: [
+              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+            ],
+          });
+          setResult(`command=${command ?? "cancelled"}`);
+          return;
+        }
+        setResult(`select=${selection.kind === "selected" ? selection.value : "cancelled"}`);
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function SelectThenMultiSelectHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        entries: [
+          { value: "pack", label: "Pack", description: "Choose one or more packs." },
+          { value: "scope", label: "Scope", description: "Choose a category scope." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("select=cancelled");
+          return;
+        }
+
+        const multiSelectResult = await terminal.promptMultiSelectOption({
+          title: "Pack Picker",
+          prompt: "Choose packs",
+          entries: [
+            { value: "pathfinder-npc-core", label: "Pathfinder NPC Core" },
+            { value: "monster-core", label: "Monster Core" },
+          ],
+        });
+
+        if (multiSelectResult.kind === "selected") {
+          setResult(`packs=${multiSelectResult.values.join(",") || "empty"}`);
+          return;
+        }
+        if (multiSelectResult.kind === "commands") {
+          setResult("packs=commands");
+          return;
+        }
+        setResult("packs=cancelled");
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function SelectThenSelectHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        entries: [
+          { value: "metricCompare", label: "Metric comparison", description: "Compare two numeric metrics." },
+          { value: "scope", label: "Scope", description: "Choose a category scope." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("clause=cancelled");
+          return;
+        }
+
+        const metricSelection = await terminal.promptSelectOption({
+          title: "Left Metric",
+          prompt: "Choose the left-hand metric",
+          supportsCommands: true,
+          entries: [
+            { value: "hp.value", label: "hp.value", description: "Creature hit points." },
+            { value: "ac.value", label: "ac.value", description: "Creature armor class." },
+          ],
+        });
+        if (metricSelection.kind === "selected") {
+          setResult(`metric=${metricSelection.value}`);
+          return;
+        }
+        if (metricSelection.kind === "commands") {
+          const command = await terminal.promptCommandPalette({
+            title: "Left Metric Commands",
+            prompt: "Picker commands",
+            entries: [
+              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+            ],
+          });
+          setResult(`command=${command ?? "cancelled"}`);
+          return;
+        }
+        setResult("metric=cancelled");
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function SelectThenSelectThenCommandPaletteHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        entries: [
+          { value: "metricCompare", label: "Metric comparison", description: "Compare two numeric metrics." },
+          { value: "pack", label: "Pack", description: "Choose one or more packs." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("select=cancelled");
+          return;
+        }
+
+        const secondSelection = await terminal.promptSelectOption({
+          title: "Left Metric",
+          prompt: "Choose the left-hand metric",
+          presentation: "screen",
+          supportsCommands: true,
+          entries: [
+            { value: "hp.value", label: "hp.value", description: "2 matching canonical records." },
+            { value: "ac.value", label: "ac.value", description: "1 matching canonical record." },
+          ],
+        });
+
+        if (secondSelection.kind === "commands") {
+          const command = await terminal.promptCommandPalette({
+            title: "Left Metric Commands",
+            prompt: "Picker commands",
+            entries: [
+              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+            ],
+          });
+          setResult(`command=${command ?? "cancelled"}`);
+          return;
+        }
+
+        setResult(`select=${secondSelection.kind === "selected" ? secondSelection.value : "cancelled"}`);
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function SelectThenMultiSelectThenCommandPaletteHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        entries: [
+          { value: "pack", label: "Pack", description: "Choose one or more packs." },
+          { value: "scope", label: "Scope", description: "Choose a category scope." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("select=cancelled");
+          return;
+        }
+
+        const multiSelectResult = await terminal.promptMultiSelectOption({
+          title: "Pack",
+          prompt: "Choose packs",
+          presentation: "screen",
+          supportsCommands: true,
+          entries: [
+            { value: "pathfinder-npc-core", label: "Pathfinder NPC Core" },
+            { value: "monster-core", label: "Monster Core" },
+          ],
+        });
+
+        if (multiSelectResult.kind === "commands") {
+          const command = await terminal.promptCommandPalette({
+            title: "Pack Commands",
+            prompt: "Picker commands",
+            entries: [
+              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+            ],
+          });
+          setResult(`command=${command ?? "cancelled"}`);
+          return;
+        }
+        if (multiSelectResult.kind === "selected") {
+          setResult(`packs=${multiSelectResult.values.join(",") || "empty"}`);
+          return;
+        }
+        setResult("packs=cancelled");
+      });
+  }, []);
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function EventDrivenSelectChainHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [started, setStarted] = React.useState(false);
+  const [result, setResult] = React.useState("pending");
+
+  useDerivedTagTerminalInput((event) => {
+    if (started || !event.isConfirmKey()) {
+      return;
+    }
+
+    setStarted(true);
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        entries: [
+          { value: "metricCompare", label: "Metric comparison", description: "Compare two numeric metrics." },
+          { value: "pack", label: "Pack", description: "Choose one or more packs." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("select=cancelled");
+          return;
+        }
+
+        const nextSelection = await terminal.promptSelectOption({
+          title: "Left Metric",
+          prompt: "Choose the left-hand metric",
+          supportsCommands: true,
+          entries: [
+            { value: "hp.value", label: "hp.value", description: "2 matching canonical records." },
+            { value: "ac.value", label: "ac.value", description: "1 matching canonical record." },
+          ],
+        });
+
+        if (nextSelection.kind === "commands") {
+          const command = await terminal.promptCommandPalette({
+            title: "Left Metric Commands",
+            prompt: "Picker commands",
+            entries: [
+              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+            ],
+          });
+          setResult(`command=${command ?? "cancelled"}`);
+          return;
+        }
+
+        setResult(`select=${nextSelection.kind === "selected" ? nextSelection.value : "cancelled"}`);
+      });
+  });
+
+  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }, { text: "Press Enter to start" }]} />;
+}
+
+function MenuScreenDrivenPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [result, setResult] = React.useState("pending");
+
+  const items = [{ label: "Open Prompt Chain" }];
+
+  return (
+    <TerminalMenuScreen
+      title="Harness"
+      subtitle="Menu-driven prompt chain"
+      leftTitle="Menu"
+      rightTitle="Detail"
+      items={items}
+      selectedIndex={selectedIndex}
+      interactionActions={[{ id: "select" }, { id: "back", label: "back" }]}
+      status={{ text: `result=${result}` }}
+      helpTitle="Help"
+      helpBody={[{ text: "Help" }]}
+      buildDetailLines={() => [{ text: "Press Enter to start" }]}
+      onMove={(delta) => setSelectedIndex((current) => Math.max(0, Math.min(current + delta, items.length - 1)))}
+      onBack={() => setResult("back")}
+      onSelect={() => {
+        void terminal
+          .promptSelectOption({
+            title: "Clause Picker",
+            prompt: "Choose a clause kind",
+            entries: [
+              { value: "metricCompare", label: "Metric comparison", description: "Compare two numeric metrics." },
+              { value: "pack", label: "Pack", description: "Choose one or more packs." },
+            ],
+          })
+          .then(async (selection) => {
+            if (selection.kind !== "selected") {
+              setResult("select=cancelled");
+              return;
+            }
+
+            const secondSelection = await terminal.promptSelectOption({
+              title: "Left Metric",
+              prompt: "Choose the left-hand metric",
+              presentation: "screen",
+              supportsCommands: true,
+              entries: [
+                { value: "hp.value", label: "hp.value", description: "2 matching canonical records." },
+                { value: "ac.value", label: "ac.value", description: "1 matching canonical record." },
+              ],
+            });
+
+            if (secondSelection.kind === "commands") {
+              const command = await terminal.promptCommandPalette({
+                title: "Left Metric Commands",
+                prompt: "Picker commands",
+                entries: [
+                  { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
+                  { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
+                ],
+              });
+              setResult(`command=${command ?? "cancelled"}`);
+              return;
+            }
+
+            setResult(`select=${secondSelection.kind === "selected" ? secondSelection.value : "cancelled"}`);
+          });
+      }}
+    />
+  );
+}
+
 function AutoDialogHarness({ title, bodyLineCount }: { title: string; bodyLineCount: number }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
 
@@ -628,8 +1008,16 @@ function ModalLayoutPromptHarness({
             presentation,
             entries,
           })
-          .then((values) => {
-            setResult(values.join(",") || "empty");
+          .then((selection) => {
+            if (selection.kind === "selected") {
+              setResult(selection.values.join(",") || "empty");
+              return;
+            }
+            if (selection.kind === "commands") {
+              setResult("commands");
+              return;
+            }
+            setResult("cancelled");
           });
         break;
       case "policy":
@@ -1139,6 +1527,206 @@ describe("derived tag terminal ink runtime", () => {
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Command Palette");
     expect(app.lastFrame()).toContain("result=pending");
+  });
+
+  it("can chain a commands-enabled select prompt directly into the shared command palette", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenCommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+    expect(app.lastFrame()).toContain("Field filter");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Clause Picker Commands");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("can chain a select prompt directly into a multiselect prompt", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenMultiSelectHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+    expect(app.lastFrame()).toContain("Pack");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Pack Picker");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[x] Pathfinder NPC Core");
+
+    app.stdin.write("j");
+    await flushInkFrames();
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("[x] Monster Core");
+
+    app.stdin.write("\u007f");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=packs=pathfinder-npc-core,monster-core");
+  });
+
+  it("can open commands from a second select prompt in a chained flow", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenSelectThenCommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric Commands");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("can open commands from a chained multiselect prompt", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenMultiSelectThenCommandPaletteHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Pack");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Pack Commands");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("can open commands from a chained select prompt started by a live input handler", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <EventDrivenSelectChainHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Press Enter to start");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Clause Picker");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric Commands");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("can open commands from a prompt chain launched through TerminalMenuScreen", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <MenuScreenDrivenPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Open Prompt Chain");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Clause Picker");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric Commands");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("can chain a select prompt directly into another select prompt and confirm inside the second picker", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenSelectHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+    expect(app.lastFrame()).toContain("Metric comparison");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric");
+    expect(app.lastFrame()).toContain("hp.value");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=metric=hp.value");
+  });
+
+  it("can chain a select prompt directly into another select prompt and open commands in the second picker", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SelectThenSelectHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("Clause Picker");
+    expect(app.lastFrame()).toContain("Metric comparison");
+
+    app.stdin.write("\r");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric");
+    expect(app.lastFrame()).toContain("hp.value");
+
+    app.stdin.write(":");
+    await flushInkFrames(3);
+    expect(app.lastFrame()).toContain("Left Metric Commands");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("result=command=catalog");
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {
