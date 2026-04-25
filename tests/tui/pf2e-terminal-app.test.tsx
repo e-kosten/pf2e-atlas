@@ -368,6 +368,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Browse | Any Category | Counting matches...");
+    expect(app.lastFrame()).toContain("No applied query yet | Counting matches... | Query Editor");
 
     app.stdin.write("q");
     await flushInk();
@@ -400,7 +401,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
-    expect(app.lastFrame()).not.toContain("Browse | Any Category | Counting matches...");
+    expect(app.lastFrame()).not.toContain("Choose Search Mode");
   });
 
   it("opens the ontology browser directly in search semantics", async () => {
