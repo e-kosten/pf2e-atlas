@@ -27,17 +27,17 @@ import {
   metadataFilterNodeToCanonicalFilter,
 } from "./query-parts.js";
 import {
-  cloneNumberPolicy,
-  cloneStringPolicy,
-  createEmptyNumberPolicy,
-  createEmptyStringPolicy,
-  normalizeQueryFieldPolicy,
-} from "./policies.js";
+  cloneNumberSelection,
+  cloneStringSelection,
+  createEmptyNumberSelection,
+  createEmptyStringSelection,
+  normalizeQueryFieldSelection,
+} from "./selections.js";
 import type {
   Pf2eTerminalFacetField,
-  Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
+  Pf2eTerminalValueSelection,
   SearchServiceDependencies,
 } from "./service-types.js";
 
@@ -51,8 +51,8 @@ function trimOptionalText(value: string | undefined): string | undefined {
 
 type QueryRootOperator = "allOf" | "anyOf";
 
-function hasPolicyValues<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
-  return policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0;
+function hasSelectionValues<T extends number | string>(selection: Pf2eTerminalValueSelection<T>): boolean {
+  return selection.include.length > 0 || selection.exclude.length > 0;
 }
 
 function isCanonicalMetadataFilterCandidate(filter: SearchFilterNode): boolean {
@@ -66,7 +66,7 @@ function isCanonicalMetadataFilterCandidate(filter: SearchFilterNode): boolean {
   );
 }
 
-function buildPolicyLeaf(
+function buildSelectionLeaf(
   kind: "rarity" | "actionCost",
   value: string | number,
 ): SearchFilterNode {
@@ -75,25 +75,18 @@ function buildPolicyLeaf(
     : { kind, match: { kind: "eq", value: value as number } };
 }
 
-function buildPolicyFilter(
+function buildSelectionFilter(
   kind: "rarity" | "actionCost",
-  policy: Pf2eTerminalFilterValuePolicy<string> | Pf2eTerminalFilterValuePolicy<number>,
+  selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
-  const anyChildren = policy.any.map((value) => buildPolicyLeaf(kind, value));
-  const allChildren = policy.all.map((value) => buildPolicyLeaf(kind, value));
-  const excludeChildren = policy.exclude.map((value) => buildPolicyLeaf(kind, value));
+  const includeChildren = selection.include.map((value) => buildSelectionLeaf(kind, value));
+  const excludeChildren = selection.exclude.map((value) => buildSelectionLeaf(kind, value));
   const children: SearchFilterNode[] = [];
 
-  if (anyChildren.length === 1) {
-    children.push(anyChildren[0]!);
-  } else if (anyChildren.length > 1) {
-    children.push({ kind: "anyOf", children: anyChildren });
-  }
-
-  if (allChildren.length === 1) {
-    children.push(allChildren[0]!);
-  } else if (allChildren.length > 1) {
-    children.push({ kind: "allOf", children: allChildren });
+  if (includeChildren.length === 1) {
+    children.push(includeChildren[0]!);
+  } else if (includeChildren.length > 1) {
+    children.push({ kind: "anyOf", children: includeChildren });
   }
 
   if (excludeChildren.length === 1) {
@@ -109,14 +102,14 @@ function buildPolicyFilter(
   return children.length === 1 ? children[0]! : { kind: "allOf", children };
 }
 
-export function buildSearchFilterValuePolicyNode(
+export function buildSearchFilterValueSelectionNode(
   kind: "rarity" | "actionCost",
-  policy: Pf2eTerminalFilterValuePolicy<string> | Pf2eTerminalFilterValuePolicy<number>,
+  selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
-  return buildPolicyFilter(kind, policy);
+  return buildSelectionFilter(kind, selection);
 }
 
-function collectPolicyEqValues<K extends "rarity" | "actionCost">(
+function collectSelectionEqValues<K extends "rarity" | "actionCost">(
   filter: SearchFilterNode,
   kind: K,
 ): Array<K extends "rarity" ? string : number> | null {
@@ -127,7 +120,7 @@ function collectPolicyEqValues<K extends "rarity" | "actionCost">(
   if (filter.kind === "anyOf" || filter.kind === "allOf") {
     const values: Array<K extends "rarity" ? string : number> = [];
     for (const child of filter.children) {
-      const childValues = collectPolicyEqValues(child, kind);
+      const childValues = collectSelectionEqValues(child, kind);
       if (!childValues) {
         return null;
       }
@@ -139,67 +132,59 @@ function collectPolicyEqValues<K extends "rarity" | "actionCost">(
   return null;
 }
 
-function extractPolicyFilter<K extends "rarity" | "actionCost">(
+function extractSelectionFilter<K extends "rarity" | "actionCost">(
   filter: SearchFilterNode,
   kind: K,
-): Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> | null {
+): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
   if (filter.kind === kind && filter.match.kind === "eq") {
     return {
-      any: [filter.match.value] as Array<K extends "rarity" ? string : number>,
-      all: [],
+      include: [filter.match.value] as Array<K extends "rarity" ? string : number>,
       exclude: [],
     };
   }
 
   if (filter.kind === "anyOf") {
-    const values = collectPolicyEqValues(filter, kind);
+    const values = collectSelectionEqValues(filter, kind);
     return values
       ? {
-          any: values,
-          all: [],
+          include: values,
           exclude: [],
         }
       : null;
   }
 
   if (filter.kind === "allOf") {
-    const policy: Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> = {
-      any: [],
-      all: [],
+    const selection: Pf2eTerminalValueSelection<K extends "rarity" ? string : number> = {
+      include: [],
       exclude: [],
     };
 
     for (const child of filter.children) {
       if (child.kind === "not") {
-        const excludedValues = collectPolicyEqValues(child.child, kind);
+        const excludedValues = collectSelectionEqValues(child.child, kind);
         if (!excludedValues) {
           return null;
         }
-        policy.exclude.push(...excludedValues);
+        selection.exclude.push(...excludedValues);
         continue;
       }
 
-      const values = collectPolicyEqValues(child, kind);
+      const values = collectSelectionEqValues(child, kind);
       if (!values) {
         return null;
       }
 
-      if (child.kind === "allOf") {
-        policy.all.push(...values);
-      } else {
-        policy.any.push(...values);
-      }
+      selection.include.push(...values);
     }
 
-    return policy;
+    return selection;
   }
 
   if (filter.kind === "not") {
-    const excludedValues = collectPolicyEqValues(filter.child, kind);
+    const excludedValues = collectSelectionEqValues(filter.child, kind);
     return excludedValues
       ? {
-          any: [],
-          all: [],
+          include: [],
           exclude: excludedValues,
         }
       : null;
@@ -208,25 +193,25 @@ function extractPolicyFilter<K extends "rarity" | "actionCost">(
   return null;
 }
 
-export function tryExtractSearchFilterValuePolicy(
+export function tryExtractSearchFilterValueSelection(
   filter: SearchFilterNode,
 ):
-  | { kind: "rarity"; policy: Pf2eTerminalFilterValuePolicy<string> }
-  | { kind: "actionCost"; policy: Pf2eTerminalFilterValuePolicy<number> }
+  | { kind: "rarity"; selection: Pf2eTerminalValueSelection<string> }
+  | { kind: "actionCost"; selection: Pf2eTerminalValueSelection<number> }
   | null {
-  const rarityPolicy = extractPolicyFilter(filter, "rarity");
-  if (rarityPolicy && hasPolicyValues(rarityPolicy)) {
+  const raritySelection = extractSelectionFilter(filter, "rarity");
+  if (raritySelection && hasSelectionValues(raritySelection)) {
     return {
       kind: "rarity",
-      policy: cloneStringPolicy(rarityPolicy as Pf2eTerminalFilterValuePolicy<string>),
+      selection: cloneStringSelection(raritySelection as Pf2eTerminalValueSelection<string>),
     };
   }
 
-  const actionCostPolicy = extractPolicyFilter(filter, "actionCost");
-  if (actionCostPolicy && hasPolicyValues(actionCostPolicy)) {
+  const actionCostSelection = extractSelectionFilter(filter, "actionCost");
+  if (actionCostSelection && hasSelectionValues(actionCostSelection)) {
     return {
       kind: "actionCost",
-      policy: cloneNumberPolicy(actionCostPolicy as Pf2eTerminalFilterValuePolicy<number>),
+      selection: cloneNumberSelection(actionCostSelection as Pf2eTerminalValueSelection<number>),
     };
   }
 
@@ -294,12 +279,12 @@ function insertAfterCanonicalPrefix(
   return [...children.slice(0, index), node, ...children.slice(index)];
 }
 
-function isTopLevelPolicyChild(
+function isTopLevelSelectionChild(
   child: SearchFilterNode,
   kind: "rarity" | "actionCost",
 ): boolean {
-  const policy = extractPolicyFilter(child, kind);
-  return Boolean(policy && hasPolicyValues(policy));
+  const selection = extractSelectionFilter(child, kind);
+  return Boolean(selection && hasSelectionValues(selection));
 }
 
 function isTopLevelMetadataChild(child: SearchFilterNode): boolean {
@@ -345,14 +330,14 @@ function findTopLevelLevelFilter(
   return null;
 }
 
-function findTopLevelPolicyFilter<K extends "rarity" | "actionCost">(
+function findTopLevelSelectionFilter<K extends "rarity" | "actionCost">(
   filter: SearchFilterNode | undefined,
   kind: K,
-): Pf2eTerminalFilterValuePolicy<K extends "rarity" ? string : number> | null {
+): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
   for (const child of getTopLevelQueryChildren(filter)) {
-    const policy = extractPolicyFilter(child, kind);
-    if (policy && hasPolicyValues(policy)) {
-      return policy;
+    const selection = extractSelectionFilter(child, kind);
+    if (selection && hasSelectionValues(selection)) {
+      return selection;
     }
   }
 
@@ -511,12 +496,14 @@ export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {
   };
 }
 
-export function getSearchQueryRarityPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<string> {
-  return cloneStringPolicy(findTopLevelPolicyFilter(query.filter, "rarity") ?? createEmptyStringPolicy());
+export function getSearchQueryRaritySelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
+  return cloneStringSelection(findTopLevelSelectionFilter(query.filter, "rarity") ?? createEmptyStringSelection());
 }
 
-export function getSearchQueryActionCostPolicy(query: Pf2eTerminalSearchQuery): Pf2eTerminalFilterValuePolicy<number> {
-  return cloneNumberPolicy(findTopLevelPolicyFilter(query.filter, "actionCost") ?? createEmptyNumberPolicy());
+export function getSearchQueryActionCostSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<number> {
+  return cloneNumberSelection(
+    findTopLevelSelectionFilter(query.filter, "actionCost") ?? createEmptyNumberSelection(),
+  );
 }
 
 export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
@@ -584,37 +571,37 @@ export function setSearchQueryLevelRange(
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
-export function setSearchQueryRarityPolicy(
+export function setSearchQueryRaritySelection(
   query: Pf2eTerminalSearchQuery,
-  policy: Pf2eTerminalFilterValuePolicy<string>,
+  selection: Pf2eTerminalValueSelection<string>,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
   let children = removeFirstMatchingTopLevelChild(
     getTopLevelQueryChildren(query.filter),
-    (child) => isTopLevelPolicyChild(child, "rarity"),
+    (child) => isTopLevelSelectionChild(child, "rarity"),
   );
-  const rarityFilter = buildPolicyFilter("rarity", cloneStringPolicy(policy));
+  const rarityFilter = buildSelectionFilter("rarity", cloneStringSelection(selection));
   if (rarityFilter) {
     children = insertAfterCanonicalPrefix(children, rarityFilter, (child) => child.kind === "scope" || child.kind === "level");
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
-export function setSearchQueryActionCostPolicy(
+export function setSearchQueryActionCostSelection(
   query: Pf2eTerminalSearchQuery,
-  policy: Pf2eTerminalFilterValuePolicy<number>,
+  selection: Pf2eTerminalValueSelection<number>,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
   let children = removeFirstMatchingTopLevelChild(
     getTopLevelQueryChildren(query.filter),
-    (child) => isTopLevelPolicyChild(child, "actionCost"),
+    (child) => isTopLevelSelectionChild(child, "actionCost"),
   );
-  const actionCostFilter = buildPolicyFilter("actionCost", cloneNumberPolicy(policy));
+  const actionCostFilter = buildSelectionFilter("actionCost", cloneNumberSelection(selection));
   if (actionCostFilter) {
     children = insertAfterCanonicalPrefix(
       children,
       actionCostFilter,
-      (child) => child.kind === "scope" || child.kind === "level" || isTopLevelPolicyChild(child, "rarity"),
+      (child) => child.kind === "scope" || child.kind === "level" || isTopLevelSelectionChild(child, "rarity"),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -634,8 +621,8 @@ export function setSearchQueryMetadataTree(
       (child) =>
         child.kind === "scope" ||
         child.kind === "level" ||
-        isTopLevelPolicyChild(child, "rarity") ||
-        isTopLevelPolicyChild(child, "actionCost"),
+        isTopLevelSelectionChild(child, "rarity") ||
+        isTopLevelSelectionChild(child, "actionCost"),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -658,11 +645,11 @@ export function isActionCostAvailableInScope(
 
 export function buildMetadataNodeForQueryFieldSelection(
   field: Pf2eTerminalFacetField,
-  policy: Pf2eTerminalFilterValuePolicy<string>,
+  selection: Pf2eTerminalValueSelection<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): MetadataFilterNode | null {
-  const normalizedPolicy = normalizeQueryFieldPolicy(field, policy, fieldSemanticsByName);
-  if (!normalizedPolicy) {
+  const normalizedSelection = normalizeQueryFieldSelection(field, selection, fieldSemanticsByName);
+  if (!normalizedSelection) {
     return null;
   }
 
@@ -673,25 +660,18 @@ export function buildMetadataNodeForQueryFieldSelection(
 
   if (fieldSemantics.fieldType === "set") {
     const clauses: MetadataFilterNode[] = [];
-    if (normalizedPolicy.any.length > 0) {
+    if (normalizedSelection.include.length > 0) {
       clauses.push({
         field: field as MetadataSetField,
         op: "includesAny",
-        values: normalizedPolicy.any,
+        values: normalizedSelection.include,
       });
     }
-    if (normalizedPolicy.all.length > 0) {
-      clauses.push({
-        field: field as MetadataSetField,
-        op: "includesAll",
-        values: normalizedPolicy.all,
-      });
-    }
-    if (normalizedPolicy.exclude.length > 0) {
+    if (normalizedSelection.exclude.length > 0) {
       clauses.push({
         field: field as MetadataSetField,
         op: "excludesAny",
-        values: normalizedPolicy.exclude,
+        values: normalizedSelection.exclude,
       });
     }
     return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
@@ -699,24 +679,24 @@ export function buildMetadataNodeForQueryFieldSelection(
 
   if (fieldSemantics.fieldType === "enumString") {
     const clauses: MetadataFilterNode[] = [];
-    if (normalizedPolicy.any.length === 1) {
+    if (normalizedSelection.include.length === 1) {
       clauses.push({
         field: field as MetadataEnumStringField,
         op: "eq",
-        value: normalizedPolicy.any[0]!,
+        value: normalizedSelection.include[0]!,
       });
-    } else if (normalizedPolicy.any.length > 1) {
+    } else if (normalizedSelection.include.length > 1) {
       clauses.push({
         field: field as MetadataEnumStringField,
         op: "in",
-        values: normalizedPolicy.any,
+        values: normalizedSelection.include,
       });
     }
-    if (normalizedPolicy.exclude.length > 0) {
+    if (normalizedSelection.exclude.length > 0) {
       clauses.push({
         field: field as MetadataEnumStringField,
         op: "notIn",
-        values: normalizedPolicy.exclude,
+        values: normalizedSelection.exclude,
       });
     }
     return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
@@ -724,14 +704,14 @@ export function buildMetadataNodeForQueryFieldSelection(
 
   if (fieldSemantics.fieldType === "boolean") {
     const clauses: MetadataFilterNode[] = [];
-    for (const value of normalizedPolicy.any) {
+    for (const value of normalizedSelection.include) {
       clauses.push({
         field: field as MetadataBooleanField,
         op: "eq",
         value: value === "true",
       });
     }
-    for (const value of normalizedPolicy.exclude) {
+    for (const value of normalizedSelection.exclude) {
       clauses.push({
         not: {
           field: field as MetadataBooleanField,

@@ -46,8 +46,10 @@ import type {
 type ClauseKind = "field" | "metric" | "metricCompare" | "pack" | "scope" | "level" | "price" | "rarity" | "actionCost";
 type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
+type MetricKeySelection = { value: string; discoveryMode: SearchFilterDiscoveryMode };
 const CLAUSE_BACK = Symbol("search-structured-draft-clause-back");
 type ClausePromptBackResult = typeof CLAUSE_BACK;
+type PromptStepResult<T> = T | ClausePromptBackResult | undefined;
 type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | ClausePromptBackResult | null | undefined;
 type ClausePromptResult = ClauseKind | ClausePromptBackResult | null;
 type ClauseApplyResult = "applied" | "back" | "cancelled";
@@ -237,10 +239,11 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForPickerDiscoveryMode = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       title: string,
       discoveryMode: SearchFilterDiscoveryMode,
     ): Promise<SearchFilterDiscoveryMode | undefined> => {
-      const selected = await prompts.promptSelectOption({
+      const selected = await promptSession.promptSelectOption({
         title: `${title} Count Source`,
         prompt: "Choose how this picker should source counts",
         entries: [
@@ -270,6 +273,7 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForFieldClause = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       family: "field" | "metric",
       currentNode: MetadataFilterNode | null = null,
@@ -294,7 +298,7 @@ export function useSearchStructuredDraftMetadataActions({
         "field" in currentNode
           ? currentNode.field
           : fieldOptions[0]!.value;
-      const selection = await prompts.promptSelectOption({
+      const selection = await promptSession.promptSelectOption({
         title: family === "metric" ? "Metric" : "Metadata",
         prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the metadata field for the next clause",
         entries: fieldOptions.map((fieldOption) => ({
@@ -358,12 +362,13 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForMetricFamily = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       availableFamilies: MetricFieldFamily[],
       currentFamily: MetricFieldFamily | null,
       title: string,
       prompt: string,
-    ): Promise<MetricFieldFamily | undefined> => {
+    ): Promise<PromptStepResult<MetricFieldFamily>> => {
       const metricFieldOptions = getScopedFieldOptions(query).filter((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
       const entries = availableFamilies
         .map((family) => metricFieldOptions.find((fieldOption) => fieldOption.value === family))
@@ -377,13 +382,16 @@ export function useSearchStructuredDraftMetadataActions({
         return undefined;
       }
 
-      const selection = await prompts.promptSelectOption({
+      const selection = await promptSession.promptSelectOption({
         title,
         prompt,
         entries,
         selectedValue:
           currentFamily && entries.some((entry) => entry.value === currentFamily) ? currentFamily : entries[0]!.value,
       });
+      if (selection.kind === "back") {
+        return CLAUSE_BACK;
+      }
       return selection.kind === "selected" ? selection.value : undefined;
     },
     [getScopedFieldOptions, prompts],
@@ -391,14 +399,16 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForMetricKey = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       family: MetricFieldFamily,
       title: string,
       prompt: string,
       currentMetric?: string,
       options: { numericOnly?: boolean } = {},
-    ): Promise<string | undefined> => {
-      let discoveryMode: SearchFilterDiscoveryMode = "matching";
+      initialDiscoveryMode: SearchFilterDiscoveryMode = "matching",
+    ): Promise<PromptStepResult<MetricKeySelection>> => {
+      let discoveryMode: SearchFilterDiscoveryMode = initialDiscoveryMode;
 
       while (true) {
         const metricOptions = await user.search.loadMetricKeyOptions(query, family, discoveryMode, options);
@@ -406,7 +416,7 @@ export function useSearchStructuredDraftMetadataActions({
           return undefined;
         }
 
-        const selection = await prompts.promptSelectOption({
+        const selection = await promptSession.promptSelectOption({
           title,
           subtitle: buildDiscoveryModeSubtitle(discoveryMode),
           prompt,
@@ -422,13 +432,19 @@ export function useSearchStructuredDraftMetadataActions({
           supportsCommands: true,
         });
         if (selection.kind === "selected") {
-          return selection.value;
+          return {
+            value: selection.value,
+            discoveryMode,
+          };
+        }
+        if (selection.kind === "back") {
+          return CLAUSE_BACK;
         }
         if (selection.kind !== "commands") {
           return undefined;
         }
 
-        const nextMode = await promptForPickerDiscoveryMode(title, discoveryMode);
+        const nextMode = await promptForPickerDiscoveryMode(promptSession, title, discoveryMode);
         if (!nextMode) {
           return undefined;
         }
@@ -440,9 +456,10 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForMetricCompareClause = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "metricCompare" }>,
-    ): Promise<Extract<SearchFilterNode, { kind: "metricCompare" }> | undefined> => {
+    ): Promise<Extract<SearchFilterNode, { kind: "metricCompare" }> | ClausePromptBackResult | undefined> => {
       const availableFamilies = await getAvailableMetricFamilies(query, { numericOnly: true });
       if (availableFamilies.length === 0) {
         await terminal.pauseForAnyKey("No numeric metric comparisons are available for the current query.");
@@ -452,73 +469,106 @@ export function useSearchStructuredDraftMetadataActions({
       const currentFamily: MetricFieldFamily | null = currentNode
         ? inferMetricFieldFamily(currentNode.leftMetric, getSearchQueryCategory(query))
         : null;
-      const family = await promptForMetricFamily(
-        query,
-        availableFamilies,
-        currentFamily,
-        "Metric Comparison",
-        "Choose the metric family for this comparison clause",
-      );
-      if (!family) {
-        return undefined;
-      }
+      let selectedFamily = currentFamily;
+      let metricDiscoveryMode: SearchFilterDiscoveryMode = "matching";
 
-      const leftMetric = await promptForMetricKey(
-        query,
-        family,
-        "Left Metric",
-        "Choose the left-hand metric for this comparison clause",
-        currentNode && currentFamily === family ? currentNode.leftMetric : undefined,
-        { numericOnly: true },
-      );
-      if (!leftMetric) {
-        return undefined;
-      }
+      while (true) {
+        const family = await promptForMetricFamily(
+          promptSession,
+          query,
+          availableFamilies,
+          selectedFamily,
+          "Metric Comparison",
+          "Choose the metric family for this comparison clause",
+        );
+        if (family === CLAUSE_BACK) {
+          return CLAUSE_BACK;
+        }
+        if (!family) {
+          return undefined;
+        }
+        selectedFamily = family;
 
-      const operatorSelection = await prompts.promptSelectOption({
-        title: "Comparison Operator",
-        prompt: "Choose how the left metric should compare to the right metric",
-        entries: [
-          { value: "eq", label: "Equals", description: "Require both metrics to be equal." },
-          { value: "notEq", label: "Does Not Equal", description: "Require both metrics to differ." },
-          { value: "gt", label: "Greater Than", description: "Require the left metric to be greater." },
-          { value: "gte", label: "Greater Or Equal", description: "Require the left metric to be greater or equal." },
-          { value: "lt", label: "Less Than", description: "Require the left metric to be less." },
-          { value: "lte", label: "Less Or Equal", description: "Require the left metric to be less or equal." },
-        ],
-        selectedValue: currentNode?.op ?? "gte",
-      });
-      if (operatorSelection.kind !== "selected") {
-        return undefined;
-      }
+        while (true) {
+          const leftMetric = await promptForMetricKey(
+            promptSession,
+            query,
+            selectedFamily,
+            "Left Metric",
+            "Choose the left-hand metric for this comparison clause",
+            currentNode && currentFamily === selectedFamily ? currentNode.leftMetric : undefined,
+            { numericOnly: true },
+            metricDiscoveryMode,
+          );
+          if (leftMetric === CLAUSE_BACK) {
+            break;
+          }
+          if (!leftMetric) {
+            return undefined;
+          }
+          metricDiscoveryMode = leftMetric.discoveryMode;
 
-      const rightMetric = await promptForMetricKey(
-        query,
-        family,
-        "Right Metric",
-        "Choose the right-hand metric for this comparison clause",
-        currentNode && currentFamily === family ? currentNode.rightMetric : leftMetric,
-        { numericOnly: true },
-      );
-      if (!rightMetric) {
-        return undefined;
-      }
+          while (true) {
+            const operatorSelection = await promptSession.promptSelectOption({
+              title: "Comparison Operator",
+              prompt: "Choose how the left metric should compare to the right metric",
+              entries: [
+                { value: "eq", label: "Equals", description: "Require both metrics to be equal." },
+                { value: "notEq", label: "Does Not Equal", description: "Require both metrics to differ." },
+                { value: "gt", label: "Greater Than", description: "Require the left metric to be greater." },
+                { value: "gte", label: "Greater Or Equal", description: "Require the left metric to be greater or equal." },
+                { value: "lt", label: "Less Than", description: "Require the left metric to be less." },
+                { value: "lte", label: "Less Or Equal", description: "Require the left metric to be less or equal." },
+              ],
+              selectedValue: currentNode?.op ?? "gte",
+            });
+            if (operatorSelection.kind === "back") {
+              break;
+            }
+            if (operatorSelection.kind !== "selected") {
+              return undefined;
+            }
 
-      return {
-        kind: "metricCompare",
-        leftMetric,
-        op: operatorSelection.value as MetricCompareOperator,
-        rightMetric,
-      };
+            const operator = operatorSelection.value as MetricCompareOperator;
+            const rightMetric = await promptForMetricKey(
+              promptSession,
+              query,
+              selectedFamily,
+              "Right Metric",
+              "Choose the right-hand metric for this comparison clause",
+              currentNode && currentFamily === selectedFamily ? currentNode.rightMetric : leftMetric.value,
+              { numericOnly: true },
+              metricDiscoveryMode,
+            );
+            if (rightMetric === CLAUSE_BACK) {
+              continue;
+            }
+            if (!rightMetric) {
+              return undefined;
+            }
+            metricDiscoveryMode = rightMetric.discoveryMode;
+
+            return {
+              kind: "metricCompare",
+              leftMetric: leftMetric.value,
+              op: operator,
+              rightMetric: rightMetric.value,
+            };
+          }
+        }
+      }
     },
     [getAvailableMetricFamilies, promptForMetricFamily, promptForMetricKey, prompts, terminal],
   );
 
   const promptForPackClause = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-    ): Promise<Extract<SearchFilterNode, { kind: "pack" }> | Extract<SearchFilterNode, { kind: "pack" }>[] | undefined> => {
+    ): Promise<
+      Extract<SearchFilterNode, { kind: "pack" }> | Extract<SearchFilterNode, { kind: "pack" }>[] | ClausePromptBackResult | undefined
+    > => {
       let discoveryMode: SearchFilterDiscoveryMode = "matching";
 
       while (true) {
@@ -529,7 +579,7 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         if (currentNode) {
-          const selection = await prompts.promptSelectOption({
+          const selection = await promptSession.promptSelectOption({
             title: "Pack",
             subtitle: buildDiscoveryModeSubtitle(discoveryMode),
             prompt: "Choose the pack for this clause",
@@ -550,11 +600,14 @@ export function useSearchStructuredDraftMetadataActions({
               value: selection.value,
             };
           }
+          if (selection.kind === "back") {
+            return CLAUSE_BACK;
+          }
           if (selection.kind !== "commands") {
             return undefined;
           }
         } else {
-          const selection = await prompts.promptMultiSelectOption({
+          const selection = await promptSession.promptMultiSelectOption({
             title: "Pack",
             subtitle: buildDiscoveryModeSubtitle(discoveryMode),
             prompt: "Choose one or more packs for this clause",
@@ -571,12 +624,15 @@ export function useSearchStructuredDraftMetadataActions({
               value,
             }));
           }
+          if (selection.kind === "back") {
+            return CLAUSE_BACK;
+          }
           if (selection.kind !== "commands") {
             return undefined;
           }
         }
 
-        const nextMode = await promptForPickerDiscoveryMode("Pack", discoveryMode);
+        const nextMode = await promptForPickerDiscoveryMode(promptSession, "Pack", discoveryMode);
         if (!nextMode) {
           return undefined;
         }
@@ -588,6 +644,7 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForScopeClause = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "scope" }>,
     ): Promise<Extract<SearchFilterNode, { kind: "scope" }> | ClausePromptBackResult | undefined> => {
@@ -598,7 +655,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
 
       while (true) {
-        const categorySelection = await prompts.promptSelectOption({
+        const categorySelection = await promptSession.promptSelectOption({
           title: "Scope",
           prompt: "Choose the category for this scope clause",
           entries: categoryOptions.map((option) => ({
@@ -629,7 +686,7 @@ export function useSearchStructuredDraftMetadataActions({
               : "any";
 
         while (true) {
-          const modeSelection = await prompts.promptSelectOption({
+          const modeSelection = await promptSession.promptSelectOption({
             title: "Subcategory Mode",
             prompt: "Choose how this scope clause should treat subcategories",
             entries: [
@@ -666,7 +723,7 @@ export function useSearchStructuredDraftMetadataActions({
               currentNode?.category === category && currentNode?.subcategory.kind === "eq"
                 ? currentNode.subcategory.value
                 : null;
-            const subcategorySelection = await prompts.promptSelectOption({
+            const subcategorySelection = await promptSession.promptSelectOption({
               title: "Specific Subcategory",
               prompt: "Choose the exact subcategory for this scope clause",
               entries: subcategoryOptions.map((option) => ({
@@ -705,6 +762,7 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForNumericMatchClause = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       nodeKind: "level" | "price" | "actionCost",
       node?:
         | Extract<SearchFilterNode, { kind: "level" }>
@@ -739,7 +797,7 @@ export function useSearchStructuredDraftMetadataActions({
         currentNumericMatch = node.match;
       }
       if (nodeKind === "level") {
-        const parsed = await promptLevelRangeDraft(prompts, terminal, {
+        const parsed = await promptLevelRangeDraft(promptSession, terminal, {
           defaultValue: currentNumericMatch ? formatNumericMatch(currentNumericMatch) : "",
         });
         if (parsed === undefined) {
@@ -767,7 +825,7 @@ export function useSearchStructuredDraftMetadataActions({
         };
       }
 
-      const parsed = await promptNumericScalarClause(prompts, terminal, {
+      const parsed = await promptNumericScalarClause(promptSession, terminal, {
         title: nodeKind === "price" ? "Price Matcher" : "Action Cost Matcher",
         currentClause:
           currentNumericMatch?.kind === "between"
@@ -799,7 +857,7 @@ export function useSearchStructuredDraftMetadataActions({
               },
       };
     },
-    [prompts, terminal],
+    [terminal],
   );
 
   const promptForRarityClause = React.useCallback(
@@ -836,29 +894,30 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForClauseNode = React.useCallback(
     async (
+      promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       clauseKind: ClauseKind,
       currentNode?: SearchFilterNode,
     ): Promise<SearchFilterNodeEditorResult> => {
       switch (clauseKind) {
         case "field":
-          return promptForFieldClause(query, "field", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
+          return promptForFieldClause(promptSession, query, "field", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
         case "metric":
-          return promptForFieldClause(query, "metric", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
+          return promptForFieldClause(promptSession, query, "metric", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
         case "metricCompare":
-          return promptForMetricCompareClause(query, currentNode?.kind === "metricCompare" ? currentNode : undefined);
+          return promptForMetricCompareClause(promptSession, query, currentNode?.kind === "metricCompare" ? currentNode : undefined);
         case "pack":
-          return promptForPackClause(query, currentNode?.kind === "pack" ? currentNode : undefined);
+          return promptForPackClause(promptSession, query, currentNode?.kind === "pack" ? currentNode : undefined);
         case "scope":
-          return promptForScopeClause(query, currentNode?.kind === "scope" ? currentNode : undefined);
+          return promptForScopeClause(promptSession, query, currentNode?.kind === "scope" ? currentNode : undefined);
         case "level":
-          return promptForNumericMatchClause("level", currentNode?.kind === "level" ? currentNode : undefined);
+          return promptForNumericMatchClause(promptSession, "level", currentNode?.kind === "level" ? currentNode : undefined);
         case "price":
-          return promptForNumericMatchClause("price", currentNode?.kind === "price" ? currentNode : undefined);
+          return promptForNumericMatchClause(promptSession, "price", currentNode?.kind === "price" ? currentNode : undefined);
         case "rarity":
           return promptForRarityClause(query, currentNode?.kind === "rarity" ? currentNode : undefined);
         case "actionCost":
-          return promptForNumericMatchClause("actionCost", currentNode?.kind === "actionCost" ? currentNode : undefined);
+          return promptForNumericMatchClause(promptSession, "actionCost", currentNode?.kind === "actionCost" ? currentNode : undefined);
       }
     },
     [
@@ -872,7 +931,7 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const promptForClauseKind = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery): Promise<ClausePromptResult> => {
+    async (promptSession: SearchWorkspacePromptAdapters, query: Pf2eTerminalSearchQuery): Promise<ClausePromptResult> => {
       const fieldOptions = getScopedFieldOptions(query);
       const hasFieldClauses = fieldOptions.some((fieldOption) => !isMetricFieldOptionValue(fieldOption.value));
       const hasMetricClauses = fieldOptions.some((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
@@ -943,7 +1002,7 @@ export function useSearchStructuredDraftMetadataActions({
       )
         .map((value) => entryByValue.get(value))
         .filter((entry): entry is { value: ClauseKind; label: string; description: string } => Boolean(entry));
-      const result = await prompts.promptSelectOption({
+      const result = await promptSession.promptSelectOption({
         title: "Add Clause",
         prompt: "Choose the clause kind to insert into the current group",
         entries,
@@ -954,49 +1013,51 @@ export function useSearchStructuredDraftMetadataActions({
       }
       return result.kind === "selected" ? result.value : null;
     },
-    [getAvailableMetricFamilies, getScopedFieldOptions, prompts, user.search],
+    [getAvailableMetricFamilies, getScopedFieldOptions, user.search],
   );
 
   const addQueryClauseAtPath = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not"): Promise<ClauseApplyResult> => {
-      while (true) {
-        const clauseKind = await promptForClauseKind(query);
-        if (clauseKind === CLAUSE_BACK) {
-          return "back";
-        }
-        if (!clauseKind) {
-          return "cancelled";
-        }
-        const nextNode = await promptForClauseNode(query, clauseKind);
-        if (nextNode === CLAUSE_BACK) {
-          continue;
-        }
-        if (!nextNode) {
-          return "cancelled";
-        }
-        const wrappedNode =
-          wrapper === "allOf" || wrapper === "anyOf"
-            ? ({
-                kind: wrapper,
-                children: Array.isArray(nextNode) ? nextNode : [nextNode],
-              } as SearchFilterNode)
-            : wrapper === "not"
+      return terminal.runPromptSession(async (session) => {
+        while (true) {
+          const clauseKind = await promptForClauseKind(session, query);
+          if (clauseKind === CLAUSE_BACK) {
+            return "back";
+          }
+          if (!clauseKind) {
+            return "cancelled";
+          }
+          const nextNode = await promptForClauseNode(session, query, clauseKind);
+          if (nextNode === CLAUSE_BACK) {
+            continue;
+          }
+          if (!nextNode) {
+            return "cancelled";
+          }
+          const wrappedNode =
+            wrapper === "allOf" || wrapper === "anyOf"
               ? ({
-                  kind: "not",
-                  child: Array.isArray(nextNode)
-                    ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
-                    : nextNode,
+                  kind: wrapper,
+                  children: Array.isArray(nextNode) ? nextNode : [nextNode],
                 } as SearchFilterNode)
-              : nextNode;
-        applyNextTree(
-          Array.isArray(wrappedNode)
-            ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
-            : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
-        );
-        return "applied";
-      }
+              : wrapper === "not"
+                ? ({
+                    kind: "not",
+                    child: Array.isArray(nextNode)
+                      ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
+                      : nextNode,
+                  } as SearchFilterNode)
+                : nextNode;
+          applyNextTree(
+            Array.isArray(wrappedNode)
+              ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
+              : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
+          );
+          return "applied";
+        }
+      });
     },
-    [applyNextTree, promptForClauseKind, promptForClauseNode],
+    [applyNextTree, promptForClauseKind, promptForClauseNode, terminal],
   );
 
   const runInsertionAction = React.useCallback(
@@ -1060,7 +1121,7 @@ export function useSearchStructuredDraftMetadataActions({
         }
       }
     },
-    [moveSourcePath, prompts, runInsertionAction],
+    [moveSourcePath, runInsertionAction],
   );
 
   const runRootAction = React.useCallback(
@@ -1096,7 +1157,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
       await runRootAction(query, result.value as StructuredDraftEntryActionId);
     },
-    [prompts, runRootAction],
+    [runRootAction],
   );
 
   const getLeafActionEntries = React.useCallback(
@@ -1200,7 +1261,9 @@ export function useSearchStructuredDraftMetadataActions({
           return;
         }
 
-        const nextNode = await promptForClauseNode(query, editableClauseKind, node);
+        const nextNode = await terminal.runPromptSession((session) =>
+          promptForClauseNode(session, query, editableClauseKind, node),
+        );
         if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode)) {
           return;
         }
@@ -1260,7 +1323,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
       await runLeafAction(query, path, node, result.value as StructuredDraftEntryActionId);
     },
-    [getLeafActionEntries, prompts, runLeafAction],
+    [getLeafActionEntries, runLeafAction],
   );
 
   const getNotActionEntries = React.useCallback(
@@ -1320,7 +1383,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
       await runNotAction(query, path, node, result.value as StructuredDraftEntryActionId);
     },
-    [getNotActionEntries, prompts, runNotAction],
+    [getNotActionEntries, runNotAction],
   );
 
   const getGroupActionEntries = React.useCallback(
@@ -1413,7 +1476,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
       await runGroupAction(query, path, node, result.value as StructuredDraftEntryActionId);
     },
-    [getGroupActionEntries, prompts, runGroupAction],
+    [getGroupActionEntries, runGroupAction],
   );
 
   const editStructuredDraftMetadata = React.useCallback(

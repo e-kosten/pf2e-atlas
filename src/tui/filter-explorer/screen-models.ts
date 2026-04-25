@@ -16,15 +16,10 @@ import {
 } from "../list-detail-presentation.js";
 import { buildFilterExplorerListRows } from "./browser.js";
 import {
+  getFilterExplorerDiscreteClauseOperator,
   getFilterExplorerScalarClause,
-  getFilterExplorerTargetState,
   isFilterExplorerScalarTarget,
 } from "./compose-state.js";
-import {
-  buildFilterExplorerPolicyBadgeSegments,
-  buildFilterExplorerPolicyLabelSegments,
-  getFilterExplorerPolicyPresentation,
-} from "./policy-presentation.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
   FilterExplorerDiscoveryMode,
@@ -32,6 +27,8 @@ import type {
   FilterExplorerComposeMode,
   FilterExplorerBrowserContext,
   FilterExplorerControllerContext,
+  FilterExplorerDiscreteClause,
+  FilterExplorerDiscreteClauseOperator,
   FilterExplorerInspectResult,
   FilterExplorerMode,
   FilterExplorerScalarClause,
@@ -169,29 +166,60 @@ export function getFilterExplorerInteractionActions(
   ];
 }
 
-function buildSelectionEntrySegments(
-  field: string,
-  selection: FilterExplorerControllerContext["selection"][string],
-): DerivedTagTerminalSegment[] {
-  const fieldLabel = formatOntologySearchVocabularyLabel(field);
-  const segments: DerivedTagTerminalSegment[] = [{ text: `${fieldLabel}: ` }];
-  let first = true;
-
-  for (const state of ["any", "all", "exclude"] as const) {
-    const values = selection[state];
-    if (values.length === 0) {
-      continue;
-    }
-
-    if (!first) {
-      segments.push({ text: " | ", tone: "dim" });
-    }
-    segments.push(...buildFilterExplorerPolicyBadgeSegments(state, { fallback: "discoverable" }));
-    segments.push({ text: ` ${values.join(", ")}` });
-    first = false;
+function getDiscreteClausePresentation(
+  operator: FilterExplorerDiscreteClauseOperator | undefined,
+): { badge: string; label: string; tone: DerivedTagTerminalSegment["tone"] } {
+  switch (operator) {
+    case "include":
+      return { badge: "check", label: "include", tone: "success" };
+    case "exclude":
+      return { badge: "x", label: "exclude", tone: "danger" };
+    default:
+      return { badge: ".", label: "off", tone: "dim" };
   }
+}
 
-  return segments;
+function buildDiscreteClauseBadgeSegments(
+  operator: FilterExplorerDiscreteClauseOperator | undefined,
+): DerivedTagTerminalSegment[] {
+  const presentation = getDiscreteClausePresentation(operator);
+  return [
+    { text: "[", tone: "dim" },
+    { text: presentation.badge === "check" ? "\u2713" : presentation.badge, tone: presentation.tone },
+    { text: "]", tone: "dim" },
+  ];
+}
+
+function buildDiscreteClauseLabelSegments(
+  operator: FilterExplorerDiscreteClauseOperator | undefined,
+): DerivedTagTerminalSegment[] {
+  const presentation = getDiscreteClausePresentation(operator);
+  return [
+    ...buildDiscreteClauseBadgeSegments(operator),
+    { text: ` ${presentation.label}`, tone: presentation.tone },
+  ];
+}
+
+function buildDiscreteClauseEntrySegments(
+  clause: FilterExplorerDiscreteClause,
+): DerivedTagTerminalSegment[] {
+  return [
+    { text: `${formatOntologySearchVocabularyLabel(clause.field)}: ` },
+    ...buildDiscreteClauseLabelSegments(clause.operator),
+    { text: ` ${clause.value}` },
+  ];
+}
+
+function buildGroupedDiscreteClauseEntrySegments(
+  field: string,
+  operator: FilterExplorerDiscreteClauseOperator,
+  values: string[],
+): DerivedTagTerminalSegment[] {
+  return [
+    { text: `${formatOntologySearchVocabularyLabel(field)}: ` },
+    ...buildDiscreteClauseLabelSegments(operator),
+    { text: ` ${values.join(", ")}` },
+  ];
 }
 
 function formatFilterExplorerScalarValue(value: string | number | boolean): string {
@@ -230,19 +258,29 @@ export function buildFilterExplorerComposeDetailLines(args: {
   draft: FilterExplorerControllerContext["draft"];
   currentNodeLabel?: string;
   selectedTarget?: FilterExplorerControllerContext["selectedTarget"];
-  selectedPolicyState?: FilterExplorerControllerContext["selectedPolicyState"];
+  selectedDiscreteClause?: FilterExplorerControllerContext["selectedDiscreteClause"];
   selectedScalarClause?: FilterExplorerControllerContext["selectedScalarClause"];
   baseDetailLines: readonly DerivedTagTerminalLine[];
 }): DerivedTagTerminalLine[] {
-  const selectionEntries = Object.entries(args.draft.selection).filter(
-    ([, fieldSelection]) =>
-      fieldSelection.any.length > 0 || fieldSelection.all.length > 0 || fieldSelection.exclude.length > 0,
-  );
+  const groupedDiscreteClauses = new Map<string, { field: string; operator: FilterExplorerDiscreteClauseOperator; values: string[] }>();
+  for (const clause of args.draft.discreteClauses) {
+    const key = `${clause.field}\u0000${clause.operator}`;
+    const existing = groupedDiscreteClauses.get(key);
+    if (existing) {
+      existing.values.push(clause.value);
+      continue;
+    }
+    groupedDiscreteClauses.set(key, {
+      field: clause.field,
+      operator: clause.operator,
+      values: [clause.value],
+    });
+  }
   const scalarEntries = Object.entries(args.draft.scalarClauses);
   const lines: DerivedTagTerminalLine[] = [
     ...args.baseDetailLines,
     { text: "" },
-    { text: args.mode.focusedSelectionTitle ?? "Focused selection", tone: "section" },
+    { text: args.mode.focusedClauseTitle ?? "Focused clause", tone: "section" },
   ];
 
   if (args.selectedTarget && args.selectedTarget.kind !== "scalar") {
@@ -250,10 +288,10 @@ export function buildFilterExplorerComposeDetailLines(args: {
       text: `${args.selectedTarget.fieldLabel}: ${args.selectedTarget.valueLabel ?? args.currentNodeLabel ?? args.selectedTarget.value}`,
     });
     lines.push({
-      text: `Focused policy: ${getFilterExplorerPolicyPresentation(args.selectedPolicyState).label}`,
+      text: `Focused clause: ${getDiscreteClausePresentation(args.selectedDiscreteClause?.operator).label}`,
       segments: [
-        { text: "Focused policy: ", tone: "accent" },
-        ...buildFilterExplorerPolicyLabelSegments(args.selectedPolicyState),
+        { text: "Focused clause: ", tone: "accent" },
+        ...buildDiscreteClauseLabelSegments(args.selectedDiscreteClause?.operator),
       ],
     });
   } else if (args.selectedTarget?.kind === "scalar") {
@@ -279,17 +317,19 @@ export function buildFilterExplorerComposeDetailLines(args: {
   }
 
   lines.push({ text: "" });
-  lines.push({ text: args.mode.selectedSelectionsTitle ?? "Selected fields", tone: "section" });
-  if (selectionEntries.length === 0 && scalarEntries.length === 0) {
+  lines.push({ text: args.mode.stagedClausesTitle ?? "Staged clauses", tone: "section" });
+  if (groupedDiscreteClauses.size === 0 && scalarEntries.length === 0) {
     lines.push({ text: args.mode.emptySelectionText ?? "No filter values selected yet.", tone: "dim" });
     return lines;
   }
 
-  for (const [field, fieldSelection] of selectionEntries) {
-    const fieldLabel = formatOntologySearchVocabularyLabel(field);
+  for (const entry of [...groupedDiscreteClauses.values()].sort((left, right) =>
+    left.field.localeCompare(right.field) || left.operator.localeCompare(right.operator),
+  )) {
+    const values = [...new Set(entry.values)].sort((left, right) => left.localeCompare(right));
     lines.push({
-      text: `${fieldLabel}: any=${fieldSelection.any.join(", ")}`,
-      segments: buildSelectionEntrySegments(field, fieldSelection),
+      text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${getDiscreteClausePresentation(entry.operator).label} ${values.join(", ")}`,
+      segments: buildGroupedDiscreteClauseEntrySegments(entry.field, entry.operator, values),
     });
   }
 
@@ -335,8 +375,9 @@ function buildComposeListSegments(
     ];
   }
 
+  const operator = getFilterExplorerDiscreteClauseOperator(target, controller.draft);
   return [
-    ...buildFilterExplorerPolicyBadgeSegments(getFilterExplorerTargetState(target, controller.selection)),
+    ...buildDiscreteClauseBadgeSegments(operator),
     { text: " ", tone: "default" },
     { text: label, tone: isSelected ? "selected" : "default" },
   ];
@@ -466,7 +507,7 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
           : action.id === "cycle"
             ? controller.selectedTarget?.kind === "scalar"
               ? "open the focused scalar filter editor"
-              : "cycle the focused filter through off, ∪ include-any, ∩ require-all, and ¬ exclude"
+              : "cycle the focused discrete clause through off and the allowed include/exclude operators"
             : action.id === "focus"
               ? "switch focus between list and detail"
               : action.id === "layout"
@@ -527,12 +568,9 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
 }
 
 function buildComposeStatus(controller: FilterExplorerControllerContext): string {
-  const activeFieldCount = Object.values(controller.draft.selection).filter(
-    (fieldSelection) =>
-      fieldSelection.any.length > 0 || fieldSelection.all.length > 0 || fieldSelection.exclude.length > 0,
-  ).length;
+  const discreteClauseCount = controller.draft.discreteClauses.length;
   const scalarClauseCount = Object.keys(controller.draft.scalarClauses).length;
-  const totalCount = activeFieldCount + scalarClauseCount;
+  const totalCount = discreteClauseCount + scalarClauseCount;
 
   if (controller.selectedTarget?.kind === "scalar") {
     const focusedSummary = controller.selectedScalarClause
@@ -541,8 +579,8 @@ function buildComposeStatus(controller: FilterExplorerControllerContext): string
     return `Focused ${focusedSummary} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
   }
 
-  const focusedPolicy = getFilterExplorerPolicyPresentation(controller.selectedPolicyState).label;
-  return `Focused ${focusedPolicy} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
+  const focusedClause = getDiscreteClausePresentation(controller.selectedDiscreteClause?.operator).label;
+  return `Focused ${focusedClause} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
 }
 
 function buildInspectTargetLabel(result: FilterExplorerInspectResult): string | null {

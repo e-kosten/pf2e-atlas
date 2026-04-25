@@ -6,7 +6,7 @@ import {
 } from "../../src/tui/filter-explorer/scalar-editor.js";
 
 describe("scalar-editor prompts", () => {
-  it("parses centered numeric matcher input for shared scalar clauses", async () => {
+  it("parses overlay numeric matcher input for shared scalar clauses", async () => {
     const promptTextInput = vi.fn().mockResolvedValue(">=5");
     const pauseForAnyKey = vi.fn();
 
@@ -26,13 +26,13 @@ describe("scalar-editor prompts", () => {
         title: "Action Cost Clause",
         previewTitle: "Preview",
         buildPreviewLines: expect.any(Function),
-        presentation: "centered",
+        presentation: "overlay",
       }),
     );
     expect(pauseForAnyKey).not.toHaveBeenCalled();
   });
 
-  it("accepts >= level syntax in the centered level matcher", async () => {
+  it("accepts >= level syntax in the overlay level matcher", async () => {
     const promptTextInput = vi.fn().mockResolvedValue(">=7");
     const pauseForAnyKey = vi.fn();
 
@@ -51,7 +51,7 @@ describe("scalar-editor prompts", () => {
         title: "Level Range",
         previewTitle: "Preview",
         buildPreviewLines: expect.any(Function),
-        presentation: "centered",
+        presentation: "overlay",
       }),
     );
   });

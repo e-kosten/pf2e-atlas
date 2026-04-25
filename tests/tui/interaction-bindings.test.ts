@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildTerminalInteractionHelpLines,
-  formatTerminalFooterBindings,
   formatTerminalInteractionFooter,
   TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER,
   TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
@@ -83,17 +82,7 @@ describe("terminal interaction bindings", () => {
     expect(TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER).toBe("Type to filter  Backspace edit  Esc cancel");
   });
 
-  it("supports grouped prompt bindings for merged cancel footers", () => {
-    expect(
-      formatTerminalFooterBindings([
-        {
-          kind: "actionGroup",
-          label: "cancel",
-          actions: [{ id: "back" }, { id: "quit" }],
-          keyStyle: "expanded",
-        },
-      ]),
-    ).toBe("Esc/Backspace/←/q cancel");
-    expect(TERMINAL_SELECT_EMPTY_FOOTER).toBe("Esc/Backspace/←/q cancel");
+  it("renders select empty footers with separate cancel and back actions", () => {
+    expect(TERMINAL_SELECT_EMPTY_FOOTER).toBe("Esc cancel  ← back");
   });
 });

@@ -29,13 +29,12 @@ import { buildSearchRequest } from "./filter-building.js";
 import { createSearchQueryFromOntologyQuery } from "./ontology-query.js";
 import {
   createDefaultQuery,
-  getSearchQueryActionCostPolicy,
+  getSearchQueryActionCostSelection,
   getSearchQueryCategory,
-  getSearchQueryRarityPolicy,
   getSearchQuerySubcategory,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
-  setSearchQueryActionCostPolicy,
+  setSearchQueryActionCostSelection,
 } from "./query-state.js";
 import {
   appendSearchSessionWindowPage,
@@ -69,11 +68,11 @@ export type {
   Pf2eTerminalFacetValueOption,
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
-  Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldEditor,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
+  Pf2eTerminalValueSelection,
   Pf2eTerminalSearchCategoryOption,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchModeOption,
@@ -138,9 +137,9 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       return normalizedQuery;
     }
 
-    const actionCostPolicy = getSearchQueryActionCostPolicy(normalizedQuery);
-    return actionCostPolicy.any.length > 0 || actionCostPolicy.all.length > 0 || actionCostPolicy.exclude.length > 0
-      ? setSearchQueryActionCostPolicy(normalizedQuery, { any: [], all: [], exclude: [] })
+    const actionCostSelection = getSearchQueryActionCostSelection(normalizedQuery);
+    return actionCostSelection.include.length > 0 || actionCostSelection.exclude.length > 0
+      ? setSearchQueryActionCostSelection(normalizedQuery, { include: [], exclude: [] })
       : normalizedQuery;
   }
 

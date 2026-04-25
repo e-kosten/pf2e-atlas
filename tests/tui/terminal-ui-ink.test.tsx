@@ -9,7 +9,6 @@ import {
   createDerivedTagTerminalInputEvent,
   createDerivedTagTerminalListNavigationState,
   type DerivedTagTerminalOptionalSelectPromptResult,
-  type DerivedTagTerminalPolicySelection,
   type DerivedTagTerminalSelectPromptResult,
   DerivedTagTerminalProvider,
   TerminalTextScreen,
@@ -17,6 +16,7 @@ import {
   resolveDerivedTagTerminalListNavigationAction,
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
+  useDerivedTagTerminalSize,
 } from "../../src/tui/terminal-ui.js";
 import { useDerivedTagTerminalBackdropActive } from "../../src/tui/framework/context.js";
 import { TerminalMenuScreen } from "../../src/tui/shared-screens.js";
@@ -193,7 +193,7 @@ function countFrameLinesContaining(frame: string, prefix: string): number {
 }
 
 function promptListLinePrefix(kind: LayoutPromptKind): string {
-  return kind === "multiselect" || kind === "policy" ? "[" : "Option ";
+  return kind === "multiselect" ? "[" : "Option ";
 }
 
 function formatSelectResult<T>(result: DerivedTagTerminalSelectPromptResult<T>): string {
@@ -237,12 +237,13 @@ function SelectPromptHarness(): React.JSX.Element {
 }
 
 function CenteredModePromptHarness({
-  presentation = "centered",
+  presentation = "overlay",
 }: {
-  presentation?: "centered" | "centered-screen" | "overlay" | "blanked";
+  presentation?: "overlay" | "blanked";
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const backdropActive = useDerivedTagTerminalBackdropActive();
+  const size = useDerivedTagTerminalSize();
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
@@ -269,6 +270,7 @@ function CenteredModePromptHarness({
       title="Harness"
       body={[
         { text: "bg=visible" },
+        { text: `bgHeight=${size.height}` },
         { text: `backdrop=${String(backdropActive)}` },
         { text: `result=${result}` },
       ]}
@@ -293,6 +295,86 @@ function TextPromptHarness(): React.JSX.Element {
   }, []);
 
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function SessionPreemptedBySharedPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [sessionResult, setSessionResult] = React.useState("pending");
+  const [sharedResult, setSharedResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.runPromptSession(async (session) => {
+      const result = await session.promptSelectOption({
+        title: "Session Prompt",
+        prompt: "Choose a session-owned value",
+        entries: [
+          { value: "first", label: "First" },
+          { value: "second", label: "Second" },
+        ],
+      });
+      setSessionResult(formatSelectResult(result));
+    });
+
+    const timer = setTimeout(() => {
+      void terminal
+        .promptTextInput({
+          title: "Shared Prompt",
+          prompt: "Enter a shared value",
+        })
+        .then((value) => {
+          setSharedResult(value ?? "cancelled");
+        });
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `session=${sessionResult}` }, { text: `shared=${sharedResult}` }]}
+    />
+  );
+}
+
+function SessionSelfPreemptionHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const [firstResult, setFirstResult] = React.useState("pending");
+  const [secondResult, setSecondResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal.runPromptSession(async (session) => {
+      const firstPrompt = session.promptSelectOption({
+        title: "First Session Prompt",
+        prompt: "Choose the first session value",
+        entries: [
+          { value: "alpha", label: "Alpha" },
+          { value: "beta", label: "Beta" },
+        ],
+      });
+
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+
+      const second = await session.promptTextInput({
+        title: "Second Session Prompt",
+        prompt: "Enter the second session value",
+      });
+      const first = await firstPrompt;
+      setFirstResult(formatSelectResult(first));
+      setSecondResult(second ?? "cancelled");
+    });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `first=${firstResult}` }, { text: `second=${secondResult}` }]}
+    />
+  );
 }
 
 function DialogStateHarness(): React.JSX.Element {
@@ -362,35 +444,10 @@ function MultiSelectPromptHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
-function PolicyPromptHarness(): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const [result, setResult] = React.useState("pending");
-
-  React.useEffect(() => {
-    void terminal
-      .promptPolicySelectOption({
-        title: "Policy Harness",
-        prompt: "Cycle values",
-        allowedStates: ["any", "all", "exclude"],
-        entries: [
-          { value: "fire", label: "Fire" },
-          { value: "cold", label: "Cold" },
-        ],
-      })
-      .then((selection: DerivedTagTerminalPolicySelection<string>) => {
-        setResult(
-          `any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`,
-        );
-      });
-  }, []);
-
-  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
-}
-
 function FilterableChoicePromptHarness({
   kind,
 }: {
-  kind: "select" | "multiselect" | "policy";
+  kind: "select" | "multiselect";
 }): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -434,18 +491,6 @@ function FilterableChoicePromptHarness({
         });
       return;
     }
-    void terminal
-      .promptPolicySelectOption({
-        title: "Filterable Policy",
-        prompt: "Choose policies",
-        allowedStates: ["any", "all", "exclude"],
-        entries,
-      })
-      .then((selection) => {
-        setResult(
-          `any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`,
-        );
-      });
   }, [entries, kind]);
 
   return <TerminalTextScreen title="Harness" body={[{ text: `kind=${kind}` }, { text: `result=${result}` }]} />;
@@ -1014,7 +1059,7 @@ function HyperlinkHarness(): React.JSX.Element {
   );
 }
 
-type LayoutPromptKind = "command" | "select" | "multiselect" | "policy";
+type LayoutPromptKind = "command" | "select" | "multiselect";
 
 function ModalLayoutPromptHarness({
   kind,
@@ -1086,21 +1131,6 @@ function ModalLayoutPromptHarness({
             setResult("cancelled");
           });
         break;
-      case "policy":
-        void terminal
-          .promptPolicySelectOption({
-            title: "Policy Layout",
-            prompt: "Choose policies",
-            presentation,
-            allowedStates: ["any", "all", "exclude"],
-            entries,
-          })
-          .then((selection) => {
-            setResult(
-              `any=${selection.any.join(",") || "-"}|all=${selection.all.join(",") || "-"}|exclude=${selection.exclude.join(",") || "-"}`,
-            );
-          });
-        break;
     }
   }, [entryCount, kind, presentation, terminal]);
 
@@ -1159,6 +1189,40 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("Quick inline prompt");
     expect(app.lastFrame()).toContain("result=pending");
     expect(app.lastFrame()).toContain("Harness");
+  });
+
+  it("resolves a session-owned prompt when a shared prompt preempts it", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SessionPreemptedBySharedPromptHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("Shared Prompt");
+    expect(app.lastFrame()).not.toContain("Session Prompt");
+
+    app.stdin.write("\r");
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("session=cancelled");
+    expect(app.lastFrame()).toContain("shared=cancelled");
+  });
+
+  it("lets one owned session deterministically preempt its own earlier prompt", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SessionSelfPreemptionHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("Second Session Prompt");
+    expect(app.lastFrame()).not.toContain("First Session Prompt");
+
+    app.stdin.write("\r");
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("first=cancelled");
+    expect(app.lastFrame()).toContain("second=cancelled");
   });
 
   it("preserves screen state after closing a dialog modal", async () => {
@@ -1306,36 +1370,6 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=common,rare");
   });
 
-  it("cycles policy states in a single prompt view", async () => {
-    const app = render(
-      <DerivedTagTerminalProvider>
-        <PolicyPromptHarness />
-      </DerivedTagTerminalProvider>,
-    );
-
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Cycle values");
-    expect(app.lastFrame()).not.toContain("result=pending");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("[✓] Fire");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("[✓] Fire");
-
-    app.stdin.write("j");
-    await flushInkFrames();
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("[✓] Cold");
-
-    app.stdin.write("\u007f");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=any=cold|all=fire|exclude=-");
-  });
-
   it("supports shared jump navigation inside select prompts", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
@@ -1393,6 +1427,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(overlayFrame).toContain("[Browse]   Search   Lookup");
     expect(overlayFrame).toContain("backdrop=true");
     expect(overlayFrame).toContain("bg=visible");
+    expect(overlayFrame).toContain("bgHeight=20");
 
     const blankedApp = renderWithTerminalSize(
       <DerivedTagTerminalProvider>
@@ -1405,7 +1440,8 @@ describe("derived tag terminal ink runtime", () => {
     const blankedFrame = blankedApp.lastFrame() ?? "";
     expect(blankedFrame).toContain("Choose Search Mode");
     expect(blankedFrame).toContain("[Browse]   Search   Lookup");
-    expect(blankedFrame).not.toContain("Background content stays visible.");
+    expect(blankedFrame).not.toContain("bg=visible");
+    expect(blankedFrame).not.toContain("bgHeight=20");
     expect(blankedFrame).not.toContain("backdrop=true");
   });
 
@@ -1461,7 +1497,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=facet");
   });
 
-  it("shares slash filtering across select, multiselect, and policy prompts", async () => {
+  it("shares slash filtering across select and multiselect prompts", async () => {
     const selectApp = render(
       <DerivedTagTerminalProvider>
         <FilterableChoicePromptHarness kind="select" />
@@ -1507,30 +1543,10 @@ describe("derived tag terminal ink runtime", () => {
     expect(multiApp.lastFrame()).toContain("result=rare");
     multiApp.unmount();
 
-    const policyApp = render(
-      <DerivedTagTerminalProvider>
-        <FilterableChoicePromptHarness kind="policy" />
-      </DerivedTagTerminalProvider>,
-    );
-
-    await flushInkFrames();
-    policyApp.stdin.write("/");
-    await flushInkFrames(2);
-    for (const character of "cold") {
-      policyApp.stdin.write(character);
-    }
-    await flushInkFrames(2);
-    policyApp.stdin.write("\r");
-    await flushInkFrames();
-    policyApp.stdin.write("\r");
-    await flushInkFrames();
-    policyApp.stdin.write("\u007f");
-    await flushInkFrames();
-    expect(policyApp.lastFrame()).toContain("result=any=cold|all=-|exclude=-");
   });
 
   it("uses the same inline list-capacity planning across command and select-like prompts", async () => {
-    const promptKinds: LayoutPromptKind[] = ["command", "select", "multiselect", "policy"];
+    const promptKinds: LayoutPromptKind[] = ["command", "select", "multiselect"];
     const visibleCounts: number[] = [];
 
     for (const kind of promptKinds) {
@@ -1553,8 +1569,8 @@ describe("derived tag terminal ink runtime", () => {
     expect(new Set(visibleCounts)).toEqual(new Set([visibleCounts[0]!]));
   });
 
-  it("lets select, multiselect, and policy prompts grow beyond the legacy fixed inline height", async () => {
-    const promptKinds: Array<Exclude<LayoutPromptKind, "command">> = ["select", "multiselect", "policy"];
+  it("lets select and multiselect prompts grow beyond the legacy fixed inline height", async () => {
+    const promptKinds: Array<Exclude<LayoutPromptKind, "command">> = ["select", "multiselect"];
 
     for (const kind of promptKinds) {
       const app = renderWithTerminalSize(

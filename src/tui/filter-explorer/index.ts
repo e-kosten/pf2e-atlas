@@ -36,13 +36,10 @@ export type {
   FilterExplorerNode,
   FilterExplorerNodeSelection,
   FilterExplorerOptions,
-  FilterExplorerPolicyState,
   FilterExplorerQueryTarget,
   FilterExplorerScalarClause,
   FilterExplorerScalarComposeTarget,
   FilterExplorerScalarEditRequest,
   FilterExplorerScalarOperator,
-  FilterExplorerSelection,
-  FilterExplorerSelectionMap,
   FilterExplorerTextLine,
 } from "./types.js";

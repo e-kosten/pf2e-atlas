@@ -15,11 +15,8 @@ import {
   filterPromptEntries,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
-  getPolicyPromptFilteringEnabled,
 } from "./modal-helpers.js";
-import { getPolicyStateForValue } from "./modal-policy-state.js";
 import {
-  buildPolicySummaryLines,
   buildTextPromptBodyLines,
 } from "./modal-prompt-bodies.js";
 import {
@@ -515,51 +512,5 @@ export function planTerminalModalStateLayout(
     });
   }
 
-  const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
-  const filteringEnabled = getPolicyPromptFilteringEnabled(modal.options);
-  const filteredEntries = filteringEnabled
-    ? filterPromptEntries(modal.options.entries, modal.filterText)
-    : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
-
-  if (filteredEntries.length === 0) {
-    return planTerminalModalLayout({
-      kind: "policy",
-      terminalWidth,
-      terminalHeight,
-      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
-      headerRows: 3,
-      footerRows: 2,
-      descriptor: createTerminalMessageSizingDescriptor({
-        bodyLineCount: getRenderedTerminalLineCount(
-          [
-            { text: modal.options.prompt, tone: "section" },
-            ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
-            {
-              text: modal.filterText ? "No options match the current filter." : "No options are available for this scope.",
-              tone: "warning",
-            },
-          ],
-          terminalWidth,
-        ),
-      }),
-    });
-  }
-
-  const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
-  const selectedOption = modal.options.entries[selectedIndex];
-  const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, modal.valueStates) : undefined;
-  return planTerminalModalLayout({
-    kind: "policy",
-    terminalWidth,
-    terminalHeight,
-    forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
-    headerRows: 3,
-    footerRows: 4,
-    descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
-      ...buildPromptDetailLines(selectedOption),
-      { text: "" },
-      { text: `Focused policy: ${selectedState ?? "off"}`, tone: "accent" },
-      ...buildPolicySummaryLines(modal.options, modal.valueStates),
-    ]),
-  });
+  throw new Error("Unsupported terminal modal state.");
 }

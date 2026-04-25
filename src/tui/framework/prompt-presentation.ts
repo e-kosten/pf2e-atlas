@@ -8,10 +8,8 @@ export function normalizeTerminalPromptPresentation(
   presentation: DerivedTagTerminalPromptPresentation | undefined,
 ): NormalizedTerminalPromptPresentation | undefined {
   switch (presentation) {
-    case "centered":
     case "overlay":
       return "overlay";
-    case "centered-screen":
     case "blanked":
       return "blanked";
     default:
@@ -22,17 +20,11 @@ export function normalizeTerminalPromptPresentation(
 export function isCenteredPromptPresentation(
   presentation: DerivedTagTerminalPromptPresentation | NormalizedTerminalPromptPresentation | undefined,
 ): presentation is TerminalCenteredPromptBackgroundTreatment {
-  return presentation === "overlay" || presentation === "blanked" || presentation === "centered" || presentation === "centered-screen";
+  return presentation === "overlay" || presentation === "blanked";
 }
 
 export function isBlankedPromptPresentation(
   presentation: DerivedTagTerminalPromptPresentation | NormalizedTerminalPromptPresentation | undefined,
-): presentation is "blanked" | "centered-screen" {
-  return presentation === "blanked" || presentation === "centered-screen";
-}
-
-export function toLegacyCenteredModalPresentation(
-  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment,
-): Extract<TerminalModalPresentation, "centered" | "centered-screen"> {
-  return backgroundTreatment === "overlay" ? "centered" : "centered-screen";
+): presentation is "blanked" {
+  return presentation === "blanked";
 }

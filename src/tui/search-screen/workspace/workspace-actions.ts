@@ -83,7 +83,7 @@ export function useSearchWorkspaceActions({
           : "Enter search text for the current query.",
       defaultValue: getSearchQueryText(state.query),
       hint: state.query.mode === "lookup" ? "Example: Raise Shield" : "Example: ghost ship captain",
-      presentation: "centered",
+      presentation: "overlay",
     });
 
     if (queryText === undefined) {
@@ -103,7 +103,7 @@ export function useSearchWorkspaceActions({
       prompt: "Enter text that ranked search should exclude from lexical matches",
       defaultValue: getSearchQueryExcludeText(state.query),
       hint: "Example: skeleton",
-      presentation: "centered",
+      presentation: "overlay",
     });
 
     if (excludeText === undefined) {
@@ -123,7 +123,7 @@ export function useSearchWorkspaceActions({
         description: option.description,
         detailLines: [{ text: option.description }],
       })),
-      presentation: "centered",
+      presentation: "overlay",
       choiceLayout: "horizontal",
       filtering: false,
       selectedValue: state.query.mode,
@@ -149,7 +149,7 @@ export function useSearchWorkspaceActions({
         description: option.description,
       })),
       selectedValue: getSearchQuerySearchProfile(state.query) ?? "balanced",
-      presentation: "centered",
+      presentation: "overlay",
     });
 
     if (result.kind === "selected") {

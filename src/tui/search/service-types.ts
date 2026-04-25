@@ -21,7 +21,6 @@ import type {
 } from "../../domain/search-types.js";
 import type {
   FilterExplorerComposeDraft,
-  FilterExplorerSelectionMap,
 } from "../filter-explorer/types.js";
 
 export type Pf2eTerminalSearchCategoryOption = {
@@ -68,9 +67,8 @@ export type Pf2eTerminalFacetValueOption = {
   count: number;
 };
 
-export type Pf2eTerminalFilterValuePolicy<T extends number | string = string> = {
-  any: T[];
-  all: T[];
+export type Pf2eTerminalValueSelection<T extends number | string = string> = {
+  include: T[];
   exclude: T[];
 };
 
@@ -102,9 +100,9 @@ export type Pf2eTerminalQueryFieldOption = {
   editor: Pf2eTerminalQueryFieldEditor;
 };
 
-export type Pf2eTerminalQueryFieldEditor = "policyList" | "structuredForm" | "sharedExplorer";
+export type Pf2eTerminalQueryFieldEditor = "structuredForm" | "sharedExplorer";
 
-export type Pf2eTerminalQueryFieldSelectionMap = FilterExplorerSelectionMap;
+export type Pf2eTerminalQueryFieldSelectionMap = Record<string, Pf2eTerminalValueSelection<string>>;
 
 export type Pf2eTerminalFilterExplorerDraft = FilterExplorerComposeDraft;
 
@@ -181,7 +179,7 @@ export type Pf2eTerminalSearchService = {
   ) => MetadataFilterNode | null;
   buildFilterExplorerInsertionResult: (
     draft: Pf2eTerminalFilterExplorerDraft,
-    options?: { preservedMetadata?: MetadataFilterNode | null },
+    options?: { preservedMetadata?: MetadataFilterNode | null; preferReplace?: boolean },
   ) => Pf2eTerminalFilterExplorerInsertionResult;
   applyFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,

@@ -2,9 +2,9 @@ import { humanizeOntologySearchIdentifier } from "../../../domain/presentation-v
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import type {
-  Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalSearchMode,
   Pf2eTerminalSearchQuery,
+  Pf2eTerminalValueSelection,
 } from "../../search/service.js";
 import {
   getSearchQueryCategory,
@@ -15,7 +15,6 @@ import {
   getSearchQuerySearchProfile,
   getSearchQueryText,
 } from "../../search/query-state.js";
-import { formatFilterExplorerPolicySummary } from "../../framework/policy-presentation.js";
 import {
   countMetadataPredicates,
   formatSearchFilterNodePresentationAlias,
@@ -80,18 +79,23 @@ export function formatMode(mode: Pf2eTerminalSearchMode): string {
   return humanizeOntologySearchIdentifier(mode);
 }
 
-function formatPolicyValue(value: number | string): string {
+function formatSelectionValue(value: number | string): string {
   return typeof value === "number" ? String(value) : humanizeOntologySearchIdentifier(value);
 }
 
-export function formatFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): string {
-  return formatFilterExplorerPolicySummary(policy, {
-    valueFormatter: (value) => formatPolicyValue(value),
-  });
+export function formatFilterSelection<T extends number | string>(selection: Pf2eTerminalValueSelection<T>): string {
+  const parts: string[] = [];
+  if (selection.include.length > 0) {
+    parts.push(`include ${selection.include.map((value) => formatSelectionValue(value)).join(", ")}`);
+  }
+  if (selection.exclude.length > 0) {
+    parts.push(`exclude ${selection.exclude.map((value) => formatSelectionValue(value)).join(", ")}`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : "(none)";
 }
 
-export function hasFilterPolicy<T extends number | string>(policy: Pf2eTerminalFilterValuePolicy<T>): boolean {
-  return policy.any.length > 0 || policy.all.length > 0 || policy.exclude.length > 0;
+export function hasFilterSelection<T extends number | string>(selection: Pf2eTerminalValueSelection<T>): boolean {
+  return selection.include.length > 0 || selection.exclude.length > 0;
 }
 
 export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {

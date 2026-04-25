@@ -1,47 +1,61 @@
 import type {
   FilterExplorerComposeDraft,
   FilterExplorerComposeTarget,
+  FilterExplorerDiscreteClause,
+  FilterExplorerDiscreteClauseOperator,
   FilterExplorerDiscreteComposeTarget,
   FilterExplorerNode,
-  FilterExplorerPolicyState,
   FilterExplorerScalarClause,
   FilterExplorerScalarClauseMap,
   FilterExplorerScalarComposeTarget,
-  FilterExplorerSelectionMap,
 } from "./types.js";
-
-function cloneSelection(selection: { any: string[]; all: string[]; exclude: string[] }): {
-  any: string[];
-  all: string[];
-  exclude: string[];
-} {
-  return {
-    any: [...selection.any],
-    all: [...selection.all],
-    exclude: [...selection.exclude],
-  };
-}
 
 function sortUnique(values: readonly string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
-export function createEmptyFilterExplorerSelection(): { any: string[]; all: string[]; exclude: string[] } {
-  return {
-    any: [],
-    all: [],
-    exclude: [],
-  };
+function getDiscreteClauseIdentity(clause: Pick<FilterExplorerDiscreteClause, "field" | "value">): string {
+  return `${clause.field}\u0000${clause.value}`;
 }
 
-export function cloneFilterExplorerSelectionMap(selection: FilterExplorerSelectionMap | undefined): FilterExplorerSelectionMap {
-  if (!selection) {
-    return {};
+function compareDiscreteClauses(left: FilterExplorerDiscreteClause, right: FilterExplorerDiscreteClause): number {
+  return (
+    left.field.localeCompare(right.field) ||
+    left.value.localeCompare(right.value) ||
+    left.operator.localeCompare(right.operator)
+  );
+}
+
+function cloneDiscreteClause(clause: FilterExplorerDiscreteClause): FilterExplorerDiscreteClause {
+  return { ...clause };
+}
+
+export function cloneFilterExplorerDiscreteClauses(
+  discreteClauses: readonly FilterExplorerDiscreteClause[] | undefined,
+): FilterExplorerDiscreteClause[] {
+  return [...(discreteClauses ?? [])].map(cloneDiscreteClause);
+}
+
+function normalizeFilterExplorerDiscreteClauses(
+  discreteClauses: readonly FilterExplorerDiscreteClause[] | undefined,
+): FilterExplorerDiscreteClause[] {
+  const clauseByIdentity = new Map<string, FilterExplorerDiscreteClause>();
+
+  for (const clause of discreteClauses ?? []) {
+    const field = clause.field.trim();
+    const value = clause.value.trim();
+    if (!field || !value) {
+      continue;
+    }
+
+    clauseByIdentity.set(getDiscreteClauseIdentity({ field, value }), {
+      field,
+      value,
+      operator: clause.operator,
+    });
   }
 
-  return Object.fromEntries(
-    Object.entries(selection).map(([field, valueSelection]) => [field, cloneSelection(valueSelection)]),
-  );
+  return [...clauseByIdentity.values()].sort(compareDiscreteClauses);
 }
 
 function cloneScalarClause(clause: FilterExplorerScalarClause): FilterExplorerScalarClause {
@@ -60,32 +74,9 @@ export function cloneFilterExplorerScalarClauseMap(
   );
 }
 
-export function normalizeFilterExplorerSelectionMap(selection: FilterExplorerSelectionMap | undefined): FilterExplorerSelectionMap {
-  if (!selection) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(selection).map(([field, valueSelection]) => {
-      const exclude = sortUnique(valueSelection.exclude);
-      const all = sortUnique(valueSelection.all).filter((value) => !exclude.includes(value));
-      const any = sortUnique(valueSelection.any).filter((value) => !exclude.includes(value) && !all.includes(value));
-
-      return [
-        field,
-        {
-          any,
-          all,
-          exclude,
-        },
-      ];
-    }),
-  );
-}
-
 export function createEmptyFilterExplorerComposeDraft(): FilterExplorerComposeDraft {
   return {
-    selection: {},
+    discreteClauses: [],
     scalarClauses: {},
   };
 }
@@ -94,26 +85,24 @@ export function cloneFilterExplorerComposeDraft(
   draft: FilterExplorerComposeDraft | undefined,
 ): FilterExplorerComposeDraft {
   return {
-    selection: cloneFilterExplorerSelectionMap(draft?.selection),
+    discreteClauses: cloneFilterExplorerDiscreteClauses(draft?.discreteClauses),
     scalarClauses: cloneFilterExplorerScalarClauseMap(draft?.scalarClauses),
   };
 }
 
 export function normalizeFilterExplorerComposeDraft(
   draft: FilterExplorerComposeDraft | undefined,
-  fallbackSelection?: FilterExplorerSelectionMap,
 ): FilterExplorerComposeDraft {
   return {
-    selection: normalizeFilterExplorerSelectionMap(draft?.selection ?? fallbackSelection),
+    discreteClauses: normalizeFilterExplorerDiscreteClauses(draft?.discreteClauses),
     scalarClauses: cloneFilterExplorerScalarClauseMap(draft?.scalarClauses),
   };
 }
 
-export function hasFilterExplorerSelection(selection: FilterExplorerSelectionMap): boolean {
-  return Object.values(selection).some(
-    (valueSelection) =>
-      valueSelection.any.length > 0 || valueSelection.all.length > 0 || valueSelection.exclude.length > 0,
-  );
+export function hasFilterExplorerDiscreteClauses(
+  discreteClauses: readonly FilterExplorerDiscreteClause[],
+): boolean {
+  return discreteClauses.length > 0;
 }
 
 export function hasFilterExplorerScalarClause(
@@ -124,69 +113,63 @@ export function hasFilterExplorerScalarClause(
 }
 
 export function hasFilterExplorerComposeDraftEntries(draft: FilterExplorerComposeDraft): boolean {
-  return hasFilterExplorerSelection(draft.selection) || Object.keys(draft.scalarClauses).length > 0;
+  return hasFilterExplorerDiscreteClauses(draft.discreteClauses) || Object.keys(draft.scalarClauses).length > 0;
 }
 
-export function getFilterExplorerTargetState(
+export function getFilterExplorerDiscreteClause(
   target: FilterExplorerComposeTarget | undefined,
-  selection: FilterExplorerSelectionMap,
-): FilterExplorerPolicyState | undefined {
+  draft: FilterExplorerComposeDraft,
+): FilterExplorerDiscreteClause | undefined {
   if (!target || target.kind === "scalar") {
     return undefined;
   }
 
-  const fieldSelection = selection[target.field];
-  if (!fieldSelection) {
-    return undefined;
-  }
-  if (fieldSelection.any.includes(target.value)) {
-    return "any";
-  }
-  if (fieldSelection.all.includes(target.value)) {
-    return "all";
-  }
-  if (fieldSelection.exclude.includes(target.value)) {
-    return "exclude";
-  }
-  return undefined;
+  return draft.discreteClauses.find((clause) => clause.field === target.field && clause.value === target.value);
 }
 
-export function cycleFilterExplorerPolicyState(
-  currentState: FilterExplorerPolicyState | undefined,
-  allowedStates: readonly FilterExplorerPolicyState[],
-  direction: 1 | -1 = 1,
-): FilterExplorerPolicyState | undefined {
-  const states: Array<FilterExplorerPolicyState | undefined> = [undefined, ...allowedStates];
-  const currentIndex = states.findIndex((state) => state === currentState);
-  return states[(((currentIndex + direction) % states.length) + states.length) % states.length];
-}
-
-export function toggleFilterExplorerTargetSelection(
+export function getFilterExplorerDiscreteClauseOperator(
   target: FilterExplorerComposeTarget | undefined,
-  selection: FilterExplorerSelectionMap,
+  draft: FilterExplorerComposeDraft,
+): FilterExplorerDiscreteClauseOperator | undefined {
+  return getFilterExplorerDiscreteClause(target, draft)?.operator;
+}
+
+export function cycleFilterExplorerDiscreteClauseOperator(
+  currentOperator: FilterExplorerDiscreteClauseOperator | undefined,
+  allowedOperators: readonly FilterExplorerDiscreteClauseOperator[],
   direction: 1 | -1 = 1,
-): FilterExplorerSelectionMap {
+): FilterExplorerDiscreteClauseOperator | undefined {
+  const operators: Array<FilterExplorerDiscreteClauseOperator | undefined> = [undefined, ...allowedOperators];
+  const currentIndex = operators.findIndex((operator) => operator === currentOperator);
+  return operators[(((currentIndex + direction) % operators.length) + operators.length) % operators.length];
+}
+
+export function cycleFilterExplorerDiscreteClause(
+  target: FilterExplorerComposeTarget | undefined,
+  draft: FilterExplorerComposeDraft,
+  direction: 1 | -1 = 1,
+): FilterExplorerComposeDraft {
   if (!target || target.kind === "scalar") {
-    return selection;
+    return draft;
   }
 
-  const next = cloneFilterExplorerSelectionMap(selection);
-  const fieldSelection = next[target.field] ?? createEmptyFilterExplorerSelection();
-  fieldSelection.any = fieldSelection.any.filter((value) => value !== target.value);
-  fieldSelection.all = fieldSelection.all.filter((value) => value !== target.value);
-  fieldSelection.exclude = fieldSelection.exclude.filter((value) => value !== target.value);
+  const currentOperator = getFilterExplorerDiscreteClauseOperator(target, draft);
+  const nextOperator = cycleFilterExplorerDiscreteClauseOperator(currentOperator, target.allowedOperators, direction);
+  const nextDraft = cloneFilterExplorerComposeDraft(draft);
+  nextDraft.discreteClauses = nextDraft.discreteClauses.filter(
+    (clause) => clause.field !== target.field || clause.value !== target.value,
+  );
 
-  const nextState = cycleFilterExplorerPolicyState(getFilterExplorerTargetState(target, selection), target.allowedStates, direction);
-  if (nextState) {
-    fieldSelection[nextState].push(target.value);
+  if (nextOperator) {
+    nextDraft.discreteClauses.push({
+      field: target.field,
+      value: target.value,
+      operator: nextOperator,
+    });
   }
 
-  next[target.field] = {
-    any: sortUnique(fieldSelection.any),
-    all: sortUnique(fieldSelection.all),
-    exclude: sortUnique(fieldSelection.exclude),
-  };
-  return next;
+  nextDraft.discreteClauses = normalizeFilterExplorerDiscreteClauses(nextDraft.discreteClauses);
+  return nextDraft;
 }
 
 export function getFilterExplorerScalarClause(

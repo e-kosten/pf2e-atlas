@@ -1,9 +1,7 @@
 import type {
   DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
-  DerivedTagTerminalPolicySelection,
   MultiSelectPromptOptions,
-  PolicyPromptOptions,
   SelectPromptOptions,
   OptionalSelectPromptOptions,
   TerminalSelectModalEntry,
@@ -15,14 +13,6 @@ export type IndexedTerminalPromptEntry<T> = {
   entry: T;
   originalIndex: number;
 };
-
-export function createEmptyPolicySelection<T extends string>(): DerivedTagTerminalPolicySelection<T> {
-  return {
-    any: [],
-    all: [],
-    exclude: [],
-  };
-}
 
 export function clampInlinePromptWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {
   if (itemCount <= visibleCount) {
@@ -192,10 +182,6 @@ export function getFilteredPromptSelectionIndex<T extends TerminalSelectOptionDe
 }
 
 export function getMultiSelectPromptFilteringEnabled(options: MultiSelectPromptOptions<string>): boolean {
-  return options.filtering ?? true;
-}
-
-export function getPolicyPromptFilteringEnabled(options: PolicyPromptOptions<string>): boolean {
   return options.filtering ?? true;
 }
 

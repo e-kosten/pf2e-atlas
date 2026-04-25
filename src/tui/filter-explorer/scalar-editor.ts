@@ -46,7 +46,7 @@ async function promptParsedScalarInput<T>(
     hint: options.hint,
     previewTitle: options.previewTitle,
     buildPreviewLines: options.buildPreviewLines,
-    presentation: "centered",
+    presentation: "overlay",
   });
 
   if (input === undefined) {

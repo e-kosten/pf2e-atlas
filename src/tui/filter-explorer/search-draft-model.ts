@@ -216,7 +216,7 @@ function buildFieldSelectionTarget(
     fieldLabel: fieldOption.label,
     value,
     valueLabel: node.label,
-    allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
+    allowedOperators: ["include", "exclude"],
   };
 }
 
@@ -343,7 +343,7 @@ export function buildSearchFilterExplorerTargetResolver(
         fieldLabel: `${fieldOption.label} / ${metricLabel}`,
         value,
         valueLabel: node.label,
-        allowedStates: ["any", "exclude"],
+        allowedOperators: ["include", "exclude"],
       };
     }
 

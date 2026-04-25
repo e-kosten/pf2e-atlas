@@ -1,5 +1,5 @@
-export type TerminalModalLayoutKind = "dialog" | "text" | "command" | "select" | "multiselect" | "policy";
-export type TerminalModalPresentation = "inline" | "screen" | "centered" | "centered-screen";
+export type TerminalModalLayoutKind = "dialog" | "text" | "command" | "select" | "multiselect";
+export type TerminalModalPresentation = "inline" | "screen";
 export type TerminalModalPaneMode = "single-column" | "two-pane";
 export type TerminalModalOverflowMode = "fit" | "scroll" | "window";
 
@@ -105,18 +105,6 @@ export type TerminalModalLayoutResult = {
   constrained: boolean;
   choiceLayout?: TerminalModalChoiceLayout;
 };
-
-export function isCenteredModalPresentation(
-  presentation: TerminalModalPresentation | undefined,
-): presentation is "centered" | "centered-screen" {
-  return presentation === "centered" || presentation === "centered-screen";
-}
-
-export function isCenteredScreenModalPresentation(
-  presentation: TerminalModalPresentation | undefined,
-): presentation is "centered-screen" {
-  return presentation === "centered-screen";
-}
 
 type NormalizedTerminalModalListSizing = Required<TerminalModalListSizing>;
 type NormalizedTerminalModalDetailSizing = Required<TerminalModalDetailSizing>;
@@ -520,7 +508,7 @@ function getPreferredDetailRegionRows(detail: NormalizedTerminalModalDetailSizin
 }
 
 function isChoiceKind(kind: TerminalModalLayoutKind): boolean {
-  return kind === "command" || kind === "select" || kind === "multiselect" || kind === "policy";
+  return kind === "command" || kind === "select" || kind === "multiselect";
 }
 
 function clamp(value: number, min: number, max: number): number {

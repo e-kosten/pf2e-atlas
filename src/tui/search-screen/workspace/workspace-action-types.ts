@@ -14,12 +14,11 @@ export type SearchWorkspacePromptAdapters = Pick<
   | "promptCommandPalette"
   | "promptMultiSelectOption"
   | "promptOptionalSelectOption"
-  | "promptPolicySelectOption"
   | "promptSelectOption"
   | "promptTextInput"
 >;
 
-export type SearchWorkspaceTerminal = Pick<DerivedTagTerminalApp, "pauseForAnyKey">;
+export type SearchWorkspaceTerminal = Pick<DerivedTagTerminalApp, "pauseForAnyKey" | "runPromptSession">;
 
 export type SearchWorkspaceUser = Pick<Pf2eTerminalAppServices["user"], "search">;
 

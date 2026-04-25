@@ -6,7 +6,6 @@ import {
   createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalMultiSelectPromptInteractionContext,
-  createTerminalPolicyPromptInteractionContext,
   createTerminalSelectPromptInteractionContext,
   createTerminalTextPromptInteractionContext,
   routeTerminalInteractionContext,
@@ -14,23 +13,16 @@ import {
 import { createDerivedTagTerminalInputEvent, moveSelectionWrapped } from "./input.js";
 import {
   clampPromptSelectionIndex,
-  createEmptyPolicySelection,
   filterCommandPaletteEntries,
   filterPromptEntries,
   getFirstEnabledCommandIndex,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
-  getPolicyPromptFilteringEnabled,
 } from "./modal-helpers.js";
-import {
-  buildPolicySelection,
-  cyclePolicyState,
-} from "./modal-policy-state.js";
 import {
   CommandPaletteBody,
   InlinePromptMessageBody,
   MultiSelectPromptBody,
-  PolicyPromptBody,
   SelectPromptBody,
   TextPromptBody,
 } from "./modal-prompt-bodies.js";
@@ -42,12 +34,7 @@ import type { FrameworkTerminalModalLayoutResult } from "./modal-planning.js";
 function getChoicePromptFilteringEnabled(
   modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
 ): boolean {
-  if (modal.kind === "select") {
-    return modal.options.filtering;
-  }
-  return modal.kind === "multiselect"
-    ? getMultiSelectPromptFilteringEnabled(modal.options)
-    : getPolicyPromptFilteringEnabled(modal.options);
+  return modal.kind === "select" ? modal.options.filtering : getMultiSelectPromptFilteringEnabled(modal.options);
 }
 
 function getFilteredChoiceEntries(
@@ -62,10 +49,6 @@ function getFilteredChoiceEntries(
       return getMultiSelectPromptFilteringEnabled(modal.options)
         ? filterPromptEntries(modal.options.entries, modal.filterText)
         : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
-    case "policy":
-      return getPolicyPromptFilteringEnabled(modal.options)
-        ? filterPromptEntries(modal.options.entries, modal.filterText)
-        : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
   }
 }
 
@@ -77,8 +60,6 @@ function getChoicePromptSelectionIndex(
     case "select":
       return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
     case "multiselect":
-      return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
-    case "policy":
       return getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, filterText);
   }
 }
@@ -97,19 +78,31 @@ export function DerivedTagTerminalModalHost({
   layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element | null {
   const routerStateRef = React.useRef(
-    createTerminalInteractionContextRouterState<
-      "commandPalette" | "multiSelectPrompt" | "policyPrompt" | "selectPrompt" | "textPrompt"
-    >(),
+    createTerminalInteractionContextRouterState<"commandPalette" | "multiSelectPrompt" | "selectPrompt" | "textPrompt">(),
   );
   const resolveAfterModalClose = React.useCallback(<T,>(resolver: (value: T) => void, value: T): void => {
     routerStateRef.current = createTerminalInteractionContextRouterState();
     resolver(value);
   }, []);
+  const updateModalForLease = React.useCallback(
+    (
+      leaseId: number,
+      updater: (current: Exclude<TerminalModalState, null>) => Exclude<TerminalModalState, null>,
+    ): void => {
+      setModal((current) => {
+        if (!current || current.ownership.leaseId !== leaseId) {
+          return current;
+        }
+        return updater(current);
+      });
+    },
+    [setModal],
+  );
   const closeModalAfterResolution = React.useCallback(
     <T,>(modalSnapshot: Exclude<TerminalModalState, null>, resolver: (value: T) => void, value: T): void => {
       resolveAfterModalClose(resolver, value);
       setTimeout(() => {
-        setModal((current) => (current === modalSnapshot ? null : current));
+        setModal((current) => (current?.ownership.leaseId === modalSnapshot.ownership.leaseId ? null : current));
       }, 0);
     },
     [resolveAfterModalClose, setModal],
@@ -119,7 +112,7 @@ export function DerivedTagTerminalModalHost({
       routerStateRef.current = createTerminalInteractionContextRouterState();
       resolver();
       setTimeout(() => {
-        setModal((current) => (current === modalSnapshot ? null : current));
+        setModal((current) => (current?.ownership.leaseId === modalSnapshot.ownership.leaseId ? null : current));
       }, 0);
     },
     [setModal],
@@ -162,14 +155,14 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         if (routed.route.textEntryIntent?.kind === "deleteBackward") {
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
           );
           return;
         }
         if (routed.route.textEntryIntent?.kind === "append") {
           const appendText = routed.route.textEntryIntent.text;
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "text" ? { ...current, value: current.value + appendText } : current,
           );
         }
@@ -191,7 +184,7 @@ export function DerivedTagTerminalModalHost({
             closeModalAfterResolution(modal, modal.resolve, undefined);
             return;
           }
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "command"
               ? {
                   ...current,
@@ -206,7 +199,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (routed.route.textEntryIntent?.kind === "append") {
           const appendText = routed.route.textEntryIntent.text;
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "command"
               ? {
                   ...current,
@@ -221,7 +214,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (routed.route.navigationAction?.kind === "move") {
           const delta = routed.route.navigationAction.delta;
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "command"
               ? {
                   ...current,
@@ -233,7 +226,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (routed.route.navigationAction?.kind === "boundary") {
           const boundary = routed.route.navigationAction.boundary;
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "command"
               ? {
                   ...current,
@@ -263,24 +256,24 @@ export function DerivedTagTerminalModalHost({
 
       if (modal.filterMode) {
         if (event.isConfirmKey()) {
-          setModal((current) =>
-            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+          updateModalForLease(modal.ownership.leaseId, (current) =>
+            current && (current.kind === "select" || current.kind === "multiselect")
               ? { ...current, filterMode: false }
               : current,
           );
           return;
         }
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
-          setModal((current) =>
-            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+          updateModalForLease(modal.ownership.leaseId, (current) =>
+            current && (current.kind === "select" || current.kind === "multiselect")
               ? { ...current, filterMode: false, filterText: "" }
               : current,
           );
           return;
         }
         if (event.textInputAction === "deleteBackward") {
-          setModal((current) =>
-            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+          updateModalForLease(modal.ownership.leaseId, (current) =>
+            current && (current.kind === "select" || current.kind === "multiselect")
               ? {
                   ...current,
                   filterText: [...current.filterText].slice(0, -1).join(""),
@@ -294,8 +287,8 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         if (event.printable) {
-          setModal((current) =>
-            current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+          updateModalForLease(modal.ownership.leaseId, (current) =>
+            current && (current.kind === "select" || current.kind === "multiselect")
               ? {
                   ...current,
                   filterText: current.filterText + event.printable,
@@ -308,8 +301,8 @@ export function DerivedTagTerminalModalHost({
       }
 
       if (getChoicePromptFilteringEnabled(modal) && event.isSearchKey()) {
-        setModal((current) =>
-          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+        updateModalForLease(modal.ownership.leaseId, (current) =>
+          current && (current.kind === "select" || current.kind === "multiselect")
             ? { ...current, filterMode: true }
             : current,
         );
@@ -334,7 +327,6 @@ export function DerivedTagTerminalModalHost({
             );
             return;
           }
-          closeModalAfterResolution(modal, modal.resolve, createEmptyPolicySelection());
         }
         return;
       }
@@ -345,7 +337,7 @@ export function DerivedTagTerminalModalHost({
           filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
         );
         if (event.isMoveLeftKey() || event.isMoveUpKey()) {
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "select"
               ? {
                   ...current,
@@ -359,7 +351,7 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         if (event.isMoveRightKey() || event.isMoveDownKey()) {
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "select"
               ? {
                   ...current,
@@ -373,13 +365,13 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         if (event.isTerminalBoundaryStartKey()) {
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "select" ? { ...current, selectedIndex: filteredEntries[0]?.originalIndex ?? 0 } : current,
           );
           return;
         }
         if (event.isTerminalBoundaryEndKey()) {
-          setModal((current) =>
+          updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "select"
               ? { ...current, selectedIndex: filteredEntries.at(-1)?.originalIndex ?? current.selectedIndex }
               : current,
@@ -412,9 +404,7 @@ export function DerivedTagTerminalModalHost({
       const choiceContext =
         modal.kind === "multiselect"
           ? createTerminalMultiSelectPromptInteractionContext(pageSize, modal.options.supportsCommands ?? false)
-          : modal.kind === "policy"
-            ? createTerminalPolicyPromptInteractionContext(pageSize)
-            : createTerminalSelectPromptInteractionContext(pageSize, modal.options.supportsCommands);
+          : createTerminalSelectPromptInteractionContext(pageSize, modal.options.supportsCommands);
 
       if (modal.kind === "select" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
         closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
@@ -438,8 +428,8 @@ export function DerivedTagTerminalModalHost({
           0,
           filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
         );
-        setModal((current) =>
-          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+        updateModalForLease(modal.ownership.leaseId, (current) =>
+          current && (current.kind === "select" || current.kind === "multiselect")
             ? {
                 ...current,
                 selectedIndex:
@@ -453,8 +443,8 @@ export function DerivedTagTerminalModalHost({
       }
       if (routed.route.navigationAction?.kind === "boundary") {
         const boundary = routed.route.navigationAction.boundary;
-        setModal((current) =>
-          current && (current.kind === "select" || current.kind === "multiselect" || current.kind === "policy")
+        updateModalForLease(modal.ownership.leaseId, (current) =>
+          current && (current.kind === "select" || current.kind === "multiselect")
             ? {
                 ...current,
                 selectedIndex:
@@ -471,7 +461,7 @@ export function DerivedTagTerminalModalHost({
         if (!selected) {
           return;
         }
-        setModal((current) =>
+        updateModalForLease(modal.ownership.leaseId, (current) =>
           current?.kind === "multiselect"
             ? {
                 ...current,
@@ -513,34 +503,12 @@ export function DerivedTagTerminalModalHost({
         closeModalAfterResolution(modal, modal.resolve, { kind: "selected", values: selectedValues });
         return;
       }
-      if (modal.kind === "policy" && routed.route.cycleDirection) {
-        const selected = modal.options.entries[filteredSelectedIndex]?.value;
-        if (!selected) {
-          return;
-        }
-        setModal((current) =>
-          current?.kind === "policy"
-            ? {
-                ...current,
-                valueStates: {
-                  ...current.valueStates,
-                  [selected]: cyclePolicyState(
-                    current.valueStates[selected],
-                    current.options.allowedStates,
-                    routed.route.cycleDirection,
-                  ),
-                },
-              }
-            : current,
-        );
-        return;
-      }
-      if (modal.kind === "policy" && (routed.route.interactionAction?.id === "return" || event.isTerminalQuitKey())) {
-        const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
-        closeModalAfterResolution(modal, modal.resolve, selection);
-        return;
-      }
-      if (modal.kind === "select" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
+      if (
+        modal.kind === "select" &&
+        (routed.route.interactionAction?.id === "back" ||
+          routed.route.interactionAction?.id === "cancel" ||
+          event.isTerminalQuitKey())
+      ) {
         closeModalAfterResolution(
           modal,
           modal.resolve,
@@ -548,7 +516,12 @@ export function DerivedTagTerminalModalHost({
         );
         return;
       }
-      if (modal.kind === "multiselect" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
+      if (
+        modal.kind === "multiselect" &&
+        (routed.route.interactionAction?.id === "back" ||
+          routed.route.interactionAction?.id === "cancel" ||
+          event.isTerminalQuitKey())
+      ) {
         closeModalAfterResolution(
           modal,
           modal.resolve,
@@ -611,19 +584,6 @@ export function DerivedTagTerminalModalHost({
         filterText={modal.filterText}
         filterMode={modal.filterMode}
         selectedValues={modal.selectedValues}
-        width={panelWidth}
-        layout={layout}
-      />,
-    );
-  }
-  if (modal.kind === "policy") {
-    return renderPanel(
-      <PolicyPromptBody
-        options={modal.options}
-        selectedIndex={modal.selectedIndex}
-        filterText={modal.filterText}
-        filterMode={modal.filterMode}
-        valueStates={modal.valueStates}
         width={panelWidth}
         layout={layout}
       />,

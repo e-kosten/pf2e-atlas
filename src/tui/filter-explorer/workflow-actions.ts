@@ -1,11 +1,11 @@
 import { showTerminalReturnDialog, type TerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import { getTerminalInteractionCycleDirection, type TerminalInteractionAction } from "../interaction-bindings.js";
 import {
+  cycleFilterExplorerDiscreteClause,
   cloneFilterExplorerComposeDraft,
   getFilterExplorerScalarClause,
   isFilterExplorerScalarTarget,
   setFilterExplorerScalarClause,
-  toggleFilterExplorerTargetSelection,
 } from "./compose-state.js";
 import {
   buildFilterExplorerCommandEntries,
@@ -40,8 +40,7 @@ export function applyComposeCycleSelection(
   }
 
   updateDraft((current) => ({
-    ...current,
-    selection: toggleFilterExplorerTargetSelection(target, current.selection, cycleDirection),
+    ...cycleFilterExplorerDiscreteClause(target, current, cycleDirection),
   }));
   return true;
 }

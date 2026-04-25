@@ -366,6 +366,8 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await flushInk();
+    await flushInk();
 
     expect(app.lastFrame()).toContain("Browse | Any Category | Counting matches...");
     expect(app.lastFrame()).toContain("No applied query yet | Counting matches... | Query Editor");

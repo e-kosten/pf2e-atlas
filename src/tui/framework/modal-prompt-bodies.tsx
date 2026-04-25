@@ -22,11 +22,6 @@ import {
   TerminalPaneView,
 } from "./screen-components.js";
 import {
-  buildFilterExplorerPolicyBadgeSegments,
-  buildFilterExplorerPolicyLabelSegments,
-  buildFilterExplorerPolicySequenceSegments,
-} from "./policy-presentation.js";
-import {
   buildCommandPaletteDetailLines,
   buildPromptDetailLines,
   clampInlinePromptWindowStart,
@@ -35,15 +30,11 @@ import {
   filterPromptEntries,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
-  getPolicyPromptFilteringEnabled,
 } from "./modal-helpers.js";
-import { buildPolicySelection, getPolicyStateForValue } from "./modal-policy-state.js";
 import type {
   CommandPaletteOptions,
   DerivedTagTerminalLine,
-  DerivedTagTerminalPolicyState,
   MultiSelectPromptOptions,
-  PolicyPromptOptions,
   TerminalSelectModalOptions,
   TextPromptOptions,
 } from "./types.js";
@@ -468,7 +459,7 @@ export function SelectPromptBody({
         filteringEnabled: options.filtering,
         countText: `${selectedVisibleIndex + 1}/${filteredEntries.length} focused`,
         primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
-        secondaryFooterText: formatTerminalInteractionFooter([{ id: "select" }, { id: "back", label: "cancel" }]),
+        secondaryFooterText: formatTerminalInteractionFooter([{ id: "select" }, { id: "cancel" }, { id: "back" }]),
         supportsCommands: options.supportsCommands,
       })}
       width={width}
@@ -522,7 +513,7 @@ export function MultiSelectPromptBody({
         footer={
           filterText
             ? [{ text: TERMINAL_LIVE_FILTER_FOOTER, tone: "dim" }, buildPickerFilterStatusLine(filterText)]
-            : [{ text: formatTerminalInteractionFooter([{ id: "back", label: "return" }]), tone: "dim" }]
+            : [{ text: formatTerminalInteractionFooter([{ id: "cancel" }, { id: "back", label: "return" }]), tone: "dim" }]
         }
         width={width}
         height={layout.totalHeight}
@@ -583,156 +574,9 @@ export function MultiSelectPromptBody({
         filteringEnabled,
         countText: `${selectedValues.length} selected | Focused: ${selectedOption?.label ?? "(none)"}`,
         primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
-        secondaryFooterText: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }]),
+        secondaryFooterText: formatTerminalInteractionFooter([{ id: "toggle" }, { id: "return" }, { id: "cancel" }, { id: "back" }]),
         supportsCommands: options.supportsCommands,
       })}
-      width={width}
-      height={layout.totalHeight}
-      showTopBorder={layout.showTopBorder}
-    />
-  );
-}
-
-export function buildPolicySummaryLines(
-  options: PolicyPromptOptions<string>,
-  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>,
-): DerivedTagTerminalLine[] {
-  const selection = buildPolicySelection(options.entries, valueStates);
-  const labelsByValue = new Map(options.entries.map((entry) => [entry.value, entry.label]));
-
-  return options.allowedStates.map((state) => ({
-    text: "",
-    segments: [
-      ...buildFilterExplorerPolicyLabelSegments(state),
-      { text: ": ", tone: "dim" },
-      {
-        text:
-          selection[state].length > 0
-            ? selection[state].map((value) => labelsByValue.get(value) ?? value).join(", ")
-            : "(none)",
-      },
-    ],
-  }));
-}
-
-export function PolicyPromptBody({
-  options,
-  selectedIndex,
-  filterText,
-  filterMode,
-  valueStates,
-  width,
-  layout,
-}: {
-  options: PolicyPromptOptions<string>;
-  selectedIndex: number;
-  filterText: string;
-  filterMode: boolean;
-  valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
-  width: number;
-  layout: FrameworkTerminalModalLayoutResult;
-}): React.JSX.Element {
-  const filteringEnabled = getPolicyPromptFilteringEnabled(options);
-  const filteredEntries = filteringEnabled
-    ? filterPromptEntries(options.entries, filterText)
-    : options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
-
-  if (filteredEntries.length === 0) {
-    return (
-      <TerminalInlinePromptPanel
-        title={options.title}
-        subtitle={options.subtitle ?? options.prompt}
-        body={
-          <InlinePromptMessageBody
-            width={width}
-            height={layout.bodyHeight}
-            lines={[
-              { text: options.prompt, tone: "section" },
-              ...(filterText ? [buildPickerFilterStatusLine(filterText)] : []),
-              {
-                text: filterText ? "No options match the current filter." : "No options are available for this scope.",
-                tone: "warning",
-              },
-            ]}
-          />
-        }
-        footer={
-          filterText
-            ? [{ text: TERMINAL_LIVE_FILTER_FOOTER, tone: "dim" }, buildPickerFilterStatusLine(filterText)]
-            : [{ text: formatTerminalInteractionFooter([{ id: "return" }]), tone: "dim" }]
-        }
-        width={width}
-        height={layout.totalHeight}
-        showTopBorder={layout.showTopBorder}
-      />
-    );
-  }
-
-  const filteredSelectedIndex = getFilteredPromptSelectionIndex(options.entries, selectedIndex, filterText);
-  const selectedOption = options.entries[filteredSelectedIndex];
-  const selectedState = selectedOption ? getPolicyStateForValue(selectedOption.value, valueStates) : undefined;
-  const visibleCount = Math.max(1, layout.visibleListCapacity);
-  const selectedVisibleIndex = Math.max(
-    0,
-    filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
-  );
-  const windowStart = clampInlinePromptWindowStart(selectedVisibleIndex, filteredEntries.length, visibleCount);
-  const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
-
-  return (
-    <TerminalInlinePromptPanel
-      title={options.title}
-      subtitle={options.subtitle}
-      body={
-        <InlinePromptChoiceBody
-          prompt={filterMode ? `Search /${filterText}` : options.prompt}
-          entries={visibleEntries.map((entry, offset) => ({
-            text: "",
-            segments: [
-              ...buildFilterExplorerPolicyBadgeSegments(getPolicyStateForValue(entry.entry.value, valueStates)),
-              {
-                text: ` ${entry.entry.label}`,
-                tone: windowStart + offset === selectedVisibleIndex ? "selected" : "default",
-              },
-            ],
-            tone: "default",
-            noWrap: true,
-          }))}
-          detailLines={[
-            ...buildPromptDetailLines(selectedOption),
-            { text: "" },
-            {
-              text: "",
-              segments: [
-                { text: "Focused policy: ", tone: "accent" },
-                ...buildFilterExplorerPolicyLabelSegments(selectedState),
-              ],
-            },
-            ...buildPolicySummaryLines(options, valueStates),
-          ]}
-          focusedLabel={`Focused ${selectedIndex + 1}/${options.entries.length}`}
-          width={width}
-          height={layout.bodyHeight}
-          layout={layout}
-        />
-      }
-      footer={[
-        ...buildPickerFooterLines({
-          filterMode,
-          filterText,
-          filteringEnabled,
-          countText: `${selectedVisibleIndex + 1}/${filteredEntries.length} focused`,
-          primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
-          secondaryFooterText: formatTerminalInteractionFooter([{ id: "cycle" }, { id: "return" }]),
-        }),
-        {
-          text: "",
-          segments: [
-            { text: "Cycle order: ", tone: "accent" },
-            ...buildFilterExplorerPolicySequenceSegments([undefined, ...options.allowedStates, undefined]),
-          ],
-        },
-      ]}
       width={width}
       height={layout.totalHeight}
       showTopBorder={layout.showTopBorder}

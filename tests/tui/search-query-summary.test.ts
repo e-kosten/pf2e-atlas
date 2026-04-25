@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import {
   createDefaultQuery,
-  setSearchQueryActionCostPolicy,
+  setSearchQueryActionCostSelection,
   setSearchQueryExcludeText,
   setSearchQueryLevelRange,
   setSearchQuerySearchProfile,
   setSearchQueryCategory,
   setSearchQueryMetadataTree,
-  setSearchQueryRarityPolicy,
+  setSearchQueryRaritySelection,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
 import { createInitialSearchScreenState, SEARCH_COUNT_STATUS, type SearchCountState } from "../../src/tui/search-screen/state.js";
@@ -51,15 +51,13 @@ function createStructuredQuery(options: { includeRarity?: boolean } = {}) {
     levelMax: 7,
   });
   if (options.includeRarity ?? true) {
-    query = setSearchQueryRarityPolicy(query, {
-      any: ["rare"],
-      all: [],
+    query = setSearchQueryRaritySelection(query, {
+      include: ["rare"],
       exclude: [],
     });
   }
-  query = setSearchQueryActionCostPolicy(query, {
-    any: [2],
-    all: [],
+  query = setSearchQueryActionCostSelection(query, {
+    include: [2],
     exclude: [],
   });
   return setSearchQueryMetadataTree(query, createMetadataTree());

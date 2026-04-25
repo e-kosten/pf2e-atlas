@@ -5,7 +5,10 @@ import {
   type TerminalListDetailRightBehaviorContract,
 } from "../list-detail-behavior.js";
 import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
-import { getFilterExplorerScalarClause, getFilterExplorerTargetState } from "./compose-state.js";
+import {
+  getFilterExplorerDiscreteClause,
+  getFilterExplorerScalarClause,
+} from "./compose-state.js";
 import {
   buildFilterExplorerInspectResult,
   openFilterExplorerInspectQuery,
@@ -52,9 +55,9 @@ export function buildFilterExplorerControllerContext(args: {
     screenTitle: resolveScreenTitle(args.options),
     browser: args.browser,
     draft: args.draft,
-    selection: args.draft.selection,
+    discreteClauses: args.draft.discreteClauses,
     selectedTarget,
-    selectedPolicyState: getFilterExplorerTargetState(selectedTarget, args.draft.selection),
+    selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, args.draft),
     selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, args.draft),
     selectedInspectResult:
       args.options.mode.kind === "inspect-and-open"

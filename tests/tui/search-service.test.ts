@@ -11,13 +11,13 @@ import {
 import { cloneFilterExplorerComposeDraft } from "../../src/tui/filter-explorer/compose-state.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import {
-  getSearchQueryActionCostPolicy,
+  getSearchQueryActionCostSelection,
   getSearchQueryText,
   getSearchQueryMetadataTree,
-  getSearchQueryRarityPolicy,
-  setSearchQueryActionCostPolicy,
+  getSearchQueryRaritySelection,
+  setSearchQueryActionCostSelection,
   setSearchQueryMetadataTree,
-  setSearchQueryRarityPolicy,
+  setSearchQueryRaritySelection,
   setSearchQuerySearchProfile,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
@@ -483,7 +483,7 @@ describe("createPf2eTerminalSearchService", () => {
     let query = service.createDefaultQuery("search");
     query = setSearchQueryText(query, "  Alarm Ward  ");
     query = setSearchQuerySearchProfile(query, "balanced");
-    query = setSearchQueryRarityPolicy(
+    query = setSearchQueryRaritySelection(
       {
         ...query,
         filter: {
@@ -493,27 +493,23 @@ describe("createPf2eTerminalSearchService", () => {
         },
       },
       {
-        any: ["rare"],
-        all: [],
+        include: ["rare"],
         exclude: [],
       },
     );
-    query = setSearchQueryActionCostPolicy(query, {
-      any: [2],
-      all: [],
+    query = setSearchQueryActionCostSelection(query, {
+      include: [2],
       exclude: [],
     });
     const normalized = service.normalizeQuery(query);
 
     expect(getSearchQueryText(normalized)).toBe("Alarm Ward");
-    expect(getSearchQueryRarityPolicy(normalized)).toEqual({
-      any: ["rare"],
-      all: [],
+    expect(getSearchQueryRaritySelection(normalized)).toEqual({
+      include: ["rare"],
       exclude: [],
     });
-    expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
-      any: [],
-      all: [],
+    expect(getSearchQueryActionCostSelection(normalized)).toEqual({
+      include: [],
       exclude: [],
     });
   });
@@ -534,14 +530,12 @@ describe("createPf2eTerminalSearchService", () => {
       } as unknown as never,
     });
 
-    expect(getSearchQueryRarityPolicy(normalized)).toEqual({
-      any: [],
-      all: [],
+    expect(getSearchQueryRaritySelection(normalized)).toEqual({
+      include: [],
       exclude: [],
     });
-    expect(getSearchQueryActionCostPolicy(normalized)).toEqual({
-      any: [],
-      all: [],
+    expect(getSearchQueryActionCostSelection(normalized)).toEqual({
+      include: [],
       exclude: [],
     });
   });
@@ -594,8 +588,7 @@ describe("createPf2eTerminalSearchService", () => {
     const selections = service.buildDiscoverableQueryFieldSelections(query, ["traits"]);
     expect(selections).toEqual({
       traits: {
-        any: ["illusion"],
-        all: [],
+        include: ["illusion"],
         exclude: [],
       },
     });
@@ -604,8 +597,7 @@ describe("createPf2eTerminalSearchService", () => {
       query,
       {
         traits: {
-          any: ["evocation"],
-          all: [],
+          include: ["evocation"],
           exclude: [],
         },
       },
@@ -642,7 +634,7 @@ describe("createPf2eTerminalSearchService", () => {
     );
     const { draft } = preparedDraft;
 
-    expect(draft.selection).toEqual({});
+    expect(draft.discreteClauses).toEqual([]);
     expect(draft.scalarClauses).toEqual({
       "actorMetric:perception.mod": {
         operator: "gte",
@@ -662,13 +654,10 @@ describe("createPf2eTerminalSearchService", () => {
 
     expect(
       service.buildFilterExplorerInsertionResult({
-        selection: {
-          traits: {
-            any: ["evocation", "illusion"],
-            all: [],
-            exclude: [],
-          },
-        },
+        discreteClauses: [
+          { field: "traits", value: "evocation", operator: "include" },
+          { field: "traits", value: "illusion", operator: "include" },
+        ],
         scalarClauses: {},
       }),
     ).toEqual({
@@ -715,8 +704,8 @@ describe("createPf2eTerminalSearchService", () => {
     );
     const defaultQuery = service.createDefaultQuery();
     const query = setSearchQueryMetadataTree(
-      setSearchQueryActionCostPolicy(
-        setSearchQueryRarityPolicy(
+      setSearchQueryActionCostSelection(
+        setSearchQueryRaritySelection(
           {
             ...defaultQuery,
             filter: {
@@ -726,14 +715,12 @@ describe("createPf2eTerminalSearchService", () => {
             },
           },
           {
-            any: ["common"],
-            all: [],
+            include: ["common"],
             exclude: ["rare"],
           },
         ),
         {
-          any: [2],
-          all: [],
+          include: [2],
           exclude: [1],
         },
       ),
@@ -753,35 +740,21 @@ describe("createPf2eTerminalSearchService", () => {
       op: "includesAny",
       values: ["illusion"],
     } satisfies MetadataFilterNode);
-    expect(draft.selection).toEqual({
-      rarity: {
-        any: ["common"],
-        all: [],
-        exclude: ["rare"],
-      },
-      actionCost: {
-        any: ["2"],
-        all: [],
-        exclude: ["1"],
-      },
-    });
+    expect(draft.discreteClauses).toEqual([
+      { field: "actionCost", value: "1", operator: "exclude" },
+      { field: "actionCost", value: "2", operator: "include" },
+      { field: "rarity", value: "common", operator: "include" },
+      { field: "rarity", value: "rare", operator: "exclude" },
+    ]);
 
     const updated = service.applyFilterExplorerDraft(
       query,
       {
         ...draft,
-        selection: {
-          rarity: {
-            any: ["uncommon"],
-            all: [],
-            exclude: [],
-          },
-          actionCost: {
-            any: ["1"],
-            all: [],
-            exclude: [],
-          },
-        },
+        discreteClauses: [
+          { field: "actionCost", value: "1", operator: "include" },
+          { field: "rarity", value: "uncommon", operator: "include" },
+        ],
       },
       {
         preservedMetadata: preparedDraft.preservedMetadata,
@@ -789,14 +762,12 @@ describe("createPf2eTerminalSearchService", () => {
       },
     );
 
-    expect(getSearchQueryRarityPolicy(updated)).toEqual({
-      any: ["uncommon"],
-      all: [],
+    expect(getSearchQueryRaritySelection(updated)).toEqual({
+      include: ["uncommon"],
       exclude: [],
     });
-    expect(getSearchQueryActionCostPolicy(updated)).toEqual({
-      any: [1],
-      all: [],
+    expect(getSearchQueryActionCostSelection(updated)).toEqual({
+      include: [1],
       exclude: [],
     });
     expect(getSearchQueryMetadataTree(updated)).toEqual({
@@ -814,7 +785,7 @@ describe("createPf2eTerminalSearchService", () => {
       values: ["illusion"],
     } satisfies MetadataFilterNode;
     const composeDraft = cloneFilterExplorerComposeDraft({
-      selection: {},
+      discreteClauses: [],
       scalarClauses: {},
     });
 

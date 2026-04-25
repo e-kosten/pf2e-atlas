@@ -63,6 +63,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Shared UI model boundary enforcement](./items/shared-ui-model-boundary-enforcement.md)
   Identify which reusable TUI state and view-model helpers should become mandatory and enforce them once those pathways are stable enough. Status: proposed.
 
+- [Shared contract string vocabulary enforcement](./items/shared-contract-string-vocabulary-enforcement.md)
+  Centralize durable shared contract strings such as prompt discriminants, operator ids, and shared action vocabulary, then add targeted lint enforcement once those seams are stable. Status: proposed.
+
 - [Shared menu/editor behavior contracts](./items/shared-menu-editor-behavior-contracts.md)
   Track the higher-level editor/workspace interaction leak where shared mechanics exist but behavior policy still lives partly in feature-local code. Status: proposed.
 

@@ -9,12 +9,12 @@ import { normalizeMetadataNode } from "./query-core.js";
 import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
-  createEmptyStringPolicy,
+  createEmptyStringSelection,
   createScopedSelectionMap,
   mergeSelectionMaps,
-  mergeStringPolicies,
-  normalizeQueryFieldPolicy,
-} from "./policies.js";
+  mergeStringSelections,
+  normalizeQueryFieldSelection,
+} from "./selections.js";
 import {
   buildMetadataNodeForQueryFieldSelection,
   getSearchQueryMetadataTree,
@@ -22,18 +22,18 @@ import {
 } from "./query-state.js";
 import type {
   Pf2eTerminalFacetField,
-  Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldEditor,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalQueryFieldSelectionMap,
   Pf2eTerminalSearchQuery,
+  Pf2eTerminalValueSelection,
 } from "./service-types.js";
 
-function extractPolicyFromMetadataPredicate(
+function extractSelectionFromMetadataPredicate(
   node: MetadataPredicate,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): { field: Pf2eTerminalQueryField; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
+): { field: Pf2eTerminalQueryField; selection: Pf2eTerminalValueSelection<string> } | null {
   const fieldSemantics = fieldSemanticsByName.get(node.field as Pf2eTerminalFacetField);
   if (!fieldSemantics || !fieldSemantics.discoverable) {
     return null;
@@ -41,51 +41,48 @@ function extractPolicyFromMetadataPredicate(
 
   if (fieldSemantics.fieldType === "set") {
     if ("values" in node && node.op === "includesAny") {
-      return { field: node.field, policy: { any: node.values.map(String), all: [], exclude: [] } };
-    }
-    if ("values" in node && node.op === "includesAll") {
-      return { field: node.field, policy: { any: [], all: node.values.map(String), exclude: [] } };
+      return { field: node.field, selection: { include: node.values.map(String), exclude: [] } };
     }
     if ("values" in node && node.op === "excludesAny") {
-      return { field: node.field, policy: { any: [], all: [], exclude: node.values.map(String) } };
+      return { field: node.field, selection: { include: [], exclude: node.values.map(String) } };
     }
     return null;
   }
 
   if (fieldSemantics.fieldType === "enumString") {
     if ("value" in node && node.op === "eq") {
-      return { field: node.field, policy: { any: [String(node.value)], all: [], exclude: [] } };
+      return { field: node.field, selection: { include: [String(node.value)], exclude: [] } };
     }
     if ("values" in node && node.op === "in") {
-      return { field: node.field, policy: { any: node.values.map(String), all: [], exclude: [] } };
+      return { field: node.field, selection: { include: node.values.map(String), exclude: [] } };
     }
     if ("values" in node && node.op === "notIn") {
-      return { field: node.field, policy: { any: [], all: [], exclude: node.values.map(String) } };
+      return { field: node.field, selection: { include: [], exclude: node.values.map(String) } };
     }
     return null;
   }
 
   if (fieldSemantics.fieldType === "boolean" && "value" in node && node.op === "eq") {
-    return { field: node.field, policy: { any: [String(node.value)], all: [], exclude: [] } };
+    return { field: node.field, selection: { include: [String(node.value)], exclude: [] } };
   }
 
   return null;
 }
 
-function tryExtractScopedPolicyNode(
+function tryExtractScopedSelectionNode(
   node: MetadataFilterNode,
   scopedFieldSet: ReadonlySet<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): { field: Pf2eTerminalQueryField; policy: Pf2eTerminalFilterValuePolicy<string> } | null {
+): { field: Pf2eTerminalQueryField; selection: Pf2eTerminalValueSelection<string> } | null {
   if ("and" in node) {
     let extractedField: Pf2eTerminalQueryField | null = null;
-    let mergedPolicy = createEmptyStringPolicy();
+    let mergedSelection = createEmptyStringSelection();
 
     for (const child of node.and) {
       if ("and" in child || "or" in child || "not" in child) {
         return null;
       }
-      const extracted = extractPolicyFromMetadataPredicate(child, fieldSemanticsByName);
+      const extracted = extractSelectionFromMetadataPredicate(child, fieldSemanticsByName);
       if (!extracted || !scopedFieldSet.has(extracted.field)) {
         return null;
       }
@@ -93,17 +90,17 @@ function tryExtractScopedPolicyNode(
         return null;
       }
       extractedField = extracted.field;
-      mergedPolicy = mergeStringPolicies(mergedPolicy, extracted.policy);
+      mergedSelection = mergeStringSelections(mergedSelection, extracted.selection);
     }
 
-    return extractedField ? { field: extractedField, policy: mergedPolicy } : null;
+    return extractedField ? { field: extractedField, selection: mergedSelection } : null;
   }
 
   if ("or" in node || "not" in node) {
     return null;
   }
 
-  const extracted = extractPolicyFromMetadataPredicate(node, fieldSemanticsByName);
+  const extracted = extractSelectionFromMetadataPredicate(node, fieldSemanticsByName);
   return extracted && scopedFieldSet.has(extracted.field) ? extracted : null;
 }
 
@@ -122,12 +119,12 @@ function extractScopedQueryFieldSelections(
     };
   }
 
-  const directExtraction = tryExtractScopedPolicyNode(node, scopedFieldSet, fieldSemanticsByName);
+  const directExtraction = tryExtractScopedSelectionNode(node, scopedFieldSet, fieldSemanticsByName);
   if (directExtraction) {
     return {
       metadata: null,
       selections: {
-        [directExtraction.field]: directExtraction.policy,
+        [directExtraction.field]: directExtraction.selection,
       },
     };
   }
@@ -240,21 +237,28 @@ export function buildDiscoverableQueryFieldSelections(
     scopedFields,
     fieldSemanticsByName,
   );
-  for (const [field, policy] of Object.entries(extracted.selections)) {
-    const normalizedPolicy = normalizeQueryFieldPolicy(field as Pf2eTerminalFacetField, policy, fieldSemanticsByName);
-    if (!normalizedPolicy) {
+  for (const [field, selection] of Object.entries(extracted.selections)) {
+    const normalizedSelection = normalizeQueryFieldSelection(
+      field as Pf2eTerminalFacetField,
+      selection,
+      fieldSemanticsByName,
+    );
+    if (!normalizedSelection) {
       continue;
     }
-    selectionMap[field] = mergeStringPolicies(selectionMap[field] ?? createEmptyStringPolicy(), normalizedPolicy);
+    selectionMap[field] = mergeStringSelections(
+      selectionMap[field] ?? createEmptyStringSelection(),
+      normalizedSelection,
+    );
   }
 
   for (const field of scopedFields) {
-    const normalizedPolicy = normalizeQueryFieldPolicy(
+    const normalizedSelection = normalizeQueryFieldSelection(
       field as Pf2eTerminalFacetField,
       selectionMap[field],
       fieldSemanticsByName,
     );
-    selectionMap[field] = normalizedPolicy ?? createEmptyStringPolicy();
+    selectionMap[field] = normalizedSelection ?? createEmptyStringSelection();
   }
 
   return selectionMap;
@@ -274,18 +278,18 @@ export function applyDiscoverableQueryFieldSelections(
   const metadataClauses: MetadataFilterNode[] = extracted.metadata ? [extracted.metadata] : [];
 
   for (const field of scopedFields) {
-    const nextPolicy = normalizeQueryFieldPolicy(
+    const nextSelection = normalizeQueryFieldSelection(
       field as Pf2eTerminalFacetField,
-      selections[field] ?? createEmptyStringPolicy(),
+      selections[field] ?? createEmptyStringSelection(),
       fieldSemanticsByName,
     );
-    if (!nextPolicy) {
+    if (!nextSelection) {
       continue;
     }
 
     const metadataNode = buildMetadataNodeForQueryFieldSelection(
       field as Pf2eTerminalFacetField,
-      nextPolicy,
+      nextSelection,
       fieldSemanticsByName,
     );
     if (metadataNode) {

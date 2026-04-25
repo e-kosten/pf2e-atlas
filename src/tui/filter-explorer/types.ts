@@ -1,18 +1,20 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type {
+  OntologyChildPresentation,
+  OntologyDomainModel,
+  OntologyNode,
+  OntologyNodeQuery,
+  OntologyTextLine,
+} from "../../domain/ontology-types.js";
+import type {
   DerivedTagTerminalLine,
-  DerivedTagTerminalPolicySelection,
-  DerivedTagTerminalPolicyState,
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
 
-export type FilterExplorerPolicyState = DerivedTagTerminalPolicyState;
-export type FilterExplorerSelection = DerivedTagTerminalPolicySelection<string>;
-export type FilterExplorerSelectionMap = Record<string, FilterExplorerSelection>;
 export type FilterExplorerModeKind = "inspect-and-open" | "compose";
 export type FilterExplorerLineTone = DerivedTagTerminalTone;
 export type FilterExplorerDomainId = string;
@@ -24,12 +26,7 @@ export type FilterExplorerDiscoveryState = {
   readonly onModeChange?: (mode: FilterExplorerDiscoveryMode) => void;
 };
 
-export interface FilterExplorerTextLine {
-  readonly text: string;
-  readonly tone?: FilterExplorerLineTone;
-  readonly indent?: number;
-  readonly noWrap?: boolean;
-}
+export type FilterExplorerTextLine = OntologyTextLine;
 
 export type FilterExplorerQueryTarget = {
   readonly label?: string;
@@ -49,47 +46,25 @@ export type FilterExplorerQueryOpenIntent = {
   readonly launchIntent: FilterExplorerLaunchIntent;
 };
 
-export type FilterExplorerChildPresentation =
-  | { readonly mode: "flat" }
-  | {
-      readonly mode: "grouped";
-      readonly groupBy: string;
-      readonly render: "inline" | "navigable" | "auto";
-      readonly autoInlineMaxGroups?: number;
-      readonly autoInlineMaxChildren?: number;
-    };
+export type FilterExplorerChildPresentation = OntologyChildPresentation;
 
 export type FilterExplorerNodeSelection = {
   readonly field: string;
   readonly fieldLabel: string;
   readonly value: string;
-  readonly allowedStates: readonly FilterExplorerPolicyState[];
+  readonly allowedOperators: readonly FilterExplorerDiscreteClauseOperator[];
 };
 
-export interface FilterExplorerNode {
-  readonly id: string;
-  readonly kind: string;
-  readonly label: string;
-  readonly shortLabel?: string;
-  readonly description?: string;
-  readonly filterText: string;
-  readonly listLabel?: string;
-  readonly detailTitle?: string;
-  readonly detailLines: readonly FilterExplorerTextLine[];
+export type FilterExplorerNode = Omit<OntologyNode, "children" | "loadChildren" | "query" | "selection"> & {
   readonly children?: readonly FilterExplorerNode[];
   readonly loadChildren?: () => readonly FilterExplorerNode[];
-  readonly childPresentation?: FilterExplorerChildPresentation;
-  readonly groupValues?: Readonly<Record<string, string>>;
-  readonly query?: FilterExplorerQueryTarget;
-  readonly selection?: FilterExplorerNodeSelection;
-}
+  readonly query?: OntologyNodeQuery;
+};
 
-export interface FilterExplorerModel {
+export type FilterExplorerModel = Omit<OntologyDomainModel, "rootNodes"> & {
   readonly id: FilterExplorerDomainId;
-  readonly label: string;
-  readonly description: string;
   readonly rootNodes: readonly FilterExplorerNode[];
-}
+};
 
 export type FilterExplorerBrowserState = {
   depth: number;
@@ -136,6 +111,13 @@ export type FilterExplorerBrowserContext = {
 };
 
 export type FilterExplorerScalarOperator = "eq" | "neq" | "gte" | "lte" | "between";
+export type FilterExplorerDiscreteClauseOperator = "include" | "exclude";
+
+export type FilterExplorerDiscreteClause = {
+  field: string;
+  value: string;
+  operator: FilterExplorerDiscreteClauseOperator;
+};
 
 export type FilterExplorerDiscreteComposeTarget = {
   kind?: "discrete";
@@ -143,7 +125,7 @@ export type FilterExplorerDiscreteComposeTarget = {
   fieldLabel: string;
   value: string;
   valueLabel?: string;
-  allowedStates: readonly FilterExplorerPolicyState[];
+  allowedOperators: readonly FilterExplorerDiscreteClauseOperator[];
 };
 
 export type FilterExplorerScalarClause =
@@ -176,7 +158,7 @@ export type FilterExplorerComposeTarget =
 export type FilterExplorerScalarClauseMap = Record<string, FilterExplorerScalarClause>;
 
 export type FilterExplorerComposeDraft = {
-  selection: FilterExplorerSelectionMap;
+  discreteClauses: FilterExplorerDiscreteClause[];
   scalarClauses: FilterExplorerScalarClauseMap;
 };
 
@@ -219,13 +201,10 @@ export type FilterExplorerComposeMode = {
   onEditScalarTarget?: (
     request: FilterExplorerScalarEditRequest,
   ) => Promise<FilterExplorerScalarClause | null | undefined> | FilterExplorerScalarClause | null | undefined;
-  selection?: FilterExplorerSelectionMap;
-  initialSelection?: FilterExplorerSelectionMap;
-  onSelectionChange?: (selection: FilterExplorerSelectionMap) => void;
   detailTitle?: string;
   emptySelectionText?: string;
-  focusedSelectionTitle?: string;
-  selectedSelectionsTitle?: string;
+  focusedClauseTitle?: string;
+  stagedClausesTitle?: string;
 };
 
 export type FilterExplorerMode = FilterExplorerInspectAndOpenMode | FilterExplorerComposeMode;
@@ -248,9 +227,9 @@ export type FilterExplorerControllerContext = {
   screenTitle: string;
   browser: FilterExplorerBrowserContext;
   draft: FilterExplorerComposeDraft;
-  selection: FilterExplorerSelectionMap;
+  discreteClauses: FilterExplorerDiscreteClause[];
   selectedTarget?: FilterExplorerComposeTarget;
-  selectedPolicyState?: FilterExplorerPolicyState;
+  selectedDiscreteClause?: FilterExplorerDiscreteClause;
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
   discovery?: FilterExplorerDiscoveryState;

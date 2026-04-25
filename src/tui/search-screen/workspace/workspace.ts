@@ -16,13 +16,13 @@ import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } 
 import type { SearchFilterRenderOptions } from "../../search/query-core.js";
 export { parseLevelRangeInput } from "../../filter-explorer/scalar-editor.js";
 export {
-  formatFilterPolicy,
+  formatFilterSelection,
   formatLevelRange,
   formatMode,
   formatSearchCategory,
   formatSearchScope,
   formatSearchSubcategory,
-  hasFilterPolicy,
+  hasFilterSelection,
 } from "./query-summary.js";
 
 export type SearchWorkspaceAction =

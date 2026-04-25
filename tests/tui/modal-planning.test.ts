@@ -3,16 +3,23 @@ import { describe, expect, it } from "vitest";
 import { planTerminalModalStateLayout } from "../../src/tui/framework/modal-planning.js";
 import type { TerminalModalState } from "../../src/tui/framework/types.js";
 
+const sharedOwnership = {
+  leaseId: 1,
+  ownerKind: "shared" as const,
+  sessionId: null,
+};
+
 describe("planTerminalModalStateLayout", () => {
   it("assigns a bounded centered panel width for overlay text prompts", () => {
     const modal: TerminalModalState = {
       kind: "text",
+      ownership: sharedOwnership,
       options: {
         title: "Search Text",
         prompt: "Enter search text for the current query.",
         defaultValue: "ghost ship captain",
         hint: "Example: ghost ship captain",
-        presentation: "centered",
+        presentation: "overlay",
       },
       value: "ghost ship captain",
       resolve: () => undefined,
@@ -31,10 +38,11 @@ describe("planTerminalModalStateLayout", () => {
   it("keeps overlay horizontal prompts at a stable size as the focused option changes", () => {
     const first: TerminalModalState = {
       kind: "select",
+      ownership: sharedOwnership,
       options: {
         title: "Choose Search Mode",
         prompt: "",
-        presentation: "centered",
+        presentation: "overlay",
         choiceLayout: "horizontal",
         filtering: false,
         entries: [
@@ -70,10 +78,11 @@ describe("planTerminalModalStateLayout", () => {
   it("preserves blanked-background presentation for first-entry prompts", () => {
     const modal: TerminalModalState = {
       kind: "select",
+      ownership: sharedOwnership,
       options: {
         title: "Choose Search Mode",
         prompt: "",
-        presentation: "centered-screen",
+        presentation: "blanked",
         choiceLayout: "horizontal",
         filtering: false,
         entries: [

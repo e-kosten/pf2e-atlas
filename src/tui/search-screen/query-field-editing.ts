@@ -16,12 +16,6 @@ import {
   getSearchQueryCategory,
   getSearchQuerySubcategory,
 } from "../search/query-state.js";
-import { createEmptyStringPolicy } from "../search/policies.js";
-import { formatFilterExplorerPolicyCycleCopy } from "../framework/policy-presentation.js";
-import {
-  buildFilterExplorerMetadataNodeFromPolicy,
-  buildFilterExplorerPolicyFromPredicate,
-} from "../filter-explorer/search-draft.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 import type {
   OpenSearchFilterExplorer,
@@ -130,7 +124,10 @@ export function useSearchQueryFieldEditing({
         singleFieldBehavior: "directValues",
         onApply: (draft, context) =>
           onApply(
-            user.search.buildFilterExplorerInsertionResult(draft, { preservedMetadata: context.preservedMetadata }),
+            user.search.buildFilterExplorerInsertionResult(draft, {
+              preservedMetadata: context.preservedMetadata,
+              preferReplace: currentNode !== null,
+            }),
             draft,
             context,
           ),
@@ -178,27 +175,8 @@ export function useSearchQueryFieldEditing({
       const metadataField = fieldOption.value as Pf2eTerminalFacetField;
 
       if (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString") {
-        const currentPolicy =
-          currentNode && isMetadataPredicate(currentNode)
-            ? (buildFilterExplorerPolicyFromPredicate(currentNode) ?? createEmptyStringPolicy())
-            : createEmptyStringPolicy();
-        const selected = await prompts.promptPolicySelectOption({
-          title: `${fieldOption.label} Clause`,
-          prompt: `Cycle field values through ${formatFilterExplorerPolicyCycleCopy(
-            fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
-          )}. Press Esc or Left when finished.`,
-          allowedStates: fieldOption.fieldType === "set" ? ["any", "all", "exclude"] : ["any", "exclude"],
-          entries: user.search
-            .getFacetValueOptions(metadataField, queryCategory, querySubcategory)
-            .map((option) => ({
-              value: option.value,
-              label: option.label,
-              description: option.description,
-            })),
-          selectedValues: currentPolicy,
-        });
-
-        return buildFilterExplorerMetadataNodeFromPolicy(fieldOption, selected);
+        await terminal.pauseForAnyKey("This field should be edited through the shared explorer path.");
+        return undefined;
       }
 
       if (fieldOption.fieldType === "boolean") {

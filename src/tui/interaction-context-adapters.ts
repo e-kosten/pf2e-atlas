@@ -9,8 +9,6 @@ import {
   type DerivedTagTerminalMultiSelectPromptOptions as MultiSelectPromptOptions,
   type DerivedTagTerminalOptionalSelectPromptOptions as OptionalSelectPromptOptions,
   type DerivedTagTerminalOptionalSelectPromptResult,
-  type DerivedTagTerminalPolicyPromptOptions as PolicyPromptOptions,
-  type DerivedTagTerminalPolicySelection,
   type DerivedTagTerminalPickerSelectPromptResult,
   type DerivedTagTerminalSelectPromptOptions as SelectPromptOptions,
   type DerivedTagTerminalTextInputOptions as TextPromptOptions,
@@ -22,7 +20,6 @@ export type TerminalInteractionContextAdapters = Pick<
   DerivedTagTerminalApp,
   | "promptCommandPalette"
   | "promptOptionalSelectOption"
-  | "promptPolicySelectOption"
   | "promptMultiSelectOption"
   | "promptSelectOption"
   | "promptTextInput"
@@ -34,7 +31,6 @@ export type SearchTerminalPromptAdapters = Pick<
   | "promptCommandPalette"
   | "promptMultiSelectOption"
   | "promptOptionalSelectOption"
-  | "promptPolicySelectOption"
   | "promptSelectOption"
   | "promptTextInput"
   | "showDialog"
@@ -49,9 +45,6 @@ export function createTerminalInteractionContextAdapters(
     promptOptionalSelectOption: async <T>(
       options: OptionalSelectPromptOptions<T>,
     ): Promise<DerivedTagTerminalOptionalSelectPromptResult<T>> => terminal.promptOptionalSelectOption(options),
-    promptPolicySelectOption: async <T extends string>(
-      options: PolicyPromptOptions<T>,
-    ): Promise<DerivedTagTerminalPolicySelection<T>> => terminal.promptPolicySelectOption(options),
     promptMultiSelectOption: async <T extends string>(
       options: MultiSelectPromptOptions<T>,
     ): Promise<DerivedTagTerminalMultiSelectPromptResult<T>> => terminal.promptMultiSelectOption(options),

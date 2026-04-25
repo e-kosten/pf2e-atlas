@@ -609,10 +609,13 @@ export function buildLexicalRetrievalQuery(
   return { sql: sql.join("\n"), params };
 }
 
+export const SQLITE_VECTOR_QUERY_K_LIMIT = 4096;
+
 export function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
+  const boundedBaseLimit = Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.max(1, baseLimit));
   return filters.filter
-    ? Math.min(1000, Math.max(baseLimit * 2, baseLimit + 50))
-    : baseLimit;
+    ? Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.min(1000, Math.max(boundedBaseLimit * 2, boundedBaseLimit + 50)))
+    : boundedBaseLimit;
 }
 
 function normalizeVectorText(value: string | null | undefined): string {

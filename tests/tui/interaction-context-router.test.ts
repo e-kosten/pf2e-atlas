@@ -7,7 +7,7 @@ import {
   createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalListInteractionContext,
-  createTerminalPolicyPromptInteractionContext,
+  createTerminalSelectPromptInteractionContext,
   createTerminalTextEntryInteractionContext,
   createTerminalInteractionContextStack,
   getActiveTerminalInteractionContext,
@@ -75,11 +75,20 @@ describe("interaction context router", () => {
     });
   });
 
-  it("keeps policy prompt bindings limited to live cycle and return actions", () => {
-    expect(createTerminalPolicyPromptInteractionContext(8).interactionActions).toEqual([
-      { id: "cycle" },
-      { id: "return" },
-    ]);
+  it("routes Escape as cancel while preserving left-arrow back semantics for select prompts", () => {
+    const escape = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u001b", {} as never),
+      [createTerminalSelectPromptInteractionContext("selectPrompt", 8, false)],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(escape.routes.selectPrompt.interactionAction?.id).toBe("cancel");
+
+    const left = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u001b[D", { leftArrow: true } as never),
+      [createTerminalSelectPromptInteractionContext("selectPrompt", 8, false)],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(left.routes.selectPrompt.interactionAction?.id).toBe("back");
   });
 
   it("resolves action-target intents as part of the shared routing result", () => {

@@ -24,9 +24,9 @@ import { createInitialSearchScreenState } from "../../src/tui/search-screen/stat
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
-  setSearchQueryActionCostPolicy,
+  setSearchQueryActionCostSelection,
   setSearchQueryMetadataTree,
-  setSearchQueryRarityPolicy,
+  setSearchQueryRaritySelection,
 } from "../../src/tui/search/query-state.js";
 import {
   actionCostFilter,
@@ -784,7 +784,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
   });
 
-  it("uses a centered standalone mode picker before the workspace is revealed", async () => {
+  it("uses a blanked standalone mode picker before the workspace is revealed", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -1023,7 +1023,7 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include any");
+    expect(app.lastFrame()).toContain("include");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -1923,8 +1923,8 @@ describe("search screen", () => {
 
     await services.user.search.executeQuery(
       setSearchQueryMetadataTree(
-        setSearchQueryActionCostPolicy(
-          setSearchQueryRarityPolicy(
+        setSearchQueryActionCostSelection(
+          setSearchQueryRaritySelection(
             searchRequest({
               limit: 20,
               filter: scopeFilter("spell"),
@@ -1934,14 +1934,12 @@ describe("search screen", () => {
               },
             }),
             {
-              any: ["common"],
-              all: [],
+              include: ["common"],
               exclude: ["rare"],
             },
           ),
           {
-            any: [2],
-            all: [],
+            include: [2],
             exclude: [1],
           },
         ),
@@ -2138,12 +2136,12 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include any");
+    expect(app.lastFrame()).toContain("include");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Selected fields");
+    expect(app.lastFrame()).toContain("Staged clauses");
     expect(app.lastFrame()).toContain("coastal_setting");
 
     pressLeft(app);
@@ -2445,7 +2443,7 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include any");
+    expect(app.lastFrame()).toContain("include");
     expect(app.lastFrame()).toContain("Traits:");
     expect(app.lastFrame()).toContain("illusion");
 
@@ -2669,12 +2667,36 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Metric Comparison");
     expect(app.lastFrame()).toContain("Creature Statistics");
 
+    pressLeft(app);
+    await waitForFrameToContain(app, "Add Clause");
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Metric Comparison");
+
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Creature Statistics");
+
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Left Metric");
     expect(app.lastFrame()).toContain("hp.value");
     expect(app.lastFrame()).toContain("ac.value");
     expect(app.lastFrame()).toContain("Matching counts");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Creature Statistics");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Left Metric");
 
     await flushInk();
     await flushInk();
@@ -2702,7 +2724,25 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Comparison Operator");
 
+    pressLeft(app);
     await flushInk();
+    expect(app.lastFrame()).toContain("Left Metric");
+    expect(app.lastFrame()).toContain("Catalog counts");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Comparison Operator");
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Right Metric");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Comparison Operator");
+
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2793,6 +2833,13 @@ describe("search screen", () => {
     app.stdin.write(":");
     await waitForFrameToContain(app, "Pack Count Source");
     expect(app.lastFrame()).toContain("Pack Count Source");
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Pack");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+
+    app.stdin.write(":");
+    await waitForFrameToContain(app, "Pack Count Source");
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
@@ -2833,7 +2880,7 @@ describe("search screen", () => {
       title: "Creature Statistics Explorer",
       model,
       draft: {
-        selection: {},
+        discreteClauses: [],
         scalarClauses: {},
       },
       resolveSelectionTarget: (node: OntologyNode | undefined): FilterExplorerComposeTarget | undefined =>

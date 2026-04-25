@@ -9,6 +9,7 @@ import {
   buildSharedRecordSelectFields,
   buildLexicalRetrievalQuery,
   buildSemanticRetrievalQuery,
+  SQLITE_VECTOR_QUERY_K_LIMIT,
 } from "../search/sql.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
@@ -98,7 +99,10 @@ export function fetchSemanticRetrievalRows(
   }
 
   const encodedQuery = encodeVector(queryVector);
-  const { sql, params } = buildSemanticRetrievalQuery(filters, limit);
+  const { sql, params } = buildSemanticRetrievalQuery(
+    filters,
+    Math.max(1, Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, limit)),
+  );
   return db.prepare(sql).all(encodedQuery, ...params) as SemanticRetrievalRow[];
 }
 

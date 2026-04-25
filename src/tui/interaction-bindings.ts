@@ -409,14 +409,7 @@ export const TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER = formatTerminalFooter
   { kind: "textEntry", textEntry: "cancel" },
 ]);
 
-export const TERMINAL_SELECT_EMPTY_FOOTER = formatTerminalFooterBindings([
-  {
-    kind: "actionGroup",
-    label: "cancel",
-    actions: [{ id: "back" }, { id: "quit" }],
-    keyStyle: "expanded",
-  },
-]);
+export const TERMINAL_SELECT_EMPTY_FOOTER = formatTerminalInteractionFooter([{ id: "cancel" }, { id: "back" }]);
 
 export const TERMINAL_LIVE_FILTER_FOOTER = formatTerminalFooterBindings([
   { kind: "text", text: "Type to filter live" },

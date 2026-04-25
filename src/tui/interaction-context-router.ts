@@ -31,7 +31,6 @@ export type TerminalInteractionContextKind =
   | "commandPalette"
   | "selectPrompt"
   | "multiSelectPrompt"
-  | "policyPrompt"
   | "textPrompt"
   | "dialog";
 
@@ -334,7 +333,8 @@ export function createTerminalSelectPromptInteractionContext(
     interactionActions: [
       { id: "select" },
       ...(supportsCommands ? [{ id: "commands" as const }] : []),
-      { id: "back", label: "cancel" },
+      { id: "cancel" as const },
+      { id: "back" as const },
     ],
     navigation: {
       pageSize,
@@ -356,23 +356,9 @@ export function createTerminalMultiSelectPromptInteractionContext(
       { id: "toggle" },
       ...(supportsCommands ? [{ id: "commands" as const }] : []),
       { id: "return" },
+      { id: "cancel" as const },
+      { id: "back" as const },
     ],
-    navigation: {
-      pageSize,
-      jumpSize: 5,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    },
-  };
-}
-
-export function createTerminalPolicyPromptInteractionContext(
-  pageSize: number,
-): TerminalInteractionContextConfig<"policyPrompt"> {
-  return {
-    id: "policyPrompt",
-    kind: "policyPrompt",
-    interactionActions: [{ id: "cycle" }, { id: "return" }],
     navigation: {
       pageSize,
       jumpSize: 5,

@@ -19,9 +19,8 @@ import {
 } from "./browser.js";
 import {
   cloneFilterExplorerComposeDraft,
-  cloneFilterExplorerSelectionMap,
+  getFilterExplorerDiscreteClause,
   getFilterExplorerScalarClause,
-  getFilterExplorerTargetState,
   normalizeFilterExplorerComposeDraft,
 } from "./compose-state.js";
 import {
@@ -52,18 +51,18 @@ function useComposeSelectionState(mode: FilterExplorerComposeMode | null): [
 ] {
   const isControlled = mode?.draft !== undefined;
   const [internalDraft, setInternalDraft] = React.useState<FilterExplorerComposeDraft>(() =>
-    normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft, mode?.selection ?? mode?.initialSelection),
+    normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft),
   );
 
   React.useEffect(() => {
     setInternalDraft(
-      normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft, mode?.selection ?? mode?.initialSelection),
+      normalizeFilterExplorerComposeDraft(mode?.draft ?? mode?.initialDraft),
     );
-  }, [mode?.draft, mode?.initialDraft, mode?.initialSelection, mode?.selection]);
+  }, [mode?.draft, mode?.initialDraft]);
 
   const currentDraft = React.useMemo(
-    () => normalizeFilterExplorerComposeDraft(mode?.draft ?? internalDraft, mode?.selection),
-    [internalDraft, mode?.draft, mode?.selection],
+    () => normalizeFilterExplorerComposeDraft(mode?.draft ?? internalDraft),
+    [internalDraft, mode?.draft],
   );
   const updateSelection = React.useCallback(
     (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => {
@@ -76,7 +75,6 @@ function useComposeSelectionState(mode: FilterExplorerComposeMode | null): [
         setInternalDraft(next);
       }
       mode.onDraftChange?.(cloneFilterExplorerComposeDraft(next));
-      mode.onSelectionChange?.(cloneFilterExplorerSelectionMap(next.selection));
     },
     [currentDraft, isControlled, mode],
   );
@@ -116,9 +114,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           draft,
           currentNodeLabel: selection.currentNode?.label,
           selectedTarget: composeMode.resolveSelectionTarget(selection.currentNode),
-          selectedPolicyState: getFilterExplorerTargetState(
+          selectedDiscreteClause: getFilterExplorerDiscreteClause(
             composeMode.resolveSelectionTarget(selection.currentNode),
-            draft.selection,
+            draft,
           ),
           selectedScalarClause: getFilterExplorerScalarClause(
             composeMode.resolveSelectionTarget(selection.currentNode),

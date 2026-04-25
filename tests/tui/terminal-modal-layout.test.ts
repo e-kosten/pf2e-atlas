@@ -48,7 +48,7 @@ describe("planTerminalModalLayout", () => {
     expect(result.maxInlineTotalHeight).toBe(8);
   });
 
-  it.each(["command", "select", "multiselect", "policy"] as const)(
+  it.each(["command", "select", "multiselect"] as const)(
     "applies the same choice-planning rules for %s",
     (kind) => {
       const result = planTerminalModalLayout({

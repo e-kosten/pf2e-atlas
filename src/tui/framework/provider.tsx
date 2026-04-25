@@ -7,12 +7,10 @@ import { DerivedTagTerminalContext } from "./context.js";
 import {
   buildOptionalSelectModalOptions,
   buildSelectModalOptions,
-  createEmptyPolicySelection,
   getFirstEnabledCommandIndex,
   getSelectPromptInitialIndex,
 } from "./modal-helpers.js";
 import { DerivedTagTerminalModalHost } from "./modal-host.js";
-import { createValueStateLookup } from "./modal-policy-state.js";
 import { planTerminalModalStateLayout } from "./modal-planning.js";
 import { isBlankedPromptPresentation } from "./prompt-presentation.js";
 import type {
@@ -21,16 +19,21 @@ import type {
   DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalMultiSelectPromptResult,
   DerivedTagTerminalOptionalSelectPromptResult,
-  DerivedTagTerminalPolicySelection,
+  DerivedTagTerminalPromptSession,
   DerivedTagTerminalProviderProps,
   DerivedTagTerminalPickerSelectPromptResult,
+  DialogOptions,
   MultiSelectPromptOptions,
   OptionalSelectPromptOptions,
-  PolicyPromptOptions,
   SelectPromptOptions,
+  TerminalModalOwnership,
   TerminalModalState,
   TextPromptOptions,
 } from "./types.js";
+
+type PromptOwner = Pick<TerminalModalOwnership, "ownerKind" | "sessionId"> & {
+  assertActive?: () => void;
+};
 
 function detectHyperlinkSupport(stdout: NodeJS.WriteStream): DerivedTagTerminalHyperlinkSupport {
   const env = process.env;
@@ -73,6 +76,9 @@ export function DerivedTagTerminalProvider({
   const { stdout } = useStdout();
   const { columns, rows } = useWindowSize();
   const [modal, setModal] = React.useState<TerminalModalState>(null);
+  const modalRef = React.useRef<TerminalModalState>(null);
+  const nextLeaseIdRef = React.useRef(1);
+  const nextSessionIdRef = React.useRef(1);
   const capabilities = React.useMemo(
     () => ({
       hyperlinkSupport: hyperlinkSupport ?? detectHyperlinkSupport(stdout),
@@ -83,16 +89,221 @@ export function DerivedTagTerminalProvider({
   const overlayBackdropActive = modalLayout?.centeredPromptBackground === "overlay";
   const blankedPromptActive = isBlankedPromptPresentation(modalLayout?.centeredPromptBackground);
   const availableRows =
-    modalLayout?.presentation === "inline"
-      ? Math.max(0, rows - modalLayout.totalHeight)
-      : modalLayout?.centeredPromptBackground
-        ? blankedPromptActive
-          ? 0
-          : rows
+    modalLayout?.centeredPromptBackground
+      ? blankedPromptActive
+        ? 0
+        : rows
+      : modalLayout?.presentation === "inline"
+        ? Math.max(0, rows - modalLayout.totalHeight)
         : modalLayout
           ? 0
           : rows;
   const shouldRenderChildren = !modalLayout || !blankedPromptActive;
+
+  const setTrackedModal = React.useCallback((next: React.SetStateAction<TerminalModalState>): void => {
+    setModal((current) => {
+      const resolved = typeof next === "function" ? (next as (value: TerminalModalState) => TerminalModalState)(current) : next;
+      modalRef.current = resolved;
+      return resolved;
+    });
+  }, []);
+
+  const settlePreemptedModal = React.useCallback((activeModal: Exclude<TerminalModalState, null>): void => {
+    switch (activeModal.kind) {
+      case "dialog":
+        activeModal.resolve();
+        return;
+      case "text":
+        activeModal.resolve(undefined);
+        return;
+      case "command":
+        activeModal.resolve(undefined);
+        return;
+      case "select":
+        activeModal.resolve({ kind: "cancelled" });
+        return;
+      case "multiselect":
+        activeModal.resolve({ kind: "cancelled" });
+        return;
+    }
+  }, []);
+
+  const clearModalLease = React.useCallback(
+    (leaseId: number): void => {
+      setTrackedModal((current) => (current?.ownership.leaseId === leaseId ? null : current));
+    },
+    [setTrackedModal],
+  );
+
+  const claimPromptLease = React.useCallback(
+    <T,>(
+      owner: PromptOwner,
+      createModal: (ownership: TerminalModalOwnership, resolve: (value: T) => void) => Exclude<TerminalModalState, null>,
+    ): Promise<T> => {
+      owner.assertActive?.();
+      return new Promise<T>((resolve) => {
+        const ownership: TerminalModalOwnership = {
+          leaseId: nextLeaseIdRef.current++,
+          ownerKind: owner.ownerKind,
+          sessionId: owner.sessionId,
+        };
+        const nextModal = createModal(ownership, resolve);
+        const displacedModal = modalRef.current;
+        setTrackedModal(nextModal);
+        if (displacedModal) {
+          queueMicrotask(() => {
+            settlePreemptedModal(displacedModal);
+          });
+        }
+      });
+    },
+    [setTrackedModal, settlePreemptedModal],
+  );
+
+  const createPromptSession = React.useCallback(
+    (owner: PromptOwner): DerivedTagTerminalPromptSession => {
+      const pauseForAnyKey = async (message: string): Promise<void> => {
+        await claimPromptLease<void>(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "dialog",
+          options: {
+            title: "Derived-Tag Workbench",
+            body: message.split("\n").map((line) => ({ text: line })),
+            footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
+          },
+          resolve: () => resolve(),
+        }));
+      };
+
+      const promptCommandPalette = async <T extends string>(options: CommandPaletteOptions<T>): Promise<T | undefined> => {
+        const normalizedOptions = options as CommandPaletteOptions<string>;
+        return claimPromptLease(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "command",
+          options: normalizedOptions,
+          filterText: "",
+          selectedIndex: getFirstEnabledCommandIndex(normalizedOptions.entries),
+          resolve: resolve as (value: string | undefined) => void,
+        }));
+      };
+
+      const promptOptionalSelectOption = async <T,>(
+        options: OptionalSelectPromptOptions<T>,
+      ): Promise<DerivedTagTerminalOptionalSelectPromptResult<T>> => {
+        const modalOptions = buildOptionalSelectModalOptions(options);
+        return claimPromptLease(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "select",
+          options: modalOptions,
+          selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+          filterText: "",
+          filterMode: false,
+          resolve: resolve as (
+            value:
+              | DerivedTagTerminalPickerSelectPromptResult<unknown>
+              | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+          ) => void,
+        }));
+      };
+
+      const promptMultiSelectOption = async <T extends string>(
+        options: MultiSelectPromptOptions<T>,
+      ): Promise<DerivedTagTerminalMultiSelectPromptResult<T>> => {
+        const selectedIndex = Math.max(0, options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)));
+        return claimPromptLease(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "multiselect",
+          options: options as MultiSelectPromptOptions<string>,
+          selectedIndex,
+          filterText: "",
+          filterMode: false,
+          selectedValues: options.selectedValues ? [...options.selectedValues] : [],
+          resolve: resolve as (value: DerivedTagTerminalMultiSelectPromptResult<string>) => void,
+        }));
+      };
+
+      const promptSelectOption = async <T,>(
+        options: SelectPromptOptions<T>,
+      ): Promise<DerivedTagTerminalPickerSelectPromptResult<T>> => {
+        const modalOptions = buildSelectModalOptions(options);
+        return claimPromptLease(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "select",
+          options: modalOptions,
+          selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
+          filterText: "",
+          filterMode: false,
+          resolve: resolve as (
+            value:
+              | DerivedTagTerminalPickerSelectPromptResult<unknown>
+              | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
+          ) => void,
+        }));
+      };
+
+      const promptTextInput = async (options: TextPromptOptions): Promise<string | undefined> =>
+        claimPromptLease(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "text",
+          options,
+          value: options.defaultValue ?? "",
+          resolve,
+        }));
+
+      const showDialog = async (options: DialogOptions): Promise<void> => {
+        await claimPromptLease<void>(owner, (ownership, resolve) => ({
+          ownership,
+          kind: "dialog",
+          options,
+          resolve: () => resolve(),
+        }));
+      };
+
+      return {
+        pauseForAnyKey,
+        promptCommandPalette,
+        promptOptionalSelectOption,
+        promptMultiSelectOption,
+        promptSelectOption,
+        promptTextInput,
+        showDialog,
+      };
+    },
+    [claimPromptLease],
+  );
+  const promptSession = React.useMemo(() => createPromptSession({ ownerKind: "shared", sessionId: null }), [createPromptSession]);
+
+  const runPromptSession = React.useCallback(
+    async <T,>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>): Promise<T> => {
+      const sessionId = nextSessionIdRef.current++;
+      const sessionState = { active: true };
+      const session = createPromptSession({
+        ownerKind: "session",
+        sessionId,
+        assertActive: () => {
+          if (!sessionState.active) {
+            throw new Error(`Prompt session ${sessionId} is no longer active.`);
+          }
+        },
+      });
+
+      try {
+        return await runner(session);
+      } finally {
+        sessionState.active = false;
+        const activeModal = modalRef.current;
+        if (
+          activeModal &&
+          activeModal.ownership.ownerKind === "session" &&
+          activeModal.ownership.sessionId === sessionId
+        ) {
+          clearModalLease(activeModal.ownership.leaseId);
+          settlePreemptedModal(activeModal);
+        }
+      }
+    },
+    [clearModalLease, createPromptSession, settlePreemptedModal],
+  );
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
@@ -102,118 +313,16 @@ export function DerivedTagTerminalProvider({
       getTerminalHeight: () => availableRows,
       getTerminalWidth: () => columns,
       modalActive: modal !== null,
-      pauseForAnyKey: async (message: string) => {
-        await new Promise<void>((resolve) => {
-          setModal({
-            kind: "dialog",
-            options: {
-              title: "Derived-Tag Workbench",
-              body: message.split("\n").map((line) => ({ text: line })),
-              footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
-            },
-            resolve,
-          });
-        });
-      },
-      promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
-        new Promise<T | undefined>((resolve) => {
-          const normalizedOptions = options as CommandPaletteOptions<string>;
-          setModal({
-            kind: "command",
-            options: normalizedOptions,
-            filterText: "",
-            selectedIndex: getFirstEnabledCommandIndex(normalizedOptions.entries),
-            resolve: resolve as (value: string | undefined) => void,
-          });
-        }),
-      promptOptionalSelectOption: async <T,>(options: OptionalSelectPromptOptions<T>) =>
-        new Promise<DerivedTagTerminalOptionalSelectPromptResult<T>>((resolve) => {
-          const modalOptions = buildOptionalSelectModalOptions(options);
-          setModal({
-            kind: "select",
-            options: modalOptions,
-            selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
-            filterText: "",
-            filterMode: false,
-            resolve: resolve as (
-              value:
-                | DerivedTagTerminalPickerSelectPromptResult<unknown>
-                | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
-            ) => void,
-          });
-        }),
-      promptPolicySelectOption: async <T extends string>(options: PolicyPromptOptions<T>) =>
-        new Promise<DerivedTagTerminalPolicySelection<T>>((resolve) => {
-          const initialSelection = createEmptyPolicySelection<string>();
-          initialSelection.any = options.selectedValues?.any ? [...options.selectedValues.any] : [];
-          initialSelection.all = options.selectedValues?.all ? [...options.selectedValues.all] : [];
-          initialSelection.exclude = options.selectedValues?.exclude ? [...options.selectedValues.exclude] : [];
-          const valueStates = createValueStateLookup(initialSelection);
-          const selectedIndex = Math.max(
-            0,
-            options.entries.findIndex((entry) => valueStates[entry.value] !== undefined),
-          );
-          setModal({
-            kind: "policy",
-            options: options as PolicyPromptOptions<string>,
-            selectedIndex,
-            filterText: "",
-            filterMode: false,
-            valueStates,
-            resolve: resolve as (value: DerivedTagTerminalPolicySelection<string>) => void,
-          });
-        }),
-      promptMultiSelectOption: async <T extends string>(options: MultiSelectPromptOptions<T>) =>
-        new Promise<DerivedTagTerminalMultiSelectPromptResult<T>>((resolve) => {
-          const selectedIndex = Math.max(
-            0,
-            options.entries.findIndex((entry) => options.selectedValues?.includes(entry.value)),
-          );
-          setModal({
-            kind: "multiselect",
-            options: options as MultiSelectPromptOptions<string>,
-            selectedIndex,
-            filterText: "",
-            filterMode: false,
-            selectedValues: options.selectedValues ? [...options.selectedValues] : [],
-            resolve: resolve as (value: DerivedTagTerminalMultiSelectPromptResult<string>) => void,
-          });
-        }),
-      promptSelectOption: async <T,>(options: SelectPromptOptions<T>) =>
-        new Promise<DerivedTagTerminalPickerSelectPromptResult<T>>((resolve) => {
-          const modalOptions = buildSelectModalOptions(options);
-          setModal({
-            kind: "select",
-            options: modalOptions,
-            selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
-            filterText: "",
-            filterMode: false,
-            resolve: resolve as (
-              value:
-                | DerivedTagTerminalPickerSelectPromptResult<unknown>
-                | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
-            ) => void,
-          });
-        }),
-      promptTextInput: async (options: TextPromptOptions) =>
-        new Promise<string | undefined>((resolve) => {
-          setModal({
-            kind: "text",
-            options,
-            value: options.defaultValue ?? "",
-            resolve,
-          });
-        }),
-      showDialog: async (options) =>
-        new Promise<void>((resolve) => {
-          setModal({
-            kind: "dialog",
-            options,
-            resolve,
-          });
-        }),
+      runPromptSession,
+      pauseForAnyKey: promptSession.pauseForAnyKey,
+      promptCommandPalette: promptSession.promptCommandPalette,
+      promptOptionalSelectOption: promptSession.promptOptionalSelectOption,
+      promptMultiSelectOption: promptSession.promptMultiSelectOption,
+      promptSelectOption: promptSession.promptSelectOption,
+      promptTextInput: promptSession.promptTextInput,
+      showDialog: promptSession.showDialog,
     }),
-    [availableRows, capabilities, columns, exit, modal],
+    [availableRows, capabilities, columns, exit, modal, promptSession, runPromptSession],
   );
   const backgroundContextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
@@ -226,22 +335,22 @@ export function DerivedTagTerminalProvider({
   return (
     <>
       <DerivedTagTerminalContext.Provider value={backgroundContextValue}>
-      <Box flexDirection="column" width={columns} height={rows}>
-        <Box flexDirection="column" width={columns} height={shouldRenderChildren ? rows : 0}>
-          {children}
+        <Box flexDirection="column" width={columns} height={rows}>
+          <Box flexDirection="column" width={columns} height={shouldRenderChildren ? rows : 0}>
+            {children}
+          </Box>
         </Box>
-      </Box>
       </DerivedTagTerminalContext.Provider>
       <DerivedTagTerminalContext.Provider value={contextValue}>
-      {modal && modalLayout ? (
-        <DerivedTagTerminalModalHost
-          modal={modal}
-          setModal={setModal}
-          exitApp={exit}
-          width={columns}
-          layout={modalLayout}
-        />
-      ) : null}
+        {modal && modalLayout ? (
+          <DerivedTagTerminalModalHost
+            modal={modal}
+            setModal={setTrackedModal}
+            exitApp={exit}
+            width={columns}
+            layout={modalLayout}
+          />
+        ) : null}
       </DerivedTagTerminalContext.Provider>
     </>
   );
