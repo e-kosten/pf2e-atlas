@@ -97,9 +97,25 @@ validate_commit_message() {
     return 1
   fi
 
-  body_lines="$(tail -n +2 "$message_file" | awk 'BEGIN { count = 0 } /^[[:space:]]*#/ { next } NF { count += 1 } END { print count }')"
-  if [ "$body_lines" -eq 0 ]; then
-    echo "Commit message must include a descriptive body after a blank line." >&2
-    return 1
+  body_first_line="$(awk '
+    BEGIN { saw_subject = 0 }
+    /^[[:space:]]*#/ { next }
+    !saw_subject && NF { saw_subject = 1; next }
+    saw_subject && NF { print NR; exit }
+  ' "$message_file")"
+
+  if [ -n "$body_first_line" ]; then
+    has_blank_separator="$(awk -v body_line="$body_first_line" '
+      BEGIN { saw_subject = 0; saw_blank = 0 }
+      NR >= body_line { print saw_blank; exit }
+      /^[[:space:]]*#/ { next }
+      !saw_subject && NF { saw_subject = 1; next }
+      saw_subject && !NF { saw_blank = 1 }
+    ' "$message_file")"
+
+    if [ "$has_blank_separator" -ne 1 ]; then
+      echo "Commit message bodies must start after a blank line." >&2
+      return 1
+    fi
   fi
 }

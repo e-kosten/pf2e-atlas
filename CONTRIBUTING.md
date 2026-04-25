@@ -23,13 +23,15 @@ Examples:
 
 ## Commit Messages
 
-Use Conventional Commits for all changes. Every commit message must include:
+Use Conventional Commits for all changes. Every commit message must include a Conventional Commit summary line. A short description body is optional, but when present it must appear after a blank line.
 
-- a Conventional Commit summary line
-- a blank line
-- a short description body explaining the change and, when relevant, any important behavior or data implications
+Summary-only format:
 
-Format:
+```text
+type(scope): summary
+```
+
+Summary-plus-body format:
 
 ```text
 type(scope): summary
@@ -161,7 +163,7 @@ cd scripts && npm run verify
 Tracked git hooks live in `.githooks/` and enforce:
 
 - `pre-commit`: fail from the primary checkout or branch `main`
-- `commit-msg`: require Conventional Commits with a blank-line-separated body
+- `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
 - `pre-push`: rerun `cd scripts && npm run verify`
 
 ## Vendored PF2E Data
