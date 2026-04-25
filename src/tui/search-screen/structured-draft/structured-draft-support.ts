@@ -129,7 +129,7 @@ function buildFilterTreeEntries(
           label: moveSourcePath ? "[move here]" : "[+ add here]",
           description: moveSourcePath
             ? "Confirm the move and append the anchored node at the bottom of this group."
-            : "Add a new filter or nested group at the bottom of this group.",
+            : "Add a new clause at the bottom of this group. Use the action rail for group or NOT variants.",
           insertionPath: path,
           indent: depth + 1,
           menuLabel: `${formatTreePrefix(childAncestorContinuations, true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,
@@ -150,7 +150,7 @@ function buildFilterTreeEntries(
       label: moveSourcePath ? "[move here]" : "[+ add here]",
       description: moveSourcePath
         ? `Confirm the move and append the anchored node at the root ${options.rootOperator} group.`
-        : "Add a new top-level filter or nested group.",
+        : "Add a new top-level clause. Use the action rail for group or NOT variants.",
       insertionPath: [],
       indent: 1,
       menuLabel: `${formatTreePrefix([], true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,

@@ -214,7 +214,7 @@ export function buildWorkspaceEntries(
 
   const structuredEntries = getVisibleSearchQuerySummaryEntries(summary)
     .filter((entry) => isStructuredSearchQuerySummaryEntry(entry) && entry.kind !== "filterTreeRoot")
-    .map((entry) => buildWorkspaceEntryFromSummary(entry, { indentOffset: 1 }));
+    .map((entry) => buildWorkspaceEntryFromSummary(entry));
   if (summary.metadataPredicateCount > 0) {
     structuredEntries.push({
       action: "clearClauses",

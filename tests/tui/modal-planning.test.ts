@@ -4,7 +4,7 @@ import { planTerminalModalStateLayout } from "../../src/tui/framework/modal-plan
 import type { TerminalModalState } from "../../src/tui/framework/types.js";
 
 describe("planTerminalModalStateLayout", () => {
-  it("assigns a bounded centered panel width for centered text prompts", () => {
+  it("assigns a bounded centered panel width for overlay text prompts", () => {
     const modal: TerminalModalState = {
       kind: "text",
       options: {
@@ -21,13 +21,14 @@ describe("planTerminalModalStateLayout", () => {
     const result = planTerminalModalStateLayout(modal, 120, 32);
 
     expect(result).not.toBeNull();
-    expect(result?.presentation).toBe("centered");
+    expect(result?.presentation).toBe("inline");
+    expect(result?.centeredPromptBackground).toBe("overlay");
     expect(result?.panelWidth).toBeDefined();
     expect(result!.panelWidth).toBeLessThan(120);
     expect(result!.bodyHeight).toBeGreaterThan(0);
   });
 
-  it("keeps centered horizontal prompts at a stable size as the focused option changes", () => {
+  it("keeps overlay horizontal prompts at a stable size as the focused option changes", () => {
     const first: TerminalModalState = {
       kind: "select",
       options: {
@@ -58,13 +59,15 @@ describe("planTerminalModalStateLayout", () => {
     const firstLayout = planTerminalModalStateLayout(first, 100, 24);
     const secondLayout = planTerminalModalStateLayout(second, 100, 24);
 
-    expect(firstLayout?.presentation).toBe("centered");
-    expect(secondLayout?.presentation).toBe("centered");
+    expect(firstLayout?.presentation).toBe("inline");
+    expect(firstLayout?.centeredPromptBackground).toBe("overlay");
+    expect(secondLayout?.presentation).toBe("inline");
+    expect(secondLayout?.centeredPromptBackground).toBe("overlay");
     expect(firstLayout?.panelWidth).toBe(secondLayout?.panelWidth);
     expect(firstLayout?.totalHeight).toBe(secondLayout?.totalHeight);
   });
 
-  it("preserves centered standalone-page presentation for first-entry prompts", () => {
+  it("preserves blanked-background presentation for first-entry prompts", () => {
     const modal: TerminalModalState = {
       kind: "select",
       options: {
@@ -87,7 +90,8 @@ describe("planTerminalModalStateLayout", () => {
 
     const result = planTerminalModalStateLayout(modal, 100, 24);
 
-    expect(result?.presentation).toBe("centered-screen");
+    expect(result?.presentation).toBe("inline");
+    expect(result?.centeredPromptBackground).toBe("blanked");
     expect(result?.panelWidth).toBeDefined();
     expect(result?.totalHeight).toBeGreaterThan(0);
   });

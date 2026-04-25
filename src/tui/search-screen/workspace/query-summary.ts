@@ -153,7 +153,6 @@ function buildFilterSummaryEntries(
       value: formatSearchFilterNodePresentationAlias(entry.node, { ...renderOptions, category, style: "compact" }),
       description: "Open this top-level filter node in the dedicated builder.",
       visible: true,
-      indent: 1,
     })),
   ];
 }

@@ -240,8 +240,8 @@ export function useSearchStructuredDraftMetadataActions({
       title: string,
       discoveryMode: SearchFilterDiscoveryMode,
     ): Promise<SearchFilterDiscoveryMode | undefined> => {
-      const selected = await prompts.promptCommandPalette({
-        title: `${title} Commands`,
+      const selected = await prompts.promptSelectOption({
+        title: `${title} Count Source`,
         prompt: "Choose how this picker should source counts",
         entries: [
           {
@@ -255,11 +255,15 @@ export function useSearchStructuredDraftMetadataActions({
             description: "Show values and counts from the broader applicability slice.",
           },
         ],
+        selectedValue: discoveryMode,
       });
-      if (!selected) {
+      if (selected.kind === "back") {
+        return discoveryMode;
+      }
+      if (selected.kind !== "selected") {
         return undefined;
       }
-      return selected === discoveryMode ? discoveryMode : selected;
+      return selected.value as SearchFilterDiscoveryMode;
     },
     [prompts],
   );
@@ -1435,7 +1439,7 @@ export function useSearchStructuredDraftMetadataActions({
           clearStructuredDraftMoveSource();
           return;
         }
-        await promptForInsertionAction(draftQuery, entry.insertionPath ?? []);
+        await runInsertionAction(draftQuery, entry.insertionPath ?? [], "addClause");
         return;
       }
       if (entry.kind !== "queryNode") {

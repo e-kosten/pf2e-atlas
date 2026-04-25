@@ -78,6 +78,19 @@ async function waitForFrameToContain(
   }
 }
 
+async function waitForFrameToExclude(
+  app: ReturnType<typeof render>,
+  text: string,
+  attempts = 12,
+): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (!app.lastFrame().includes(text)) {
+      return;
+    }
+    await flushInk();
+  }
+}
+
 function pressDown(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[B");
 }
@@ -697,7 +710,7 @@ describe("search screen", () => {
     pressRight(app);
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToExclude(app, "Choose Search Mode");
     expect(app.lastFrame()).toContain("Search | Any Category | Unavailable until you enter search text.");
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Query Status");
@@ -719,7 +732,7 @@ describe("search screen", () => {
     }
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToExclude(app, "Search Text");
 
     pressDown(app);
     await flushInk();
@@ -733,7 +746,7 @@ describe("search screen", () => {
     }
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToExclude(app, "Exclude Text");
 
     app.stdin.write("\t");
     await flushInk();
@@ -782,8 +795,6 @@ describe("search screen", () => {
 
     await waitForFrameToContain(app, "Choose Search Mode");
     expect(app.lastFrame()).toContain("Choose Search Mode");
-    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
-    expect(app.lastFrame()).not.toContain("Filters >");
   });
 
   it("uses left to back out of the query editor instead of opening the selected item", async () => {
@@ -980,10 +991,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("allOf");
     expect(app.lastFrame()).toContain("[+ add here]");
     app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-    app.stdin.write("\r");
-    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metadata");
@@ -1813,6 +1820,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Filters > | 2 active");
     expect(app.lastFrame()).toContain("Scope: Spell");
     expect(app.lastFrame()).toContain("Traits: includes any Illusion");
+    expect(app.lastFrame()).not.toContain("Filter | Traits: includes any Illusion");
   });
 
   it("does not auto-execute seeded route entry without a prepared session", async () => {
@@ -2094,15 +2102,11 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Press : to open the action rail");
 
     app.stdin.write("x");
-    await flushInk();
+    await waitForFrameToExclude(app, "Press : to open the action rail");
     expect(app.lastFrame()).toContain("Structured Query Editor");
 
     app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
+    await waitForFrameToContain(app, "Add Clause");
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metadata");
     await flushInk();
@@ -2417,10 +2421,6 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metadata");
     await flushInk();
@@ -2488,17 +2488,14 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Scope");
 
+    await flushInk();
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    await flushInk();
+    await waitForFrameToContain(app, "Creature");
     expect(app.lastFrame()).toContain("Scope");
     expect(app.lastFrame()).toContain("Creature");
 
@@ -2553,21 +2550,19 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Scope");
 
+    await flushInk();
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    await flushInk();
+    await waitForFrameToContain(app, "Creature");
     expect(app.lastFrame()).toContain("Scope");
     expect(app.lastFrame()).toContain("Creature");
 
     app.stdin.write("\r");
+    await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Subcategory Mode");
 
@@ -2581,9 +2576,6 @@ describe("search screen", () => {
 
     pressDown(app);
     await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
@@ -2662,10 +2654,6 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metric");
     expect(app.lastFrame()).toContain("Metric Comparison");
@@ -2691,12 +2679,10 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     app.stdin.write(":");
-    await waitForFrameToContain(app, "Left Metric Commands");
-    expect(app.lastFrame()).toContain("Left Metric Commands");
-    for (const character of "catalog") {
-      app.stdin.write(character);
-      await flushInk();
-    }
+    await waitForFrameToContain(app, "Left Metric Count Source");
+    expect(app.lastFrame()).toContain("Left Metric Count Source");
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2725,7 +2711,7 @@ describe("search screen", () => {
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Creature Statistics: hp.value gte ac.value");
 
@@ -2788,13 +2774,11 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Insertion Slot");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Pack");
 
+    await flushInk();
+    await flushInk();
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
@@ -2807,12 +2791,10 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     app.stdin.write(":");
-    await waitForFrameToContain(app, "Pack Commands");
-    expect(app.lastFrame()).toContain("Pack Commands");
-    for (const character of "catalog") {
-      app.stdin.write(character);
-      await flushInk();
-    }
+    await waitForFrameToContain(app, "Pack Count Source");
+    expect(app.lastFrame()).toContain("Pack Count Source");
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
