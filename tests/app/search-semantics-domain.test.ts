@@ -1,7 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
+import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import { buildAllOfFilter, buildScopeFilter, findSearchScopeFilter } from "../../src/domain/search-request-types.js";
@@ -9,6 +14,9 @@ import type { SearchFilterNode, SearchRequest } from "../../src/domain/search-re
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { SearchSemanticsBootstrapSummaryResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
+import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
+
+const tempDirs: string[] = [];
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -27,6 +35,26 @@ function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
       configPath: "pf2e-ranking.json",
     },
   };
+}
+
+function createTempIndexPath(prefix: string): string {
+  const directory = mkdtempSync(path.join(tmpdir(), prefix));
+  tempDirs.push(directory);
+  return path.join(directory, "pf2e-index.sqlite");
+}
+
+function writeTraitGlossary(indexPath: string, entries: MetadataGlossaryArtifact["fields"]["traits"]): void {
+  const artifactPath = getMetadataGlossaryArtifactPath(indexPath);
+  writeFileSync(
+    artifactPath,
+    `${JSON.stringify({
+      generatedAt: "2026-04-25T00:00:00.000Z",
+      fields: {
+        traits: entries,
+      },
+    } satisfies MetadataGlossaryArtifact)}\n`,
+    "utf8",
+  );
 }
 
 function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
@@ -148,6 +176,12 @@ function createDataService(options: {
   return service;
 }
 
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    rmSync(tempDirs.pop()!, { recursive: true, force: true });
+  }
+});
+
 describe("buildSearchSemanticsDomain", () => {
   it("scopes derived-tag families and tag queries to the active subcategory", () => {
     const dataService = createDataService();
@@ -205,8 +239,16 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", () => {
     const dataService = createDataService();
+    const indexPath = createTempIndexPath("search-semantics-domain-");
+    writeTraitGlossary(indexPath, {
+      magical: {
+        value: "magical",
+        label: "Magical",
+        description: "Magic-infused hazards and effects.",
+      },
+    });
     const domain = buildSearchSemanticsDomain(
-      createTestConfig(),
+      createTestConfig(indexPath),
       dataService,
       createPf2eApplicationSearchDiscoveryService(dataService),
     );
@@ -218,8 +260,8 @@ describe("buildSearchSemanticsDomain", () => {
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith(
       expect.objectContaining({ category: "hazard", field: "traits" }),
     );
-    expect(magicalTraitNode?.label).toBe("magical");
-    expect(magicalTraitNode?.listLabel).toBe("magical | 3");
+    expect(magicalTraitNode?.label).toBe("Magical");
+    expect(magicalTraitNode?.listLabel).toBe("Magical | 3");
     expect(getQueryFilter(magicalTraitNode)).toEqual(
       buildAllOfFilter([
         buildScopeFilter("hazard"),
