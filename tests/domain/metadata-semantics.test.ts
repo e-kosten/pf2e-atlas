@@ -133,33 +133,10 @@ describe("metadata search semantics", () => {
     expect(derivedTags?.notes).toContain("ontology coverage");
   });
 
-  it("documents advanced creature metric predicates separately from fixed metadata fields", () => {
+  it("documents explicit metric discovery surfaces separately from fixed metadata fields", () => {
     const semantics = getMetadataFilterSemantics();
 
-    expect(semantics.advancedPredicates).toEqual(
-      matcherArrayContaining([
-        matcherObjectContaining({
-          name: "actorMetric",
-          categories: ["creature", "hazard"],
-          operators: matcherArrayContaining([">=", "=="]),
-        }),
-        matcherObjectContaining({
-          name: "actorMetricCompare",
-          categories: ["creature", "hazard"],
-          operators: matcherArrayContaining([">", "!="]),
-        }),
-        matcherObjectContaining({
-          name: "itemMetric",
-          categories: ["equipment"],
-          operators: matcherArrayContaining([">=", "=="]),
-        }),
-        matcherObjectContaining({
-          name: "itemMetricCompare",
-          categories: ["equipment"],
-          operators: matcherArrayContaining([">", "!="]),
-        }),
-      ]),
-    );
+    expect(semantics.actorMetricDiscovery?.categories).toEqual(["creature", "hazard"]);
     expect(semantics.actorMetricDiscovery?.filterValueField).toBe("actorMetrics");
     expect(semantics.actorMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
       expect.arrayContaining([
@@ -176,6 +153,7 @@ describe("metadata search semantics", () => {
         "disable.",
       ]),
     );
+    expect(semantics.itemMetricDiscovery?.categories).toEqual(["equipment"]);
     expect(semantics.itemMetricDiscovery?.filterValueField).toBe("itemMetrics");
     expect(semantics.itemMetricDiscovery?.namespaces.map((entry) => entry.prefix)).toEqual(
       expect.arrayContaining(["weapon.", "armor.", "shield."]),
@@ -204,12 +182,6 @@ describe("metadata search semantics", () => {
           },
         },
       ]),
-    });
-    expect(semantics.advancedPredicates.find((entry) => entry.name === "actorMetricCompare")?.example).toEqual({
-      kind: "metricCompare",
-      leftMetric: "ability.int.mod",
-      op: "gt",
-      rightMetric: "ability.cha.mod",
     });
   });
 });

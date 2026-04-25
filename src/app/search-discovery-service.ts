@@ -219,24 +219,14 @@ export function createPf2eApplicationSearchDiscoveryService(
     }
 
     const groups: SearchDiscoveryMetricGroup[] = [];
-    if (
-      semantics.actorMetricDiscovery &&
-      semantics.advancedPredicates.some(
-        (predicate) => predicate.name === "actorMetric" && predicate.categories.includes(scope.category),
-      )
-    ) {
+    if (semantics.actorMetricDiscovery?.categories.includes(scope.category)) {
       groups.push({
         metricField: "actorMetrics",
         metadataField: "actorMetric",
         namespaces: semantics.actorMetricDiscovery.namespaces,
       });
     }
-    if (
-      semantics.itemMetricDiscovery &&
-      semantics.advancedPredicates.some(
-        (predicate) => predicate.name === "itemMetric" && predicate.categories.includes(scope.category),
-      )
-    ) {
+    if (semantics.itemMetricDiscovery?.categories.includes(scope.category)) {
       groups.push({
         metricField: "itemMetrics",
         metadataField: "itemMetric",

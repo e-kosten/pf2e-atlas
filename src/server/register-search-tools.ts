@@ -37,7 +37,6 @@ function buildPublicMetadataSemantics() {
     })),
     metadataFieldsByCategory: metadataSemantics.metadataFieldsByCategory,
     metadataFieldsByCategoryAndSubcategory: metadataSemantics.metadataFieldsByCategoryAndSubcategory,
-    advancedPredicates: metadataSemantics.advancedPredicates,
     actorMetricDiscovery: metadataSemantics.actorMetricDiscovery,
     itemMetricDiscovery: metadataSemantics.itemMetricDiscovery,
     discoverableFieldLookupWorkflow: metadataSemantics.discoverableFieldLookupWorkflow,

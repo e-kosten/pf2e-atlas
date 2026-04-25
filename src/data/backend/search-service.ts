@@ -33,27 +33,23 @@ import { createRuntimeSearchDependencies } from "./runtime-search-dependencies.j
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
 
+type AnnotatedLookupRecord = SearchResultRecord & {
+  matchType: LookupResult["matchType"];
+};
+
 function applyLookupTieredOrdering(
-  query: string,
-  records: readonly SearchResultRecord[],
-): SearchResultRecord[] {
-  const buckets: Record<Exclude<LookupResult["matchType"], "none">, SearchResultRecord[]> = {
+  records: readonly AnnotatedLookupRecord[],
+): AnnotatedLookupRecord[] {
+  const buckets: Record<Exclude<LookupResult["matchType"], "none">, AnnotatedLookupRecord[]> = {
     exact: [],
     normalized_exact: [],
     fuzzy: [],
   };
 
   for (const record of records) {
-    const matchType = record.matchType ?? getLookupMatchType(query, record);
+    const matchType = record.matchType;
     if (matchType !== "none") {
-      buckets[matchType].push(
-        record.matchType === undefined
-          ? {
-              ...record,
-              matchType,
-            }
-          : record,
-      );
+      buckets[matchType].push(record);
     }
   }
 
@@ -62,8 +58,8 @@ function applyLookupTieredOrdering(
 
 function annotateLookupRecords(
   query: string,
-  records: readonly NormalizedRecord[],
-): SearchResultRecord[] {
+  records: readonly SearchResultRecord[],
+): AnnotatedLookupRecord[] {
   return records.map((record) => ({
     ...record,
     matchType: getLookupMatchType(query, record),
@@ -180,14 +176,15 @@ export class Pf2eSearchBackendService {
 
     validateSearchFilters(normalizedFilters, "search");
     const snapshot = await buildSearchWindowSnapshot(normalizedFilters, runtime);
-    const records =
-      normalizedRequest.mode === "lookup"
-        ? annotateLookupRecords(normalizedRequest.search.query, snapshot.records)
-        : snapshot.records;
     const orderedRecords =
-      normalizedRequest.mode === "lookup" && (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
-        ? applyLookupTieredOrdering(normalizedRequest.search.query, records)
-        : records;
+      normalizedRequest.mode === "lookup"
+        ? (() => {
+            const annotatedRecords = annotateLookupRecords(normalizedRequest.search.query, snapshot.records);
+            return (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
+              ? applyLookupTieredOrdering(annotatedRecords)
+              : annotatedRecords;
+          })()
+        : snapshot.records;
     const window = this.searchWindows.openWindow({
       kind: "recordKeys",
       mode: snapshot.mode,

@@ -55,7 +55,9 @@ describe("registerSearchTools", () => {
     expect(metadataFilters.booleanGroups).toBeUndefined();
     expect(metadataFilters.examplesByCategory).toBeUndefined();
     expect(metadataFilters.metadataFieldsByCategory).toBeDefined();
-    expect(metadataFilters.advancedPredicates).toBeDefined();
+    expect(metadataFilters.advancedPredicates).toBeUndefined();
+    expect(metadataFilters.actorMetricDiscovery).toBeDefined();
+    expect(metadataFilters.itemMetricDiscovery).toBeDefined();
     expect(Array.isArray(metadataFilters.fieldTypes)).toBe(true);
     expect(Array.isArray(metadataFilters.metadataFields)).toBe(true);
     expect((metadataFilters.fieldTypes as Array<Record<string, unknown>>)[0]?.operators).toBeUndefined();

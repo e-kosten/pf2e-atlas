@@ -38,14 +38,6 @@ export interface MetadataCategoryExample {
   notes?: string;
 }
 
-export interface MetadataAdvancedPredicateSemantics {
-  name: "actorMetric" | "actorMetricCompare" | "itemMetric" | "itemMetricCompare";
-  categories: SearchCategory[];
-  operators: string[];
-  description: string;
-  example: SearchFilterNode;
-}
-
 export interface MetadataFilterSemantics {
   fieldTypes: MetadataFieldTypeGroup[];
   metadataFields: MetadataFieldSemantics[];
@@ -54,13 +46,14 @@ export interface MetadataFilterSemantics {
     Record<SearchCategory, Partial<Record<SearchSubcategory, MetadataFieldName[]>>>
   >;
   examplesByCategory: Partial<Record<SearchCategory, MetadataCategoryExample[]>>;
-  advancedPredicates: MetadataAdvancedPredicateSemantics[];
   actorMetricDiscovery?: {
+    categories: SearchCategory[];
     filterValueField: string;
     namespaces: Array<{ prefix: string; description: string }>;
     notes: string[];
   };
   itemMetricDiscovery?: {
+    categories: SearchCategory[];
     filterValueField: string;
     namespaces: Array<{ prefix: string; description: string }>;
     notes: string[];
@@ -174,58 +167,6 @@ const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExamp
   ],
 };
 
-const ADVANCED_PREDICATES: MetadataAdvancedPredicateSemantics[] = [
-  {
-    name: "actorMetric",
-    categories: ACTOR_METRIC_CATEGORIES,
-    operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
-    description:
-      "Generic keyed actor metric predicate for creature and hazard stats, saves, and other actor-shaped metrics.",
-    example: {
-      kind: "metric",
-      metric: "ability.int.mod",
-      op: "gte",
-      value: 4,
-    },
-  },
-  {
-    name: "actorMetricCompare",
-    categories: ACTOR_METRIC_CATEGORIES,
-    operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
-    description: "Numeric actor metric comparison between two metric keys on the same creature or hazard record.",
-    example: {
-      kind: "metricCompare",
-      leftMetric: "ability.int.mod",
-      op: "gt",
-      rightMetric: "ability.cha.mod",
-    },
-  },
-  {
-    name: "itemMetric",
-    categories: EQUIPMENT_ONLY,
-    operators: [...new Set([...ACTOR_METRIC_NUMERIC_OPERATORS, ...ACTOR_METRIC_SCALAR_OPERATORS])],
-    description: "Generic keyed equipment metric predicate for weapon, armor, and shield stats.",
-    example: {
-      kind: "metric",
-      metric: "weapon.reload",
-      op: "eq",
-      value: 1,
-    },
-  },
-  {
-    name: "itemMetricCompare",
-    categories: EQUIPMENT_ONLY,
-    operators: [...ACTOR_METRIC_NUMERIC_OPERATORS],
-    description: "Numeric equipment metric comparison between two metric keys on the same item record.",
-    example: {
-      kind: "metricCompare",
-      leftMetric: "shield.hp",
-      op: "gt",
-      rightMetric: "shield.bt",
-    },
-  },
-];
-
 function uniqueFieldNames(fields: MetadataFieldName[]): MetadataFieldName[] {
   return fields.filter((field, index, values) => values.indexOf(field) === index);
 }
@@ -307,8 +248,8 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
     metadataFieldsByCategory: buildFieldsByCategory(metadataFields),
     metadataFieldsByCategoryAndSubcategory: buildFieldsByCategoryAndSubcategory(metadataFields),
     examplesByCategory: EXAMPLES_BY_CATEGORY,
-    advancedPredicates: ADVANCED_PREDICATES,
     actorMetricDiscovery: {
+      categories: ACTOR_METRIC_CATEGORIES,
       filterValueField: "actorMetrics",
       namespaces: ACTOR_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
       notes: [
@@ -318,6 +259,7 @@ export function getMetadataFilterSemantics(): MetadataFilterSemantics {
       ],
     },
     itemMetricDiscovery: {
+      categories: EQUIPMENT_ONLY,
       filterValueField: "itemMetrics",
       namespaces: ITEM_METRIC_DISCOVERY_NAMESPACES.map((entry) => ({ ...entry })),
       notes: [
