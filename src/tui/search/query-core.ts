@@ -986,7 +986,7 @@ function formatCanonicalMetadataPredicateValue(
   predicate: Extract<SearchFilterNode, { kind: "metadataPredicate" }>["predicate"],
 ): string {
   if (predicate.op === "includes" && "value" in predicate && predicate.value !== undefined) {
-    return `includes any ${formatMetadataScalar(predicate.value)}`;
+    return `includes ${formatMetadataScalar(predicate.value)}`;
   }
   if ("min" in predicate && "max" in predicate) {
     return `between ${predicate.min} and ${predicate.max}`;
@@ -1082,11 +1082,11 @@ export function formatMetadataPredicateValue(node: MetadataPredicate): string {
     const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
     switch (node.op) {
       case "includesAny":
-        return `includes any ${values}`;
+        return `includes ${values}`;
       case "includesAll":
-        return `includes all ${values}`;
+        return `includes ${values}`;
       case "excludesAny":
-        return `excludes ${values}`;
+        return `exclude ${values}`;
       case "in":
         return `is one of ${values}`;
       case "notIn":

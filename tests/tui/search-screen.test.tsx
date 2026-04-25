@@ -1819,8 +1819,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Filters > | 2 active");
     expect(app.lastFrame()).toContain("Scope: Spell");
-    expect(app.lastFrame()).toContain("Traits: includes any Illusion");
-    expect(app.lastFrame()).not.toContain("Filter | Traits: includes any Illusion");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    expect(app.lastFrame()).not.toContain("Filter | Traits: includes Illusion");
   });
 
   it("does not auto-execute seeded route entry without a prepared session", async () => {
@@ -2157,7 +2157,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Filters > | 5 active");
     expect(app.lastFrame()).toContain("Top-level filters: 5");
     expect(app.lastFrame()).toContain("Metadata predicates: 1");
-    expect(app.lastFrame()).toContain("Derived Tags: includes any Coas");
+    expect(app.lastFrame()).toContain("Derived Tags: includes Coas");
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
@@ -2450,13 +2450,13 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Filter: Traits: includes any Illusion");
+    expect(app.lastFrame()).toContain("Filter: Traits: includes Illusion");
     expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Traits: includes any Illusion");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
   });
 
   it("uses left navigation to step back one page within add-clause scope flows", async () => {
@@ -2654,7 +2654,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Metric");
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
 
     await flushInk();
     pressDown(app);
@@ -2664,13 +2664,13 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
     expect(app.lastFrame()).toContain("Creature Statistics");
 
     pressLeft(app);
     await waitForFrameToContain(app, "Add Clause");
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
 
     pressDown(app);
     await flushInk();
@@ -2679,7 +2679,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
     expect(app.lastFrame()).toContain("Creature Statistics");
 
     app.stdin.write("\r");
@@ -2691,7 +2691,7 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
     expect(app.lastFrame()).toContain("Creature Statistics");
 
     app.stdin.write("\r");
@@ -2760,7 +2760,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Metric Comparison");
+    expect(app.lastFrame()).toContain("Metric comparison");
   });
 
   it("covers pack clauses through the dedicated structured-editor clause-kind flow", async () => {

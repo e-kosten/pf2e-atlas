@@ -633,7 +633,7 @@ function SelectThenCommandPaletteHarness(): React.JSX.Element {
         prompt: "Choose a clause kind",
         supportsCommands: true,
         entries: [
-          { value: "field", label: "Field filter", description: "Choose a metadata field." },
+          { value: "field", label: "Metadata", description: "Choose a metadata field." },
           { value: "pack", label: "Pack", description: "Choose one or more packs." },
         ],
       })
@@ -1698,7 +1698,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames();
     expect(app.lastFrame()).toContain("Clause Picker");
-    expect(app.lastFrame()).toContain("Field filter");
+    expect(app.lastFrame()).toContain("Metadata");
 
     app.stdin.write(":");
     await flushInkFrames(3);

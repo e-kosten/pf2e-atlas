@@ -478,7 +478,7 @@ export function useSearchStructuredDraftMetadataActions({
           query,
           availableFamilies,
           selectedFamily,
-          "Metric Comparison",
+          "Metric comparison",
           "Choose the metric family for this comparison clause",
         );
         if (family === CLAUSE_BACK) {
@@ -962,7 +962,7 @@ export function useSearchStructuredDraftMetadataActions({
       if (hasMetricCompareClauses) {
         entryByValue.set("metricCompare", {
           value: "metricCompare",
-          label: "Metric Comparison",
+          label: "Metric comparison",
           description: "Compare two numeric metrics from the same discovery family.",
         });
       }
