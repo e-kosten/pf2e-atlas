@@ -35,11 +35,9 @@ import {
   TextPromptBody,
 } from "./modal-prompt-bodies.js";
 import { TerminalCenteredOverlayPanel, TerminalInlinePromptPanel } from "./screen-components.js";
-import {
-  isCenteredModalPresentation,
-  type TerminalModalLayoutResult,
-} from "../terminal-modal-layout.js";
 import type { TerminalModalState } from "./types.js";
+import { isCenteredPromptPresentation } from "./prompt-presentation.js";
+import type { FrameworkTerminalModalLayoutResult } from "./modal-planning.js";
 
 function getChoicePromptFilteringEnabled(
   modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
@@ -96,7 +94,7 @@ export function DerivedTagTerminalModalHost({
   setModal: React.Dispatch<React.SetStateAction<TerminalModalState>>;
   exitApp: () => void;
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element | null {
   const routerStateRef = React.useRef(
     createTerminalInteractionContextRouterState<
@@ -107,6 +105,25 @@ export function DerivedTagTerminalModalHost({
     routerStateRef.current = createTerminalInteractionContextRouterState();
     resolver(value);
   }, []);
+  const closeModalAfterResolution = React.useCallback(
+    <T,>(modalSnapshot: Exclude<TerminalModalState, null>, resolver: (value: T) => void, value: T): void => {
+      resolveAfterModalClose(resolver, value);
+      setTimeout(() => {
+        setModal((current) => (current === modalSnapshot ? null : current));
+      }, 0);
+    },
+    [resolveAfterModalClose, setModal],
+  );
+  const closeDialogAfterResolution = React.useCallback(
+    (modalSnapshot: Extract<Exclude<TerminalModalState, null>, { kind: "dialog" }>, resolver: () => void): void => {
+      routerStateRef.current = createTerminalInteractionContextRouterState();
+      resolver();
+      setTimeout(() => {
+        setModal((current) => (current === modalSnapshot ? null : current));
+      }, 0);
+    },
+    [setModal],
+  );
   const pageSize = Math.max(1, layout.visibleListCapacity || 10);
 
   useInput(
@@ -123,9 +140,7 @@ export function DerivedTagTerminalModalHost({
       }
 
       if (modal.kind === "dialog") {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolver();
+        closeDialogAfterResolution(modal, modal.resolve);
         return;
       }
 
@@ -138,16 +153,12 @@ export function DerivedTagTerminalModalHost({
         routerStateRef.current = routed.state;
 
         if (routed.route.textEntryIntent?.kind === "submit") {
-          const resolver = modal.resolve;
           const trimmed = modal.value.trim();
-          setModal(null);
-          resolver(trimmed ? trimmed : undefined);
+          closeModalAfterResolution(modal, modal.resolve, trimmed ? trimmed : undefined);
           return;
         }
         if (routed.route.textEntryIntent?.kind === "cancel") {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolver(undefined);
+          closeModalAfterResolution(modal, modal.resolve, undefined);
           return;
         }
         if (routed.route.textEntryIntent?.kind === "deleteBackward") {
@@ -177,9 +188,7 @@ export function DerivedTagTerminalModalHost({
 
         if (routed.route.textEntryIntent?.kind === "deleteBackward") {
           if (modal.filterText.length === 0) {
-            const resolver = modal.resolve;
-            setModal(null);
-            resolveAfterModalClose(resolver, undefined);
+            closeModalAfterResolution(modal, modal.resolve, undefined);
             return;
           }
           setModal((current) =>
@@ -239,16 +248,12 @@ export function DerivedTagTerminalModalHost({
           if (selectedEntry?.disabled) {
             return;
           }
-          const resolver = modal.resolve;
           const selected = selectedEntry?.value;
-          setModal(null);
-          resolveAfterModalClose(resolver, selected);
+          closeModalAfterResolution(modal, modal.resolve, selected);
           return;
         }
         if (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey()) {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolveAfterModalClose(resolver, undefined);
+          closeModalAfterResolution(modal, modal.resolve, undefined);
         }
         return;
       }
@@ -313,16 +318,23 @@ export function DerivedTagTerminalModalHost({
 
       if (filteredEntries.length === 0) {
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
-          setModal(null);
           if (modal.kind === "select") {
-            resolveAfterModalClose(modal.resolve, event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" });
+            closeModalAfterResolution(
+              modal,
+              modal.resolve,
+              event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" },
+            );
             return;
           }
           if (modal.kind === "multiselect") {
-            resolveAfterModalClose(modal.resolve, event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" });
+            closeModalAfterResolution(
+              modal,
+              modal.resolve,
+              event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" },
+            );
             return;
           }
-          resolveAfterModalClose(modal.resolve, createEmptyPolicySelection());
+          closeModalAfterResolution(modal, modal.resolve, createEmptyPolicySelection());
         }
         return;
       }
@@ -375,29 +387,24 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         if (event.isCommandPaletteKey() && modal.options.supportsCommands) {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolveAfterModalClose(resolver, { kind: "commands" });
+          closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
           return;
         }
         if (event.isConfirmKey()) {
-          const resolver = modal.resolve;
           const selected = modal.options.entries[filteredSelectedIndex];
-          setModal(null);
           if (!selected) {
-            resolveAfterModalClose(resolver, { kind: "cancelled" });
+            closeModalAfterResolution(modal, modal.resolve, { kind: "cancelled" });
             return;
           }
-          resolveAfterModalClose(
-            resolver,
+          closeModalAfterResolution(
+            modal,
+            modal.resolve,
             selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value },
           );
           return;
         }
         if (event.textInputAction === "cancel" || event.isTerminalQuitKey()) {
-          const resolver = modal.resolve;
-          setModal(null);
-          resolveAfterModalClose(resolver, { kind: "cancelled" });
+          closeModalAfterResolution(modal, modal.resolve, { kind: "cancelled" });
         }
         return;
       }
@@ -410,21 +417,15 @@ export function DerivedTagTerminalModalHost({
             : createTerminalSelectPromptInteractionContext(pageSize, modal.options.supportsCommands);
 
       if (modal.kind === "select" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "commands" });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
         return;
       }
       if (modal.kind === "multiselect" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "commands" });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
         return;
       }
       if (modal.kind === "select" && event.isBackNavigationKey()) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "back" });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "back" });
         return;
       }
 
@@ -483,23 +484,20 @@ export function DerivedTagTerminalModalHost({
         return;
       }
       if (modal.kind === "select" && routed.route.interactionAction?.id === "select") {
-        const resolver = modal.resolve;
         const selected = modal.options.entries[filteredSelectedIndex];
-        setModal(null);
         if (!selected) {
-          resolveAfterModalClose(resolver, { kind: "cancelled" });
+          closeModalAfterResolution(modal, modal.resolve, { kind: "cancelled" });
           return;
         }
-        resolveAfterModalClose(
-          resolver,
+        closeModalAfterResolution(
+          modal,
+          modal.resolve,
           selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value },
         );
         return;
       }
       if (modal.kind === "select" && routed.route.interactionAction?.id === "commands" && modal.options.supportsCommands) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "commands" });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
         return;
       }
       if (
@@ -507,16 +505,12 @@ export function DerivedTagTerminalModalHost({
         routed.route.interactionAction?.id === "commands" &&
         modal.options.supportsCommands
       ) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "commands" });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
         return;
       }
       if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "return") {
-        const resolver = modal.resolve;
         const selectedValues = modal.selectedValues;
-        setModal(null);
-        resolveAfterModalClose(resolver, { kind: "selected", values: selectedValues });
+        closeModalAfterResolution(modal, modal.resolve, { kind: "selected", values: selectedValues });
         return;
       }
       if (modal.kind === "policy" && routed.route.cycleDirection) {
@@ -542,26 +536,22 @@ export function DerivedTagTerminalModalHost({
         return;
       }
       if (modal.kind === "policy" && (routed.route.interactionAction?.id === "return" || event.isTerminalQuitKey())) {
-        const resolver = modal.resolve;
         const selection = buildPolicySelection(modal.options.entries, modal.valueStates);
-        setModal(null);
-        resolveAfterModalClose(resolver, selection);
+        closeModalAfterResolution(modal, modal.resolve, selection);
         return;
       }
       if (modal.kind === "select" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(
-          resolver,
+        closeModalAfterResolution(
+          modal,
+          modal.resolve,
           routed.route.interactionAction?.id === "back" ? { kind: "back" } : { kind: "cancelled" },
         );
         return;
       }
       if (modal.kind === "multiselect" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
-        const resolver = modal.resolve;
-        setModal(null);
-        resolveAfterModalClose(
-          resolver,
+        closeModalAfterResolution(
+          modal,
+          modal.resolve,
           routed.route.interactionAction?.id === "back" ? { kind: "back" } : { kind: "cancelled" },
         );
       }
@@ -574,11 +564,11 @@ export function DerivedTagTerminalModalHost({
   }
 
   const panelWidth =
-    layout.presentation && isCenteredModalPresentation(layout.presentation)
+    isCenteredPromptPresentation(layout.centeredPromptBackground)
       ? (layout.panelWidth ?? Math.max(24, width - 4))
       : width;
   const renderPanel = (panel: React.JSX.Element): React.JSX.Element =>
-    layout.presentation && isCenteredModalPresentation(layout.presentation) ? (
+    isCenteredPromptPresentation(layout.centeredPromptBackground) ? (
       <TerminalCenteredOverlayPanel width={panelWidth} height={layout.totalHeight}>{panel}</TerminalCenteredOverlayPanel>
     ) : (
       panel

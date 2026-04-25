@@ -3,10 +3,6 @@ import { Box, render as renderInkApp, useApp, useWindowSize } from "ink";
 import { useStdout } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
-import {
-  isCenteredModalPresentation,
-  isCenteredScreenModalPresentation,
-} from "../terminal-modal-layout.js";
 import { DerivedTagTerminalContext } from "./context.js";
 import {
   buildOptionalSelectModalOptions,
@@ -18,6 +14,7 @@ import {
 import { DerivedTagTerminalModalHost } from "./modal-host.js";
 import { createValueStateLookup } from "./modal-policy-state.js";
 import { planTerminalModalStateLayout } from "./modal-planning.js";
+import { isBlankedPromptPresentation } from "./prompt-presentation.js";
 import type {
   CommandPaletteOptions,
   DerivedTagTerminalContextValue,
@@ -83,21 +80,24 @@ export function DerivedTagTerminalProvider({
     [hyperlinkSupport, stdout],
   );
   const modalLayout = React.useMemo(() => planTerminalModalStateLayout(modal, columns, rows), [columns, modal, rows]);
+  const overlayBackdropActive = modalLayout?.centeredPromptBackground === "overlay";
+  const blankedPromptActive = isBlankedPromptPresentation(modalLayout?.centeredPromptBackground);
   const availableRows =
     modalLayout?.presentation === "inline"
       ? Math.max(0, rows - modalLayout.totalHeight)
-      : modalLayout?.presentation && isCenteredModalPresentation(modalLayout.presentation)
-        ? isCenteredScreenModalPresentation(modalLayout.presentation)
+      : modalLayout?.centeredPromptBackground
+        ? blankedPromptActive
           ? 0
           : rows
         : modalLayout
           ? 0
           : rows;
-  const shouldRenderChildren = !modalLayout?.presentation || !isCenteredScreenModalPresentation(modalLayout.presentation);
+  const shouldRenderChildren = !modalLayout || !blankedPromptActive;
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
       capabilities,
+      backdropActive: false,
       exitApp: exit,
       getTerminalHeight: () => availableRows,
       getTerminalWidth: () => columns,
@@ -215,15 +215,25 @@ export function DerivedTagTerminalProvider({
     }),
     [availableRows, capabilities, columns, exit, modal],
   );
+  const backgroundContextValue = React.useMemo<DerivedTagTerminalContextValue>(
+    () => ({
+      ...contextValue,
+      backdropActive: overlayBackdropActive,
+    }),
+    [contextValue, overlayBackdropActive],
+  );
 
   return (
-    <DerivedTagTerminalContext.Provider value={contextValue}>
+    <>
+      <DerivedTagTerminalContext.Provider value={backgroundContextValue}>
       <Box flexDirection="column" width={columns} height={rows}>
         <Box flexDirection="column" width={columns} height={shouldRenderChildren ? rows : 0}>
           {children}
         </Box>
       </Box>
-      {modal && modalLayout?.presentation === "inline" ? (
+      </DerivedTagTerminalContext.Provider>
+      <DerivedTagTerminalContext.Provider value={contextValue}>
+      {modal && modalLayout ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}
@@ -232,18 +242,8 @@ export function DerivedTagTerminalProvider({
           layout={modalLayout}
         />
       ) : null}
-      {modal &&
-      (modalLayout?.presentation === "screen" ||
-        (modalLayout?.presentation && isCenteredModalPresentation(modalLayout.presentation))) ? (
-        <DerivedTagTerminalModalHost
-          modal={modal}
-          setModal={setModal}
-          exitApp={exit}
-          width={columns}
-          layout={modalLayout}
-        />
-      ) : null}
-    </DerivedTagTerminalContext.Provider>
+      </DerivedTagTerminalContext.Provider>
+    </>
   );
 }
 

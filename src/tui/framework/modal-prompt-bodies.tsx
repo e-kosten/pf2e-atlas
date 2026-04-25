@@ -10,15 +10,13 @@ import {
   formatTerminalInteractionFooter,
 } from "../interaction-bindings.js";
 import {
-  isCenteredModalPresentation,
-  type TerminalModalLayoutResult,
-} from "../terminal-modal-layout.js";
-import {
   TerminalRows,
   fitToWidth,
   renderRows,
   terminalToneProps,
 } from "./line-rendering.js";
+import type { FrameworkTerminalModalLayoutResult } from "./modal-planning.js";
+import { isCenteredPromptPresentation } from "./prompt-presentation.js";
 import {
   TerminalInlinePromptPanel,
   TerminalPaneView,
@@ -77,7 +75,7 @@ function InlinePromptChoiceBody({
   focusedLabel: string;
   width: number;
   height: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   if (layout.paneMode === "single-column") {
     const listRows = Math.max(0, layout.regions.listRows);
@@ -256,7 +254,7 @@ export function TextPromptBody({
   options: TextPromptOptions;
   currentValue: string;
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   return (
     <TerminalInlinePromptPanel
@@ -288,7 +286,7 @@ export function CommandPaletteBody({
   filterText: string;
   selectedIndex: number;
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   const filteredEntries = filterCommandPaletteEntries(options.entries, filterText);
   const clampedSelectedIndex = clampPromptSelectionIndex(selectedIndex, filteredEntries.length);
@@ -369,7 +367,7 @@ export function SelectPromptBody({
   filterText: string;
   filterMode: boolean;
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   const filteredEntries =
     options.filtering && options.choiceLayout !== "horizontal"
@@ -405,7 +403,7 @@ export function SelectPromptBody({
 
   const filteredSelectedIndex = getFilteredPromptSelectionIndex(options.entries, selectedIndex, filterText);
   const selectedOption = options.entries[filteredSelectedIndex];
-  if (options.choiceLayout === "horizontal" && isCenteredModalPresentation(layout.presentation)) {
+  if (options.choiceLayout === "horizontal" && isCenteredPromptPresentation(layout.centeredPromptBackground)) {
     return (
       <TerminalInlinePromptPanel
         title={options.title}
@@ -495,7 +493,7 @@ export function MultiSelectPromptBody({
   filterMode: boolean;
   selectedValues: string[];
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   const filteringEnabled = getMultiSelectPromptFilteringEnabled(options);
   const filteredEntries = filteringEnabled
@@ -632,7 +630,7 @@ export function PolicyPromptBody({
   filterMode: boolean;
   valueStates: Record<string, DerivedTagTerminalPolicyState | undefined>;
   width: number;
-  layout: TerminalModalLayoutResult;
+  layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
   const filteringEnabled = getPolicyPromptFilteringEnabled(options);
   const filteredEntries = filteringEnabled

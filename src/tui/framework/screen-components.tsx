@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import { useDerivedTagTerminalCapabilities, useDerivedTagTerminalSize } from "./context.js";
+import { useDerivedTagTerminalBackdropActive, useDerivedTagTerminalCapabilities, useDerivedTagTerminalSize } from "./context.js";
 import {
   TerminalRows,
   fitToWidth,
@@ -20,6 +20,20 @@ import type {
   DerivedTagTerminalTwoPaneScreenProps,
 } from "./types.js";
 
+function withBackdropTextProps(
+  props: React.ComponentProps<typeof Text>,
+  backdropActive: boolean,
+): React.ComponentProps<typeof Text> {
+  if (!backdropActive) {
+    return props;
+  }
+
+  return {
+    ...props,
+    dimColor: true,
+  };
+}
+
 export function TerminalHeader({
   title,
   subtitle,
@@ -29,17 +43,18 @@ export function TerminalHeader({
   subtitle?: string;
   width: number;
 }): React.JSX.Element {
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   return (
     <Box flexDirection="column" width={width}>
-      <Text wrap="truncate-end" {...terminalToneProps("heading")}>
+      <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("heading"), backdropActive)}>
         {fitToWidth(title, width)}
       </Text>
       {subtitle ? (
-        <Text wrap="truncate-end" {...terminalToneProps("accent")}>
+        <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("accent"), backdropActive)}>
           {fitToWidth(subtitle, width)}
         </Text>
       ) : null}
-      <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+      <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
         {fitToWidth("═".repeat(Math.max(0, width)), width)}
       </Text>
     </Box>
@@ -78,17 +93,24 @@ export function TerminalPaneView({
   width: number;
   height: number;
 }): React.JSX.Element {
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   const { hyperlinkSupport } = useDerivedTagTerminalCapabilities();
   const bodyHeight = Math.max(0, height - 2);
   const rows = renderRows(pane.lines, width, bodyHeight, { hyperlinkSupport });
 
   return (
     <Box flexDirection="column" width={width} height={height}>
-      <Text wrap="truncate-end" {...terminalToneProps(pane.active ? "selected" : "section")}>
+      <Text
+        wrap="truncate-end"
+        {...withBackdropTextProps(terminalToneProps(pane.active ? "selected" : "section"), backdropActive)}
+      >
         {fitToWidth(pane.title, width)}
       </Text>
       {height > 1 ? (
-        <Text wrap="truncate-end" {...terminalToneProps(pane.active ? "accent" : "dim")}>
+        <Text
+          wrap="truncate-end"
+          {...withBackdropTextProps(terminalToneProps(pane.active ? "accent" : "dim"), backdropActive)}
+        >
           {fitToWidth("─".repeat(Math.max(0, width)), width)}
         </Text>
       ) : null}
@@ -106,6 +128,7 @@ export function TerminalInlinePromptPanel({
   height,
   showTopBorder = true,
 }: DerivedTagTerminalInlinePromptPanelProps): React.JSX.Element {
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   const footerHeight = footer?.length ?? 0;
   const headerHeight = showTopBorder ? 3 : 2;
   const bodyHeight = Math.max(0, height - headerHeight - footerHeight);
@@ -113,14 +136,17 @@ export function TerminalInlinePromptPanel({
   return (
     <Box flexDirection="column" width={width} height={height}>
       {showTopBorder ? (
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
           {fitToWidth("─".repeat(Math.max(0, width)), width)}
         </Text>
       ) : null}
-      <Text wrap="truncate-end" {...terminalToneProps("selected")}>
+      <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("selected"), backdropActive)}>
         {fitToWidth(title, width)}
       </Text>
-      <Text wrap="truncate-end" {...terminalToneProps(subtitle ? "accent" : "dim")}>
+      <Text
+        wrap="truncate-end"
+        {...withBackdropTextProps(terminalToneProps(subtitle ? "accent" : "dim"), backdropActive)}
+      >
         {fitToWidth(subtitle ?? "", width)}
       </Text>
       <Box width={width} height={bodyHeight}>
@@ -203,6 +229,7 @@ export function TerminalTwoPaneScreen({
   footer,
   leftWidth,
 }: DerivedTagTerminalTwoPaneScreenProps): React.JSX.Element {
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   const size = useDerivedTagTerminalSize();
   const headerHeight = subtitle ? 3 : 2;
   const footerHeight = footer?.length ?? 0;
@@ -215,7 +242,7 @@ export function TerminalTwoPaneScreen({
       <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
       <Box flexDirection="row" width={size.width} height={contentHeight}>
         <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
           {separator}
         </Text>
         <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />
@@ -235,6 +262,7 @@ export function TerminalThreePaneScreen({
   leftWidth,
   centerWidth,
 }: DerivedTagTerminalThreePaneScreenProps): React.JSX.Element {
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   const size = useDerivedTagTerminalSize();
   const headerHeight = subtitle ? 3 : 2;
   const footerHeight = footer?.length ?? 0;
@@ -247,11 +275,11 @@ export function TerminalThreePaneScreen({
       <TerminalHeader title={title} subtitle={subtitle} width={size.width} />
       <Box flexDirection="row" width={size.width} height={contentHeight}>
         <TerminalPaneView pane={left} width={dimensions.leftWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
           {separator}
         </Text>
         <TerminalPaneView pane={center} width={dimensions.centerWidth} height={contentHeight} />
-        <Text wrap="truncate-end" {...terminalToneProps("dim")}>
+        <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
           {separator}
         </Text>
         <TerminalPaneView pane={right} width={dimensions.rightWidth} height={contentHeight} />

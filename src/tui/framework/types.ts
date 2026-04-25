@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Key } from "ink";
 
-import type { TerminalModalPresentation } from "../terminal-modal-layout.js";
+import type { DerivedTagTerminalPromptPresentation } from "./prompt-presentation.js";
 
 export type DerivedTagTerminalTone =
   | "default"
@@ -136,7 +136,7 @@ export type DialogOptions = {
   subtitle?: string;
   body: DerivedTagTerminalLine[];
   footer?: DerivedTagTerminalLine[];
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
 };
 
 export type DerivedTagTerminalTextInputOptions = {
@@ -146,7 +146,7 @@ export type DerivedTagTerminalTextInputOptions = {
   hint?: string;
   previewTitle?: string;
   buildPreviewLines?: (currentValue: string) => DerivedTagTerminalLine[];
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
 };
 
 export type DerivedTagTerminalPromptBackResult = { kind: "back" };
@@ -171,7 +171,7 @@ export type DerivedTagTerminalSelectPromptOptions<T = string> = {
   prompt: string;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T;
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
   choiceLayout?: DerivedTagTerminalChoiceLayout;
   filtering?: boolean;
   supportsCommands?: boolean;
@@ -184,7 +184,7 @@ export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
   allOption: Pick<DerivedTagTerminalSelectOption<string>, "label" | "description" | "detailLines">;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValue?: T | null;
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
   choiceLayout?: DerivedTagTerminalChoiceLayout;
   filtering?: boolean;
   supportsCommands?: boolean;
@@ -196,7 +196,7 @@ export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string
   prompt: string;
   entries: DerivedTagTerminalSelectOption<T>[];
   selectedValues?: T[];
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
   filtering?: boolean;
   supportsCommands?: boolean;
 };
@@ -221,7 +221,7 @@ export type DerivedTagTerminalPolicyPromptOptions<T extends string = string> = {
   entries: DerivedTagTerminalSelectOption<T>[];
   allowedStates: DerivedTagTerminalPolicyState[];
   selectedValues?: Partial<DerivedTagTerminalPolicySelection<T>>;
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
   filtering?: boolean;
 };
 
@@ -230,7 +230,7 @@ export type CommandPaletteOptions<T extends string = string> = {
   subtitle?: string;
   prompt: string;
   entries: DerivedTagTerminalCommandOption<T>[];
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
 };
 
 export type TextPromptOptions = DerivedTagTerminalTextInputOptions;
@@ -258,7 +258,7 @@ export type TerminalSelectModalOptions = {
   subtitle?: string;
   prompt: string;
   entries: TerminalSelectModalEntry[];
-  presentation?: TerminalModalPresentation;
+  presentation?: DerivedTagTerminalPromptPresentation;
   choiceLayout: DerivedTagTerminalChoiceLayout;
   filtering: boolean;
   supportsCommands: boolean;
@@ -317,6 +317,7 @@ export type TerminalModalState =
 
 export type DerivedTagTerminalContextValue = {
   capabilities: DerivedTagTerminalCapabilities;
+  backdropActive: boolean;
   exitApp: (result?: unknown) => void;
   getTerminalHeight: () => number;
   getTerminalWidth: () => number;

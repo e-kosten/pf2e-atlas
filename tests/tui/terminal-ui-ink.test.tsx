@@ -18,6 +18,7 @@ import {
   useDerivedTagTerminalApp,
   useDerivedTagTerminalInput,
 } from "../../src/tui/terminal-ui.js";
+import { useDerivedTagTerminalBackdropActive } from "../../src/tui/framework/context.js";
 import { TerminalMenuScreen } from "../../src/tui/shared-screens.js";
 
 function flushInk(): Promise<void> {
@@ -235,8 +236,13 @@ function SelectPromptHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }, { text: `appJ=${appJPresses}` }]} />;
 }
 
-function CenteredModePromptHarness(): React.JSX.Element {
+function CenteredModePromptHarness({
+  presentation = "centered",
+}: {
+  presentation?: "centered" | "centered-screen" | "overlay" | "blanked";
+}): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
+  const backdropActive = useDerivedTagTerminalBackdropActive();
   const [result, setResult] = React.useState("pending");
 
   React.useEffect(() => {
@@ -244,7 +250,7 @@ function CenteredModePromptHarness(): React.JSX.Element {
       .promptSelectOption({
         title: "Choose Search Mode",
         prompt: "",
-        presentation: "centered",
+        presentation,
         choiceLayout: "horizontal",
         filtering: false,
         entries: [
@@ -256,9 +262,18 @@ function CenteredModePromptHarness(): React.JSX.Element {
       .then((selection) => {
         setResult(formatSelectResult(selection));
       });
-  }, []);
+  }, [presentation]);
 
-  return <TerminalTextScreen title="Harness" body={[{ text: "Background content stays visible." }, { text: `result=${result}` }]} />;
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[
+        { text: "bg=visible" },
+        { text: `backdrop=${String(backdropActive)}` },
+        { text: `result=${result}` },
+      ]}
+    />
+  );
 }
 
 function TextPromptHarness(): React.JSX.Element {
@@ -672,6 +687,57 @@ function SelectThenSelectHarness(): React.JSX.Element {
   }, []);
 
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+}
+
+function OverlaySelectThenSelectHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const backdropActive = useDerivedTagTerminalBackdropActive();
+  const [result, setResult] = React.useState("pending");
+
+  React.useEffect(() => {
+    void terminal
+      .promptSelectOption({
+        title: "Clause Picker",
+        prompt: "Choose a clause kind",
+        presentation: "overlay",
+        entries: [
+          { value: "metricCompare", label: "Metric comparison", description: "Compare two numeric metrics." },
+          { value: "scope", label: "Scope", description: "Choose a category scope." },
+        ],
+      })
+      .then(async (selection) => {
+        if (selection.kind !== "selected") {
+          setResult("clause=cancelled");
+          return;
+        }
+
+        const metricSelection = await terminal.promptSelectOption({
+          title: "Left Metric",
+          prompt: "Choose the left-hand metric",
+          presentation: "overlay",
+          entries: [
+            { value: "hp.value", label: "hp.value", description: "Creature hit points." },
+            { value: "ac.value", label: "ac.value", description: "Creature armor class." },
+          ],
+        });
+        if (metricSelection.kind === "selected") {
+          setResult(`metric=${metricSelection.value}`);
+          return;
+        }
+        setResult("metric=cancelled");
+      });
+  }, []);
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[
+        { text: "bg=chain" },
+        { text: `backdrop=${String(backdropActive)}` },
+        { text: `result=${result}` },
+      ]}
+    />
+  );
 }
 
 function SelectThenSelectThenCommandPaletteHarness(): React.JSX.Element {
@@ -1299,18 +1365,48 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames(4);
     expect(app.lastFrame()).toContain("Choose Search Mode");
-    expect(app.lastFrame()).toContain("Background content stays visible.");
+    expect(app.lastFrame()).toContain("bg=visible");
     expect(app.lastFrame()).toContain("[Browse]   Search   Lookup");
     expect(app.lastFrame()).toContain("←/→ change mode");
 
     app.stdin.write("\u001b[C");
-    await flushInkFrames(2);
+    await flushInkFrames(4);
     expect(app.lastFrame()).toContain("Browse   [Search]   Lookup");
     expect(app.lastFrame()).toContain("Search named records and ranked text matches.");
 
     app.stdin.write("\r");
     await flushInkFrames(2);
     expect(app.lastFrame()).toContain("result=search");
+  });
+
+  it("uses one centered shell for overlay and blanked prompts while changing only background treatment", async () => {
+    const overlayApp = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <CenteredModePromptHarness presentation="overlay" />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    const overlayFrame = overlayApp.lastFrame() ?? "";
+    expect(overlayFrame).toContain("Choose Search Mode");
+    expect(overlayFrame).toContain("[Browse]   Search   Lookup");
+    expect(overlayFrame).toContain("backdrop=true");
+    expect(overlayFrame).toContain("bg=visible");
+
+    const blankedApp = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <CenteredModePromptHarness presentation="blanked" />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    const blankedFrame = blankedApp.lastFrame() ?? "";
+    expect(blankedFrame).toContain("Choose Search Mode");
+    expect(blankedFrame).toContain("[Browse]   Search   Lookup");
+    expect(blankedFrame).not.toContain("Background content stays visible.");
+    expect(blankedFrame).not.toContain("backdrop=true");
   });
 
   it("supports typed all-selections without sentinel values", async () => {
@@ -1549,6 +1645,33 @@ describe("derived tag terminal ink runtime", () => {
     app.stdin.write("\r");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("result=command=catalog");
+  });
+
+  it("replaces chained overlay prompts without exposing a background-only frame", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <OverlaySelectThenSelectHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("Clause Picker");
+    const frameStart = app.frames.length;
+
+    app.stdin.write("\r");
+    await flushInkFrames(12);
+
+    const transitionFrames = app.frames.slice(frameStart);
+    expect(transitionFrames.some((frame) => frame.includes("Left Metric"))).toBe(true);
+    expect(
+      transitionFrames.some(
+        (frame) =>
+          frame.includes("bg=chain") &&
+          !frame.includes("Clause Picker") &&
+          !frame.includes("Left Metric"),
+      ),
+    ).toBe(false);
   });
 
   it("can chain a select prompt directly into a multiselect prompt", async () => {

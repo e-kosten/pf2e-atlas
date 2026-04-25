@@ -3,7 +3,6 @@ import {
   createTerminalChoiceSizingDescriptor,
   createTerminalMessageSizingDescriptor,
   createTerminalTextInputSizingDescriptor,
-  isCenteredModalPresentation,
   planTerminalModalLayout,
   type TerminalModalLayoutResult,
 } from "../terminal-modal-layout.js";
@@ -23,9 +22,28 @@ import {
   buildPolicySummaryLines,
   buildTextPromptBodyLines,
 } from "./modal-prompt-bodies.js";
+import {
+  isCenteredPromptPresentation,
+  normalizeTerminalPromptPresentation,
+  type NormalizedTerminalPromptPresentation,
+  type TerminalCenteredPromptBackgroundTreatment,
+} from "./prompt-presentation.js";
 import type { DerivedTagTerminalLine, TerminalModalState, TextPromptOptions } from "./types.js";
 
 export type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
+export type FrameworkTerminalModalLayoutResult = TerminalModalLayoutResult & {
+  centeredPromptBackground?: TerminalCenteredPromptBackgroundTreatment;
+};
+
+function coerceBaseModalPresentation(
+  presentation: NormalizedTerminalPromptPresentation | undefined,
+  fallback: "inline" | "screen",
+): "inline" | "screen" {
+  if (presentation === "inline" || presentation === "screen") {
+    return presentation;
+  }
+  return fallback;
+}
 
 function getPreferredPromptWindowSize(itemCount: number): number {
   return Math.max(1, Math.min(itemCount, 8));
@@ -78,7 +96,7 @@ function createCenteredPanelLayout(options: {
   headerRows: number;
   footerRows: number;
   bodyLineCount: number;
-  presentation: "centered" | "centered-screen";
+  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment;
 }) {
   const layout = planTerminalModalLayout({
     kind: options.kind,
@@ -101,9 +119,9 @@ function createCenteredPanelLayout(options: {
 
   return {
     ...layout,
-    presentation: options.presentation,
     panelWidth: options.panelWidth,
-  } satisfies TerminalModalLayoutResult;
+    centeredPromptBackground: options.backgroundTreatment,
+  } satisfies FrameworkTerminalModalLayoutResult;
 }
 
 function getRenderedPromptDetailLineCount(
@@ -150,7 +168,7 @@ function createCenteredChoicePromptLayout(options: {
   entryLabels: readonly string[];
   detailLineSets: ReadonlyArray<readonly DerivedTagTerminalLine[]>;
   panelWidth: number;
-  presentation: "centered" | "centered-screen";
+  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment;
 }) {
   const bodyLineCount = Math.max(
     1,
@@ -173,7 +191,7 @@ function createCenteredChoicePromptLayout(options: {
     headerRows: 3,
     footerRows: 2,
     bodyLineCount,
-    presentation: options.presentation,
+    backgroundTreatment: options.backgroundTreatment,
   });
 }
 
@@ -182,7 +200,7 @@ function createCenteredListPromptLayout(options: {
   terminalHeight: number;
   itemCount: number;
   detailLineSets: ReadonlyArray<readonly DerivedTagTerminalLine[]>;
-  presentation: "centered" | "centered-screen";
+  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment;
 }) {
   const measuredWidth = Math.max(24, Math.min(84, options.terminalWidth - 2));
   const layout = planTerminalModalLayout({
@@ -201,9 +219,9 @@ function createCenteredListPromptLayout(options: {
 
   return {
     ...layout,
-    presentation: options.presentation,
     panelWidth: measuredWidth,
-  } satisfies TerminalModalLayoutResult;
+    centeredPromptBackground: options.backgroundTreatment,
+  } satisfies FrameworkTerminalModalLayoutResult;
 }
 
 function getCenteredTextPromptWidth(
@@ -224,7 +242,7 @@ function createCenteredTextPromptLayout(options: {
   terminalHeight: number;
   prompt: TextPromptOptions;
   currentValue: string;
-  presentation: "centered" | "centered-screen";
+  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment;
 }) {
   const panelWidth = getCenteredTextPromptWidth(options.terminalWidth, options.prompt);
   const measuredWidth = Math.max(24, Math.min(panelWidth, options.terminalWidth - 2));
@@ -238,7 +256,27 @@ function createCenteredTextPromptLayout(options: {
       buildTextPromptBodyLines(options.prompt, options.currentValue),
       Math.max(24, measuredWidth - 4),
     ),
-    presentation: options.presentation,
+    backgroundTreatment: options.backgroundTreatment,
+  });
+}
+
+function createCenteredMessageLayout(options: {
+  kind: "select";
+  terminalHeight: number;
+  terminalWidth: number;
+  bodyLines: readonly DerivedTagTerminalLine[];
+  footerRows: number;
+  backgroundTreatment: TerminalCenteredPromptBackgroundTreatment;
+}) {
+  const panelWidth = Math.max(24, Math.min(84, options.terminalWidth - 2));
+  return createCenteredPanelLayout({
+    kind: options.kind,
+    terminalHeight: options.terminalHeight,
+    panelWidth,
+    headerRows: 3,
+    footerRows: options.footerRows,
+    bodyLineCount: getRenderedTerminalLineCount(options.bodyLines as DerivedTagTerminalLine[], Math.max(24, panelWidth - 4)),
+    backgroundTreatment: options.backgroundTreatment,
   });
 }
 
@@ -246,18 +284,19 @@ export function planTerminalModalStateLayout(
   modal: TerminalModalState,
   terminalWidth: number,
   terminalHeight: number,
-): TerminalModalLayoutResult | null {
+): FrameworkTerminalModalLayoutResult | null {
   if (!modal) {
     return null;
   }
 
   if (modal.kind === "dialog") {
     const footer = modal.options.footer ?? [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }];
+    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
     return planTerminalModalLayout({
       kind: "dialog",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "inline",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
       headerRows: 3,
       footerRows: footer.length,
       descriptor: createTerminalMessageSizingDescriptor({
@@ -267,20 +306,21 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "text") {
-    if (isCenteredModalPresentation(modal.options.presentation)) {
+    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
+    if (isCenteredPromptPresentation(normalizedPresentation)) {
       return createCenteredTextPromptLayout({
         terminalWidth,
         terminalHeight,
         prompt: modal.options,
         currentValue: modal.value,
-        presentation: modal.options.presentation,
+        backgroundTreatment: normalizedPresentation,
       });
     }
     return planTerminalModalLayout({
       kind: "text",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "inline",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
       headerRows: 3,
       footerRows: 1,
       descriptor: createTerminalTextInputSizingDescriptor({
@@ -290,13 +330,14 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "command") {
+    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
     const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
     if (filteredEntries.length === 0) {
       return planTerminalModalLayout({
         kind: "command",
         terminalWidth,
         terminalHeight,
-        forcedPresentation: modal.options.presentation ?? "inline",
+        forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
         headerRows: 3,
         footerRows: 1,
         descriptor: createTerminalMessageSizingDescriptor({
@@ -318,7 +359,7 @@ export function planTerminalModalStateLayout(
       kind: "command",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "inline",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
       headerRows: 3,
       footerRows: 3,
       descriptor: createChoicePromptDescriptor(
@@ -330,42 +371,49 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "select") {
+    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
     const filteredEntries =
       modal.options.filtering && modal.options.choiceLayout !== "horizontal"
         ? filterPromptEntries(modal.options.entries, modal.filterText)
         : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
 
     if (filteredEntries.length === 0) {
+      const bodyLines: DerivedTagTerminalLine[] = [
+        { text: modal.options.prompt, tone: "section" },
+        ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
+        {
+          text: modal.filterText
+            ? "No options match the current filter."
+            : "No options are available for this scope.",
+          tone: "warning",
+        },
+      ];
+      if (isCenteredPromptPresentation(normalizedPresentation)) {
+        return createCenteredMessageLayout({
+          kind: "select",
+          terminalHeight,
+          terminalWidth,
+          bodyLines,
+          footerRows: 2,
+          backgroundTreatment: normalizedPresentation,
+        });
+      }
       return planTerminalModalLayout({
         kind: "select",
         terminalWidth,
         terminalHeight,
-        forcedPresentation: isCenteredModalPresentation(modal.options.presentation)
-          ? "screen"
-          : (modal.options.presentation ?? "screen"),
+        forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
         headerRows: 3,
         footerRows: 2,
         descriptor: createTerminalMessageSizingDescriptor({
-          bodyLineCount: getRenderedTerminalLineCount(
-            [
-              { text: modal.options.prompt, tone: "section" },
-              ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
-              {
-                text: modal.filterText
-                  ? "No options match the current filter."
-                  : "No options are available for this scope.",
-                tone: "warning",
-              },
-            ],
-            terminalWidth,
-          ),
+          bodyLineCount: getRenderedTerminalLineCount(bodyLines, terminalWidth),
         }),
       });
     }
 
     const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
     const selectedOption = modal.options.entries[selectedIndex];
-    if (modal.options.choiceLayout === "horizontal" && isCenteredModalPresentation(modal.options.presentation)) {
+    if (modal.options.choiceLayout === "horizontal" && isCenteredPromptPresentation(normalizedPresentation)) {
       const detailLineSets = filteredEntries.map((entry) => buildPromptDetailLines(entry.entry));
       const panelWidth = getCenteredChoicePromptWidth(terminalWidth, {
         title: modal.options.title,
@@ -380,10 +428,10 @@ export function planTerminalModalStateLayout(
         entryLabels: filteredEntries.map((entry) => entry.entry.label),
         detailLineSets,
         panelWidth: Math.max(24, Math.min(panelWidth, terminalWidth - 2)),
-        presentation: modal.options.presentation,
+        backgroundTreatment: normalizedPresentation,
       });
     }
-    if (isCenteredModalPresentation(modal.options.presentation)) {
+    if (isCenteredPromptPresentation(normalizedPresentation)) {
       return createCenteredListPromptLayout({
         terminalWidth,
         terminalHeight,
@@ -393,7 +441,7 @@ export function planTerminalModalStateLayout(
           { text: "" },
           { text: `Selected: ${entry.entry.label}`, tone: "accent" },
         ]),
-        presentation: modal.options.presentation,
+        backgroundTreatment: normalizedPresentation,
       });
     }
 
@@ -401,7 +449,7 @@ export function planTerminalModalStateLayout(
       kind: "select",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "screen",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
       headerRows: 3,
       footerRows: 3,
       descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
@@ -413,6 +461,7 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "multiselect") {
+    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
     const filteringEnabled = getMultiSelectPromptFilteringEnabled(modal.options);
     const filteredEntries = filteringEnabled
       ? filterPromptEntries(modal.options.entries, modal.filterText)
@@ -423,7 +472,7 @@ export function planTerminalModalStateLayout(
         kind: "multiselect",
         terminalWidth,
         terminalHeight,
-        forcedPresentation: modal.options.presentation ?? "screen",
+        forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
         headerRows: 3,
         footerRows: 2,
         descriptor: createTerminalMessageSizingDescriptor({
@@ -454,7 +503,7 @@ export function planTerminalModalStateLayout(
       kind: "multiselect",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "screen",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
       headerRows: 3,
       footerRows: 3,
       descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
@@ -466,6 +515,7 @@ export function planTerminalModalStateLayout(
     });
   }
 
+  const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
   const filteringEnabled = getPolicyPromptFilteringEnabled(modal.options);
   const filteredEntries = filteringEnabled
     ? filterPromptEntries(modal.options.entries, modal.filterText)
@@ -476,7 +526,7 @@ export function planTerminalModalStateLayout(
       kind: "policy",
       terminalWidth,
       terminalHeight,
-      forcedPresentation: modal.options.presentation ?? "screen",
+      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
       headerRows: 3,
       footerRows: 2,
       descriptor: createTerminalMessageSizingDescriptor({
@@ -502,7 +552,7 @@ export function planTerminalModalStateLayout(
     kind: "policy",
     terminalWidth,
     terminalHeight,
-    forcedPresentation: modal.options.presentation ?? "screen",
+    forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
     headerRows: 3,
     footerRows: 4,
     descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [

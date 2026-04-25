@@ -20,6 +20,10 @@ export function useDerivedTagTerminalCapabilities(): DerivedTagTerminalCapabilit
   return ensureTerminalContext().capabilities;
 }
 
+export function useDerivedTagTerminalBackdropActive(): boolean {
+  return ensureTerminalContext().backdropActive;
+}
+
 export function useDerivedTagTerminalSize(): { width: number; height: number } {
   const terminal = ensureTerminalContext();
   return {

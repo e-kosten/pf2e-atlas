@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import { useDerivedTagTerminalCapabilities } from "./context.js";
+import { useDerivedTagTerminalBackdropActive, useDerivedTagTerminalCapabilities } from "./context.js";
 import type { DerivedTagTerminalLine, DerivedTagTerminalSegment, DerivedTagTerminalTone } from "./types.js";
 
 export type RenderedTerminalLine = {
@@ -294,6 +294,20 @@ export function terminalToneProps(tone: DerivedTagTerminalTone): React.Component
   }
 }
 
+function withBackdropToneProps(
+  props: React.ComponentProps<typeof Text>,
+  backdropActive: boolean,
+): React.ComponentProps<typeof Text> {
+  if (!backdropActive) {
+    return props;
+  }
+
+  return {
+    ...props,
+    dimColor: true,
+  };
+}
+
 const OSC_8_OPEN = "\u001b]8;;";
 const OSC_8_TERMINATOR = "\u001b\\";
 const OSC_8_CLOSE = `${OSC_8_OPEN}${OSC_8_TERMINATOR}`;
@@ -314,8 +328,9 @@ function terminalSegmentProps(
   tone: DerivedTagTerminalTone,
   href: string | undefined,
   hyperlinkSupport: "supported" | "unsupported",
+  backdropActive: boolean,
 ): React.ComponentProps<typeof Text> {
-  const toneProps = terminalToneProps(tone);
+  const toneProps = withBackdropToneProps(terminalToneProps(tone), backdropActive);
   if (!href || hyperlinkSupport !== "supported") {
     return toneProps;
   }
@@ -331,19 +346,24 @@ function renderTerminalLineContent(
   line: Pick<RenderedTerminalLine, "segments" | "text" | "tone">,
   width: number,
   hyperlinkSupport: "supported" | "unsupported",
+  backdropActive: boolean,
 ): React.ReactNode {
   if (line.segments && line.segments.length > 0) {
     return line.segments.map((segment, segmentIndex) => (
       <Text
         key={segmentIndex}
-        {...terminalSegmentProps(segment.tone ?? line.tone, segment.href, hyperlinkSupport)}
+        {...terminalSegmentProps(segment.tone ?? line.tone, segment.href, hyperlinkSupport, backdropActive)}
       >
         {formatHyperlinkText(segment.text, segment.href, hyperlinkSupport)}
       </Text>
     ));
   }
 
-  return <Text {...terminalSegmentProps(line.tone, undefined, hyperlinkSupport)}>{fitToWidth(line.text, width)}</Text>;
+  return (
+    <Text {...terminalSegmentProps(line.tone, undefined, hyperlinkSupport, backdropActive)}>
+      {fitToWidth(line.text, width)}
+    </Text>
+  );
 }
 
 function renderTerminalRow(
@@ -351,20 +371,22 @@ function renderTerminalRow(
   index: number,
   width: number,
   hyperlinkSupport: "supported" | "unsupported",
+  backdropActive: boolean,
 ): React.JSX.Element {
   return (
     <Box key={index} width={width}>
-      {renderTerminalLineContent(line, width, hyperlinkSupport)}
+      {renderTerminalLineContent(line, width, hyperlinkSupport, backdropActive)}
     </Box>
   );
 }
 
 export function TerminalRows({ lines, width }: { lines: RenderedTerminalLine[]; width: number }): React.JSX.Element {
   const { hyperlinkSupport } = useDerivedTagTerminalCapabilities();
+  const backdropActive = useDerivedTagTerminalBackdropActive();
 
   return (
     <Box flexDirection="column" width={width}>
-      {lines.map((line, index) => renderTerminalRow(line, index, width, hyperlinkSupport))}
+      {lines.map((line, index) => renderTerminalRow(line, index, width, hyperlinkSupport, backdropActive))}
     </Box>
   );
 }
