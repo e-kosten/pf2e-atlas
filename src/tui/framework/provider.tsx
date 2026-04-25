@@ -305,13 +305,21 @@ export function DerivedTagTerminalProvider({
     [clearModalLease, createPromptSession, settlePreemptedModal],
   );
 
-  const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
-    () => ({
+  const createContextValue = React.useCallback(
+    ({
+      backdropActive,
+      layoutHeight,
+    }: {
+      backdropActive: boolean;
+      layoutHeight: number;
+    }): DerivedTagTerminalContextValue => ({
       capabilities,
-      backdropActive: false,
+      backdropActive,
       exitApp: exit,
-      getTerminalHeight: () => availableRows,
-      getTerminalWidth: () => columns,
+      getLayoutHeight: () => layoutHeight,
+      getLayoutWidth: () => columns,
+      getViewportHeight: () => rows,
+      getViewportWidth: () => columns,
       modalActive: modal !== null,
       runPromptSession,
       pauseForAnyKey: promptSession.pauseForAnyKey,
@@ -322,14 +330,24 @@ export function DerivedTagTerminalProvider({
       promptTextInput: promptSession.promptTextInput,
       showDialog: promptSession.showDialog,
     }),
-    [availableRows, capabilities, columns, exit, modal, promptSession, runPromptSession],
+    [capabilities, columns, exit, modal, promptSession, rows, runPromptSession],
+  );
+
+  const modalContextValue = React.useMemo<DerivedTagTerminalContextValue>(
+    () =>
+      createContextValue({
+        backdropActive: false,
+        layoutHeight: rows,
+      }),
+    [createContextValue, rows],
   );
   const backgroundContextValue = React.useMemo<DerivedTagTerminalContextValue>(
-    () => ({
-      ...contextValue,
-      backdropActive: overlayBackdropActive,
-    }),
-    [contextValue, overlayBackdropActive],
+    () =>
+      createContextValue({
+        backdropActive: overlayBackdropActive,
+        layoutHeight: availableRows,
+      }),
+    [availableRows, createContextValue, overlayBackdropActive],
   );
 
   return (
@@ -341,7 +359,7 @@ export function DerivedTagTerminalProvider({
           </Box>
         </Box>
       </DerivedTagTerminalContext.Provider>
-      <DerivedTagTerminalContext.Provider value={contextValue}>
+      <DerivedTagTerminalContext.Provider value={modalContextValue}>
         {modal && modalLayout ? (
           <DerivedTagTerminalModalHost
             modal={modal}

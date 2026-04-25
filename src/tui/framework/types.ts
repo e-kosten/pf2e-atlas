@@ -314,8 +314,10 @@ export type DerivedTagTerminalContextValue = {
   capabilities: DerivedTagTerminalCapabilities;
   backdropActive: boolean;
   exitApp: (result?: unknown) => void;
-  getTerminalHeight: () => number;
-  getTerminalWidth: () => number;
+  getLayoutHeight: () => number;
+  getLayoutWidth: () => number;
+  getViewportHeight: () => number;
+  getViewportWidth: () => number;
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
   runPromptSession: <T>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>) => Promise<T>;

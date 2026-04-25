@@ -1,7 +1,12 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import { useDerivedTagTerminalBackdropActive, useDerivedTagTerminalCapabilities, useDerivedTagTerminalSize } from "./context.js";
+import {
+  useDerivedTagTerminalBackdropActive,
+  useDerivedTagTerminalCapabilities,
+  useDerivedTagTerminalSize,
+  useDerivedTagTerminalViewportSize,
+} from "./context.js";
 import {
   TerminalRows,
   fitToWidth,
@@ -166,7 +171,7 @@ export function TerminalCenteredOverlayPanel({
   height: number;
   children: React.ReactNode;
 }): React.JSX.Element {
-  const size = useDerivedTagTerminalSize();
+  const size = useDerivedTagTerminalViewportSize();
   const topOffset = Math.max(0, Math.floor((Math.max(0, size.height - height)) / 3));
 
   return (

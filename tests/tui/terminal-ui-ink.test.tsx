@@ -18,7 +18,10 @@ import {
   useDerivedTagTerminalInput,
   useDerivedTagTerminalSize,
 } from "../../src/tui/terminal-ui.js";
-import { useDerivedTagTerminalBackdropActive } from "../../src/tui/framework/context.js";
+import {
+  useDerivedTagTerminalBackdropActive,
+  useDerivedTagTerminalViewportSize,
+} from "../../src/tui/framework/context.js";
 import { TerminalMenuScreen } from "../../src/tui/shared-screens.js";
 
 function flushInk(): Promise<void> {
@@ -192,6 +195,10 @@ function countFrameLinesContaining(frame: string, prefix: string): number {
     .filter((line) => line.startsWith(prefix)).length;
 }
 
+function findFrameLine(frame: string, snippet: string): number {
+  return frame.split("\n").findIndex((line) => line.includes(snippet));
+}
+
 function promptListLinePrefix(kind: LayoutPromptKind): string {
   return kind === "multiselect" ? "[" : "Option ";
 }
@@ -244,7 +251,16 @@ function CenteredModePromptHarness({
   const terminal = useDerivedTagTerminalApp();
   const backdropActive = useDerivedTagTerminalBackdropActive();
   const size = useDerivedTagTerminalSize();
+  const viewportSize = useDerivedTagTerminalViewportSize();
   const [result, setResult] = React.useState("pending");
+  const [modalSnapshot, setModalSnapshot] = React.useState<{ layoutHeight: number; viewportHeight: number } | null>(null);
+
+  React.useEffect(() => {
+    if (!terminal.modalActive) {
+      return;
+    }
+    setModalSnapshot((current) => current ?? { layoutHeight: size.height, viewportHeight: viewportSize.height });
+  }, [size.height, terminal.modalActive, viewportSize.height]);
 
   React.useEffect(() => {
     void terminal
@@ -271,6 +287,9 @@ function CenteredModePromptHarness({
       body={[
         { text: "bg=visible" },
         { text: `bgHeight=${size.height}` },
+        { text: `viewportHeight=${viewportSize.height}` },
+        { text: `modalLayoutHeight=${modalSnapshot?.layoutHeight ?? "pending"}` },
+        { text: `modalViewportHeight=${modalSnapshot?.viewportHeight ?? "pending"}` },
         { text: `backdrop=${String(backdropActive)}` },
         { text: `result=${result}` },
       ]}
@@ -1428,6 +1447,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(overlayFrame).toContain("backdrop=true");
     expect(overlayFrame).toContain("bg=visible");
     expect(overlayFrame).toContain("bgHeight=20");
+    expect(overlayFrame).toContain("viewportHeight=20");
 
     const blankedApp = renderWithTerminalSize(
       <DerivedTagTerminalProvider>
@@ -1443,6 +1463,33 @@ describe("derived tag terminal ink runtime", () => {
     expect(blankedFrame).not.toContain("bg=visible");
     expect(blankedFrame).not.toContain("bgHeight=20");
     expect(blankedFrame).not.toContain("backdrop=true");
+
+    const overlayPromptLine = findFrameLine(overlayFrame, "Choose Search Mode");
+    const blankedPromptLine = findFrameLine(blankedFrame, "Choose Search Mode");
+    expect(overlayPromptLine).toBeGreaterThan(2);
+    expect(blankedPromptLine).toBe(overlayPromptLine);
+  });
+
+  it("preserves the full modal viewport height in blanked mode even when background layout height collapses", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <CenteredModePromptHarness presentation="blanked" />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+
+    app.stdin.write("\r");
+    await flushInkFrames(4);
+
+    const frame = app.lastFrame() ?? "";
+    expect(frame).toContain("result=browse");
+    expect(frame).toContain("bgHeight=20");
+    expect(frame).toContain("viewportHeight=20");
+    expect(frame).toContain("modalLayoutHeight=0");
+    expect(frame).toContain("modalViewportHeight=20");
   });
 
   it("supports typed all-selections without sentinel values", async () => {

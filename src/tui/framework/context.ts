@@ -27,7 +27,15 @@ export function useDerivedTagTerminalBackdropActive(): boolean {
 export function useDerivedTagTerminalSize(): { width: number; height: number } {
   const terminal = ensureTerminalContext();
   return {
-    width: terminal.getTerminalWidth(),
-    height: terminal.getTerminalHeight(),
+    width: terminal.getLayoutWidth(),
+    height: terminal.getLayoutHeight(),
+  };
+}
+
+export function useDerivedTagTerminalViewportSize(): { width: number; height: number } {
+  const terminal = ensureTerminalContext();
+  return {
+    width: terminal.getViewportWidth(),
+    height: terminal.getViewportHeight(),
   };
 }
