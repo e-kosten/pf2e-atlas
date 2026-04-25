@@ -19,6 +19,39 @@ import {
 import { formatSearchResult, summarizePack, summarizeRecord } from "./presenters.js";
 import { buildSearchRequestFromTransportInput } from "./search-request-adapter.js";
 
+function buildPublicMetadataSemantics() {
+  const metadataSemantics = getMetadataFilterSemantics();
+  return {
+    fieldTypes: metadataSemantics.fieldTypes.map((fieldType) => ({
+      type: fieldType.type,
+      fields: fieldType.fields,
+    })),
+    metadataFields: metadataSemantics.metadataFields.map((field) => ({
+      field: field.field,
+      fieldType: field.fieldType,
+      categories: field.categories,
+      subcategories: field.subcategories,
+      discoverable: field.discoverable,
+      notes: field.notes,
+      valueOrdering: field.valueOrdering,
+    })),
+    metadataFieldsByCategory: metadataSemantics.metadataFieldsByCategory,
+    metadataFieldsByCategoryAndSubcategory: metadataSemantics.metadataFieldsByCategoryAndSubcategory,
+    advancedPredicates: metadataSemantics.advancedPredicates,
+    actorMetricDiscovery: metadataSemantics.actorMetricDiscovery,
+    itemMetricDiscovery: metadataSemantics.itemMetricDiscovery,
+    discoverableFieldLookupWorkflow: metadataSemantics.discoverableFieldLookupWorkflow,
+    notes: {
+      useCase:
+        "Use metadata predicates inside the shared filter tree for category-specific facets after scope and other first-class filter leaves.",
+      applicability:
+        "metadataFieldsByCategory is the primary discovery surface for which metadata fields are meaningful within a category.",
+      subcategoryNarrowing:
+        "metadataFieldsByCategoryAndSubcategory is intentionally sparse and only lists narrower cases where a field is more specific than its parent category.",
+    },
+  };
+}
+
 export function registerSearchTools(
   server: McpServer,
   dataService: Pf2eDataService,
@@ -42,7 +75,7 @@ export function registerSearchTools(
     },
     ({ traitLimitPerCategory }) => {
       const vocabulary = dataService.getSearchVocabulary({ traitLimitPerCategory });
-      const metadataSemantics = getMetadataFilterSemantics();
+      const metadataSemantics = buildPublicMetadataSemantics();
       return {
         content: [
           {
@@ -176,17 +209,7 @@ export function registerSearchTools(
             note:
               "Use the canonical search and filter branches rather than flat root filter fields or alias request shapes.",
           },
-          metadataFilters: {
-            ...metadataSemantics,
-            notes: {
-              useCase:
-                "Use metadata predicates inside the shared filter tree for category-specific facets after scope and other first-class filter leaves.",
-              applicability:
-                "metadataFieldsByCategory is the primary discovery surface for which metadata fields are meaningful within a category.",
-              subcategoryNarrowing:
-                "metadataFieldsByCategoryAndSubcategory is intentionally sparse and only lists narrower cases where a field is more specific than its parent category.",
-            },
-          },
+          metadataFilters: metadataSemantics,
           filterValueDiscovery: {
             nonMetadataFields: ["sources", "categories", "subcategories", "packs", "actorMetrics", "itemMetrics"],
             note: "pf2e_list_filter_values enumerates live values for one chosen field. Learn which metadata fields are meaningful from metadataFilters first.",

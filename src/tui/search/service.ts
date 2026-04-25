@@ -1,9 +1,8 @@
-import {
-  CATEGORY_SUBCATEGORY_MAP,
-} from "../../domain/categories.js";
+import { CATEGORY_SUBCATEGORY_MAP } from "../../domain/categories.js";
 import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
+import { createSearchFilterDiscoveryContext } from "../../domain/search-field-domains.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import {
@@ -21,6 +20,7 @@ import {
 } from "./discoverable-fields.js";
 import {
   applyFilterExplorerDraft,
+  buildFilterExplorerInsertionResult,
   buildFilterExplorerMetadataNode,
   prepareFilterExplorerDraftFromMetadataNode,
   prepareFilterExplorerDraftFromQuery,
@@ -56,6 +56,7 @@ import {
 } from "./service-options.js";
 import type {
   Pf2eTerminalFacetField,
+  Pf2eTerminalFacetValueOption,
   Pf2eTerminalSearchService,
   SearchServiceDependencies,
 } from "./service-types.js";
@@ -67,6 +68,7 @@ export type {
   Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalFacetValueOption,
   Pf2eTerminalFilterExplorerDraft,
+  Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalFilterValuePolicy,
   Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldEditor,
@@ -105,6 +107,29 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     return isActionCostAvailableInScope(dependencies, category, subcategory);
   }
 
+  function buildDiscoveryCountDescription(discoveryMode: "matching" | "catalog", count: number): string {
+    const label = discoveryMode === "matching" ? "matching" : "applicable";
+    return `${count} ${label} canonical record${count === 1 ? "" : "s"}.`;
+  }
+
+  async function loadDiscoveryFieldOptions(
+    query: import("./service-types.js").Pf2eTerminalSearchQuery,
+    discoveryMode: "matching" | "catalog",
+    field: string,
+  ): Promise<readonly { value: string; count: number }[]> {
+    const normalizedQuery = normalizeServiceQuery(query);
+    const result = await dependencies.discovery.discoverFilterValues({
+      mode: discoveryMode,
+      context: createSearchFilterDiscoveryContext(normalizedQuery),
+      target: { field },
+    });
+
+    return result.options.map((option) => ({
+      value: String(option.value),
+      count: option.count,
+    }));
+  }
+
   function normalizeServiceQuery(query: import("./service-types.js").Pf2eTerminalSearchQuery) {
     const normalizedQuery = normalizeSearchQuery(query);
     const category = getSearchQueryCategory(normalizedQuery);
@@ -129,6 +154,8 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       prepareFilterExplorerDraftFromMetadataNode(node, scopedFields, fieldSemanticsByName),
     buildFilterExplorerMetadataNode: (draft, options) =>
       buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, options),
+    buildFilterExplorerInsertionResult: (draft, options) =>
+      buildFilterExplorerInsertionResult(draft, fieldSemanticsByName, options),
     applyFilterExplorerDraft: (query, draft, options) =>
       applyFilterExplorerDraft(query, draft, fieldSemanticsByName, options),
     buildDiscoverableQueryFieldSelections: (query, scopedFields) =>
@@ -170,47 +197,35 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         fieldType: field.fieldType,
       }));
     },
-    getMetricKeyOptions: (category, subcategory, field, options = {}) => {
-      if (!category) {
-        return [];
-      }
-
+    loadMetricKeyOptions: async (query, field, discoveryMode, options = {}) => {
       const metricField = field === "actorMetric" ? "actorMetrics" : "itemMetrics";
-      return dependencies.discovery
-        .discoverMetricKeys({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-          metricField,
-        })
+      const entries = await loadDiscoveryFieldOptions(query, discoveryMode, metricField);
+      return entries
         .filter(
           (entry) =>
             !options.numericOnly ||
             (field === "actorMetric"
-              ? inferActorMetricValueType(String(entry.value)) === "number"
-              : inferItemMetricValueType(String(entry.value)) === "number"),
+              ? inferActorMetricValueType(entry.value) === "number"
+              : inferItemMetricValueType(entry.value) === "number"),
         )
-        .map((entry) => ({
-          value: String(entry.value),
-          label: String(entry.value),
-          description: `${entry.count} indexed canonical record${entry.count === 1 ? "" : "s"} in the current scope.`,
-          count: entry.count,
-        }));
+        .map(
+          (entry): Pf2eTerminalFacetValueOption => ({
+            value: entry.value,
+            label: entry.value,
+            description: buildDiscoveryCountDescription(discoveryMode, entry.count),
+            count: entry.count,
+          }),
+        );
     },
     getPackLabel,
-    getPackOptions: (category, subcategory) =>
-      dependencies.discovery
-        .discoverCatalogFilterValues({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-          target: { field: "packs" },
-        })
-        .options.map((entry) => {
-          const entryValue = String(entry.value);
-          return {
-            value: entryValue,
-            label: getPackLabel(entryValue),
-            description: `${entry.count} indexed canonical record${entry.count === 1 ? "" : "s"} in this pack.`,
-            count: entry.count,
-          };
-        })
+    loadPackOptions: async (query, discoveryMode) =>
+      (await loadDiscoveryFieldOptions(query, discoveryMode, "packs"))
+        .map((entry) => ({
+          value: entry.value,
+          label: getPackLabel(entry.value),
+          description: buildDiscoveryCountDescription(discoveryMode, entry.count),
+          count: entry.count,
+        }))
         .sort((left, right) => left.label.localeCompare(right.label)),
     getQueryFieldOptions: (category, subcategory) =>
       getQueryFieldOptions(

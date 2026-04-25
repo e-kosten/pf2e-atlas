@@ -44,6 +44,31 @@ describe("application search discovery service", () => {
     });
   });
 
+  it("orders promoted numeric fields through the shared promoted-field domain owner", () => {
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues: vi.fn(async () => ({ field: "actionCost", values: [] })),
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(({ field }: { field: string }) => ({
+        field,
+        values:
+          field === "actionCost"
+            ? [
+                { value: "3", count: 1 },
+                { value: "1", count: 3 },
+                { value: "2", count: 2 },
+              ]
+            : [],
+      })),
+    });
+
+    const result = service.discoverCatalogFilterValues({
+      applicability: createScopedSearchDiscoveryApplicability("browse", "spell", null),
+      target: { field: "actionCost" },
+    });
+
+    expect(result.options.map((entry) => entry.value)).toEqual(["1", "2", "3"]);
+  });
+
   it("exposes scoped metadata fields and metric discovery groups from one service", () => {
     const service = createPf2eApplicationSearchDiscoveryService({
       discoverFilterValues: vi.fn(async () => ({ field: "traits", values: [] })),

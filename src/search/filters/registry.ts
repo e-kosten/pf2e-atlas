@@ -506,10 +506,6 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "enumString",
     categories: ALL_CATEGORIES,
     discoverable: true,
-    valueOrdering: {
-      kind: "canonical",
-      order: ["common", "uncommon", "rare", "unique"],
-    },
     selectClause: "r.rarity AS rarity",
     rowValueSource: { key: "rarity", kind: "string" },
     buildSqlExpression: (context) => buildRecordScalarSql(context, "rarity"),
@@ -664,7 +660,6 @@ export const METADATA_FIELD_REGISTRY = [
     fieldType: "number",
     categories: ALL_CATEGORIES,
     discoverable: true,
-    valueOrdering: { kind: "numericAsc" },
     selectClause: "COALESCE(s.action_cost, i.action_cost) AS actionCost",
     rowValueSource: { key: "actionCost", kind: "number" },
     buildSqlExpression: (context) => {

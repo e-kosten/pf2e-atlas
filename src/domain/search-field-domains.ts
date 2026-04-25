@@ -1,3 +1,4 @@
+import type { FilterValueOrdering } from "./filter-value-ordering.js";
 import {
   buildAllOfFilter,
   buildAnyOfFilter,
@@ -70,6 +71,88 @@ export const SEARCH_PROMOTED_FIELD_DOMAINS = {
 
 export function getSearchPromotedFieldDomain(field: SearchPromotedFieldDomainKey): SearchPromotedFieldDomainSpec {
   return SEARCH_PROMOTED_FIELD_DOMAINS[field];
+}
+
+export function isSearchPromotedFieldDomainKey(value: string): value is SearchPromotedFieldDomainKey {
+  return value === "rarity" || value === "actionCost";
+}
+
+export function getSearchPromotedFieldValueOrdering(
+  field: SearchPromotedFieldDomainKey,
+): FilterValueOrdering | undefined {
+  const valueDomain = getSearchPromotedFieldDomain(field).valueDomain;
+  const ordering = valueDomain.ordering;
+  if (!ordering) {
+    return undefined;
+  }
+
+  switch (ordering.kind) {
+    case "alpha":
+      return { kind: "alpha" };
+    case "countDescThenAlpha":
+      return { kind: "countDescThenAlpha" };
+    case "numericAsc":
+      return { kind: "numericAsc" };
+    case "declared":
+      return {
+        kind: "canonical",
+        order:
+          valueDomain.kind === "closedEnum" || valueDomain.kind === "boundedNumber"
+            ? valueDomain.values.map((value) => String(value))
+            : [],
+      };
+  }
+}
+
+type NormalizePromotedFieldOptions = {
+  onInvalid?: "throw" | "null";
+};
+
+function handleInvalidPromotedFieldValue(message: string, options?: NormalizePromotedFieldOptions): null {
+  if (options?.onInvalid === "null") {
+    return null;
+  }
+
+  throw new Error(message);
+}
+
+export function normalizeSearchPromotedStringValue(
+  field: "rarity",
+  value: string,
+  options?: NormalizePromotedFieldOptions,
+): string | null {
+  const domain = getSearchPromotedFieldDomain(field).valueDomain;
+  if (domain.kind !== "closedEnum") {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!domain.values.includes(normalized)) {
+    return handleInvalidPromotedFieldValue(`Unknown ${field} value "${value}".`, options);
+  }
+
+  return normalized;
+}
+
+export function normalizeSearchPromotedNumberValue(
+  field: "actionCost",
+  value: number,
+  options?: NormalizePromotedFieldOptions,
+): number | null {
+  const domain = getSearchPromotedFieldDomain(field).valueDomain;
+  if (domain.kind !== "boundedNumber") {
+    return value;
+  }
+
+  if (!Number.isFinite(value)) {
+    return handleInvalidPromotedFieldValue(`${field} must be a finite number.`, options);
+  }
+
+  if (!domain.values.includes(value)) {
+    return handleInvalidPromotedFieldValue(`Unsupported ${field} value "${value}".`, options);
+  }
+
+  return value;
 }
 
 export type SearchFilterDiscoveryMode = "matching" | "catalog";

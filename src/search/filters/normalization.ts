@@ -5,7 +5,10 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../../domain/categories.js";
-import { getSearchPromotedFieldDomain } from "../../domain/search-field-domains.js";
+import {
+  normalizeSearchPromotedNumberValue,
+  normalizeSearchPromotedStringValue,
+} from "../../domain/search-field-domains.js";
 import type {
   NormalizedSearchFilters,
   SearchExecutionFilterNode,
@@ -22,32 +25,6 @@ function normalizeRecordKey(value: string): string {
     throw new Error("linksTo target must not be empty.");
   }
   return normalized;
-}
-
-function normalizeDeclaredStringValue(field: "rarity", value: string): string {
-  const domain = getSearchPromotedFieldDomain(field).valueDomain;
-  if (domain.kind !== "closedEnum") {
-    return value;
-  }
-  const normalized = value.trim().toLowerCase();
-  if (!domain.values.includes(normalized)) {
-    throw new Error(`Unknown ${field} value "${value}".`);
-  }
-  return normalized;
-}
-
-function normalizeDeclaredNumberValue(field: "actionCost", value: number): number {
-  const domain = getSearchPromotedFieldDomain(field).valueDomain;
-  if (domain.kind !== "boundedNumber") {
-    return value;
-  }
-  if (!Number.isFinite(value)) {
-    throw new Error(`${field} must be a finite number.`);
-  }
-  if (!domain.values.includes(value)) {
-    throw new Error(`Unsupported ${field} value "${value}".`);
-  }
-  return value;
 }
 
 function normalizeScopeFilterNode(node: Extract<SearchExecutionFilterNode, { kind: "scope" }>): SearchExecutionFilterNode {
@@ -118,7 +95,7 @@ function normalizeFilterNode(
         kind: "rarity",
         match: {
           kind: "eq",
-          value: normalizeDeclaredStringValue("rarity", node.match.value),
+          value: normalizeSearchPromotedStringValue("rarity", node.match.value) ?? node.match.value,
         },
       };
     case "actionCost":
@@ -132,10 +109,10 @@ function normalizeFilterNode(
         kind: "actionCost",
         match: {
           kind: node.match.kind,
-          value: normalizeDeclaredNumberValue(
+          value: normalizeSearchPromotedNumberValue(
             "actionCost",
             (node.match as Extract<typeof node.match, { kind: "eq" | "gte" | "lte" }>).value,
-          ),
+          ) ?? (node.match as Extract<typeof node.match, { kind: "eq" | "gte" | "lte" }>).value,
         },
       };
     case "linksTo":

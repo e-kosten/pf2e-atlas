@@ -9,6 +9,10 @@ import {
   slugifyActorMetricSegment,
 } from "../domain/actor-metrics.js";
 import { type ItemMetricMap, slugifyItemMetricSegment } from "../domain/item-metrics.js";
+import {
+  normalizeSearchPromotedNumberValue,
+  normalizeSearchPromotedStringValue,
+} from "../domain/search-field-domains.js";
 import type { SourceCategory } from "../domain/record-types.js";
 import {
   buildEmbeddedItemSearchChunks,
@@ -91,7 +95,9 @@ function getBlurbText(raw: Record<string, unknown>): string | null {
 
 function getRarity(raw: Record<string, unknown>): string | null {
   const rarity = getNested(raw, ["system", "traits", "rarity"]);
-  return typeof rarity === "string" && rarity.length > 0 ? rarity : null;
+  return typeof rarity === "string" && rarity.length > 0
+    ? normalizeSearchPromotedStringValue("rarity", rarity, { onInvalid: "null" })
+    : null;
 }
 
 function parseSize(raw: Record<string, unknown>): string | null {
@@ -624,7 +630,10 @@ function parseItemCategory(raw: Record<string, unknown>): string | null {
 }
 
 function parseActionCost(raw: Record<string, unknown>): number | null {
-  return asNumber(getNested(raw, ["system", "actions", "value"]));
+  const actionCost = asNumber(getNested(raw, ["system", "actions", "value"]));
+  return actionCost === null
+    ? null
+    : normalizeSearchPromotedNumberValue("actionCost", actionCost, { onInvalid: "null" });
 }
 
 function parseNumericLikeValue(value: unknown): number | null {
