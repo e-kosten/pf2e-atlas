@@ -305,6 +305,101 @@ describe("application ontology service", () => {
     expect(first.rootNodes).toEqual([expect.objectContaining({ id: "searchSemantics:spell" })]);
   });
 
+  it("keeps the derived-tag explorer populated for broad creature scope in matching mode", async () => {
+    const summary: SearchSemanticsBootstrapSummaryResult = {
+      categories: [{ value: "creature", count: 3 }],
+      subcategoryCountsByCategory: [{ category: "creature", subcategories: [] }],
+      commonTraitsByCategory: [],
+      commonDerivedTagsByCategory: [],
+      derivedTagCatalog: [
+        {
+          category: "creature",
+          family: "threat_profile",
+          axis: "threat",
+          description: "Threat-flavored creature tags.",
+          tags: [{ value: "undead_adjacent" }],
+        },
+      ],
+    };
+    const dataService: Pick<
+      Pf2eDataService,
+      "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
+    > = {
+      getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
+      listFilterValues: vi.fn(
+        ({
+          field,
+          category,
+        }: {
+          field: FilterValueField;
+          category?: string;
+        }) => ({
+          field,
+          values:
+            field === "derivedTags" && category === "creature"
+              ? [{ value: "undead_adjacent", count: 3 }]
+              : [],
+        }),
+      ),
+      listRecords: vi.fn((request: SearchRequest) => ({
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: request.sort ?? "alphabetical",
+        total: 0,
+        offset: request.offset ?? 0,
+        limit: request.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [],
+      }) satisfies SearchResult),
+    };
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+
+    const domain = await service.loadSearchFilterExplorerDomain({
+      request: {
+        mode: "search",
+        search: { query: "", profile: "balanced" },
+        filter: buildScopeFilter("creature"),
+        limit: 20,
+      },
+      discoveryMode: "matching",
+    });
+
+    const derivedTagsFieldNode = findNodeById(domain.rootNodes, "creature:field:derivedTags");
+    const familyNode = derivedTagsFieldNode?.children?.[0];
+    const tagNode = familyNode?.children?.[0];
+
+    expect(derivedTagsFieldNode?.childPresentation).toEqual({
+      mode: "grouped",
+      groupBy: "axis",
+      render: "inline",
+    });
+    expect(derivedTagsFieldNode?.children).toHaveLength(1);
+    expect(familyNode).toEqual(
+      expect.objectContaining({
+        kind: "family",
+        label: "Threat Profile",
+      }),
+    );
+    expect(tagNode).toEqual(
+      expect.objectContaining({
+        kind: "tag",
+        label: "Undead Adjacent",
+        listLabel: "Undead Adjacent | 3",
+      }),
+    );
+    expect(dataService.listFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        field: "derivedTags",
+        category: "creature",
+      }),
+    );
+  });
+
   it("caches ontology domain models across repeated loads", async () => {
     const dataService = createDataService();
     const service = createPf2eApplicationOntologyService(

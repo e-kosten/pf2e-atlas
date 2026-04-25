@@ -373,6 +373,46 @@ describe("application search discovery service", () => {
     );
   });
 
+  it("keeps broad scope-only derived-tag discovery populated in matching mode", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(
+      async (
+        { field }: { field: string },
+        currentRequest: import("../../src/domain/search-request-types.js").SearchRequest,
+      ) => ({
+        field,
+        values:
+          field === "derivedTags"
+            ? [{ value: "undead_adjacent", count: 3 }]
+            : field === "traits"
+              ? [{ value: "undead", count: 2 }]
+              : [],
+        requestMode: currentRequest.mode,
+      }),
+    );
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching");
+
+    expect(reader.scope).toEqual({ category: "creature", subcategory: null });
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "derivedTags" })).toEqual([
+      { id: "undead_adjacent", value: "undead_adjacent", count: 3 },
+    ]);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "derivedTags", category: "creature" }),
+      request,
+    );
+  });
+
   it("prepares a catalog search-semantics reader from the applicability slice only", async () => {
     const request = {
       mode: "search",
@@ -420,6 +460,37 @@ describe("application search discovery service", () => {
             },
           ],
         },
+      },
+    );
+  });
+
+  it("keeps broad scope-only derived-tag discovery populated in catalog mode", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values: field === "derivedTags" ? [{ value: "undead_adjacent", count: 4 }] : [],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "catalog");
+
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "derivedTags" })).toEqual([
+      { id: "undead_adjacent", value: "undead_adjacent", count: 4 },
+    ]);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "derivedTags", category: "creature" }),
+      {
+        mode: "browse",
+        filter: buildScopeFilter("creature"),
       },
     );
   });
