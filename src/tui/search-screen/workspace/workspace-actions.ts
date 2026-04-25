@@ -75,13 +75,14 @@ export function useSearchWorkspaceActions({
     }
 
     const queryText = await prompts.promptTextInput({
-      title: "Query Text",
+      title: state.query.mode === "lookup" ? "Lookup Text" : "Search Text",
       prompt:
         state.query.mode === "lookup"
-          ? "Enter an exact or near-exact record name"
-          : "Enter search text for the current query",
+          ? "Enter an exact or near-exact record name."
+          : "Enter search text for the current query.",
       defaultValue: getSearchQueryText(state.query),
       hint: state.query.mode === "lookup" ? "Example: Raise Shield" : "Example: ghost ship captain",
+      presentation: "centered",
     });
 
     if (queryText === undefined) {
@@ -112,13 +113,17 @@ export function useSearchWorkspaceActions({
 
   const chooseMode = React.useCallback(async () => {
     const result = await prompts.promptSelectOption({
-      title: "Query Mode",
-      prompt: "Choose how the current query should execute",
+      title: "Choose Search Mode",
+      prompt: "",
       entries: user.search.getModeOptions().map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
+        detailLines: [{ text: option.description }],
       })),
+      presentation: "centered",
+      choiceLayout: "horizontal",
+      filtering: false,
       selectedValue: state.query.mode,
     });
 

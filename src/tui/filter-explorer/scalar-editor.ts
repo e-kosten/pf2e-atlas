@@ -20,7 +20,7 @@ export type LevelRangeDraft = {
 };
 
 type ScalarTextPrompts = Pick<SearchTerminalPromptAdapters, "promptTextInput">;
-type ScalarEditorPrompts = Pick<SearchTerminalPromptAdapters, "promptSelectOption" | "promptTextInput">;
+type ScalarEditorPrompts = Pick<SearchTerminalPromptAdapters, "promptTextInput">;
 type ScalarEditorTerminal = Pick<DerivedTagTerminalApp, "pauseForAnyKey">;
 
 type ParsedScalarInputOptions<T> = {
@@ -32,18 +32,6 @@ type ParsedScalarInputOptions<T> = {
   whenEmpty: () => T;
 };
 
-const NUMERIC_SCALAR_OPERATOR_OPTIONS: Array<{
-  value: NumericScalarOperator;
-  label: string;
-  description: string;
-}> = [
-  { value: "eq", label: "Equals", description: "Match exactly one value." },
-  { value: "neq", label: "Not Equal", description: "Exclude exactly one value." },
-  { value: "gte", label: "At Least", description: "Match values greater than or equal to the target." },
-  { value: "lte", label: "At Most", description: "Match values less than or equal to the target." },
-  { value: "between", label: "Between", description: "Match values inside an inclusive range." },
-];
-
 async function promptParsedScalarInput<T>(
   prompts: ScalarTextPrompts,
   terminal: ScalarEditorTerminal,
@@ -54,6 +42,7 @@ async function promptParsedScalarInput<T>(
     prompt: options.prompt,
     defaultValue: options.defaultValue,
     hint: options.hint,
+    presentation: "centered",
   });
 
   if (input === undefined) {
@@ -90,6 +79,36 @@ function parseNumericRangeValue(value: string): { min: number; max: number } | s
   };
 }
 
+function parseNumericScalarClauseInput(value: string): NumericScalarClauseDraft | string {
+  const trimmed = value.trim();
+  const between = parseNumericRangeValue(trimmed);
+  if (typeof between !== "string") {
+    return { op: "between", ...between };
+  }
+
+  const prefixedMatch = trimmed.match(/^(=|!=|>=|<=)\s*(-?\d+(?:\.\d+)?)$/);
+  if (prefixedMatch) {
+    const parsedValue = Number.parseFloat(prefixedMatch[2]!);
+    if (!Number.isFinite(parsedValue)) {
+      return "Enter a valid number.";
+    }
+
+    const op = prefixedMatch[1] === "=" ? "eq" : prefixedMatch[1] === "!=" ? "neq" : prefixedMatch[1] === ">=" ? "gte" : "lte";
+    return { op, value: parsedValue };
+  }
+
+  const minimumMatch = trimmed.match(/^(-?\d+(?:\.\d+)?)\+$/);
+  if (minimumMatch) {
+    return { op: "gte", value: Number.parseFloat(minimumMatch[1]!) };
+  }
+
+  const parsedValue = parseSingleNumericValue(trimmed);
+  if (typeof parsedValue === "string") {
+    return "Use `5`, `!=5`, `>=5`, `<=5`, or `3-8`.";
+  }
+  return { op: "eq", value: parsedValue };
+}
+
 export function parseLevelRangeInput(value: string): LevelRangeDraft | string {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -114,19 +133,36 @@ export function parseLevelRangeInput(value: string): LevelRangeDraft | string {
     return { levelMin: Number.parseInt(minMatch[1]!, 10), levelMax: null };
   }
 
-  const maxMatch = trimmed.match(/^<=?\s*(\d+)$/);
+  const minOrGreaterMatch = trimmed.match(/^>=?\s*(\d+)$/);
+  if (minOrGreaterMatch) {
+    return { levelMin: Number.parseInt(minOrGreaterMatch[1]!, 10), levelMax: null };
+  }
+
+  const maxMatch = trimmed.match(/^<=\s*(\d+)$/);
   if (maxMatch) {
     return { levelMin: null, levelMax: Number.parseInt(maxMatch[1]!, 10) };
   }
 
-  return "Use `3-8`, `5`, `5+`, or `<=10`.";
+  return "Use `3-8`, `5`, `>=5`, `5+`, or `<=10`.";
 }
 
 export function formatNumericScalarInput(draft: NumericScalarClauseDraft | null): string {
   if (!draft) {
     return "";
   }
-  return draft.op === "between" ? `${draft.min}-${draft.max}` : String(draft.value);
+  if (draft.op === "between") {
+    return `${draft.min}-${draft.max}`;
+  }
+  if (draft.op === "eq") {
+    return String(draft.value);
+  }
+  if (draft.op === "neq") {
+    return `!=${draft.value}`;
+  }
+  if (draft.op === "gte") {
+    return `>=${draft.value}`;
+  }
+  return `<=${draft.value}`;
 }
 
 export async function promptNumericScalarClause(
@@ -137,32 +173,12 @@ export async function promptNumericScalarClause(
     currentClause: NumericScalarClauseDraft | null;
   },
 ): Promise<NumericScalarClauseDraft | null | undefined> {
-  const opResult = await prompts.promptSelectOption({
-    title: options.title,
-    prompt: "Choose the numeric comparison for this clause",
-    entries: NUMERIC_SCALAR_OPERATOR_OPTIONS,
-    selectedValue: options.currentClause?.op ?? "eq",
-  });
-
-  if (opResult.kind !== "selected") {
-    return undefined;
-  }
-
   return promptParsedScalarInput(prompts, terminal, {
-    title: `${options.title} Value`,
-    prompt:
-      opResult.value === "between"
-        ? "Enter an inclusive range such as `3-8`. Leave blank to clear."
-        : "Enter a numeric value. Leave blank to clear.",
+    title: options.title,
+    prompt: "Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`. Leave blank to clear.",
     defaultValue: formatNumericScalarInput(options.currentClause),
-    parse: (value) => {
-      if (opResult.value === "between") {
-        const parsed = parseNumericRangeValue(value);
-        return typeof parsed === "string" ? parsed : { op: "between", ...parsed };
-      }
-      const parsed = parseSingleNumericValue(value);
-      return typeof parsed === "string" ? parsed : { op: opResult.value, value: parsed };
-    },
+    hint: "Examples: 5, !=5, >=5, <=5, 3-8",
+    parse: parseNumericScalarClauseInput,
     whenEmpty: () => null,
   });
 }
@@ -176,9 +192,9 @@ export async function promptLevelRangeDraft(
 ): Promise<LevelRangeDraft | undefined> {
   return promptParsedScalarInput(prompts, terminal, {
     title: "Level Range",
-    prompt: "Enter `3-8`, `5`, `5+`, or `<=10`. Leave blank to clear.",
+    prompt: "Enter `3-8`, `5`, `>=5`, `5+`, or `<=10`. Leave blank to clear.",
     defaultValue: options.defaultValue,
-    hint: "Examples: 3-8 or <=5",
+    hint: "Examples: 3-8, >=5, <=5",
     parse: parseLevelRangeInput,
     whenEmpty: () => ({ levelMin: null, levelMax: null }),
   });

@@ -22,7 +22,7 @@ import {
   buildPolicySummaryLines,
   buildTextPromptBodyLines,
 } from "./modal-prompt-bodies.js";
-import type { DerivedTagTerminalLine, TerminalModalState } from "./types.js";
+import type { DerivedTagTerminalLine, TerminalModalState, TextPromptOptions } from "./types.js";
 
 export type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
 
@@ -127,6 +127,53 @@ function createCenteredChoicePromptLayout(options: {
   };
 }
 
+function getCenteredTextPromptWidth(
+  terminalWidth: number,
+  options: TextPromptOptions,
+  currentValue: string,
+): number {
+  const contentWidth = Math.max(
+    options.title.length,
+    options.prompt.length,
+    options.hint?.length ?? 0,
+    (`> ${currentValue || ""}`).length,
+    (options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.").length,
+  );
+  return Math.max(44, Math.min(terminalWidth, Math.max(60, contentWidth + 8)));
+}
+
+function createCenteredTextPromptLayout(options: {
+  terminalWidth: number;
+  terminalHeight: number;
+  prompt: TextPromptOptions;
+  currentValue: string;
+}) {
+  const panelWidth = getCenteredTextPromptWidth(options.terminalWidth, options.prompt, options.currentValue);
+  const measuredWidth = Math.max(24, Math.min(panelWidth, options.terminalWidth - 2));
+  const bodyLineCount = getRenderedTerminalLineCount(
+    buildTextPromptBodyLines(options.prompt, options.currentValue),
+    Math.max(24, measuredWidth - 4),
+  );
+  const layout = planTerminalModalLayout({
+    kind: "text",
+    terminalWidth: measuredWidth,
+    terminalHeight: options.terminalHeight,
+    forcedPresentation: "inline",
+    headerRows: 3,
+    footerRows: 1,
+    descriptor: createTerminalTextInputSizingDescriptor({
+      bodyLineCount,
+      minimumInlineWidth: measuredWidth,
+    }),
+  });
+
+  return {
+    ...layout,
+    presentation: "centered" as const,
+    panelWidth: measuredWidth,
+  };
+}
+
 export function planTerminalModalStateLayout(
   modal: TerminalModalState,
   terminalWidth: number,
@@ -152,6 +199,14 @@ export function planTerminalModalStateLayout(
   }
 
   if (modal.kind === "text") {
+    if (modal.options.presentation === "centered") {
+      return createCenteredTextPromptLayout({
+        terminalWidth,
+        terminalHeight,
+        prompt: modal.options,
+        currentValue: modal.value,
+      });
+    }
     return planTerminalModalLayout({
       kind: "text",
       terminalWidth,
