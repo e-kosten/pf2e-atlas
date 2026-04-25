@@ -36,6 +36,7 @@ import type {
 } from "../../search/service.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { promptLevelRangeDraft } from "../../filter-explorer/scalar-editor.js";
+import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
@@ -46,6 +47,63 @@ type ClauseKind = "field" | "metric" | "metricCompare" | "pack" | "scope" | "lev
 type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
 type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | null | undefined;
+type StructuredDraftEntryActionId =
+  | "addClause"
+  | "addAndGroup"
+  | "addOrGroup"
+  | "addNotGroup"
+  | "moveHere"
+  | "toggleRoot"
+  | "edit"
+  | "wrapNot"
+  | "wrapAnd"
+  | "wrapOr"
+  | "move"
+  | "lift"
+  | "remove"
+  | "unwrap"
+  | "toggleGroup";
+
+function buildInsertionActionEntries(
+  moveMode: boolean,
+): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
+  if (moveMode) {
+    return [
+      {
+        id: "moveHere",
+        label: "Move Here",
+        description: "Append the anchored node into this visible insertion slot.",
+      },
+    ];
+  }
+
+  return [
+    { id: "addClause", label: "Add Clause", description: "Insert one canonical filter clause into this group." },
+    { id: "addAndGroup", label: "Add allOf Group", description: "Insert a nested allOf group with its first child." },
+    { id: "addOrGroup", label: "Add anyOf Group", description: "Insert a nested anyOf group with its first child." },
+    { id: "addNotGroup", label: "Add NOT Group", description: "Insert a nested NOT group with its first child." },
+  ];
+}
+
+function buildRootActionEntries(
+  query: Pf2eTerminalSearchQuery,
+): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
+  return [
+    { id: "addClause", label: "Add Clause", description: "Append a new top-level clause." },
+    { id: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
+    { id: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
+    { id: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
+    ...(query.filter
+      ? [
+          {
+            id: "toggleRoot" as const,
+            label: getSearchQueryRootOperator(query) === "anyOf" ? "Change Root To allOf" : "Change Root To anyOf",
+            description: "Reshape the visible root group without changing its current children.",
+          },
+        ]
+      : []),
+  ];
+}
 
 function isMetricFieldOptionValue(value: Pf2eTerminalQueryFieldOption["value"]): boolean {
   return value === "actorMetric" || value === "itemMetric";
@@ -164,6 +222,13 @@ export function useSearchStructuredDraftMetadataActions({
   user: SearchWorkspaceUser;
 }): {
   editStructuredDraftMetadata: (entry: SearchStructuredDraftEntry) => Promise<void>;
+  getStructuredDraftEntryActions: (
+    entry: SearchStructuredDraftEntry | null | undefined,
+  ) => DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[];
+  runStructuredDraftEntryAction: (
+    entry: SearchStructuredDraftEntry | null | undefined,
+    actionId: StructuredDraftEntryActionId,
+  ) => Promise<void>;
 } {
   const applyNextTree = React.useCallback(
     (nextFilter: SearchFilterNode | undefined) => {
@@ -617,11 +682,41 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForNumericMatchClause = React.useCallback(
     async (
-      nodeKind: "level" | "price",
-      node?: Extract<SearchFilterNode, { kind: "level" }> | Extract<SearchFilterNode, { kind: "price" }>,
-    ): Promise<Extract<SearchFilterNode, { kind: "level" }> | Extract<SearchFilterNode, { kind: "price" }> | undefined> => {
+      nodeKind: "level" | "price" | "actionCost",
+      node?:
+        | Extract<SearchFilterNode, { kind: "level" }>
+        | Extract<SearchFilterNode, { kind: "price" }>
+        | Extract<SearchFilterNode, { kind: "actionCost" }>,
+    ):
+      Promise<
+        | Extract<SearchFilterNode, { kind: "level" }>
+        | Extract<SearchFilterNode, { kind: "price" }>
+        | Extract<SearchFilterNode, { kind: "actionCost" }>
+        | undefined
+      > => {
+      if (node?.kind === "actionCost" && (node.match.kind === "isNull" || node.match.kind === "isNotNull")) {
+        await terminal.pauseForAnyKey("Null action-cost clauses cannot be edited through the numeric matcher.");
+        return undefined;
+      }
+      let currentNumericMatch: SearchNumericMatch | null = null;
+      if (node?.kind === "actionCost") {
+        switch (node.match.kind) {
+          case "eq":
+          case "gte":
+          case "lte":
+          case "between":
+            currentNumericMatch = node.match;
+            break;
+          case "isNull":
+          case "isNotNull":
+            currentNumericMatch = null;
+            break;
+        }
+      } else if (node) {
+        currentNumericMatch = node.match;
+      }
       const parsed = await promptLevelRangeDraft(prompts, terminal, {
-        defaultValue: node ? formatNumericMatch(node.match) : "",
+        defaultValue: currentNumericMatch ? formatNumericMatch(currentNumericMatch) : "",
       });
       if (parsed === undefined) {
         return undefined;
@@ -682,38 +777,6 @@ export function useSearchStructuredDraftMetadataActions({
     [openOntologyFieldEditor],
   );
 
-  const promptForActionCostClause = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      node?: Extract<SearchFilterNode, { kind: "actionCost" }>,
-    ): Promise<SearchFilterNodeEditorResult> => {
-      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
-        void openOntologyFieldEditor(
-          query,
-          buildExplorerOnlyFieldOption(
-            "actionCost",
-            "Action Cost",
-            "Browse live action costs for the current scope and stage canonical action-cost clauses.",
-            "number",
-          ),
-          node ? canonicalFilterToMetadataNode(node) : null,
-          (result) => {
-            if (result.kind === "insert") {
-              resolve(
-                result.nodes
-                  .map((metadataNode) => metadataFilterNodeToCanonicalFilter(metadataNode))
-                  .filter((candidate): candidate is SearchFilterNode => Boolean(candidate)),
-              );
-              return;
-            }
-            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
-          },
-        );
-      });
-    },
-    [openOntologyFieldEditor],
-  );
-
   const promptForClauseNode = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -738,11 +801,10 @@ export function useSearchStructuredDraftMetadataActions({
         case "rarity":
           return promptForRarityClause(query, currentNode?.kind === "rarity" ? currentNode : undefined);
         case "actionCost":
-          return promptForActionCostClause(query, currentNode?.kind === "actionCost" ? currentNode : undefined);
+          return promptForNumericMatchClause("actionCost", currentNode?.kind === "actionCost" ? currentNode : undefined);
       }
     },
     [
-      promptForActionCostClause,
       promptForFieldClause,
       promptForMetricCompareClause,
       promptForNumericMatchClause,
@@ -791,7 +853,7 @@ export function useSearchStructuredDraftMetadataActions({
               {
                 value: "actionCost" as const,
                 label: "Action cost",
-                description: "Add one action-cost matcher using the shared categorical picker family.",
+                description: "Add an action-cost matcher such as 1, >=2, <=3, or 1-2.",
               },
             ]
           : []),
@@ -840,75 +902,103 @@ export function useSearchStructuredDraftMetadataActions({
     [applyNextTree, promptForClauseKind, promptForClauseNode],
   );
 
+  const runInsertionAction = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      if (actionId === "moveHere") {
+        if (!moveSourcePath) {
+          return;
+        }
+        applyNextTree(
+          moveSearchFilterNodeToGroupPath(
+            query.filter,
+            moveSourcePath,
+            path,
+            getSearchQueryRootOperator(query),
+          ),
+        );
+        clearStructuredDraftMoveSource();
+        return;
+      }
+
+      if (actionId === "addClause") {
+        await addQueryClauseAtPath(query, path);
+        return;
+      }
+
+      if (actionId === "addAndGroup" || actionId === "addOrGroup" || actionId === "addNotGroup") {
+        await addQueryClauseAtPath(
+          query,
+          path,
+          actionId === "addAndGroup" ? "allOf" : actionId === "addOrGroup" ? "anyOf" : "not",
+        );
+      }
+    },
+    [addQueryClauseAtPath, applyNextTree, clearStructuredDraftMoveSource, moveSourcePath],
+  );
+
   const promptForInsertionAction = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[]) => {
+      const entries = buildInsertionActionEntries(Boolean(moveSourcePath));
       const result = await prompts.promptSelectOption({
         title: "Insertion Slot",
-        prompt: "Choose what to add at this insertion slot",
-        entries: [
-          { value: "addClause", label: "Add Clause", description: "Insert one canonical filter clause into this group." },
-          { value: "addAndGroup", label: "Add allOf Group", description: "Insert a nested allOf group with its first child." },
-          { value: "addOrGroup", label: "Add anyOf Group", description: "Insert a nested anyOf group with its first child." },
-          { value: "addNotGroup", label: "Add NOT Group", description: "Insert a nested NOT group with its first child." },
-        ],
-        selectedValue: "addClause",
+        prompt: moveSourcePath ? "Choose where to move the selected node" : "Choose what to add at this insertion slot",
+        entries: entries.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+          description: entry.description,
+        })),
+        selectedValue: entries[0]?.id ?? "addClause",
       });
       if (result.kind !== "selected") {
         return;
       }
-      if (result.value === "addClause") {
-        await addQueryClauseAtPath(query, path);
+      await runInsertionAction(query, path, result.value as StructuredDraftEntryActionId);
+    },
+    [moveSourcePath, prompts, runInsertionAction],
+  );
+
+  const runRootAction = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      if (actionId === "toggleRoot") {
+        applyNextTree(toggleSearchFilterRootGroupOperator(query.filter));
         return;
       }
-      await addQueryClauseAtPath(
-        query,
-        path,
-        result.value === "addAndGroup" ? "allOf" : result.value === "addOrGroup" ? "anyOf" : "not",
-      );
+
+      await runInsertionAction(query, [], actionId);
     },
-    [addQueryClauseAtPath, prompts],
+    [applyNextTree, runInsertionAction],
   );
 
   const promptForRootAction = React.useCallback(
     async (query: Pf2eTerminalSearchQuery) => {
+      const entries = buildRootActionEntries(query);
       const result = await prompts.promptSelectOption({
         title: "Root Group",
         prompt: "Choose how to update the visible root group",
-        entries: [
-          { value: "addClause", label: "Add Clause", description: "Append a new top-level clause." },
-          { value: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
-          { value: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
-          { value: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
-          ...(query.filter
-            ? [
-                {
-                  value: "toggle",
-                  label: getSearchQueryRootOperator(query) === "anyOf" ? "Change Root To allOf" : "Change Root To anyOf",
-                  description: "Reshape the visible root group without changing its current children.",
-                },
-              ]
-            : []),
-        ],
-        selectedValue: "addClause",
+        entries: entries.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+          description: entry.description,
+        })),
+        selectedValue: entries[0]?.id ?? "addClause",
       });
       if (result.kind !== "selected") {
         return;
       }
-      if (result.value === "toggle") {
-        applyNextTree(toggleSearchFilterRootGroupOperator(query.filter));
-        return;
-      }
-      await addQueryClauseAtPath(
-        query,
-        [],
-        result.value === "addAndGroup" ? "allOf" : result.value === "addOrGroup" ? "anyOf" : result.value === "addNotGroup" ? "not" : undefined,
-      );
+      await runRootAction(query, result.value as StructuredDraftEntryActionId);
     },
-    [addQueryClauseAtPath, applyNextTree, prompts],
+    [prompts, runRootAction],
   );
 
-  const promptForLeafAction = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, path: number[], node: SearchFilterNode) => {
+  const getLeafActionEntries = React.useCallback(
+    (query: Pf2eTerminalSearchQuery, path: number[], node: SearchFilterNode): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
       const fieldOptions = getScopedFieldOptions(query);
       const fieldOptionValue = getQueryFieldValueForNode(node);
       const fieldOption = fieldOptionValue
@@ -926,36 +1016,67 @@ export function useSearchStructuredDraftMetadataActions({
                 ? "pack"
                 : node.kind === "metricCompare"
                   ? "metricCompare"
-            : node.kind === "rarity"
-              ? "rarity"
-              : node.kind === "actionCost"
-                ? "actionCost"
-                : fieldOption && editableMetadataNode
-                  ? isMetricFieldOptionValue(fieldOption.value)
-                    ? "metric"
-                    : "field"
-                  : null;
+                  : node.kind === "rarity"
+                    ? "rarity"
+                    : node.kind === "actionCost"
+                      ? "actionCost"
+                      : fieldOption && editableMetadataNode
+                        ? isMetricFieldOptionValue(fieldOption.value)
+                          ? "metric"
+                          : "field"
+                        : null;
       const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
-      const result = await prompts.promptSelectOption({
-        title: "Query Clause",
-        prompt: "Choose how to update this staged query clause",
-        entries: [
-          ...(editableClauseKind
-            ? [{ value: "edit", label: "Edit Clause", description: "Change this canonical clause without leaving the tree editor." }]
-            : []),
-          { value: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
-          { value: "wrapAnd", label: "Wrap In allOf", description: "Place this clause inside a new allOf group." },
-          { value: "wrapOr", label: "Wrap In anyOf", description: "Place this clause inside a new anyOf group." },
-          { value: "move", label: "Move Node", description: "Move this clause to another visible insertion slot." },
-          ...(canLift ? [{ value: "lift", label: "Lift Node", description: "Lift this clause out of its current boolean group." }] : []),
-          { value: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
-        ],
-        selectedValue: editableClauseKind ? "edit" : "wrapNot",
-      });
-      if (result.kind !== "selected") {
-        return;
-      }
-      if (result.value === "edit") {
+
+      return [
+        ...(editableClauseKind
+          ? [{ id: "edit" as const, label: "Edit Clause", description: "Change this canonical clause without leaving the tree editor." }]
+          : []),
+        { id: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
+        { id: "wrapAnd", label: "Wrap In allOf", description: "Place this clause inside a new allOf group." },
+        { id: "wrapOr", label: "Wrap In anyOf", description: "Place this clause inside a new anyOf group." },
+        { id: "move", label: "Move Node", description: "Move this clause to another visible insertion slot." },
+        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this clause out of its current boolean group." }] : []),
+        { id: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
+      ];
+    },
+    [getScopedFieldOptions],
+  );
+
+  const runLeafAction = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      node: SearchFilterNode,
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      const fieldOptions = getScopedFieldOptions(query);
+      const fieldOptionValue = getQueryFieldValueForNode(node);
+      const fieldOption = fieldOptionValue
+        ? fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null
+        : null;
+      const editableMetadataNode = canonicalFilterToMetadataNode(node);
+      const editableClauseKind: ClauseKind | null =
+        node.kind === "scope"
+          ? "scope"
+          : node.kind === "level"
+            ? "level"
+            : node.kind === "price"
+              ? "price"
+              : node.kind === "pack"
+                ? "pack"
+                : node.kind === "metricCompare"
+                  ? "metricCompare"
+                  : node.kind === "rarity"
+                    ? "rarity"
+                    : node.kind === "actionCost"
+                      ? "actionCost"
+                      : fieldOption && editableMetadataNode
+                        ? isMetricFieldOptionValue(fieldOption.value)
+                          ? "metric"
+                          : "field"
+                        : null;
+
+      if (actionId === "edit") {
         if (!editableClauseKind) {
           await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
           return;
@@ -984,25 +1105,28 @@ export function useSearchStructuredDraftMetadataActions({
         applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNode ?? undefined));
         return;
       }
-      if (result.value === "wrapNot" || result.value === "wrapAnd" || result.value === "wrapOr") {
+
+      if (actionId === "wrapNot" || actionId === "wrapAnd" || actionId === "wrapOr") {
         applyNextTree(
           wrapSearchFilterNodeAtPath(
             query.filter,
             path,
-            result.value === "wrapNot" ? "not" : result.value === "wrapAnd" ? "allOf" : "anyOf",
+            actionId === "wrapNot" ? "not" : actionId === "wrapAnd" ? "allOf" : "anyOf",
           ),
         );
         return;
       }
-      if (result.value === "move") {
+      if (actionId === "move") {
         enterStructuredDraftMoveMode(path);
         return;
       }
-      if (result.value === "lift") {
+      if (actionId === "lift") {
         applyNextTree(liftSearchFilterNodeAtPath(query.filter, path));
         return;
       }
-      applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      if (actionId === "remove") {
+        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      }
     },
     [
       applyNextTree,
@@ -1011,44 +1135,158 @@ export function useSearchStructuredDraftMetadataActions({
       getScopedFieldOptions,
       openOntologyFieldEditor,
       promptForClauseNode,
-      prompts,
       terminal,
       updateStructuredDraftMetadataNode,
     ],
   );
 
-  const promptForNotAction = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, path: number[], node: Extract<SearchFilterNode, { kind: "not" }>) => {
-      const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
+  const promptForLeafAction = React.useCallback(
+    async (query: Pf2eTerminalSearchQuery, path: number[], node: SearchFilterNode) => {
+      const entries = getLeafActionEntries(query, path, node);
       const result = await prompts.promptSelectOption({
-        title: "NOT Group",
-        prompt: "Choose how to update this negated staged clause",
-        entries: [
-          { value: "unwrap", label: "Remove NOT", description: "Keep the child clause and remove the negation." },
-          { value: "move", label: "Move Node", description: "Move this NOT group to another visible insertion slot." },
-          ...(canLift ? [{ value: "lift", label: "Lift Node", description: "Lift this NOT group out of its current parent group." }] : []),
-          { value: "remove", label: "Remove Group", description: "Delete the negated clause entirely." },
-        ],
-        selectedValue: "unwrap",
+        title: "Query Clause",
+        prompt: "Choose how to update this staged query clause",
+        entries: entries.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+          description: entry.description,
+        })),
+        selectedValue: entries[0]?.id ?? "wrapNot",
       });
       if (result.kind !== "selected") {
         return;
       }
-      if (result.value === "unwrap") {
+      await runLeafAction(query, path, node, result.value as StructuredDraftEntryActionId);
+    },
+    [getLeafActionEntries, prompts, runLeafAction],
+  );
+
+  const getNotActionEntries = React.useCallback(
+    (query: Pf2eTerminalSearchQuery, path: number[]): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
+      const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
+      return [
+        { id: "unwrap", label: "Remove NOT", description: "Keep the child clause and remove the negation." },
+        { id: "move", label: "Move Node", description: "Move this NOT group to another visible insertion slot." },
+        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this NOT group out of its current parent group." }] : []),
+        { id: "remove", label: "Remove Group", description: "Delete the negated clause entirely." },
+      ];
+    },
+    [],
+  );
+
+  const runNotAction = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      node: Extract<SearchFilterNode, { kind: "not" }>,
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      if (actionId === "unwrap") {
         applyNextTree(path.length === 0 ? node.child : updateSearchFilterNodeAtPath(query.filter, path, () => node.child));
         return;
       }
-      if (result.value === "move") {
+      if (actionId === "move") {
         enterStructuredDraftMoveMode(path);
         return;
       }
-      if (result.value === "lift") {
+      if (actionId === "lift") {
         applyNextTree(liftSearchFilterNodeAtPath(query.filter, path));
         return;
       }
-      applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      if (actionId === "remove") {
+        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      }
     },
-    [applyNextTree, enterStructuredDraftMoveMode, prompts],
+    [applyNextTree, enterStructuredDraftMoveMode],
+  );
+
+  const promptForNotAction = React.useCallback(
+    async (query: Pf2eTerminalSearchQuery, path: number[], node: Extract<SearchFilterNode, { kind: "not" }>) => {
+      const entries = getNotActionEntries(query, path);
+      const result = await prompts.promptSelectOption({
+        title: "NOT Group",
+        prompt: "Choose how to update this negated staged clause",
+        entries: entries.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+          description: entry.description,
+        })),
+        selectedValue: entries[0]?.id ?? "unwrap",
+      });
+      if (result.kind !== "selected") {
+        return;
+      }
+      await runNotAction(query, path, node, result.value as StructuredDraftEntryActionId);
+    },
+    [getNotActionEntries, prompts, runNotAction],
+  );
+
+  const getGroupActionEntries = React.useCallback(
+    (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
+    ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
+      const canUnwrap = canUnwrapSearchFilterNodeAtPath(query.filter, path);
+      const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
+      return [
+        { id: "addClause", label: "Add Clause", description: "Append a new canonical clause at this group bottom." },
+        { id: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
+        { id: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
+        { id: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
+        {
+          id: "toggleGroup",
+          label: node.kind === "allOf" ? "Change To anyOf" : "Change To allOf",
+          description: "Reshape this group without changing its current children.",
+        },
+        { id: "wrapNot", label: "Wrap In NOT", description: "Wrap this group in a NOT node." },
+        { id: "move", label: "Move Node", description: "Move this group to another visible insertion slot." },
+        ...(canUnwrap ? [{ id: "unwrap" as const, label: "Unwrap Group", description: "Replace this group with its current children." }] : []),
+        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this group out of its current parent group." }] : []),
+        { id: "remove", label: "Remove Group", description: "Delete this group and all of its children." },
+      ];
+    },
+    [],
+  );
+
+  const runGroupAction = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      if (actionId === "addClause" || actionId === "addAndGroup" || actionId === "addOrGroup" || actionId === "addNotGroup") {
+        await runInsertionAction(query, path, actionId);
+        return;
+      }
+      if (actionId === "toggleGroup") {
+        applyNextTree(
+          reshapeSearchFilterBooleanGroupAtPath(query.filter, path, node.kind === "allOf" ? "anyOf" : "allOf"),
+        );
+        return;
+      }
+      if (actionId === "wrapNot") {
+        applyNextTree(wrapSearchFilterNodeAtPath(query.filter, path, "not"));
+        return;
+      }
+      if (actionId === "move") {
+        enterStructuredDraftMoveMode(path);
+        return;
+      }
+      if (actionId === "unwrap") {
+        applyNextTree(unwrapSearchFilterNodeAtPath(query.filter, path));
+        return;
+      }
+      if (actionId === "lift") {
+        applyNextTree(liftSearchFilterNodeAtPath(query.filter, path));
+        return;
+      }
+      if (actionId === "remove") {
+        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      }
+    },
+    [applyNextTree, enterStructuredDraftMoveMode, runInsertionAction],
   );
 
   const promptForGroupAction = React.useCallback(
@@ -1057,69 +1295,23 @@ export function useSearchStructuredDraftMetadataActions({
       path: number[],
       node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
     ) => {
-      const canUnwrap = canUnwrapSearchFilterNodeAtPath(query.filter, path);
-      const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
+      const entries = getGroupActionEntries(query, path, node);
       const result = await prompts.promptSelectOption({
         title: "Boolean Group",
         prompt: "Choose how to update this staged boolean group",
-        entries: [
-          { value: "addClause", label: "Add Clause", description: "Append a new canonical clause at this group bottom." },
-          { value: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
-          { value: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
-          { value: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
-          {
-            value: "toggle",
-            label: node.kind === "allOf" ? "Change To anyOf" : "Change To allOf",
-            description: "Reshape this group without changing its current children.",
-          },
-          { value: "wrapNot", label: "Wrap In NOT", description: "Wrap this group in a NOT node." },
-          { value: "move", label: "Move Node", description: "Move this group to another visible insertion slot." },
-          ...(canUnwrap ? [{ value: "unwrap", label: "Unwrap Group", description: "Replace this group with its current children." }] : []),
-          ...(canLift ? [{ value: "lift", label: "Lift Node", description: "Lift this group out of its current parent group." }] : []),
-          { value: "remove", label: "Remove Group", description: "Delete this group and all of its children." },
-        ],
-        selectedValue: "addClause",
+        entries: entries.map((entry) => ({
+          value: entry.id,
+          label: entry.label,
+          description: entry.description,
+        })),
+        selectedValue: entries[0]?.id ?? "addClause",
       });
       if (result.kind !== "selected") {
         return;
       }
-      if (result.value === "addClause") {
-        await addQueryClauseAtPath(query, path);
-        return;
-      }
-      if (result.value === "addAndGroup" || result.value === "addOrGroup" || result.value === "addNotGroup") {
-        await addQueryClauseAtPath(
-          query,
-          path,
-          result.value === "addAndGroup" ? "allOf" : result.value === "addOrGroup" ? "anyOf" : "not",
-        );
-        return;
-      }
-      if (result.value === "toggle") {
-        applyNextTree(
-          reshapeSearchFilterBooleanGroupAtPath(query.filter, path, node.kind === "allOf" ? "anyOf" : "allOf"),
-        );
-        return;
-      }
-      if (result.value === "wrapNot") {
-        applyNextTree(wrapSearchFilterNodeAtPath(query.filter, path, "not"));
-        return;
-      }
-      if (result.value === "move") {
-        enterStructuredDraftMoveMode(path);
-        return;
-      }
-      if (result.value === "unwrap") {
-        applyNextTree(unwrapSearchFilterNodeAtPath(query.filter, path));
-        return;
-      }
-      if (result.value === "lift") {
-        applyNextTree(liftSearchFilterNodeAtPath(query.filter, path));
-        return;
-      }
-      applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+      await runGroupAction(query, path, node, result.value as StructuredDraftEntryActionId);
     },
-    [addQueryClauseAtPath, applyNextTree, enterStructuredDraftMoveMode, prompts],
+    [getGroupActionEntries, prompts, runGroupAction],
   );
 
   const editStructuredDraftMetadata = React.useCallback(
@@ -1179,7 +1371,94 @@ export function useSearchStructuredDraftMetadataActions({
     ],
   );
 
+  const getStructuredDraftEntryActions = React.useCallback(
+    (
+      entry: SearchStructuredDraftEntry | null | undefined,
+    ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
+      const draftQuery = structuredDraftQuery;
+      if (!draftQuery || !entry) {
+        return [];
+      }
+      if (entry.kind === "queryTreeRoot") {
+        return buildRootActionEntries(draftQuery);
+      }
+      if (entry.kind === "queryInsertionSlot") {
+        return buildInsertionActionEntries(Boolean(moveSourcePath));
+      }
+      if (entry.kind !== "queryNode") {
+        return [];
+      }
+
+      const node = getSearchFilterNodeAtPath(draftQuery.filter, entry.treePath ?? []);
+      if (!node) {
+        return [];
+      }
+      if (node.kind === "not") {
+        return getNotActionEntries(draftQuery, entry.treePath ?? []);
+      }
+      if (isSearchFilterBooleanGroup(node)) {
+        return getGroupActionEntries(draftQuery, entry.treePath ?? [], node);
+      }
+      return getLeafActionEntries(draftQuery, entry.treePath ?? [], node);
+    },
+    [
+      getGroupActionEntries,
+      getLeafActionEntries,
+      getNotActionEntries,
+      moveSourcePath,
+      structuredDraftQuery,
+    ],
+  );
+
+  const runStructuredDraftEntryAction = React.useCallback(
+    async (
+      entry: SearchStructuredDraftEntry | null | undefined,
+      actionId: StructuredDraftEntryActionId,
+    ) => {
+      const draftQuery = structuredDraftQuery;
+      if (!draftQuery || !entry) {
+        return;
+      }
+      if (entry.kind === "queryTreeRoot") {
+        await runRootAction(draftQuery, actionId);
+        return;
+      }
+      if (entry.kind === "queryInsertionSlot") {
+        await runInsertionAction(draftQuery, entry.insertionPath ?? [], actionId);
+        return;
+      }
+      if (entry.kind !== "queryNode") {
+        return;
+      }
+
+      const path = entry.treePath ?? [];
+      const node = getSearchFilterNodeAtPath(draftQuery.filter, path);
+      if (!node) {
+        return;
+      }
+      if (node.kind === "not") {
+        await runNotAction(draftQuery, path, node, actionId);
+        return;
+      }
+      if (isSearchFilterBooleanGroup(node)) {
+        await runGroupAction(draftQuery, path, node, actionId);
+        return;
+      }
+      await runLeafAction(draftQuery, path, node, actionId);
+    },
+    [
+      runGroupAction,
+      runInsertionAction,
+      runLeafAction,
+      runNotAction,
+      runRootAction,
+      structuredDraftQuery,
+    ],
+  );
+
   return {
     editStructuredDraftMetadata,
+    getStructuredDraftEntryActions,
+    runStructuredDraftEntryAction,
   };
 }

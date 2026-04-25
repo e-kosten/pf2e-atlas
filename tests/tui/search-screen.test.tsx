@@ -693,18 +693,26 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Mode");
     pressRight(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Mode");
-    pressDown(app);
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    pressRight(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    expect(app.lastFrame()).toContain("Search | Any Category | Unavailable until you enter search text.");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Query Status");
+    expect(app.lastFrame()).toContain("Execute Query");
+    expect(app.lastFrame()).toContain("Profile | balanced");
+    expect(app.lastFrame()).not.toContain("Action Cost |");
+    expect(app.lastFrame()).toContain("Filters > | None yet");
+    expect(app.lastFrame()).toContain("Mode");
 
     pressDown(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Query");
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Text");
+    expect(app.lastFrame()).toContain("Search Text");
     for (const character of "ghost") {
       app.stdin.write(character);
     }
@@ -772,15 +780,12 @@ describe("search screen", () => {
     );
 
     await flushInk();
-    pressDown(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Mode");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
 
     pressLeft(app);
     await flushInk();
 
     expect(onBack).toHaveBeenCalledTimes(1);
-    expect(app.lastFrame()).not.toContain("Query Mode");
   });
 
   it("treats vim horizontal keys as the same editor and subprompt navigation semantics", async () => {
@@ -796,11 +801,13 @@ describe("search screen", () => {
 
     app.stdin.write("l");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Mode");
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    expect(app.lastFrame()).toContain("Search");
 
     app.stdin.write("h");
     await flushInk();
-    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    expect(app.lastFrame()).toContain("Browse");
   });
 
   it("opens the shared query editor command palette and runs the selected editor action", async () => {
@@ -813,6 +820,7 @@ describe("search screen", () => {
     );
 
     await flushInk();
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
 
     app.stdin.write(":");
     await flushInk();
@@ -823,9 +831,9 @@ describe("search screen", () => {
     }
     await flushInk();
     app.stdin.write("\r");
-    await waitForFrameToContain(app, "Query Mode");
+    await waitForFrameToContain(app, "Choose Search Mode");
 
-    expect(app.lastFrame()).toContain("Query Mode");
+    expect(app.lastFrame()).toContain("Choose Search Mode");
   });
 
   it("hides unavailable editor commands from the palette while leaving the editor row visible", async () => {
@@ -877,6 +885,52 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).not.toContain("Category Scope");
+  });
+
+  it("opens result actions with sort selection for browse sessions", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write(":");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Result Actions");
+    expect(app.lastFrame()).toContain("Change Sort");
+    expect(app.lastFrame()).not.toContain("Result Commands");
+  });
+
+  it("keeps ranked search results on the shared action flow without exposing sort", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession({
+              query: searchRequest("alarm ward"),
+              resultMode: "hybrid",
+              searchProfile: "balanced",
+              sort: "ranked",
+            })}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write(":");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Result Actions");
+    expect(app.lastFrame()).not.toContain("Change Sort");
   });
 
   it("uses space to open add-query-part and keeps derived-tag composition on the shared explorer path", async () => {
@@ -2029,12 +2083,13 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("allOf");
     expect(app.lastFrame()).toContain("[+ add here]");
-    expect(app.lastFrame()).toContain("q return");
+    expect(app.lastFrame()).toContain(": focus actions");
+    expect(app.lastFrame()).toContain("return");
 
     app.stdin.write("?");
     await flushInk();
     expect(app.lastFrame()).toContain("q: apply the staged structured query and return to the live editor");
-    expect(app.lastFrame()).toContain("Use Left or Esc to apply the staged query and return to the top editor.");
+    expect(app.lastFrame()).toContain("Press : to open the action rail");
 
     app.stdin.write("x");
     await flushInk();
@@ -2100,7 +2155,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
-  it("opens the shared explorer for staged rarity and action-cost rows", async () => {
+  it("uses the shared rarity explorer and centered numeric matcher for staged rows", async () => {
     const services = createServices();
     services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
       async () => createFacetPickerOntologyDomainWithDiscreteFields(),
@@ -2170,9 +2225,9 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Action Cost Explorer");
-    expect(app.lastFrame()).toContain("1 action");
-    expect(app.lastFrame()).toContain("2 actions");
+    expect(app.lastFrame()).toContain("Level Range");
+    expect(app.lastFrame()).toContain("Enter `3-8`, `5`, `>=5`, `5+`, or `<=10`. Leave blank to clear.");
+    expect(app.lastFrame()).toContain("2");
   });
 
   it("defaults structured-draft shared explorers to matching counts and can switch to catalog counts", async () => {
@@ -2767,12 +2822,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Creature Statistics / Hit Points");
-    expect(app.lastFrame()).toContain("Selected: Equals");
-
-    app.stdin.write("\r");
-    await waitForFrameToContain(app, "Enter a numeric value. Leave blank to clear.");
-    expect(app.lastFrame()).toContain("Enter a numeric value. Leave blank to clear.");
-    await flushInk();
+    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`.");
 
     for (const character of "12") {
       app.stdin.write(character);

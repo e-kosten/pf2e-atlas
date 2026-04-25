@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../../src/tui/search/service-types.js";
-import { buildResultDetailLines, buildResultLines } from "../../src/tui/search-screen/results.js";
+import { buildSearchFooterText, buildSearchHelpLines } from "../../src/tui/search-screen/interactions.js";
+import {
+  buildResultCommandPaletteEntries,
+  buildResultDetailLines,
+  buildResultLines,
+  canChangeResultSort,
+} from "../../src/tui/search-screen/results.js";
+import { createInitialSearchScreenState } from "../../src/tui/search-screen/state.js";
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
   return {
@@ -111,6 +118,13 @@ function createSession(
   };
 }
 
+function createResultState(session: Pf2eTerminalSearchSession) {
+  return createInitialSearchScreenState(session.query, {
+    layout: "results",
+    session,
+  });
+}
+
 describe("search result detail lines", () => {
   it("reuses the shared ontology detail presenter so result previews include the AoN link metadata", () => {
     const lines = buildResultDetailLines(createRecord(), createSession(createRecord()), 0);
@@ -203,5 +217,59 @@ describe("search result detail lines", () => {
     expect(globalLines.some((line) => line.text.includes("[normalized]"))).toBe(true);
     expect(globalLines.some((line) => line.text.includes("[exact]"))).toBe(true);
     expect(globalLines.some((line) => line.text.includes("[fuzzy]"))).toBe(true);
+  });
+
+  it("only exposes sort actions for browse and lookup result readers", () => {
+    const record = createRecord();
+    const browseSession = createSession(record, {
+      query: { mode: "browse", limit: 20 },
+      resultMode: "browse",
+      searchProfile: null,
+      sort: "alphabetical",
+    });
+    const searchSession = createSession(record);
+    const lookupSession = createSession(record, {
+      query: {
+        mode: "lookup",
+        limit: 20,
+        search: {
+          query: "Alarm Ward",
+        },
+      },
+      resultMode: "lexical",
+      searchProfile: null,
+      sort: "alphabeticalTiered",
+    });
+
+    expect(canChangeResultSort(browseSession)).toBe(true);
+    expect(canChangeResultSort(searchSession)).toBe(false);
+    expect(canChangeResultSort(lookupSession)).toBe(true);
+
+    expect(buildResultCommandPaletteEntries(createResultState(browseSession), "app").map((entry) => entry.value)).toContain(
+      "sortResults",
+    );
+    expect(buildResultCommandPaletteEntries(createResultState(searchSession), "app").map((entry) => entry.value)).not.toContain(
+      "sortResults",
+    );
+    expect(buildResultCommandPaletteEntries(createResultState(lookupSession), "app").map((entry) => entry.value)).toContain(
+      "sortResults",
+    );
+  });
+
+  it("uses action-oriented help and footer copy in the result reader", () => {
+    const session = createSession(createRecord(), {
+      query: { mode: "browse", limit: 20 },
+      resultMode: "browse",
+      searchProfile: null,
+      sort: "alphabetical",
+    });
+    const state = createResultState(session);
+    const footer = buildSearchFooterText(state, false, "app");
+    const helpLines = buildSearchHelpLines(state, [], "app").map((line) => line.text);
+
+    expect(footer).toContain("actions");
+    expect(footer).not.toContain("commands");
+    expect(helpLines).toContain("Result Actions");
+    expect(helpLines.some((line) => line.toLowerCase().includes("result actions"))).toBe(true);
   });
 });

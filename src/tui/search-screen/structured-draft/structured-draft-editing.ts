@@ -15,6 +15,7 @@ import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
 import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
 import { buildSearchQuerySummary } from "../workspace/query-summary.js";
+import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -76,7 +77,11 @@ export function useSearchStructuredDraftEditing({
   ) => void;
   user: SearchWorkspaceUser;
 }): SearchStructuredEditorSession | null {
-  const { editStructuredDraftMetadata } = useSearchStructuredDraftMetadataActions({
+  const {
+    editStructuredDraftMetadata,
+    getStructuredDraftEntryActions,
+    runStructuredDraftEntryAction,
+  } = useSearchStructuredDraftMetadataActions({
     appendStructuredDraftMetadataNode,
     clearStructuredDraftMoveSource,
     editFieldClause,
@@ -123,14 +128,32 @@ export function useSearchStructuredDraftEditing({
     structuredDraftState,
   ]);
 
+  const selectedStructuredDraftEntry = React.useMemo(() => {
+    if (!structuredDraftState) {
+      return null;
+    }
+    return (
+      structuredDraftEntries[
+        clampStructuredDraftSelection(structuredDraftState.selectedIndex, structuredDraftEntries.length)
+      ] ?? null
+    );
+  }, [structuredDraftEntries, structuredDraftState]);
+
   return React.useMemo<SearchStructuredEditorSession | null>(() => {
     if (!structuredDraftState) {
       return null;
     }
 
+    const selectedActionEntries: DerivedTagTerminalActionTargetOption<string>[] =
+      selectedStructuredDraftEntry?.kind === "finish"
+        ? [{ id: "apply", label: "Apply Structured Edit", description: "Commit the staged structured query back into the live editor." }]
+        : selectedStructuredDraftEntry?.kind === "cancel"
+          ? [{ id: "discard", label: "Discard Structured Edit", description: "Discard the staged structured query and keep the live query unchanged." }]
+          : getStructuredDraftEntryActions(selectedStructuredDraftEntry);
+
     return {
       title: "Structured Query Editor",
-      subtitle: "Stage structured search changes before applying them to the live query",
+      subtitle: "Structured Query Editor | Stage structured search changes before applying them to the live query",
       leftTitle: "[STAGED QUERY]",
       rightTitle: "Staged Summary & Detail",
       statusText: structuredDraftState.moveSourcePath
@@ -150,6 +173,21 @@ export function useSearchStructuredDraftEditing({
               label: entry.menuLabel ?? entry.label,
             },
       ),
+      actionEntries: selectedActionEntries,
+      runAction: (actionId) => {
+        if (selectedStructuredDraftEntry?.kind === "finish") {
+          finishStructuredDraftSession();
+          return;
+        }
+        if (selectedStructuredDraftEntry?.kind === "cancel") {
+          cancelStructuredDraftSession();
+          return;
+        }
+        void runStructuredDraftEntryAction(
+          selectedStructuredDraftEntry,
+          actionId as Parameters<typeof runStructuredDraftEntryAction>[1],
+        );
+      },
       selectedIndex: clampStructuredDraftSelection(structuredDraftState.selectedIndex, structuredDraftEntries.length),
       moveSelection: moveStructuredDraftSelection,
       selectCurrent: selectCurrentStructuredDraftEntry,
@@ -169,8 +207,12 @@ export function useSearchStructuredDraftEditing({
     };
   }, [
     clearStructuredDraftMoveSource,
+    cancelStructuredDraftSession,
     finishStructuredDraftSession,
+    getStructuredDraftEntryActions,
     moveStructuredDraftSelection,
+    runStructuredDraftEntryAction,
+    selectedStructuredDraftEntry,
     selectCurrentStructuredDraftEntry,
     structuredDraftEntries,
     structuredDraftQuery,

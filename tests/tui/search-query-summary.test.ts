@@ -159,7 +159,6 @@ describe("search query summary", () => {
         .map((entry) => entry.label),
     ).toEqual([
       "Exclude",
-      "Query Logic",
       "Profile",
       "Filter",
       "Filter",

@@ -2,14 +2,22 @@ import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
 import {
+  buildDerivedTagTerminalActionTargetHelpLines,
+  type DerivedTagTerminalActionTargetOption,
+} from "../../action-target.js";
+import {
   buildTerminalInteractionHelpLines,
-  formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../../interaction-bindings.js";
 import type { SearchWorkspaceEntry } from "../workspace/workspace.js";
 import { buildStructuredWorkspaceEntryFocusLines, formatSearchWorkspaceEntryLine } from "../workspace/workspace.js";
 import type { Pf2eTerminalFilterExplorerDraft } from "../../search/service.js";
 import type { DerivedTagTerminalLine } from "../../framework/types.js";
+import {
+  createMergedReturnFooterBinding,
+  createSharedReturnInteractionActions,
+} from "../../shell-navigation-copy.js";
+import type { TerminalMenuScreenInteractions } from "../../shared-screens.js";
 
 export type SearchFilterExplorerSession = {
   title?: string;
@@ -44,6 +52,8 @@ export type SearchStructuredEditorSession = {
   selectedIndex: number;
   moveSelection: (delta: number, itemCount: number) => void;
   selectCurrent: () => void;
+  actionEntries: DerivedTagTerminalActionTargetOption<string>[];
+  runAction: (actionId: string) => void;
   finish?: () => void;
   cancel: () => void;
   title?: string;
@@ -81,14 +91,66 @@ export function getSearchStructuredEditorInteractionActions(
     { id: "page" },
     { id: "edge" },
     { id: "select", label: "open" },
+    { id: "actions", label: "focus actions" },
     { id: "help" },
-    { id: "back", label: "return" },
-    { id: "quit", label: "return" },
+    ...createSharedReturnInteractionActions(),
   ];
 }
 
-export function buildSearchStructuredEditorFooterText(session: SearchStructuredEditorSession): string {
-  return formatTerminalInteractionFooter(getSearchStructuredEditorInteractionActions(session));
+export function createSearchStructuredEditorInteractions(
+  session: SearchStructuredEditorSession,
+): TerminalMenuScreenInteractions {
+  return {
+    actions: getSearchStructuredEditorInteractionActions(session),
+    footerBindings: [
+      { kind: "action", action: { id: "select", label: "open" } },
+      { kind: "action", action: { id: "actions", label: "focus actions" } },
+      { kind: "action", action: { id: "help" } },
+      createMergedReturnFooterBinding(),
+    ],
+    help: {
+      title: session.helpTitle ?? "Structured Query Editor Help",
+      sections: [
+        {
+          title: "Navigation",
+          actions: [
+            { id: "move", label: "select", helpText: "move through the staged query list" },
+            { id: "jump", helpText: "jump through the staged query list" },
+            { id: "page", helpText: "page through the staged query list" },
+            { id: "edge", helpText: "jump to the start or end of the staged query list" },
+          ],
+        },
+        {
+          title: "Actions",
+          actions: getSearchStructuredEditorInteractionActions(session)
+            .filter((action) => action.id === "select" || action.id === "actions" || action.id === "help" || action.id === "back" || action.id === "quit")
+            .map((action) => ({
+              ...action,
+              helpText:
+                action.id === "select"
+                  ? "open the focused row or use its default action"
+                  : action.id === "actions"
+                    ? "focus the node-action rail for grouping, moving, wrapping, and other restructuring"
+                    : action.id === "help"
+                      ? "show this help"
+                      : "apply the staged structured query and return to the live editor",
+              label: action.id === "back" || action.id === "quit" ? "return" : action.label,
+            })),
+        },
+      ],
+      appendix: [
+        ...buildDerivedTagTerminalActionTargetHelpLines({
+          orientation: "horizontal",
+          visibility: "onDemand",
+          actions: session.actionEntries,
+          contentHelpText: "Use the action rail for add/group/move/wrap flows instead of a hidden command palette.",
+        }),
+        ...(getSearchStructuredEditorNotes(session).length > 0
+          ? [{ text: "" }, ...getSearchStructuredEditorNotes(session)]
+          : []),
+      ],
+    },
+  };
 }
 
 export function buildSearchStructuredEditorHelpLines(
@@ -110,12 +172,14 @@ export function buildSearchStructuredEditorHelpLines(
       {
         title: "Actions",
         actions: getSearchStructuredEditorInteractionActions(session)
-          .filter((action) => action.id === "select" || action.id === "help" || action.id === "back" || action.id === "quit")
+          .filter((action) => action.id === "select" || action.id === "actions" || action.id === "help" || action.id === "back" || action.id === "quit")
           .map((action) => ({
             ...action,
             helpText:
               action.id === "select"
                 ? "open the focused row"
+                : action.id === "actions"
+                  ? "focus the node-action rail"
                 : action.id === "help"
                   ? "show this help"
                   : "apply the staged structured query and return to the live editor",
@@ -123,6 +187,13 @@ export function buildSearchStructuredEditorHelpLines(
           })),
       },
   ]),
+    { text: "" },
+    ...buildDerivedTagTerminalActionTargetHelpLines({
+      orientation: "horizontal",
+      visibility: "onDemand",
+      actions: session.actionEntries,
+      contentHelpText: "Use the action rail for add/group/move/wrap flows instead of a hidden command palette.",
+    }),
     { text: "" },
     ...notes,
   ];

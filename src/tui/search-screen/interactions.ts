@@ -82,7 +82,7 @@ export function getSearchResultListInteractionActions(origin: SearchScreenOrigin
   return [
     { id: "back", label: origin === "ontology" ? "return" : "editor" },
     { id: "focus", label: "pane" },
-    { id: "commands" },
+    { id: "actions" },
     { id: "help" },
     { id: "quit", label: origin === "ontology" ? "return" : "back" },
   ];
@@ -94,7 +94,7 @@ export function getSearchResultDetailInteractionActions(
   return [
     { id: "back", label: "results" },
     { id: "focus", label: "pane" },
-    { id: "commands" },
+    { id: "actions" },
     { id: "help" },
     { id: "quit", label: origin === "ontology" ? "return" : "back" },
   ];
@@ -217,8 +217,8 @@ export function buildSearchHelpLines(
               ? "return to the result list"
               : action.id === "focus"
                 ? "switch focus between results and preview"
-                : action.id === "commands"
-                  ? "open the results command palette"
+                : action.id === "actions"
+                  ? "open the result actions"
                   : action.id === "help"
                     ? "show search results help"
                     : origin === "ontology"
@@ -237,7 +237,7 @@ export function buildSearchHelpLines(
       actions: resultActions,
     },
     {
-      title: "Results Commands",
+      title: "Result Actions",
       commands: buildResultCommandPaletteEntries(state, origin).map<TerminalInteractionCommand>((entry) => ({
         label: entry.label,
         description: entry.description ?? "No additional details.",
@@ -341,7 +341,7 @@ export function useSearchScreenInteractionRouter(options: {
         return;
       }
 
-      if (activeRoute.interactionAction?.id === "commands") {
+      if (activeRoute.interactionAction?.id === "actions" || activeRoute.interactionAction?.id === "commands") {
         options.onIntent({ type: "open_result_commands" });
         return;
       }

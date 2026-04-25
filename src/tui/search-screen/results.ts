@@ -17,6 +17,10 @@ import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ont
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
 
+export function canChangeResultSort(session: Pf2eTerminalSearchSession | null): boolean {
+  return Boolean(session && session.query.mode !== "search");
+}
+
 function getLookupPresentation(
   session: Pf2eTerminalSearchSession | null,
 ): { policy: "tiered" | "global" } | null {
@@ -161,18 +165,18 @@ export function buildResultCommandPaletteEntries(
       description: "Jump to an absolute result position in the active result set.",
       keywords: ["position", "goto"],
     },
-    ...(state.session?.query.mode === "search"
-      ? []
-      : [
+    ...(canChangeResultSort(state.session)
+      ? [
           {
             value: "sortResults" as const,
             label: "Change Sort",
             description: state.session
               ? `Switch result ordering from ${formatSort(state.session.sort)}.`
-              : "Change the active result ordering.",
-            keywords: ["order", "ranking"],
+              : "Choose the active result ordering for this result reader.",
+            keywords: ["sort", "order", "browse", "lookup"],
           },
-        ]),
+        ]
+      : []),
     ...(origin === "ontology"
       ? [
           {

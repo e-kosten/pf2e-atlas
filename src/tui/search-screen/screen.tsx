@@ -2,9 +2,7 @@ import React from "react";
 
 import {
   buildSearchStructuredEditorDetailLines,
-  buildSearchStructuredEditorFooterText,
-  buildSearchStructuredEditorHelpLines,
-  getSearchStructuredEditorInteractionActions,
+  createSearchStructuredEditorInteractions,
   buildSearchStructuredEditorMenuItems,
   buildSearchStructuredEditorStatusLine,
 } from "./query-field-builder/query-field-builder-session.js";
@@ -12,7 +10,7 @@ import { useSearchScreenController } from "./controller.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import { SearchFilterExplorerScreen } from "./filter-explorer-screen.js";
 import { TerminalTwoPaneScreen } from "../framework/screen-components.js";
-import { TerminalMenuScreen } from "../shared-screens.js";
+import { TerminalActionMenuScreen } from "../shared-screens.js";
 
 export { parseJumpToResultInput } from "./model.js";
 
@@ -26,28 +24,23 @@ export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
   if (controller.structuredEditorSession) {
     const session = controller.structuredEditorSession;
     return (
-      <TerminalMenuScreen
+      <TerminalActionMenuScreen
         title={session.title ?? "Structured Query Editor"}
         subtitle={session.subtitle ?? "Stage structured search changes before applying them to the live query"}
         leftTitle={session.leftTitle ?? "[STAGED QUERY]"}
         rightTitle={session.rightTitle ?? "Staged Summary & Detail"}
+        leftWidth={32}
         items={buildSearchStructuredEditorMenuItems(session)}
         selectedIndex={session.selectedIndex}
-        interactionActions={getSearchStructuredEditorInteractionActions(session)}
-        footer={[
-          {
-            text: buildSearchStructuredEditorFooterText(session),
-            tone: "dim",
-          },
-        ]}
-        status={buildSearchStructuredEditorStatusLine(session)}
-        transitionStatus={props.transitionStatus}
-        helpTitle={session.helpTitle ?? "Structured Query Editor Help"}
-        helpBody={buildSearchStructuredEditorHelpLines(session)}
-        buildDetailLines={() => buildSearchStructuredEditorDetailLines(session)}
+        interactions={createSearchStructuredEditorInteractions(session)}
+        actionEntries={session.actionEntries}
+        buildRightLines={() => buildSearchStructuredEditorDetailLines(session)}
+        buildStatusLine={() => buildSearchStructuredEditorStatusLine(session)}
         onMove={session.moveSelection}
         onSelect={session.selectCurrent}
         onBack={session.cancel}
+        onAction={session.runAction}
+        transitionStatus={props.transitionStatus}
       />
     );
   }

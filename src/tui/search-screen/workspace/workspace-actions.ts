@@ -263,8 +263,8 @@ export function useSearchWorkspaceActions({
 
   const openResultCommandPalette = React.useCallback(async () => {
     const selected = await prompts.promptCommandPalette({
-      title: "Result Commands",
-      prompt: "Filter result commands",
+      title: "Result Actions",
+      prompt: "Filter result actions",
       entries: buildResultCommandPaletteEntries(state, origin),
     });
     if (selected === "jumpToResult") {

@@ -14,6 +14,7 @@ import {
   getSessionRecordAtIndex,
   parseJumpToResultInput,
 } from "./model.js";
+import { canChangeResultSort } from "./results.js";
 
 export function useSearchSessionWorkflow({
   dispatch,
@@ -109,34 +110,35 @@ export function useSearchSessionWorkflow({
   );
 
   const chooseResultSort = React.useCallback(async () => {
-    if (!state.session) {
+    const session = state.session;
+    if (!session || !canChangeResultSort(session)) {
       return;
     }
 
-    const sortOptions = user.search.getResultSortOptions(state.session.query.mode);
+    const sortOptions = user.search.getResultSortOptions(session.query.mode);
     if (sortOptions.length === 0) {
       return;
     }
 
     const result = await prompts.promptSelectOption({
       title: "Result Sort",
-      prompt: "Choose how the current result reader should be ordered",
+      prompt: "Choose how this browse or lookup result reader should be ordered",
       entries: sortOptions.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description,
       })),
-      selectedValue: state.session.sort,
+      selectedValue: session.sort,
     });
 
-    if (result.kind !== "selected" || result.value === state.session.sort) {
+    if (result.kind !== "selected" || result.value === session.sort) {
       return;
     }
 
     setBusy(true);
     try {
-      const session = await user.search.changeSort(state.session, result.value);
-      dispatch({ type: "set_session", session });
+      const nextSession = await user.search.changeSort(session, result.value);
+      dispatch({ type: "set_session", session: nextSession });
     } catch (error) {
       await terminal.pauseForAnyKey(`Result sort failed.\n\n${(error as Error).message}`);
     } finally {

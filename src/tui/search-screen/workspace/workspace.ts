@@ -196,7 +196,6 @@ export function buildWorkspaceEntries(
   if (!modeEntry) {
     throw new Error("Search query summary must include mode entries.");
   }
-  const filterTreeRootEntry = summary.entries.find((entry) => entry.kind === "filterTreeRoot");
   const entries: SearchWorkspaceEntry[] = [
     buildWorkspaceEntryFromSummary(modeEntry),
     ...(queryEntry?.visible ? [buildWorkspaceEntryFromSummary(queryEntry)] : []),
@@ -208,10 +207,6 @@ export function buildWorkspaceEntries(
       description: "Open the dedicated filter builder for the canonical filter tree.",
     },
   ];
-
-  if (filterTreeRootEntry?.visible) {
-    entries.push(buildWorkspaceEntryFromSummary(filterTreeRootEntry, { indentOffset: 1 }));
-  }
 
   const structuredEntries = getVisibleSearchQuerySummaryEntries(summary)
     .filter((entry) => isStructuredSearchQuerySummaryEntry(entry) && entry.kind !== "filterTreeRoot")
