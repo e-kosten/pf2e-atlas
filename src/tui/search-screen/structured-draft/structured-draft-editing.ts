@@ -10,10 +10,11 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
-import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
+import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
 import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
 import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
+import { buildSearchQuerySummary } from "../workspace/query-summary.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -74,7 +75,7 @@ export function useSearchStructuredDraftEditing({
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
   ) => void;
   user: SearchWorkspaceUser;
-}): SearchQueryFieldBuilderSession | null {
+}): SearchStructuredEditorSession | null {
   const { editStructuredDraftMetadata } = useSearchStructuredDraftMetadataActions({
     appendStructuredDraftMetadataNode,
     clearStructuredDraftMoveSource,
@@ -122,13 +123,12 @@ export function useSearchStructuredDraftEditing({
     structuredDraftState,
   ]);
 
-  return React.useMemo<SearchQueryFieldBuilderSession | null>(() => {
+  return React.useMemo<SearchStructuredEditorSession | null>(() => {
     if (!structuredDraftState) {
       return null;
     }
 
     return {
-      kind: "structuredEditor",
       title: "Structured Query Editor",
       subtitle: "Stage structured search changes before applying them to the live query",
       leftTitle: "[STAGED QUERY]",
@@ -136,7 +136,7 @@ export function useSearchStructuredDraftEditing({
       statusText: structuredDraftState.moveSourcePath
         ? "Move mode: select a visible destination slot, Enter confirms, Left/Esc cancels the move."
         : "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
-      projectedQuery: structuredDraftQuery,
+      stagedPartCount: structuredDraftQuery ? buildSearchQuerySummary(structuredDraftQuery).activeStructuredPartCount : 0,
       summaryLines: structuredDraftQuery
         ? buildStructuredQuerySummaryLines(structuredDraftQuery, {
             packLabelResolver: user.search.getPackLabel,

@@ -1,7 +1,7 @@
 import React from "react";
 
 import type { SearchScreenAction, SearchScreenState } from "../state.js";
-import type { SearchQueryFieldBuilderSession } from "../query-field-builder/query-field-builder-session.js";
+import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import type { SearchScreenOrigin } from "../workflow-types.js";
 import {
@@ -67,7 +67,7 @@ export function useSearchWorkspaceActions({
   chooseResultSort: () => Promise<void>;
 }): {
   handleIntent: (intent: import("../model.js").SearchScreenIntent) => void;
-  structuredEditorSession: SearchQueryFieldBuilderSession | null;
+  structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const editQueryText = React.useCallback(async () => {
     if (state.query.mode === "browse") {

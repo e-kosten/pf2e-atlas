@@ -4,10 +4,8 @@ import { moveSelection } from "../framework/input.js";
 import { formatSearchSortLabel } from "../search/service-options.js";
 import { reduceDerivedTagTerminalTwoPaneState } from "../two-pane-state.js";
 export type {
-  SearchQueryFieldBuilderDraft,
-  SearchQueryFieldBuilderOutcome,
-  SearchQueryFieldBuilderSession,
   SearchFilterExplorerSession,
+  SearchStructuredEditorSession,
 } from "./query-field-builder/query-field-builder-session.js";
 export type {
   SearchStructuredDraftAnchor,

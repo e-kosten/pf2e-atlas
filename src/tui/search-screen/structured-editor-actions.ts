@@ -1,6 +1,6 @@
 import type { Pf2eTerminalSearchQuery } from "../search/service.js";
 import { useSearchQueryFieldEditing } from "./query-field-editing.js";
-import type { SearchQueryFieldBuilderSession } from "./query-field-builder/query-field-builder-session.js";
+import type { SearchStructuredEditorSession } from "./query-field-builder/query-field-builder-session.js";
 import { useSearchStructuredDraftActions } from "./structured-draft/structured-draft-actions.js";
 import { useSearchStructuredDraftEditing } from "./structured-draft/structured-draft-editing.js";
 import type { SearchStructuredDraftState } from "./structured-draft/structured-draft-support.js";
@@ -30,7 +30,7 @@ export function useSearchStructuredEditorActions({
     anchor: SearchStructuredDraftState["anchor"],
     query?: Pf2eTerminalSearchQuery,
   ) => void;
-  structuredEditorSession: SearchQueryFieldBuilderSession | null;
+  structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const {
     chooseQueryField,
