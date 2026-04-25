@@ -70,6 +70,17 @@ type StructuredDraftEntryActionId =
   | "unwrap"
   | "toggleGroup";
 
+function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
+  switch (kind) {
+    case "allOf":
+      return "All of";
+    case "anyOf":
+      return "Any of";
+    case "not":
+      return "Exclude";
+  }
+}
+
 function buildInsertionActionEntries(
   moveMode: boolean,
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
@@ -85,9 +96,21 @@ function buildInsertionActionEntries(
 
   return [
     { id: "addClause", label: "Add Clause", description: "Insert one canonical filter clause into this group." },
-    { id: "addAndGroup", label: "Add allOf Group", description: "Insert a nested allOf group with its first child." },
-    { id: "addOrGroup", label: "Add anyOf Group", description: "Insert a nested anyOf group with its first child." },
-    { id: "addNotGroup", label: "Add NOT Group", description: "Insert a nested NOT group with its first child." },
+    {
+      id: "addAndGroup",
+      label: `Add ${formatFriendlyGroupLabel("allOf")} Group`,
+      description: "Insert a nested group where every child must match, starting with its first child.",
+    },
+    {
+      id: "addOrGroup",
+      label: `Add ${formatFriendlyGroupLabel("anyOf")} Group`,
+      description: "Insert a nested group where any child may match, starting with its first child.",
+    },
+    {
+      id: "addNotGroup",
+      label: `Add ${formatFriendlyGroupLabel("not")} Group`,
+      description: "Insert a nested excluded group with its first child.",
+    },
   ];
 }
 
@@ -96,14 +119,29 @@ function buildRootActionEntries(
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
   return [
     { id: "addClause", label: "Add Clause", description: "Append a new top-level clause." },
-    { id: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
-    { id: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
-    { id: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
+    {
+      id: "addAndGroup",
+      label: `Add ${formatFriendlyGroupLabel("allOf")} Group`,
+      description: "Append a nested group where every child must match.",
+    },
+    {
+      id: "addOrGroup",
+      label: `Add ${formatFriendlyGroupLabel("anyOf")} Group`,
+      description: "Append a nested group where any child may match.",
+    },
+    {
+      id: "addNotGroup",
+      label: `Add ${formatFriendlyGroupLabel("not")} Group`,
+      description: "Append a nested excluded group.",
+    },
     ...(query.filter
       ? [
           {
             id: "toggleRoot" as const,
-            label: getSearchQueryRootOperator(query) === "anyOf" ? "Change Root To allOf" : "Change Root To anyOf",
+            label:
+              getSearchQueryRootOperator(query) === "anyOf"
+                ? `Change Root To ${formatFriendlyGroupLabel("allOf")}`
+                : `Change Root To ${formatFriendlyGroupLabel("anyOf")}`,
             description: "Reshape the visible root group without changing its current children.",
           },
         ]
@@ -1194,9 +1232,21 @@ export function useSearchStructuredDraftMetadataActions({
         ...(editableClauseKind
           ? [{ id: "edit" as const, label: "Edit Clause", description: "Change this canonical clause without leaving the tree editor." }]
           : []),
-        { id: "wrapNot", label: "Wrap In NOT", description: "Negate this clause without changing its content." },
-        { id: "wrapAnd", label: "Wrap In allOf", description: "Place this clause inside a new allOf group." },
-        { id: "wrapOr", label: "Wrap In anyOf", description: "Place this clause inside a new anyOf group." },
+        {
+          id: "wrapNot",
+          label: `Wrap In ${formatFriendlyGroupLabel("not")}`,
+          description: "Exclude this clause without changing its content.",
+        },
+        {
+          id: "wrapAnd",
+          label: `Wrap In ${formatFriendlyGroupLabel("allOf")}`,
+          description: "Place this clause inside a new group where every child must match.",
+        },
+        {
+          id: "wrapOr",
+          label: `Wrap In ${formatFriendlyGroupLabel("anyOf")}`,
+          description: "Place this clause inside a new group where any child may match.",
+        },
         { id: "move", label: "Move Node", description: "Move this clause to another visible insertion slot." },
         ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this clause out of its current boolean group." }] : []),
         { id: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
@@ -1330,9 +1380,19 @@ export function useSearchStructuredDraftMetadataActions({
     (query: Pf2eTerminalSearchQuery, path: number[]): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
       const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
       return [
-        { id: "unwrap", label: "Remove NOT", description: "Keep the child clause and remove the negation." },
-        { id: "move", label: "Move Node", description: "Move this NOT group to another visible insertion slot." },
-        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this NOT group out of its current parent group." }] : []),
+        {
+          id: "unwrap",
+          label: `Remove ${formatFriendlyGroupLabel("not")}`,
+          description: "Keep the child clause and remove the exclusion.",
+        },
+        {
+          id: "move",
+          label: "Move Node",
+          description: "Move this excluded group to another visible insertion slot.",
+        },
+        ...(canLift
+          ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this excluded group out of its current parent group." }]
+          : []),
         { id: "remove", label: "Remove Group", description: "Delete the negated clause entirely." },
       ];
     },
@@ -1369,7 +1429,7 @@ export function useSearchStructuredDraftMetadataActions({
     async (query: Pf2eTerminalSearchQuery, path: number[], node: Extract<SearchFilterNode, { kind: "not" }>) => {
       const entries = getNotActionEntries(query, path);
       const result = await prompts.promptSelectOption({
-        title: "NOT Group",
+        title: `${formatFriendlyGroupLabel("not")} Group`,
         prompt: "Choose how to update this negated staged clause",
         entries: entries.map((entry) => ({
           value: entry.id,
@@ -1396,15 +1456,34 @@ export function useSearchStructuredDraftMetadataActions({
       const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
       return [
         { id: "addClause", label: "Add Clause", description: "Append a new canonical clause at this group bottom." },
-        { id: "addAndGroup", label: "Add allOf Group", description: "Append a nested allOf group." },
-        { id: "addOrGroup", label: "Add anyOf Group", description: "Append a nested anyOf group." },
-        { id: "addNotGroup", label: "Add NOT Group", description: "Append a nested NOT group." },
+        {
+          id: "addAndGroup",
+          label: `Add ${formatFriendlyGroupLabel("allOf")} Group`,
+          description: "Append a nested group where every child must match.",
+        },
+        {
+          id: "addOrGroup",
+          label: `Add ${formatFriendlyGroupLabel("anyOf")} Group`,
+          description: "Append a nested group where any child may match.",
+        },
+        {
+          id: "addNotGroup",
+          label: `Add ${formatFriendlyGroupLabel("not")} Group`,
+          description: "Append a nested excluded group.",
+        },
         {
           id: "toggleGroup",
-          label: node.kind === "allOf" ? "Change To anyOf" : "Change To allOf",
+          label:
+            node.kind === "allOf"
+              ? `Change To ${formatFriendlyGroupLabel("anyOf")}`
+              : `Change To ${formatFriendlyGroupLabel("allOf")}`,
           description: "Reshape this group without changing its current children.",
         },
-        { id: "wrapNot", label: "Wrap In NOT", description: "Wrap this group in a NOT node." },
+        {
+          id: "wrapNot",
+          label: `Wrap In ${formatFriendlyGroupLabel("not")}`,
+          description: "Wrap this group in an excluded group.",
+        },
         { id: "move", label: "Move Node", description: "Move this group to another visible insertion slot." },
         ...(canUnwrap ? [{ id: "unwrap" as const, label: "Unwrap Group", description: "Replace this group with its current children." }] : []),
         ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this group out of its current parent group." }] : []),

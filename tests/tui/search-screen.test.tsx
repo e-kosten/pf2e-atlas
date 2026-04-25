@@ -2233,6 +2233,60 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2");
   });
 
+  it("uses friendly aliases in structured-draft clause and exclude-group action menus", async () => {
+    const services = createServices();
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+
+    pressUp(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    expect(app.lastFrame()).toContain("Wrap In Exclude");
+    expect(app.lastFrame()).toContain("Wrap In All of");
+    expect(app.lastFrame()).toContain("Wrap In Any of");
+    expect(app.lastFrame()).not.toContain("Wrap In NOT");
+    expect(app.lastFrame()).not.toContain("Wrap In allOf");
+    expect(app.lastFrame()).not.toContain("Wrap In anyOf");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Structured Query Editor");
+    expect(app.lastFrame()).toContain("Exclude Rarity: Common");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Exclude Group");
+    expect(app.lastFrame()).toContain("Remove Exclude");
+    expect(app.lastFrame()).not.toContain("NOT Group");
+    expect(app.lastFrame()).not.toContain("Remove NOT");
+  });
+
   it("defaults structured-draft shared explorers to matching counts and can switch to catalog counts", async () => {
     const services = createServices();
     const loadSearchFilterExplorerDomain = vi.fn(
