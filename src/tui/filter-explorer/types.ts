@@ -8,6 +8,10 @@ import type {
   OntologyTextLine,
 } from "../../domain/ontology-types.js";
 import type {
+  DerivedTagTerminalActionTargetOption,
+  DerivedTagTerminalActionTargetState,
+} from "../action-target.js";
+import type {
   DerivedTagTerminalLine,
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
@@ -235,6 +239,15 @@ export type FilterExplorerControllerContext = {
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
   discovery?: FilterExplorerDiscoveryState;
+  actionEntries: readonly DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId>[];
+  actionTargetState: DerivedTagTerminalActionTargetState;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 };
+
+export type FilterExplorerActionEntryId =
+  | "openSelection"
+  | "openQuery"
+  | "openResults"
+  | "switchToMatching"
+  | "switchToCatalog";

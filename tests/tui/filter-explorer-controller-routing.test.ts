@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-target.js";
 import { handleFilterExplorerInteractionRoute } from "../../src/tui/filter-explorer/controller-routing.js";
 import type {
   FilterExplorerBrowserContext,
@@ -68,7 +69,7 @@ function createOptions(overrides: Partial<FilterExplorerOptions> = {}): FilterEx
 
 function createDraft(): FilterExplorerComposeDraft {
   return {
-    selection: {},
+    discreteClauses: [],
     scalarClauses: {},
   };
 }
@@ -118,6 +119,9 @@ describe("filter explorer controller routing", () => {
       draft: createDraft(),
       updateDraft: () => {},
       dispatch,
+      actionEntries: [],
+      actionTargetState: createDerivedTagTerminalActionTargetState(),
+      dispatchActionTarget: vi.fn(),
       showNotification,
     });
 
@@ -141,6 +145,9 @@ describe("filter explorer controller routing", () => {
       draft: createDraft(),
       updateDraft: () => {},
       dispatch: focusDispatch,
+      actionEntries: [],
+      actionTargetState: createDerivedTagTerminalActionTargetState(),
+      dispatchActionTarget: vi.fn(),
       showNotification: vi.fn(),
     });
 
@@ -158,24 +165,25 @@ describe("filter explorer controller routing", () => {
       draft: createDraft(),
       updateDraft: () => {},
       dispatch: layoutDispatch,
+      actionEntries: [],
+      actionTargetState: createDerivedTagTerminalActionTargetState(),
+      dispatchActionTarget: vi.fn(),
       showNotification: vi.fn(),
     });
 
     expect(layoutDispatch).toHaveBeenCalledWith({ type: "toggle_layout" });
   });
 
-  it("routes discovery-mode switching through the shared command palette path", async () => {
+  it("routes discovery-mode switching through the shared action rail path", async () => {
     const onModeChange = vi.fn();
-    const promptCommandPalette = vi.fn(() => Promise.resolve("switchToMatching"));
+    const dispatchActionTarget = vi.fn();
 
     handleFilterExplorerInteractionRoute({
       route: {
         event: createEvent(),
-        interactionAction: { id: "commands" },
-      },
-      adapters: {
-        promptCommandPalette,
+        actionTargetIntent: { kind: "apply_action" },
       } as never,
+      adapters: {} as never,
       browserContext: createBrowserContext(),
       options: createOptions({
         discovery: {
@@ -186,22 +194,19 @@ describe("filter explorer controller routing", () => {
       draft: createDraft(),
       updateDraft: () => {},
       dispatch: vi.fn(),
+      actionEntries: [
+        {
+          id: "switchToMatching",
+          label: "Use Matching Counts",
+          description: "Show matching counts.",
+        },
+      ],
+      actionTargetState: { activeTarget: "actions", selectedActionIndex: 0 },
+      dispatchActionTarget,
       showNotification: vi.fn(),
     });
 
-    await Promise.resolve();
-
-    expect(promptCommandPalette).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Filter Explorer Commands",
-        entries: expect.arrayContaining([
-          expect.objectContaining({
-            value: "switchToMatching",
-            label: "Use Matching Counts",
-          }),
-        ]),
-      }),
-    );
     expect(onModeChange).toHaveBeenCalledWith("matching");
+    expect(dispatchActionTarget).not.toHaveBeenCalled();
   });
 });

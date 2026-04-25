@@ -8,10 +8,10 @@ import {
   setFilterExplorerScalarClause,
 } from "./compose-state.js";
 import {
-  buildFilterExplorerCommandEntries,
   buildFilterExplorerHelpLines,
 } from "./screen-models.js";
 import type {
+  FilterExplorerActionEntryId,
   FilterExplorerBrowserContext,
   FilterExplorerComposeDraft,
   FilterExplorerComposeMode,
@@ -111,60 +111,31 @@ export function handleFilterExplorerAction(args: {
     return true;
   }
 
-  if (action.id === "commands" && options.mode.kind === "inspect-and-open") {
-    const commandEntries = buildFilterExplorerCommandEntries(context);
-    if (commandEntries.length === 0) {
-      return true;
-    }
-
-    void adapters
-      .promptCommandPalette({
-        title: `${context.screenTitle} Commands`,
-        prompt: "Filter explorer commands",
-        entries: commandEntries,
-      })
-      .then((selected) => {
-        const inspectResult = context.selectedInspectResult;
-        if (selected === "switchToMatching") {
-          options.discovery?.onModeChange?.("matching");
-          return;
-        }
-        if (selected === "switchToCatalog") {
-          options.discovery?.onModeChange?.("catalog");
-          return;
-        }
-        if (selected === "openSelection" || selected === "openResults") {
-          onOpenInspectResult(inspectResult);
-          return;
-        }
-        if (selected === "openQuery") {
-          onOpenInspectQuery(inspectResult);
-        }
-      });
-    return true;
-  }
-
-  if (action.id === "commands") {
-    const commandEntries = buildFilterExplorerCommandEntries(context);
-    if (commandEntries.length === 0) {
-      return true;
-    }
-
-    void adapters
-      .promptCommandPalette({
-        title: `${context.screenTitle} Commands`,
-        prompt: "Filter explorer commands",
-        entries: commandEntries,
-      })
-      .then((selected) => {
-        if (selected === "switchToMatching") {
-          options.discovery?.onModeChange?.("matching");
-        } else if (selected === "switchToCatalog") {
-          options.discovery?.onModeChange?.("catalog");
-        }
-      });
-    return true;
-  }
-
   return false;
+}
+
+export function applyFilterExplorerActionEntry(args: {
+  actionId: FilterExplorerActionEntryId;
+  context: FilterExplorerControllerContext;
+  onOpenInspectQuery: (result: FilterExplorerInspectResult | undefined) => void;
+  onOpenInspectResult: (result: FilterExplorerInspectResult | undefined) => void;
+}): void {
+  const { actionId, context, onOpenInspectQuery, onOpenInspectResult } = args;
+  const inspectResult = context.selectedInspectResult;
+
+  if (actionId === "switchToMatching") {
+    context.discovery?.onModeChange?.("matching");
+    return;
+  }
+  if (actionId === "switchToCatalog") {
+    context.discovery?.onModeChange?.("catalog");
+    return;
+  }
+  if (actionId === "openSelection" || actionId === "openResults") {
+    onOpenInspectResult(inspectResult);
+    return;
+  }
+  if (actionId === "openQuery") {
+    onOpenInspectQuery(inspectResult);
+  }
 }

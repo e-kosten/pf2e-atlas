@@ -1,3 +1,4 @@
+import type { DerivedTagTerminalActionTargetIntent } from "../action-target.js";
 import type { DerivedTagTerminalListNavigationAction } from "../framework/input.js";
 import type { DerivedTagTerminalInputEvent } from "../framework/types.js";
 import type {
@@ -13,6 +14,8 @@ export type FilterExplorerKeyContext = FilterExplorerBrowserContext & {
 export type FilterExplorerInteractionRoute = {
   event: DerivedTagTerminalInputEvent;
   interactionAction?: TerminalInteractionAction;
+  actionTargetInteractionAction?: TerminalInteractionAction;
+  actionTargetIntent?: DerivedTagTerminalActionTargetIntent;
   searchModeAction?: { id: "cancel" };
   textEntryIntent?: TerminalTextEntryIntent;
   listNavigationAction?: DerivedTagTerminalListNavigationAction;

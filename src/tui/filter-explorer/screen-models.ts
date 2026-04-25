@@ -1,15 +1,17 @@
 import {
+  buildDerivedTagTerminalActionTargetHelpLines,
+  buildDerivedTagTerminalActionTargetLine,
+  getDerivedTagTerminalActionTargetInteractionActions,
+  shouldRenderDerivedTagTerminalActionTarget,
+} from "../action-target.js";
+import {
   TERMINAL_LIVE_FILTER_FOOTER,
   buildTerminalInteractionHelpLines,
   formatTerminalInteractionFooter,
   type TerminalInteractionAction,
 } from "../interaction-bindings.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
-import type {
-  DerivedTagTerminalCommandOption,
-  DerivedTagTerminalLine,
-  DerivedTagTerminalSegment,
-} from "../framework/types.js";
+import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "../framework/types.js";
 import {
   buildTerminalListDetailScreenModel,
   type TerminalListDetailScreenModel,
@@ -22,6 +24,7 @@ import {
 } from "./compose-state.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
+  FilterExplorerActionEntryId,
   FilterExplorerDiscoveryMode,
   FilterExplorerDiscoveryState,
   FilterExplorerComposeMode,
@@ -53,17 +56,14 @@ function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBro
     : "return to the previous level";
 }
 
-function shouldShowCommandPalette(
-  mode: FilterExplorerMode,
-  discovery?: FilterExplorerDiscoveryState,
-): boolean {
-  return mode.kind === "inspect-and-open" || Boolean(discovery?.onModeChange);
+function shouldShowActionRail(hasActionEntries: boolean): boolean {
+  return hasActionEntries;
 }
 
 export function getFilterExplorerInteractionActions(
   mode: FilterExplorerMode,
   controller: FilterExplorerBrowserContext,
-  discovery?: FilterExplorerDiscoveryState,
+  hasActionEntries = false,
 ): TerminalInteractionAction[] {
   if (mode.kind === "compose") {
     const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
@@ -79,7 +79,7 @@ export function getFilterExplorerInteractionActions(
         { id: "layout", label: "split-view" },
         { id: "back" },
         { id: "search" },
-        ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
+        ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
         { id: "help" },
         { id: "quit", label: "back" },
       ];
@@ -97,7 +97,7 @@ export function getFilterExplorerInteractionActions(
         ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
         { id: "back" },
         { id: "search" },
-        ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
+        ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
         { id: "help" },
         { id: "quit", label: "back" },
       ];
@@ -112,7 +112,7 @@ export function getFilterExplorerInteractionActions(
       { id: "layout", label: "detail-only" },
       { id: "back" },
       { id: "search" },
-      ...(shouldShowCommandPalette(mode, discovery) ? [{ id: "commands" as const }] : []),
+      ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
       { id: "help" },
       { id: "quit", label: "back" },
     ];
@@ -127,7 +127,7 @@ export function getFilterExplorerInteractionActions(
       { id: "layout", label: "split-view" },
       { id: "back" },
       { id: "search" },
-      { id: "commands" },
+      ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
       { id: "help" },
       { id: "quit", label: "back" },
     ];
@@ -145,7 +145,7 @@ export function getFilterExplorerInteractionActions(
       ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
       { id: "back" },
       { id: "search" },
-      { id: "commands" },
+      ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
       { id: "help" },
       { id: "quit", label: "back" },
     ];
@@ -160,7 +160,7 @@ export function getFilterExplorerInteractionActions(
     { id: "layout", label: "detail-only" },
     { id: "back" },
     { id: "search" },
-    { id: "commands" },
+    ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
     { id: "help" },
     { id: "quit", label: "back" },
   ];
@@ -406,16 +406,9 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
   ).map((row) => row.line);
 }
 
-type FilterExplorerCommandValue =
-  | "openSelection"
-  | "openQuery"
-  | "openResults"
-  | "switchToMatching"
-  | "switchToCatalog";
-
-function buildDiscoveryModeCommandEntries(
+function buildDiscoveryModeActionEntries(
   discovery: FilterExplorerDiscoveryState | undefined,
-): DerivedTagTerminalCommandOption<FilterExplorerCommandValue>[] {
+): Array<{ id: FilterExplorerActionEntryId; label: string; description: string }> {
   if (!discovery?.onModeChange) {
     return [];
   }
@@ -437,24 +430,23 @@ function buildDiscoveryModeCommandEntries(
   return availableModes
     .filter((mode) => mode !== hiddenMode)
     .map((mode) => ({
-      value: mode === "matching" ? "switchToMatching" : "switchToCatalog",
+      id: mode === "matching" ? "switchToMatching" : "switchToCatalog",
       label: `Use ${labelByMode[mode]} Counts`,
       description: descriptionByMode[mode],
-      keywords: ["discovery", "counts", "mode", labelByMode[mode].toLowerCase()],
     }));
 }
 
-export function buildFilterExplorerCommandEntries(
+export function buildFilterExplorerActionEntries(
   controller: FilterExplorerControllerContext,
-): DerivedTagTerminalCommandOption<FilterExplorerCommandValue>[] {
-  const commands = buildDiscoveryModeCommandEntries(controller.discovery);
+): FilterExplorerControllerContext["actionEntries"] {
+  const actions = buildDiscoveryModeActionEntries(controller.discovery);
 
   if (
     controller.mode.kind !== "inspect-and-open" ||
     (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQueryIntent) ||
     !controller.selectedInspectResult
   ) {
-    return commands;
+    return actions;
   }
 
   const result = controller.selectedInspectResult;
@@ -466,30 +458,24 @@ export function buildFilterExplorerCommandEntries(
     : "Seed the browse/search editor from the focused selection.";
 
   return [
-    ...commands,
+    ...actions,
     ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? [
           {
-            value: "openResults" as const,
+            id: "openResults" as const,
             label: "Open Results Page",
             description: resultsDescription,
-            aliases: ["Open Selection"],
-            keywords: ["results", "reader", "records", "open"],
           },
         ]
       : []),
     {
-      value: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+      id: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? "openQuery"
         : "openSelection",
       label: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? "Open Search Query"
         : "Open Query",
       description: queryDescription,
-      aliases: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-        ? ["Open Query"]
-        : undefined,
-      keywords: ["search", "browse", "editor", "query", "open"],
     },
   ];
 }
@@ -498,9 +484,8 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
   const interactionActions = getFilterExplorerInteractionActions(
     controller.mode,
     controller.browser,
-    controller.discovery,
+    controller.actionEntries.length > 0,
   );
-  const commandEntries = buildFilterExplorerCommandEntries(controller);
   const actionActions = interactionActions
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
     .map((action) => ({
@@ -522,10 +507,8 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
                     ? getBackHelpText(controller.mode, controller.browser)
                     : action.id === "search"
                       ? "start live filtering"
-                      : action.id === "commands"
-                        ? controller.discovery?.onModeChange
-                          ? "open explorer commands, including discovery-mode switching when available"
-                          : "open the explorer command palette"
+                      : action.id === "actions"
+                        ? "focus the explorer action rail"
                         : action.id === "help"
                           ? "show this help"
                           : "leave the explorer",
@@ -552,19 +535,16 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
       title: "Actions",
       actions: actionActions,
     },
-    ...(controller.mode.kind === "inspect-and-open"
+    ...(controller.actionEntries.length > 0
       ? [
           {
-            title: "Commands",
-            commands: commandEntries.map((command) => ({
-              label: command.label,
-              description: command.description ?? "No additional details.",
-              aliases: command.aliases,
-            })),
-            lines:
-              commandEntries.length === 0
-                ? [{ text: "No additional palette commands are available for the current node.", tone: "dim" as const }]
-                : [],
+            title: "Explorer Actions",
+            lines: buildDerivedTagTerminalActionTargetHelpLines({
+              orientation: "horizontal",
+              visibility: "onDemand",
+              actions: controller.actionEntries,
+              contentHelpText: "Use the shared action rail here instead of a hidden command palette.",
+            }),
           },
         ]
       : []),
@@ -648,12 +628,33 @@ export function buildFilterExplorerScreenModel(
   const interactionActions = getFilterExplorerInteractionActions(
     controller.mode,
     controller.browser,
-    controller.discovery,
+    controller.actionEntries.length > 0,
   );
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
   const statusText = controller.discovery ? `${statusSuffix} | ${formatDiscoveryStatus(controller.discovery)}` : statusSuffix;
+  const actionRailVisible =
+    controller.actionEntries.length > 0 && shouldRenderDerivedTagTerminalActionTarget(controller.actionTargetState, "onDemand");
+  const footerText =
+    controller.actionEntries.length > 0 && controller.actionTargetState.activeTarget === "actions"
+      ? formatTerminalInteractionFooter([
+          ...getDerivedTagTerminalActionTargetInteractionActions(controller.actionTargetState, "horizontal"),
+          { id: "help" },
+        ])
+      : controller.browser.state.searchMode
+        ? TERMINAL_LIVE_FILTER_FOOTER
+        : formatTerminalInteractionFooter(interactionActions);
+  const statusLine = actionRailVisible
+    ? buildDerivedTagTerminalActionTargetLine(controller.actionEntries, controller.actionTargetState)
+    : {
+        text: controller.browser.state.searchMode
+          ? `Search /${controller.browser.state.searchInput}`
+          : controller.browser.layoutMode === "detail-only"
+            ? `detail focus | focused detail view | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`
+            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
+        tone: "accent" as const,
+      };
 
   return buildTerminalListDetailScreenModel({
     title: controller.screenTitle,
@@ -677,19 +678,10 @@ export function buildFilterExplorerScreenModel(
     },
     footer: [
       {
-        text: controller.browser.state.searchMode
-            ? TERMINAL_LIVE_FILTER_FOOTER
-          : formatTerminalInteractionFooter(interactionActions),
+        text: footerText,
         tone: "dim",
       },
-      {
-        text: controller.browser.state.searchMode
-          ? `Search /${controller.browser.state.searchInput}`
-          : controller.browser.layoutMode === "detail-only"
-            ? `detail focus | focused detail view | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`
-            : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
-        tone: "accent",
-      },
+      statusLine,
     ],
     notification: controller.notification,
     transitionStatus: controller.transitionStatus,

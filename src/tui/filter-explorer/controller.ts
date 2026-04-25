@@ -1,6 +1,11 @@
 import React from "react";
 
 import {
+  createDerivedTagTerminalActionTargetState,
+  getDerivedTagTerminalActionTargetInteractionActions,
+  reduceDerivedTagTerminalActionTargetState,
+} from "../action-target.js";
+import {
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
   useTerminalListDetailInteractionRouter,
@@ -33,6 +38,7 @@ import {
 } from "./controller-state.js";
 import type { FilterExplorerInteractionRoute } from "./controller-types.js";
 import {
+  buildFilterExplorerActionEntries,
   buildFilterExplorerComposeDetailLines,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
@@ -89,6 +95,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
   const size = useDerivedTagTerminalSize();
+  const [actionTargetState, dispatchActionTarget] = React.useReducer(
+    reduceDerivedTagTerminalActionTargetState,
+    undefined,
+    () => createDerivedTagTerminalActionTargetState(),
+  );
   const [state, dispatch] = React.useReducer(
     (current: FilterExplorerBrowserUiState, action: FilterExplorerAction) =>
       filterExplorerReducer(options.model, current, action),
@@ -173,7 +184,16 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     searchIndicator,
   };
 
-  const interactionActions = getFilterExplorerInteractionActions(options.mode, browserContext, options.discovery);
+  const baseContext = buildFilterExplorerControllerContext({
+    options,
+    browser: browserContext,
+    draft,
+    actionEntries: [],
+    actionTargetState,
+    notification,
+  });
+  const actionEntries = buildFilterExplorerActionEntries(baseContext);
+  const interactionActions = getFilterExplorerInteractionActions(options.mode, browserContext, actionEntries.length > 0);
 
   const handleRoute = React.useCallback(
     (route: FilterExplorerInteractionRoute) => {
@@ -185,10 +205,13 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         draft,
         updateDraft,
         dispatch,
+        actionEntries,
+        actionTargetState,
+        dispatchActionTarget,
         showNotification,
       });
     },
-    [adapters, browserContext, dispatch, draft, options, showNotification, updateDraft],
+    [actionEntries, actionTargetState, adapters, browserContext, dispatch, draft, options, showNotification, updateDraft],
   );
 
   useTerminalListDetailInteractionRouter({
@@ -209,16 +232,29 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     textEntry: {
       interactionActions: [{ id: "cancel" }],
     },
+    actionTarget:
+      actionEntries.length > 0
+        ? {
+            interactionActions: [
+              ...getDerivedTagTerminalActionTargetInteractionActions(actionTargetState, "horizontal"),
+              { id: "help" },
+            ],
+            state: actionTargetState,
+            orientation: "horizontal",
+          }
+        : undefined,
     transitionStatus: options.transitionStatus,
-    onRoute: (routes) => {
+    onRoute: ({ actionTarget, detail, list, textEntry }) => {
       handleRoute({
-        event: routes.textEntry?.event ?? routes.list.event,
+        event: textEntry?.event ?? list.event,
         interactionAction:
-          browserContext.state.activePane === "detail" ? routes.detail.interactionAction : routes.list.interactionAction,
-        searchModeAction: routes.textEntry?.interactionAction?.id === "cancel" ? { id: "cancel" } : undefined,
-        textEntryIntent: routes.textEntry?.textEntryIntent,
-        listNavigationAction: routes.list.navigationAction,
-        detailNavigationAction: routes.detail.navigationAction,
+          browserContext.state.activePane === "detail" ? detail.interactionAction : list.interactionAction,
+        actionTargetInteractionAction: actionTarget?.interactionAction,
+        actionTargetIntent: actionTarget?.actionTargetIntent,
+        searchModeAction: textEntry?.interactionAction?.id === "cancel" ? { id: "cancel" } : undefined,
+        textEntryIntent: textEntry?.textEntryIntent,
+        listNavigationAction: list.navigationAction,
+        detailNavigationAction: detail.navigationAction,
       });
     },
   });
@@ -227,6 +263,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     options,
     browser: browserContext,
     draft,
+    actionEntries,
+    actionTargetState,
     notification,
   });
 }

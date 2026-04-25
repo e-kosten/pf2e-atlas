@@ -1,3 +1,4 @@
+import type { DerivedTagTerminalActionTargetAction } from "../action-target.js";
 import type { TerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { TerminalInteractionAction } from "../interaction-bindings.js";
 import {
@@ -30,6 +31,7 @@ import type {
   FilterExplorerOptions,
 } from "./types.js";
 import {
+  applyFilterExplorerActionEntry,
   applyComposeCycleSelection,
   handleFilterExplorerAction,
   openComposeScalarEditor,
@@ -43,6 +45,8 @@ export function buildFilterExplorerControllerContext(args: {
   options: FilterExplorerOptions;
   browser: FilterExplorerBrowserContext;
   draft: FilterExplorerComposeDraft;
+  actionEntries: FilterExplorerControllerContext["actionEntries"];
+  actionTargetState: FilterExplorerControllerContext["actionTargetState"];
   notification?: FilterExplorerControllerContext["notification"];
 }): FilterExplorerControllerContext {
   const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
@@ -64,6 +68,8 @@ export function buildFilterExplorerControllerContext(args: {
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode)
         : undefined,
     discovery: args.options.discovery,
+    actionEntries: args.actionEntries,
+    actionTargetState: args.actionTargetState,
     notification: args.notification,
     transitionStatus: args.options.transitionStatus,
   };
@@ -78,6 +84,8 @@ function handleSharedFilterExplorerAction(args: {
   draft: FilterExplorerComposeDraft;
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
   dispatch: (action: FilterExplorerAction) => void;
+  actionEntries: FilterExplorerControllerContext["actionEntries"];
+  actionTargetState: FilterExplorerControllerContext["actionTargetState"];
   allowSearch: boolean;
 }): boolean {
   const {
@@ -89,6 +97,8 @@ function handleSharedFilterExplorerAction(args: {
     draft,
     updateDraft,
     dispatch,
+    actionEntries,
+    actionTargetState,
     allowSearch,
   } = args;
   if (!interactionAction) {
@@ -99,6 +109,8 @@ function handleSharedFilterExplorerAction(args: {
     options,
     browser: keyContext,
     draft,
+    actionEntries,
+    actionTargetState,
   });
 
   if (
@@ -261,10 +273,27 @@ export function handleFilterExplorerInteractionRoute(args: {
   draft: FilterExplorerComposeDraft;
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
   dispatch: (action: FilterExplorerAction) => void;
+  actionEntries: FilterExplorerControllerContext["actionEntries"];
+  actionTargetState: FilterExplorerControllerContext["actionTargetState"];
+  dispatchActionTarget: (action: DerivedTagTerminalActionTargetAction) => void;
   showNotification: (options: { message: string; tone?: TerminalListDetailNotificationTone }) => void;
 }): void {
-  const { adapters, browserContext, dispatch, draft, options, route, showNotification, updateDraft } = args;
   const {
+    actionEntries,
+    actionTargetState,
+    adapters,
+    browserContext,
+    dispatch,
+    dispatchActionTarget,
+    draft,
+    options,
+    route,
+    showNotification,
+    updateDraft,
+  } = args;
+  const {
+    actionTargetInteractionAction,
+    actionTargetIntent,
     detailNavigationAction,
     event,
     interactionAction,
@@ -276,6 +305,13 @@ export function handleFilterExplorerInteractionRoute(args: {
     ...browserContext,
     event,
   };
+  const context = buildFilterExplorerControllerContext({
+    options,
+    browser: keyContext,
+    draft,
+    actionEntries,
+    actionTargetState,
+  });
 
   if (browserContext.state.searchMode) {
     if (textEntryIntent?.kind === "submit") {
@@ -293,6 +329,59 @@ export function handleFilterExplorerInteractionRoute(args: {
     }
     if (textEntryIntent?.kind === "append") {
       dispatch({ type: "append_search", character: textEntryIntent.text });
+    }
+    return;
+  }
+
+  if (actionTargetIntent?.kind === "toggle_target") {
+    dispatchActionTarget({ type: "toggle_target" });
+    return;
+  }
+  if (actionTargetIntent?.kind === "leave_actions") {
+    dispatchActionTarget({ type: "leave_actions" });
+    return;
+  }
+  if (actionTargetIntent?.kind === "move_action") {
+    dispatchActionTarget({
+      type: "move_action",
+      delta: actionTargetIntent.delta,
+      actionCount: actionEntries.length,
+    });
+    return;
+  }
+  if (actionTargetIntent?.kind === "apply_action") {
+    const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
+    if (selectedAction) {
+      applyFilterExplorerActionEntry({
+        actionId: selectedAction.id,
+        context,
+        onOpenInspectQuery: (result) => {
+          void openFilterExplorerInspectQuery({ options, keyContext, result });
+        },
+        onOpenInspectResult: (result) => {
+          void openFilterExplorerInspectResult({ options, keyContext, result });
+        },
+      });
+    }
+    return;
+  }
+  if (actionTargetState.activeTarget === "actions") {
+    if (actionTargetInteractionAction?.id === "help") {
+      void handleFilterExplorerAction({
+        action: actionTargetInteractionAction,
+        adapters,
+        context,
+        draft,
+        keyContext,
+        onOpenInspectQuery: (result) => {
+          void openFilterExplorerInspectQuery({ options, keyContext, result });
+        },
+        onOpenInspectResult: (result) => {
+          void openFilterExplorerInspectResult({ options, keyContext, result });
+        },
+        options,
+        updateDraft,
+      });
     }
     return;
   }
@@ -324,6 +413,8 @@ export function handleFilterExplorerInteractionRoute(args: {
         draft,
         updateDraft,
         dispatch,
+        actionEntries,
+        actionTargetState,
         allowSearch: false,
       })
     ) {
@@ -377,6 +468,8 @@ export function handleFilterExplorerInteractionRoute(args: {
       draft,
       updateDraft,
       dispatch,
+      actionEntries,
+      actionTargetState,
       allowSearch: true,
     })
   ) {

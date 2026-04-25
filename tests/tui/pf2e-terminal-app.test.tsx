@@ -702,9 +702,7 @@ describe("pf2e terminal app", () => {
 
     app.stdin.write(":");
     await flushInk();
-    for (const character of "open query") {
-      app.stdin.write(character);
-    }
+    app.stdin.write("\u001b[C");
     await flushInk();
     app.stdin.write("\r");
     await flushFrames(2);
