@@ -102,8 +102,8 @@ Shared ontology/detail presenters may also attach optional link metadata to a te
 - modal host and input routing in `framework/modal-host.tsx`
 - modal sizing and layout planning in `framework/modal-planning.ts`
 - modal prompt bodies in `framework/modal-prompt-bodies.tsx`
-- modal policy-selection state helpers in `framework/modal-policy-state.ts`
-- shared policy-label and badge presentation in `framework/policy-presentation.ts`
+- centered-prompt presentation naming and background treatment normalization in `framework/prompt-presentation.ts`
+- prompt-session ownership in `framework/provider.tsx`, where multi-step prompt flows replace the current prompt without exposing an intermediate background frame and keep blanked-background prompt layout separate from background workspace sizing
 
 Feature code should build on these helpers instead of importing raw terminal primitives directly.
 
