@@ -61,7 +61,7 @@ const METADATA_NUMBER_VALUE_OPERATORS = ["eq", "gte", "lte"] as const;
 const METADATA_NUMBER_RANGE_OPERATOR = ["between"] as const;
 
 export const METADATA_FIELD_PREDICATE_VARIANTS = {
-  set: definePredicateVariants(METADATA_FIELD_KIND_OPERATORS.set, "stringArray"),
+  set: definePredicateVariants(METADATA_FIELD_KIND_OPERATORS.set, "string"),
   enumString: [
     ...definePredicateVariants(METADATA_ENUM_STRING_EQ_OPERATOR, "string"),
     ...definePredicateVariants(METADATA_ENUM_STRING_MULTI_VALUE_OPERATORS, "stringArray"),

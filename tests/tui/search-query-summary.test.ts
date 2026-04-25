@@ -26,8 +26,8 @@ function createMetadataTree(): MetadataFilterNode {
     or: [
       {
         field: "traits",
-        op: "includesAny",
-        values: ["ghost"],
+        op: "includes",
+        value: "ghost",
       },
       {
         not: {

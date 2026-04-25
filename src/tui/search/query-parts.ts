@@ -62,26 +62,23 @@ function metadataPredicateToCanonicalFilter(node: Exclude<MetadataFilterNode, { 
   }
 
   if ("values" in node) {
-    if (node.op === "includesAny" || node.op === "includesAll") {
-      const children = node.values.map(
-        (value) =>
-          ({
-            kind: "metadataPredicate",
-            predicate: { field: node.field, op: "includes", value } as never,
-          }) satisfies SearchFilterNode,
-      );
-      return node.op === "includesAll"
-        ? { kind: "allOf", children }
-        : children.length === 1
-          ? children[0]!
-          : { kind: "anyOf", children };
+    const children = node.values.map(
+      (value) =>
+        ({
+          kind: "metadataPredicate",
+          predicate: { field: node.field, op: "eq", value } as never,
+        }) satisfies SearchFilterNode,
+    );
+
+    if (node.op === "in") {
+      return children.length === 1 ? children[0]! : { kind: "anyOf", children };
     }
 
     const child =
       node.values.length === 1
         ? ({
             kind: "metadataPredicate",
-            predicate: { field: node.field, op: "includes", value: node.values[0]! } as never,
+            predicate: { field: node.field, op: "eq", value: node.values[0]! } as never,
           } satisfies SearchFilterNode)
         : ({
             kind: "anyOf",
@@ -89,7 +86,7 @@ function metadataPredicateToCanonicalFilter(node: Exclude<MetadataFilterNode, { 
               (value) =>
                 ({
                   kind: "metadataPredicate",
-                  predicate: { field: node.field, op: "includes", value } as never,
+                  predicate: { field: node.field, op: "eq", value } as never,
                 }) satisfies SearchFilterNode,
             ),
           } satisfies SearchFilterNode);
@@ -157,8 +154,8 @@ function canonicalMetadataPredicateToMetadataNode(
   if (predicate.op === "includes") {
     return {
       field: predicate.field,
-      op: "includesAny",
-      values: [predicate.value],
+      op: "includes",
+      value: predicate.value,
     } as MetadataFilterNode;
   }
 

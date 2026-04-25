@@ -169,8 +169,8 @@ describe("search query-core metric labels", () => {
   it("preserves explicit single-child groups when wrapping and unwrapping nodes in the editor tree", () => {
     const predicate: MetadataFilterNode = {
       field: "traits",
-      op: "includesAny",
-      values: ["fire"],
+      op: "includes",
+      value: "fire",
     };
 
     const wrapped = wrapMetadataNodeAtPath(predicate, [], "and");
@@ -195,20 +195,20 @@ describe("search query-core metric labels", () => {
       and: [
         {
           field: "traits",
-          op: "includesAny",
-          values: ["fire"],
+          op: "includes",
+          value: "fire",
         },
         {
           or: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["cold"],
+              op: "includes",
+              value: "cold",
             },
             {
               field: "traits",
-              op: "includesAny",
-              values: ["electricity"],
+              op: "includes",
+              value: "electricity",
             },
           ],
         },
@@ -219,22 +219,22 @@ describe("search query-core metric labels", () => {
       and: [
         {
           field: "traits",
-          op: "includesAny",
-          values: ["fire"],
+          op: "includes",
+          value: "fire",
         },
         {
           or: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["cold"],
+              op: "includes",
+              value: "cold",
             },
           ],
         },
         {
           field: "traits",
-          op: "includesAny",
-          values: ["electricity"],
+          op: "includes",
+          value: "electricity",
         },
       ],
     });
@@ -292,20 +292,20 @@ describe("search query-core metric labels", () => {
           or: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["fire"],
+              op: "includes",
+              value: "fire",
             },
             {
               and: [
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["cold"],
+                  op: "includes",
+                  value: "cold",
                 },
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["electricity"],
+                  op: "includes",
+                  value: "electricity",
                 },
               ],
             },
@@ -313,8 +313,8 @@ describe("search query-core metric labels", () => {
               or: [
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["acid"],
+                  op: "includes",
+                  value: "acid",
                 },
               ],
             },
@@ -329,15 +329,15 @@ describe("search query-core metric labels", () => {
           or: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["fire"],
+              op: "includes",
+              value: "fire",
             },
             {
               and: [
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["electricity"],
+                  op: "includes",
+                  value: "electricity",
                 },
               ],
             },
@@ -345,13 +345,13 @@ describe("search query-core metric labels", () => {
               or: [
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["acid"],
+                  op: "includes",
+                  value: "acid",
                 },
                 {
                   field: "traits",
-                  op: "includesAny",
-                  values: ["cold"],
+                  op: "includes",
+                  value: "cold",
                 },
               ],
             },
@@ -367,16 +367,16 @@ describe("search query-core metric labels", () => {
         {
           not: {
             field: "traits",
-            op: "includesAny",
-            values: ["fire"],
+            op: "includes",
+            value: "fire",
           },
         },
         {
           or: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["cold"],
+              op: "includes",
+              value: "cold",
             },
           ],
         },
@@ -394,8 +394,8 @@ describe("search query-core metric labels", () => {
       or: [
         {
           field: "traits",
-          op: "includesAny",
-          values: ["fire"],
+          op: "includes",
+          value: "fire",
         },
         {
           not: {

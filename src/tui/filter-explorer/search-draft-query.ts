@@ -440,13 +440,15 @@ function buildMetadataNodeForDiscreteClause(
     return clause.operator === "include"
       ? ({
           field: clause.field as MetadataSetField,
-          op: "includesAny",
-          values: [clause.value],
+          op: "includes",
+          value: clause.value,
         } satisfies MetadataFilterNode)
       : ({
-          field: clause.field as MetadataSetField,
-          op: "excludesAny",
-          values: [clause.value],
+          not: {
+            field: clause.field as MetadataSetField,
+            op: "includes",
+            value: clause.value,
+          },
         } satisfies MetadataFilterNode);
   }
 

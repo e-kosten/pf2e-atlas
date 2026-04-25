@@ -659,21 +659,29 @@ export function buildMetadataNodeForQueryFieldSelection(
   }
 
   if (fieldSemantics.fieldType === "set") {
+    const includeClauses = normalizedSelection.include.map(
+      (value): MetadataFilterNode => ({
+        field: field as MetadataSetField,
+        op: "includes",
+        value,
+      }),
+    );
+    const excludeClauses = normalizedSelection.exclude.map(
+      (value): MetadataFilterNode => ({
+        not: {
+          field: field as MetadataSetField,
+          op: "includes",
+          value,
+        },
+      }),
+    );
     const clauses: MetadataFilterNode[] = [];
-    if (normalizedSelection.include.length > 0) {
-      clauses.push({
-        field: field as MetadataSetField,
-        op: "includesAny",
-        values: normalizedSelection.include,
-      });
+    if (includeClauses.length === 1) {
+      clauses.push(includeClauses[0]!);
+    } else if (includeClauses.length > 1) {
+      clauses.push({ or: includeClauses });
     }
-    if (normalizedSelection.exclude.length > 0) {
-      clauses.push({
-        field: field as MetadataSetField,
-        op: "excludesAny",
-        values: normalizedSelection.exclude,
-      });
-    }
+    clauses.push(...excludeClauses);
     return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
   }
 

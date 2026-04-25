@@ -40,11 +40,8 @@ function extractSelectionFromMetadataPredicate(
   }
 
   if (fieldSemantics.fieldType === "set") {
-    if ("values" in node && node.op === "includesAny") {
-      return { field: node.field, selection: { include: node.values.map(String), exclude: [] } };
-    }
-    if ("values" in node && node.op === "excludesAny") {
-      return { field: node.field, selection: { include: [], exclude: node.values.map(String) } };
+    if ("value" in node && node.op === "includes") {
+      return { field: node.field, selection: { include: [String(node.value)], exclude: [] } };
     }
     return null;
   }
@@ -69,21 +66,39 @@ function extractSelectionFromMetadataPredicate(
   return null;
 }
 
+type ScopedSelectionExtraction = {
+  field: Pf2eTerminalQueryField;
+  selection: Pf2eTerminalValueSelection<string>;
+  positiveGroups: 0 | 1;
+};
+
 function tryExtractScopedSelectionNode(
   node: MetadataFilterNode,
   scopedFieldSet: ReadonlySet<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): { field: Pf2eTerminalQueryField; selection: Pf2eTerminalValueSelection<string> } | null {
-  if ("and" in node) {
+): ScopedSelectionExtraction | null {
+  if ("not" in node) {
+    const extracted = tryExtractScopedSelectionNode(node.not, scopedFieldSet, fieldSemanticsByName);
+    if (!extracted || extracted.selection.exclude.length > 0 || extracted.positiveGroups !== 1) {
+      return null;
+    }
+    return {
+      field: extracted.field,
+      selection: {
+        include: [],
+        exclude: [...extracted.selection.include],
+      },
+      positiveGroups: 0,
+    };
+  }
+
+  if ("or" in node) {
     let extractedField: Pf2eTerminalQueryField | null = null;
     let mergedSelection = createEmptyStringSelection();
 
-    for (const child of node.and) {
-      if ("and" in child || "or" in child || "not" in child) {
-        return null;
-      }
-      const extracted = extractSelectionFromMetadataPredicate(child, fieldSemanticsByName);
-      if (!extracted || !scopedFieldSet.has(extracted.field)) {
+    for (const child of node.or) {
+      const extracted = tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName);
+      if (!extracted || extracted.selection.exclude.length > 0 || extracted.positiveGroups !== 1) {
         return null;
       }
       if (extractedField && extracted.field !== extractedField) {
@@ -93,15 +108,65 @@ function tryExtractScopedSelectionNode(
       mergedSelection = mergeStringSelections(mergedSelection, extracted.selection);
     }
 
-    return extractedField ? { field: extractedField, selection: mergedSelection } : null;
+    return extractedField
+      ? { field: extractedField, selection: mergedSelection, positiveGroups: 1 }
+      : null;
   }
 
-  if ("or" in node || "not" in node) {
-    return null;
+  if ("and" in node) {
+    let extractedField: Pf2eTerminalQueryField | null = null;
+    let mergedSelection = createEmptyStringSelection();
+    let positiveGroups = 0;
+
+    for (const child of node.and) {
+      const extracted = tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName);
+      if (!extracted || !scopedFieldSet.has(extracted.field)) {
+        return null;
+      }
+      if (extractedField && extracted.field !== extractedField) {
+        return null;
+      }
+      extractedField = extracted.field;
+      mergedSelection = mergeStringSelections(mergedSelection, extracted.selection);
+      positiveGroups += extracted.positiveGroups;
+      if (positiveGroups > 1) {
+        return null;
+      }
+    }
+
+    return extractedField
+      ? {
+          field: extractedField,
+          selection: mergedSelection,
+          positiveGroups: positiveGroups === 0 ? 0 : 1,
+        }
+      : null;
   }
 
   const extracted = extractSelectionFromMetadataPredicate(node, fieldSemanticsByName);
-  return extracted && scopedFieldSet.has(extracted.field) ? extracted : null;
+  return extracted && scopedFieldSet.has(extracted.field)
+    ? {
+        ...extracted,
+        positiveGroups: extracted.selection.include.length > 0 ? 1 : 0,
+      }
+    : null;
+}
+
+function shouldPreserveUnsupportedScopedSelectionGroup(
+  node: Extract<MetadataFilterNode, { and: MetadataFilterNode[] } | { or: MetadataFilterNode[] }>,
+  scopedFieldSet: ReadonlySet<string>,
+  fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
+): boolean {
+  const children = "and" in node ? node.and : node.or;
+  const childExtractions = children.map((child) =>
+    tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName),
+  );
+  const [firstExtraction] = childExtractions;
+  if (!firstExtraction) {
+    return false;
+  }
+
+  return childExtractions.every((extracted) => extracted && extracted.field === firstExtraction.field);
 }
 
 function extractScopedQueryFieldSelections(
@@ -130,6 +195,13 @@ function extractScopedQueryFieldSelections(
   }
 
   if ("and" in node) {
+    if (shouldPreserveUnsupportedScopedSelectionGroup(node, scopedFieldSet, fieldSemanticsByName)) {
+      return {
+        metadata: node,
+        selections: {},
+      };
+    }
+
     let selections: Pf2eTerminalQueryFieldSelectionMap = {};
     const children: MetadataFilterNode[] = [];
 
@@ -144,6 +216,13 @@ function extractScopedQueryFieldSelections(
     return {
       metadata: normalizeMetadataNode(children.length === 0 ? null : { and: children }),
       selections,
+    };
+  }
+
+  if ("or" in node && shouldPreserveUnsupportedScopedSelectionGroup(node, scopedFieldSet, fieldSemanticsByName)) {
+    return {
+      metadata: node,
+      selections: {},
     };
   }
 

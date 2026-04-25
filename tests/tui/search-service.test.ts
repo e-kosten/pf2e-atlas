@@ -573,8 +573,8 @@ describe("createPf2eTerminalSearchService", () => {
         and: [
           {
             field: "traits",
-            op: "includesAny",
-            values: ["illusion"],
+            op: "includes",
+            value: "illusion",
           },
           {
             field: "sourceCategory",
@@ -613,8 +613,67 @@ describe("createPf2eTerminalSearchService", () => {
         },
         {
           field: "traits",
-          op: "includesAny",
-          values: ["evocation"],
+          op: "includes",
+          value: "evocation",
+        },
+      ],
+    } satisfies MetadataFilterNode);
+  });
+
+  it("preserves grouped same-field set conjunctions as metadata when query-field selections reopen", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const defaultQuery = service.createDefaultQuery();
+    const groupedTraits = {
+      and: [
+        {
+          field: "traits",
+          op: "includes",
+          value: "illusion",
+        },
+        {
+          field: "traits",
+          op: "includes",
+          value: "auditory",
+        },
+      ],
+    } satisfies MetadataFilterNode;
+    const query = setSearchQueryMetadataTree(
+      {
+        ...defaultQuery,
+        filter: {
+          kind: "scope",
+          category: "spell",
+          subcategory: { kind: "any" },
+        },
+      },
+      groupedTraits,
+    );
+
+    expect(service.buildDiscoverableQueryFieldSelections(query, ["traits"])).toEqual({
+      traits: {
+        include: [],
+        exclude: [],
+      },
+    });
+
+    const updated = service.applyDiscoverableQueryFieldSelections(
+      query,
+      {
+        traits: {
+          include: ["evocation"],
+          exclude: [],
+        },
+      },
+      ["traits"],
+    );
+
+    expect(getSearchQueryMetadataTree(updated)).toEqual({
+      and: [
+        groupedTraits,
+        {
+          field: "traits",
+          op: "includes",
+          value: "evocation",
         },
       ],
     } satisfies MetadataFilterNode);
@@ -665,13 +724,13 @@ describe("createPf2eTerminalSearchService", () => {
       nodes: [
         {
           field: "traits",
-          op: "includesAny",
-          values: ["evocation"],
+          op: "includes",
+          value: "evocation",
         },
         {
           field: "traits",
-          op: "includesAny",
-          values: ["illusion"],
+          op: "includes",
+          value: "illusion",
         },
       ],
     });
@@ -726,8 +785,8 @@ describe("createPf2eTerminalSearchService", () => {
       ),
       {
         field: "traits",
-        op: "includesAny",
-        values: ["illusion"],
+        op: "includes",
+        value: "illusion",
       },
     );
 
@@ -737,8 +796,8 @@ describe("createPf2eTerminalSearchService", () => {
     expect(preparedDraft.scopedFields).toEqual(["rarity", "actionCost"]);
     expect(preparedDraft.preservedMetadata).toEqual({
       field: "traits",
-      op: "includesAny",
-      values: ["illusion"],
+      op: "includes",
+      value: "illusion",
     } satisfies MetadataFilterNode);
     expect(draft.discreteClauses).toEqual([
       { field: "actionCost", value: "1", operator: "exclude" },
@@ -772,8 +831,50 @@ describe("createPf2eTerminalSearchService", () => {
     });
     expect(getSearchQueryMetadataTree(updated)).toEqual({
       field: "traits",
-      op: "includesAny",
-      values: ["illusion"],
+      op: "includes",
+      value: "illusion",
+    } satisfies MetadataFilterNode);
+  });
+
+  it("preserves grouped same-field set clauses as preserved metadata when reopening the filter explorer", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const groupedTraits = {
+      and: [
+        {
+          field: "traits",
+          op: "includes",
+          value: "illusion",
+        },
+        {
+          field: "traits",
+          op: "includes",
+          value: "auditory",
+        },
+      ],
+    } satisfies MetadataFilterNode;
+
+    const preparedDraft = service.prepareFilterExplorerDraftFromMetadataNode(groupedTraits, ["traits"]);
+
+    expect(preparedDraft.draft.discreteClauses).toEqual([]);
+    expect(preparedDraft.preservedMetadata).toEqual(groupedTraits);
+
+    expect(
+      service.buildFilterExplorerMetadataNode(
+        {
+          ...preparedDraft.draft,
+          discreteClauses: [{ field: "traits", value: "evocation", operator: "include" }],
+        },
+        { preservedMetadata: preparedDraft.preservedMetadata },
+      ),
+    ).toEqual({
+      and: [
+        groupedTraits,
+        {
+          field: "traits",
+          op: "includes",
+          value: "evocation",
+        },
+      ],
     } satisfies MetadataFilterNode);
   });
 
@@ -781,8 +882,8 @@ describe("createPf2eTerminalSearchService", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const preservedMetadata = {
       field: "traits",
-      op: "includesAny",
-      values: ["illusion"],
+      op: "includes",
+      value: "illusion",
     } satisfies MetadataFilterNode;
     const composeDraft = cloneFilterExplorerComposeDraft({
       discreteClauses: [],
@@ -811,8 +912,8 @@ describe("createPf2eTerminalSearchService", () => {
       and: [
         {
           field: "traits",
-          op: "includesAny",
-          values: ["illusion"],
+          op: "includes",
+          value: "illusion",
         },
         {
           and: [

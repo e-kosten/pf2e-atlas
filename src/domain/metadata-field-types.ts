@@ -1,7 +1,7 @@
 export type MetadataFieldType = "set" | "enumString" | "text" | "number" | "boolean";
 
 export const METADATA_FIELD_KIND_OPERATORS = {
-  set: ["includesAny", "includesAll", "excludesAny"],
+  set: ["includes"],
   enumString: ["eq", "in", "notIn"],
   text: ["eq", "notEq", "contains", "notContains"],
   number: ["eq", "gte", "lte", "between"],

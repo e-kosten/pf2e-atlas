@@ -1081,12 +1081,6 @@ export function formatMetadataPredicateValue(node: MetadataPredicate): string {
   if ("values" in node) {
     const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
     switch (node.op) {
-      case "includesAny":
-        return `includes ${values}`;
-      case "includesAll":
-        return `includes ${values}`;
-      case "excludesAny":
-        return `exclude ${values}`;
       case "in":
         return `is one of ${values}`;
       case "notIn":
@@ -1098,6 +1092,8 @@ export function formatMetadataPredicateValue(node: MetadataPredicate): string {
   }
   if ("value" in node) {
     switch (node.op) {
+      case "includes":
+        return `includes ${formatMetadataScalar(node.value)}`;
       case "contains":
         return `contains ${formatMetadataScalar(node.value)}`;
       case "notContains":

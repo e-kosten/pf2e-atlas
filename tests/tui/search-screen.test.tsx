@@ -1947,18 +1947,20 @@ describe("search screen", () => {
           and: [
             {
               field: "traits",
-              op: "includesAny",
-              values: ["illusion"],
+              op: "includes",
+              value: "illusion",
             },
             {
               field: "traits",
-              op: "includesAll",
-              values: ["auditory"],
+              op: "includes",
+              value: "auditory",
             },
             {
-              field: "traits",
-              op: "excludesAny",
-              values: ["emotion"],
+              not: {
+                field: "traits",
+                op: "includes",
+                value: "emotion",
+              },
             },
           ],
         },
@@ -2016,13 +2018,7 @@ describe("search screen", () => {
               },
               {
                 kind: "metadataPredicate",
-                kind: "allOf",
-                children: [
-                  {
-                    kind: "metadataPredicate",
-                    predicate: { field: "traits", op: "includes", value: "auditory" },
-                  },
-                ],
+                predicate: { field: "traits", op: "includes", value: "auditory" },
               },
               {
                 kind: "not",
