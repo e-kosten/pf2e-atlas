@@ -7,13 +7,13 @@ import { useTerminalInteractionContextAdapters } from "../interaction-context-ad
 import type { SearchFilterExplorerSession } from "./query-field-builder/query-field-builder-session.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 import type { FilterExplorerDiscoveryMode, FilterExplorerDiscoveryState } from "../filter-explorer/types.js";
+import { isSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
+import {
+  planSearchFilterExplorerRefresh,
+  shouldApplySearchFilterExplorerRefresh,
+} from "./filter-explorer-refresh.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
-const LOADING_EXPLORER_MODEL_ID = "searchFilterExplorer:loading";
-
-function isLoadingExplorerModel(model: SearchFilterExplorerSession["model"]): boolean {
-  return model.id === LOADING_EXPLORER_MODEL_ID || model.rootNodes.length === 0;
-}
 
 export function SearchFilterExplorerScreen({
   session,
@@ -28,6 +28,7 @@ export function SearchFilterExplorerScreen({
   const [draft, setDraft] = React.useState(() => cloneFilterExplorerComposeDraft(session.draft));
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: FilterExplorerDiscoveryMode } | null>(null);
   const draftRef = React.useRef(cloneFilterExplorerComposeDraft(session.draft));
+  const discoveryModeRef = React.useRef<FilterExplorerDiscoveryMode>(initialDiscoveryMode);
   const modelCacheRef = React.useRef(new Map<FilterExplorerDiscoveryMode, SearchFilterExplorerSession["model"]>());
   const refreshStateRef = React.useRef<{ pendingMode: FilterExplorerDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
@@ -40,49 +41,72 @@ export function SearchFilterExplorerScreen({
     }
   }, []);
 
+  const invalidateRefreshes = React.useCallback(() => {
+    refreshRequestIdRef.current += 1;
+    clearQueuedRefresh();
+  }, [clearQueuedRefresh]);
+
   const runModelRefresh = React.useCallback(
     (nextMode: FilterExplorerDiscoveryMode, options: { debounceMs?: number; force?: boolean } = {}) => {
       if (!session.loadModelForDiscoveryMode) {
         setDiscoveryMode(nextMode);
         setRefreshState(null);
+        discoveryModeRef.current = nextMode;
         return;
       }
 
       const { debounceMs = DISCOVERY_REFRESH_DEBOUNCE_MS, force = false } = options;
-      if (!force && refreshStateRef.current?.pendingMode === nextMode) {
+      const plan = planSearchFilterExplorerRefresh({
+        nextMode,
+        displayedMode: discoveryModeRef.current,
+        cache: modelCacheRef.current,
+        currentRequestId: refreshRequestIdRef.current,
+        force,
+      });
+      invalidateRefreshes();
+      refreshRequestIdRef.current = plan.requestId;
+
+      if (plan.kind === "retainCurrent") {
+        setRefreshState(null);
         return;
       }
 
-      if (!force) {
-        const cachedModel = modelCacheRef.current.get(nextMode);
-        if (cachedModel) {
-          setModel(cachedModel);
-          setDiscoveryMode(nextMode);
-          setRefreshState(null);
-          return;
-        }
+      if (plan.kind === "useCached") {
+        setModel(plan.model);
+        setDiscoveryMode(plan.mode);
+        discoveryModeRef.current = plan.mode;
+        setRefreshState(null);
+        return;
       }
 
-      setRefreshState({ pendingMode: nextMode });
-      const requestId = refreshRequestIdRef.current + 1;
-      refreshRequestIdRef.current = requestId;
-      clearQueuedRefresh();
+      setRefreshState({ pendingMode: plan.pendingMode });
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
         void session
           .loadModelForDiscoveryMode!(nextMode)
           .then((nextModel) => {
-            if (refreshRequestIdRef.current !== requestId) {
+            if (
+              !shouldApplySearchFilterExplorerRefresh({
+                currentRequestId: refreshRequestIdRef.current,
+                completedRequestId: plan.requestId,
+              })
+            ) {
               return;
             }
             modelCacheRef.current.set(nextMode, nextModel);
             setModel(nextModel);
             setDiscoveryMode(nextMode);
+            discoveryModeRef.current = nextMode;
             setRefreshState(null);
           })
           .catch((error) => {
-            if (refreshRequestIdRef.current !== requestId) {
+            if (
+              !shouldApplySearchFilterExplorerRefresh({
+                currentRequestId: refreshRequestIdRef.current,
+                completedRequestId: plan.requestId,
+              })
+            ) {
               return;
             }
             setRefreshState(null);
@@ -97,7 +121,7 @@ export function SearchFilterExplorerScreen({
 
       executeRefresh();
     },
-    [clearQueuedRefresh, session, terminal],
+    [invalidateRefreshes, session, terminal],
   );
 
   React.useEffect(() => {
@@ -105,36 +129,43 @@ export function SearchFilterExplorerScreen({
   }, [refreshState]);
 
   React.useEffect(() => {
-    clearQueuedRefresh();
-    refreshRequestIdRef.current += 1;
+    discoveryModeRef.current = discoveryMode;
+  }, [discoveryMode]);
+
+  React.useEffect(() => {
+    invalidateRefreshes();
     setModel(session.model);
     setDiscoveryMode(initialDiscoveryMode);
+    discoveryModeRef.current = initialDiscoveryMode;
     modelCacheRef.current = new Map(
-      isLoadingExplorerModel(session.model) ? [] : [[initialDiscoveryMode, session.model]],
+      isSearchFilterExplorerLoadingModel(session.model) ? [] : [[initialDiscoveryMode, session.model]],
     );
-    setRefreshState(session.loadModelForDiscoveryMode && isLoadingExplorerModel(session.model) ? { pendingMode: initialDiscoveryMode } : null);
+    setRefreshState(
+      session.loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)
+        ? { pendingMode: initialDiscoveryMode }
+        : null,
+    );
     const nextDraft = cloneFilterExplorerComposeDraft(session.draft);
     draftRef.current = nextDraft;
     setDraft(nextDraft);
-    if (session.loadModelForDiscoveryMode && isLoadingExplorerModel(session.model)) {
+    if (session.loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)) {
       runModelRefresh(initialDiscoveryMode, { debounceMs: 0, force: true });
     }
 
     return () => {
-      clearQueuedRefresh();
-      refreshRequestIdRef.current += 1;
+      invalidateRefreshes();
     };
-  }, [clearQueuedRefresh, initialDiscoveryMode, runModelRefresh, session]);
+  }, [initialDiscoveryMode, invalidateRefreshes, runModelRefresh, session]);
 
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: FilterExplorerDiscoveryMode) => {
-      if (nextMode === discoveryMode || refreshState?.pendingMode === nextMode) {
+      if (nextMode === discoveryModeRef.current && refreshStateRef.current === null) {
         return;
       }
 
       runModelRefresh(nextMode);
     },
-    [discoveryMode, refreshState?.pendingMode, runModelRefresh],
+    [runModelRefresh],
   );
 
   const discovery = React.useMemo<FilterExplorerDiscoveryState | undefined>(() => {

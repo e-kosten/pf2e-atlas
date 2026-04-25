@@ -1,6 +1,6 @@
 import type { SearchRequest } from "./search-request-types.js";
 
-export type OntologyDomainId = "derivedTags" | "searchSemantics" | "searchFilterExplorer:loading";
+export type OntologyDomainId = "derivedTags" | "searchSemantics";
 
 export type OntologyLineTone =
   | "default"

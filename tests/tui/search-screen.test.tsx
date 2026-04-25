@@ -17,6 +17,7 @@ import {
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
+import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
@@ -648,25 +649,7 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
 }
 
 function createLoadingExplorerModel(title: string): OntologyDomainModel {
-  return {
-    id: "searchFilterExplorer:loading",
-    label: title,
-    description: "Loading search explorer entries.",
-    rootNodes: [
-      {
-        id: `${title}:loading`,
-        kind: "group",
-        label: "Loading explorer entries...",
-        listLabel: "Loading explorer entries...",
-        filterText: "loading explorer entries",
-        detailTitle: title,
-        detailLines: [
-          { text: "Loading explorer entries...", tone: "section" },
-          { text: "Refreshing the scoped explorer tree in the background.", tone: "dim" },
-        ],
-      },
-    ],
-  };
+  return createSearchFilterExplorerLoadingModel(title);
 }
 
 function createNamedExplorerDomain(label: string): OntologyDomainModel {

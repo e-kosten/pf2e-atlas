@@ -4,7 +4,6 @@ import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
-import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalPreparedFilterExplorerContext,
@@ -15,28 +14,7 @@ import type {
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
-
-function createLoadingFilterExplorerModel(title: string): OntologyDomainModel {
-  return {
-    id: "searchFilterExplorer:loading",
-    label: title,
-    description: "Loading search explorer entries.",
-    rootNodes: [
-      {
-        id: "searchFilterExplorer:loading:entry",
-        kind: "group",
-        label: "Loading explorer entries...",
-        listLabel: "Loading explorer entries...",
-        filterText: "loading explorer entries",
-        detailTitle: title,
-        detailLines: [
-          { text: "Loading explorer entries...", tone: "section" },
-          { text: "Refreshing the scoped explorer tree in the background.", tone: "dim" },
-        ],
-      },
-    ],
-  };
-}
+import { createSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
 
 export function useSearchFilterExplorerWorkflow({
   query,
@@ -115,7 +93,7 @@ export function useSearchFilterExplorerWorkflow({
 
       setFilterExplorerSession({
         title,
-        model: createLoadingFilterExplorerModel(title),
+        model: createSearchFilterExplorerLoadingModel(title),
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         draft: preparedDraft.draft,
