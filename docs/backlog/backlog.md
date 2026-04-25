@@ -20,6 +20,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
 
+- Verify what (if anything) still uses the bottom aligned modal. Because it's ugly and should probably get deleted or strongly changed. Same for the command pallete because the action picker is probably better.
+
 ## Soon
 
 - [Derived-tag concept model implementation](./items/derived-tag-concept-model-implementation.md)
