@@ -176,6 +176,37 @@ describe("application search discovery service", () => {
     );
   });
 
+  it("sanitizes empty ranked-search matching discovery back to the applicability slice", async () => {
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values: [{ value: "undead", count: 3 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+    const context = createSearchFilterDiscoveryContext({
+      mode: "search",
+      search: { query: "" },
+    });
+
+    await service.discoverFilterValues({
+      mode: "matching",
+      context,
+      target: { field: "traits" },
+    });
+
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      {
+        field: "traits",
+      },
+      {
+        mode: "browse",
+      },
+    );
+  });
+
   it("uses only the applicability slice for catalog discovery", async () => {
     const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
       field,

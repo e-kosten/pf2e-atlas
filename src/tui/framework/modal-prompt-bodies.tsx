@@ -9,7 +9,10 @@ import {
   TERMINAL_TEXT_INPUT_FOOTER,
   formatTerminalInteractionFooter,
 } from "../interaction-bindings.js";
-import type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
+import {
+  isCenteredModalPresentation,
+  type TerminalModalLayoutResult,
+} from "../terminal-modal-layout.js";
 import {
   TerminalRows,
   fitToWidth,
@@ -195,20 +198,25 @@ function CenteredChoicePromptBody({
   width: number;
   height: number;
 }): React.JSX.Element {
-  const lines: DerivedTagTerminalLine[] = [
-    ...(prompt ? [{ text: prompt, tone: "section" as const }] : []),
-    {
-      text: options
-        .map((entry, index) => (index === selectedIndex ? `[ ${entry.label} ]` : entry.label))
-        .join("   "),
-      tone: "selected",
-      noWrap: true,
-    },
-    { text: "" },
-    ...buildPromptDetailLines(options[selectedIndex]),
-  ];
+  const promptLines = prompt ? [{ text: prompt, tone: "section" as const }] : [];
+  const detailLines = buildPromptDetailLines(options[selectedIndex]);
+  const chromeRows = promptLines.length + 2;
+  const detailHeight = Math.max(0, height - chromeRows);
 
-  return <InlinePromptMessageBody width={width} height={height} lines={lines} />;
+  return (
+    <Box flexDirection="column" width={width} height={height}>
+      {promptLines.length > 0 ? <InlinePromptMessageBody width={width} height={promptLines.length} lines={promptLines} /> : null}
+      <Box width={width} justifyContent="center">
+        <Text wrap="truncate-end" {...terminalToneProps("selected")}>
+          {options
+            .map((entry, index) => (index === selectedIndex ? `[ ${entry.label} ]` : entry.label))
+            .join("   ")}
+        </Text>
+      </Box>
+      <Text wrap="truncate-end">{""}</Text>
+      {detailHeight > 0 ? <InlinePromptMessageBody width={width} height={detailHeight} lines={detailLines} /> : null}
+    </Box>
+  );
 }
 
 export function buildTextPromptBodyLines(options: TextPromptOptions, currentValue: string): DerivedTagTerminalLine[] {
@@ -386,7 +394,7 @@ export function SelectPromptBody({
 
   const filteredSelectedIndex = getFilteredPromptSelectionIndex(options.entries, selectedIndex, filterText);
   const selectedOption = options.entries[filteredSelectedIndex];
-  if (options.choiceLayout === "horizontal" || layout.presentation === "centered") {
+  if (options.choiceLayout === "horizontal" && isCenteredModalPresentation(layout.presentation)) {
     return (
       <TerminalInlinePromptPanel
         title={options.title}

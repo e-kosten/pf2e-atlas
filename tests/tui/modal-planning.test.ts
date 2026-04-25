@@ -26,4 +26,69 @@ describe("planTerminalModalStateLayout", () => {
     expect(result!.panelWidth).toBeLessThan(120);
     expect(result!.bodyHeight).toBeGreaterThan(0);
   });
+
+  it("keeps centered horizontal prompts at a stable size as the focused option changes", () => {
+    const first: TerminalModalState = {
+      kind: "select",
+      options: {
+        title: "Choose Search Mode",
+        prompt: "",
+        presentation: "centered",
+        choiceLayout: "horizontal",
+        filtering: false,
+        entries: [
+          { kind: "selected", value: "browse", label: "Browse", description: "Short detail." },
+          {
+            kind: "selected",
+            value: "search",
+            label: "Search",
+            description: "Much longer detail text that should determine the stable centered panel size.",
+          },
+          { kind: "selected", value: "lookup", label: "Lookup", description: "Medium detail." },
+        ],
+        supportsCommands: false,
+      },
+      selectedIndex: 0,
+      filterText: "",
+      filterMode: false,
+      resolve: () => undefined,
+    };
+    const second: TerminalModalState = { ...first, selectedIndex: 1 };
+
+    const firstLayout = planTerminalModalStateLayout(first, 100, 24);
+    const secondLayout = planTerminalModalStateLayout(second, 100, 24);
+
+    expect(firstLayout?.presentation).toBe("centered");
+    expect(secondLayout?.presentation).toBe("centered");
+    expect(firstLayout?.panelWidth).toBe(secondLayout?.panelWidth);
+    expect(firstLayout?.totalHeight).toBe(secondLayout?.totalHeight);
+  });
+
+  it("preserves centered standalone-page presentation for first-entry prompts", () => {
+    const modal: TerminalModalState = {
+      kind: "select",
+      options: {
+        title: "Choose Search Mode",
+        prompt: "",
+        presentation: "centered-screen",
+        choiceLayout: "horizontal",
+        filtering: false,
+        entries: [
+          { kind: "selected", value: "browse", label: "Browse", description: "Explore records." },
+          { kind: "selected", value: "search", label: "Search", description: "Run ranked search." },
+        ],
+        supportsCommands: false,
+      },
+      selectedIndex: 0,
+      filterText: "",
+      filterMode: false,
+      resolve: () => undefined,
+    };
+
+    const result = planTerminalModalStateLayout(modal, 100, 24);
+
+    expect(result?.presentation).toBe("centered-screen");
+    expect(result?.panelWidth).toBeDefined();
+    expect(result?.totalHeight).toBeGreaterThan(0);
+  });
 });

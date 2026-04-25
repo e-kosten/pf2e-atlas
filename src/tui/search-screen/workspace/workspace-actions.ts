@@ -103,6 +103,7 @@ export function useSearchWorkspaceActions({
       prompt: "Enter text that ranked search should exclude from lexical matches",
       defaultValue: getSearchQueryExcludeText(state.query),
       hint: "Example: skeleton",
+      presentation: "centered",
     });
 
     if (excludeText === undefined) {
@@ -148,6 +149,7 @@ export function useSearchWorkspaceActions({
         description: option.description,
       })),
       selectedValue: getSearchQuerySearchProfile(state.query) ?? "balanced",
+      presentation: "centered",
     });
 
     if (result.kind === "selected") {

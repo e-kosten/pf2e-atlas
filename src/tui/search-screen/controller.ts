@@ -146,7 +146,7 @@ export function useSearchScreenController({
       .promptSelectOption({
         title: "Choose Search Mode",
         prompt: "",
-        presentation: "centered",
+        presentation: "centered-screen",
         choiceLayout: "horizontal",
         filtering: false,
         selectedValue: state.query.mode,

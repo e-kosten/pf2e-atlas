@@ -142,31 +142,30 @@ describe("search query summary", () => {
 
   it("drives workspace structured rows from the same summary model", () => {
     const query = createStructuredQuery();
-    const summary = buildSearchQuerySummary(query);
     const state = createInitialSearchScreenState(query);
     const workspaceEntries = buildWorkspaceEntries(state, createIdleCountState());
 
     expect(
-      workspaceEntries
-        .filter(
-          (entry) =>
-            entry.action === "exclude" ||
-            entry.action === "profile" ||
-            entry.action === "queryTreeRoot" ||
-            entry.action === "clearClauses" ||
-            entry.action.startsWith("queryNode:"),
-        )
-        .map((entry) => entry.label),
+      workspaceEntries.map((entry) => entry.label),
     ).toEqual([
+      "Mode",
+      "Query",
       "Exclude",
       "Profile",
+      "Filters >",
       "Filter",
       "Filter",
       "Filter",
       "Filter",
       "Filter",
       "Clear Query Clauses",
+      "Reset Query",
+      "Discard Applied Results",
+      "Execute Query",
     ]);
+    expect(workspaceEntries.findIndex((entry) => entry.action === "profile")).toBeLessThan(
+      workspaceEntries.findIndex((entry) => entry.action === "addQueryPart"),
+    );
     expect(workspaceEntries.find((entry) => entry.action === "addQueryPart")?.value).toBe("5 active");
   });
 });

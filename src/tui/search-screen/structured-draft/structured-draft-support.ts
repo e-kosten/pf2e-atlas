@@ -83,9 +83,10 @@ function buildFilterTreeEntries(
     path: number[],
     depth: number,
     ancestorContinuations: boolean[],
+    isLast: boolean,
   ): void => {
     const isGroup = isSearchFilterBooleanGroup(current) || current.kind === "not";
-    const menuLabel = `${formatTreePrefix(ancestorContinuations, false)}${formatSearchFilterNodePresentationAlias(current, {
+    const menuLabel = `${formatTreePrefix(ancestorContinuations, isLast)}${formatSearchFilterNodePresentationAlias(current, {
       category: options.category,
       packLabelResolver: options.packLabelResolver,
       style: "tree",
@@ -112,14 +113,16 @@ function buildFilterTreeEntries(
     }
 
     const children = getSearchFilterNodeChildren(current);
+    const childAncestorContinuations = [...ancestorContinuations, !isLast];
+    const showInsertionSlot =
+      isSearchFilterBooleanGroup(current) &&
+      (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path));
     children.forEach((child, childIndex) => {
-      appendNode(child, [...path, childIndex], depth + 1, [...ancestorContinuations, true]);
+      const childIsLast = childIndex === children.length - 1 && !showInsertionSlot;
+      appendNode(child, [...path, childIndex], depth + 1, childAncestorContinuations, childIsLast);
     });
 
-    if (isSearchFilterBooleanGroup(current)) {
-      const isValidMoveTarget =
-        moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path);
-      if (isValidMoveTarget) {
+    if (showInsertionSlot) {
         entries.push({
           kind: "queryInsertionSlot",
           key: `querySlot:${path.join(".")}`,
@@ -129,17 +132,18 @@ function buildFilterTreeEntries(
             : "Add a new filter or nested group at the bottom of this group.",
           insertionPath: path,
           indent: depth + 1,
-          menuLabel: `${formatTreePrefix([...ancestorContinuations, false], true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,
+          menuLabel: `${formatTreePrefix(childAncestorContinuations, true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,
         });
-      }
     }
   };
 
-  displayNodes.forEach((displayNode) => {
-    appendNode(displayNode.node, displayNode.path, 1, []);
+  const showRootInsertionSlot = moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, []);
+  displayNodes.forEach((displayNode, displayIndex) => {
+    const isLast = displayIndex === displayNodes.length - 1 && !showRootInsertionSlot;
+    appendNode(displayNode.node, displayNode.path, 1, [], isLast);
   });
 
-  if (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, [])) {
+  if (showRootInsertionSlot) {
     entries.push({
       kind: "queryInsertionSlot",
       key: "querySlot:root",

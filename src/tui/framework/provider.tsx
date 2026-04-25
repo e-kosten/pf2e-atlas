@@ -3,6 +3,10 @@ import { Box, render as renderInkApp, useApp, useWindowSize } from "ink";
 import { useStdout } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
+import {
+  isCenteredModalPresentation,
+  isCenteredScreenModalPresentation,
+} from "../terminal-modal-layout.js";
 import { DerivedTagTerminalContext } from "./context.js";
 import {
   buildOptionalSelectModalOptions,
@@ -82,11 +86,14 @@ export function DerivedTagTerminalProvider({
   const availableRows =
     modalLayout?.presentation === "inline"
       ? Math.max(0, rows - modalLayout.totalHeight)
-      : modalLayout?.presentation === "centered"
-        ? rows
+      : modalLayout?.presentation && isCenteredModalPresentation(modalLayout.presentation)
+        ? isCenteredScreenModalPresentation(modalLayout.presentation)
+          ? 0
+          : rows
         : modalLayout
           ? 0
           : rows;
+  const shouldRenderChildren = !modalLayout?.presentation || !isCenteredScreenModalPresentation(modalLayout.presentation);
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
@@ -211,7 +218,11 @@ export function DerivedTagTerminalProvider({
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      <Box flexDirection="column">{children}</Box>
+      <Box flexDirection="column" width={columns} height={rows}>
+        <Box flexDirection="column" width={columns} height={shouldRenderChildren ? rows : 0}>
+          {children}
+        </Box>
+      </Box>
       {modal && modalLayout?.presentation === "inline" ? (
         <DerivedTagTerminalModalHost
           modal={modal}
@@ -221,7 +232,9 @@ export function DerivedTagTerminalProvider({
           layout={modalLayout}
         />
       ) : null}
-      {modal && (modalLayout?.presentation === "screen" || modalLayout?.presentation === "centered") ? (
+      {modal &&
+      (modalLayout?.presentation === "screen" ||
+        (modalLayout?.presentation && isCenteredModalPresentation(modalLayout.presentation))) ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}

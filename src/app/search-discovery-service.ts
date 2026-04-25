@@ -122,9 +122,20 @@ function resolveContextSearchRequest(
   mode: SearchFilterDiscoveryMode,
   context: SearchFilterDiscoveryContext,
 ): Readonly<SearchRequest> {
-  return mode === "catalog"
-    ? buildSearchFilterDiscoveryCatalogRequest(context.applicability)
-    : context.request;
+  if (mode === "catalog") {
+    return buildSearchFilterDiscoveryCatalogRequest(context.applicability);
+  }
+
+  const request = context.request;
+  if (
+    (request.mode === "search" || request.mode === "lookup") &&
+    !request.filter &&
+    !request.search.query.trim()
+  ) {
+    return buildSearchFilterDiscoveryCatalogRequest(context.applicability);
+  }
+
+  return request;
 }
 
 function buildFilterValueQuery(

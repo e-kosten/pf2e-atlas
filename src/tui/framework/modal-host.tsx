@@ -35,7 +35,10 @@ import {
   TextPromptBody,
 } from "./modal-prompt-bodies.js";
 import { TerminalCenteredOverlayPanel, TerminalInlinePromptPanel } from "./screen-components.js";
-import type { TerminalModalLayoutResult } from "../terminal-modal-layout.js";
+import {
+  isCenteredModalPresentation,
+  type TerminalModalLayoutResult,
+} from "../terminal-modal-layout.js";
 import type { TerminalModalState } from "./types.js";
 
 function resolveAfterModalClose<T>(resolver: (value: T) => void, value: T): void {
@@ -326,7 +329,7 @@ export function DerivedTagTerminalModalHost({
         return;
       }
 
-      if (modal.kind === "select" && (modal.options.choiceLayout === "horizontal" || layout.presentation === "centered")) {
+      if (modal.kind === "select" && modal.options.choiceLayout === "horizontal") {
         const selectedVisibleIndex = Math.max(
           0,
           filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
@@ -560,9 +563,12 @@ export function DerivedTagTerminalModalHost({
     return null;
   }
 
-  const panelWidth = layout.presentation === "centered" ? (layout.panelWidth ?? Math.max(24, width - 4)) : width;
+  const panelWidth =
+    layout.presentation && isCenteredModalPresentation(layout.presentation)
+      ? (layout.panelWidth ?? Math.max(24, width - 4))
+      : width;
   const renderPanel = (panel: React.JSX.Element): React.JSX.Element =>
-    layout.presentation === "centered" ? (
+    layout.presentation && isCenteredModalPresentation(layout.presentation) ? (
       <TerminalCenteredOverlayPanel width={panelWidth} height={layout.totalHeight}>{panel}</TerminalCenteredOverlayPanel>
     ) : (
       panel

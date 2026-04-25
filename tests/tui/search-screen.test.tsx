@@ -713,6 +713,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Search Text");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     for (const character of "ghost") {
       app.stdin.write(character);
     }
@@ -726,6 +727,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Exclude Text");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
     for (const character of "skeleton") {
       app.stdin.write(character);
     }
@@ -767,6 +769,21 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).not.toContain("[RESULTS] 1/1 | Buf 1 | Ranked");
+  });
+
+  it("uses a centered standalone mode picker before the workspace is revealed", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={createServices()}>
+          <SearchScreen onBack={vi.fn()} promptForInitialMode />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await waitForFrameToContain(app, "Choose Search Mode");
+    expect(app.lastFrame()).toContain("Choose Search Mode");
+    expect(app.lastFrame()).not.toContain("[EDITOR] Query");
+    expect(app.lastFrame()).not.toContain("Filters >");
   });
 
   it("uses left to back out of the query editor instead of opening the selected item", async () => {

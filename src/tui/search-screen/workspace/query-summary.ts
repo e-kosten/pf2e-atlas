@@ -223,5 +223,5 @@ export function getVisibleSearchQuerySummaryEntries(summary: SearchQuerySummary)
 }
 
 export function isStructuredSearchQuerySummaryEntry(entry: SearchQuerySummaryEntry): boolean {
-  return entry.kind !== "mode" && entry.kind !== "query" && entry.kind !== "exclude";
+  return entry.kind === "filterTreeRoot" || entry.kind === "filterNode";
 }

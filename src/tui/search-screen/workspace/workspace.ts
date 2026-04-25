@@ -195,6 +195,7 @@ export function buildWorkspaceEntries(
   const modeEntry = summary.entries.find((entry) => entry.kind === "mode");
   const queryEntry = summary.entries.find((entry) => entry.kind === "query");
   const excludeEntry = summary.entries.find((entry) => entry.kind === "exclude");
+  const profileEntry = summary.entries.find((entry) => entry.kind === "profile");
   if (!modeEntry) {
     throw new Error("Search query summary must include mode entries.");
   }
@@ -202,6 +203,7 @@ export function buildWorkspaceEntries(
     buildWorkspaceEntryFromSummary(modeEntry),
     ...(queryEntry?.visible ? [buildWorkspaceEntryFromSummary(queryEntry)] : []),
     ...(excludeEntry?.visible ? [buildWorkspaceEntryFromSummary(excludeEntry)] : []),
+    ...(profileEntry?.visible ? [buildWorkspaceEntryFromSummary(profileEntry)] : []),
     {
       action: "addQueryPart",
       label: "Filters >",
