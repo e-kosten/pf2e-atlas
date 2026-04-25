@@ -140,8 +140,12 @@ export function TerminalCenteredOverlayPanel({
   height: number;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const size = useDerivedTagTerminalSize();
+  const topOffset = Math.max(0, Math.floor((Math.max(0, size.height - height)) / 3));
+
   return (
-    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
+    <Box position="absolute" width="100%" height="100%" flexDirection="column" alignItems="center">
+      <Box height={topOffset} />
       <Box width={width} height={height}>
         {children}
       </Box>

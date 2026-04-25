@@ -41,12 +41,6 @@ import {
 } from "../terminal-modal-layout.js";
 import type { TerminalModalState } from "./types.js";
 
-function resolveAfterModalClose<T>(resolver: (value: T) => void, value: T): void {
-  queueMicrotask(() => {
-    resolver(value);
-  });
-}
-
 function getChoicePromptFilteringEnabled(
   modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
 ): boolean {
@@ -109,6 +103,10 @@ export function DerivedTagTerminalModalHost({
       "commandPalette" | "multiSelectPrompt" | "policyPrompt" | "selectPrompt" | "textPrompt"
     >(),
   );
+  const resolveAfterModalClose = React.useCallback(<T,>(resolver: (value: T) => void, value: T): void => {
+    routerStateRef.current = createTerminalInteractionContextRouterState();
+    resolver(value);
+  }, []);
   const pageSize = Math.max(1, layout.visibleListCapacity || 10);
 
   useInput(
@@ -317,11 +315,11 @@ export function DerivedTagTerminalModalHost({
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           setModal(null);
           if (modal.kind === "select") {
-            resolveAfterModalClose(modal.resolve, { kind: "cancelled" });
+            resolveAfterModalClose(modal.resolve, event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" });
             return;
           }
           if (modal.kind === "multiselect") {
-            resolveAfterModalClose(modal.resolve, { kind: "cancelled" });
+            resolveAfterModalClose(modal.resolve, event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" });
             return;
           }
           resolveAfterModalClose(modal.resolve, createEmptyPolicySelection());
@@ -396,7 +394,7 @@ export function DerivedTagTerminalModalHost({
           );
           return;
         }
-        if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
+        if (event.textInputAction === "cancel" || event.isTerminalQuitKey()) {
           const resolver = modal.resolve;
           setModal(null);
           resolveAfterModalClose(resolver, { kind: "cancelled" });
@@ -421,6 +419,12 @@ export function DerivedTagTerminalModalHost({
         const resolver = modal.resolve;
         setModal(null);
         resolveAfterModalClose(resolver, { kind: "commands" });
+        return;
+      }
+      if (modal.kind === "select" && event.isBackNavigationKey()) {
+        const resolver = modal.resolve;
+        setModal(null);
+        resolveAfterModalClose(resolver, { kind: "back" });
         return;
       }
 
@@ -547,13 +551,19 @@ export function DerivedTagTerminalModalHost({
       if (modal.kind === "select" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
         const resolver = modal.resolve;
         setModal(null);
-        resolveAfterModalClose(resolver, { kind: "cancelled" });
+        resolveAfterModalClose(
+          resolver,
+          routed.route.interactionAction?.id === "back" ? { kind: "back" } : { kind: "cancelled" },
+        );
         return;
       }
       if (modal.kind === "multiselect" && (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey())) {
         const resolver = modal.resolve;
         setModal(null);
-        resolveAfterModalClose(resolver, { kind: "cancelled" });
+        resolveAfterModalClose(
+          resolver,
+          routed.route.interactionAction?.id === "back" ? { kind: "back" } : { kind: "cancelled" },
+        );
       }
     },
     { isActive: modal !== null },

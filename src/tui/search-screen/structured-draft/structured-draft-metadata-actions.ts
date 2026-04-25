@@ -46,7 +46,11 @@ import type {
 type ClauseKind = "field" | "metric" | "metricCompare" | "pack" | "scope" | "level" | "price" | "rarity" | "actionCost";
 type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
-type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | null | undefined;
+const CLAUSE_BACK = Symbol("search-structured-draft-clause-back");
+type ClausePromptBackResult = typeof CLAUSE_BACK;
+type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | ClausePromptBackResult | null | undefined;
+type ClausePromptResult = ClauseKind | ClausePromptBackResult | null;
+type ClauseApplyResult = "applied" | "back" | "cancelled";
 type StructuredDraftEntryActionId =
   | "addClause"
   | "addAndGroup"
@@ -164,15 +168,6 @@ function formatNumericMatch(match: SearchNumericMatch): string {
 
 function buildDiscoveryModeSubtitle(discoveryMode: SearchFilterDiscoveryMode): string {
   return discoveryMode === "matching" ? "Matching counts" : "Catalog counts";
-}
-
-async function waitForPromptTransition(): Promise<void> {
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, 0);
-  });
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, 0);
-  });
 }
 
 export function useSearchStructuredDraftMetadataActions({
@@ -296,8 +291,8 @@ export function useSearchStructuredDraftMetadataActions({
           ? currentNode.field
           : fieldOptions[0]!.value;
       const selection = await prompts.promptSelectOption({
-        title: family === "metric" ? "Metric Filter" : "Field Filter",
-        prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the field for the next clause",
+        title: family === "metric" ? "Metric" : "Metadata",
+        prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the metadata field for the next clause",
         entries: fieldOptions.map((fieldOption) => ({
           value: fieldOption.value,
           label: fieldOption.label,
@@ -308,6 +303,9 @@ export function useSearchStructuredDraftMetadataActions({
             ? selectedValue
             : fieldOptions[0]!.value,
       });
+      if (selection.kind === "back") {
+        return CLAUSE_BACK;
+      }
       if (selection.kind !== "selected") {
         return undefined;
       }
@@ -588,94 +586,115 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "scope" }>,
-    ): Promise<Extract<SearchFilterNode, { kind: "scope" }> | undefined> => {
+    ): Promise<Extract<SearchFilterNode, { kind: "scope" }> | ClausePromptBackResult | undefined> => {
       const [, ...categoryOptions] = user.search.getCategoryOptions();
       if (categoryOptions.length === 0) {
         await terminal.pauseForAnyKey("No categories are available for the current query.");
         return undefined;
       }
 
-      const categorySelection = await prompts.promptSelectOption({
-        title: "Scope",
-        prompt: "Choose the category for this scope clause",
-        entries: categoryOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-          description: option.description,
-        })),
-        selectedValue: currentNode?.category ?? categoryOptions[0]!.value,
-      });
-      if (categorySelection.kind !== "selected") {
-        return undefined;
-      }
-
-      const category = normalizeSearchCategory(categorySelection.value) ?? null;
-      if (!category) {
-        return undefined;
-      }
-      const subcategoryOptions = user.search.getSubcategoryOptions(category).filter((option) => option.value !== null);
-      const currentMode =
-        currentNode?.subcategory.kind === "eq"
-          ? "specific"
-          : currentNode?.subcategory.kind === "isNull"
-            ? "none"
-            : "any";
-      const modeSelection = await prompts.promptSelectOption({
-        title: "Subcategory Mode",
-        prompt: "Choose how this scope clause should treat subcategories",
-        entries: [
-          { value: "any", label: "Any subcategory", description: "Match any subcategory inside the selected category." },
-          {
-            value: "specific",
-            label: "Specific subcategory",
-            description: "Choose one exact subcategory inside the selected category.",
-          },
-          { value: "none", label: "No subcategory", description: "Match only records without a subcategory." },
-        ],
-        selectedValue: currentMode,
-      });
-      if (modeSelection.kind !== "selected") {
-        return undefined;
-      }
-
-      let subcategory: SearchScopeSubcategoryMatch = { kind: "any" };
-      if (modeSelection.value === "none") {
-        subcategory = { kind: "isNull" };
-      } else if (modeSelection.value === "specific") {
-        if (subcategoryOptions.length === 0) {
-          await terminal.pauseForAnyKey("No subcategories are available for the selected category.");
-          return undefined;
-        }
-        const currentSubcategoryValue =
-          currentNode?.subcategory.kind === "eq" ? currentNode.subcategory.value : null;
-        const subcategorySelection = await prompts.promptSelectOption({
-          title: "Specific Subcategory",
-          prompt: "Choose the exact subcategory for this scope clause",
-          entries: subcategoryOptions.map((option) => ({
+      while (true) {
+        const categorySelection = await prompts.promptSelectOption({
+          title: "Scope",
+          prompt: "Choose the category for this scope clause",
+          entries: categoryOptions.map((option) => ({
             value: option.value,
             label: option.label,
             description: option.description,
           })),
-          selectedValue:
-            currentSubcategoryValue && subcategoryOptions.some((option) => option.value === currentSubcategoryValue)
-              ? currentSubcategoryValue
-              : subcategoryOptions[0]!.value,
+          selectedValue: currentNode?.category ?? categoryOptions[0]!.value,
         });
-        if (subcategorySelection.kind !== "selected") {
+        if (categorySelection.kind === "back") {
+          return CLAUSE_BACK;
+        }
+        if (categorySelection.kind !== "selected") {
           return undefined;
         }
-        const normalizedSubcategory = normalizeSearchSubcategory(subcategorySelection.value) ?? null;
-        if (!normalizedSubcategory) {
-          return undefined;
-        }
-        subcategory = { kind: "eq", value: normalizedSubcategory };
-      }
 
-      return {
-        kind: "scope",
-        category,
-        subcategory,
-      };
+        const category = normalizeSearchCategory(categorySelection.value) ?? null;
+        if (!category) {
+          return undefined;
+        }
+
+        const subcategoryOptions = user.search.getSubcategoryOptions(category).filter((option) => option.value !== null);
+        const currentMode =
+          currentNode?.category === category && currentNode?.subcategory.kind === "eq"
+            ? "specific"
+            : currentNode?.category === category && currentNode?.subcategory.kind === "isNull"
+              ? "none"
+              : "any";
+
+        while (true) {
+          const modeSelection = await prompts.promptSelectOption({
+            title: "Subcategory Mode",
+            prompt: "Choose how this scope clause should treat subcategories",
+            entries: [
+              {
+                value: "any",
+                label: "Any subcategory",
+                description: "Match any subcategory inside the selected category.",
+              },
+              {
+                value: "specific",
+                label: "Specific subcategory",
+                description: "Choose one exact subcategory inside the selected category.",
+              },
+              { value: "none", label: "No subcategory", description: "Match only records without a subcategory." },
+            ],
+            selectedValue: currentMode,
+          });
+          if (modeSelection.kind === "back") {
+            break;
+          }
+          if (modeSelection.kind !== "selected") {
+            return undefined;
+          }
+
+          let subcategory: SearchScopeSubcategoryMatch = { kind: "any" };
+          if (modeSelection.value === "none") {
+            subcategory = { kind: "isNull" };
+          } else if (modeSelection.value === "specific") {
+            if (subcategoryOptions.length === 0) {
+              await terminal.pauseForAnyKey("No subcategories are available for the selected category.");
+              return undefined;
+            }
+            const currentSubcategoryValue =
+              currentNode?.category === category && currentNode?.subcategory.kind === "eq"
+                ? currentNode.subcategory.value
+                : null;
+            const subcategorySelection = await prompts.promptSelectOption({
+              title: "Specific Subcategory",
+              prompt: "Choose the exact subcategory for this scope clause",
+              entries: subcategoryOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+                description: option.description,
+              })),
+              selectedValue:
+                currentSubcategoryValue && subcategoryOptions.some((option) => option.value === currentSubcategoryValue)
+                  ? currentSubcategoryValue
+                  : subcategoryOptions[0]!.value,
+            });
+            if (subcategorySelection.kind === "back") {
+              continue;
+            }
+            if (subcategorySelection.kind !== "selected") {
+              return undefined;
+            }
+            const normalizedSubcategory = normalizeSearchSubcategory(subcategorySelection.value) ?? null;
+            if (!normalizedSubcategory) {
+              return undefined;
+            }
+            subcategory = { kind: "eq", value: normalizedSubcategory };
+          }
+
+          return {
+            kind: "scope",
+            category,
+            subcategory,
+          };
+        }
+      }
     },
     [prompts, terminal, user.search],
   );
@@ -849,7 +868,7 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const promptForClauseKind = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery): Promise<ClauseKind | null> => {
+    async (query: Pf2eTerminalSearchQuery): Promise<ClausePromptResult> => {
       const fieldOptions = getScopedFieldOptions(query);
       const hasFieldClauses = fieldOptions.some((fieldOption) => !isMetricFieldOptionValue(fieldOption.value));
       const hasMetricClauses = fieldOptions.some((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
@@ -857,81 +876,121 @@ export function useSearchStructuredDraftMetadataActions({
       const hasPackClauses = (await user.search.loadPackOptions(query, "matching")).length > 0;
       const hasPrice = fieldOptions.some((fieldOption) => fieldOption.value === "priceCp");
       const hasActionCost = user.search.getActionCostOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
-      const entries = [
-        ...(hasFieldClauses
-          ? [{ value: "field" as const, label: "Field filter", description: "Filter on a metadata field such as traits or rarity-like categorical fields." }]
-          : []),
-        ...(hasMetricClauses
-          ? [{ value: "metric" as const, label: "Metric filter", description: "Filter on one discovered metric key." }]
-          : []),
-        ...(hasMetricCompareClauses
-          ? [
-              {
-                value: "metricCompare" as const,
-                label: "Metric comparison",
-                description: "Compare two numeric metrics from the same discovery family.",
-              },
-            ]
-          : []),
-        ...(hasPackClauses
-          ? [{ value: "pack" as const, label: "Pack", description: "Restrict results to one selected pack." }]
-          : []),
-        { value: "scope" as const, label: "Scope", description: "Add a category and subcategory scope clause." },
-        { value: "level" as const, label: "Level", description: "Add a level matcher such as 1, >=5, <=10, or 1-5." },
-        ...(hasPrice
-          ? [{ value: "price" as const, label: "Price", description: "Add a price matcher such as 100, >=500, <=1000, or 100-500." }]
-          : []),
-        { value: "rarity" as const, label: "Rarity", description: "Add one rarity clause using the shared categorical picker family." },
-        ...(hasActionCost
-          ? [
-              {
-                value: "actionCost" as const,
-                label: "Action cost",
-                description: "Add an action-cost matcher such as 1, >=2, <=3, or 1-2.",
-              },
-            ]
-          : []),
-      ];
+      const entryByValue = new Map<ClauseKind, { value: ClauseKind; label: string; description: string }>();
+      entryByValue.set("scope", {
+        value: "scope",
+        label: "Scope",
+        description: "Add a category and subcategory scope clause.",
+      });
+      if (hasFieldClauses) {
+        entryByValue.set("field", {
+          value: "field",
+          label: "Metadata",
+          description: "Filter on a metadata field such as traits or other categorical fields.",
+        });
+      }
+      if (hasMetricClauses) {
+        entryByValue.set("metric", {
+          value: "metric",
+          label: "Metric",
+          description: "Filter on one discovered metric key.",
+        });
+      }
+      if (hasMetricCompareClauses) {
+        entryByValue.set("metricCompare", {
+          value: "metricCompare",
+          label: "Metric Comparison",
+          description: "Compare two numeric metrics from the same discovery family.",
+        });
+      }
+      if (hasPackClauses) {
+        entryByValue.set("pack", {
+          value: "pack",
+          label: "Pack",
+          description: "Restrict results to one or more selected packs.",
+        });
+      }
+      entryByValue.set("level", {
+        value: "level",
+        label: "Level",
+        description: "Add a level matcher such as 1, >=5, <=10, or 1-5.",
+      });
+      if (hasPrice) {
+        entryByValue.set("price", {
+          value: "price",
+          label: "Price",
+          description: "Add a price matcher such as 100, >=500, <=1000, or 100-500.",
+        });
+      }
+      entryByValue.set("rarity", {
+        value: "rarity",
+        label: "Rarity",
+        description: "Add one rarity clause using the shared categorical picker family.",
+      });
+      if (hasActionCost) {
+        entryByValue.set("actionCost", {
+          value: "actionCost",
+          label: "Action Cost",
+          description: "Add an action-cost matcher such as 1, >=2, <=3, or 1-2.",
+        });
+      }
+      const entries = (
+        ["scope", "field", "metric", "metricCompare", "pack", "level", "price", "rarity", "actionCost"] as const
+      )
+        .map((value) => entryByValue.get(value))
+        .filter((entry): entry is { value: ClauseKind; label: string; description: string } => Boolean(entry));
       const result = await prompts.promptSelectOption({
         title: "Add Clause",
         prompt: "Choose the clause kind to insert into the current group",
         entries,
         selectedValue: entries[0]?.value ?? "scope",
       });
+      if (result.kind === "back") {
+        return CLAUSE_BACK;
+      }
       return result.kind === "selected" ? result.value : null;
     },
     [getAvailableMetricFamilies, getScopedFieldOptions, prompts, user.search],
   );
 
   const addQueryClauseAtPath = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not") => {
-      const clauseKind = await promptForClauseKind(query);
-      if (!clauseKind) {
-        return;
-      }
-      const nextNode = await promptForClauseNode(query, clauseKind);
-      if (!nextNode) {
-        return;
-      }
-      const wrappedNode =
-        wrapper === "allOf" || wrapper === "anyOf"
-          ? ({
-              kind: wrapper,
-              children: Array.isArray(nextNode) ? nextNode : [nextNode],
-            } as SearchFilterNode)
-          : wrapper === "not"
+    async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not"): Promise<ClauseApplyResult> => {
+      while (true) {
+        const clauseKind = await promptForClauseKind(query);
+        if (clauseKind === CLAUSE_BACK) {
+          return "back";
+        }
+        if (!clauseKind) {
+          return "cancelled";
+        }
+        const nextNode = await promptForClauseNode(query, clauseKind);
+        if (nextNode === CLAUSE_BACK) {
+          continue;
+        }
+        if (!nextNode) {
+          return "cancelled";
+        }
+        const wrappedNode =
+          wrapper === "allOf" || wrapper === "anyOf"
             ? ({
-                kind: "not",
-                child: Array.isArray(nextNode)
-                  ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
-                  : nextNode,
+                kind: wrapper,
+                children: Array.isArray(nextNode) ? nextNode : [nextNode],
               } as SearchFilterNode)
-            : nextNode;
-      applyNextTree(
-        Array.isArray(wrappedNode)
-          ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
-          : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
-      );
+            : wrapper === "not"
+              ? ({
+                  kind: "not",
+                  child: Array.isArray(nextNode)
+                    ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
+                    : nextNode,
+                } as SearchFilterNode)
+              : nextNode;
+        applyNextTree(
+          Array.isArray(wrappedNode)
+            ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
+            : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
+        );
+        return "applied";
+      }
     },
     [applyNextTree, promptForClauseKind, promptForClauseNode],
   );
@@ -959,38 +1018,43 @@ export function useSearchStructuredDraftMetadataActions({
       }
 
       if (actionId === "addClause") {
-        await addQueryClauseAtPath(query, path);
-        return;
+        return addQueryClauseAtPath(query, path);
       }
 
       if (actionId === "addAndGroup" || actionId === "addOrGroup" || actionId === "addNotGroup") {
-        await addQueryClauseAtPath(
+        return addQueryClauseAtPath(
           query,
           path,
           actionId === "addAndGroup" ? "allOf" : actionId === "addOrGroup" ? "anyOf" : "not",
         );
       }
+      return "cancelled";
     },
     [addQueryClauseAtPath, applyNextTree, clearStructuredDraftMoveSource, moveSourcePath],
   );
 
   const promptForInsertionAction = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[]) => {
-      const entries = buildInsertionActionEntries(Boolean(moveSourcePath));
-      const result = await prompts.promptSelectOption({
-        title: "Insertion Slot",
-        prompt: moveSourcePath ? "Choose where to move the selected node" : "Choose what to add at this insertion slot",
-        entries: entries.map((entry) => ({
-          value: entry.id,
-          label: entry.label,
-          description: entry.description,
-        })),
-        selectedValue: entries[0]?.id ?? "addClause",
-      });
-      if (result.kind !== "selected") {
-        return;
+      while (true) {
+        const entries = buildInsertionActionEntries(Boolean(moveSourcePath));
+        const result = await prompts.promptSelectOption({
+          title: "Insertion Slot",
+          prompt: moveSourcePath ? "Choose where to move the selected node" : "Choose what to add at this insertion slot",
+          entries: entries.map((entry) => ({
+            value: entry.id,
+            label: entry.label,
+            description: entry.description,
+          })),
+          selectedValue: entries[0]?.id ?? "addClause",
+        });
+        if (result.kind !== "selected") {
+          return;
+        }
+        const insertionResult = await runInsertionAction(query, path, result.value as StructuredDraftEntryActionId);
+        if (insertionResult !== "back") {
+          return;
+        }
       }
-      await runInsertionAction(query, path, result.value as StructuredDraftEntryActionId);
     },
     [moveSourcePath, prompts, runInsertionAction],
   );
@@ -1133,7 +1197,7 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         const nextNode = await promptForClauseNode(query, editableClauseKind, node);
-        if (nextNode === undefined || Array.isArray(nextNode)) {
+        if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode)) {
           return;
         }
         applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNode ?? undefined));

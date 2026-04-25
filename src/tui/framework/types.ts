@@ -149,7 +149,11 @@ export type DerivedTagTerminalTextInputOptions = {
   presentation?: TerminalModalPresentation;
 };
 
-export type DerivedTagTerminalSelectPromptResult<T = string> = { kind: "cancelled" } | { kind: "selected"; value: T };
+export type DerivedTagTerminalPromptBackResult = { kind: "back" };
+export type DerivedTagTerminalSelectPromptResult<T = string> =
+  | { kind: "cancelled" }
+  | DerivedTagTerminalPromptBackResult
+  | { kind: "selected"; value: T };
 export type DerivedTagTerminalPickerCommandResult = { kind: "commands" };
 export type DerivedTagTerminalPickerSelectPromptResult<T = string> =
   | DerivedTagTerminalSelectPromptResult<T>
@@ -157,6 +161,7 @@ export type DerivedTagTerminalPickerSelectPromptResult<T = string> =
 
 export type DerivedTagTerminalOptionalSelectPromptResult<T = string> =
   | { kind: "cancelled" }
+  | DerivedTagTerminalPromptBackResult
   | { kind: "all" }
   | { kind: "selected"; value: T };
 
@@ -197,6 +202,7 @@ export type DerivedTagTerminalMultiSelectPromptOptions<T extends string = string
 };
 export type DerivedTagTerminalMultiSelectPromptResult<T extends string = string> =
   | { kind: "cancelled" }
+  | DerivedTagTerminalPromptBackResult
   | { kind: "selected"; values: T[] }
   | DerivedTagTerminalPickerCommandResult;
 

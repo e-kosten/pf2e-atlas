@@ -19,14 +19,14 @@ describe("filter explorer policy presentation", () => {
           valueFormatter: (value) => value.toUpperCase(),
         },
       ),
-    ).toBe("∪ COMMON | ∩ RARE | ¬ UNIQUE");
+    ).toBe("✓ COMMON | ✓ RARE | x UNIQUE");
   });
 
   it("formats cycle-copy text from the shared presentation seam", () => {
     expect(formatFilterExplorerPolicyCycleCopy(["any", "all", "exclude"])).toBe(
-      "∪ include any, ∩ require all, or ¬ exclude",
+      "✓ include any, ✓ require all, or x exclude",
     );
-    expect(formatFilterExplorerPolicyCycleCopy(["any", "exclude"])).toBe("∪ include any or ¬ exclude");
+    expect(formatFilterExplorerPolicyCycleCopy(["any", "exclude"])).toBe("✓ include any or x exclude");
   });
 
   it("exposes discoverable long-form tokens for detail summaries", () => {

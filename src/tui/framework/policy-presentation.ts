@@ -19,19 +19,19 @@ const FILTER_EXPLORER_POLICY_PRESENTATION: Record<
   Omit<FilterExplorerPolicyPresentation, "state">
 > = {
   any: {
-    symbol: "∪",
+    symbol: "✓",
     discoverable: "includeAny",
     label: "include any",
     tone: "success",
   },
   all: {
-    symbol: "∩",
+    symbol: "✓",
     discoverable: "includeAll",
     label: "require all",
     tone: "success",
   },
   exclude: {
-    symbol: "¬",
+    symbol: "x",
     discoverable: "exclude",
     label: "exclude",
     tone: "danger",

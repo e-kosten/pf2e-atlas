@@ -220,7 +220,7 @@ export function useSearchQueryFieldEditing({
           selectedValue: currentValue,
         });
 
-        if (result.kind === "cancelled") {
+        if (result.kind === "cancelled" || result.kind === "back") {
           return undefined;
         }
         if (result.kind === "all") {

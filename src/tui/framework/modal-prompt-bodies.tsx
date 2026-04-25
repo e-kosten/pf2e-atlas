@@ -202,16 +202,21 @@ function CenteredChoicePromptBody({
   const detailLines = buildPromptDetailLines(options[selectedIndex]);
   const chromeRows = promptLines.length + 2;
   const detailHeight = Math.max(0, height - chromeRows);
+  const optionSegments = options.flatMap((entry, index) => {
+    const isSelected = index === selectedIndex;
+    return [
+      ...(index > 0 ? [{ text: "   " }] : []),
+      ...(isSelected ? [{ text: "[", tone: "dim" as const }] : []),
+      { text: entry.label, tone: isSelected ? ("accent" as const) : ("default" as const) },
+      ...(isSelected ? [{ text: "]", tone: "dim" as const }] : []),
+    ];
+  });
 
   return (
     <Box flexDirection="column" width={width} height={height}>
       {promptLines.length > 0 ? <InlinePromptMessageBody width={width} height={promptLines.length} lines={promptLines} /> : null}
       <Box width={width} justifyContent="center">
-        <Text wrap="truncate-end" {...terminalToneProps("selected")}>
-          {options
-            .map((entry, index) => (index === selectedIndex ? `[ ${entry.label} ]` : entry.label))
-            .join("   ")}
-        </Text>
+        <TerminalRows width={width} lines={[{ text: "", tone: "default", segments: optionSegments }]} />
       </Box>
       <Text wrap="truncate-end">{""}</Text>
       {detailHeight > 0 ? <InlinePromptMessageBody width={width} height={detailHeight} lines={detailLines} /> : null}
@@ -224,7 +229,13 @@ export function buildTextPromptBodyLines(options: TextPromptOptions, currentValu
 
   return [
     ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
-    { text: `> ${currentValue || ""}`, tone: "selected" },
+    {
+      text: "",
+      segments: [
+        { text: "> ", tone: "dim" },
+        { text: currentValue || "(blank)", tone: currentValue ? "accent" : "dim" },
+      ],
+    },
     { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
     ...(previewLines.length > 0
       ? [
@@ -541,11 +552,21 @@ export function MultiSelectPromptBody({
       body={
         <InlinePromptChoiceBody
           prompt={filterMode ? `Search /${filterText}` : options.prompt}
-          entries={visibleEntries.map((entry, offset) => ({
-            text: `[${selectedSet.has(entry.entry.value) ? "x" : " "}] ${entry.entry.label}`,
-            tone: windowStart + offset === selectedVisibleIndex ? "selected" : "default",
-            noWrap: true,
-          }))}
+          entries={visibleEntries.map((entry, offset) => {
+            const isSelected = selectedSet.has(entry.entry.value);
+            const isFocused = windowStart + offset === selectedVisibleIndex;
+            return {
+              text: "",
+              segments: [
+                { text: "[", tone: "dim" as const },
+                { text: isSelected ? "✓" : " ", tone: isSelected ? ("success" as const) : ("dim" as const) },
+                { text: "] ", tone: "dim" as const },
+                { text: entry.entry.label, tone: isFocused ? ("accent" as const) : ("default" as const) },
+              ],
+              tone: "default" as const,
+              noWrap: true,
+            };
+          })}
           detailLines={[
             ...buildPromptDetailLines(selectedOption),
             { text: "" },

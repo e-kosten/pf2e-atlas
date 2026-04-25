@@ -986,12 +986,14 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Field filter");
+    expect(app.lastFrame()).toContain("Metadata");
+    await flushInk();
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Metadata");
     expect(app.lastFrame()).toContain("Derived Tags");
     app.stdin.write("\r");
     await flushInk();
@@ -2102,12 +2104,14 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Field filter");
+    expect(app.lastFrame()).toContain("Metadata");
+    await flushInk();
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Metadata");
     expect(app.lastFrame()).toContain("Derived Tags");
     app.stdin.write("\r");
     await flushInk();
@@ -2418,12 +2422,14 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Field filter");
+    expect(app.lastFrame()).toContain("Metadata");
+    await flushInk();
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Metadata");
     expect(app.lastFrame()).toContain("Traits");
     expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Filters >");
@@ -2453,6 +2459,53 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Traits: includes any Illusion");
+  });
+
+  it("uses left navigation to step back one page within add-clause scope flows", async () => {
+    const services = createServices();
+    services.user.search.getCategoryOptions = vi.fn(() => [
+      { value: null, label: "Any Category", description: "Browse every category." },
+      { value: "creature", label: "Creature", description: "Browse creatures." },
+    ]);
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen onBack={vi.fn()} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Insertion Slot");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Scope");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Scope");
+    expect(app.lastFrame()).toContain("Creature");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Scope");
   });
 
   it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {
@@ -2508,7 +2561,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Scope");
 
-    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -2535,12 +2587,14 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Field filter");
+    expect(app.lastFrame()).toContain("Metadata");
+    await flushInk();
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Field Filter");
+    expect(app.lastFrame()).toContain("Metadata");
     expect(app.lastFrame()).toContain("Derived Tags");
     app.stdin.write("\r");
     await flushInk();
@@ -2613,9 +2667,11 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Metric filter");
-    expect(app.lastFrame()).toContain("Metric comparison");
+    expect(app.lastFrame()).toContain("Metric");
+    expect(app.lastFrame()).toContain("Metric Comparison");
 
+    await flushInk();
+    pressDown(app);
     await flushInk();
     pressDown(app);
     await flushInk();
@@ -2739,6 +2795,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Add Clause");
     expect(app.lastFrame()).toContain("Pack");
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Pathfinder NPC Core");
     expect(app.lastFrame()).toContain("Pack");
@@ -2768,13 +2826,13 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("[x] Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("[✓] Pathfinder NPC Core");
 
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("[x] Monster Core");
+    expect(app.lastFrame()).toContain("[✓] Monster Core");
 
     app.stdin.write("\u007f");
     await flushInk();

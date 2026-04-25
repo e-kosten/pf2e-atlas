@@ -312,7 +312,7 @@ async function promptCategory(
     entries,
   });
 
-  if (result.kind === "cancelled") {
+  if (result.kind === "cancelled" || result.kind === "back") {
     return undefined;
   }
   return result.kind === "all" ? null : result.value;
@@ -335,7 +335,7 @@ async function promptSubcategory(
     allOption: buildAllSubcategoryOption(category),
   });
 
-  if (result.kind === "cancelled") {
+  if (result.kind === "cancelled" || result.kind === "back") {
     return undefined;
   }
   return result.kind === "all" ? null : result.value;
@@ -366,7 +366,7 @@ async function promptTag(
         allOption: buildAllTagOption(),
       });
 
-  if (result.kind === "cancelled") {
+  if (result.kind === "cancelled" || result.kind === "back") {
     return undefined;
   }
   if (result.kind === "all") {
@@ -404,7 +404,7 @@ async function promptFamily(
     allOption: buildAllFamilyOption(),
   });
 
-  if (result.kind === "cancelled") {
+  if (result.kind === "cancelled" || result.kind === "back") {
     return undefined;
   }
   if (result.kind === "all") {

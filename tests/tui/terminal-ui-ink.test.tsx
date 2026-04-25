@@ -1227,13 +1227,13 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[x] Common");
+    expect(app.lastFrame()).toContain("[✓] Common");
 
     app.stdin.write("j");
     await flushInkFrames();
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[x] Rare");
+    expect(app.lastFrame()).toContain("[✓] Rare");
 
     app.stdin.write("\u007f");
     await flushInkFrames();
@@ -1253,17 +1253,17 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[∪] Fire");
+    expect(app.lastFrame()).toContain("[✓] Fire");
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[∩] Fire");
+    expect(app.lastFrame()).toContain("[✓] Fire");
 
     app.stdin.write("j");
     await flushInkFrames();
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[∪] Cold");
+    expect(app.lastFrame()).toContain("[✓] Cold");
 
     app.stdin.write("\u007f");
     await flushInkFrames();
@@ -1300,12 +1300,12 @@ describe("derived tag terminal ink runtime", () => {
     await flushInkFrames(4);
     expect(app.lastFrame()).toContain("Choose Search Mode");
     expect(app.lastFrame()).toContain("Background content stays visible.");
-    expect(app.lastFrame()).toContain("[ Browse ]   Search   Lookup");
+    expect(app.lastFrame()).toContain("[Browse]   Search   Lookup");
     expect(app.lastFrame()).toContain("←/→ change mode");
 
     app.stdin.write("\u001b[C");
     await flushInkFrames(2);
-    expect(app.lastFrame()).toContain("Browse   [ Search ]   Lookup");
+    expect(app.lastFrame()).toContain("Browse   [Search]   Lookup");
     expect(app.lastFrame()).toContain("Search named records and ranked text matches.");
 
     app.stdin.write("\r");
@@ -1569,13 +1569,13 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[x] Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("[✓] Pathfinder NPC Core");
 
     app.stdin.write("j");
     await flushInkFrames();
     app.stdin.write("\r");
     await flushInkFrames();
-    expect(app.lastFrame()).toContain("[x] Monster Core");
+    expect(app.lastFrame()).toContain("[✓] Monster Core");
 
     app.stdin.write("\u007f");
     await flushInkFrames();

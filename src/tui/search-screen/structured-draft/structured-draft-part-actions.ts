@@ -78,7 +78,7 @@ export function useSearchStructuredDraftPartActions({
       selectedValue: draftCategory,
     });
 
-    if (result.kind === "cancelled") {
+    if (result.kind === "cancelled" || result.kind === "back") {
       return;
     }
 
@@ -119,7 +119,7 @@ export function useSearchStructuredDraftPartActions({
       selectedValue: draftSubcategory,
     });
 
-    if (result.kind === "cancelled") {
+    if (result.kind === "cancelled" || result.kind === "back") {
       return;
     }
 
