@@ -109,7 +109,7 @@ export async function buildSearchWindowSnapshot(
       ? deps.fetchSemanticRetrievalRows(
           normalizedFilters,
           semanticVector,
-          semanticQueryLimit(Math.max(hybridFusion.config.semanticTopK, candidateCount), normalizedFilters),
+          semanticQueryLimit(hybridFusion.config.semanticTopK, normalizedFilters),
         )
       : [];
   const semanticRetrievedKeys = semanticRetrievalRows.map((row) => row.recordKey);

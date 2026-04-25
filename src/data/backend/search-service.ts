@@ -23,6 +23,7 @@ import {
   search as searchRuntime,
   searchStructured as searchStructuredRuntime,
 } from "../../search/runtime-search.js";
+import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import { compileSearchRequest } from "../../search/request-compilation.js";
 import { buildAllOfFilter, buildAnyOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
@@ -36,6 +37,20 @@ import { Pf2eSearchWindowStore } from "./search-window-store.js";
 type AnnotatedLookupRecord = SearchResultRecord & {
   matchType: LookupResult["matchType"];
 };
+
+const DISCOVERY_RECORD_KEY_CACHE_LIMIT = 24;
+
+function buildDiscoveryRecordKeyCacheKey(
+  normalizedFilters: NormalizedSearchFilters,
+): string {
+  return JSON.stringify({
+    filter: normalizedFilters.filter ?? null,
+    query: normalizedFilters.query ?? "",
+    nameQuery: normalizedFilters.nameQuery ?? "",
+    excludeQuery: normalizedFilters.excludeQuery ?? "",
+    searchProfile: normalizedFilters.searchProfile ?? null,
+  });
+}
 
 function applyLookupTieredOrdering(
   records: readonly AnnotatedLookupRecord[],
@@ -68,6 +83,7 @@ function annotateLookupRecords(
 
 export class Pf2eSearchBackendService {
   private readonly searchWindows: Pf2eSearchWindowStore;
+  private readonly discoveryRecordKeysByRequest = new Map<string, Promise<string[]>>();
 
   constructor(
     private readonly db: DatabaseSync,
@@ -310,8 +326,28 @@ export class Pf2eSearchBackendService {
       return undefined;
     }
 
-    const snapshot = await buildSearchWindowSnapshot(normalizedFilters, this.runtimeSearchDependencies());
-    return snapshot.records.map((record) => record.recordKey);
+    const cacheKey = buildDiscoveryRecordKeyCacheKey(normalizedFilters);
+    const cached = this.discoveryRecordKeysByRequest.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const promise = buildSearchWindowSnapshot(normalizedFilters, this.runtimeSearchDependencies()).then((snapshot) =>
+      snapshot.records.map((record) => record.recordKey),
+    );
+    this.discoveryRecordKeysByRequest.set(cacheKey, promise);
+    if (this.discoveryRecordKeysByRequest.size > DISCOVERY_RECORD_KEY_CACHE_LIMIT) {
+      const oldestKey = this.discoveryRecordKeysByRequest.keys().next().value;
+      if (oldestKey) {
+        this.discoveryRecordKeysByRequest.delete(oldestKey);
+      }
+    }
+    void promise.catch(() => {
+      if (this.discoveryRecordKeysByRequest.get(cacheKey) === promise) {
+        this.discoveryRecordKeysByRequest.delete(cacheKey);
+      }
+    });
+    return promise;
   }
 
   private runtimeSearchDependencies() {

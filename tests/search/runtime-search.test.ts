@@ -27,7 +27,7 @@ function createDependencies(overrides: Partial<RuntimeSearchDependencies> = {}):
 }
 
 describe("runtime search", () => {
-  it("clamps broad semantic retrieval below the sqlite vector k ceiling", async () => {
+  it("bounds broad semantic retrieval by the configured semantic top-k instead of candidate count", async () => {
     const fetchSemanticRetrievalRows = vi.fn(() => []);
     const deps = createDependencies({
       fetchCandidateCount: () => 26_377,
@@ -42,6 +42,29 @@ describe("runtime search", () => {
     );
 
     expect(fetchSemanticRetrievalRows).toHaveBeenCalledTimes(1);
-    expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(4096);
+    expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(80);
+  });
+
+  it("allows filtered semantic retrieval to widen from the configured top-k without using candidate count", async () => {
+    const fetchSemanticRetrievalRows = vi.fn(() => []);
+    const deps = createDependencies({
+      fetchCandidateCount: () => 26_377,
+      fetchSemanticRetrievalRows,
+    });
+
+    await buildSearchWindowSnapshot(
+      {
+        query: "ghost",
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      },
+      deps,
+    );
+
+    expect(fetchSemanticRetrievalRows).toHaveBeenCalledTimes(1);
+    expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(160);
   });
 });
