@@ -610,6 +610,16 @@ Responsibilities that should move behind this service:
 - metric-key discovery grouped and ordered for shared consumers
 - pack identity resolution between canonical names and display labels
 - shared ordering and caching of discovered options where caching is appropriate at the app/runtime layer
+- async discovery execution for any surface that needs live `Matching` refresh from current canonical query meaning
+
+Consumer model for this boundary:
+
+- keep one shared async discovery service boundary for both ontology and search consumers
+- do not require one surface to adopt the other surface's interaction contract
+- ontology/search-semantics browse should use async model/session construction at route or scope-load boundaries, then hold a concrete in-memory model for the active scope
+- search-editor picker/explorer flows should consume the same discovery boundary in a query-aware way and remain free to refresh asynchronously as the canonical `SearchRequest` changes
+- do not force the ontology tree contract itself to become a continuously reloading live-query UI just to support search-editor `Matching` mode
+- do not fork discovery semantics per surface; the difference is consumer behavior, not separate meaning for `Matching` / `Catalog`
 
 Count-path rule for this boundary:
 
@@ -647,6 +657,11 @@ Implementation shape:
   - metric-key discovery by scope/category context
   - pack label-to-name resolution before canonical request construction
   - shared option ordering and any justified runtime caching
+- prefer async model/session construction at the consumer boundary over turning the domain model itself into an always-async tree API
+  - acceptable: ontology or search hosts await a prepared model/session, then render a concrete in-memory structure for the active scope
+  - acceptable: search-editor matching-mode consumers debounce, cancel, and ignore stale async refreshes while the user edits the canonical request
+  - not acceptable: pushing picker/session/footer concerns into the service just because the service is async
+  - not acceptable: requiring every ontology node expansion to become an arbitrary async fetch unless a later slice proves that shape is necessary
 - keep the service transport-neutral and presentation-light
   - the service returns structured discovery results, ordering data, counts, stable identifiers, and other shared semantics
   - rows, panes, badges, picker mode, footer copy, help text, and dialog flow stay in TUI/ontology consumers
@@ -685,6 +700,8 @@ Validation:
 - `Matching` / `Catalog` value discovery semantics are computed in one shared place
 - metric-key discovery is exposed through the same service boundary rather than separate surface-local loaders
 - pack label/name resolution happens before canonical request construction and is not reimplemented per surface
+- ontology browse loads a prepared model/session asynchronously at route or scope boundaries, then navigates a concrete in-memory model for the active scope
+- search-editor `Matching` consumers can refresh asynchronously from canonical query changes without redefining discovery semantics in TUI-local code
 - presentation-only concerns remain outside the service
 - the service contract is not a TUI picker model or ontology-browser presentation model in disguise
 - no picker labels, footer/help copy, action-menu wording, or other surface presentation strings are pushed into `src/domain/**` or the app-facing discovery service
@@ -1268,6 +1285,9 @@ allOf
   - in `Matching`, show values and counts from the currently matching query context
   - in `Catalog`, show values and counts from the broader applicability slice only
   - apply the same mode concept to ontology/explorer-style browsing as well as compact pickers
+  - search-side `Matching` consumers must be query-aware: the active canonical `SearchRequest` drives refresh scope and counts
+  - search-side `Matching` refresh may run asynchronously and should support debounce/cancellation/stale-result protection so live editing does not stall the UI
+  - ontology browse may use the same shared discovery boundary with async route/scope preparation, but should still stabilize into a concrete in-memory model for the active scope rather than behaving like a continuously polling live-query tree
 - categorical pickers should support repeated or multi-select insertion into the currently selected group when the clause family naturally supports flat sibling creation
   - the implementor should treat this as a first-class interaction for picker families such as traits/families rather than an optional polish step
   - in the first pass, multi-select insertion should not ask the user to choose a boolean connective or grouping shape
@@ -1572,6 +1592,9 @@ Validation:
   - picker-style menus support generic `/` filtering behavior across the application, not just in command palettes
   - picker and explorer surfaces default to `Matching` discovery mode and allow switching to `Catalog` through the `:` action menu
   - picker and explorer counts reflect the active discovery mode (`Matching` = current result set, `Catalog` = applicability slice)
+  - search-side `Matching` mode is driven by the active canonical `SearchRequest`, not by a query-agnostic catalog model
+  - search-side `Matching` refresh is async-safe, including debounce/cancellation or equivalent stale-result protection
+  - ontology/explorer adoption continues to use the same discovery semantics, but route/scope loading resolves to a stable in-memory model rather than a permanently live async tree
   - picker-backed exact-valued fields do not allow arbitrary raw value commits
 - `G3`
   - tree restructuring is available through keyboard/context actions on the selected node without requiring a separate structure-editing mode
