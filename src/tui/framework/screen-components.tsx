@@ -141,7 +141,7 @@ export function TerminalCenteredOverlayPanel({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <Box width="100%" height="100%" justifyContent="center" alignItems="center">
+    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
       <Box width={width} height={height}>
         {children}
       </Box>

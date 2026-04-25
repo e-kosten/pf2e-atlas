@@ -80,7 +80,13 @@ export function DerivedTagTerminalProvider({
   );
   const modalLayout = React.useMemo(() => planTerminalModalStateLayout(modal, columns, rows), [columns, modal, rows]);
   const availableRows =
-    modalLayout?.presentation === "inline" ? Math.max(0, rows - modalLayout.totalHeight) : modalLayout ? 0 : rows;
+    modalLayout?.presentation === "inline"
+      ? Math.max(0, rows - modalLayout.totalHeight)
+      : modalLayout?.presentation === "centered"
+        ? rows
+        : modalLayout
+          ? 0
+          : rows;
 
   const contextValue = React.useMemo<DerivedTagTerminalContextValue>(
     () => ({
@@ -205,7 +211,8 @@ export function DerivedTagTerminalProvider({
 
   return (
     <DerivedTagTerminalContext.Provider value={contextValue}>
-      {modal && (modalLayout?.presentation === "screen" || modalLayout?.presentation === "centered") ? (
+      <Box flexDirection="column">{children}</Box>
+      {modal && modalLayout?.presentation === "inline" ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}
@@ -214,8 +221,7 @@ export function DerivedTagTerminalProvider({
           layout={modalLayout}
         />
       ) : null}
-      <Box flexDirection="column">{children}</Box>
-      {modal && modalLayout?.presentation === "inline" ? (
+      {modal && (modalLayout?.presentation === "screen" || modalLayout?.presentation === "centered") ? (
         <DerivedTagTerminalModalHost
           modal={modal}
           setModal={setModal}

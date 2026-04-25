@@ -35,7 +35,7 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
-import { promptLevelRangeDraft } from "../../filter-explorer/scalar-editor.js";
+import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
   SearchWorkspacePromptAdapters,
@@ -715,31 +715,65 @@ export function useSearchStructuredDraftMetadataActions({
       } else if (node) {
         currentNumericMatch = node.match;
       }
-      const parsed = await promptLevelRangeDraft(prompts, terminal, {
-        defaultValue: currentNumericMatch ? formatNumericMatch(currentNumericMatch) : "",
-      });
-      if (parsed === undefined) {
-        return undefined;
-      }
-      if (parsed.levelMin === null && parsed.levelMax === null) {
-        return undefined;
-      }
-      if (parsed.levelMin !== null && parsed.levelMax !== null) {
+      if (nodeKind === "level") {
+        const parsed = await promptLevelRangeDraft(prompts, terminal, {
+          defaultValue: currentNumericMatch ? formatNumericMatch(currentNumericMatch) : "",
+        });
+        if (parsed === undefined) {
+          return undefined;
+        }
+        if (parsed.levelMin === null && parsed.levelMax === null) {
+          return undefined;
+        }
+        if (parsed.levelMin !== null && parsed.levelMax !== null) {
+          return {
+            kind: nodeKind,
+            match:
+              parsed.levelMin === parsed.levelMax
+                ? { kind: "eq", value: parsed.levelMin }
+                : {
+                    kind: "between",
+                    min: Math.min(parsed.levelMin, parsed.levelMax),
+                    max: Math.max(parsed.levelMin, parsed.levelMax),
+                  },
+          };
+        }
         return {
           kind: nodeKind,
-          match:
-            parsed.levelMin === parsed.levelMax
-              ? { kind: "eq", value: parsed.levelMin }
-              : {
-                  kind: "between",
-                  min: Math.min(parsed.levelMin, parsed.levelMax),
-                  max: Math.max(parsed.levelMin, parsed.levelMax),
-                },
+          match: parsed.levelMin !== null ? { kind: "gte", value: parsed.levelMin } : { kind: "lte", value: parsed.levelMax! },
         };
       }
+
+      const parsed = await promptNumericScalarClause(prompts, terminal, {
+        title: nodeKind === "price" ? "Price Matcher" : "Action Cost Matcher",
+        currentClause:
+          currentNumericMatch?.kind === "between"
+            ? { op: "between", min: currentNumericMatch.min, max: currentNumericMatch.max }
+            : currentNumericMatch?.kind === "eq" || currentNumericMatch?.kind === "gte" || currentNumericMatch?.kind === "lte"
+              ? { op: currentNumericMatch.kind, value: currentNumericMatch.value }
+              : null,
+      });
+      if (!parsed) {
+        return undefined;
+      }
+      if (parsed.op === "neq") {
+        await terminal.pauseForAnyKey("`!=` is not supported for this matcher. Use an exact, minimum, maximum, or range value.");
+        return undefined;
+      }
+
       return {
         kind: nodeKind,
-        match: parsed.levelMin !== null ? { kind: "gte", value: parsed.levelMin } : { kind: "lte", value: parsed.levelMax! },
+        match:
+          parsed.op === "between"
+            ? {
+                kind: "between",
+                min: Math.min(parsed.min, parsed.max),
+                max: Math.max(parsed.min, parsed.max),
+              }
+            : {
+                kind: parsed.op,
+                value: parsed.value,
+              },
       };
     },
     [prompts, terminal],

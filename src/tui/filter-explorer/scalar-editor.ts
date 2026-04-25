@@ -28,6 +28,8 @@ type ParsedScalarInputOptions<T> = {
   prompt: string;
   defaultValue?: string;
   hint?: string;
+  previewTitle?: string;
+  buildPreviewLines?: (currentValue: string) => import("../framework/types.js").DerivedTagTerminalLine[];
   parse: (value: string) => T | string;
   whenEmpty: () => T;
 };
@@ -42,6 +44,8 @@ async function promptParsedScalarInput<T>(
     prompt: options.prompt,
     defaultValue: options.defaultValue,
     hint: options.hint,
+    previewTitle: options.previewTitle,
+    buildPreviewLines: options.buildPreviewLines,
     presentation: "centered",
   });
 
@@ -165,6 +169,62 @@ export function formatNumericScalarInput(draft: NumericScalarClauseDraft | null)
   return `<=${draft.value}`;
 }
 
+function buildNumericScalarPreviewLines(currentValue: string): import("../framework/types.js").DerivedTagTerminalLine[] {
+  const trimmed = currentValue.trim();
+  if (!trimmed) {
+    return [{ text: "Clears this numeric matcher.", tone: "dim" }];
+  }
+
+  const parsed = parseNumericScalarClauseInput(trimmed);
+  if (typeof parsed === "string") {
+    return [{ text: parsed, tone: "warning" }];
+  }
+
+  if (parsed.op === "between") {
+    return [{ text: `Matches values from ${parsed.min} through ${parsed.max}.`, tone: "accent" }];
+  }
+
+  const operatorText =
+    parsed.op === "eq"
+      ? `exactly ${parsed.value}`
+      : parsed.op === "neq"
+        ? `anything except ${parsed.value}`
+        : parsed.op === "gte"
+          ? `${parsed.value} or greater`
+          : `${parsed.value} or lower`;
+  return [{ text: `Matches ${operatorText}.`, tone: "accent" }];
+}
+
+function buildLevelPreviewLines(currentValue: string): import("../framework/types.js").DerivedTagTerminalLine[] {
+  const trimmed = currentValue.trim();
+  if (!trimmed) {
+    return [{ text: "Clears the level matcher.", tone: "dim" }];
+  }
+
+  const parsed = parseLevelRangeInput(trimmed);
+  if (typeof parsed === "string") {
+    return [{ text: parsed, tone: "warning" }];
+  }
+
+  if (parsed.levelMin !== null && parsed.levelMax !== null) {
+    return [
+      {
+        text:
+          parsed.levelMin === parsed.levelMax
+            ? `Matches only level ${parsed.levelMin}.`
+            : `Matches levels ${parsed.levelMin} through ${parsed.levelMax}.`,
+        tone: "accent",
+      },
+    ];
+  }
+
+  if (parsed.levelMin !== null) {
+    return [{ text: `Matches level ${parsed.levelMin} and above.`, tone: "accent" }];
+  }
+
+  return [{ text: `Matches level ${parsed.levelMax} and below.`, tone: "accent" }];
+}
+
 export async function promptNumericScalarClause(
   prompts: ScalarEditorPrompts,
   terminal: ScalarEditorTerminal,
@@ -178,6 +238,8 @@ export async function promptNumericScalarClause(
     prompt: "Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`. Leave blank to clear.",
     defaultValue: formatNumericScalarInput(options.currentClause),
     hint: "Examples: 5, !=5, >=5, <=5, 3-8",
+    previewTitle: "Preview",
+    buildPreviewLines: buildNumericScalarPreviewLines,
     parse: parseNumericScalarClauseInput,
     whenEmpty: () => null,
   });
@@ -195,6 +257,8 @@ export async function promptLevelRangeDraft(
     prompt: "Enter `3-8`, `5`, `>=5`, `5+`, or `<=10`. Leave blank to clear.",
     defaultValue: options.defaultValue,
     hint: "Examples: 3-8, >=5, <=5",
+    previewTitle: "Preview",
+    buildPreviewLines: buildLevelPreviewLines,
     parse: parseLevelRangeInput,
     whenEmpty: () => ({ levelMin: null, levelMax: null }),
   });

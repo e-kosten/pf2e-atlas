@@ -810,7 +810,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Browse");
   });
 
-  it("opens the shared query editor command palette and runs the selected editor action", async () => {
+  it("focuses the shared editor action rail and runs the focused editor action", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -824,19 +824,15 @@ describe("search screen", () => {
 
     app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Editor Commands");
-
-    for (const character of "mode") {
-      app.stdin.write(character);
-    }
-    await flushInk();
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Open Focused Row");
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Choose Search Mode");
 
     expect(app.lastFrame()).toContain("Choose Search Mode");
   });
 
-  it("hides unavailable editor commands from the palette while leaving the editor row visible", async () => {
+  it("does not expose discard-results actions in the editor rail before a result session exists", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
@@ -849,23 +845,10 @@ describe("search screen", () => {
 
     app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Editor Commands");
-
-    for (const character of "subcategory") {
-      app.stdin.write(character);
-    }
-    await flushInk();
-    expect(app.lastFrame()).toContain("No commands match the current filter.");
-    expect(app.lastFrame()).not.toContain("Subcategory Scope");
-    expect(app.lastFrame()).not.toContain("This command is currently unavailable.");
-
-    pressLeft(app);
-    await flushInk();
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Filters > | None yet");
-    expect(app.lastFrame()).not.toContain("Subcategory |");
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Open Focused Row");
+    expect(app.lastFrame()).toContain("Execute Query");
+    expect(app.lastFrame()).toContain("Reset Query");
   });
 
   it("does not treat old page-specific letters as live editor commands", async () => {
@@ -1809,8 +1792,8 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Filters > | 2 active");
-    expect(app.lastFrame()).toContain("Filter | Scope: Spell");
-    expect(app.lastFrame()).toContain("Filter | Traits: includes any Illusion");
+    expect(app.lastFrame()).toContain("Scope: Spell");
+    expect(app.lastFrame()).toContain("Traits: includes any Illusion");
   });
 
   it("does not auto-execute seeded route entry without a prepared session", async () => {
@@ -2151,7 +2134,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Filters > | 5 active");
     expect(app.lastFrame()).toContain("Top-level filters: 5");
     expect(app.lastFrame()).toContain("Metadata predicates: 1");
-    expect(app.lastFrame()).toContain("Filter | Derived Tags: includes any Coas");
+    expect(app.lastFrame()).toContain("Derived Tags: includes any Coas");
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
@@ -2225,8 +2208,9 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Level Range");
-    expect(app.lastFrame()).toContain("Enter `3-8`, `5`, `>=5`, `5+`, or `<=10`. Leave blank to clear.");
+    expect(app.lastFrame()).toContain("Action Cost Matcher");
+    expect(app.lastFrame()).toContain("Preview");
+    expect(app.lastFrame()).toContain("Matches exactly 2.");
     expect(app.lastFrame()).toContain("2");
   });
 
@@ -2451,7 +2435,7 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Filter | Traits: includes any Illusion");
+    expect(app.lastFrame()).toContain("Traits: includes any Illusion");
   });
 
   it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {

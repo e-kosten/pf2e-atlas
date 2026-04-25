@@ -139,8 +139,11 @@ function normalizeFilterNode(
     case "anyOf":
     case "allOf": {
       const children = node.children.map((child) => normalizeFilterNode(child, resolvePackName));
-      if (children.length < 2) {
+      if (children.length === 0) {
         throw new Error(`${node.kind} must contain at least 2 child filters.`);
+      }
+      if (children.length === 1) {
+        return children[0]!;
       }
       return {
         kind: node.kind,

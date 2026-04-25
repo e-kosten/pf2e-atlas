@@ -49,7 +49,9 @@ export type SearchWorkspaceEntry = {
 };
 
 export function formatSearchWorkspaceEntryLine(entry: SearchWorkspaceEntry): string {
-  return `${"  ".repeat(entry.indent ?? 0)}${entry.label} | ${entry.value}${entry.disabled ? " | unavailable" : ""}`;
+  const prefix = "  ".repeat(entry.indent ?? 0);
+  const body = entry.label === "Filter" ? entry.value : `${entry.label} | ${entry.value}`;
+  return `${prefix}${body}${entry.disabled ? " | unavailable" : ""}`;
 }
 
 function encodeQueryNodePath(path: number[]): string {

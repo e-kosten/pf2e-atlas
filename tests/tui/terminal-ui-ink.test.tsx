@@ -258,7 +258,7 @@ function CenteredModePromptHarness(): React.JSX.Element {
       });
   }, []);
 
-  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
+  return <TerminalTextScreen title="Harness" body={[{ text: "Background content stays visible." }, { text: `result=${result}` }]} />;
 }
 
 function TextPromptHarness(): React.JSX.Element {
@@ -1299,6 +1299,7 @@ describe("derived tag terminal ink runtime", () => {
 
     await flushInkFrames(4);
     expect(app.lastFrame()).toContain("Choose Search Mode");
+    expect(app.lastFrame()).toContain("Background content stays visible.");
     expect(app.lastFrame()).toContain("[ Browse ]   Search   Lookup");
     expect(app.lastFrame()).toContain("←/→ change mode");
 

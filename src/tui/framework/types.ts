@@ -144,6 +144,8 @@ export type DerivedTagTerminalTextInputOptions = {
   prompt: string;
   defaultValue?: string;
   hint?: string;
+  previewTitle?: string;
+  buildPreviewLines?: (currentValue: string) => DerivedTagTerminalLine[];
   presentation?: TerminalModalPresentation;
 };
 

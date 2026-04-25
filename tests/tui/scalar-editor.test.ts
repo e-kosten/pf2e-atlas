@@ -24,6 +24,8 @@ describe("scalar-editor prompts", () => {
     expect(promptTextInput).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Action Cost Clause",
+        previewTitle: "Preview",
+        buildPreviewLines: expect.any(Function),
         presentation: "centered",
       }),
     );
@@ -47,6 +49,8 @@ describe("scalar-editor prompts", () => {
     expect(promptTextInput).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Level Range",
+        previewTitle: "Preview",
+        buildPreviewLines: expect.any(Function),
         presentation: "centered",
       }),
     );

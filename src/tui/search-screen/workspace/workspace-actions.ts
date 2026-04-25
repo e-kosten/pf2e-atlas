@@ -67,6 +67,7 @@ export function useSearchWorkspaceActions({
   chooseResultSort: () => Promise<void>;
 }): {
   handleIntent: (intent: import("../model.js").SearchScreenIntent) => void;
+  runWorkspaceAction: (action: SearchWorkspaceAction) => void;
   structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const editQueryText = React.useCallback(async () => {
@@ -372,6 +373,7 @@ export function useSearchWorkspaceActions({
 
   return {
     handleIntent,
+    runWorkspaceAction,
     structuredEditorSession,
   };
 }

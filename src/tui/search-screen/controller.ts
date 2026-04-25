@@ -40,9 +40,19 @@ import {
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
 } from "../list-detail-presentation.js";
+import {
+  buildDerivedTagTerminalActionTargetLine,
+  createDerivedTagTerminalActionTargetState,
+  reduceDerivedTagTerminalActionTargetState,
+  shouldRenderDerivedTagTerminalActionTarget,
+  type DerivedTagTerminalActionTargetOption,
+} from "../action-target.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
 import type { SearchScreenProps } from "./entry-props.js";
+import type { DerivedTagTerminalActionTargetState } from "../action-target.js";
+
+type SearchEditorActionId = "openSelected" | "executeQuery" | "resetQuery" | "discardResults";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
@@ -81,6 +91,11 @@ export function useSearchScreenController({
     },
     ({ initialQuery, initialLayout, initialSession }) =>
       createInitialSearchScreenState(initialQuery, { layout: initialLayout, session: initialSession }),
+  );
+  const [editorActionTargetState, dispatchEditorActionTarget] = React.useReducer(
+    reduceDerivedTagTerminalActionTargetState<DerivedTagTerminalActionTargetState>,
+    undefined,
+    () => createDerivedTagTerminalActionTargetState(),
   );
   const queryRef = React.useRef(initialQueryState);
   const promptedForInitialModeRef = React.useRef(false);
@@ -193,14 +208,6 @@ export function useSearchScreenController({
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
 
-  const showSearchHelp = React.useCallback(() => {
-    void showTerminalReturnDialog(
-      prompts,
-      state.layout === "editor" ? "Search Editor Help" : "Search Results Help",
-      buildSearchHelpLines(state, workspaceEntries, origin),
-    );
-  }, [origin, prompts, state, workspaceEntries]);
-
   const detailLines =
     state.layout === "results" && state.session
       ? selectedResult
@@ -229,7 +236,47 @@ export function useSearchScreenController({
     onUnavailable: terminal.pauseForAnyKey,
   });
 
-  const { handleIntent, structuredEditorSession } = useSearchWorkspaceActions({
+  const editorActionEntries = React.useMemo<DerivedTagTerminalActionTargetOption<SearchEditorActionId>[]>(() => {
+    const entries: DerivedTagTerminalActionTargetOption<SearchEditorActionId>[] = [
+      {
+        id: "openSelected",
+        label: "Open Focused Row",
+        description: selectedWorkspaceEntry?.disabled
+          ? selectedWorkspaceEntry.disabledReason ?? "The focused row is unavailable."
+          : selectedWorkspaceEntry?.description ?? "Open or edit the focused query row.",
+      },
+      {
+        id: "executeQuery",
+        label: "Execute Query",
+        description: "Apply the current query editor state and switch to results.",
+      },
+      {
+        id: "resetQuery",
+        label: "Reset Query",
+        description: "Restore the default query state.",
+      },
+    ];
+
+    if (state.session) {
+      entries.push({
+        id: "discardResults",
+        label: "Discard Applied Results",
+        description: "Clear the applied result reader while leaving the editor state intact.",
+      });
+    }
+
+    return entries;
+  }, [selectedWorkspaceEntry, state.session]);
+
+  const showSearchHelp = React.useCallback(() => {
+    void showTerminalReturnDialog(
+      prompts,
+      state.layout === "editor" ? "Search Editor Help" : "Search Results Help",
+      buildSearchHelpLines(state, workspaceEntries, origin, editorActionEntries),
+    );
+  }, [editorActionEntries, origin, prompts, state, workspaceEntries]);
+
+  const { handleIntent, runWorkspaceAction, structuredEditorSession } = useSearchWorkspaceActions({
     applyQueryUpdate,
     dispatch,
     executeRequest,
@@ -248,6 +295,29 @@ export function useSearchScreenController({
     workspaceEntries,
     chooseResultSort,
   });
+  const runEditorAction = React.useCallback(
+    (actionId: SearchEditorActionId) => {
+      if (actionId === "openSelected") {
+        if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
+          return;
+        }
+        runWorkspaceAction(selectedWorkspaceEntry.action);
+        return;
+      }
+      if (actionId === "executeQuery") {
+        runWorkspaceAction("execute");
+        return;
+      }
+      if (actionId === "resetQuery") {
+        runWorkspaceAction("reset");
+        return;
+      }
+      if (actionId === "discardResults" && state.session) {
+        runWorkspaceAction("clearResults");
+      }
+    },
+    [runWorkspaceAction, selectedWorkspaceEntry, state.session],
+  );
 
   useSearchScreenInteractionRouter({
     enabled: !busy && !filterExplorerSession && !structuredEditorSession,
@@ -261,6 +331,27 @@ export function useSearchScreenController({
     hasSelectedResult: Boolean(selectedResult),
     showNotification,
     onIntent: handleIntent,
+    editorActionTarget:
+      state.layout === "editor"
+        ? {
+            state: editorActionTargetState,
+            actionCount: editorActionEntries.length,
+            onToggle: () => dispatchEditorActionTarget({ type: "toggle_target" }),
+            onLeave: () => dispatchEditorActionTarget({ type: "leave_actions" }),
+            onMove: (delta) =>
+              dispatchEditorActionTarget({
+                type: "move_action",
+                delta,
+                actionCount: editorActionEntries.length,
+              }),
+            onApply: () => {
+              const selectedAction = editorActionEntries[editorActionTargetState.selectedActionIndex];
+              if (selectedAction) {
+                runEditorAction(selectedAction.id);
+              }
+            },
+          }
+        : undefined,
   });
 
   const screenModel = buildTerminalListDetailScreenModel({
@@ -292,16 +383,21 @@ export function useSearchScreenController({
     metrics: presentationMetrics,
     footer: [
       {
-        text: buildSearchFooterText(state, loadingMore, origin),
+        text: buildSearchFooterText(state, loadingMore, origin, {
+          editorActionTargetState,
+        }),
         tone: "dim",
       },
-      {
-        text:
-          state.layout === "results" && state.session
-            ? `${formatQueryStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
-            : `${formatQueryStatus(state)} | ${formatCountSummary(countState, state.query)} | Query Editor`,
-        tone: "accent",
-      },
+      state.layout === "editor" &&
+      shouldRenderDerivedTagTerminalActionTarget(editorActionTargetState, "onDemand")
+        ? buildDerivedTagTerminalActionTargetLine(editorActionEntries, editorActionTargetState)
+        : {
+            text:
+              state.layout === "results" && state.session
+                ? `${formatQueryStatus(state)} | ${formatResultPosition(resultSelectedIndex, state.session.total)} | Buf ${formatCount(state.session.loadedCount)} | Win ${getSessionBufferRange(state.session)}`
+                : `${formatQueryStatus(state)} | ${formatCountSummary(countState, state.query)} | Query Editor`,
+            tone: "accent",
+          },
     ],
     notification,
     transitionStatus,

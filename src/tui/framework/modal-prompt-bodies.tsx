@@ -212,10 +212,19 @@ function CenteredChoicePromptBody({
 }
 
 export function buildTextPromptBodyLines(options: TextPromptOptions, currentValue: string): DerivedTagTerminalLine[] {
+  const previewLines = options.buildPreviewLines?.(currentValue) ?? [];
+
   return [
     ...(options.hint ? [{ text: options.hint, tone: "accent" as const }] : []),
     { text: `> ${currentValue || ""}`, tone: "selected" },
     { text: options.defaultValue ? `Default: ${options.defaultValue}` : "Leave blank to skip.", tone: "dim" },
+    ...(previewLines.length > 0
+      ? [
+          { text: "" },
+          { text: options.previewTitle ?? "Preview", tone: "section" as const },
+          ...previewLines,
+        ]
+      : []),
   ];
 }
 

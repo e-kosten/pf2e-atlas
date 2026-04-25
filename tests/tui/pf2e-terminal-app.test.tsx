@@ -707,7 +707,7 @@ describe("pf2e terminal app", () => {
     await flushFrames(2);
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse | Creature |");
-    expect(searchFrame).toContain("Filter | Scope: Creature");
+    expect(searchFrame).toContain("Scope: Creature");
     expect(searchFrame).toContain("Filters > | 1 active");
 
     pressLeft(app);
