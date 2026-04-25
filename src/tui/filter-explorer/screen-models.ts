@@ -421,6 +421,10 @@ function buildDiscoveryModeCommandEntries(
   }
 
   const availableModes = discovery.availableModes ?? (["matching", "catalog"] as const);
+  const hiddenMode =
+    discovery.isRefreshing && discovery.pendingMode && discovery.pendingMode !== discovery.mode
+      ? discovery.pendingMode
+      : discovery.mode;
   const labelByMode: Record<FilterExplorerDiscoveryMode, string> = {
     matching: "Matching",
     catalog: "Catalog",
@@ -431,7 +435,7 @@ function buildDiscoveryModeCommandEntries(
   };
 
   return availableModes
-    .filter((mode) => mode !== discovery.mode)
+    .filter((mode) => mode !== hiddenMode)
     .map((mode) => ({
       value: mode === "matching" ? "switchToMatching" : "switchToCatalog",
       label: `Use ${labelByMode[mode]} Counts`,

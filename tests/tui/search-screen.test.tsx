@@ -3138,4 +3138,64 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "Second Result");
     expect(app.lastFrame()).not.toContain("First Result");
   });
+
+  it("keeps the displayed discovery mode reachable through the live command palette during same-session churn", async () => {
+    const loadModelForDiscoveryMode = vi.fn((mode: "matching" | "catalog") =>
+      Promise.resolve(createNamedExplorerDomain(mode === "matching" ? "Matching Result" : "Catalog Result")),
+    );
+    const session: SearchFilterExplorerSession = {
+      title: "Derived Tags Explorer",
+      model: createNamedExplorerDomain("Matching Result"),
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+      draft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
+      resolveSelectionTarget: () => undefined,
+      onApply: () => {},
+    };
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SearchFilterExplorer session={session} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("Matching Result");
+    expect(app.lastFrame()).toContain("matching counts");
+
+    app.stdin.write(":");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Explorer Commands");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await waitForFrameToExclude(app, "Derived Tags Explorer Commands");
+    expect(app.lastFrame()).toContain("matching counts | refreshing catalog");
+
+    app.stdin.write(":");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Derived Tags Explorer Commands");
+    expect(app.lastFrame()).toContain("Use Matching Counts");
+    expect(app.lastFrame()).not.toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await waitForFrameToExclude(app, "Derived Tags Explorer Commands");
+    expect(app.lastFrame()).toContain("matching counts");
+    expect(app.lastFrame()).not.toContain("refreshing");
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+    expect(loadModelForDiscoveryMode).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("Matching Result");
+    expect(app.lastFrame()).not.toContain("Catalog Result");
+  });
 });
