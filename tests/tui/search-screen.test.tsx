@@ -62,6 +62,17 @@ function flushDebouncedWindowRead(): Promise<void> {
   });
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 async function waitForFrameToContain(
   app: ReturnType<typeof render>,
   text: string,
@@ -636,6 +647,47 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
   };
 }
 
+function createLoadingExplorerModel(title: string): OntologyDomainModel {
+  return {
+    id: "searchFilterExplorer:loading",
+    label: title,
+    description: "Loading search explorer entries.",
+    rootNodes: [
+      {
+        id: `${title}:loading`,
+        kind: "group",
+        label: "Loading explorer entries...",
+        listLabel: "Loading explorer entries...",
+        filterText: "loading explorer entries",
+        detailTitle: title,
+        detailLines: [
+          { text: "Loading explorer entries...", tone: "section" },
+          { text: "Refreshing the scoped explorer tree in the background.", tone: "dim" },
+        ],
+      },
+    ],
+  };
+}
+
+function createNamedExplorerDomain(label: string): OntologyDomainModel {
+  return {
+    id: `searchSemantics:${label.toLowerCase().replace(/\s+/g, "-")}`,
+    label,
+    description: `${label} test domain`,
+    rootNodes: [
+      {
+        id: `${label}:root`,
+        kind: "group",
+        label,
+        listLabel: label,
+        filterText: label.toLowerCase(),
+        detailTitle: label,
+        detailLines: [{ text: label, tone: "section" }],
+      },
+    ],
+  };
+}
+
 describe("search screen", () => {
   afterEach(() => {
     cleanup();
@@ -1005,6 +1057,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Derived Tags Explorer > Derived Tags", 60);
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
@@ -2114,6 +2167,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Derived Tags Explorer > Derived Tags", 60);
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
@@ -2206,6 +2260,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "common", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("common");
     expect(app.lastFrame()).toContain("rare");
@@ -2287,7 +2342,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Remove NOT");
   });
 
-  it("defaults structured-draft shared explorers to matching counts and can switch to catalog counts", async () => {
+  it("defaults structured-draft shared explorers to matching counts", async () => {
     const services = createServices();
     const loadSearchFilterExplorerDomain = vi.fn(
       async ({ discoveryMode }: { discoveryMode: "matching" | "catalog" }) => {
@@ -2344,29 +2399,11 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
+    await waitForFrameToContain(app, "matching counts", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("matching counts");
     expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith({
       discoveryMode: "matching",
-      request: expect.objectContaining({
-        mode: "browse",
-      }),
-    });
-
-    app.stdin.write(":");
-    await waitForFrameToContain(app, "Rarity Explorer Commands");
-    expect(app.lastFrame()).toContain("Rarity Explorer Commands");
-    for (const character of "catalog") {
-      app.stdin.write(character);
-      await flushInk();
-    }
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("catalog counts");
-    expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith({
-      discoveryMode: "catalog",
       request: expect.objectContaining({
         mode: "browse",
       }),
@@ -2486,6 +2523,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Traits Explorer > Illusion", 60);
     expect(app.lastFrame()).toContain("Traits Explorer > Illusion");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("illusion");
@@ -2639,6 +2677,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Derived Tags Explorer > Derived Tags", 60);
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
@@ -2972,5 +3011,148 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Hit Points");
     expect(app.lastFrame()).toContain("= 12");
+  });
+
+  it("shows the add-clause picker before pack and metric discovery checks resolve", async () => {
+    const services = createServices();
+    const metricOptionsDeferred = createDeferred<{
+      value: string;
+      label: string;
+      description: string;
+      count: number;
+    }[]>();
+    const packOptionsDeferred = createDeferred<{
+      value: string;
+      label: string;
+      description: string;
+      count: number;
+    }[]>();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live creature metrics.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.search.loadMetricKeyOptions = vi.fn(() => metricOptionsDeferred.promise);
+    services.user.search.loadPackOptions = vi.fn(() => packOptionsDeferred.promise);
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse creatures", {
+              filter: scopeFilter("creature"),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Metric comparison");
+    expect(app.lastFrame()).toContain("Pack");
+    expect(services.user.search.loadMetricKeyOptions).not.toHaveBeenCalled();
+    expect(services.user.search.loadPackOptions).not.toHaveBeenCalled();
+  });
+
+  it("renders the explorer immediately while the initial model refresh is still loading", async () => {
+    const session: SearchFilterExplorerSession = {
+      title: "Derived Tags Explorer",
+      model: createLoadingExplorerModel("Derived Tags Explorer"),
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode: vi.fn(() => Promise.resolve(createFacetPickerOntologyDomain())),
+      draft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
+      resolveSelectionTarget: () => undefined,
+      onApply: () => {},
+    };
+
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SearchFilterExplorer session={session} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toMatch(/Loading explorer entries|Spell/);
+
+    await waitForFrameToContain(app, "Spell");
+    expect(app.lastFrame()).toContain("matching counts");
+  });
+
+  it("ignores stale explorer loads after the session changes", async () => {
+    const firstDeferred = createDeferred<OntologyDomainModel>();
+    const secondDeferred = createDeferred<OntologyDomainModel>();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const firstSession: SearchFilterExplorerSession = {
+      title: "First Explorer",
+      model: createLoadingExplorerModel("First Explorer"),
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode: vi.fn(() => firstDeferred.promise),
+      draft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
+      resolveSelectionTarget: () => undefined,
+      onApply: () => {},
+    };
+    const secondSession: SearchFilterExplorerSession = {
+      title: "Second Explorer",
+      model: createLoadingExplorerModel("Second Explorer"),
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode: vi.fn(() => secondDeferred.promise),
+      draft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
+      resolveSelectionTarget: () => undefined,
+      onApply: () => {},
+    };
+
+    const app = render(<DerivedTagTerminalProvider><SearchFilterExplorer session={firstSession} /></DerivedTagTerminalProvider>);
+    const rerender = app.rerender as ((tree: React.ReactNode) => void) | undefined;
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("Loading explorer entries...");
+
+    rerender?.(
+      <DerivedTagTerminalProvider>
+        <SearchFilterExplorer session={secondSession} />
+      </DerivedTagTerminalProvider>,
+    );
+    await flushInk();
+    expect(app.lastFrame()).toContain("Loading explorer entries...");
+
+    firstDeferred.resolve(createNamedExplorerDomain("First Result"));
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).not.toContain("First Result");
+
+    secondDeferred.resolve(createNamedExplorerDomain("Second Result"));
+    await waitForFrameToContain(app, "Second Result");
+    expect(app.lastFrame()).not.toContain("First Result");
   });
 });

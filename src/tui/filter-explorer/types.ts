@@ -23,6 +23,8 @@ export type FilterExplorerDiscoveryMode = SearchFilterDiscoveryMode;
 export type FilterExplorerDiscoveryState = {
   readonly mode: FilterExplorerDiscoveryMode;
   readonly availableModes?: readonly FilterExplorerDiscoveryMode[];
+  readonly pendingMode?: FilterExplorerDiscoveryMode;
+  readonly isRefreshing?: boolean;
   readonly onModeChange?: (mode: FilterExplorerDiscoveryMode) => void;
 };
 

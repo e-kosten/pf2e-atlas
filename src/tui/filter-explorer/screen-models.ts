@@ -628,6 +628,16 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   return targetLabel ? `Focused ${targetLabel} | ${openLabel}` : openLabel;
 }
 
+function formatDiscoveryStatus(discovery: NonNullable<FilterExplorerControllerContext["discovery"]>): string {
+  const activeLabel = `${discovery.mode} counts`;
+  if (!discovery.isRefreshing) {
+    return activeLabel;
+  }
+
+  const pendingLabel = discovery.pendingMode ?? discovery.mode;
+  return pendingLabel === discovery.mode ? `${activeLabel} | refreshing` : `${activeLabel} | refreshing ${pendingLabel} counts`;
+}
+
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
 ): TerminalListDetailScreenModel {
@@ -639,7 +649,7 @@ export function buildFilterExplorerScreenModel(
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
-  const statusText = controller.discovery ? `${statusSuffix} | ${controller.discovery.mode} counts` : statusSuffix;
+  const statusText = controller.discovery ? `${statusSuffix} | ${formatDiscoveryStatus(controller.discovery)}` : statusSuffix;
 
   return buildTerminalListDetailScreenModel({
     title: controller.screenTitle,

@@ -386,11 +386,15 @@ export function useSearchStructuredDraftMetadataActions({
 
   const getAvailableMetricFamilies = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, options: { numericOnly?: boolean } = {}): Promise<MetricFieldFamily[]> => {
+      const [actorMetricOptions, itemMetricOptions] = await Promise.all([
+        user.search.loadMetricKeyOptions(query, "actorMetric", "matching", options),
+        user.search.loadMetricKeyOptions(query, "itemMetric", "matching", options),
+      ]);
       const families: MetricFieldFamily[] = [];
-      if ((await user.search.loadMetricKeyOptions(query, "actorMetric", "matching", options)).length > 0) {
+      if (actorMetricOptions.length > 0) {
         families.push("actorMetric");
       }
-      if ((await user.search.loadMetricKeyOptions(query, "itemMetric", "matching", options)).length > 0) {
+      if (itemMetricOptions.length > 0) {
         families.push("itemMetric");
       }
       return families;
@@ -973,8 +977,8 @@ export function useSearchStructuredDraftMetadataActions({
       const fieldOptions = getScopedFieldOptions(query);
       const hasFieldClauses = fieldOptions.some((fieldOption) => !isMetricFieldOptionValue(fieldOption.value));
       const hasMetricClauses = fieldOptions.some((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
-      const hasMetricCompareClauses = (await getAvailableMetricFamilies(query, { numericOnly: true })).length > 0;
-      const hasPackClauses = (await user.search.loadPackOptions(query, "matching")).length > 0;
+      const hasMetricCompareClauses = hasMetricClauses;
+      const hasPackClauses = true;
       const hasPrice = fieldOptions.some((fieldOption) => fieldOption.value === "priceCp");
       const hasActionCost = user.search.getActionCostOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
       const entryByValue = new Map<ClauseKind, { value: ClauseKind; label: string; description: string }>();
@@ -1001,14 +1005,14 @@ export function useSearchStructuredDraftMetadataActions({
         entryByValue.set("metricCompare", {
           value: "metricCompare",
           label: "Metric comparison",
-          description: "Compare two numeric metrics from the same discovery family.",
+          description: "Compare two numeric metrics from the current scoped discovery families.",
         });
       }
       if (hasPackClauses) {
         entryByValue.set("pack", {
           value: "pack",
           label: "Pack",
-          description: "Restrict results to one or more selected packs.",
+          description: "Restrict results to one or more selected packs without waiting on preflight discovery checks.",
         });
       }
       entryByValue.set("level", {
@@ -1051,7 +1055,7 @@ export function useSearchStructuredDraftMetadataActions({
       }
       return result.kind === "selected" ? result.value : null;
     },
-    [getAvailableMetricFamilies, getScopedFieldOptions, user.search],
+    [getScopedFieldOptions, user.search],
   );
 
   const addQueryClauseAtPath = React.useCallback(

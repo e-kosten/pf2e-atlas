@@ -4,6 +4,7 @@ import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
+import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalPreparedFilterExplorerContext,
@@ -14,6 +15,28 @@ import type {
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
+
+function createLoadingFilterExplorerModel(title: string): OntologyDomainModel {
+  return {
+    id: "searchFilterExplorer:loading",
+    label: title,
+    description: "Loading search explorer entries.",
+    rootNodes: [
+      {
+        id: "searchFilterExplorer:loading:entry",
+        kind: "group",
+        label: "Loading explorer entries...",
+        listLabel: "Loading explorer entries...",
+        filterText: "loading explorer entries",
+        detailTitle: title,
+        detailLines: [
+          { text: "Loading explorer entries...", tone: "section" },
+          { text: "Refreshing the scoped explorer tree in the background.", tone: "dim" },
+        ],
+      },
+    ],
+  };
+}
 
 export function useSearchFilterExplorerWorkflow({
   query,
@@ -63,6 +86,7 @@ export function useSearchFilterExplorerWorkflow({
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
       const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
+      const title = fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer";
       if (!scopeCategory) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
@@ -87,17 +111,11 @@ export function useSearchFilterExplorerWorkflow({
         });
       };
 
-      const model = await buildPreparedModel("matching");
-      if (model.rootNodes.length === 0) {
-        await onUnavailable("No ontology-backed query explorer is available for that field.");
-        return false;
-      }
-
       const preparedDraft = initialPreparedDraft ?? services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields);
 
       setFilterExplorerSession({
-        title: fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer",
-        model,
+        title,
+        model: createLoadingFilterExplorerModel(title),
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         draft: preparedDraft.draft,
