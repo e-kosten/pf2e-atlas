@@ -4,12 +4,11 @@ import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semant
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
-import { findSearchScopeFilter } from "../../src/domain/search-request-types.js";
-import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import { buildAllOfFilter, buildScopeFilter, findSearchScopeFilter } from "../../src/domain/search-request-types.js";
+import type { SearchFilterNode, SearchRequest } from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
-import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../src/data/vocabulary.js";
+import type { SearchSemanticsBootstrapSummaryResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -44,8 +43,8 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
   return undefined;
 }
 
-function getRequestMetadata(node: OntologyNode | undefined) {
-  return node?.query ? canonicalFilterToMetadataNode(node.query.request.filter) : null;
+function getQueryFilter(node: OntologyNode | undefined): SearchFilterNode | undefined {
+  return node?.query?.request.filter;
 }
 
 function createSummary(): SearchSemanticsBootstrapSummaryResult {
@@ -90,41 +89,17 @@ function createSummary(): SearchSemanticsBootstrapSummaryResult {
   };
 }
 
-function createVocabulary(summary: SearchSemanticsBootstrapSummaryResult): SearchVocabularyResult {
-  return {
-    categories: summary.categories,
-    subcategories: [
-      { value: "trap", count: 2 },
-      { value: "haunt", count: 1 },
-    ],
-    rarities: [],
-    sizes: [],
-    traditions: [],
-    spellKinds: [],
-    sourceCategories: [],
-    commonTraitsByCategory: summary.commonTraitsByCategory,
-    commonDerivedTagsByCategory: summary.commonDerivedTagsByCategory,
-    derivedTagOntologyFamilies: [],
-    derivedTagOntologyTags: [],
-    derivedTagCatalog: summary.derivedTagCatalog,
-  };
-}
-
 function createDataService(options: {
   includeSummary?: boolean;
-  includeVocabulary?: boolean;
 } = {}): Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
   getPack: ReturnType<typeof vi.fn>;
   getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
-  getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
 } {
   const summary = createSummary();
-  const vocabulary = createVocabulary(summary);
 
   const service: Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
     getPack: ReturnType<typeof vi.fn>;
     getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
-    getSearchVocabulary?: ReturnType<typeof vi.fn<() => SearchVocabularyResult>>;
   } = {
     getPack: vi.fn(() => undefined),
     listFilterValues: vi.fn(
@@ -169,9 +144,6 @@ function createDataService(options: {
   if (options.includeSummary ?? true) {
     service.getSearchSemanticsBootstrapSummary = vi.fn(() => summary);
   }
-  if (options.includeVocabulary ?? true) {
-    service.getSearchVocabulary = vi.fn(() => vocabulary);
-  }
 
   return service;
 }
@@ -187,7 +159,6 @@ describe("buildSearchSemanticsDomain", () => {
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
-    expect(dataService.getSearchVocabulary).not.toHaveBeenCalled();
     expect(derivedTagsField?.childPresentation).toEqual({
       mode: "grouped",
       groupBy: "axis",
@@ -244,30 +215,36 @@ describe("buildSearchSemanticsDomain", () => {
     const magicalTraitNode = commonTraitsNode?.children?.[0];
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
-    expect(dataService.getSearchVocabulary).not.toHaveBeenCalled();
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith(
       expect.objectContaining({ category: "hazard", field: "traits" }),
     );
     expect(magicalTraitNode?.label).toBe("magical");
     expect(magicalTraitNode?.listLabel).toBe("magical | 3");
-    expect(getRequestMetadata(magicalTraitNode)).toEqual({
-      field: "traits",
-      op: "includesAny",
-      values: ["magical"],
-    });
+    expect(getQueryFilter(magicalTraitNode)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("hazard"),
+        {
+          kind: "metadataPredicate",
+          predicate: {
+            field: "traits",
+            op: "includes",
+            value: "magical",
+          },
+        },
+      ]),
+    );
     expect(magicalTraitNode?.loadChildren).toBeTypeOf("function");
   });
 
-  it("falls back to the full vocabulary loader when a summary loader is unavailable", () => {
-    const dataService = createDataService({ includeSummary: false, includeVocabulary: true });
+  it("requires the dedicated search semantics bootstrap summary loader", () => {
+    const dataService = createDataService({ includeSummary: false });
 
-    buildSearchSemanticsDomain(
-      createTestConfig(),
-      dataService,
-      createPf2eApplicationSearchDiscoveryService(dataService),
-    );
-
-    expect(dataService.getSearchSemanticsBootstrapSummary).toBeUndefined();
-    expect(dataService.getSearchVocabulary).toHaveBeenCalledTimes(1);
+    expect(() =>
+      buildSearchSemanticsDomain(
+        createTestConfig(),
+        dataService as unknown as Parameters<typeof buildSearchSemanticsDomain>[1],
+        createPf2eApplicationSearchDiscoveryService(dataService),
+      ),
+    ).toThrow(/getSearchSemanticsBootstrapSummary/);
   });
 });

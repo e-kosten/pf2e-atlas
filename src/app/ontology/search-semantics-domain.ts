@@ -11,7 +11,7 @@ import {
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
-import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
+import type { SearchSemanticsBootstrapSummaryResult } from "../../data/vocabulary.js";
 import type { AppConfig } from "../../domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
@@ -35,29 +35,11 @@ import {
 } from "./search-semantics-helpers.js";
 
 type SearchSemanticsDataService = Pick<Pf2eDataService, "listRecords"> & {
-  getSearchSemanticsBootstrapSummary?: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
-  getSearchVocabulary?: () => SearchVocabularyResult;
+  getSearchSemanticsBootstrapSummary: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
 };
 
 function loadSearchSemanticsSummary(dataService: SearchSemanticsDataService): SearchSemanticsBootstrapSummaryResult {
-  if (typeof dataService.getSearchSemanticsBootstrapSummary === "function") {
-    return dataService.getSearchSemanticsBootstrapSummary();
-  }
-  if (typeof dataService.getSearchVocabulary === "function") {
-    const vocabulary = dataService.getSearchVocabulary();
-    return {
-      categories: vocabulary.categories,
-      subcategoryCountsByCategory: SEARCH_CATEGORIES.map((category) => ({
-        category,
-        subcategories: [],
-      })),
-      commonTraitsByCategory: vocabulary.commonTraitsByCategory,
-      commonDerivedTagsByCategory: vocabulary.commonDerivedTagsByCategory,
-      derivedTagCatalog: vocabulary.derivedTagCatalog,
-    };
-  }
-
-  throw new Error("Search semantics domain requires a search summary loader.");
+  return dataService.getSearchSemanticsBootstrapSummary();
 }
 
 export function buildSearchSemanticsDomain(
@@ -457,69 +439,6 @@ export function buildSearchSemanticsDomain(
     };
   }
 
-  function buildBooleanGroupNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
-    const idPrefix = subcategory ? `${category}:${subcategory}` : category;
-    return (Object.entries(semantics.booleanGroups) as Array<[keyof typeof semantics.booleanGroups, string]>).map(
-      ([groupName, description]) => {
-        const groupLabel = formatOntologySearchVocabularyLabel(groupName);
-        return {
-          id: `${idPrefix}:booleanGroup:${groupName}`,
-          kind: "booleanGroup",
-          label: groupLabel,
-          filterText: buildFilterText(category, subcategory ?? "", groupName, description),
-          listLabel: groupLabel,
-          detailTitle: "Boolean Group Details",
-          detailLines: buildKeyValueDetailLines(
-            groupLabel,
-            [
-              ["Category", formatOntologySearchVocabularyLabel(category)],
-              ["Subcategory", subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"],
-            ],
-            description,
-          ),
-        };
-      },
-    );
-  }
-
-  function buildAdvancedPredicateNodes(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
-    const idPrefix = subcategory ? `${category}:${subcategory}` : category;
-    return semantics.advancedPredicates
-      .filter((predicate) => predicate.categories.includes(category))
-      .map((predicate) => {
-        const predicateLabel = formatOntologySearchVocabularyLabel(predicate.name);
-        const operatorLabels = predicate.operators.map((operator) => formatOntologySearchVocabularyLabel(operator));
-        return {
-          id: `${idPrefix}:advanced:${predicate.name}`,
-          kind: "advancedPredicate",
-          label: predicateLabel,
-          filterText: buildFilterText(
-            category,
-            subcategory ?? "",
-            predicate.name,
-            predicate.description,
-            ...predicate.operators,
-          ),
-          listLabel: `${predicateLabel} | ${operatorLabels.join(", ")}`,
-          detailTitle: "Advanced Predicate Details",
-          detailLines: [
-            { text: predicateLabel, tone: "section" },
-            { text: predicate.description },
-            { text: `Category: ${formatOntologySearchVocabularyLabel(category)}` },
-            { text: `Subcategory: ${subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"}` },
-            { text: `Operators: ${operatorLabels.join(", ")}` },
-            { text: "Press Enter or o to open the full matching set in the shared result reader." },
-          ],
-          query: buildSearchSemanticsMetadataQuery(
-            category,
-            subcategory,
-            `Browse records matching the ${predicateLabel} example`,
-            predicate.example,
-          ),
-        };
-      });
-  }
-
   function buildMetricDiscoveryGroups(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode[] {
     return discoveryService.getMetricDiscoveryGroups({ category, subcategory }).map((group) =>
       buildMetricDiscoveryGroup(dataService, searchSemanticsReader, {
@@ -535,8 +454,6 @@ export function buildSearchSemanticsDomain(
 
   function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
     const subcategoryMetadataFieldNodes = buildMetadataFieldNodes(category, subcategory);
-    const booleanGroupNodes = buildBooleanGroupNodes(category, subcategory);
-    const advancedPredicateNodes = buildAdvancedPredicateNodes(category, subcategory);
     const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, subcategory);
     const children: OntologyNode[] = [];
 
@@ -568,48 +485,6 @@ export function buildSearchSemanticsDomain(
           groupBy: "fieldType",
           render: "inline",
         },
-      });
-    }
-
-    if (booleanGroupNodes.length > 0) {
-      children.push({
-        id: `${category}:${subcategory}:booleanGroups`,
-        kind: "group",
-        label: "Boolean Groups",
-        filterText: buildFilterText(category, subcategory, "boolean groups"),
-        listLabel: `Boolean groups | ${booleanGroupNodes.length}`,
-        detailTitle: "Boolean Groups",
-        detailLines: buildKeyValueDetailLines(
-          "Boolean Groups",
-          [
-            ["Category", category],
-            ["Subcategory", subcategory],
-            ["Groups", booleanGroupNodes.length],
-          ],
-          "Explore the logical group operators available when building nested metadata predicates.",
-        ),
-        children: booleanGroupNodes,
-      });
-    }
-
-    if (advancedPredicateNodes.length > 0) {
-      children.push({
-        id: `${category}:${subcategory}:advancedPredicates`,
-        kind: "group",
-        label: "Advanced Predicates",
-        filterText: buildFilterText(category, subcategory, "advanced predicates"),
-        listLabel: `Advanced predicates | ${advancedPredicateNodes.length}`,
-        detailTitle: "Advanced Predicates",
-        detailLines: buildKeyValueDetailLines(
-          "Advanced Predicates",
-          [
-            ["Category", category],
-            ["Subcategory", subcategory],
-            ["Predicates", advancedPredicateNodes.length],
-          ],
-          "Explore the metadata predicates that operate on keyed metrics and comparisons beyond simple field/value filtering.",
-        ),
-        children: advancedPredicateNodes,
       });
     }
 
@@ -647,8 +522,6 @@ export function buildSearchSemanticsDomain(
   const rootNodes = SEARCH_CATEGORIES.map((category) => {
     const categoryFields = getCategoryScopedFields(category, null);
     const metadataFieldNodes = buildMetadataFieldNodes(category, null);
-    const booleanGroupNodes = buildBooleanGroupNodes(category, null);
-    const advancedPredicateNodes = buildAdvancedPredicateNodes(category, null);
     const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, null);
 
     const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
@@ -703,44 +576,6 @@ export function buildSearchSemanticsDomain(
         },
       });
     }
-    if (booleanGroupNodes.length > 0) {
-      children.push({
-        id: `${category}:booleanGroups`,
-        kind: "group",
-        label: "Boolean Groups",
-        filterText: buildFilterText(category, "boolean groups"),
-        listLabel: `Boolean groups | ${booleanGroupNodes.length}`,
-        detailTitle: "Boolean Groups",
-        detailLines: buildKeyValueDetailLines(
-          "Boolean Groups",
-          [
-            ["Category", category],
-            ["Groups", booleanGroupNodes.length],
-          ],
-          "Explore the logical group operators available when building nested metadata predicates.",
-        ),
-        children: booleanGroupNodes,
-      });
-    }
-    if (advancedPredicateNodes.length > 0) {
-      children.push({
-        id: `${category}:advancedPredicates`,
-        kind: "group",
-        label: "Advanced Predicates",
-        filterText: buildFilterText(category, "advanced predicates"),
-        listLabel: `Advanced predicates | ${advancedPredicateNodes.length}`,
-        detailTitle: "Advanced Predicates",
-        detailLines: buildKeyValueDetailLines(
-          "Advanced Predicates",
-          [
-            ["Category", category],
-            ["Predicates", advancedPredicateNodes.length],
-          ],
-          "Explore the metadata predicates that operate on keyed metrics and comparisons beyond simple field/value filtering.",
-        ),
-        children: advancedPredicateNodes,
-      });
-    }
     children.push(...metricDiscoveryGroups);
     return {
       id: `searchSemantics:${category}`,
@@ -756,8 +591,6 @@ export function buildSearchSemanticsDomain(
           ["Category", formatOntologySearchVocabularyLabel(category)],
           ["Subcategories", CATEGORY_SUBCATEGORY_MAP[category].length],
           ["Metadata fields", categoryFields.length],
-          ["Boolean groups", booleanGroupNodes.length],
-          ["Advanced predicates", advancedPredicateNodes.length],
           ["Metric discovery groups", metricDiscoveryGroups.length],
         ],
         "Explore category-specific search semantics, live value spaces, metric discovery, and canonical browse surfaces.",

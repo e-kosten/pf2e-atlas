@@ -47,7 +47,6 @@ export interface MetadataAdvancedPredicateSemantics {
 }
 
 export interface MetadataFilterSemantics {
-  booleanGroups: Record<"and" | "or" | "not", string>;
   fieldTypes: MetadataFieldTypeGroup[];
   metadataFields: MetadataFieldSemantics[];
   metadataFieldsByCategory: Record<SearchCategory, MetadataFieldName[]>;
@@ -74,12 +73,6 @@ export interface MetadataFilterSemantics {
 
 const ACTOR_METRIC_CATEGORIES: SearchCategory[] = ["creature", "hazard"];
 const EQUIPMENT_ONLY: SearchCategory[] = ["equipment"];
-
-const BOOLEAN_GROUPS = {
-  and: "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
-  or: "Requires at least one child predicate or group to match. Must contain at least 2 child nodes.",
-  not: "Negates exactly one child predicate or group.",
-} as const;
 
 const EXAMPLES_BY_CATEGORY: Partial<Record<SearchCategory, MetadataCategoryExample[]>> = {
   equipment: [
@@ -309,7 +302,6 @@ export function getMetadataFieldSemantics(): MetadataFieldSemantics[] {
 export function getMetadataFilterSemantics(): MetadataFilterSemantics {
   const metadataFields = getMetadataFieldSemantics();
   return {
-    booleanGroups: BOOLEAN_GROUPS,
     fieldTypes: buildFieldTypeGroups(metadataFields),
     metadataFields,
     metadataFieldsByCategory: buildFieldsByCategory(metadataFields),

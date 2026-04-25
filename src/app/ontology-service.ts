@@ -3,7 +3,7 @@ import type { OntologyDomainModel } from "../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../domain/search-field-domains.js";
 import type { SearchRequest } from "../domain/search-request-types.js";
 import type { Pf2eDataService } from "../data/service.js";
-import type { SearchSemanticsBootstrapSummaryResult, SearchVocabularyResult } from "../data/vocabulary.js";
+import type { SearchSemanticsBootstrapSummaryResult } from "../data/vocabulary.js";
 import type { Pf2eApplicationSearchDiscoveryService } from "./search-discovery-service.js";
 import {
   buildPreparedSearchFilterExplorerDomain,
@@ -19,10 +19,9 @@ export type Pf2eApplicationOntologyService = {
 };
 
 type OntologyDomainDataService = Pick<Pf2eDataService, "listRecords"> & {
-  getSearchSemanticsBootstrapSummary?: (options?: {
+  getSearchSemanticsBootstrapSummary: (options?: {
     traitLimitPerCategory?: number;
   }) => SearchSemanticsBootstrapSummaryResult;
-  getSearchVocabulary?: (options?: { traitLimitPerCategory?: number }) => SearchVocabularyResult;
 };
 
 export function createPf2eApplicationOntologyService(

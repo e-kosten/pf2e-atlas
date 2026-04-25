@@ -7,15 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
-import type { SearchVocabularyResult } from "../../src/data/vocabulary.js";
+import type { SearchSemanticsBootstrapSummaryResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import { buildScopeFilter, type SearchRequest } from "../../src/domain/search-request-types.js";
+import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode, type SearchRequest } from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
-import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 
 function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   return {
@@ -51,8 +50,35 @@ function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefin
   return undefined;
 }
 
-function getRequestMetadata(request: SearchRequest | undefined) {
-  return request ? canonicalFilterToMetadataNode(request.filter) : null;
+function getRequestFilter(request: SearchRequest | undefined): SearchFilterNode | undefined {
+  return request?.filter;
+}
+
+function createSummary(): SearchSemanticsBootstrapSummaryResult {
+  return {
+    categories: [
+      { value: "spell", count: 12 },
+      { value: "equipment", count: 5 },
+      { value: "creature", count: 3 },
+    ],
+    subcategoryCountsByCategory: [
+      {
+        category: "spell",
+        subcategories: [{ value: "action", count: 6 }],
+      },
+      {
+        category: "equipment",
+        subcategories: [{ value: "gear", count: 5 }],
+      },
+      {
+        category: "creature",
+        subcategories: [],
+      },
+    ],
+    commonTraitsByCategory: [{ category: "spell", traits: [{ value: "fire", count: 4 }] }],
+    commonDerivedTagsByCategory: [{ category: "spell", tags: [{ value: "alarm", count: 2 }] }],
+    derivedTagCatalog: [],
+  };
 }
 
 function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedRecord {
@@ -129,25 +155,8 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
   };
 }
 
-function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords"> {
-  const vocabulary: SearchVocabularyResult = {
-    categories: [
-      { value: "spell", count: 12 },
-      { value: "equipment", count: 5 },
-      { value: "creature", count: 3 },
-    ],
-    subcategories: [{ value: "action", count: 6 }],
-    rarities: [],
-    sizes: [],
-    traditions: [],
-    spellKinds: [],
-    sourceCategories: [],
-    commonTraitsByCategory: [{ category: "spell", traits: [{ value: "fire", count: 4 }] }],
-    commonDerivedTagsByCategory: [{ category: "spell", tags: [{ value: "alarm", count: 2 }] }],
-    derivedTagOntologyFamilies: [],
-    derivedTagOntologyTags: [],
-    derivedTagCatalog: [],
-  };
+function createDataService(): Pick<Pf2eDataService, "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"> {
+  const summary = createSummary();
   const listRecords = vi.fn((request: SearchRequest) => ({
     searchProfile: null,
     mode: "structured" as const,
@@ -204,7 +213,7 @@ function createDataService(): Pick<Pf2eDataService, "getSearchVocabulary" | "lis
     ],
   }) satisfies SearchResult);
   return {
-    getSearchVocabulary: vi.fn(() => vocabulary),
+    getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
     listFilterValues: vi.fn(
       ({
         field,
@@ -381,29 +390,31 @@ describe("application ontology service", () => {
 
     const saveTypeValueNode = saveTypeValueNodes.find((node) => node.id === "spell:saveType:fortitude");
 
-    expect(getRequestMetadata(saveTypeValueNode?.query?.request)).toEqual({
-      field: "saveType",
-      op: "eq",
-      value: "fortitude",
-    });
-    expect(
-      getRequestMetadata(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.request),
-    ).toEqual({
-      field: "sustained",
-      op: "eq",
-      value: true,
-    });
-    expect(getRequestMetadata(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.request)).toEqual({
-      field: "hands",
-      op: "eq",
-      value: 1,
-    });
+    expect(getRequestFilter(saveTypeValueNode?.query?.request)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("spell"),
+        { kind: "metadataPredicate", predicate: { field: "saveType", op: "eq", value: "fortitude" } },
+      ]),
+    );
+    expect(getRequestFilter(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.request)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("spell"),
+        { kind: "metadataPredicate", predicate: { field: "sustained", op: "eq", value: true } },
+      ]),
+    );
+    expect(getRequestFilter(handsValueNodes.find((node) => node.id === "equipment:hands:1")?.query?.request)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("equipment"),
+        { kind: "metadataPredicate", predicate: { field: "hands", op: "eq", value: 1 } },
+      ]),
+    );
     const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
-    expect(getRequestMetadata(commonTraitNode?.query?.request)).toEqual({
-      field: "traits",
-      op: "includesAny",
-      values: ["fire"],
-    });
+    expect(getRequestFilter(commonTraitNode?.query?.request)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("spell"),
+        { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "fire" } },
+      ]),
+    );
     expect(saveTypeValueNode?.loadChildren?.()[0]?.kind).toBe("record");
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
@@ -465,19 +476,12 @@ describe("application ontology service", () => {
       value: `trait-${index + 1}`,
       count: index + 1,
     }));
-    const dataService: Pick<Pf2eDataService, "getSearchVocabulary" | "listFilterValues" | "listRecords"> = {
-      getSearchVocabulary: vi.fn(() => ({
+    const dataService: Pick<Pf2eDataService, "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"> = {
+      getSearchSemanticsBootstrapSummary: vi.fn(() => ({
         categories: [{ value: "spell", count: 14 }],
-        subcategories: [],
-        rarities: [],
-        sizes: [],
-        traditions: [],
-        spellKinds: [],
-        sourceCategories: [],
+        subcategoryCountsByCategory: [{ category: "spell", subcategories: [] }],
         commonTraitsByCategory: [],
         commonDerivedTagsByCategory: [],
-        derivedTagOntologyFamilies: [],
-        derivedTagOntologyTags: [],
         derivedTagCatalog: [],
       })),
       listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
@@ -518,9 +522,6 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
     const domain = await service.loadSearchSemanticsDomain();
-    const booleanGroupNode = findNodeById(domain.rootNodes, "spell:booleanGroup:and");
-    const actorMetricCompareNode = findNodeById(domain.rootNodes, "creature:advanced:actorMetricCompare");
-    const itemMetricCompareNode = findNodeById(domain.rootNodes, "equipment:advanced:itemMetricCompare");
     const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
     const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
     const actorMetricNode = actorMetricNamespace
@@ -543,57 +544,9 @@ describe("application ontology service", () => {
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
-    expect(booleanGroupNode?.detailLines.map((line) => line.text)).toContain(
-      "Requires every child predicate or group to match. Must contain at least 2 child nodes.",
-    );
-    expect(booleanGroupNode?.label).toBe("And");
-    expect(actorMetricCompareNode?.label).toBe("Actor Metric Compare");
-    expect(actorMetricCompareNode?.query).toEqual({
-      label: "Browse records matching the Actor Metric Compare example",
-      request: {
-        mode: "browse",
-        filter: {
-          kind: "allOf",
-          children: [
-            {
-              kind: "scope",
-              category: "creature",
-              subcategory: { kind: "any" },
-            },
-            {
-              kind: "metricCompare",
-              leftMetric: "ability.int.mod",
-              op: "gt",
-              rightMetric: "ability.cha.mod",
-            },
-          ],
-        },
-        limit: 20,
-      },
-    });
-    expect(itemMetricCompareNode?.query).toEqual({
-      label: "Browse records matching the Item Metric Compare example",
-      request: {
-        mode: "browse",
-        filter: {
-          kind: "allOf",
-          children: [
-            {
-              kind: "scope",
-              category: "equipment",
-              subcategory: { kind: "any" },
-            },
-            {
-              kind: "metricCompare",
-              leftMetric: "shield.hp",
-              op: "gt",
-              rightMetric: "shield.bt",
-            },
-          ],
-        },
-        limit: 20,
-      },
-    });
+    expect(findNodeById(domain.rootNodes, "spell:booleanGroups")).toBeUndefined();
+    expect(findNodeById(domain.rootNodes, "creature:advancedPredicates")).toBeUndefined();
+    expect(findNodeById(domain.rootNodes, "equipment:advancedPredicates")).toBeUndefined();
     expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
       "Explore live creature statistics namespaces, keys, and exact scalar values from the indexed corpus.",
     );
@@ -698,11 +651,19 @@ describe("application ontology service", () => {
         limit: 20,
       },
     });
-    expect(getRequestMetadata(publicationTitleValueNode?.query?.request)).toEqual({
-      field: "publicationTitle",
-      op: "eq",
-      value: "Pathfinder Rage of Elements",
-    });
+    expect(getRequestFilter(publicationTitleValueNode?.query?.request)).toEqual(
+      buildAllOfFilter([
+        buildScopeFilter("spell"),
+        {
+          kind: "metadataPredicate",
+          predicate: {
+            field: "publicationTitle",
+            op: "eq",
+            value: "Pathfinder Rage of Elements",
+          },
+        },
+      ]),
+    );
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
