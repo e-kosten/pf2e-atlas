@@ -988,7 +988,7 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("All of");
     expect(app.lastFrame()).toContain("[+ add here]");
     app.stdin.write("\r");
     await flushInk();
@@ -2085,7 +2085,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("All of");
     expect(app.lastFrame()).toContain("[+ add here]");
     expect(app.lastFrame()).toContain(": focus actions");
     expect(app.lastFrame()).toContain("return");
@@ -2410,7 +2410,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("All of");
     expect(app.lastFrame()).toContain("[+ add here]");
 
     app.stdin.write("\r");
@@ -2539,7 +2539,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("All of");
     expect(app.lastFrame()).toContain("[+ add here]");
 
     app.stdin.write("\r");
@@ -2566,7 +2566,7 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Scope: Creature");
-    expect(app.lastFrame()).toContain("allOf");
+    expect(app.lastFrame()).toContain("All of");
 
     pressDown(app);
     await flushInk();
@@ -2749,7 +2749,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Creature Statistics: hp.value gte ac.value");
+    expect(app.lastFrame()).toContain("Creature Statistics: hp.value >= ac.value");
 
     app.stdin.write("\r");
     await flushInk();

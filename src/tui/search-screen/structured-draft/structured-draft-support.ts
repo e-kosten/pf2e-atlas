@@ -69,7 +69,10 @@ function buildFilterTreeEntries(
       key: "queryTree:root",
       label: "Filter Tree",
       description: "The dedicated filter builder always presents a visible root boolean group for top-level query clauses.",
-      menuLabel: options.rootOperator === "anyOf" ? "anyOf" : "allOf",
+      menuLabel: formatSearchFilterNodePresentationAlias(
+        options.rootOperator === "anyOf" ? { kind: "anyOf", children: [] } : { kind: "allOf", children: [] },
+        { style: "tree" },
+      ),
     },
   ];
 

@@ -93,7 +93,7 @@ describe("search query summary", () => {
     expect(visibleEntries.find((entry) => entry.key === "queryTree:root")).toMatchObject({
       anchor: { kind: "queryTreeRoot" },
       label: "Query Logic",
-      value: "allOf(5 filters)",
+      value: "All of (5 filters)",
     });
     expect(visibleEntries.find((entry) => entry.key === "exclude")).toMatchObject({
       anchor: { kind: "exclude" },
@@ -108,7 +108,7 @@ describe("search query summary", () => {
     expect(visibleEntries.find((entry) => entry.key === "queryNode:4")).toMatchObject({
       anchor: { kind: "queryNode", path: [4] },
       label: "Filter",
-      value: "anyOf(2 filters)",
+      value: "Any of (2 filters)",
     });
   });
 
@@ -119,10 +119,10 @@ describe("search query summary", () => {
     expect(withoutRarity.activeStructuredPartCount).toBe(4);
     expect(withRarity.activeStructuredPartCount).toBe(5);
     expect(getVisibleSearchQuerySummaryEntries(withoutRarity).find((entry) => entry.key === "queryTree:root")?.value).toBe(
-      "allOf(4 filters)",
+      "All of (4 filters)",
     );
     expect(getVisibleSearchQuerySummaryEntries(withRarity).find((entry) => entry.key === "queryTree:root")?.value).toBe(
-      "allOf(5 filters)",
+      "All of (5 filters)",
     );
   });
 
@@ -132,9 +132,9 @@ describe("search query summary", () => {
     const visibleEntries = getVisibleSearchQuerySummaryEntries(summary);
 
     expect(summary.activeStructuredPartCount).toBe(4);
-    expect(visibleEntries.find((entry) => entry.key === "queryTree:root")?.value).toBe("allOf(4 filters)");
+    expect(visibleEntries.find((entry) => entry.key === "queryTree:root")?.value).toBe("All of (4 filters)");
     expect(visibleEntries.find((entry) => entry.key === "queryNode:0")?.value).toBe("Level: 5-7");
-    expect(visibleEntries.find((entry) => entry.key === "queryNode:3")?.value).toBe("anyOf(2 filters)");
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:3")?.value).toBe("Any of (2 filters)");
     expect(visibleEntries.some((entry) => entry.value === "Scope: Creature")).toBe(false);
   });
 

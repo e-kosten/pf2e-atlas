@@ -25,9 +25,9 @@ describe("structured draft support", () => {
     const entries = buildStructuredDraftEntries(query, null, {});
     const menuLabels = entries.map((entry) => entry.menuLabel).filter((label): label is string => Boolean(label));
 
-    expect(menuLabels[0]).toBe("anyOf");
+    expect(menuLabels[0]).toBe("Any of");
     expect(menuLabels).toContain("├─ Pack: abomination-vaults");
-    expect(menuLabels).toContain("├─ anyOf");
+    expect(menuLabels).toContain("├─ Any of");
     expect(menuLabels).toContain("│  ├─ Pack: pathfinder-npc-core");
     expect(menuLabels).toContain("│  ├─ Pack: monster-core");
     expect(menuLabels).toContain("│  └─ [+ add here]");

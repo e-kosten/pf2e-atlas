@@ -105,7 +105,7 @@ describe("search query-core metric labels", () => {
           category: "creature",
         },
       ),
-    ).toBe("Creature Statistics: hp.value gte 10");
+    ).toBe("Creature Statistics: hp.value >= 10");
 
     expect(
       formatSearchFilterNodePresentationAlias(
@@ -119,7 +119,7 @@ describe("search query-core metric labels", () => {
           category: "creature",
         },
       ),
-    ).toBe("Creature Statistics: hp.value gte ac.value");
+    ).toBe("Creature Statistics: hp.value >= ac.value");
   });
 
   it("round-trips canonical metric families through metadata conversion using metric inference", () => {
@@ -407,8 +407,8 @@ describe("search query-core metric labels", () => {
       ],
     };
 
-    expect(formatMetadataNodePresentationAlias(tree, { style: "compact" })).toBe("anyOf(2 filters)");
-    expect(formatMetadataNodePresentationAlias(tree, { style: "tree" })).toBe("anyOf");
+    expect(formatMetadataNodePresentationAlias(tree, { style: "compact" })).toBe("Any of (2 filters)");
+    expect(formatMetadataNodePresentationAlias(tree, { style: "tree" })).toBe("Any of");
   });
 
   it("preserves explicit single-child canonical groups when wrapping and unwrapping nodes in the editor tree", () => {
@@ -533,8 +533,8 @@ describe("search query-core metric labels", () => {
       ],
     };
 
-    expect(formatSearchFilterNodePresentationAlias(tree, { style: "compact" })).toBe("allOf(2 filters)");
-    expect(formatSearchFilterNodePresentationAlias(tree, { style: "tree" })).toBe("allOf");
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "compact" })).toBe("All of (2 filters)");
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "tree" })).toBe("All of");
     expect(toggleSearchFilterRootGroupOperator(tree)).toEqual({
       kind: "anyOf",
       children: tree.children,

@@ -965,6 +965,44 @@ function formatSearchNumericMatch(match: Extract<SearchFilterNode, { kind: "leve
   }
 }
 
+function formatCanonicalMetricOperator(
+  op: Extract<SearchFilterNode, { kind: "metric" }>["op"] | Extract<SearchFilterNode, { kind: "metricCompare" }>["op"],
+): string {
+  switch (op) {
+    case "eq":
+      return "=";
+    case "notEq":
+      return "!=";
+    case "gt":
+      return ">";
+    case "gte":
+      return ">=";
+    case "lt":
+      return "<";
+    case "lte":
+      return "<=";
+  }
+}
+
+function formatBooleanGroupAlias(
+  operator: "allOf" | "anyOf",
+  count: number,
+  style: SearchFilterPresentationAliasStyle | SearchMetadataPresentationAliasStyle,
+): string {
+  const label = operator === "allOf" ? "All of" : "Any of";
+  if (style === "compact") {
+    return `${label} (${count} filter${count === 1 ? "" : "s"})`;
+  }
+  return label;
+}
+
+function formatNegationAlias(
+  childAlias: string | null,
+  style: SearchFilterPresentationAliasStyle | SearchMetadataPresentationAliasStyle,
+): string {
+  return style === "compact" && childAlias ? `Exclude ${childAlias}` : "Exclude";
+}
+
 function formatSearchNullableMatch(match: Extract<SearchFilterNode, { kind: "rarity" }>["match"] | Extract<SearchFilterNode, { kind: "actionCost" }>["match"]): string {
   switch (match.kind) {
     case "eq":
@@ -1024,13 +1062,16 @@ export function formatSearchFilterNodePresentationAlias(
 
   switch (node.kind) {
     case "allOf":
-      return style === "compact" ? `allOf(${node.children.length} filters)` : "allOf";
+      return formatBooleanGroupAlias("allOf", node.children.length, style);
     case "anyOf":
-      return style === "compact" ? `anyOf(${node.children.length} filters)` : "anyOf";
+      return formatBooleanGroupAlias("anyOf", node.children.length, style);
     case "not":
-      return style === "compact"
-        ? `not ${formatSearchFilterNodePresentationAlias(node.child, { ...options, style: "compact" })}`
-        : "not";
+      return formatNegationAlias(
+        style === "compact"
+          ? formatSearchFilterNodePresentationAlias(node.child, { ...options, style: "compact" })
+          : null,
+        style,
+      );
     case "scope":
       return `Scope: ${humanizeOntologySearchIdentifier(node.category)}${
         node.subcategory.kind === "eq" ? ` / ${humanizeOntologySearchIdentifier(node.subcategory.value)}` : ""
@@ -1055,12 +1096,12 @@ export function formatSearchFilterNodePresentationAlias(
       return `${getMetricQueryFieldLabel(
         resolveMetricQueryFieldPresentation(node.metric, false, options.category ?? null),
         options.category ?? null,
-      )}: ${node.metric} ${node.op} ${String(node.value)}`;
+      )}: ${node.metric} ${formatCanonicalMetricOperator(node.op)} ${formatMetadataScalar(node.value)}`;
     case "metricCompare":
       return `${getMetricQueryFieldLabel(
         resolveMetricQueryFieldPresentation(node.leftMetric, true, options.category ?? null),
         options.category ?? null,
-      )}: ${node.leftMetric} ${node.op} ${node.rightMetric}`;
+      )}: ${node.leftMetric} ${formatCanonicalMetricOperator(node.op)} ${node.rightMetric}`;
   }
 }
 
@@ -1172,19 +1213,18 @@ export function formatMetadataNodePresentationAlias(
   const style = options.style ?? "tree";
 
   if ("and" in node) {
-    return style === "compact" ? `allOf(${node.and.length} filter${node.and.length === 1 ? "" : "s"})` : "allOf";
+    return formatBooleanGroupAlias("allOf", node.and.length, style);
   }
 
   if ("or" in node) {
-    return style === "compact" ? `anyOf(${node.or.length} filter${node.or.length === 1 ? "" : "s"})` : "anyOf";
+    return formatBooleanGroupAlias("anyOf", node.or.length, style);
   }
 
   if ("not" in node) {
-    if (style === "compact") {
-      const childAlias = formatMetadataNodePresentationAlias(node.not, { category, style: "compact" });
-      return `not ${childAlias}`;
-    }
-    return "not";
+    return formatNegationAlias(
+      style === "compact" ? formatMetadataNodePresentationAlias(node.not, { category, style: "compact" }) : null,
+      style,
+    );
   }
 
   const summary = describeMetadataNode(node, { rootLabel: "node", category });
