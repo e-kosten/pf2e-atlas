@@ -33,6 +33,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Search semantics explorer completeness](./items/search-semantics-explorer-completeness.md)
   Most explorer depth is already landed; the remaining gap is richer numeric metric corpus exploration without breaking the current ontology/search ownership split. Status: proposed.
 
+- [Search semantics surface convergence](./items/search-semantics-surface-convergence.md)
+  Preserve the architectural opportunity to converge ontology/search semantics internals and mode contracts without collapsing the distinct broad-browse and prepared-query surfaces. Status: proposed.
+
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
