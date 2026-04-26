@@ -297,6 +297,35 @@ function CenteredModePromptHarness({
   );
 }
 
+function OverlayTransparencyHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+
+  React.useEffect(() => {
+    void terminal.promptSelectOption({
+      title: "Choose Search Mode",
+      prompt: "",
+      presentation: "overlay",
+      choiceLayout: "horizontal",
+      filtering: false,
+      entries: [
+        { value: "browse", label: "Browse", description: "Explore records without text search." },
+        { value: "search", label: "Search", description: "Search named records and ranked text matches." },
+        { value: "lookup", label: "Lookup", description: "Jump straight to exact or fuzzy name lookup." },
+      ],
+    });
+  }, [terminal]);
+
+  return (
+    <TerminalTextScreen
+      title="Backdrop Harness"
+      body={Array.from({ length: 16 }, (_, index) => ({
+        text: `L${String(index).padStart(2, "0")} ${"·".repeat(84)} R${String(index).padStart(2, "0")}`,
+        noWrap: true,
+      }))}
+    />
+  );
+}
+
 function TextPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -1366,6 +1395,25 @@ describe("derived tag terminal ink runtime", () => {
     expect(frame).toContain("viewportHeight=20");
     expect(frame).toContain("modalLayoutHeight=0");
     expect(frame).toContain("modalViewportHeight=20");
+  });
+
+  it("keeps the overlay background visible outside the floating prompt box", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <OverlayTransparencyHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    const frame = app.lastFrame() ?? "";
+    const promptLineIndex = findFrameLine(frame, "Choose Search Mode");
+    expect(promptLineIndex).toBeGreaterThan(2);
+
+    const promptLine = frame.split("\n")[promptLineIndex] ?? "";
+    expect(promptLine).toContain("Choose Search Mode");
+    expect(promptLine).toMatch(/L\d{2}/);
+    expect(promptLine).toMatch(/R\d{2}/);
   });
 
   it("supports typed all-selections without sentinel values", async () => {

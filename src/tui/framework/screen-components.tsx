@@ -173,10 +173,11 @@ export function TerminalCenteredOverlayPanel({
 }): React.JSX.Element {
   const size = useDerivedTagTerminalViewportSize();
   const topOffset = Math.max(0, Math.floor((Math.max(0, size.height - height)) / 3));
+  const leftOffset = Math.max(0, Math.floor((Math.max(0, size.width - width)) / 2));
+  const rightOffset = Math.max(0, size.width - leftOffset - width);
 
   return (
-    <Box position="absolute" width="100%" height="100%" flexDirection="column" alignItems="center">
-      <Box height={topOffset} />
+    <Box position="absolute" flexDirection="column" top={topOffset} left={leftOffset} right={rightOffset}>
       <Box width={width} height={height}>
         {children}
       </Box>
