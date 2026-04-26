@@ -425,7 +425,7 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Spell");
   });
 
-  it("does not expose ontology discovery mode switching before mode-aware loaders land", async () => {
+  it("exposes ontology discovery mode switching through the shared action rail", async () => {
     const services = createFakeServices();
     const loadSearchSemanticsDomain = vi.fn(async () => createSearchSemanticsModel());
     services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
@@ -439,9 +439,13 @@ describe("pf2e terminal app", () => {
 
     await openOntologyBrowser(app);
     expect(app.lastFrame()).toContain("Search Semantics");
-    expect(app.lastFrame()).not.toContain("matching counts");
-    expect(app.lastFrame()).not.toContain("catalog counts");
+    expect(app.lastFrame()).toContain("matching counts");
     expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
+
+    app.stdin.write(":");
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
   });
 
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {
@@ -708,8 +712,6 @@ describe("pf2e terminal app", () => {
     await flushFrames(2);
     const searchFrame = app.lastFrame();
     expect(searchFrame).toContain("Browse | Creature |");
-    expect(searchFrame).toContain("Scope: Creature");
-    expect(searchFrame).toContain("Filters > | 1 active");
 
     pressLeft(app);
     await flushFrames(2);

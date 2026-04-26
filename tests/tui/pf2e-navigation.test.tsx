@@ -221,10 +221,17 @@ describe("pf2e navigation", () => {
     });
 
     expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
-    expect(capture.current!.state.routeStack).toEqual([
-      { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      createPf2eOntologyRoute({ model }),
-    ]);
+    expect(capture.current!.state.routeStack).toHaveLength(2);
+    expect(capture.current!.state.routeStack[0]).toEqual({ kind: PF2E_APP_ROUTE_KIND.AREAS });
+    expect(capture.current!.state.routeStack[1]).toEqual(
+      expect.objectContaining({
+        kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+        model,
+        initialDiscoveryMode: "matching",
+      }),
+    );
+    expect(capture.current!.state.routeStack[1]).toHaveProperty("loadModelForDiscoveryMode");
+    expect(typeof capture.current!.state.routeStack[1]?.loadModelForDiscoveryMode).toBe("function");
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
 
@@ -258,10 +265,17 @@ describe("pf2e navigation", () => {
       await flushReact();
     });
 
-    expect(capture.current!.state.routeStack).toEqual([
-      { kind: PF2E_APP_ROUTE_KIND.AREAS },
-      createPf2eOntologyRoute({ model }),
-    ]);
+    expect(capture.current!.state.routeStack).toHaveLength(2);
+    expect(capture.current!.state.routeStack[0]).toEqual({ kind: PF2E_APP_ROUTE_KIND.AREAS });
+    expect(capture.current!.state.routeStack[1]).toEqual(
+      expect.objectContaining({
+        kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+        model,
+        initialDiscoveryMode: "matching",
+      }),
+    );
+    expect(capture.current!.state.routeStack[1]).toHaveProperty("loadModelForDiscoveryMode");
+    expect(typeof capture.current!.state.routeStack[1]?.loadModelForDiscoveryMode).toBe("function");
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
 
