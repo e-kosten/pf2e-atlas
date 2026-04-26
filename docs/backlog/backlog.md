@@ -24,6 +24,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Derived-tag index service layer](./items/derived-tag-index-service-layer.md)
+  Replace the raw `openIndex()` / `DatabaseSync` escape hatch in editorial, discovery, evaluation, and derived-tag ontology cache flows with a real shared derived-tag backend service family. Status: proposed.
+
 - [Derived-tag concept model implementation](./items/derived-tag-concept-model-implementation.md)
   Move the preserved canonical concept/projection design out of scratch planning and into tracked `src/tags/` ownership, including source-of-truth schema, projection metadata, and canonical concept relations. Status: proposed.
 
