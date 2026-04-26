@@ -326,6 +326,31 @@ function OverlayTransparencyHarness(): React.JSX.Element {
   );
 }
 
+function OpaqueOverlayPromptHarness(): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+
+  React.useEffect(() => {
+    void terminal.promptTextInput({
+      title: "Opaque Overlay Prompt ".repeat(6).trim(),
+      prompt: "Enter a value",
+      hint: "Full-width overlay opacity check",
+      presentation: "overlay",
+      previewTitle: "Preview",
+      buildPreviewLines: () => [{ text: "Preview content" }],
+    });
+  }, [terminal]);
+
+  return (
+    <TerminalTextScreen
+      title="Opacity Harness"
+      body={Array.from({ length: 16 }, (_, index) => ({
+        text: `BG${String(index).padStart(2, "0")} ${"~".repeat(90)}`,
+        noWrap: true,
+      }))}
+    />
+  );
+}
+
 function TextPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -1414,6 +1439,29 @@ describe("derived tag terminal ink runtime", () => {
     expect(promptLine).toContain("Choose Search Mode");
     expect(promptLine).toMatch(/L\d{2}/);
     expect(promptLine).toMatch(/R\d{2}/);
+  });
+
+  it("paints an opaque panel surface inside the floating overlay prompt", async () => {
+    const app = renderWithTerminalSize(
+      <DerivedTagTerminalProvider>
+        <OpaqueOverlayPromptHarness />
+      </DerivedTagTerminalProvider>,
+      { columns: 100, rows: 20 },
+    );
+
+    await flushInkFrames(4);
+    const frame = app.lastFrame() ?? "";
+    expect(frame).toContain("Opaque Overlay Prompt");
+    expect(frame).toContain("Preview");
+
+    const lines = frame.split("\n");
+    const leaveBlankLine = findFrameLine(frame, "Leave blank to skip.");
+    const previewLine = findFrameLine(frame, "Preview");
+    expect(leaveBlankLine).toBeGreaterThan(0);
+    expect(previewLine).toBeGreaterThan(leaveBlankLine + 1);
+
+    const gapLine = lines[leaveBlankLine + 1] ?? "";
+    expect(gapLine).not.toContain("BG");
   });
 
   it("supports typed all-selections without sentinel values", async () => {

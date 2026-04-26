@@ -25,6 +25,8 @@ import type {
   DerivedTagTerminalTwoPaneScreenProps,
 } from "./types.js";
 
+const TERMINAL_PANEL_SURFACE_BACKGROUND = "black";
+
 function withBackdropTextProps(
   props: React.ComponentProps<typeof Text>,
   backdropActive: boolean,
@@ -37,6 +39,22 @@ function withBackdropTextProps(
     ...props,
     dimColor: true,
   };
+}
+
+function TerminalPanelSurface({
+  width,
+  height,
+  children,
+}: {
+  width: number;
+  height: number;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <Box width={width} height={height} flexDirection="column" backgroundColor={TERMINAL_PANEL_SURFACE_BACKGROUND}>
+      {children}
+    </Box>
+  );
 }
 
 export function TerminalHeader({
@@ -139,7 +157,7 @@ export function TerminalInlinePromptPanel({
   const bodyHeight = Math.max(0, height - headerHeight - footerHeight);
 
   return (
-    <Box flexDirection="column" width={width} height={height}>
+    <TerminalPanelSurface width={width} height={height}>
       {showTopBorder ? (
         <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("dim"), backdropActive)}>
           {fitToWidth("─".repeat(Math.max(0, width)), width)}
@@ -158,7 +176,7 @@ export function TerminalInlinePromptPanel({
         {body}
       </Box>
       <TerminalFooter footer={footer} width={width} />
-    </Box>
+    </TerminalPanelSurface>
   );
 }
 
