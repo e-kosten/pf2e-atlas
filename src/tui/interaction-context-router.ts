@@ -28,7 +28,6 @@ export type TerminalInteractionContextKind =
   | "textEntry"
   | "actionTarget"
   | "message"
-  | "commandPalette"
   | "selectPrompt"
   | "multiSelectPrompt"
   | "textPrompt"
@@ -295,23 +294,6 @@ export function createTerminalActionTargetInteractionContext<TContextId extends 
       state: options.state,
       orientation: options.orientation,
     },
-  };
-}
-
-export function createTerminalCommandPaletteInteractionContext(
-  pageSize: number,
-): TerminalInteractionContextConfig<"commandPalette"> {
-  return {
-    id: "commandPalette",
-    kind: "commandPalette",
-    interactionActions: [{ id: "select" }, { id: "back", label: "cancel" }],
-    navigation: {
-      pageSize,
-      jumpSize: 5,
-      includeCancelKeys: true,
-      includeHorizontalCancelKeys: true,
-    },
-    textEntry: true,
   };
 }
 

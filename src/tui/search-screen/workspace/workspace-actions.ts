@@ -5,8 +5,6 @@ import type { SearchStructuredEditorSession } from "../query-field-builder/query
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import type { SearchScreenOrigin } from "../workflow-types.js";
 import {
-  buildEditorCommandPaletteEntries,
-  buildResultCommandPaletteEntries,
   decodeQueryNodeActionPath,
   isQueryNodeAction,
   type SearchWorkspaceAction,
@@ -34,7 +32,6 @@ export function useSearchWorkspaceActions({
   dispatch,
   executeRequest,
   exitSearchScreen,
-  jumpToResultPosition,
   maxDetailScroll,
   openFilterExplorer,
   origin,
@@ -46,13 +43,11 @@ export function useSearchWorkspaceActions({
   terminal,
   user,
   workspaceEntries,
-  chooseResultSort,
 }: {
   applyQueryUpdate: (update: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
   dispatch: React.Dispatch<SearchScreenAction>;
   executeRequest: (query: Pf2eTerminalSearchQuery) => Promise<void>;
   exitSearchScreen: () => void;
-  jumpToResultPosition: () => Promise<void>;
   maxDetailScroll: number;
   openFilterExplorer: OpenSearchFilterExplorer;
   origin: SearchScreenOrigin;
@@ -64,7 +59,6 @@ export function useSearchWorkspaceActions({
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
   workspaceEntries: SearchWorkspaceEntry[];
-  chooseResultSort: () => Promise<void>;
 }): {
   handleIntent: (intent: import("../model.js").SearchScreenIntent) => void;
   runWorkspaceAction: (action: SearchWorkspaceAction) => void;
@@ -249,40 +243,6 @@ export function useSearchWorkspaceActions({
     runWorkspaceAction(selectedWorkspaceEntry.action);
   }, [runWorkspaceAction, selectedWorkspaceEntry]);
 
-  const openEditorCommandPalette = React.useCallback(async () => {
-    const selected = await prompts.promptCommandPalette({
-      title: "Query Editor Commands",
-      prompt: "Filter query editor commands",
-      entries: buildEditorCommandPaletteEntries(workspaceEntries),
-    });
-    if (!selected) {
-      return;
-    }
-    if (workspaceEntries.find((entry) => entry.action === selected)?.disabled) {
-      return;
-    }
-    runWorkspaceAction(selected);
-  }, [prompts, runWorkspaceAction, workspaceEntries]);
-
-  const openResultCommandPalette = React.useCallback(async () => {
-    const selected = await prompts.promptCommandPalette({
-      title: "Result Actions",
-      prompt: "Filter result actions",
-      entries: buildResultCommandPaletteEntries(state, origin),
-    });
-    if (selected === "jumpToResult") {
-      void jumpToResultPosition();
-      return;
-    }
-    if (selected === "sortResults") {
-      void chooseResultSort();
-      return;
-    }
-    if (selected === "openEditor") {
-      dispatch({ type: "set_layout", layout: "editor", pane: "list" });
-    }
-  }, [chooseResultSort, dispatch, jumpToResultPosition, origin, prompts, state]);
-
   const handleIntent = React.useCallback(
     (intent: import("../model.js").SearchScreenIntent) => {
       switch (intent.type) {
@@ -294,9 +254,6 @@ export function useSearchWorkspaceActions({
           return;
         case "edit_query":
           void editQueryText();
-          return;
-        case "open_editor_commands":
-          void openEditorCommandPalette();
           return;
         case "execute":
           void executeRequest(state.query);
@@ -320,9 +277,6 @@ export function useSearchWorkspaceActions({
           return;
         case "edit_selected_workspace":
           openSelectedWorkspaceEntry();
-          return;
-        case "open_result_commands":
-          void openResultCommandPalette();
           return;
         case "toggle_pane":
           dispatch({ type: "set_active_pane", pane: state.activePane === "list" ? "detail" : "list" });
@@ -361,8 +315,6 @@ export function useSearchWorkspaceActions({
       executeRequest,
       exitSearchScreen,
       maxDetailScroll,
-      openEditorCommandPalette,
-      openResultCommandPalette,
       openSelectedWorkspaceEntry,
       origin,
       resultCount,

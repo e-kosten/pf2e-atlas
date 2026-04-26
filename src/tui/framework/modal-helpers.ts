@@ -1,5 +1,4 @@
 import type {
-  DerivedTagTerminalCommandOption,
   DerivedTagTerminalLine,
   MultiSelectPromptOptions,
   SelectPromptOptions,
@@ -99,50 +98,6 @@ export function getSelectPromptInitialIndex(entries: TerminalSelectModalEntry[],
       entry.kind === "all" ? selectedValue === null : Object.is(entry.value, selectedValue),
     ),
   );
-}
-
-export function filterCommandPaletteEntries(
-  entries: DerivedTagTerminalCommandOption<string>[],
-  filterText: string,
-): DerivedTagTerminalCommandOption<string>[] {
-  return filterEntriesByTerms(entries, filterText, (entry) => [
-    entry.label,
-    entry.description ?? "",
-    ...(entry.aliases ?? []),
-    ...(entry.keywords ?? []),
-  ]);
-}
-
-export function getFirstEnabledCommandIndex(entries: DerivedTagTerminalCommandOption<string>[]): number {
-  const enabledIndex = entries.findIndex((entry) => !entry.disabled);
-  return enabledIndex >= 0 ? enabledIndex : 0;
-}
-
-export function buildCommandPaletteDetailLines(
-  option: DerivedTagTerminalCommandOption<string> | undefined,
-  filterText: string,
-): DerivedTagTerminalLine[] {
-  const lines = option?.detailLines ?? [
-    { text: option?.label ?? "(none)", tone: "section" as const },
-    { text: option?.description ?? "No additional details." },
-    ...(option?.aliases?.length ? [{ text: `Aliases: ${option.aliases.join(", ")}`, tone: "accent" as const }] : []),
-  ];
-
-  return [
-    ...lines,
-    ...(option?.disabled
-      ? [
-          {
-            text: option.disabledReason
-              ? `Unavailable: ${option.disabledReason}`
-              : "This command is currently unavailable.",
-            tone: "warning" as const,
-          },
-        ]
-      : []),
-    { text: "" },
-    { text: `Filter: ${filterText || "(none)"}`, tone: "accent" as const },
-  ];
 }
 
 export function filterPromptEntries<T extends TerminalSelectOptionDetails>(

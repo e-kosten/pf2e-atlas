@@ -2,8 +2,6 @@ import React from "react";
 import { Box, Text } from "ink";
 
 import {
-  TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER,
-  TERMINAL_COMMAND_PALETTE_FILTER_FOOTER,
   TERMINAL_LIVE_FILTER_FOOTER,
   TERMINAL_SELECT_EMPTY_FOOTER,
   TERMINAL_TEXT_INPUT_FOOTER,
@@ -22,17 +20,13 @@ import {
   TerminalPaneView,
 } from "./screen-components.js";
 import {
-  buildCommandPaletteDetailLines,
   buildPromptDetailLines,
   clampInlinePromptWindowStart,
-  clampPromptSelectionIndex,
-  filterCommandPaletteEntries,
   filterPromptEntries,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
 } from "./modal-helpers.js";
 import type {
-  CommandPaletteOptions,
   DerivedTagTerminalLine,
   MultiSelectPromptOptions,
   TerminalSelectModalOptions,
@@ -259,85 +253,6 @@ export function TextPromptBody({
         />
       }
       footer={[{ text: TERMINAL_TEXT_INPUT_FOOTER, tone: "dim" }]}
-      width={width}
-      height={layout.totalHeight}
-      showTopBorder={layout.showTopBorder}
-    />
-  );
-}
-
-export function CommandPaletteBody({
-  options,
-  filterText,
-  selectedIndex,
-  width,
-  layout,
-}: {
-  options: CommandPaletteOptions<string>;
-  filterText: string;
-  selectedIndex: number;
-  width: number;
-  layout: FrameworkTerminalModalLayoutResult;
-}): React.JSX.Element {
-  const filteredEntries = filterCommandPaletteEntries(options.entries, filterText);
-  const clampedSelectedIndex = clampPromptSelectionIndex(selectedIndex, filteredEntries.length);
-
-  if (filteredEntries.length === 0) {
-    return (
-      <TerminalInlinePromptPanel
-        title={options.title}
-        subtitle={options.subtitle ?? options.prompt}
-        body={
-          <InlinePromptMessageBody
-            width={width}
-            height={layout.bodyHeight}
-            lines={[
-              { text: options.prompt, tone: "section" },
-              { text: `Filter: ${filterText || "(none)"}`, tone: "accent" },
-              { text: "No commands match the current filter.", tone: "warning" },
-            ]}
-          />
-        }
-        footer={[{ text: TERMINAL_COMMAND_PALETTE_EMPTY_FILTER_FOOTER, tone: "dim" }]}
-        width={width}
-        height={layout.totalHeight}
-        showTopBorder={layout.showTopBorder}
-      />
-    );
-  }
-
-  const selectedOption = filteredEntries[clampedSelectedIndex];
-  const visibleCount = Math.max(1, layout.visibleListCapacity);
-  const windowStart = clampInlinePromptWindowStart(clampedSelectedIndex, filteredEntries.length, visibleCount);
-  const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
-
-  return (
-    <TerminalInlinePromptPanel
-      title={options.title}
-      subtitle={options.subtitle ?? options.prompt}
-      body={
-        <InlinePromptChoiceBody
-          prompt={filterText ? `Filter: ${filterText}` : options.prompt}
-          entries={visibleEntries.map((entry, offset) => ({
-            text: `${entry.label}${entry.disabled ? " | unavailable" : ""}`,
-            tone: windowStart + offset === clampedSelectedIndex ? "selected" : entry.disabled ? "dim" : "default",
-            noWrap: true,
-          }))}
-          detailLines={buildCommandPaletteDetailLines(selectedOption, filterText)}
-          focusedLabel={`Command ${clampedSelectedIndex + 1}/${filteredEntries.length}`}
-          width={width}
-          height={layout.bodyHeight}
-          layout={layout}
-        />
-      }
-      footer={[
-        {
-          text: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
-          tone: "dim",
-        },
-        { text: TERMINAL_COMMAND_PALETTE_FILTER_FOOTER, tone: "dim" },
-        { text: `${filteredEntries.length} command${filteredEntries.length === 1 ? "" : "s"} visible`, tone: "accent" },
-      ]}
       width={width}
       height={layout.totalHeight}
       showTopBorder={layout.showTopBorder}

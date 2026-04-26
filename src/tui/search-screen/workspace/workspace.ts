@@ -9,7 +9,7 @@ import {
   type SearchQuerySummaryAnchor,
   type SearchQuerySummaryEntry,
 } from "./query-summary.js";
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../../framework/types.js";
+import type { DerivedTagTerminalLine } from "../../framework/types.js";
 import { clampWindowStart } from "../../list-utils.js";
 import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "../state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "../state.js";
@@ -358,19 +358,4 @@ export function buildWorkspaceEntryDetailLines(
     { text: "" },
     ...buildQuerySummaryLines(state, countState, renderOptions),
   ];
-}
-
-export function buildEditorCommandPaletteEntries(
-  workspaceEntries: SearchWorkspaceEntry[],
-): DerivedTagTerminalCommandOption<SearchWorkspaceAction>[] {
-  return workspaceEntries
-    .filter((entry) => !entry.disabled)
-    .map((entry) => ({
-      value: entry.action,
-      label: entry.label,
-      description: entry.description,
-      keywords: [entry.value],
-      disabled: entry.disabled,
-      disabledReason: entry.disabledReason,
-    }));
 }

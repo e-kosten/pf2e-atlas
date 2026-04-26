@@ -1,4 +1,4 @@
-import type { TerminalInteractionAction, TerminalInteractionCommand } from "../interaction-bindings.js";
+import type { TerminalInteractionAction } from "../interaction-bindings.js";
 import { buildTerminalInteractionHelpLines, formatTerminalInteractionFooter } from "../interaction-bindings.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
@@ -23,7 +23,6 @@ import {
   formatMode,
   formatSearchScope,
 } from "./workspace/workspace.js";
-import { buildResultCommandPaletteEntries } from "./results.js";
 
 export type SearchInteractionContext = "editor" | "result-list" | "result-detail";
 
@@ -31,13 +30,11 @@ export type SearchScreenIntent =
   | { type: "show_help" }
   | { type: "quit" }
   | { type: "edit_query" }
-  | { type: "open_editor_commands" }
   | { type: "execute" }
   | { type: "back_to_app" }
   | { type: "move_workspace_selection"; delta: number }
   | { type: "workspace_selection_boundary"; boundary: "start" | "end" }
   | { type: "edit_selected_workspace" }
-  | { type: "open_result_commands" }
   | { type: "toggle_pane" }
   | { type: "return_to_editor" }
   | { type: "move_result_selection"; delta: number }
@@ -110,18 +107,19 @@ export function buildSearchFooterText(
   loadingMore: boolean,
   origin: SearchScreenOrigin = "app",
   options: {
-    editorActionTargetState?: DerivedTagTerminalActionTargetState;
+    actionTargetState?: DerivedTagTerminalActionTargetState;
   } = {},
 ): string {
   const context = getSearchInteractionContext(state);
 
+  if (options.actionTargetState?.activeTarget === "actions") {
+    return formatTerminalInteractionFooter([
+      ...getDerivedTagTerminalActionTargetInteractionActions(options.actionTargetState, "horizontal"),
+      { id: "help" },
+    ]);
+  }
+
   if (context === "editor") {
-    if (options.editorActionTargetState?.activeTarget === "actions") {
-      return formatTerminalInteractionFooter([
-        ...getDerivedTagTerminalActionTargetInteractionActions(options.editorActionTargetState, "horizontal"),
-        { id: "help" },
-      ]);
-    }
     return formatTerminalInteractionFooter([
       { id: "move", label: "select" },
       { id: "jump" },
@@ -155,7 +153,7 @@ export function buildSearchHelpLines(
   state: SearchScreenState,
   workspaceEntries: SearchWorkspaceEntry[],
   origin: SearchScreenOrigin = "app",
-  editorActionEntries: readonly DerivedTagTerminalActionTargetOption[] = [],
+  actionEntries: readonly DerivedTagTerminalActionTargetOption[] = [],
 ): DerivedTagTerminalLine[] {
   const context = getSearchInteractionContext(state);
 
@@ -197,13 +195,13 @@ export function buildSearchHelpLines(
           actions: actionActions,
         },
       ]),
-      ...(editorActionEntries.length > 0
+      ...(actionEntries.length > 0
         ? [
             { text: "" },
             ...buildDerivedTagTerminalActionTargetHelpLines({
               orientation: "horizontal",
               visibility: "onDemand",
-              actions: editorActionEntries,
+              actions: actionEntries,
               contentHelpText: "Use the shared action rail here instead of a hidden command palette.",
             }),
           ]
@@ -235,36 +233,41 @@ export function buildSearchHelpLines(
             ? "return to the query editor"
             : action.id === "back"
               ? "return to the result list"
-              : action.id === "focus"
-                ? "switch focus between results and preview"
-                : action.id === "actions"
-                  ? "open the result actions"
-                  : action.id === "help"
-                    ? "show search results help"
-                    : origin === "ontology"
+                : action.id === "focus"
+                  ? "switch focus between results and preview"
+                  : action.id === "actions"
+                    ? "focus the result action rail"
+                    : action.id === "help"
+                      ? "show search results help"
+                      : origin === "ontology"
                       ? "return to the launching ontology view"
                       : "leave browse/search",
     label: action.id === "focus" ? "toggle pane" : action.label,
   }));
 
-  return buildTerminalInteractionHelpLines([
-    {
-      title: "Navigation",
-      actions: navigationActions,
-    },
-    {
-      title: "Actions",
-      actions: resultActions,
-    },
-    {
-      title: "Result Actions",
-      commands: buildResultCommandPaletteEntries(state, origin).map<TerminalInteractionCommand>((entry) => ({
-        label: entry.label,
-        description: entry.description ?? "No additional details.",
-        aliases: entry.aliases,
-      })),
-    },
-  ]);
+  return [
+    ...buildTerminalInteractionHelpLines([
+      {
+        title: "Navigation",
+        actions: navigationActions,
+      },
+      {
+        title: "Actions",
+        actions: resultActions,
+      },
+    ]),
+    ...(actionEntries.length > 0
+      ? [
+          { text: "" },
+          ...buildDerivedTagTerminalActionTargetHelpLines({
+            orientation: "horizontal",
+            visibility: "onDemand",
+            actions: actionEntries,
+            contentHelpText: "Use the shared result action rail instead of a hidden command palette.",
+          }),
+        ]
+      : []),
+  ];
 }
 
 export function buildSearchSubtitle(
@@ -299,7 +302,7 @@ export function useSearchScreenInteractionRouter(options: {
     tone?: TerminalListDetailNotificationTone;
   }) => void;
   onIntent: (intent: SearchScreenIntent) => void;
-  editorActionTarget?: {
+  actionTarget?: {
     state: DerivedTagTerminalActionTargetState;
     actionCount: number;
     onToggle: () => void;
@@ -325,17 +328,16 @@ export function useSearchScreenInteractionRouter(options: {
       pageSize: options.pageSize,
       jumpSize: options.selectionJumpSize,
     },
-    actionTarget:
-      options.state.layout === "editor" && options.editorActionTarget
-        ? {
-            interactionActions: [
-              ...getDerivedTagTerminalActionTargetInteractionActions(options.editorActionTarget.state, "horizontal"),
-              { id: "help" },
-            ],
-            state: options.editorActionTarget.state,
-            orientation: "horizontal",
-          }
-        : undefined,
+    actionTarget: options.actionTarget
+      ? {
+          interactionActions: [
+            ...getDerivedTagTerminalActionTargetInteractionActions(options.actionTarget.state, "horizontal"),
+            { id: "help" },
+          ],
+          state: options.actionTarget.state,
+          orientation: "horizontal",
+        }
+      : undefined,
     onRoute: ({ detail, list, actionTarget }) => {
       const activeRoute =
         options.state.layout === "editor" ? list : options.state.activePane === "list" ? list : detail;
@@ -351,22 +353,22 @@ export function useSearchScreenInteractionRouter(options: {
 
       if (options.state.layout === "editor") {
         if (actionTarget?.actionTargetIntent?.kind === "toggle_target") {
-          options.editorActionTarget?.onToggle();
+          options.actionTarget?.onToggle();
           return;
         }
         if (actionTarget?.actionTargetIntent?.kind === "leave_actions") {
-          options.editorActionTarget?.onLeave();
+          options.actionTarget?.onLeave();
           return;
         }
         if (actionTarget?.actionTargetIntent?.kind === "move_action") {
-          options.editorActionTarget?.onMove(actionTarget.actionTargetIntent.delta);
+          options.actionTarget?.onMove(actionTarget.actionTargetIntent.delta);
           return;
         }
         if (actionTarget?.actionTargetIntent?.kind === "apply_action") {
-          options.editorActionTarget?.onApply();
+          options.actionTarget?.onApply();
           return;
         }
-        if (options.editorActionTarget?.state.activeTarget === "actions") {
+        if (options.actionTarget?.state.activeTarget === "actions") {
           if (actionTarget?.interactionAction?.id === "help") {
             options.onIntent({ type: "show_help" });
           }
@@ -377,7 +379,7 @@ export function useSearchScreenInteractionRouter(options: {
           return;
         }
         if (activeRoute.interactionAction?.id === "actions") {
-          options.editorActionTarget?.onToggle();
+          options.actionTarget?.onToggle();
           return;
         }
         if (activeRoute.interactionAction?.id === "execute") {
@@ -402,8 +404,31 @@ export function useSearchScreenInteractionRouter(options: {
         return;
       }
 
-      if (activeRoute.interactionAction?.id === "actions" || activeRoute.interactionAction?.id === "commands") {
-        options.onIntent({ type: "open_result_commands" });
+      if (actionTarget?.actionTargetIntent?.kind === "toggle_target") {
+        options.actionTarget?.onToggle();
+        return;
+      }
+      if (actionTarget?.actionTargetIntent?.kind === "leave_actions") {
+        options.actionTarget?.onLeave();
+        return;
+      }
+      if (actionTarget?.actionTargetIntent?.kind === "move_action") {
+        options.actionTarget?.onMove(actionTarget.actionTargetIntent.delta);
+        return;
+      }
+      if (actionTarget?.actionTargetIntent?.kind === "apply_action") {
+        options.actionTarget?.onApply();
+        return;
+      }
+      if (options.actionTarget?.state.activeTarget === "actions") {
+        if (actionTarget?.interactionAction?.id === "help") {
+          options.onIntent({ type: "show_help" });
+        }
+        return;
+      }
+
+      if (activeRoute.interactionAction?.id === "actions") {
+        options.actionTarget?.onToggle();
         return;
       }
 

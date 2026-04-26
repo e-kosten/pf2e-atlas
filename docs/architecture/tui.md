@@ -83,7 +83,7 @@ But the TUI keeps UI concerns local:
 - framework modules own Ink-specific rendering, modal hosting, terminal sizing, and raw input normalization
 - shared list/detail owners now own repeated pane measurement, screen-model assembly, shared interaction-context setup, compact default result rows, shared breadcrumb formatting, the reusable rightward behavior contract for screens that follow the common list/detail pattern, and the shared grouped-result presentation path for compatible result readers
 
-This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, command palettes, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
+This split matters because it lets the TUI add richer interaction behavior without pushing terminal concepts like pane focus, action rails, or staged editors down into `src/app/`, `src/data/`, or `src/search/`.
 
 Shared ontology/detail presenters may also attach optional link metadata to a text line, such as `href` plus a plain-text fallback string. The shared TUI framework owns hyperlink rendering for those lines: supported terminals get a clickable OSC 8 hyperlink, while unsupported terminals and plain-text consumers fall back to a readable `label: url` string.
 
@@ -345,21 +345,21 @@ That means:
 - footer and help text should be derived from the same action tables that actually execute on the screen
 - list/detail screens should prefer the shared presentation layer over open-coded pane measurement and route-setup glue once their workflow fits that shape
 
-### Command Palette And Action Rail
+### Action Rail And Picker Commands
 
-The TUI supports both command-palette and focused action-target flows, but a screen should usually use one of them for a given responsibility instead of mixing both.
+The TUI uses the shared action-target rail for screen-level and selection-level actions. Broad page actions should not fall back to a hidden command palette when the same action set can be surfaced through the rail.
 
-- command palettes are the better fit for broad, lower-frequency, text-searchable commands
-- focused action rails are the better fit for constrained, high-frequency action sets on a selected record or item
-- page-specific one-letter commands should remain rare; new screen-specific actions should usually be surfaced through one of the shared mechanisms above
+- focused action rails are the default fit for constrained, high-frequency action sets on a selected record, result, or editor surface
+- picker-local `supportsCommands` flows are allowed when a modal needs a small mode-switch or auxiliary action path without leaving the picker
+- page-specific one-letter commands should remain rare; new screen-specific actions should usually be surfaced through the shared action rail
 
 ### Action-Target Contract
 
 When a screen adopts the shared action-target model, preserve the same focus and exit semantics across surfaces:
 
 - `:` is the explicit entry point for command-oriented interactions
-- on command-palette pages, `:` opens the palette
 - on action-target pages, `:` enters the action target, and `:` or `Esc` leaves it
+- on picker-local auxiliary-command pages, `:` invokes the picker's auxiliary command path rather than a separate command-palette surface
 - `Enter` applies the selected action
 - arrows and vim keys should act inside the focused target only
 - persistent action rails should still require explicit entry; users should not move into them accidentally

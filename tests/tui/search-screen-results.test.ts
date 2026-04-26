@@ -5,7 +5,7 @@ import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../../src/tui/search/service-types.js";
 import { buildSearchFooterText, buildSearchHelpLines } from "../../src/tui/search-screen/interactions.js";
 import {
-  buildResultCommandPaletteEntries,
+  buildResultActionEntries,
   buildResultDetailLines,
   buildResultLines,
   canChangeResultSort,
@@ -245,13 +245,13 @@ describe("search result detail lines", () => {
     expect(canChangeResultSort(searchSession)).toBe(false);
     expect(canChangeResultSort(lookupSession)).toBe(true);
 
-    expect(buildResultCommandPaletteEntries(createResultState(browseSession), "app").map((entry) => entry.value)).toContain(
+    expect(buildResultActionEntries(createResultState(browseSession), "app").map((entry) => entry.id)).toContain(
       "sortResults",
     );
-    expect(buildResultCommandPaletteEntries(createResultState(searchSession), "app").map((entry) => entry.value)).not.toContain(
+    expect(buildResultActionEntries(createResultState(searchSession), "app").map((entry) => entry.id)).not.toContain(
       "sortResults",
     );
-    expect(buildResultCommandPaletteEntries(createResultState(lookupSession), "app").map((entry) => entry.value)).toContain(
+    expect(buildResultActionEntries(createResultState(lookupSession), "app").map((entry) => entry.id)).toContain(
       "sortResults",
     );
   });
@@ -265,11 +265,11 @@ describe("search result detail lines", () => {
     });
     const state = createResultState(session);
     const footer = buildSearchFooterText(state, false, "app");
-    const helpLines = buildSearchHelpLines(state, [], "app").map((line) => line.text);
+    const helpLines = buildSearchHelpLines(state, [], "app", buildResultActionEntries(state, "app")).map((line) => line.text);
 
     expect(footer).toContain("actions");
     expect(footer).not.toContain("commands");
-    expect(helpLines).toContain("Result Actions");
-    expect(helpLines.some((line) => line.toLowerCase().includes("result actions"))).toBe(true);
+    expect(helpLines.some((line) => line.toLowerCase().includes("focus the result action rail"))).toBe(true);
+    expect(helpLines.some((line) => line.toLowerCase().includes("jump to result"))).toBe(true);
   });
 });

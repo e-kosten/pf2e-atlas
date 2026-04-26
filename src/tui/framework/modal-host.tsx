@@ -3,7 +3,6 @@ import { useInput } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
 import {
-  createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalMultiSelectPromptInteractionContext,
   createTerminalSelectPromptInteractionContext,
@@ -12,15 +11,11 @@ import {
 } from "../interaction-context-router.js";
 import { createDerivedTagTerminalInputEvent, moveSelectionWrapped } from "./input.js";
 import {
-  clampPromptSelectionIndex,
-  filterCommandPaletteEntries,
   filterPromptEntries,
-  getFirstEnabledCommandIndex,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
 } from "./modal-helpers.js";
 import {
-  CommandPaletteBody,
   InlinePromptMessageBody,
   MultiSelectPromptBody,
   SelectPromptBody,
@@ -32,13 +27,13 @@ import { isCenteredPromptPresentation } from "./prompt-presentation.js";
 import type { FrameworkTerminalModalLayoutResult } from "./modal-planning.js";
 
 function getChoicePromptFilteringEnabled(
-  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" }>,
 ): boolean {
   return modal.kind === "select" ? modal.options.filtering : getMultiSelectPromptFilteringEnabled(modal.options);
 }
 
 function getFilteredChoiceEntries(
-  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" }>,
 ) {
   switch (modal.kind) {
     case "select":
@@ -53,7 +48,7 @@ function getFilteredChoiceEntries(
 }
 
 function getChoicePromptSelectionIndex(
-  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" } | { kind: "command" }>,
+  modal: Exclude<TerminalModalState, null | { kind: "dialog" } | { kind: "text" }>,
   filterText = modal.filterText,
 ): number {
   switch (modal.kind) {
@@ -78,7 +73,7 @@ export function DerivedTagTerminalModalHost({
   layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element | null {
   const routerStateRef = React.useRef(
-    createTerminalInteractionContextRouterState<"commandPalette" | "multiSelectPrompt" | "selectPrompt" | "textPrompt">(),
+    createTerminalInteractionContextRouterState<"multiSelectPrompt" | "selectPrompt" | "textPrompt">(),
   );
   const resolveAfterModalClose = React.useCallback(<T,>(resolver: (value: T) => void, value: T): void => {
     routerStateRef.current = createTerminalInteractionContextRouterState();
@@ -165,88 +160,6 @@ export function DerivedTagTerminalModalHost({
           updateModalForLease(modal.ownership.leaseId, (current) =>
             current?.kind === "text" ? { ...current, value: current.value + appendText } : current,
           );
-        }
-        return;
-      }
-
-      if (modal.kind === "command") {
-        const routed = routeTerminalInteractionContext(
-          event,
-          createTerminalCommandPaletteInteractionContext(pageSize),
-          routerStateRef.current,
-        );
-        routerStateRef.current = routed.state;
-        const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
-        const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
-
-        if (routed.route.textEntryIntent?.kind === "deleteBackward") {
-          if (modal.filterText.length === 0) {
-            closeModalAfterResolution(modal, modal.resolve, undefined);
-            return;
-          }
-          updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "command"
-              ? {
-                  ...current,
-                  filterText: [...current.filterText].slice(0, -1).join(""),
-                  selectedIndex: getFirstEnabledCommandIndex(
-                    filterCommandPaletteEntries(current.options.entries, [...current.filterText].slice(0, -1).join("")),
-                  ),
-                }
-              : current,
-          );
-          return;
-        }
-        if (routed.route.textEntryIntent?.kind === "append") {
-          const appendText = routed.route.textEntryIntent.text;
-          updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "command"
-              ? {
-                  ...current,
-                  filterText: current.filterText + appendText,
-                  selectedIndex: getFirstEnabledCommandIndex(
-                    filterCommandPaletteEntries(current.options.entries, current.filterText + appendText),
-                  ),
-                }
-              : current,
-          );
-          return;
-        }
-        if (routed.route.navigationAction?.kind === "move") {
-          const delta = routed.route.navigationAction.delta;
-          updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "command"
-              ? {
-                  ...current,
-                  selectedIndex: moveSelectionWrapped(clampedSelectedIndex, delta, filteredEntries.length),
-                }
-              : current,
-          );
-          return;
-        }
-        if (routed.route.navigationAction?.kind === "boundary") {
-          const boundary = routed.route.navigationAction.boundary;
-          updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "command"
-              ? {
-                  ...current,
-                  selectedIndex: boundary === "start" ? 0 : Math.max(0, filteredEntries.length - 1),
-                }
-              : current,
-          );
-          return;
-        }
-        if (routed.route.interactionAction?.id === "select") {
-          const selectedEntry = filteredEntries[clampedSelectedIndex];
-          if (selectedEntry?.disabled) {
-            return;
-          }
-          const selected = selectedEntry?.value;
-          closeModalAfterResolution(modal, modal.resolve, selected);
-          return;
-        }
-        if (routed.route.interactionAction?.id === "back" || event.isTerminalQuitKey()) {
-          closeModalAfterResolution(modal, modal.resolve, undefined);
         }
         return;
       }
@@ -563,17 +476,6 @@ export function DerivedTagTerminalModalHost({
   if (modal.kind === "text") {
     return renderPanel(
       <TextPromptBody options={modal.options} currentValue={modal.value} width={panelWidth} layout={layout} />,
-    );
-  }
-  if (modal.kind === "command") {
-    return renderPanel(
-      <CommandPaletteBody
-        options={modal.options}
-        filterText={modal.filterText}
-        selectedIndex={modal.selectedIndex}
-        width={panelWidth}
-        layout={layout}
-      />,
     );
   }
   if (modal.kind === "multiselect") {

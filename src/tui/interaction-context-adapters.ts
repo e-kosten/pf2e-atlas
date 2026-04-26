@@ -3,7 +3,6 @@ import React from "react";
 import { TERMINAL_DIALOG_RETURN_FOOTER, type TerminalInteractionTone } from "./interaction-bindings.js";
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import {
-  type CommandPaletteOptions,
   type DerivedTagTerminalApp,
   type DerivedTagTerminalMultiSelectPromptResult,
   type DerivedTagTerminalMultiSelectPromptOptions as MultiSelectPromptOptions,
@@ -18,7 +17,6 @@ import {
 
 export type TerminalInteractionContextAdapters = Pick<
   DerivedTagTerminalApp,
-  | "promptCommandPalette"
   | "promptOptionalSelectOption"
   | "promptMultiSelectOption"
   | "promptSelectOption"
@@ -28,7 +26,6 @@ export type TerminalInteractionContextAdapters = Pick<
 
 export type SearchTerminalPromptAdapters = Pick<
   TerminalInteractionContextAdapters,
-  | "promptCommandPalette"
   | "promptMultiSelectOption"
   | "promptOptionalSelectOption"
   | "promptSelectOption"
@@ -40,8 +37,6 @@ export function createTerminalInteractionContextAdapters(
   terminal: TerminalInteractionContextAdapters,
 ): TerminalInteractionContextAdapters {
   return {
-    promptCommandPalette: async <T extends string>(options: CommandPaletteOptions<T>) =>
-      terminal.promptCommandPalette(options),
     promptOptionalSelectOption: async <T>(
       options: OptionalSelectPromptOptions<T>,
     ): Promise<DerivedTagTerminalOptionalSelectPromptResult<T>> => terminal.promptOptionalSelectOption(options),

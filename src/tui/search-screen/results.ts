@@ -1,4 +1,5 @@
-import type { DerivedTagTerminalCommandOption, DerivedTagTerminalLine } from "../framework/types.js";
+import type { DerivedTagTerminalLine } from "../framework/types.js";
+import type { DerivedTagTerminalActionTargetOption } from "../action-target.js";
 import type { SearchScreenState } from "./state.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
@@ -154,36 +155,33 @@ export function buildResultDetailLines(
   ];
 }
 
-export function buildResultCommandPaletteEntries(
+export function buildResultActionEntries(
   state: SearchScreenState,
   origin: SearchScreenOrigin,
-): DerivedTagTerminalCommandOption<SearchResultCommandId>[] {
+): DerivedTagTerminalActionTargetOption<SearchResultCommandId>[] {
   return [
     {
-      value: "jumpToResult",
+      id: "jumpToResult",
       label: "Jump to Result",
       description: "Jump to an absolute result position in the active result set.",
-      keywords: ["position", "goto"],
     },
     ...(canChangeResultSort(state.session)
       ? [
           {
-            value: "sortResults" as const,
+            id: "sortResults" as const,
             label: "Change Sort",
             description: state.session
               ? `Switch result ordering from ${formatSort(state.session.sort)}.`
-              : "Choose the active result ordering for this result reader.",
-            keywords: ["sort", "order", "browse", "lookup"],
+                : "Choose the active result ordering for this result reader.",
           },
         ]
       : []),
     ...(origin === "ontology"
       ? [
           {
-            value: "openEditor" as const,
+            id: "openEditor" as const,
             label: "Open Query Editor",
             description: "Switch from the result reader into the query editor without leaving the search flow.",
-            keywords: ["editor", "filters", "workspace"],
           },
         ]
       : []),

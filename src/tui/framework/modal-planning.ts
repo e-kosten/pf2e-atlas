@@ -8,10 +8,7 @@ import {
 } from "../terminal-modal-layout.js";
 import { getRenderedTerminalLineCount } from "./line-rendering.js";
 import {
-  buildCommandPaletteDetailLines,
   buildPromptDetailLines,
-  clampPromptSelectionIndex,
-  filterCommandPaletteEntries,
   filterPromptEntries,
   getFilteredPromptSelectionIndex,
   getMultiSelectPromptFilteringEnabled,
@@ -323,47 +320,6 @@ export function planTerminalModalStateLayout(
       descriptor: createTerminalTextInputSizingDescriptor({
         bodyLineCount: getRenderedTerminalLineCount(buildTextPromptBodyLines(modal.options, modal.value), terminalWidth),
       }),
-    });
-  }
-
-  if (modal.kind === "command") {
-    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
-    const filteredEntries = filterCommandPaletteEntries(modal.options.entries, modal.filterText);
-    if (filteredEntries.length === 0) {
-      return planTerminalModalLayout({
-        kind: "command",
-        terminalWidth,
-        terminalHeight,
-        forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
-        headerRows: 3,
-        footerRows: 1,
-        descriptor: createTerminalMessageSizingDescriptor({
-          bodyLineCount: getRenderedTerminalLineCount(
-            [
-              { text: modal.options.prompt, tone: "section" },
-              { text: `Filter: ${modal.filterText || "(none)"}`, tone: "accent" },
-              { text: "No commands match the current filter.", tone: "warning" },
-            ],
-            terminalWidth,
-          ),
-        }),
-      });
-    }
-
-    const clampedSelectedIndex = clampPromptSelectionIndex(modal.selectedIndex, filteredEntries.length);
-    const selectedOption = filteredEntries[clampedSelectedIndex];
-    return planTerminalModalLayout({
-      kind: "command",
-      terminalWidth,
-      terminalHeight,
-      forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "inline"),
-      headerRows: 3,
-      footerRows: 3,
-      descriptor: createChoicePromptDescriptor(
-        terminalWidth,
-        filteredEntries.length,
-        buildCommandPaletteDetailLines(selectedOption, modal.filterText),
-      ),
     });
   }
 

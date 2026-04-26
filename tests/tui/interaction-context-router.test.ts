@@ -4,7 +4,6 @@ import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-
 import { createDerivedTagTerminalInputEvent } from "../../src/tui/terminal-ui.js";
 import {
   createTerminalActionTargetInteractionContext,
-  createTerminalCommandPaletteInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalListInteractionContext,
   createTerminalSelectPromptInteractionContext,
@@ -40,34 +39,32 @@ describe("interaction context router", () => {
     expect(secondG.routes.list.navigationAction).toEqual({ kind: "boundary", boundary: "start" });
   });
 
-  it("can route command-like and text-entry semantics from the same raw input", () => {
+  it("can route text-entry semantics from the same raw input as shared interaction actions", () => {
     const routed = routeTerminalInteractionContexts(
       createDerivedTagTerminalInputEvent("q", {} as never),
       [
         createTerminalTextEntryInteractionContext("textEntry", [{ id: "quit" }]),
-        createTerminalCommandPaletteInteractionContext(10),
       ],
       createTerminalInteractionContextRouterState(),
     );
 
     expect(routed.routes.textEntry.textEntryIntent).toEqual({ kind: "append", text: "q" });
     expect(routed.routes.textEntry.interactionAction?.id).toBe("quit");
-    expect(routed.routes.commandPalette.textEntryIntent).toEqual({ kind: "append", text: "q" });
   });
 
   it("supports a shared context stack contract for adapter-backed prompts", () => {
     const stack = createTerminalInteractionContextStack([{ kind: "list", key: "search:list" }]);
-    const withPrompt = pushTerminalInteractionContext(stack, { kind: "commandPalette", key: "modal:command" });
+    const withPrompt = pushTerminalInteractionContext(stack, { kind: "selectPrompt", key: "modal:select" });
 
     expect(getActiveTerminalInteractionContext(withPrompt)).toEqual({
-      kind: "commandPalette",
-      key: "modal:command",
+      kind: "selectPrompt",
+      key: "modal:select",
     });
 
     const popped = popTerminalInteractionContext(withPrompt);
     expect(popped.popped).toEqual({
-      kind: "commandPalette",
-      key: "modal:command",
+      kind: "selectPrompt",
+      key: "modal:select",
     });
     expect(getActiveTerminalInteractionContext(popped.stack)).toEqual({
       kind: "list",

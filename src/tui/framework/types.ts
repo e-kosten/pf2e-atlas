@@ -47,13 +47,6 @@ export type DerivedTagTerminalSelectOption<T = string> = {
 
 export type DerivedTagTerminalChoiceLayout = "list" | "horizontal";
 
-export type DerivedTagTerminalCommandOption<T extends string = string> = DerivedTagTerminalSelectOption<T> & {
-  aliases?: string[];
-  disabled?: boolean;
-  disabledReason?: string;
-  keywords?: string[];
-};
-
 export type DerivedTagTerminalTwoPaneFocus = "list" | "detail";
 export type DerivedTagTerminalTwoPaneLayoutMode = "split" | "detail-only";
 export type DerivedTagTerminalTextInputAction = "submit" | "cancel" | "deleteBackward";
@@ -208,14 +201,6 @@ export type DerivedTagTerminalMultiSelectPromptResult<T extends string = string>
   | { kind: "selected"; values: T[] }
   | DerivedTagTerminalPickerCommandResult;
 
-export type CommandPaletteOptions<T extends string = string> = {
-  title: string;
-  subtitle?: string;
-  prompt: string;
-  entries: DerivedTagTerminalCommandOption<T>[];
-  presentation?: DerivedTagTerminalPromptPresentation;
-};
-
 export type TextPromptOptions = DerivedTagTerminalTextInputOptions;
 export type SelectPromptOptions<T = string> = DerivedTagTerminalSelectPromptOptions<T>;
 export type OptionalSelectPromptOptions<T = string> = DerivedTagTerminalOptionalSelectPromptOptions<T>;
@@ -249,7 +234,6 @@ export type TerminalSelectModalOptions = {
 export type DerivedTagTerminalPromptSession = Pick<
   DerivedTagTerminalContextValue,
   | "pauseForAnyKey"
-  | "promptCommandPalette"
   | "promptOptionalSelectOption"
   | "promptMultiSelectOption"
   | "promptSelectOption"
@@ -300,14 +284,6 @@ export type TerminalModalState =
       filterMode: boolean;
       selectedValues: string[];
       resolve: (value: DerivedTagTerminalMultiSelectPromptResult<string>) => void;
-    }
-  | {
-      kind: "command";
-      ownership: TerminalModalOwnership;
-      options: CommandPaletteOptions<string>;
-      filterText: string;
-      selectedIndex: number;
-      resolve: (value: string | undefined) => void;
     };
 
 export type DerivedTagTerminalContextValue = {
@@ -321,7 +297,6 @@ export type DerivedTagTerminalContextValue = {
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
   runPromptSession: <T>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>) => Promise<T>;
-  promptCommandPalette: <T extends string>(options: CommandPaletteOptions<T>) => Promise<T | undefined>;
   promptOptionalSelectOption: <T>(
     options: OptionalSelectPromptOptions<T>,
   ) => Promise<DerivedTagTerminalOptionalSelectPromptResult<T>>;

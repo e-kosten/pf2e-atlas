@@ -563,65 +563,6 @@ function OptionalSelectPromptHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
-function CommandPaletteHarness(): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const [result, setResult] = React.useState("pending");
-
-  React.useEffect(() => {
-    void terminal
-      .promptCommandPalette({
-        title: "Command Palette",
-        prompt: "Filter commands",
-        entries: [
-          { value: "mode", label: "Mode", description: "Choose the search mode.", aliases: ["m"] },
-          {
-            value: "facet",
-            label: "Edit Query Field",
-            description: "Edit ontology-backed query field selections.",
-            aliases: ["f"],
-          },
-        ],
-      })
-      .then((value) => {
-        setResult(value ?? "cancelled");
-      });
-  }, []);
-
-  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
-}
-
-function DisabledCommandPaletteHarness(): React.JSX.Element {
-  const terminal = useDerivedTagTerminalApp();
-  const [result, setResult] = React.useState("pending");
-
-  React.useEffect(() => {
-    void terminal
-      .promptCommandPalette({
-        title: "Command Palette",
-        prompt: "Filter commands",
-        entries: [
-          {
-            value: "disabled",
-            label: "Disabled Command",
-            description: "Run the currently unavailable command.",
-            disabled: true,
-            disabledReason: "Unavailable until the current scope changes.",
-          },
-          {
-            value: "enabled",
-            label: "Enabled Command",
-            description: "Available right now.",
-          },
-        ],
-      })
-      .then((value) => {
-        setResult(value ?? "cancelled");
-      });
-  }, []);
-
-  return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
-}
-
 function SelectThenCommandPaletteHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -639,15 +580,7 @@ function SelectThenCommandPaletteHarness(): React.JSX.Element {
       })
       .then(async (selection) => {
         if (selection.kind === "commands") {
-          const command = await terminal.promptCommandPalette({
-            title: "Clause Picker Commands",
-            prompt: "Picker commands",
-            entries: [
-              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-            ],
-          });
-          setResult(`command=${command ?? "cancelled"}`);
+          setResult("command-requested");
           return;
         }
         setResult(`select=${selection.kind === "selected" ? selection.value : "cancelled"}`);
@@ -735,15 +668,7 @@ function SelectThenSelectHarness(): React.JSX.Element {
           return;
         }
         if (metricSelection.kind === "commands") {
-          const command = await terminal.promptCommandPalette({
-            title: "Left Metric Commands",
-            prompt: "Picker commands",
-            entries: [
-              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-            ],
-          });
-          setResult(`command=${command ?? "cancelled"}`);
+          setResult("metric=commands");
           return;
         }
         setResult("metric=cancelled");
@@ -804,7 +729,7 @@ function OverlaySelectThenSelectHarness(): React.JSX.Element {
   );
 }
 
-function SelectThenSelectThenCommandPaletteHarness(): React.JSX.Element {
+function SelectThenSelectThenCommandsHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
 
@@ -836,15 +761,7 @@ function SelectThenSelectThenCommandPaletteHarness(): React.JSX.Element {
         });
 
         if (secondSelection.kind === "commands") {
-          const command = await terminal.promptCommandPalette({
-            title: "Left Metric Commands",
-            prompt: "Picker commands",
-            entries: [
-              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-            ],
-          });
-          setResult(`command=${command ?? "cancelled"}`);
+          setResult("command-requested");
           return;
         }
 
@@ -855,7 +772,7 @@ function SelectThenSelectThenCommandPaletteHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
-function SelectThenMultiSelectThenCommandPaletteHarness(): React.JSX.Element {
+function SelectThenMultiSelectThenCommandsHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
 
@@ -887,15 +804,7 @@ function SelectThenMultiSelectThenCommandPaletteHarness(): React.JSX.Element {
         });
 
         if (multiSelectResult.kind === "commands") {
-          const command = await terminal.promptCommandPalette({
-            title: "Pack Commands",
-            prompt: "Picker commands",
-            entries: [
-              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-            ],
-          });
-          setResult(`command=${command ?? "cancelled"}`);
+          setResult("command-requested");
           return;
         }
         if (multiSelectResult.kind === "selected") {
@@ -946,15 +855,7 @@ function EventDrivenSelectChainHarness(): React.JSX.Element {
         });
 
         if (nextSelection.kind === "commands") {
-          const command = await terminal.promptCommandPalette({
-            title: "Left Metric Commands",
-            prompt: "Picker commands",
-            entries: [
-              { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-              { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-            ],
-          });
-          setResult(`command=${command ?? "cancelled"}`);
+          setResult("command-requested");
           return;
         }
 
@@ -1015,15 +916,7 @@ function MenuScreenDrivenPromptHarness(): React.JSX.Element {
             });
 
             if (secondSelection.kind === "commands") {
-              const command = await terminal.promptCommandPalette({
-                title: "Left Metric Commands",
-                prompt: "Picker commands",
-                entries: [
-                  { value: "catalog", label: "Use Catalog Counts", description: "Switch to catalog counts." },
-                  { value: "matching", label: "Use Matching Counts", description: "Switch to matching counts." },
-                ],
-              });
-              setResult(`command=${command ?? "cancelled"}`);
+              setResult("command-requested");
               return;
             }
 
@@ -1078,7 +971,7 @@ function HyperlinkHarness(): React.JSX.Element {
   );
 }
 
-type LayoutPromptKind = "command" | "select" | "multiselect";
+type LayoutPromptKind = "select" | "multiselect";
 
 function ModalLayoutPromptHarness({
   kind,
@@ -1101,23 +994,6 @@ function ModalLayoutPromptHarness({
     }));
 
     switch (kind) {
-      case "command":
-        void terminal
-          .promptCommandPalette({
-            title: "Command Layout",
-            prompt: "Choose an option",
-            presentation,
-            entries: entries.map((entry) => ({
-              value: entry.value,
-              label: entry.label,
-              description: entry.description,
-              detailLines: entry.detailLines,
-            })),
-          })
-          .then((value) => {
-            setResult(value ?? "cancelled");
-          });
-        break;
       case "select":
         void terminal
           .promptSelectOption({
@@ -1522,28 +1398,6 @@ describe("derived tag terminal ink runtime", () => {
     expect(selectedApp.lastFrame()).toContain("result=first");
   });
 
-  it("filters and selects commands through the shared command palette", async () => {
-    const app = render(
-      <DerivedTagTerminalProvider>
-        <CommandPaletteHarness />
-      </DerivedTagTerminalProvider>,
-    );
-
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Command Palette");
-    expect(app.lastFrame()).toContain("Mode");
-    expect(app.lastFrame()).toContain("Enter/→ select");
-
-    app.stdin.write("f");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Filter: f");
-    expect(app.lastFrame()).toContain("Edit Query Field");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=facet");
-  });
-
   it("shares slash filtering across select and multiselect prompts", async () => {
     const selectApp = render(
       <DerivedTagTerminalProvider>
@@ -1592,8 +1446,8 @@ describe("derived tag terminal ink runtime", () => {
 
   });
 
-  it("uses the same inline list-capacity planning across command and select-like prompts", async () => {
-    const promptKinds: LayoutPromptKind[] = ["command", "select", "multiselect"];
+  it("uses the same inline list-capacity planning across select-like prompts", async () => {
+    const promptKinds: LayoutPromptKind[] = ["select", "multiselect"];
     const visibleCounts: number[] = [];
 
     for (const kind of promptKinds) {
@@ -1650,46 +1504,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).not.toContain("│");
   });
 
-  it("prefers the first enabled command when a palette opens", async () => {
-    const app = render(
-      <DerivedTagTerminalProvider>
-        <DisabledCommandPaletteHarness />
-      </DerivedTagTerminalProvider>,
-    );
-
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Enabled Command");
-    expect(app.lastFrame()).toContain("Command 2/2");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=enabled");
-  });
-
-  it("keeps disabled commands visible but does not dispatch them", async () => {
-    const app = render(
-      <DerivedTagTerminalProvider>
-        <DisabledCommandPaletteHarness />
-      </DerivedTagTerminalProvider>,
-    );
-
-    await flushInkFrames();
-
-    for (const character of "disabled") {
-      app.stdin.write(character);
-    }
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Disabled Command | unavailable");
-    expect(app.lastFrame()).toContain("Unavailable: Unavailable until the current scope changes.");
-    expect(app.lastFrame()).not.toContain("This command is currently unavailable.");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("Command Palette");
-    expect(app.lastFrame()).toContain("result=pending");
-  });
-
-  it("can chain a commands-enabled select prompt directly into the shared command palette", async () => {
+  it("returns a command request from a commands-enabled select prompt", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <SelectThenCommandPaletteHarness />
@@ -1702,12 +1517,7 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Clause Picker Commands");
-    expect(app.lastFrame()).toContain("Use Catalog Counts");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=command-requested");
   });
 
   it("replaces chained overlay prompts without exposing a background-only frame", async () => {
@@ -1768,10 +1578,10 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=packs=pathfinder-npc-core,monster-core");
   });
 
-  it("can open commands from a second select prompt in a chained flow", async () => {
+  it("can request commands from a second select prompt in a chained flow", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
-        <SelectThenSelectThenCommandPaletteHarness />
+        <SelectThenSelectThenCommandsHarness />
       </DerivedTagTerminalProvider>,
     );
 
@@ -1784,17 +1594,13 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Left Metric Commands");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=command-requested");
   });
 
-  it("can open commands from a chained multiselect prompt", async () => {
+  it("can request commands from a chained multiselect prompt", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
-        <SelectThenMultiSelectThenCommandPaletteHarness />
+        <SelectThenMultiSelectThenCommandsHarness />
       </DerivedTagTerminalProvider>,
     );
 
@@ -1808,14 +1614,10 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Pack Commands");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=command-requested");
   });
 
-  it("can open commands from a chained select prompt started by a live input handler", async () => {
+  it("can request commands from a chained select prompt started by a live input handler", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <EventDrivenSelectChainHarness />
@@ -1835,14 +1637,10 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Left Metric Commands");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=command-requested");
   });
 
-  it("can open commands from a prompt chain launched through TerminalMenuScreen", async () => {
+  it("can request commands from a prompt chain launched through TerminalMenuScreen", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <MenuScreenDrivenPromptHarness />
@@ -1862,11 +1660,7 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Left Metric Commands");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=command-requested");
   });
 
   it("can chain a select prompt directly into another select prompt and confirm inside the second picker", async () => {
@@ -1890,7 +1684,7 @@ describe("derived tag terminal ink runtime", () => {
     expect(app.lastFrame()).toContain("result=metric=hp.value");
   });
 
-  it("can chain a select prompt directly into another select prompt and open commands in the second picker", async () => {
+  it("can chain a select prompt directly into another select prompt and request commands in the second picker", async () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <SelectThenSelectHarness />
@@ -1908,12 +1702,7 @@ describe("derived tag terminal ink runtime", () => {
 
     app.stdin.write(":");
     await flushInkFrames(3);
-    expect(app.lastFrame()).toContain("Left Metric Commands");
-    expect(app.lastFrame()).toContain("Use Catalog Counts");
-
-    app.stdin.write("\r");
-    await flushInkFrames();
-    expect(app.lastFrame()).toContain("result=command=catalog");
+    expect(app.lastFrame()).toContain("result=metric=commands");
   });
 
   it("normalizes ctrl letter combinations from both Ink key paths", () => {

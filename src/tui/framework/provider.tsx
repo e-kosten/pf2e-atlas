@@ -7,14 +7,12 @@ import { DerivedTagTerminalContext } from "./context.js";
 import {
   buildOptionalSelectModalOptions,
   buildSelectModalOptions,
-  getFirstEnabledCommandIndex,
   getSelectPromptInitialIndex,
 } from "./modal-helpers.js";
 import { DerivedTagTerminalModalHost } from "./modal-host.js";
 import { planTerminalModalStateLayout } from "./modal-planning.js";
 import { isBlankedPromptPresentation } from "./prompt-presentation.js";
 import type {
-  CommandPaletteOptions,
   DerivedTagTerminalContextValue,
   DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalMultiSelectPromptResult,
@@ -116,9 +114,6 @@ export function DerivedTagTerminalProvider({
       case "text":
         activeModal.resolve(undefined);
         return;
-      case "command":
-        activeModal.resolve(undefined);
-        return;
       case "select":
         activeModal.resolve({ kind: "cancelled" });
         return;
@@ -172,18 +167,6 @@ export function DerivedTagTerminalProvider({
             footer: [{ text: TERMINAL_DIALOG_CONTINUE_FOOTER, tone: "dim" }],
           },
           resolve: () => resolve(),
-        }));
-      };
-
-      const promptCommandPalette = async <T extends string>(options: CommandPaletteOptions<T>): Promise<T | undefined> => {
-        const normalizedOptions = options as CommandPaletteOptions<string>;
-        return claimPromptLease(owner, (ownership, resolve) => ({
-          ownership,
-          kind: "command",
-          options: normalizedOptions,
-          filterText: "",
-          selectedIndex: getFirstEnabledCommandIndex(normalizedOptions.entries),
-          resolve: resolve as (value: string | undefined) => void,
         }));
       };
 
@@ -261,7 +244,6 @@ export function DerivedTagTerminalProvider({
 
       return {
         pauseForAnyKey,
-        promptCommandPalette,
         promptOptionalSelectOption,
         promptMultiSelectOption,
         promptSelectOption,
@@ -323,7 +305,6 @@ export function DerivedTagTerminalProvider({
       modalActive: modal !== null,
       runPromptSession,
       pauseForAnyKey: promptSession.pauseForAnyKey,
-      promptCommandPalette: promptSession.promptCommandPalette,
       promptOptionalSelectOption: promptSession.promptOptionalSelectOption,
       promptMultiSelectOption: promptSession.promptMultiSelectOption,
       promptSelectOption: promptSession.promptSelectOption,

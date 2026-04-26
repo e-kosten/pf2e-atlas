@@ -1,7 +1,5 @@
 export type {
-  CommandPaletteOptions,
   DerivedTagTerminalApp,
-  DerivedTagTerminalCommandOption,
   DerivedTagTerminalInputEvent,
   DerivedTagTerminalLine,
   DerivedTagTerminalMultiSelectPromptOptions,

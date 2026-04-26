@@ -947,9 +947,9 @@ describe("search screen", () => {
     app.stdin.write(":");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Result Actions");
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Jump to Result");
     expect(app.lastFrame()).toContain("Change Sort");
-    expect(app.lastFrame()).not.toContain("Result Commands");
   });
 
   it("keeps ranked search results on the shared action flow without exposing sort", async () => {
@@ -975,7 +975,8 @@ describe("search screen", () => {
     app.stdin.write(":");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("Result Actions");
+    expect(app.lastFrame()).toContain("Actions:");
+    expect(app.lastFrame()).toContain("Jump to Result");
     expect(app.lastFrame()).not.toContain("Change Sort");
   });
 

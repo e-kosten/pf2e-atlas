@@ -6,6 +6,7 @@ import {
   SEARCH_LEFT_WIDTH,
   buildQuerySummaryLines,
   buildPendingResultDetailLines,
+  buildResultActionEntries,
   buildResultDetailLines,
   buildResultLines,
   buildSearchSubtitle,
@@ -53,6 +54,7 @@ import type { SearchScreenProps } from "./entry-props.js";
 import type { DerivedTagTerminalActionTargetState } from "../action-target.js";
 
 type SearchEditorActionId = "openSelected" | "executeQuery" | "resetQuery" | "discardResults";
+type SearchResultActionId = "jumpToResult" | "sortResults" | "openEditor";
 
 export type SearchScreenControllerResult = {
   structuredEditorSession: SearchStructuredEditorSession | null;
@@ -92,7 +94,7 @@ export function useSearchScreenController({
     ({ initialQuery, initialLayout, initialSession }) =>
       createInitialSearchScreenState(initialQuery, { layout: initialLayout, session: initialSession }),
   );
-  const [editorActionTargetState, dispatchEditorActionTarget] = React.useReducer(
+  const [actionTargetState, dispatchActionTarget] = React.useReducer(
     reduceDerivedTagTerminalActionTargetState<DerivedTagTerminalActionTargetState>,
     undefined,
     () => createDerivedTagTerminalActionTargetState(),
@@ -267,21 +269,25 @@ export function useSearchScreenController({
 
     return entries;
   }, [selectedWorkspaceEntry, state.session]);
+  const resultActionEntries = React.useMemo<DerivedTagTerminalActionTargetOption<SearchResultActionId>[]>(
+    () => buildResultActionEntries(state, origin),
+    [origin, state],
+  );
+  const activeActionEntries = state.layout === "editor" ? editorActionEntries : resultActionEntries;
 
   const showSearchHelp = React.useCallback(() => {
     void showTerminalReturnDialog(
       prompts,
       state.layout === "editor" ? "Search Editor Help" : "Search Results Help",
-      buildSearchHelpLines(state, workspaceEntries, origin, editorActionEntries),
+      buildSearchHelpLines(state, workspaceEntries, origin, activeActionEntries),
     );
-  }, [editorActionEntries, origin, prompts, state, workspaceEntries]);
+  }, [activeActionEntries, origin, prompts, state, workspaceEntries]);
 
   const { handleIntent, runWorkspaceAction, structuredEditorSession } = useSearchWorkspaceActions({
     applyQueryUpdate,
     dispatch,
     executeRequest,
     exitSearchScreen,
-    jumpToResultPosition,
     maxDetailScroll,
     openFilterExplorer,
     origin,
@@ -293,7 +299,6 @@ export function useSearchScreenController({
     prompts,
     user,
     workspaceEntries,
-    chooseResultSort,
   });
   const runEditorAction = React.useCallback(
     (actionId: SearchEditorActionId) => {
@@ -318,6 +323,22 @@ export function useSearchScreenController({
     },
     [runWorkspaceAction, selectedWorkspaceEntry, state.session],
   );
+  const runResultAction = React.useCallback(
+    (actionId: SearchResultActionId) => {
+      if (actionId === "jumpToResult") {
+        void jumpToResultPosition();
+        return;
+      }
+      if (actionId === "sortResults") {
+        void chooseResultSort();
+        return;
+      }
+      if (actionId === "openEditor") {
+        dispatch({ type: "set_layout", layout: "editor", pane: "list" });
+      }
+    },
+    [chooseResultSort, dispatch, jumpToResultPosition],
+  );
 
   useSearchScreenInteractionRouter({
     enabled: !busy && !filterExplorerSession && !structuredEditorSession,
@@ -331,27 +352,29 @@ export function useSearchScreenController({
     hasSelectedResult: Boolean(selectedResult),
     showNotification,
     onIntent: handleIntent,
-    editorActionTarget:
-      state.layout === "editor"
-        ? {
-            state: editorActionTargetState,
-            actionCount: editorActionEntries.length,
-            onToggle: () => dispatchEditorActionTarget({ type: "toggle_target" }),
-            onLeave: () => dispatchEditorActionTarget({ type: "leave_actions" }),
-            onMove: (delta) =>
-              dispatchEditorActionTarget({
-                type: "move_action",
-                delta,
-                actionCount: editorActionEntries.length,
-              }),
-            onApply: () => {
-              const selectedAction = editorActionEntries[editorActionTargetState.selectedActionIndex];
-              if (selectedAction) {
-                runEditorAction(selectedAction.id);
-              }
-            },
-          }
-        : undefined,
+    actionTarget: {
+      state: actionTargetState,
+      actionCount: activeActionEntries.length,
+      onToggle: () => dispatchActionTarget({ type: "toggle_target" }),
+      onLeave: () => dispatchActionTarget({ type: "leave_actions" }),
+      onMove: (delta) =>
+        dispatchActionTarget({
+          type: "move_action",
+          delta,
+          actionCount: activeActionEntries.length,
+        }),
+      onApply: () => {
+        const selectedAction = activeActionEntries[actionTargetState.selectedActionIndex];
+        if (!selectedAction) {
+          return;
+        }
+        if (state.layout === "editor") {
+          runEditorAction(selectedAction.id as SearchEditorActionId);
+          return;
+        }
+        runResultAction(selectedAction.id as SearchResultActionId);
+      },
+    },
   });
 
   const screenModel = buildTerminalListDetailScreenModel({
@@ -384,13 +407,12 @@ export function useSearchScreenController({
     footer: [
       {
         text: buildSearchFooterText(state, loadingMore, origin, {
-          editorActionTargetState,
+          actionTargetState,
         }),
         tone: "dim",
       },
-      state.layout === "editor" &&
-      shouldRenderDerivedTagTerminalActionTarget(editorActionTargetState, "onDemand")
-        ? buildDerivedTagTerminalActionTargetLine(editorActionEntries, editorActionTargetState)
+      shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
+        ? buildDerivedTagTerminalActionTargetLine(activeActionEntries, actionTargetState)
         : {
             text:
               state.layout === "results" && state.session

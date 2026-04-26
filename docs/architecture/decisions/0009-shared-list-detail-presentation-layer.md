@@ -34,7 +34,7 @@ That layer does not own:
 
 - feature-domain actions or their semantics
 - feature reducers beyond the shared presentation state they already compose
-- command palette contents
+- action rail contents
 - detail/body rendering content
 - async workflows such as executing searches, opening routes, or importing review sessions
 
