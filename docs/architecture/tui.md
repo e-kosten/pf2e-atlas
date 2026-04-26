@@ -232,13 +232,13 @@ Different between them:
 
 ### Broad Browse Model vs Prepared Search-Scoped Model
 
-The ontology browser uses the broad search-semantics browse tree from `loadSearchSemanticsDomain()`. That model exists to browse the ontology of fields, values, families, and tags even before a user has entered a live scoped search query.
+The ontology browser uses the broad search-semantics browse tree from `loadSearchSemanticsDomain(...)`. That model exists to browse the ontology of fields, values, families, and tags even before a user has entered a live scoped search query.
 
 The search explorer uses `loadSearchFilterExplorerDomain({ request, discoveryMode })`. That model is prepared from a concrete canonical `SearchRequest`, so it is scoped to the current query and can change meaningfully when discovery mode switches between `matching` and `catalog`.
 
 The practical distinction is:
 
-- broad browse model: "show the ontology/catalog of what exists in general"
+- broad browse model: "show the ontology/catalog of what exists in general", while broad derived-tag families still honor the current discovery mode
 - prepared search-scoped model: "show what exists or applies for this specific search query right now"
 
 ### Shared Explorer Shell
@@ -338,7 +338,7 @@ sequenceDiagram
 
     rect rgba(219, 234, 254, 0.28)
         User->>Nav: Open ontology area
-        Nav->>Ontology: loadSearchSemanticsDomain()
+        Nav->>Ontology: loadSearchSemanticsDomain({ discoveryMode: matching })
         Ontology->>Data: build broad browse model
         Data-->>Ontology: OntologyDomainModel
         Ontology-->>Nav: prepared route model
@@ -355,7 +355,7 @@ sequenceDiagram
     rect rgba(217, 247, 208, 0.28)
         User->>Explorer: switch matching/catalog counts
         Explorer->>Host: request discovery-mode change
-        Host->>Ontology: loadSearchSemanticsDomain()
+        Host->>Ontology: loadSearchSemanticsDomain({ discoveryMode })
         Ontology->>Data: rebuild broad browse model
         Data-->>Ontology: refreshed domain
         Ontology-->>Host: refreshed model
@@ -382,7 +382,11 @@ The ontology browser owns:
 - snapshot restore when returning from search
 - launching seeded search flows from ontology leaves
 
-The ontology browser does not currently own a separate mode-aware ontology tree builder. The discovery-mode switch is now wired through the shared action rail, but the route currently reloads the same broad browse model for both modes until a future semantics pass changes that.
+The ontology browser still uses the broad browse builder rather than the prepared search-scoped builder, but the shared discovery-mode switch now has a real semantic effect for broad derived-tag families:
+
+- `matching` keeps only nonzero derived-tag children visible inside each family and uses the nonzero child count as the family count
+- `catalog` keeps authored derived-tag children visible even when their live count is `0`, and family counts reflect the full authored family size in scope
+- zero-count catalog derived-tag leaves stay actionable through the standard shared explorer open/search path
 
 ### Search Explorer Flow
 
@@ -448,7 +452,7 @@ The search explorer owns:
 - caching and refreshing discovery-mode transitions within the search workflow
 - applying the resulting draft back into the search query editor
 
-This is the path where `matching` versus `catalog` currently has real semantic effect.
+This is still the path where `matching` versus `catalog` has the broader query-scoped semantic effect, even though the broad ontology browser now also uses the same mode vocabulary for derived-tag family visibility and counts.
 
 ### Picker Flows
 

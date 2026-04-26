@@ -95,7 +95,7 @@ function createSummary(): SearchSemanticsBootstrapSummaryResult {
         family: "mist",
         axis: "setting",
         description: "Mist-shaped hazards.",
-        tags: [{ value: "fogbound" }],
+        tags: [{ value: "fogbound" }, { value: "still_air" }],
       },
       {
         category: "hazard",
@@ -104,6 +104,14 @@ function createSummary(): SearchSemanticsBootstrapSummaryResult {
         subcategories: ["trap"],
         description: "Trap-specific ambush hazards.",
         tags: [{ value: "snag_line" }],
+      },
+      {
+        category: "hazard",
+        family: "silence",
+        axis: "encounter",
+        subcategories: ["trap"],
+        description: "Trap-specific quiet hazards.",
+        tags: [{ value: "soundless" }],
       },
       {
         category: "hazard",
@@ -202,19 +210,22 @@ describe("buildSearchSemanticsDomain", () => {
 
     const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
     const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
-    const fogboundTag = findNodeById(mistFamilyNode?.loadChildren?.() ?? [], "hazard:trap:field:derivedTags:family:mist:tag:fogbound");
+    const fogboundTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:fogbound");
     const trapTag = findNodeById(
-      tripwireFamilyNode?.loadChildren?.() ?? [],
+      tripwireFamilyNode?.children ?? [],
       "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line",
     );
+    const stillAirTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:still_air");
 
     expect(findSearchScopeFilter(fogboundTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
     expect(findSearchScopeFilter(trapTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
+    expect(mistFamilyNode?.listLabel).toBe("Mist | 1 tags");
+    expect(stillAirTag).toBeUndefined();
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
   });
 
-  it("loads derived-tag family children with scoped live counts", () => {
+  it("loads matching-mode derived-tag family children with scoped live counts", () => {
     const dataService = createDataService();
     const domain = buildSearchSemanticsDomain(
       createTestConfig(),
@@ -225,8 +236,8 @@ describe("buildSearchSemanticsDomain", () => {
     const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
     const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
 
-    const mistTags = mistFamilyNode?.loadChildren?.() ?? [];
-    const tripwireTags = tripwireFamilyNode?.loadChildren?.() ?? [];
+    const mistTags = mistFamilyNode?.children ?? [];
+    const tripwireTags = tripwireFamilyNode?.children ?? [];
 
     expect(mistTags[0]?.listLabel).toBe("Fogbound | 2");
     expect(tripwireTags[0]?.listLabel).toBe("Snag Line | 1");
@@ -234,6 +245,37 @@ describe("buildSearchSemanticsDomain", () => {
       field: "derivedTags",
       category: "hazard",
       subcategory: "trap",
+    });
+  });
+
+  it("keeps zero-count catalog-only derived-tag families and leaves visible and queryable", () => {
+    const dataService = createDataService();
+    const domain = buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+      { discoveryMode: "catalog" },
+    );
+    const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
+
+    expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["Mist", "Tripwire", "Silence"]);
+
+    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
+    const silenceFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:silence"));
+    const stillAirTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:still_air");
+    const soundlessTag = findNodeById(
+      silenceFamilyNode?.children ?? [],
+      "hazard:trap:field:derivedTags:family:silence:tag:soundless",
+    );
+
+    expect(mistFamilyNode?.listLabel).toBe("Mist | 2 tags");
+    expect(silenceFamilyNode?.listLabel).toBe("Silence | 1 tags");
+    expect(stillAirTag?.listLabel).toBe("Still Air | 0");
+    expect(soundlessTag?.listLabel).toBe("Soundless | 0");
+    expect(findSearchScopeFilter(stillAirTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
+    expect(findSearchScopeFilter(soundlessTag?.query?.request.filter)?.subcategory).toEqual({
+      kind: "eq",
+      value: "trap",
     });
   });
 

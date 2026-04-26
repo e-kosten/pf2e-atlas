@@ -1095,6 +1095,101 @@ describe("createPf2eTerminalSearchService", () => {
     expect(rootNode?.children?.map((node) => node.id)).toEqual(["spell:field:derivedTags:family:coast"]);
   });
 
+  it("preserves zero-count derived-tag catalog leaves on the shared explorer path", () => {
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailTitle: "Spell",
+          detailLines: [{ text: "Spell" }],
+          children: [
+            {
+              id: "spell:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "spell:field:derivedTags",
+                  kind: "field",
+                  label: "Derived Tags",
+                  filterText: "derived tags",
+                  listLabel: "Derived Tags",
+                  detailTitle: "Metadata Field Details",
+                  detailLines: [{ text: "Derived Tags", tone: "section" }],
+                  childPresentation: {
+                    mode: "grouped",
+                    groupBy: "axis",
+                    render: "inline",
+                  },
+                  children: [
+                    {
+                      id: "spell:field:derivedTags:family:coast",
+                      kind: "family",
+                      label: "Coast",
+                      filterText: "coastal setting",
+                      listLabel: "Coast | 1 tags",
+                      detailTitle: "Family Details",
+                      detailLines: [{ text: "Coast", tone: "section" }],
+                      groupValues: {
+                        axis: "environment",
+                      },
+                      children: [
+                        {
+                          id: "spell:field:derivedTags:family:coast:tag:coastal_setting",
+                          kind: "tag",
+                          label: "Coastal Setting",
+                          filterText: "coastal setting",
+                          listLabel: "Coastal Setting | 0",
+                          detailTitle: "Tag Details",
+                          detailLines: [{ text: "Coastal Setting", tone: "section" }],
+                          query: {
+                            label: "Browse records with the Coastal Setting derived tag",
+                            request: {
+                              mode: "browse",
+                              limit: 20,
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: "spell",
+        subcategory: null,
+        fieldOptions: [
+          {
+            value: "derivedTags",
+            label: "Derived Tags",
+            description: "Derived-tag query field",
+            fieldType: "set",
+            editor: "sharedExplorer",
+          },
+        ],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes).toHaveLength(1);
+    const [rootNode] = model.rootNodes;
+    const zeroCountLeaf = rootNode?.children?.[0]?.children?.[0];
+
+    expect(rootNode?.id).toBe("spell:field:derivedTags");
+    expect(zeroCountLeaf?.listLabel).toBe("Coastal Setting | 0");
+    expect(zeroCountLeaf?.query?.label).toBe("Browse records with the Coastal Setting derived tag");
+  });
+
   it("locates metric explorer roots without traversing unrelated ontology branches", () => {
     const unrelatedRootLoadChildren = vi.fn(() => [
       {
