@@ -221,6 +221,7 @@ describe("pf2e navigation", () => {
     });
 
     expect(loadSearchSemanticsDomain).toHaveBeenCalledTimes(1);
+    expect(loadSearchSemanticsDomain).toHaveBeenCalledWith({ discoveryMode: "matching" });
     expect(capture.current!.state.routeStack).toHaveLength(2);
     expect(capture.current!.state.routeStack[0]).toEqual({ kind: PF2E_APP_ROUTE_KIND.AREAS });
     expect(capture.current!.state.routeStack[1]).toEqual(
@@ -277,6 +278,31 @@ describe("pf2e navigation", () => {
     expect(capture.current!.state.routeStack[1]).toHaveProperty("loadModelForDiscoveryMode");
     expect(typeof capture.current!.state.routeStack[1]?.loadModelForDiscoveryMode).toBe("function");
     expect(capture.current!.navigation.transitionStatus).toBeNull();
+  });
+
+  it("reloads ontology browse models through the requested discovery mode", async () => {
+    const terminal = {
+      pauseForAnyKey: vi.fn(),
+    };
+    const model = createOntologyModel();
+    const { services, loadSearchSemanticsDomain } = createNavigationTestServices({ model });
+    const { capture, renderer } = await renderNavigationHarness({ services, terminal });
+    renderers.push(renderer);
+
+    await act(async () => {
+      capture.current!.navigation.openArea(PF2E_APP_AREA_ID.ONTOLOGY_SEARCH);
+      await flushReact();
+    });
+
+    const ontologyRoute = capture.current!.state.routeStack[1];
+    expect(ontologyRoute?.kind).toBe(PF2E_APP_ROUTE_KIND.ONTOLOGY);
+
+    await act(async () => {
+      await ontologyRoute?.loadModelForDiscoveryMode?.("catalog");
+    });
+
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1, { discoveryMode: "matching" });
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, { discoveryMode: "catalog" });
   });
 
   it("opens ontology results only after the session is prepared", async () => {

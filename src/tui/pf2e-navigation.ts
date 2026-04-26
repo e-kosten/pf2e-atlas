@@ -349,11 +349,14 @@ export function usePf2eNavigation({
         message: PF2E_NAVIGATION_MESSAGE.OPENING_SEARCH_SEMANTICS,
         prepare: async () => {
           await waitForTransitionStatusPaint();
-          const model = await services.user.ontology.loadSearchSemanticsDomain();
+          const model = await services.user.ontology.loadSearchSemanticsDomain({
+            discoveryMode: "matching",
+          });
           return buildOntologyBrowserCommit({
             model,
             initialDiscoveryMode: "matching",
-            loadModelForDiscoveryMode: () => services.user.ontology.loadSearchSemanticsDomain(),
+            loadModelForDiscoveryMode: (discoveryMode) =>
+              services.user.ontology.loadSearchSemanticsDomain({ discoveryMode }),
             snapshot,
           });
         },

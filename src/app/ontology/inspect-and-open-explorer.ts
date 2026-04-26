@@ -141,7 +141,7 @@ export function buildInspectAndOpenOntologyExplorerModel(
   ontology: OntologyExplorerOntologyService,
   dataService: OntologyExplorerDataService,
 ): Promise<OntologyDomainModel> {
-  return ontology.loadSearchSemanticsDomain().then((domain) => ({
+  return ontology.loadSearchSemanticsDomain({ discoveryMode: "matching" }).then((domain) => ({
     ...domain,
     description: `${domain.description} Inspect matching records inline and open search results when needed.`,
     rootNodes: domain.rootNodes.map((node) => decorateNodeForInspectAndOpen(node, dataService)),
