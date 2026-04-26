@@ -4,7 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig } from "../../src/domain/config-types.js";
-import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
+import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
@@ -197,6 +197,63 @@ function createSearchSemanticsModel(): OntologyDomainModel {
             ],
           },
         ],
+      },
+    ],
+  };
+}
+
+function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "catalog"): OntologyDomainModel {
+  const createDerivedTagLeaf = (options: { id: string; label: string; count: number }): OntologyNode => ({
+    id: `spell:derivedTag:${options.id}`,
+    kind: "value",
+    label: options.label,
+    filterText: `${options.label.toLowerCase()} derived tag`,
+    listLabel: `${options.label} | ${options.count}`,
+    detailTitle: "Derived Tag",
+    detailLines: [
+      { text: options.label, tone: "section" },
+      { text: options.count === 0 ? "No matching records right now." : `${options.count} matching records.` },
+    ],
+    query: browseQuery(`Browse spells with ${options.label}`, {
+      filter: scopeFilter("spell"),
+      limit: 20,
+    }),
+  });
+
+  const nonzeroLeaf = createDerivedTagLeaf({
+    id: "ember-ward",
+    label: "Ember Ward",
+    count: 3,
+  });
+  const zeroCountLeaf = createDerivedTagLeaf({
+    id: "ghost-ward",
+    label: "Ghost Ward",
+    count: 0,
+  });
+  const children = discoveryMode === "matching" ? [nonzeroLeaf] : [nonzeroLeaf, zeroCountLeaf];
+
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Search semantics ontology",
+    rootNodes: [
+      {
+        id: "spell:derivedTagFamily:defense-wards",
+        kind: "group",
+        label: "Defense Wards",
+        filterText: "defense wards derived tags",
+        listLabel: discoveryMode === "matching" ? "Defense Wards | 1 tag" : "Defense Wards | 2 tags",
+        detailTitle: "Derived Tag Family",
+        detailLines: [
+          { text: "Defense Wards", tone: "section" },
+          {
+            text:
+              discoveryMode === "matching"
+                ? "Matching shows only nonzero derived tags."
+                : "Catalog keeps zero-count derived tags openable.",
+          },
+        ],
+        children,
       },
     ],
   };
@@ -446,6 +503,58 @@ describe("pf2e terminal app", () => {
     await flushFrames(2);
     expect(app.lastFrame()).toContain("Actions:");
     expect(app.lastFrame()).toContain("Use Catalog Counts");
+  });
+
+  it("switches the mounted ontology browser from matching to catalog and keeps zero-count derived-tag leaves openable", async () => {
+    const services = createFakeServices();
+    const loadSearchSemanticsDomain = vi.fn(
+      async ({ discoveryMode }: { discoveryMode: "matching" | "catalog" }) =>
+        createDerivedTagModeSearchSemanticsModel(discoveryMode),
+    );
+    services.user.ontology.loadSearchSemanticsDomain = loadSearchSemanticsDomain;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    await openOntologyBrowser(app);
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(1, { discoveryMode: "matching" });
+    expect(app.lastFrame()).toContain("matching counts");
+    expect(app.lastFrame()).toContain("Defense Wards | 1 tag");
+    expect(app.lastFrame()).not.toContain("Ghost Ward | 0");
+
+    app.stdin.write(":");
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await flushFrames(4);
+
+    expect(loadSearchSemanticsDomain).toHaveBeenNthCalledWith(2, { discoveryMode: "catalog" });
+    expect(app.lastFrame()).toContain("Defense Wards | 2 tags");
+    expect(app.lastFrame()).toContain("Use Matching Counts");
+
+    app.stdin.write(":");
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("catalog counts");
+
+    app.stdin.write("\r");
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Search Semantics > Defense Wards");
+    expect(app.lastFrame()).toContain("Ember Ward | 3");
+    expect(app.lastFrame()).toContain("Ghost Ward | 0");
+
+    app.stdin.write("j");
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Search Semantics > Defense Wards > Ghost Ward");
+
+    app.stdin.write("\r");
+    await flushFrames(3);
+    expect(app.lastFrame()).toContain("Browse | Spell | Alphabetical | 1/1");
+    expect(app.lastFrame()).toContain("[RESULTS]");
   });
 
   it("renders prepared ontology routes without calling the search-semantics loader", async () => {
