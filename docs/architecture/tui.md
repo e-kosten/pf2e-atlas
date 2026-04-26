@@ -213,6 +213,292 @@ The ontology host still adds:
 
 The durable rule is that the ontology area does not load its first frame after mount. Navigation prepares the ontology model first, keeps the current screen mounted with the shared transition footer, and commits the ontology route only once the route payload is ready.
 
+## Search Semantics Flows
+
+The search screen and the ontology browser share the same explorer shell, but they do not currently load the same model.
+
+Shared between them:
+
+- `OntologyDomainModel` and `OntologyNode` remain the tree contract
+- `FilterExplorerScreen` remains the shared list/detail explorer surface
+- the shared action rail remains the owner for discovery-mode actions such as `Use Matching Counts` and `Use Catalog Counts`
+- app-layer ontology and discovery services remain the semantic owners below the TUI
+
+Different between them:
+
+- the ontology browser loads a broad browse model
+- the search explorer loads a prepared search-scoped model
+- picker-style prompt flows use the same discovery vocabulary, but they are not the same surface as the explorer
+
+### Broad Browse Model vs Prepared Search-Scoped Model
+
+The ontology browser uses the broad search-semantics browse tree from `loadSearchSemanticsDomain()`. That model exists to browse the ontology of fields, values, families, and tags even before a user has entered a live scoped search query.
+
+The search explorer uses `loadSearchFilterExplorerDomain({ request, discoveryMode })`. That model is prepared from a concrete canonical `SearchRequest`, so it is scoped to the current query and can change meaningfully when discovery mode switches between `matching` and `catalog`.
+
+The practical distinction is:
+
+- broad browse model: "show the ontology/catalog of what exists in general"
+- prepared search-scoped model: "show what exists or applies for this specific search query right now"
+
+### Shared Explorer Shell
+
+```mermaid
+flowchart TD
+  subgraph SharedApp["Shared App / Domain / Data"]
+    SR["SearchRequest"]
+    ODM["OntologyDomainModel"]
+    AOS["ontology service"]
+    ASDS["search discovery service"]
+    SSD["search semantics domain builder"]
+  end
+
+  subgraph SharedTUI["Shared TUI Explorer Layer"]
+    FES["filter explorer screen"]
+    FEC["filter explorer controller"]
+    FEM["filter explorer screen models"]
+    AR["shared action rail"]
+  end
+
+  AOS --> SSD
+  ASDS --> SSD
+  SR --> SSD
+  SSD --> ODM
+  ODM --> FES
+  FEC --> FES
+  FEM --> FES
+  AR --> FES
+```
+
+The explorer shell is shared. The important difference is which model gets passed into it.
+
+### Shared Explorer Session State Machine
+
+Both surfaces enter the same shared explorer behavior after their host-specific setup is done. What differs is how they prepare the first model and what they do when the user exits that shared session.
+
+```mermaid
+stateDiagram-v2
+  [*] --> OntologyPrepared : ontology route prepared
+  [*] --> SearchPrepared : compose session opened
+
+  OntologyPrepared --> InspectSession : mount inspect-and-open host
+  SearchPrepared --> ComposeSession : mount compose host
+
+  state SharedExplorer {
+    [*] --> Browsing
+    Browsing --> ActionTarget : enter action rail
+    ActionTarget --> Browsing : leave action rail
+    Browsing --> SearchInput : enter local text filter
+    SearchInput --> Browsing : cancel or commit
+    Browsing --> DiscoveryRefresh : switch matching/catalog mode
+    DiscoveryRefresh --> Browsing : model replaced
+    Browsing --> ScalarPrompt : edit numeric scalar target
+    ScalarPrompt --> Browsing : save or cancel
+  }
+
+  InspectSession --> SharedExplorer
+  ComposeSession --> SharedExplorer
+
+  InspectSession --> OpenSearch : open editor or results
+  OpenSearch --> [*]
+
+  InspectSession --> [*] : exit at root
+  ComposeSession --> ApplyDraft : exit at root
+  ApplyDraft --> [*]
+```
+
+The durable split is:
+
+- ontology browse enters the shared explorer in inspect mode and exits by opening a search route or returning to the ontology area
+- search filter building enters the shared explorer in compose mode and exits by applying a draft back into canonical search-query state
+- matching/catalog refresh, action rail behavior, list/detail routing, and scalar edit prompts are shared explorer behaviors even when the surrounding host lifecycle differs
+
+For the sequence views below:
+
+- green participants and phases are shared between both flows
+- blue participants and phases are unique to the ontology-browser host path
+- amber participants and phases are unique to the search filter-builder host path
+
+### Ontology Browser Flow
+
+```mermaid
+sequenceDiagram
+    actor User as User
+    box rgba(219, 234, 254, 0.65) Ontology-only host and navigation
+        participant Nav as pf2e-navigation.ts
+        participant Host as ontology-explorer/inspect-screen.tsx
+    end
+    box rgba(217, 247, 208, 0.65) Shared explorer and app services
+        participant Explorer as FilterExplorerScreen
+        participant Controller as filter-explorer/controller.ts
+        participant Ontology as app/ontology-service.ts
+        participant Search as search/service.ts
+        participant Data as search discovery + Pf2eDataService
+    end
+
+    rect rgba(219, 234, 254, 0.28)
+        User->>Nav: Open ontology area
+        Nav->>Ontology: loadSearchSemanticsDomain()
+        Ontology->>Data: build broad browse model
+        Data-->>Ontology: OntologyDomainModel
+        Ontology-->>Nav: prepared route model
+        Nav->>Host: commit ontology route payload
+    end
+
+    rect rgba(217, 247, 208, 0.28)
+        Host->>Explorer: mount inspect-and-open session
+        Explorer->>Controller: create shared list/detail state
+        Controller-->>Explorer: rows, detail, action rail
+        User->>Explorer: browse, drill, inspect
+    end
+
+    rect rgba(217, 247, 208, 0.28)
+        User->>Explorer: switch matching/catalog counts
+        Explorer->>Host: request discovery-mode change
+        Host->>Ontology: loadSearchSemanticsDomain()
+        Ontology->>Data: rebuild broad browse model
+        Data-->>Ontology: refreshed domain
+        Ontology-->>Host: refreshed model
+        Host->>Explorer: replace shared model
+    end
+
+    rect rgba(219, 234, 254, 0.28)
+        User->>Explorer: open selected ontology query
+        Explorer->>Host: onOpenQueryIntent(intent, snapshot)
+        Host->>Nav: hand off search intent
+        opt launch results directly
+            Nav->>Search: executeQuery(createQueryFromOntologyQuery(...))
+            Search->>Data: run prepared search session
+            Data-->>Search: initial result window
+            Search-->>Nav: prepared results route payload
+        end
+        Nav-->>User: open search editor or results route
+    end
+```
+
+The ontology browser owns:
+
+- route preparation
+- snapshot restore when returning from search
+- launching seeded search flows from ontology leaves
+
+The ontology browser does not currently own a separate mode-aware ontology tree builder. The discovery-mode switch is now wired through the shared action rail, but the route currently reloads the same broad browse model for both modes until a future semantics pass changes that.
+
+### Search Explorer Flow
+
+```mermaid
+sequenceDiagram
+    actor User as User
+    box rgba(255, 243, 205, 0.75) Search-builder-only host and workflow
+        participant SearchHost as search-screen/controller.ts + query-field-builder session
+        participant Workflow as search-screen/filter-explorer-workflow.ts
+        participant ComposeHost as search-screen/filter-explorer-screen.tsx
+    end
+    box rgba(217, 247, 208, 0.65) Shared explorer and app services
+        participant Explorer as FilterExplorerScreen
+        participant Controller as filter-explorer/controller.ts
+        participant Search as search/service.ts
+        participant Ontology as app/ontology-service.ts
+        participant Data as search discovery + Pf2eDataService
+    end
+
+    rect rgba(255, 243, 205, 0.35)
+        User->>SearchHost: Open dedicated filter builder
+        SearchHost->>Workflow: openFilterExplorer(...)
+        Workflow->>Search: normalizeQuery() + prepareFilterExplorerDraft()
+        Workflow->>Ontology: loadSearchFilterExplorerDomain(request, matching)
+        Ontology->>Data: build prepared search-scoped model
+        Data-->>Ontology: prepared OntologyDomainModel
+        Ontology-->>Workflow: prepared explorer model
+        Workflow->>ComposeHost: create compose session
+    end
+
+    rect rgba(217, 247, 208, 0.28)
+        ComposeHost->>Explorer: mount compose session
+        Explorer->>Controller: create shared list/detail state
+        Controller-->>Explorer: rows, detail, action rail
+        User->>Explorer: browse, drill, edit clauses
+        Explorer-->>ComposeHost: draft mutations
+    end
+
+    rect rgba(255, 243, 205, 0.35)
+        User->>Explorer: switch matching/catalog counts
+        Explorer->>ComposeHost: request discovery-mode change
+        ComposeHost->>Ontology: loadSearchFilterExplorerDomain(request, nextMode)
+        Ontology->>Data: rebuild prepared scoped model
+        Data-->>Ontology: refreshed domain
+        Ontology-->>ComposeHost: refreshed model
+        ComposeHost->>Explorer: replace shared model
+    end
+
+    rect rgba(255, 243, 205, 0.35)
+        User->>Explorer: exit at root / apply
+        Explorer->>ComposeHost: onExit()
+        ComposeHost->>Workflow: session.onApply(draft)
+        Workflow->>Search: applyFilterExplorerDraft(...)
+        Search-->>SearchHost: updated canonical query projection
+        SearchHost-->>User: return to search screen with updated filter tree
+    end
+```
+
+The search explorer owns:
+
+- taking the live canonical query as scope
+- loading a prepared model for the current `SearchRequest`
+- caching and refreshing discovery-mode transitions within the search workflow
+- applying the resulting draft back into the search query editor
+
+This is the path where `matching` versus `catalog` currently has real semantic effect.
+
+### Picker Flows
+
+A picker is the smaller centered selection prompt used for tasks such as choosing:
+
+- a pack
+- a metric key
+- a metadata field
+- a clause kind
+
+Pickers use the same discovery vocabulary, but they are not the same surface as the explorer screen.
+
+```mermaid
+flowchart TD
+  A["structured draft action"] --> B["structured draft metadata actions"]
+  B --> C["picker local discovery mode state"]
+  C --> D["search service option loaders"]
+  D --> E["mode-aware option list"]
+  E --> F["centered picker prompt"]
+```
+
+These picker flows are narrower than the shared explorer:
+
+- they do not mount the full list/detail explorer screen
+- they use prompt-local mode switching instead of the full explorer action rail
+- they still use the same `matching` / `catalog` vocabulary and the same app-facing discovery owners below the TUI
+
+### What The Similarity Means
+
+Search explorer, ontology browser, and picker flows should not invent different core discovery semantics. They should share:
+
+- the same discovery vocabulary
+- the same app/domain owners for applicability and counts
+- the same explorer/action-rail interaction family where the shared explorer surface applies
+
+But they are not required to share the exact same host screen or model-builder entrypoint. The architecture intentionally allows:
+
+- broad ontology browsing without a live query
+- search-scoped exploration from a concrete `SearchRequest`
+- narrow modal selection flows for focused prompt work
+
+When these surfaces feel inconsistent, the first question is whether the inconsistency comes from:
+
+- shared explorer/action-rail plumbing
+- the broad browse model
+- the prepared search-scoped model
+- or a picker-local prompt flow
+
+That distinction determines which layer should own the fix.
+
 ## Screen, Workflow, And Controller Split
 
 The TUI generally separates visible screens from stateful interaction logic and service calls.
@@ -311,7 +597,7 @@ The async work is pushed further down:
 - `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer in compose mode for ontology-backed field editing
 - `filter-explorer/controller.ts` owns reducer-backed browser state and screen orchestration, while `filter-explorer/workflow-actions.ts` owns command/help/open/compose workflow behavior
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
-- `search-screen/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
+- `search-screen/query-field-builder/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
 - `list-detail-presentation.ts` now owns the shared measurement and route-setup seam used by search result-reader, filter explorer, and review screens
 
 The search screen is intentionally render-only at route entry:
