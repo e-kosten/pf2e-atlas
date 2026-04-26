@@ -11,7 +11,9 @@ import {
 } from "./ontology/search-semantics-domain.js";
 
 export type Pf2eApplicationOntologyService = {
-  loadSearchSemanticsDomain: () => Promise<OntologyDomainModel>;
+  loadSearchSemanticsDomain: (options: {
+    discoveryMode: SearchFilterDiscoveryMode;
+  }) => Promise<OntologyDomainModel>;
   loadSearchFilterExplorerDomain: (options: {
     request: Readonly<SearchRequest>;
     discoveryMode: SearchFilterDiscoveryMode;
@@ -29,7 +31,7 @@ export function createPf2eApplicationOntologyService(
   dataService: OntologyDomainDataService,
   discoveryService: Pf2eApplicationSearchDiscoveryService,
 ): Pf2eApplicationOntologyService {
-  let searchSemanticsDomainPromise: Promise<OntologyDomainModel> | null = null;
+  const searchSemanticsDomainPromiseCache = new Map<SearchFilterDiscoveryMode, Promise<OntologyDomainModel>>();
   const searchFilterExplorerPromiseCache = new Map<string, Promise<OntologyDomainModel>>();
 
   function buildSearchFilterExplorerCacheKey(options: {
@@ -39,20 +41,22 @@ export function createPf2eApplicationOntologyService(
     return `${options.discoveryMode}|${JSON.stringify(options.request)}`;
   }
 
-  const loadSearchSemanticsDomain = (): Promise<OntologyDomainModel> => {
-    if (searchSemanticsDomainPromise) {
-      return searchSemanticsDomainPromise;
+  const loadSearchSemanticsDomain = (options: {
+    discoveryMode: SearchFilterDiscoveryMode;
+  }): Promise<OntologyDomainModel> => {
+    const cached = searchSemanticsDomainPromiseCache.get(options.discoveryMode);
+    if (cached) {
+      return cached;
     }
 
-    searchSemanticsDomainPromise = Promise.resolve().then(() =>
-      buildSearchSemanticsDomain(config, dataService, discoveryService),
+    const promise = Promise.resolve().then(() =>
+      buildSearchSemanticsDomain(config, dataService, discoveryService, options),
     );
-    void searchSemanticsDomainPromise.catch(() => {
-      if (searchSemanticsDomainPromise) {
-        searchSemanticsDomainPromise = null;
-      }
+    searchSemanticsDomainPromiseCache.set(options.discoveryMode, promise);
+    void promise.catch(() => {
+      searchSemanticsDomainPromiseCache.delete(options.discoveryMode);
     });
-    return searchSemanticsDomainPromise;
+    return promise;
   };
 
   const loadSearchFilterExplorerDomain = (options: {

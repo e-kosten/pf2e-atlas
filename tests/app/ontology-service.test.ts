@@ -408,10 +408,102 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    const first = await service.loadSearchSemanticsDomain();
-    const second = await service.loadSearchSemanticsDomain();
+    const first = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
+    const second = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
 
     expect(second).toBe(first);
+  });
+
+  it("keeps the broad ontology cache explicit by discovery mode", async () => {
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+
+    const matching = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
+    const matchingAgain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
+    const catalog = await service.loadSearchSemanticsDomain({ discoveryMode: "catalog" });
+
+    expect(matchingAgain).toBe(matching);
+    expect(catalog).not.toBe(matching);
+    expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it("changes broad derived-tag family output between matching and catalog modes", async () => {
+    const summary: SearchSemanticsBootstrapSummaryResult = {
+      categories: [{ value: "creature", count: 3 }],
+      subcategoryCountsByCategory: [{ category: "creature", subcategories: [] }],
+      commonTraitsByCategory: [],
+      commonDerivedTagsByCategory: [],
+      derivedTagCatalog: [
+        {
+          category: "creature",
+          family: "threat_profile",
+          axis: "threat",
+          description: "Threat-flavored creature tags.",
+          tags: [{ value: "undead_adjacent" }, { value: "fiend_adjacent" }],
+        },
+      ],
+    };
+    const dataService: Pick<
+      Pf2eDataService,
+      "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
+    > = {
+      getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
+      listFilterValues: vi.fn(
+        ({
+          field,
+          category,
+        }: {
+          field: FilterValueField;
+          category?: string;
+        }) => ({
+          field,
+          values:
+            field === "derivedTags" && category === "creature"
+              ? [{ value: "undead_adjacent", count: 3 }]
+              : [],
+        }),
+      ),
+      listRecords: vi.fn((request: SearchRequest) => ({
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: request.sort ?? "alphabetical",
+        total: 0,
+        offset: request.offset ?? 0,
+        limit: request.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [],
+      }) satisfies SearchResult),
+    };
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+
+    const matching = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
+    const catalog = await service.loadSearchSemanticsDomain({ discoveryMode: "catalog" });
+
+    const matchingFamilyNode = findNodeById(matching.rootNodes, "creature:field:derivedTags")?.children?.[0];
+    const catalogFamilyNode = findNodeById(catalog.rootNodes, "creature:field:derivedTags")?.children?.[0];
+
+    expect(matchingFamilyNode?.listLabel).toBe("Threat Profile | 1 tags");
+    expect(matchingFamilyNode?.children?.map((node) => node.listLabel)).toEqual(["Undead Adjacent | 3"]);
+
+    expect(catalogFamilyNode?.listLabel).toBe("Threat Profile | 2 tags");
+    expect(catalogFamilyNode?.children?.map((node) => node.listLabel)).toEqual([
+      "Undead Adjacent | 3",
+      "Fiend Adjacent | 0",
+    ]);
+    expect(catalogFamilyNode?.children?.[1]?.query).toEqual(
+      expect.objectContaining({
+        label: "Browse records with the Fiend Adjacent derived tag",
+      }),
+    );
   });
 
   it("reuses the in-flight ontology domain load", async () => {
@@ -422,8 +514,8 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    const first = service.loadSearchSemanticsDomain();
-    const second = service.loadSearchSemanticsDomain();
+    const first = service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
+    const second = service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
 
     expect(second).toBe(first);
     expect(await second).toBe(await first);
@@ -437,7 +529,7 @@ describe("application ontology service", () => {
       createDiscoveryService(dataService),
     );
 
-    await service.loadSearchSemanticsDomain();
+    await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
   });
 
   it("builds valid field-specific browse queries for search semantics values", async () => {
@@ -447,7 +539,7 @@ describe("application ontology service", () => {
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = await service.loadSearchSemanticsDomain();
+    const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const metadataFieldsNode = findNodeById(domain.rootNodes, "spell:metadataFields");
 
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith({ field: "saveType", category: "spell" });
@@ -541,7 +633,7 @@ describe("application ontology service", () => {
 
       const dataService = createDataService();
       const service = createPf2eApplicationOntologyService(config, dataService, createDiscoveryService(dataService));
-      const domain = await service.loadSearchSemanticsDomain();
+      const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
       const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
       const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
@@ -601,7 +693,7 @@ describe("application ontology service", () => {
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = await service.loadSearchSemanticsDomain();
+    const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
     const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
 
@@ -616,7 +708,7 @@ describe("application ontology service", () => {
       dataService,
       createDiscoveryService(dataService),
     );
-    const domain = await service.loadSearchSemanticsDomain();
+    const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
     const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
     const actorMetricNode = actorMetricNamespace
