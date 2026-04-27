@@ -25,6 +25,10 @@ export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+  onDraftChange?: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
+  ) => void;
   onApply: (
     draft: Pf2eTerminalFilterExplorerDraft,
     context: Pf2eTerminalPreparedFilterExplorerContext,

@@ -88,6 +88,34 @@ describe("interaction context router", () => {
     expect(left.routes.selectPrompt.interactionAction?.id).toBe("back");
   });
 
+  it("routes raw Escape as back for explorer-style list contexts that expose back but not cancel", () => {
+    const routed = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u001b", {} as never),
+      [
+        createTerminalListInteractionContext("filterExplorer", {
+          interactionActions: [
+            { id: "move", label: "select" },
+            { id: "jump" },
+            { id: "page" },
+            { id: "edge" },
+            { id: "cycle", label: "cycle" },
+            { id: "focus", label: "pane" },
+            { id: "layout", label: "detail-only" },
+            { id: "back" },
+            { id: "search" },
+            { id: "help" },
+            { id: "quit", label: "back" },
+          ],
+          pageSize: 10,
+          jumpSize: 5,
+        }),
+      ],
+      createTerminalInteractionContextRouterState(),
+    );
+
+    expect(routed.routes.filterExplorer.interactionAction?.id).toBe("back");
+  });
+
   it("resolves action-target intents as part of the shared routing result", () => {
     const state = createDerivedTagTerminalActionTargetState();
     const toggle = routeTerminalInteractionContexts(

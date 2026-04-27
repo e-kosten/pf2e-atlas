@@ -205,6 +205,49 @@ export function buildStructuredDraftEntries(
   return entries;
 }
 
+function pathsMatch(path: number[] | undefined, targetPath: number[]): boolean {
+  return Boolean(path) && JSON.stringify(path) === JSON.stringify(targetPath);
+}
+
+export function getStructuredDraftSelectionIndexForPath(
+  entries: SearchStructuredDraftEntry[],
+  focusPath: number[] | null,
+  fallbackIndex = 0,
+): number {
+  if (!focusPath) {
+    return clampStructuredDraftSelection(fallbackIndex, entries.length);
+  }
+
+  const exactNodeIndex = entries.findIndex(
+    (entry) => entry.kind === "queryNode" && pathsMatch(entry.treePath, focusPath),
+  );
+  if (exactNodeIndex >= 0) {
+    return clampStructuredDraftSelection(exactNodeIndex, entries.length);
+  }
+
+  for (let depth = focusPath.length - 1; depth >= 0; depth -= 1) {
+    const parentPath = focusPath.slice(0, depth);
+    const insertionIndex = entries.findIndex(
+      (entry) => entry.kind === "queryInsertionSlot" && pathsMatch(entry.insertionPath, parentPath),
+    );
+    if (insertionIndex >= 0) {
+      return clampStructuredDraftSelection(insertionIndex, entries.length);
+    }
+
+    const ancestorNodeIndex = entries.findIndex(
+      (entry) => entry.kind === "queryNode" && pathsMatch(entry.treePath, parentPath),
+    );
+    if (ancestorNodeIndex >= 0) {
+      return clampStructuredDraftSelection(ancestorNodeIndex, entries.length);
+    }
+  }
+
+  const rootInsertionIndex = entries.findIndex(
+    (entry) => entry.kind === "queryInsertionSlot" && (entry.insertionPath?.length ?? -1) === 0,
+  );
+  return clampStructuredDraftSelection(rootInsertionIndex >= 0 ? rootInsertionIndex : fallbackIndex, entries.length);
+}
+
 function getStructuredDraftAnchorKind(
   anchor: SearchStructuredDraftAnchor,
 ): SearchStructuredDraftEntryKind {

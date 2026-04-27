@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStructuredDraftEntries } from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
+import {
+  buildStructuredDraftEntries,
+  getStructuredDraftSelectionIndexForPath,
+} from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
 import type { Pf2eTerminalSearchQuery } from "../../src/tui/search/service.js";
 
 describe("structured draft support", () => {
@@ -32,5 +35,45 @@ describe("structured draft support", () => {
     expect(menuLabels).toContain("│  ├─ Pack: monster-core");
     expect(menuLabels).toContain("│  └─ [+ add here]");
     expect(menuLabels).toContain("└─ [+ add here]");
+  });
+
+  it("falls back to the parent insertion slot when a nested focused path is no longer present", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          {
+            kind: "anyOf",
+            children: [
+              { kind: "pack", value: "monster-core" },
+              { kind: "metadataPredicate", field: "rarity", value: "common", operator: "eq" },
+            ],
+          },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(
+      {
+        ...query,
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "anyOf",
+              children: [{ kind: "pack", value: "monster-core" }],
+            },
+          ],
+        },
+      },
+      [0, 1],
+      {},
+    );
+    const selectedIndex = getStructuredDraftSelectionIndexForPath(entries, [0, 1], 0);
+    const selectedEntry = entries[selectedIndex];
+
+    expect(selectedEntry?.kind).toBe("queryInsertionSlot");
+    expect(selectedEntry?.insertionPath).toEqual([0]);
   });
 });

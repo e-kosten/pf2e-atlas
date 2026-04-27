@@ -81,6 +81,21 @@ function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
   }
 }
 
+function buildExplorerOnlyFieldOption(
+  field: Pf2eTerminalQueryFieldOption["value"],
+  label: string,
+  description: string,
+  fieldType: Pf2eTerminalQueryFieldOption["fieldType"],
+): Pf2eTerminalQueryFieldOption {
+  return {
+    value: field,
+    label,
+    description,
+    fieldType,
+    editor: "sharedExplorer",
+  };
+}
+
 function buildInsertionActionEntries(
   moveMode: boolean,
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
@@ -153,21 +168,6 @@ function isMetricFieldOptionValue(value: Pf2eTerminalQueryFieldOption["value"]):
   return value === "actorMetric" || value === "itemMetric";
 }
 
-function buildExplorerOnlyFieldOption(
-  field: Pf2eTerminalQueryFieldOption["value"],
-  label: string,
-  description: string,
-  fieldType: Pf2eTerminalQueryFieldOption["fieldType"],
-): Pf2eTerminalQueryFieldOption {
-  return {
-    value: field,
-    label,
-    description,
-    fieldType,
-    editor: "sharedExplorer",
-  };
-}
-
 function getQueryFieldValueForNode(node: SearchFilterNode): Pf2eTerminalQueryFieldOption["value"] | null {
   switch (node.kind) {
     case "metadataPredicate":
@@ -220,6 +220,7 @@ export function useSearchStructuredDraftMetadataActions({
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
+  setStructuredDraftMetadataFocusPath,
   structuredDraftQuery,
   terminal,
   updateStructuredDraftMetadataNode,
@@ -244,15 +245,22 @@ export function useSearchStructuredDraftMetadataActions({
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
     onReturn?: () => void,
+    onDraftChange?: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
   ) => Promise<boolean>;
   moveSourcePath: number[] | null;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   terminal: SearchWorkspaceTerminal;
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+    options?: { metadataFocusPath?: number[] | null },
   ) => void;
   user: SearchWorkspaceUser;
 }): {
@@ -273,6 +281,34 @@ export function useSearchStructuredDraftMetadataActions({
       }));
     },
     [replaceStructuredDraftProjection],
+  );
+
+  const openLiveExplorerFieldClause = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      fieldOption: Pf2eTerminalQueryFieldOption,
+      currentNode: MetadataFilterNode | null,
+    ) => {
+      setStructuredDraftMetadataFocusPath(path);
+      await openOntologyFieldEditor(
+        query,
+        fieldOption,
+        currentNode,
+        () => {},
+        undefined,
+        (result) => {
+          if (result.kind !== "replace") {
+            return;
+          }
+
+          updateStructuredDraftMetadataNode(path, () => result.node, {
+            metadataFocusPath: result.node ? path : path.length > 0 ? path.slice(0, -1) : null,
+          });
+        },
+      );
+    },
+    [openOntologyFieldEditor, setStructuredDraftMetadataFocusPath, updateStructuredDraftMetadataNode],
   );
 
   const promptForPickerDiscoveryMode = React.useCallback(
@@ -1298,14 +1334,37 @@ export function useSearchStructuredDraftMetadataActions({
           await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
           return;
         }
+        if (editableClauseKind === "rarity" && editableMetadataNode) {
+          await openLiveExplorerFieldClause(
+            query,
+            path,
+            buildExplorerOnlyFieldOption(
+              "rarity",
+              "Rarity",
+              "Browse live rarities for the current scope and stage canonical rarity clauses.",
+              "enumString",
+            ),
+            editableMetadataNode,
+          );
+          return;
+        }
+        if (editableClauseKind === "actionCost" && editableMetadataNode) {
+          await openLiveExplorerFieldClause(
+            query,
+            path,
+            buildExplorerOnlyFieldOption(
+              "actionCost",
+              "Action Cost",
+              "Browse live action costs for the current scope and stage canonical action-cost clauses.",
+              "number",
+            ),
+            editableMetadataNode,
+          );
+          return;
+        }
         if ((editableClauseKind === "field" || editableClauseKind === "metric") && fieldOption && editableMetadataNode) {
           if (fieldOption.editor === "sharedExplorer") {
-            await openOntologyFieldEditor(query, fieldOption, editableMetadataNode, (result) => {
-              if (result.kind !== "replace") {
-                return;
-              }
-              updateStructuredDraftMetadataNode(path, () => result.node);
-            });
+            await openLiveExplorerFieldClause(query, path, fieldOption, editableMetadataNode);
             return;
           }
           const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
@@ -1352,7 +1411,7 @@ export function useSearchStructuredDraftMetadataActions({
       editFieldClause,
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
-      openOntologyFieldEditor,
+      openLiveExplorerFieldClause,
       promptForClauseNode,
       terminal,
       updateStructuredDraftMetadataNode,

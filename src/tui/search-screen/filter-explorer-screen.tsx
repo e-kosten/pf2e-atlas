@@ -46,7 +46,7 @@ export function SearchFilterExplorerScreen({
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
   const [model, setModel] = React.useState(session.model);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
-  const [draft, setDraft] = React.useState(() => cloneFilterExplorerComposeDraft(session.draft));
+  const [renderDraft, setRenderDraft] = React.useState(() => cloneFilterExplorerComposeDraft(session.draft));
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const draftRef = React.useRef(cloneFilterExplorerComposeDraft(session.draft));
   const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
@@ -166,9 +166,8 @@ export function SearchFilterExplorerScreen({
         ? { pendingMode: initialDiscoveryMode }
         : null,
     );
-    const nextDraft = cloneFilterExplorerComposeDraft(session.draft);
-    draftRef.current = nextDraft;
-    setDraft(nextDraft);
+    draftRef.current = cloneFilterExplorerComposeDraft(session.draft);
+    setRenderDraft(draftRef.current);
     if (session.loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)) {
       runModelRefresh(initialDiscoveryMode, { debounceMs: 0, force: true });
     }
@@ -231,11 +230,10 @@ export function SearchFilterExplorerScreen({
     [onEditScalarTarget, session.resolveSelectionTarget],
   );
 
-  const updateDraft = React.useCallback((nextComposeDraft: typeof draft) => {
-    const nextDraft = cloneFilterExplorerComposeDraft(nextComposeDraft);
-    draftRef.current = nextDraft;
-    setDraft(nextDraft);
-  }, []);
+  React.useEffect(() => {
+    draftRef.current = cloneFilterExplorerComposeDraft(session.draft);
+    setRenderDraft(draftRef.current);
+  }, [session.draft]);
 
   return (
     <FilterExplorerScreen
@@ -248,9 +246,12 @@ export function SearchFilterExplorerScreen({
       discovery={discovery}
       mode={{
         kind: "compose",
-        draft,
+        draft: renderDraft,
         onDraftChange: (nextComposeDraft) => {
-          updateDraft(nextComposeDraft);
+          const nextDraft = cloneFilterExplorerComposeDraft(nextComposeDraft);
+          draftRef.current = nextDraft;
+          setRenderDraft(nextDraft);
+          session.onDraftChange?.(nextDraft);
         },
         onEditScalarTarget,
       }}

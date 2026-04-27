@@ -30,6 +30,10 @@ export function useSearchFilterExplorerWorkflow({
     queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+    onDraftChange?: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void;
     onApply: (
       draft: Pf2eTerminalFilterExplorerDraft,
       context: Pf2eTerminalPreparedFilterExplorerContext,
@@ -46,6 +50,7 @@ export function useSearchFilterExplorerWorkflow({
       queryOverride,
       fieldOptions,
       initialPreparedDraft,
+      onDraftChange,
       onApply,
       onReturn,
       singleFieldBehavior = onReturn ? "directValues" : "list",
@@ -53,6 +58,10 @@ export function useSearchFilterExplorerWorkflow({
       queryOverride?: Pf2eTerminalSearchQuery;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      onDraftChange?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void;
       onApply: (
         draft: Pf2eTerminalFilterExplorerDraft,
         context: Pf2eTerminalPreparedFilterExplorerContext,
@@ -97,6 +106,20 @@ export function useSearchFilterExplorerWorkflow({
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         draft: preparedDraft.draft,
+        onDraftChange: (nextDraft) => {
+          setFilterExplorerSession((currentSession) =>
+            currentSession
+              ? {
+                  ...currentSession,
+                  draft: nextDraft,
+                }
+              : currentSession,
+          );
+          onDraftChange?.(nextDraft, {
+            preservedMetadata: preparedDraft.preservedMetadata,
+            scopedFields: preparedDraft.scopedFields,
+          });
+        },
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
           onApply(nextDraft, {

@@ -166,9 +166,10 @@ export function useSearchStructuredDraftPartActions({
         fieldOptions: [fieldOption],
         initialPreparedDraft: user.search.prepareFilterExplorerDraft(draftQuery, [fieldOption.value]),
         singleFieldBehavior: "directValues",
-        onApply: (draft, context) => {
+        onDraftChange: (draft, context) => {
           replaceStructuredDraftProjection((query) => user.search.applyFilterExplorerDraft(query, draft, context));
         },
+        onApply: () => {},
       });
     },
     [openFilterExplorer, replaceStructuredDraftProjection, structuredDraftQuery, user.search],

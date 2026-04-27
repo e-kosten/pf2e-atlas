@@ -35,6 +35,7 @@ export function useSearchStructuredDraftEditing({
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
+  setStructuredDraftMetadataFocusPath,
   structuredDraftEntries,
   structuredDraftQuery,
   structuredDraftState,
@@ -64,9 +65,15 @@ export function useSearchStructuredDraftEditing({
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
     onReturn?: () => void,
+    onDraftChange?: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
   ) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
   structuredDraftEntries: SearchStructuredDraftEntry[];
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
@@ -74,6 +81,7 @@ export function useSearchStructuredDraftEditing({
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+    options?: { metadataFocusPath?: number[] | null },
   ) => void;
   user: SearchWorkspaceUser;
 }): SearchStructuredEditorSession | null {
@@ -91,6 +99,7 @@ export function useSearchStructuredDraftEditing({
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection,
+    setStructuredDraftMetadataFocusPath,
     structuredDraftQuery,
     terminal,
     updateStructuredDraftMetadataNode,

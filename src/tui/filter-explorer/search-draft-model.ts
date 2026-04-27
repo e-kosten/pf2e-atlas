@@ -294,7 +294,13 @@ function buildFallbackFieldSelectionTarget(
     return undefined;
   }
 
-  return buildFieldSelectionTarget(fieldOption, node, idSegments.slice(fieldIndex + 1).join(":"));
+  const valueSegments = idSegments.slice(fieldIndex + 1);
+  const normalizedValueSegments = valueSegments[0] === "value" ? valueSegments.slice(1) : valueSegments;
+  if (normalizedValueSegments.length === 0) {
+    return undefined;
+  }
+
+  return buildFieldSelectionTarget(fieldOption, node, normalizedValueSegments.join(":"));
 }
 
 export function buildSearchFilterExplorerTargetResolver(

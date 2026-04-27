@@ -53,6 +53,11 @@ export function useSearchQueryFieldEditing({
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
     onReturn?: () => void,
+    onDraftChange?: (
+      result: Pf2eTerminalFilterExplorerInsertionResult,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void,
   ) => Promise<boolean>;
   openOntologyFieldExplorer: (
     query: Pf2eTerminalSearchQuery,
@@ -111,6 +116,11 @@ export function useSearchQueryFieldEditing({
         context: Pf2eTerminalPreparedFilterExplorerContext,
       ) => void,
       onReturn?: () => void,
+      onDraftChange?: (
+        result: Pf2eTerminalFilterExplorerInsertionResult,
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void,
     ): Promise<boolean> => {
       if (fieldOption.editor !== "sharedExplorer") {
         return false;
@@ -120,6 +130,17 @@ export function useSearchQueryFieldEditing({
         queryOverride: query,
         fieldOptions: [fieldOption],
         initialPreparedDraft: user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
+        onDraftChange: onDraftChange
+          ? (draft, context) =>
+              onDraftChange(
+                user.search.buildFilterExplorerInsertionResult(draft, {
+                  preservedMetadata: context.preservedMetadata,
+                  preferReplace: currentNode !== null,
+                }),
+                draft,
+                context,
+              )
+          : undefined,
         onReturn,
         singleFieldBehavior: "directValues",
         onApply: (draft, context) =>

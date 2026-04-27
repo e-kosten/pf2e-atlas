@@ -9,7 +9,10 @@ import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
-import type { FilterExplorerComposeTarget } from "../../src/tui/filter-explorer/index.js";
+import {
+  buildSearchFilterExplorerTargetResolver,
+  type FilterExplorerComposeTarget,
+} from "../../src/tui/filter-explorer/index.js";
 import {
   createPf2eTerminalSearchService,
   type Pf2eTerminalSearchSession,
@@ -2272,6 +2275,65 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("2");
   });
 
+  it("returns from a live rarity explorer edit after clearing the focused clause", async () => {
+    const services = createServices();
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
+      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+
+    pressUp(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("Rarity Explorer");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Action Cost: 2");
+    expect(app.lastFrame()).not.toContain("Rarity: Common");
+  });
+
   it("uses friendly aliases in structured-draft clause and exclude-group action menus", async () => {
     const services = createServices();
 
@@ -3001,6 +3063,82 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Hit Points");
     expect(app.lastFrame()).toContain("= 12");
+  });
+
+  it("emits live draft changes before returning from the shared search explorer", async () => {
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const onDraftChange = vi.fn();
+    const onApply = vi.fn();
+    const session: SearchFilterExplorerSession = {
+      title: "Rarity Explorer",
+      model: {
+        id: "searchSemantics",
+        label: "Rarity Explorer",
+        description: "Rarity explorer test domain",
+        rootNodes: [
+          {
+            id: "spell:field:rarity",
+            kind: "field",
+            label: "Rarity",
+            filterText: "rarity",
+            detailTitle: "Metadata Field Details",
+            detailLines: [{ text: "Rarity", tone: "section" }],
+            children: [
+              {
+                id: "spell:field:rarity:value:common",
+                kind: "value",
+                label: "common",
+                filterText: "common",
+                listLabel: "common",
+                detailTitle: "Value Details",
+                detailLines: [{ text: "common", tone: "section" }],
+                query: browseQuery("Browse common spells", {
+                  filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
+                  limit: 20,
+                }),
+              },
+            ],
+          },
+        ],
+      },
+      draft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
+      onDraftChange,
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ]),
+      onApply,
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <SearchFilterExplorer session={session} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("common");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+
+    expect(onDraftChange).toHaveBeenCalled();
+    expect(onApply).not.toHaveBeenCalled();
+    expect(onDraftChange.mock.calls.at(-1)?.[0]).toMatchObject({
+      discreteClauses: [{ field: "rarity", value: "common", operator: "include" }],
+    });
   });
 
   it("shows the add-clause picker before pack and metric discovery checks resolve", async () => {

@@ -64,6 +64,7 @@ export function useSearchStructuredEditorActions({
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection: structuredDraftActions.replaceStructuredDraftProjection,
+    setStructuredDraftMetadataFocusPath: structuredDraftActions.setStructuredDraftMetadataFocusPath,
     structuredDraftEntries: structuredDraftActions.structuredDraftEntries,
     structuredDraftQuery: structuredDraftActions.structuredDraftQuery,
     structuredDraftState: structuredDraftActions.structuredDraftState,

@@ -20,6 +20,7 @@ import {
 import {
   buildStructuredDraftQuery,
   buildStructuredDraftEntries,
+  getStructuredDraftSelectionIndexForPath,
   getStructuredDraftSelectionIndex,
   type SearchStructuredDraftState,
 } from "./structured-draft-support.js";
@@ -44,13 +45,18 @@ export function useSearchStructuredDraftActions({
     anchor: SearchStructuredDraftState["anchor"],
     query?: Pf2eTerminalSearchQuery,
   ) => void;
-  replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  replaceStructuredDraftProjection: (
+    update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
+    options?: { metadataFocusPath?: number[] | null },
+  ) => void;
+  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
   structuredDraftEntries: ReturnType<typeof buildStructuredDraftEntries>;
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+    options?: { metadataFocusPath?: number[] | null },
   ) => void;
 } {
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
@@ -76,14 +82,18 @@ export function useSearchStructuredDraftActions({
   );
 
   const replaceStructuredDraftProjection = React.useCallback(
-    (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => {
+    (
+      update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
+      options?: { metadataFocusPath?: number[] | null },
+    ) => {
       setStructuredDraftState((current) => {
         if (!current) {
           return current;
         }
 
         const nextDraftQuery = user.search.normalizeQuery(update(buildStructuredDraftQuery(current)));
-        const entries = buildStructuredDraftEntries(nextDraftQuery, current.metadataFocusPath, {
+        const metadataFocusPath = options?.metadataFocusPath ?? current.metadataFocusPath;
+        const entries = buildStructuredDraftEntries(nextDraftQuery, metadataFocusPath, {
           packLabelResolver: user.search.getPackLabel,
           moveSourcePath: current.moveSourcePath,
         });
@@ -92,7 +102,8 @@ export function useSearchStructuredDraftActions({
           ...current,
           baseQuery: stripSearchQueryFilter(nextDraftQuery),
           draftFilter: nextDraftQuery.filter,
-          selectedIndex: clampStructuredDraftSelection(current.selectedIndex, entries.length),
+          metadataFocusPath,
+          selectedIndex: getStructuredDraftSelectionIndexForPath(entries, metadataFocusPath, current.selectedIndex),
         };
       });
     },
@@ -122,24 +133,64 @@ export function useSearchStructuredDraftActions({
     (
       path: number[],
       update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+      options?: { metadataFocusPath?: number[] | null },
     ) => {
-      replaceStructuredDraftProjection((draftQuery) => {
+      setStructuredDraftState((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const draftQuery = buildStructuredDraftQuery(current);
         const currentNode = getSearchFilterNodeAtPath(draftQuery.filter, path);
         const currentMetadataNode = currentNode ? canonicalFilterToMetadataNode(currentNode) : null;
         if (!currentMetadataNode) {
-          return draftQuery;
+          return current;
         }
 
         const nextMetadataNode = update(currentMetadataNode);
         const nextCanonicalNode = metadataFilterNodeToCanonicalFilter(nextMetadataNode);
-        return {
+        const nextDraftQuery = user.search.normalizeQuery({
           ...draftQuery,
           filter: updateSearchFilterNodeAtPath(draftQuery.filter, path, () => nextCanonicalNode),
+        });
+        const metadataFocusPath =
+          options?.metadataFocusPath ?? (nextCanonicalNode ? path : path.length > 0 ? path.slice(0, -1) : null);
+        const entries = buildStructuredDraftEntries(nextDraftQuery, metadataFocusPath, {
+          packLabelResolver: user.search.getPackLabel,
+          moveSourcePath: current.moveSourcePath,
+        });
+
+        return {
+          ...current,
+          baseQuery: stripSearchQueryFilter(nextDraftQuery),
+          draftFilter: nextDraftQuery.filter,
+          metadataFocusPath,
+          selectedIndex: getStructuredDraftSelectionIndexForPath(entries, metadataFocusPath, current.selectedIndex),
         };
       });
     },
-    [replaceStructuredDraftProjection],
+    [user.search],
   );
+
+  const setStructuredDraftMetadataFocusPath = React.useCallback((path: number[] | null) => {
+    setStructuredDraftState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const currentQuery = buildStructuredDraftQuery(current);
+      const entries = buildStructuredDraftEntries(currentQuery, path, {
+        packLabelResolver: user.search.getPackLabel,
+        moveSourcePath: current.moveSourcePath,
+      });
+
+      return {
+        ...current,
+        metadataFocusPath: path,
+        selectedIndex: getStructuredDraftSelectionIndexForPath(entries, path, current.selectedIndex),
+      };
+    });
+  }, [user.search]);
 
   const finishStructuredDraftSession = React.useCallback(() => {
     if (!structuredDraftState) {
@@ -277,6 +328,7 @@ export function useSearchStructuredDraftActions({
     moveStructuredDraftSelection,
     openStructuredDraftSession,
     replaceStructuredDraftProjection,
+    setStructuredDraftMetadataFocusPath,
     structuredDraftEntries,
     structuredDraftQuery,
     structuredDraftState,
