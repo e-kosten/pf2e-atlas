@@ -1,5 +1,4 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
-import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type {
   OntologyChildPresentation,
   OntologyDomainModel,
@@ -22,14 +21,24 @@ import type { TerminalListDetailNotification } from "../list-detail-presentation
 export type FilterExplorerModeKind = "inspect-and-open" | "compose";
 export type FilterExplorerLineTone = DerivedTagTerminalTone;
 export type FilterExplorerDomainId = string;
-export type FilterExplorerDiscoveryMode = SearchFilterDiscoveryMode;
+export type FilterExplorerActivationStyle = "open" | "toggle" | "edit" | "none";
 
-export type FilterExplorerDiscoveryState = {
-  readonly mode: FilterExplorerDiscoveryMode;
-  readonly availableModes?: readonly FilterExplorerDiscoveryMode[];
-  readonly pendingMode?: FilterExplorerDiscoveryMode;
+export type FilterExplorerModeSwitchOption<TMode extends string = string> = {
+  readonly value: TMode;
+  readonly label: string;
+  readonly description: string;
+};
+
+type FilterExplorerModeChangeHandler<TMode extends string> = {
+  bivarianceHack(mode: TMode): void;
+}["bivarianceHack"];
+
+export type FilterExplorerDiscoveryState<TMode extends string = string> = {
+  readonly mode: TMode;
+  readonly modes: readonly FilterExplorerModeSwitchOption<TMode>[];
+  readonly pendingMode?: TMode;
   readonly isRefreshing?: boolean;
-  readonly onModeChange?: (mode: FilterExplorerDiscoveryMode) => void;
+  readonly onModeChange?: FilterExplorerModeChangeHandler<TMode>;
 };
 
 export type FilterExplorerTextLine = OntologyTextLine;
@@ -51,6 +60,19 @@ export type FilterExplorerQueryOpenIntent = {
   readonly query: FilterExplorerQueryTarget;
   readonly launchIntent: FilterExplorerLaunchIntent;
 };
+
+export type FilterExplorerSelectTargetOutcome = {
+  readonly kind: "selectTarget";
+  readonly activationStyle: FilterExplorerActivationStyle;
+  readonly result: FilterExplorerInspectResult;
+  readonly queryIntent: FilterExplorerQueryOpenIntent;
+};
+
+export type FilterExplorerOutcome =
+  | { readonly kind: "back" }
+  | { readonly kind: "exitRoot" }
+  | { readonly kind: "cancel" }
+  | FilterExplorerSelectTargetOutcome;
 
 export type FilterExplorerChildPresentation = OntologyChildPresentation;
 
@@ -187,14 +209,6 @@ export type FilterExplorerInspectAndOpenMode = {
   onEditScalarTarget?: (
     request: FilterExplorerScalarEditRequest,
   ) => Promise<FilterExplorerScalarClause | null | undefined> | FilterExplorerScalarClause | null | undefined;
-  onOpenInspectResult?: (
-    result: FilterExplorerInspectResult,
-    snapshot: FilterExplorerBrowserSnapshot,
-  ) => void;
-  onOpenQueryIntent?: (
-    intent: FilterExplorerQueryOpenIntent,
-    snapshot: FilterExplorerBrowserSnapshot,
-  ) => void;
   defaultListRecordLaunchIntent?: FilterExplorerLaunchIntent;
 };
 
@@ -222,7 +236,7 @@ export type FilterExplorerOptions = {
   exitAtRootDepth?: boolean;
   mode: FilterExplorerMode;
   discovery?: FilterExplorerDiscoveryState;
-  onExit: () => void;
+  onOutcome: (outcome: FilterExplorerOutcome, snapshot: FilterExplorerBrowserSnapshot) => void;
   title?: string;
   transitionStatus?: RouteTransitionStatus | null;
 };
@@ -239,15 +253,23 @@ export type FilterExplorerControllerContext = {
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
   discovery?: FilterExplorerDiscoveryState;
-  actionEntries: readonly DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId>[];
+  actionEntries: readonly FilterExplorerActionEntry[];
   actionTargetState: DerivedTagTerminalActionTargetState;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 };
 
-export type FilterExplorerActionEntryId =
-  | "openSelection"
-  | "openQuery"
-  | "openResults"
-  | "switchToMatching"
-  | "switchToCatalog";
+export type FilterExplorerActionEntryId = `setMode:${string}` | "selectTarget:default" | "selectTarget:query";
+
+export type FilterExplorerActionEntry =
+  DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId> & {
+    readonly action:
+      | {
+          readonly kind: "setMode";
+          readonly mode: string;
+        }
+      | {
+          readonly kind: "selectTarget";
+          readonly selection: "default" | "query";
+        };
+  };

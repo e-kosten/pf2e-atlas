@@ -24,8 +24,8 @@ import {
 } from "./compose-state.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
-  FilterExplorerActionEntryId,
-  FilterExplorerDiscoveryMode,
+  FilterExplorerActionEntry,
+  FilterExplorerActivationStyle,
   FilterExplorerDiscoveryState,
   FilterExplorerComposeMode,
   FilterExplorerBrowserContext,
@@ -60,14 +60,25 @@ function shouldShowActionRail(hasActionEntries: boolean): boolean {
   return hasActionEntries;
 }
 
+function getComposeActivationStyle(
+  mode: FilterExplorerComposeMode,
+  controller: FilterExplorerBrowserContext,
+): FilterExplorerActivationStyle {
+  const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
+  if (!focusedTarget) {
+    return "none";
+  }
+
+  return focusedTarget.kind === "scalar" ? "edit" : "toggle";
+}
+
 export function getFilterExplorerInteractionActions(
   mode: FilterExplorerMode,
   controller: FilterExplorerBrowserContext,
   hasActionEntries = false,
 ): TerminalInteractionAction[] {
   if (mode.kind === "compose") {
-    const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
-    const composeActionLabel = focusedTarget?.kind === "scalar" ? "edit" : "cycle";
+    const composeActionLabel = getComposeActivationStyle(mode, controller) === "edit" ? "edit" : "cycle";
 
     if (controller.layoutMode === "detail-only") {
       return [
@@ -408,31 +419,26 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
 
 function buildDiscoveryModeActionEntries(
   discovery: FilterExplorerDiscoveryState | undefined,
-): Array<{ id: FilterExplorerActionEntryId; label: string; description: string }> {
-  if (!discovery?.onModeChange) {
+): FilterExplorerActionEntry[] {
+  if (!discovery?.onModeChange || discovery.modes.length === 0) {
     return [];
   }
 
-  const availableModes = discovery.availableModes ?? (["matching", "catalog"] as const);
   const hiddenMode =
     discovery.isRefreshing && discovery.pendingMode && discovery.pendingMode !== discovery.mode
       ? discovery.pendingMode
       : discovery.mode;
-  const labelByMode: Record<FilterExplorerDiscoveryMode, string> = {
-    matching: "Matching",
-    catalog: "Catalog",
-  };
-  const descriptionByMode: Record<FilterExplorerDiscoveryMode, string> = {
-    matching: "Show values and counts from the current matching query context.",
-    catalog: "Show values and counts from the wider applicability slice only.",
-  };
 
-  return availableModes
-    .filter((mode) => mode !== hiddenMode)
+  return discovery.modes
+    .filter((mode) => mode.value !== hiddenMode)
     .map((mode) => ({
-      id: mode === "matching" ? "switchToMatching" : "switchToCatalog",
-      label: `Use ${labelByMode[mode]} Counts`,
-      description: descriptionByMode[mode],
+      id: `setMode:${mode.value}` as const,
+      label: `Use ${mode.label}`,
+      description: mode.description,
+      action: {
+        kind: "setMode" as const,
+        mode: mode.value,
+      },
     }));
 }
 
@@ -441,11 +447,7 @@ export function buildFilterExplorerActionEntries(
 ): FilterExplorerControllerContext["actionEntries"] {
   const actions = buildDiscoveryModeActionEntries(controller.discovery);
 
-  if (
-    controller.mode.kind !== "inspect-and-open" ||
-    (!controller.mode.onOpenInspectResult && !controller.mode.onOpenQueryIntent) ||
-    !controller.selectedInspectResult
-  ) {
+  if (controller.mode.kind !== "inspect-and-open" || !controller.selectedInspectResult) {
     return actions;
   }
 
@@ -462,20 +464,31 @@ export function buildFilterExplorerActionEntries(
     ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
       ? [
           {
-            id: "openResults" as const,
+            id: "selectTarget:default" as const,
             label: "Open Results Page",
             description: resultsDescription,
+            action: {
+              kind: "selectTarget" as const,
+              selection: "default" as const,
+            },
           },
         ]
       : []),
     {
       id: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-        ? "openQuery"
-        : "openSelection",
+        ? "selectTarget:query"
+        : "selectTarget:default",
       label: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
         ? "Open Search Query"
         : "Open Query",
       description: queryDescription,
+      action: {
+        kind: "selectTarget" as const,
+        selection:
+          request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+            ? "query"
+            : "default",
+      },
     },
   ];
 }
@@ -612,14 +625,24 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   return targetLabel ? `Focused ${targetLabel} | ${openLabel}` : openLabel;
 }
 
+function getDiscoveryModeLabel(
+  discovery: NonNullable<FilterExplorerControllerContext["discovery"]>,
+  mode: string,
+): string {
+  return discovery.modes.find((entry) => entry.value === mode)?.label.toLowerCase() ?? mode;
+}
+
 function formatDiscoveryStatus(discovery: NonNullable<FilterExplorerControllerContext["discovery"]>): string {
-  const activeLabel = `${discovery.mode} counts`;
+  const activeLabel = getDiscoveryModeLabel(discovery, discovery.mode);
   if (!discovery.isRefreshing) {
     return activeLabel;
   }
 
   const pendingLabel = discovery.pendingMode ?? discovery.mode;
-  return pendingLabel === discovery.mode ? `${activeLabel} | refreshing` : `${activeLabel} | refreshing ${pendingLabel} counts`;
+  const pendingModeLabel = getDiscoveryModeLabel(discovery, pendingLabel);
+  return pendingLabel === discovery.mode
+    ? `${activeLabel} | refreshing`
+    : `${activeLabel} | refreshing ${pendingModeLabel}`;
 }
 
 export function buildFilterExplorerScreenModel(

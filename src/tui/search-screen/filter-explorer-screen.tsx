@@ -1,12 +1,16 @@
 import React from "react";
 
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import { cloneFilterExplorerComposeDraft } from "../filter-explorer/compose-state.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { SearchFilterExplorerSession } from "./query-field-builder/query-field-builder-session.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
-import type { FilterExplorerDiscoveryMode, FilterExplorerDiscoveryState } from "../filter-explorer/types.js";
+import type {
+  FilterExplorerDiscoveryState,
+  FilterExplorerModeSwitchOption,
+} from "../filter-explorer/types.js";
 import { isSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
 import {
   planSearchFilterExplorerRefresh,
@@ -14,6 +18,18 @@ import {
 } from "./filter-explorer-refresh.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
+const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
+  {
+    value: "matching",
+    label: "Matching Counts",
+    description: "Show values and counts from the current matching query context.",
+  },
+  {
+    value: "catalog",
+    label: "Catalog Counts",
+    description: "Show values and counts from the wider applicability slice only.",
+  },
+];
 
 export function SearchFilterExplorerScreen({
   session,
@@ -24,13 +40,13 @@ export function SearchFilterExplorerScreen({
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
   const [model, setModel] = React.useState(session.model);
-  const [discoveryMode, setDiscoveryMode] = React.useState<FilterExplorerDiscoveryMode>(initialDiscoveryMode);
+  const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const [draft, setDraft] = React.useState(() => cloneFilterExplorerComposeDraft(session.draft));
-  const [refreshState, setRefreshState] = React.useState<{ pendingMode: FilterExplorerDiscoveryMode } | null>(null);
+  const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const draftRef = React.useRef(cloneFilterExplorerComposeDraft(session.draft));
-  const discoveryModeRef = React.useRef<FilterExplorerDiscoveryMode>(initialDiscoveryMode);
-  const modelCacheRef = React.useRef(new Map<FilterExplorerDiscoveryMode, SearchFilterExplorerSession["model"]>());
-  const refreshStateRef = React.useRef<{ pendingMode: FilterExplorerDiscoveryMode } | null>(null);
+  const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
+  const modelCacheRef = React.useRef(new Map<SearchFilterDiscoveryMode, SearchFilterExplorerSession["model"]>());
+  const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,7 +63,7 @@ export function SearchFilterExplorerScreen({
   }, [clearQueuedRefresh]);
 
   const runModelRefresh = React.useCallback(
-    (nextMode: FilterExplorerDiscoveryMode, options: { debounceMs?: number; force?: boolean } = {}) => {
+    (nextMode: SearchFilterDiscoveryMode, options: { debounceMs?: number; force?: boolean } = {}) => {
       if (!session.loadModelForDiscoveryMode) {
         setDiscoveryMode(nextMode);
         setRefreshState(null);
@@ -158,7 +174,7 @@ export function SearchFilterExplorerScreen({
   }, [initialDiscoveryMode, invalidateRefreshes, runModelRefresh, session]);
 
   const onDiscoveryModeChange = React.useCallback(
-    (nextMode: FilterExplorerDiscoveryMode) => {
+    (nextMode: SearchFilterDiscoveryMode) => {
       if (nextMode === discoveryModeRef.current && refreshStateRef.current === null) {
         return;
       }
@@ -168,20 +184,21 @@ export function SearchFilterExplorerScreen({
     [runModelRefresh],
   );
 
-  const discovery = React.useMemo<FilterExplorerDiscoveryState | undefined>(() => {
+  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(() => {
     if (!session.loadModelForDiscoveryMode) {
       return undefined;
     }
 
     return {
       mode: discoveryMode,
+      modes: SEARCH_DISCOVERY_MODE_OPTIONS,
       pendingMode: refreshState?.pendingMode,
       isRefreshing: refreshState !== null,
       onModeChange: onDiscoveryModeChange,
     };
   }, [discoveryMode, onDiscoveryModeChange, refreshState, session.loadModelForDiscoveryMode]);
 
-  const applyDraft = React.useCallback(() => {
+  const handleOutcome = React.useCallback(() => {
     session.onApply(draftRef.current);
   }, [session]);
 
@@ -197,7 +214,7 @@ export function SearchFilterExplorerScreen({
       model={model}
       rootDepth={0}
       exitAtRootDepth
-      onExit={applyDraft}
+      onOutcome={handleOutcome}
       discovery={discovery}
       mode={{
         kind: "compose",

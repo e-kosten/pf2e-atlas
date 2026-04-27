@@ -7,7 +7,11 @@ import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
-import type { FilterExplorerOptions, FilterExplorerQueryOpenIntent } from "../filter-explorer/types.js";
+import type {
+  FilterExplorerModeSwitchOption,
+  FilterExplorerOptions,
+  FilterExplorerSelectTargetOutcome,
+} from "../filter-explorer/types.js";
 import type {
   FilterExplorerComposeTarget,
   FilterExplorerDiscoveryState,
@@ -27,6 +31,19 @@ export type OntologyInspectRouteData = {
   loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   snapshot?: OntologyInspectExplorerSnapshot;
 };
+
+const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
+  {
+    value: "matching",
+    label: "Matching Counts",
+    description: "Show values and counts from the current matching query context.",
+  },
+  {
+    value: "catalog",
+    label: "Catalog Counts",
+    description: "Show values and counts from the wider applicability slice only.",
+  },
+];
 
 function buildOntologyInspectScalarTarget(
   node: OntologyDomainModel["rootNodes"][number],
@@ -102,12 +119,12 @@ function toFilterExplorerScalarClause(
 export function OntologyInspectScreen({
   routeData,
   onExit,
-  onOpenQueryIntent,
+  onSelectTarget,
   transitionStatus,
 }: {
   routeData: OntologyInspectRouteData;
   onExit: () => void;
-  onOpenQueryIntent?: (intent: FilterExplorerQueryOpenIntent, snapshot: OntologyInspectExplorerSnapshot) => void;
+  onSelectTarget?: (outcome: FilterExplorerSelectTargetOutcome, snapshot: OntologyInspectExplorerSnapshot) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
   const { snapshot: initialSnapshot } = routeData;
@@ -172,30 +189,41 @@ export function OntologyInspectScreen({
     },
     [discoveryMode, routeData, terminal],
   );
-  const discovery = React.useMemo<FilterExplorerDiscoveryState | undefined>(() => {
+  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(() => {
     if (!routeData.loadModelForDiscoveryMode) {
       return undefined;
     }
 
     return {
       mode: discoveryMode,
+      modes: SEARCH_DISCOVERY_MODE_OPTIONS,
       onModeChange: onDiscoveryModeChange,
     };
   }, [discoveryMode, onDiscoveryModeChange, routeData.loadModelForDiscoveryMode]);
+
+  const handleOutcome = React.useCallback<FilterExplorerOptions["onOutcome"]>(
+    (outcome, snapshot) => {
+      if (outcome.kind === "selectTarget") {
+        onSelectTarget?.(outcome, snapshot);
+        return;
+      }
+      onExit();
+    },
+    [onExit, onSelectTarget],
+  );
 
   return (
     <FilterExplorerScreen
       title={model.label}
       model={model}
       initialSnapshot={initialSnapshot}
-      onExit={onExit}
+      onOutcome={handleOutcome}
       discovery={discovery}
       transitionStatus={transitionStatus}
       mode={{
         kind: "inspect-and-open",
         resolveInspectTarget,
         onEditScalarTarget,
-        onOpenQueryIntent,
       }}
     />
   );

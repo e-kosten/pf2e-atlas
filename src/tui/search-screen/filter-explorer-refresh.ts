@@ -1,28 +1,28 @@
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
-import type { FilterExplorerDiscoveryMode } from "../filter-explorer/types.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 
 export type SearchFilterExplorerRefreshPlan =
   | {
       kind: "retainCurrent";
       requestId: number;
-      mode: FilterExplorerDiscoveryMode;
+      mode: SearchFilterDiscoveryMode;
     }
   | {
       kind: "useCached";
       requestId: number;
-      mode: FilterExplorerDiscoveryMode;
+      mode: SearchFilterDiscoveryMode;
       model: OntologyDomainModel;
     }
   | {
       kind: "load";
       requestId: number;
-      pendingMode: FilterExplorerDiscoveryMode;
+      pendingMode: SearchFilterDiscoveryMode;
     };
 
 export function planSearchFilterExplorerRefresh(args: {
-  nextMode: FilterExplorerDiscoveryMode;
-  displayedMode: FilterExplorerDiscoveryMode;
-  cache: ReadonlyMap<FilterExplorerDiscoveryMode, OntologyDomainModel>;
+  nextMode: SearchFilterDiscoveryMode;
+  displayedMode: SearchFilterDiscoveryMode;
+  cache: ReadonlyMap<SearchFilterDiscoveryMode, OntologyDomainModel>;
   currentRequestId: number;
   force?: boolean;
 }): SearchFilterExplorerRefreshPlan {

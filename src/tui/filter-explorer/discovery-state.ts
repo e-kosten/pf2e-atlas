@@ -1,36 +1,37 @@
 import React from "react";
 
-import type { FilterExplorerDiscoveryMode, FilterExplorerDiscoveryState } from "./types.js";
+import type { FilterExplorerDiscoveryState, FilterExplorerModeSwitchOption } from "./types.js";
 
-export function useFilterExplorerDiscoveryState(options: {
-  initialMode?: FilterExplorerDiscoveryMode;
-  availableModes?: readonly FilterExplorerDiscoveryMode[];
+export function useFilterExplorerDiscoveryState<TMode extends string>(options: {
+  initialMode?: TMode;
+  modes: readonly FilterExplorerModeSwitchOption<TMode>[];
   enabled?: boolean;
   resetKey?: string;
-} = {}): FilterExplorerDiscoveryState | undefined {
+}): FilterExplorerDiscoveryState<TMode> | undefined {
   const {
-    availableModes,
+    modes,
     enabled = true,
-    initialMode = "matching",
+    initialMode,
     resetKey,
   } = options;
-  const [mode, setMode] = React.useState<FilterExplorerDiscoveryMode>(initialMode);
+  const resolvedInitialMode = initialMode ?? modes[0]?.value;
+  const [mode, setMode] = React.useState<TMode | undefined>(resolvedInitialMode);
 
   React.useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode, resetKey]);
+    setMode(resolvedInitialMode);
+  }, [resolvedInitialMode, resetKey]);
 
   return React.useMemo(
     () =>
-      enabled
+      enabled && mode
         ? {
             mode,
-            ...(availableModes ? { availableModes } : {}),
-            onModeChange: (nextMode: FilterExplorerDiscoveryMode) => {
+            modes,
+            onModeChange: (nextMode: TMode) => {
               setMode(nextMode);
             },
           }
         : undefined,
-    [availableModes, enabled, mode],
+    [enabled, mode, modes],
   );
 }

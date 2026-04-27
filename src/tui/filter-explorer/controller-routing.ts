@@ -17,6 +17,7 @@ import {
   shouldOpenImmediateFilterExplorerInspectResult,
 } from "./controller-inspect.js";
 import {
+  createFilterExplorerBrowserSnapshot,
   type FilterExplorerAction,
   resolveFilterExplorerBackNavigation,
 } from "./controller-state.js";
@@ -134,7 +135,7 @@ function handleSharedFilterExplorerAction(args: {
   }
 
   if (interactionAction.id === "quit") {
-    options.onExit();
+    options.onOutcome({ kind: "cancel" }, createFilterExplorerBrowserSnapshot(keyContext));
     return true;
   }
 
@@ -158,7 +159,10 @@ function handleSharedFilterExplorerAction(args: {
       dispatch({ type: "leave_detail" });
       return true;
     }
-    options.onExit();
+    options.onOutcome(
+      { kind: interactionAction.id === "back" ? "back" : "exitRoot" },
+      createFilterExplorerBrowserSnapshot(keyContext),
+    );
     return true;
   }
 
@@ -227,12 +231,7 @@ function resolveFilterExplorerListRightBehavior(args: {
   const shouldOpenResult =
     (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult) ||
       (!keyContext.currentNodeHasChildren && Boolean(inspectResult))) &&
-    Boolean(
-      inspectResult &&
-        (options.mode.onOpenInspectResult ||
-          options.mode.onOpenQueryIntent ||
-          (inspectResult.target?.kind === "scalar" && options.mode.onEditScalarTarget)),
-    );
+    Boolean(inspectResult && (options.onOutcome || (inspectResult.target?.kind === "scalar" && options.mode.onEditScalarTarget)));
 
   if (shouldOpenResult) {
     return {
@@ -353,7 +352,7 @@ export function handleFilterExplorerInteractionRoute(args: {
     const selectedAction = actionEntries[actionTargetState.selectedActionIndex];
     if (selectedAction) {
       applyFilterExplorerActionEntry({
-        actionId: selectedAction.id,
+        actionEntry: selectedAction,
         context,
         onOpenInspectQuery: (result) => {
           void openFilterExplorerInspectQuery({ options, keyContext, result });
@@ -456,6 +455,7 @@ export function handleFilterExplorerInteractionRoute(args: {
       dispatch({ type: "clear_search" });
       return;
     }
+    options.onOutcome({ kind: "cancel" }, createFilterExplorerBrowserSnapshot(keyContext));
     return;
   }
   if (

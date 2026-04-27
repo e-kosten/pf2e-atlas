@@ -7,7 +7,7 @@ import {
   FilterExplorerScreen,
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerModel,
-  type FilterExplorerQueryOpenIntent,
+  type FilterExplorerSelectTargetOutcome,
 } from "../../src/tui/filter-explorer/index.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import { browseQuery, metadataPredicateFilter, scopeFilter } from "../helpers/search-request-fixture.js";
@@ -53,16 +53,15 @@ afterEach(() => {
 
 describe("filter explorer launch intent", () => {
   it("passes results intent through an explicit open-intent object for list-record nodes", async () => {
-    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
+    const onOutcome = vi.fn<(outcome: FilterExplorerSelectTargetOutcome) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
           title="Search Semantics"
           model={createModel()}
-          onExit={vi.fn()}
+          onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",
-            onOpenQueryIntent,
           }}
         />
       </DerivedTagTerminalProvider>,
@@ -72,25 +71,24 @@ describe("filter explorer launch intent", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
-    const [intent] = onOpenQueryIntent.mock.calls[0] ?? [];
-    expect(intent).toBeDefined();
-    expect(intent?.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
-    expect("openInResults" in (intent?.query ?? {})).toBe(false);
+    expect(onOutcome).toHaveBeenCalledTimes(1);
+    const [outcome] = onOutcome.mock.calls[0] ?? [];
+    expect(outcome).toBeDefined();
+    expect(outcome?.queryIntent.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.RESULTS);
+    expect("openInResults" in (outcome?.queryIntent.query ?? {})).toBe(false);
   });
 
   it("supports explicit editor intent for list-record launches", async () => {
-    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
+    const onOutcome = vi.fn<(outcome: FilterExplorerSelectTargetOutcome) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
           title="Search Semantics"
           model={createModel()}
-          onExit={vi.fn()}
+          onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",
             defaultListRecordLaunchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
-            onOpenQueryIntent,
           }}
         />
       </DerivedTagTerminalProvider>,
@@ -100,13 +98,13 @@ describe("filter explorer launch intent", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onOpenQueryIntent).toHaveBeenCalledTimes(1);
-    const [intent] = onOpenQueryIntent.mock.calls[0] ?? [];
-    expect(intent?.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
+    expect(onOutcome).toHaveBeenCalledTimes(1);
+    const [outcome] = onOutcome.mock.calls[0] ?? [];
+    expect(outcome?.queryIntent.launchIntent).toBe(FILTER_EXPLORER_LAUNCH_INTENT.EDITOR);
   });
 
   it("renders a shared warning banner instead of changing focus when rightward drill hits a dead end", async () => {
-    const onOpenQueryIntent = vi.fn<(intent: FilterExplorerQueryOpenIntent) => void>();
+    const onOutcome = vi.fn<(outcome: FilterExplorerSelectTargetOutcome) => void>();
     const app = render(
       <DerivedTagTerminalProvider>
         <FilterExplorerScreen
@@ -127,10 +125,9 @@ describe("filter explorer launch intent", () => {
               },
             ],
           }}
-          onExit={vi.fn()}
+          onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",
-            onOpenQueryIntent,
           }}
         />
       </DerivedTagTerminalProvider>,
@@ -142,7 +139,7 @@ describe("filter explorer launch intent", () => {
     app.stdin.write("\u001b[C");
     await flushInk();
 
-    expect(onOpenQueryIntent).not.toHaveBeenCalled();
+    expect(onOutcome).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("[LIST] Explorer Entries");
     expect(app.lastFrame()).toContain("No rightward action is available for the focused entry.");
     expect(app.lastFrame()).not.toContain("[DETAIL] Leaf Entry");

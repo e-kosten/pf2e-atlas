@@ -7,8 +7,10 @@ import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import type { FilterExplorerKeyContext } from "./controller-types.js";
 import {
   FILTER_EXPLORER_LAUNCH_INTENT,
+  type FilterExplorerActivationStyle,
   type FilterExplorerInspectAndOpenMode,
   type FilterExplorerInspectResult,
+  type FilterExplorerSelectTargetOutcome,
   type FilterExplorerLaunchIntent,
   type FilterExplorerNode,
   type FilterExplorerOptions,
@@ -165,6 +167,24 @@ function buildFilterExplorerQueryOpenIntent(
   };
 }
 
+function resolveFilterExplorerInspectActivationStyle(
+  result: FilterExplorerInspectResult,
+): FilterExplorerActivationStyle {
+  return result.target?.kind === "scalar" ? "edit" : "open";
+}
+
+function buildFilterExplorerSelectTargetOutcome(
+  result: FilterExplorerInspectResult,
+  launchIntent: FilterExplorerLaunchIntent,
+): FilterExplorerSelectTargetOutcome {
+  return {
+    kind: "selectTarget",
+    activationStyle: resolveFilterExplorerInspectActivationStyle(result),
+    result: launchIntent === result.launchIntent ? result : { ...result, launchIntent },
+    queryIntent: buildFilterExplorerQueryOpenIntent(result.query, launchIntent),
+  };
+}
+
 function openFilterExplorerInspectResultDirect(
   options: FilterExplorerOptions,
   keyContext: FilterExplorerKeyContext,
@@ -175,15 +195,8 @@ function openFilterExplorerInspectResultDirect(
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  if (options.mode.onOpenInspectResult) {
-    options.mode.onOpenInspectResult(result, snapshot);
-    return true;
-  }
-  if (options.mode.onOpenQueryIntent) {
-    options.mode.onOpenQueryIntent(buildFilterExplorerQueryOpenIntent(result.query, result.launchIntent), snapshot);
-    return true;
-  }
-  return false;
+  options.onOutcome(buildFilterExplorerSelectTargetOutcome(result, result.launchIntent), snapshot);
+  return true;
 }
 
 export function openFilterExplorerInspectResult(args: {
@@ -234,24 +247,8 @@ export function openFilterExplorerInspectQuery(args: {
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  if (options.mode.onOpenQueryIntent) {
-    options.mode.onOpenQueryIntent(
-      buildFilterExplorerQueryOpenIntent(result.query, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR),
-      snapshot,
-    );
-    return true;
-  }
-  if (options.mode.onOpenInspectResult) {
-    options.mode.onOpenInspectResult(
-      {
-        ...result,
-        launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
-      },
-      snapshot,
-    );
-    return true;
-  }
-  return false;
+  options.onOutcome(buildFilterExplorerSelectTargetOutcome(result, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR), snapshot);
+  return true;
 }
 
 export function shouldOpenImmediateFilterExplorerInspectResult(

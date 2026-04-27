@@ -17,7 +17,7 @@ import { AreaMenuScreen } from "./area-menu-screen.js";
 import {
   OntologyInspectScreen,
 } from "./ontology-explorer/inspect-screen.js";
-import { FILTER_EXPLORER_LAUNCH_INTENT, type FilterExplorerQueryOpenIntent } from "./filter-explorer/index.js";
+import { FILTER_EXPLORER_LAUNCH_INTENT, type FilterExplorerSelectTargetOutcome } from "./filter-explorer/index.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
@@ -79,7 +79,11 @@ export function Pf2eTerminalApp({
   }, [navigation, state.selectedAreaIndex]);
 
   const openOntologySearch = React.useCallback(
-    (intent: FilterExplorerQueryOpenIntent, snapshot: Parameters<typeof navigation.openOntologySearchEditor>[1]) => {
+    (
+      outcome: FilterExplorerSelectTargetOutcome,
+      snapshot: Parameters<typeof navigation.openOntologySearchEditor>[1],
+    ) => {
+      const intent = outcome.queryIntent;
       if (intent.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS) {
         navigation.openOntologySearchResults(intent.query, snapshot);
         return;
@@ -139,7 +143,7 @@ export function Pf2eTerminalApp({
           loadModelForDiscoveryMode: route.loadModelForDiscoveryMode,
           snapshot: route.snapshot,
         }}
-        onOpenQueryIntent={(intent, snapshot) => openOntologySearch(intent, snapshot)}
+        onSelectTarget={(outcome, snapshot) => openOntologySearch(outcome, snapshot)}
         onExit={navigation.backOrExit}
         transitionStatus={transitionStatus}
       />

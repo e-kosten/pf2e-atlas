@@ -11,6 +11,7 @@ import {
 import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerInspectAndOpenMode,
+  type FilterExplorerSelectTargetOutcome,
 } from "../../src/tui/filter-explorer/index.js";
 import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import type { FilterExplorerKeyContext } from "../../src/tui/filter-explorer/controller-types.js";
@@ -98,7 +99,7 @@ function createOptions(mode: FilterExplorerInspectAndOpenMode): FilterExplorerOp
       rootNodes: [createNode()],
     },
     mode,
-    onExit: vi.fn(),
+    onOutcome: vi.fn(),
   };
 }
 
@@ -172,20 +173,28 @@ describe("filter explorer controller inspect", () => {
   });
 
   it("opens inspect queries with editor intent snapshots", () => {
-    const onOpenQueryIntent = vi.fn();
     const node = createNode();
-    const result = buildFilterExplorerInspectResult({ kind: "inspect-and-open" }, node);
+    const options = createOptions({ kind: "inspect-and-open" });
+    const result = buildFilterExplorerInspectResult(options.mode, node);
     const handled = openFilterExplorerInspectQuery({
-      options: createOptions({ kind: "inspect-and-open", onOpenQueryIntent }),
+      options,
       keyContext: createKeyContext(),
       result,
     });
 
     expect(handled).toBe(true);
-    expect(onOpenQueryIntent).toHaveBeenCalledWith(
+    expect(options.onOutcome).toHaveBeenCalledWith(
       {
-        query: node.query,
-        launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
+        kind: "selectTarget",
+        activationStyle: "open",
+        result: {
+          ...result,
+          launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
+        },
+        queryIntent: {
+          query: node.query,
+          launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.EDITOR,
+        },
       },
       expect.objectContaining({
         activePane: "list",
@@ -195,10 +204,8 @@ describe("filter explorer controller inspect", () => {
   });
 
   it("compiles scalar inspect edits before opening results", async () => {
-    const onOpenQueryIntent = vi.fn();
     const options = createOptions({
       kind: "inspect-and-open",
-      onOpenQueryIntent,
       onEditScalarTarget: () => ({ operator: "gte", value: 12 }),
       resolveInspectTarget: () => ({
         kind: "scalar",
@@ -219,22 +226,38 @@ describe("filter explorer controller inspect", () => {
     expect(handled).toBe(true);
     await Promise.resolve();
 
-    expect(onOpenQueryIntent).toHaveBeenCalledWith(
+    expect(options.onOutcome).toHaveBeenCalledWith(
       {
-        query: {
-          ...createNode().query,
-          label: "Browse records where Land Speed >= 12",
-          request: {
-            ...createNode().query!.request,
-            filter: expect.anything(),
+        kind: "selectTarget",
+        activationStyle: "edit",
+        result: {
+          ...result,
+          launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
+          query: {
+            ...createNode().query,
+            label: "Browse records where Land Speed >= 12",
+            request: {
+              ...createNode().query!.request,
+              filter: expect.anything(),
+            },
           },
         },
-        launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
+        queryIntent: {
+          query: {
+            ...createNode().query,
+            label: "Browse records where Land Speed >= 12",
+            request: {
+              ...createNode().query!.request,
+              filter: expect.anything(),
+            },
+          },
+          launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
+        },
       },
       expect.any(Object),
     );
-    const [[call]] = onOpenQueryIntent.mock.calls;
-    expect(canonicalFilterToMetadataNode(call.query.request.filter)).toEqual({
+    const [[call]] = (options.onOutcome as ReturnType<typeof vi.fn>).mock.calls;
+    expect(canonicalFilterToMetadataNode(call.queryIntent.query.request.filter)).toEqual({
       field: "actorMetric",
       metric: "speed.land",
       op: ">=",

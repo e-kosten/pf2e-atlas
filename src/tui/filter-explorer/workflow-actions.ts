@@ -7,11 +7,12 @@ import {
   isFilterExplorerScalarTarget,
   setFilterExplorerScalarClause,
 } from "./compose-state.js";
+import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import {
   buildFilterExplorerHelpLines,
 } from "./screen-models.js";
 import type {
-  FilterExplorerActionEntryId,
+  FilterExplorerActionEntry,
   FilterExplorerBrowserContext,
   FilterExplorerComposeDraft,
   FilterExplorerComposeMode,
@@ -94,7 +95,7 @@ export function handleFilterExplorerAction(args: {
     args;
 
   if (action.id === "back" && shouldExitAtRootDepth(options, keyContext)) {
-    options.onExit();
+    options.onOutcome({ kind: "back" }, createFilterExplorerBrowserSnapshot(keyContext));
     return true;
   }
 
@@ -115,27 +116,25 @@ export function handleFilterExplorerAction(args: {
 }
 
 export function applyFilterExplorerActionEntry(args: {
-  actionId: FilterExplorerActionEntryId;
+  actionEntry: FilterExplorerActionEntry;
   context: FilterExplorerControllerContext;
   onOpenInspectQuery: (result: FilterExplorerInspectResult | undefined) => void;
   onOpenInspectResult: (result: FilterExplorerInspectResult | undefined) => void;
 }): void {
-  const { actionId, context, onOpenInspectQuery, onOpenInspectResult } = args;
+  const { actionEntry, context, onOpenInspectQuery, onOpenInspectResult } = args;
   const inspectResult = context.selectedInspectResult;
 
-  if (actionId === "switchToMatching") {
-    context.discovery?.onModeChange?.("matching");
+  if (actionEntry.action.kind === "setMode") {
+    context.discovery?.onModeChange?.(actionEntry.action.mode);
     return;
   }
-  if (actionId === "switchToCatalog") {
-    context.discovery?.onModeChange?.("catalog");
-    return;
-  }
-  if (actionId === "openSelection" || actionId === "openResults") {
+
+  if (actionEntry.action.selection === "default") {
     onOpenInspectResult(inspectResult);
     return;
   }
-  if (actionId === "openQuery") {
+
+  if (actionEntry.action.selection === "query") {
     onOpenInspectQuery(inspectResult);
   }
 }
