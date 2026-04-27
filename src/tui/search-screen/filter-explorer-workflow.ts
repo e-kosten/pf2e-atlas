@@ -9,6 +9,7 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
+import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
@@ -27,6 +28,7 @@ export function useSearchFilterExplorerWorkflow({
   openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
     initialDraft?: Pf2eTerminalFilterExplorerDraft;
+    preservedMetadata?: MetadataFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
     onReturn?: () => void;
@@ -43,6 +45,7 @@ export function useSearchFilterExplorerWorkflow({
     async ({
       queryOverride,
       initialDraft,
+      preservedMetadata,
       fieldOptions,
       onQueryChange,
       onReturn,
@@ -53,6 +56,7 @@ export function useSearchFilterExplorerWorkflow({
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
       initialDraft?: Pf2eTerminalFilterExplorerDraft;
+      preservedMetadata?: MetadataFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
       onReturn?: () => void;
@@ -103,6 +107,7 @@ export function useSearchFilterExplorerWorkflow({
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         query: scopeQuery,
         initialDraft,
+        preservedMetadata,
         fieldOptions,
         refreshOnQueryChange: Boolean(onQueryChange),
         onQueryChange: (nextQuery) => {

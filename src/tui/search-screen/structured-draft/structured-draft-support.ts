@@ -314,7 +314,7 @@ function buildFilterTreeEntries(
       isSearchFilterBooleanGroup(current) &&
       (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path));
     const useActiveGroupProjection =
-      isSearchFilterBooleanGroup(current) &&
+      current.kind === "allOf" &&
       options.activeGroupPath !== null &&
       pathsEqual(path, options.activeGroupPath);
     const { bucketsByChildIndex, groupedChildIndexes } = useActiveGroupProjection
@@ -375,7 +375,7 @@ function buildFilterTreeEntries(
     options.activeGroupPath !== null &&
     options.activeGroupPath.length === 0 &&
     node !== undefined &&
-    isSearchFilterBooleanGroup(node);
+    node.kind === "allOf";
   if (useRootActiveGroupProjection && node) {
     const { bucketsByChildIndex, groupedChildIndexes } = buildActiveGroupFieldBuckets(
       node.children,

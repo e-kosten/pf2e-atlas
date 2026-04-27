@@ -7,6 +7,7 @@ import {
 } from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
 import {
   allOfFilter,
+  anyOfFilter,
   browseQuery,
   metadataPredicateFilter,
   scopeFilter,
@@ -32,7 +33,10 @@ describe("structured draft grouped explorer helpers", () => {
 
     expect(getSearchQueryCategory(seedQuery)).toBe("creature");
     expect(seedGroupPath).toEqual([1]);
-    expect(seedQuery.filter).toEqual(scopeFilter("creature"));
+    expect(seedQuery.filter).toEqual({
+      kind: "allOf",
+      children: [scopeFilter("creature")],
+    });
     expect(initialDraft.discreteClauses).toEqual([
       { field: "traits", value: "chaotic", operator: "include" },
       { field: "traits", value: "evil", operator: "include" },
@@ -117,5 +121,80 @@ describe("structured draft grouped explorer helpers", () => {
       { field: "traits", value: "chaotic", operator: "include" },
       { field: "traits", value: "unholy", operator: "exclude" },
     ]);
+  });
+
+  it("lifts grouped metadata any-of members into the explorer draft instead of dropping them", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          anyOfFilter([
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "chaotic" }),
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+          ]),
+          { kind: "pack", value: "monster-core" },
+        ]),
+      ]),
+      limit: 20,
+    }).request;
+
+    const { initialDraft, preservedMetadata, seedQuery } = buildGroupedFieldSeedState(query, [1], {
+      field: "traits",
+      fieldMemberPaths: [[1, 0], [1, 0]],
+    });
+
+    expect(seedQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        { kind: "pack", value: "monster-core" },
+      ]),
+    );
+    expect(initialDraft.discreteClauses).toEqual([
+      { field: "traits", value: "chaotic", operator: "include" },
+      { field: "traits", value: "evil", operator: "include" },
+    ]);
+    expect(preservedMetadata).toBeNull();
+  });
+
+  it("preserves outer group context when seeding a nested grouped field editor", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          anyOfFilter([
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "chaotic" }),
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+          ]),
+          metadataPredicateFilter({ field: "derivedTags", op: "includes", value: "coastal_setting" }),
+          { kind: "pack", value: "monster-core" },
+        ]),
+      ]),
+      limit: 20,
+    }).request;
+
+    const { initialDraft, preservedMetadata, seedGroupPath, seedQuery } = buildGroupedFieldSeedState(query, [1, 0], {
+      field: "traits",
+      fieldMemberPaths: [[1, 0, 0], [1, 0, 1]],
+    });
+
+    expect(seedGroupPath).toEqual([1, 0]);
+    expect(seedQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          metadataPredicateFilter({ field: "derivedTags", op: "includes", value: "coastal_setting" }),
+          { kind: "pack", value: "monster-core" },
+        ]),
+      ]),
+    );
+    expect(initialDraft.discreteClauses).toEqual([
+      { field: "traits", value: "chaotic", operator: "include" },
+      { field: "traits", value: "evil", operator: "include" },
+    ]);
+    expect(preservedMetadata).toEqual({
+      field: "derivedTags",
+      op: "includes",
+      value: "coastal_setting",
+    });
   });
 });

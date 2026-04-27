@@ -55,6 +55,7 @@ export function useSearchQueryFieldEditing({
       onExitRoot?: () => void;
       onCancel?: () => void;
       initialDraft?: Pf2eTerminalFilterExplorerDraft;
+      preservedMetadata?: MetadataFilterNode | null;
     },
   ) => Promise<boolean>;
   openOntologyFieldExplorer: (
@@ -122,6 +123,7 @@ export function useSearchQueryFieldEditing({
         onExitRoot?: () => void;
         onCancel?: () => void;
         initialDraft?: Pf2eTerminalFilterExplorerDraft;
+        preservedMetadata?: MetadataFilterNode | null;
       },
     ): Promise<boolean> => {
       if (fieldOption.editor !== "sharedExplorer") {
@@ -140,6 +142,7 @@ export function useSearchQueryFieldEditing({
       return openFilterExplorer({
         queryOverride: query,
         initialDraft: options?.initialDraft,
+        preservedMetadata: options?.preservedMetadata,
         fieldOptions: [fieldOption],
         onQueryChange: onQueryChange
           ? (nextQuery) => {

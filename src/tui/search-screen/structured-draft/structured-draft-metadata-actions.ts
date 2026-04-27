@@ -6,7 +6,6 @@ import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../../do
 import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
 import {
   buildAllOfFilter,
-  findSearchScopeFilter,
   type SearchNumericMatch,
   type SearchFilterNode,
   type SearchScopeSubcategoryMatch,
@@ -28,7 +27,12 @@ import {
   wrapSearchFilterNodeAtPath,
 } from "../../search/query-core.js";
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
-import { getSearchQueryCategory, getSearchQueryRootOperator, getSearchQuerySubcategory } from "../../search/query-state.js";
+import {
+  getSearchQueryCategory,
+  getSearchQueryMetadataTree,
+  getSearchQueryRootOperator,
+  getSearchQuerySubcategory,
+} from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
@@ -190,6 +194,9 @@ function buildGroupedFieldSeedDiscreteClauses(
   if (node.kind === "metadataPredicate" && node.predicate.field === field && "value" in node.predicate) {
     return [{ field, value: String(node.predicate.value), operator }];
   }
+  if (node.kind === "anyOf") {
+    return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
+  }
   if (node.kind === "not") {
     return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
   }
@@ -225,6 +232,7 @@ export function buildGroupedFieldSeedState(
   seedGroupPath: number[];
   seedQuery: Pf2eTerminalSearchQuery;
   initialDraft: Pf2eTerminalFilterExplorerDraft;
+  preservedMetadata: MetadataFilterNode | null;
 } {
   const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
   if (!groupNode) {
@@ -235,6 +243,7 @@ export function buildGroupedFieldSeedState(
         discreteClauses: [],
         scalarClauses: {},
       },
+      preservedMetadata: getSearchQueryMetadataTree(query),
     };
   }
 
@@ -270,25 +279,18 @@ export function buildGroupedFieldSeedState(
       ? buildGroupedFieldSeedGroupNode(groupNode, fieldChildIndexes)
       : groupNode;
 
-  const scopeNode = findSearchScopeFilter(query.filter);
-  if (groupPath.length === 0 || !scopeNode) {
-    return {
-      seedGroupPath: [],
-      seedQuery: {
-        ...query,
-        filter: seedGroupNode,
-      },
-      initialDraft,
-    };
-  }
-
+  const seedQuery = {
+    ...query,
+    filter:
+      groupPath.length === 0
+        ? seedGroupNode
+        : updateSearchFilterNodeAtPath(query.filter, groupPath, () => seedGroupNode),
+  };
   return {
-    seedGroupPath: [1],
-    seedQuery: {
-      ...query,
-      filter: seedGroupNode ? buildAllOfFilter([scopeNode, seedGroupNode]) : scopeNode,
-    },
+    seedGroupPath: groupPath,
+    seedQuery,
     initialDraft,
+    preservedMetadata: getSearchQueryMetadataTree(seedQuery),
   };
 }
 
@@ -481,6 +483,7 @@ export function useSearchStructuredDraftMetadataActions({
       onExitRoot?: () => void;
       onCancel?: () => void;
       initialDraft?: Pf2eTerminalFilterExplorerDraft;
+      preservedMetadata?: MetadataFilterNode | null;
     },
   ) => Promise<boolean>;
   moveSourcePath: number[] | null;
@@ -588,7 +591,7 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
 
-      const { seedGroupPath, seedQuery, initialDraft } = buildGroupedFieldSeedState(query, groupPath, {
+      const { seedGroupPath, seedQuery, initialDraft, preservedMetadata } = buildGroupedFieldSeedState(query, groupPath, {
         field,
         fieldMemberPaths,
       });
@@ -621,6 +624,7 @@ export function useSearchStructuredDraftMetadataActions({
           onBack: () => {},
           onExitRoot: () => {},
           initialDraft,
+          preservedMetadata,
         },
       );
     },

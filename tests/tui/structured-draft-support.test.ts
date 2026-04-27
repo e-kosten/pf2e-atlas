@@ -130,6 +130,54 @@ describe("structured draft support", () => {
     expect(entries[selectedIndex]?.label).toBe("Traits: Include illusion, auditory");
   });
 
+  it("keeps any-of active groups structural instead of projecting shared-explorer buckets", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
+          {
+            kind: "anyOf",
+            children: [
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, [1, 0], {
+      groupedFieldValues: new Set(["traits"]),
+    });
+
+    expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(true);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(true);
+  });
+
+  it("keeps a root any-of structural instead of projecting shared-explorer buckets", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "anyOf",
+        children: [
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, [0], {
+      groupedFieldValues: new Set(["traits"]),
+    });
+
+    expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(true);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(true);
+  });
+
   it("flattens simple negated nodes into a single inline tree row", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",

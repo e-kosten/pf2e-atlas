@@ -23,11 +23,13 @@ import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-e
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
+import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { createInitialSearchScreenState } from "../../src/tui/search-screen/state.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
+  getSearchQueryMetadataTree,
   setSearchQueryActionCostSelection,
   setSearchQueryMetadataTree,
   setSearchQueryRaritySelection,
@@ -35,11 +37,13 @@ import {
 import {
   actionCostFilter,
   allOfFilter,
+  anyOfFilter,
   browseQuery,
   browseRequest,
   levelFilter,
   metricCompareFilter,
   metadataPredicateFilter,
+  notFilter,
   rarityFilter,
   scopeFilter,
   searchRequest,
@@ -703,6 +707,23 @@ function createRarityExplorerDomain(values: readonly string[]): OntologyDomainMo
         })),
       },
     ],
+  };
+}
+
+function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Traits Explorer",
+    description: "Traits explorer test domain",
+    rootNodes: values.map((value) => ({
+      id: `spell:traits:${value}`,
+      kind: "trait",
+      label: value,
+      filterText: value,
+      listLabel: value,
+      detailTitle: "Trait Details",
+      detailLines: [{ text: value, tone: "section" }],
+    })),
   };
 }
 
@@ -2629,6 +2650,53 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Metadata");
   });
 
+  it("renders grouped exclude buckets inline in the live structured query tree", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                allOfFilter([
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" })),
+                ]),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Structured Query Editor");
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    expect(app.lastFrame()).toContain("! Traits: includes Emotion");
+    expect(app.lastFrame()).not.toContain("├─ Exclude");
+    expect(app.lastFrame()).not.toContain("└─ Exclude");
+  });
+
   it("uses left navigation to step back one page within add-clause scope flows", async () => {
     const services = createServices();
     services.user.search.getCategoryOptions = vi.fn(() => [
@@ -3518,6 +3586,98 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[✓] common");
     expect(app.lastFrame()).toContain("Current clauses");
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
+  });
+
+  it("preserves sibling same-field groups when grouped explorer edits seed a live traits session", async () => {
+    const services = createServices();
+    const fieldOptions = [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Browse live traits for the current scope.",
+        fieldType: "set" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const sourceQuery = browseQuery("Browse spells", {
+      filter: allOfFilter([
+        scopeFilter("spell"),
+        allOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+          anyOfFilter([
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "auditory" }),
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" }),
+          ]),
+          { kind: "pack", value: "monster-core" },
+        ]),
+      ]),
+      limit: 20,
+    }).request;
+    const seededState = buildGroupedFieldSeedState(sourceQuery, [1], {
+      field: "traits",
+      fieldMemberPaths: [[1, 0]],
+    });
+    const latestQueryRef = {
+      current: seededState.seedQuery,
+    };
+
+    function Harness(): React.JSX.Element {
+      const [query, setQuery] = React.useState(seededState.seedQuery);
+      const model = React.useMemo(() => createTraitsExplorerDomain(["illusion", "humanoid"]), []);
+
+      const session = React.useMemo<SearchFilterExplorerSession>(
+        () => ({
+          title: "Traits Explorer",
+          model,
+          query,
+          initialDraft: seededState.initialDraft,
+          preservedMetadata: seededState.preservedMetadata,
+          fieldOptions,
+          onQueryChange: (nextQuery) => {
+            latestQueryRef.current = nextQuery;
+            setQuery(nextQuery);
+          },
+          resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+        }),
+        [model, query],
+      );
+
+      return <SearchFilterExplorer session={session} />;
+    }
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <Harness />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await waitForFrameToContain(app, "Traits Explorer");
+    expect(app.lastFrame()).toContain("[✓] illusion");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[✓] humanoid");
+    expect(getSearchQueryMetadataTree(latestQueryRef.current)).toEqual({
+      and: [
+        {
+          or: [
+            { field: "traits", op: "includes", value: "auditory" },
+            { field: "traits", op: "includes", value: "emotion" },
+          ],
+        },
+        { field: "traits", op: "includes", value: "humanoid" },
+        { field: "traits", op: "includes", value: "illusion" },
+      ],
+    });
   });
 
   it("keeps excluded values visible while matching counts refresh in place", async () => {

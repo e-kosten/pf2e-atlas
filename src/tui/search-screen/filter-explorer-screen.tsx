@@ -92,13 +92,14 @@ function prepareSessionDraftState(
   prepareDraft: (query: SearchFilterExplorerSession["query"]) => Pf2eTerminalPreparedFilterExplorerDraft,
 ): Pf2eTerminalPreparedFilterExplorerDraft {
   const preparedDraft = prepareDraft(session.query);
-  if (!session.initialDraft) {
+  if (!session.initialDraft && session.preservedMetadata === undefined) {
     return preparedDraft;
   }
 
   return {
     ...preparedDraft,
-    draft: normalizeFilterExplorerComposeDraft(session.initialDraft),
+    draft: session.initialDraft ? normalizeFilterExplorerComposeDraft(session.initialDraft) : preparedDraft.draft,
+    preservedMetadata: session.preservedMetadata ?? preparedDraft.preservedMetadata,
   };
 }
 

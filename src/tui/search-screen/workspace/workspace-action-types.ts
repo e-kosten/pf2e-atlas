@@ -5,6 +5,7 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
+import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { DerivedTagTerminalApp } from "../../framework/types.js";
 
 export type SearchWorkspacePromptAdapters = Pick<
@@ -22,6 +23,7 @@ export type SearchWorkspaceUser = Pick<Pf2eTerminalAppServices["user"], "search"
 export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   initialDraft?: Pf2eTerminalFilterExplorerDraft;
+  preservedMetadata?: MetadataFilterNode | null;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
   onReturn?: () => void;
