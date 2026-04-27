@@ -571,6 +571,7 @@ export function useSearchStructuredDraftMetadataActions({
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
+      applyLatestOnClose?: boolean;
       initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
     },
@@ -639,6 +640,7 @@ export function useSearchStructuredDraftMetadataActions({
           applyResult(result);
         },
         {
+          applyLatestOnClose: true,
           onBack: () => {},
           onExitRoot: () => {},
         },
@@ -718,6 +720,7 @@ export function useSearchStructuredDraftMetadataActions({
           replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
         },
         {
+          applyLatestOnClose: true,
           onBack: () => {},
           onExitRoot: () => {},
           initialFieldState,
@@ -751,6 +754,7 @@ export function useSearchStructuredDraftMetadataActions({
           replaceStructuredDraftProjection(() => nextQuery);
         },
         {
+          applyLatestOnClose: true,
           onBack: () => {},
           onExitRoot: () => {},
         },

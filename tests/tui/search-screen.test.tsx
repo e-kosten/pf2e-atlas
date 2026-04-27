@@ -2390,6 +2390,56 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Rarity: Common");
   });
 
+  it("applies the latest live rarity explorer state when returning immediately to the structured editor", async () => {
+    const services = createServices();
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
+      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                actionCostFilter({ kind: "eq", value: 2 }),
+                rarityFilter({ kind: "eq", value: "common" }),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Structured Query Editor");
+    pressUp(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    await waitForFrameToContain(app, "[✓] common", 60);
+
+    app.stdin.write(" ");
+    await flushInk();
+    pressLeft(app);
+    await waitForFrameToContain(app, "Structured Query Editor");
+    expect(app.lastFrame()).toContain("! Rarity: Common");
+    expect(app.lastFrame()).not.toContain("├─ Rarity: Common");
+  });
+
   it("uses friendly aliases in live clause and exclude-group action menus", async () => {
     const services = createServices();
 

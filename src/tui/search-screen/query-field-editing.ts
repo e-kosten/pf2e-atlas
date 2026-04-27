@@ -59,6 +59,7 @@ export function useSearchQueryFieldEditing({
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
+      applyLatestOnClose?: boolean;
       initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
     },
@@ -129,6 +130,7 @@ export function useSearchQueryFieldEditing({
         onBack?: () => void;
         onExitRoot?: () => void;
         onCancel?: () => void;
+        applyLatestOnClose?: boolean;
         initialFieldState?: SearchFilterExplorerFieldState;
         preservedMetadata?: MetadataFilterNode | null;
       },
@@ -148,7 +150,13 @@ export function useSearchQueryFieldEditing({
           preferReplace: currentNode !== null,
         });
       };
-      const shouldApplyOnClose = !onQueryChange;
+      const applyLatestFieldState = (
+        nextQuery: Pf2eTerminalSearchQuery,
+        nextFieldState: SearchFilterExplorerFieldState,
+      ): void => {
+        onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
+      };
+      const shouldApplyOnClose = !onQueryChange || options?.applyLatestOnClose === true;
 
       return openFilterExplorer({
         queryOverride: query,
@@ -161,21 +169,17 @@ export function useSearchQueryFieldEditing({
             }
           : undefined,
         onBack: (nextQuery, nextFieldState) => {
-          if (options?.onBack) {
-            options.onBack();
-          } else if (shouldApplyOnClose) {
-            onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
+          if (shouldApplyOnClose) {
+            applyLatestFieldState(nextQuery, nextFieldState);
           }
+          options?.onBack?.();
           onReturn?.();
         },
         onExitRoot: (nextQuery, nextFieldState) => {
-          if (options?.onExitRoot) {
-            options.onExitRoot();
-            return;
-          }
           if (shouldApplyOnClose) {
-            onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
+            applyLatestFieldState(nextQuery, nextFieldState);
           }
+          options?.onExitRoot?.();
         },
         onCancel: options?.onCancel ? (_nextQuery, _nextFieldState) => options.onCancel?.() : undefined,
         singleFieldBehavior: "directValues",
