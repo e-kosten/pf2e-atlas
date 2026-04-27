@@ -1,7 +1,6 @@
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
-import type { FilterExplorerComposeDraft } from "../../filter-explorer/types.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
@@ -23,6 +22,7 @@ import {
   createSharedReturnInteractionActions,
 } from "../../shell-navigation-copy.js";
 import type { TerminalMenuScreenInteractions } from "../../shared-screens.js";
+import type { SearchFilterExplorerFieldState } from "../filter-explorer-field-state.js";
 
 export type SearchFilterExplorerSession = {
   title?: string;
@@ -31,14 +31,14 @@ export type SearchFilterExplorerSession = {
   loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   query: Pf2eTerminalSearchQuery;
   refreshOnQueryChange?: boolean;
-  initialDraft?: FilterExplorerComposeDraft;
+  initialFieldState?: SearchFilterExplorerFieldState;
   preservedMetadata?: MetadataFilterNode | null;
   fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-  onQueryChange: (query: Pf2eTerminalSearchQuery) => void;
-  onBack?: (query: Pf2eTerminalSearchQuery) => void;
-  onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
-  onCancel?: (query: Pf2eTerminalSearchQuery) => void;
+  onQueryChange: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+  onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+  onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+  onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
 };
 
 export type SearchStructuredEditorItem =

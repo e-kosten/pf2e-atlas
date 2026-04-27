@@ -5,7 +5,6 @@ import {
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
 import type {
-  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -14,6 +13,7 @@ import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/que
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 import { createSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
+import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-state.js";
 
 export function useSearchFilterExplorerWorkflow({
   query,
@@ -27,14 +27,14 @@ export function useSearchFilterExplorerWorkflow({
   filterExplorerSession: SearchFilterExplorerSession | null;
   openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
-    initialDraft?: Pf2eTerminalFilterExplorerDraft;
+    initialFieldState?: SearchFilterExplorerFieldState;
     preservedMetadata?: MetadataFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
-    onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
+    onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
     onReturn?: () => void;
-    onCancel?: (query: Pf2eTerminalSearchQuery) => void;
-    onBack?: (query: Pf2eTerminalSearchQuery) => void;
-    onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
+    onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+    onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+    onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeFilterExplorer: () => void;
@@ -44,7 +44,7 @@ export function useSearchFilterExplorerWorkflow({
   const openFilterExplorer = React.useCallback(
     async ({
       queryOverride,
-      initialDraft,
+      initialFieldState,
       preservedMetadata,
       fieldOptions,
       onQueryChange,
@@ -55,14 +55,14 @@ export function useSearchFilterExplorerWorkflow({
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
-      initialDraft?: Pf2eTerminalFilterExplorerDraft;
+      initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
-      onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
+      onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
       onReturn?: () => void;
-      onCancel?: (query: Pf2eTerminalSearchQuery) => void;
-      onBack?: (query: Pf2eTerminalSearchQuery) => void;
-      onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
+      onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+      onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+      onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
@@ -106,11 +106,11 @@ export function useSearchFilterExplorerWorkflow({
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         query: scopeQuery,
-        initialDraft,
+        initialFieldState,
         preservedMetadata,
         fieldOptions,
         refreshOnQueryChange: Boolean(onQueryChange),
-        onQueryChange: (nextQuery) => {
+        onQueryChange: (nextQuery, nextFieldState) => {
           currentQueryRef.current = nextQuery;
           setFilterExplorerSession((currentSession) =>
             currentSession
@@ -120,20 +120,20 @@ export function useSearchFilterExplorerWorkflow({
                 }
               : currentSession,
           );
-          onQueryChange?.(nextQuery);
+          onQueryChange?.(nextQuery, nextFieldState);
         },
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
-        onBack: (nextQuery) => {
-          onBack?.(nextQuery);
+        onBack: (nextQuery, nextFieldState) => {
+          onBack?.(nextQuery, nextFieldState);
           setFilterExplorerSession(null);
           onReturn?.();
         },
-        onExitRoot: (nextQuery) => {
-          onExitRoot?.(nextQuery);
+        onExitRoot: (nextQuery, nextFieldState) => {
+          onExitRoot?.(nextQuery, nextFieldState);
           setFilterExplorerSession(null);
         },
-        onCancel: (nextQuery) => {
-          onCancel?.(nextQuery);
+        onCancel: (nextQuery, nextFieldState) => {
+          onCancel?.(nextQuery, nextFieldState);
           setFilterExplorerSession(null);
         },
       });

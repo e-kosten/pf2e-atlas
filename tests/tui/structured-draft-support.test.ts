@@ -101,11 +101,38 @@ describe("structured draft support", () => {
     const bucketEntries = entries.filter((entry) => entry.kind === "queryFieldBucket");
 
     expect(bucketEntries).toHaveLength(2);
-    expect(bucketEntries[0]?.label).toBe("Traits: Include illusion, auditory");
+    expect(bucketEntries[0]?.label).toBe("Traits: Include auditory, illusion");
     expect(bucketEntries[0]?.fieldMemberPaths).toEqual([[1], [2], [3]]);
     expect(bucketEntries[1]?.label).toBe("Traits: !emotion");
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(false);
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(false);
+  });
+
+  it("orders grouped field buckets by field and then polarity instead of child encounter order", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "emotion" } },
+          },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+        ],
+      },
+    };
+
+    const bucketEntries = buildStructuredDraftEntries(query, [1], {
+      groupedFieldValues: new Set(["traits"]),
+    }).filter((entry) => entry.kind === "queryFieldBucket");
+
+    expect(bucketEntries.map((entry) => entry.label)).toEqual([
+      "Traits: Include auditory, illusion",
+      "Traits: !emotion",
+    ]);
   });
 
   it("selects the grouped field bucket when the focused member path is projected away", () => {
@@ -127,7 +154,7 @@ describe("structured draft support", () => {
     const selectedIndex = getStructuredDraftSelectionIndexForPath(entries, [2], 0);
 
     expect(entries[selectedIndex]?.kind).toBe("queryFieldBucket");
-    expect(entries[selectedIndex]?.label).toBe("Traits: Include illusion, auditory");
+    expect(entries[selectedIndex]?.label).toBe("Traits: Include auditory, illusion");
   });
 
   it("keeps any-of active groups structural instead of projecting shared-explorer buckets", () => {

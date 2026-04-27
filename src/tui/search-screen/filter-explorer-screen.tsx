@@ -3,12 +3,7 @@ import React from "react";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { usePf2eTerminalAppServices } from "../app-service-context.js";
 import {
-  cycleFilterExplorerDiscreteClause,
-  getFilterExplorerDiscreteClause,
-  getFilterExplorerScalarClause,
   isFilterExplorerScalarTarget,
-  normalizeFilterExplorerComposeDraft,
-  setFilterExplorerScalarClause,
 } from "../filter-explorer/compose-state.js";
 import {
   createFilterExplorerDiscoveryState,
@@ -33,6 +28,15 @@ import {
 } from "./filter-explorer-refresh.js";
 import { buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft-model.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import {
+  buildSearchFilterExplorerComposeDraft,
+  buildSearchFilterExplorerFieldState,
+  cycleSearchFilterExplorerDiscreteSelection,
+  getSearchFilterExplorerDiscreteOperator,
+  getSearchFilterExplorerScalarClause,
+  setSearchFilterExplorerScalarClause,
+  type SearchFilterExplorerFieldState,
+} from "./filter-explorer-field-state.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
 const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
@@ -87,19 +91,19 @@ function mergeExplorerModelPreservingVisibleNodes(
   };
 }
 
-function prepareSessionDraftState(
+function prepareSessionFieldState(
   session: SearchFilterExplorerSession,
   prepareDraft: (query: SearchFilterExplorerSession["query"]) => Pf2eTerminalPreparedFilterExplorerDraft,
-): Pf2eTerminalPreparedFilterExplorerDraft {
+): {
+  fieldState: SearchFilterExplorerFieldState;
+  preservedMetadata: Pf2eTerminalPreparedFilterExplorerDraft["preservedMetadata"];
+  scopedFields: Pf2eTerminalPreparedFilterExplorerDraft["scopedFields"];
+} {
   const preparedDraft = prepareDraft(session.query);
-  if (!session.initialDraft && session.preservedMetadata === undefined) {
-    return preparedDraft;
-  }
-
   return {
-    ...preparedDraft,
-    draft: session.initialDraft ? normalizeFilterExplorerComposeDraft(session.initialDraft) : preparedDraft.draft,
+    fieldState: session.initialFieldState ?? buildSearchFilterExplorerFieldState(preparedDraft.draft),
     preservedMetadata: session.preservedMetadata ?? preparedDraft.preservedMetadata,
+    scopedFields: preparedDraft.scopedFields,
   };
 }
 
@@ -119,19 +123,19 @@ export function SearchFilterExplorerScreen({
     [scopedFields, user.search],
   );
   const buildDraft = React.useCallback(
-    (): FilterExplorerComposeDraft => draftRef.current,
+    (): FilterExplorerComposeDraft => buildSearchFilterExplorerComposeDraft(fieldStateRef.current),
     [],
   );
   const [model, setModel] = React.useState(session.model);
-  const [, rerenderDraft] = React.useReducer((value: number) => value + 1, 0);
+  const [, rerenderFieldState] = React.useReducer((value: number) => value + 1, 0);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const queryRef = React.useRef(session.query);
-  const draftRef = React.useRef<FilterExplorerComposeDraft>(prepareSessionDraftState(session, prepareDraft).draft);
+  const fieldStateRef = React.useRef<SearchFilterExplorerFieldState>(prepareSessionFieldState(session, prepareDraft).fieldState);
   const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const modelCacheRef = React.useRef(new Map<SearchFilterDiscoveryMode, SearchFilterExplorerSession["model"]>());
-  const preservedMetadataRef = React.useRef(prepareSessionDraftState(session, prepareDraft).preservedMetadata);
-  const scopedFieldsRef = React.useRef<readonly typeof scopedFields[number][]>(prepareSessionDraftState(session, prepareDraft).scopedFields);
+  const preservedMetadataRef = React.useRef(prepareSessionFieldState(session, prepareDraft).preservedMetadata);
+  const scopedFieldsRef = React.useRef<readonly typeof scopedFields[number][]>(prepareSessionFieldState(session, prepareDraft).scopedFields);
   const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,12 +248,12 @@ export function SearchFilterExplorerScreen({
 
   React.useEffect(() => {
     invalidateRefreshes();
-    const preparedDraft = prepareSessionDraftState(session, prepareDraft);
+    const preparedFieldState = prepareSessionFieldState(session, prepareDraft);
     queryRef.current = session.query;
-    draftRef.current = preparedDraft.draft;
-    preservedMetadataRef.current = preparedDraft.preservedMetadata;
-    scopedFieldsRef.current = preparedDraft.scopedFields;
-    rerenderDraft();
+    fieldStateRef.current = preparedFieldState.fieldState;
+    preservedMetadataRef.current = preparedFieldState.preservedMetadata;
+    scopedFieldsRef.current = preparedFieldState.scopedFields;
+    rerenderFieldState();
     setModel(session.model);
     setDiscoveryMode(initialDiscoveryMode);
     discoveryModeRef.current = initialDiscoveryMode;
@@ -268,7 +272,7 @@ export function SearchFilterExplorerScreen({
     return () => {
       invalidateRefreshes();
     };
-  }, [initialDiscoveryMode, invalidateRefreshes, loadModelForDiscoveryMode, prepareDraft, runModelRefresh, session.initialDraft, session.model]);
+  }, [initialDiscoveryMode, invalidateRefreshes, loadModelForDiscoveryMode, prepareDraft, runModelRefresh, session.initialFieldState, session.model]);
 
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -298,13 +302,13 @@ export function SearchFilterExplorerScreen({
     () =>
       createFilterExplorerOutcomeHandler({
         onBack: () => {
-          session.onBack?.(queryRef.current);
+          session.onBack?.(queryRef.current, fieldStateRef.current);
         },
         onExitRoot: () => {
-          session.onExitRoot?.(queryRef.current);
+          session.onExitRoot?.(queryRef.current, fieldStateRef.current);
         },
         onCancel: () => {
-          session.onCancel?.(queryRef.current);
+          session.onCancel?.(queryRef.current, fieldStateRef.current);
         },
       }),
     [session],
@@ -315,16 +319,20 @@ export function SearchFilterExplorerScreen({
     [prompts, terminal],
   );
 
-  const applyNextDraft = React.useCallback(
-    (nextDraft: FilterExplorerComposeDraft) => {
-      draftRef.current = nextDraft;
-      rerenderDraft();
-      const nextQuery = user.search.applyFilterExplorerDraft(queryRef.current, nextDraft, {
+  const applyNextFieldState = React.useCallback(
+    (nextFieldState: SearchFilterExplorerFieldState) => {
+      fieldStateRef.current = nextFieldState;
+      rerenderFieldState();
+      const nextQuery = user.search.applyFilterExplorerDraft(
+        queryRef.current,
+        buildSearchFilterExplorerComposeDraft(nextFieldState),
+        {
         preservedMetadata: preservedMetadataRef.current,
         scopedFields: scopedFieldsRef.current,
-      });
+        },
+      );
       queryRef.current = nextQuery;
-      session.onQueryChange(nextQuery);
+      session.onQueryChange(nextQuery, nextFieldState);
       if (session.refreshOnQueryChange && session.loadModelForDiscoveryMode) {
         runModelRefresh(discoveryModeRef.current, { force: true });
       }
@@ -345,9 +353,8 @@ export function SearchFilterExplorerScreen({
           return { activationStyle: "none" as const };
         }
 
-        const draft = buildDraft();
         if (isFilterExplorerScalarTarget(target)) {
-          const clause = getFilterExplorerScalarClause(target, draft);
+          const clause = getSearchFilterExplorerScalarClause(fieldStateRef.current, target);
           return {
             activationStyle: "edit" as const,
             stateBadge: clause ? { kind: "custom" as const, text: "ƒ", tone: "accent" } : { kind: "custom" as const, text: "·", tone: "dim" },
@@ -355,7 +362,7 @@ export function SearchFilterExplorerScreen({
           };
         }
 
-        const operator = getFilterExplorerDiscreteClause(target, draft)?.operator;
+        const operator = getSearchFilterExplorerDiscreteOperator(fieldStateRef.current, target);
         return {
           activationStyle: "toggle" as const,
           stateBadge:
@@ -367,28 +374,28 @@ export function SearchFilterExplorerScreen({
         };
       },
       activateTarget: ({ target }) => {
-        const currentDraft = buildDraft();
+        const currentFieldState = fieldStateRef.current;
         if (isFilterExplorerScalarTarget(target)) {
           void Promise.resolve(
             onEditScalarTarget({
               target,
-              currentClause: getFilterExplorerScalarClause(target, currentDraft),
-              draft: currentDraft,
+              currentClause: getSearchFilterExplorerScalarClause(currentFieldState, target),
+              draft: buildSearchFilterExplorerComposeDraft(currentFieldState),
             }),
           ).then((nextClause) => {
             if (nextClause === undefined) {
               return;
             }
-            applyNextDraft(setFilterExplorerScalarClause(target, nextClause, currentDraft));
+            applyNextFieldState(setSearchFilterExplorerScalarClause(currentFieldState, target, nextClause));
           });
           return true;
         }
 
-        applyNextDraft(cycleFilterExplorerDiscreteClause(target, currentDraft, 1));
+        applyNextFieldState(cycleSearchFilterExplorerDiscreteSelection(currentFieldState, target, 1));
         return true;
       },
     }),
-    [applyNextDraft, buildDraft, onEditScalarTarget, session.fieldOptions, session.resolveSelectionTarget],
+    [applyNextFieldState, onEditScalarTarget, session.fieldOptions, session.resolveSelectionTarget],
   );
 
   return (

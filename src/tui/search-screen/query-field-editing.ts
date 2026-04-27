@@ -4,13 +4,16 @@ import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { isMetadataPredicate } from "../search/query-core.js";
 import type {
   Pf2eTerminalFacetField,
-  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
+import {
+  buildSearchFilterExplorerComposeDraft,
+  type SearchFilterExplorerFieldState,
+} from "./filter-explorer-field-state.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -44,17 +47,19 @@ export function useSearchQueryFieldEditing({
     onApply: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
       nextQuery: Pf2eTerminalSearchQuery,
+      nextFieldState?: SearchFilterExplorerFieldState,
     ) => void,
     onReturn?: () => void,
     onQueryChange?: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
       nextQuery: Pf2eTerminalSearchQuery,
+      nextFieldState?: SearchFilterExplorerFieldState,
     ) => void,
     options?: {
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
-      initialDraft?: Pf2eTerminalFilterExplorerDraft;
+      initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
     },
   ) => Promise<boolean>;
@@ -112,17 +117,19 @@ export function useSearchQueryFieldEditing({
       onApply: (
         result: Pf2eTerminalFilterExplorerInsertionResult,
         nextQuery: Pf2eTerminalSearchQuery,
+        nextFieldState?: SearchFilterExplorerFieldState,
       ) => void,
       onReturn?: () => void,
       onQueryChange?: (
         result: Pf2eTerminalFilterExplorerInsertionResult,
         nextQuery: Pf2eTerminalSearchQuery,
+        nextFieldState?: SearchFilterExplorerFieldState,
       ) => void,
       options?: {
         onBack?: () => void;
         onExitRoot?: () => void;
         onCancel?: () => void;
-        initialDraft?: Pf2eTerminalFilterExplorerDraft;
+        initialFieldState?: SearchFilterExplorerFieldState;
         preservedMetadata?: MetadataFilterNode | null;
       },
     ): Promise<boolean> => {
@@ -130,10 +137,14 @@ export function useSearchQueryFieldEditing({
         return false;
       }
 
-      const buildResultForQuery = (nextQuery: Pf2eTerminalSearchQuery): Pf2eTerminalFilterExplorerInsertionResult => {
-        const preparedDraft = user.search.prepareFilterExplorerDraft(nextQuery, [fieldOption.value]);
-        return user.search.buildFilterExplorerInsertionResult(preparedDraft.draft, {
-          preservedMetadata: preparedDraft.preservedMetadata,
+      const buildResultForFieldState = (
+        fieldState: SearchFilterExplorerFieldState,
+      ): Pf2eTerminalFilterExplorerInsertionResult => {
+        const preservedMetadata =
+          options?.preservedMetadata ??
+          user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata;
+        return user.search.buildFilterExplorerInsertionResult(buildSearchFilterExplorerComposeDraft(fieldState), {
+          preservedMetadata,
           preferReplace: currentNode !== null,
         });
       };
@@ -141,32 +152,32 @@ export function useSearchQueryFieldEditing({
 
       return openFilterExplorer({
         queryOverride: query,
-        initialDraft: options?.initialDraft,
+        initialFieldState: options?.initialFieldState,
         preservedMetadata: options?.preservedMetadata,
         fieldOptions: [fieldOption],
         onQueryChange: onQueryChange
-          ? (nextQuery) => {
-              onQueryChange(buildResultForQuery(nextQuery), nextQuery);
+          ? (nextQuery, nextFieldState) => {
+              onQueryChange(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
             }
           : undefined,
-        onBack: (nextQuery) => {
+        onBack: (nextQuery, nextFieldState) => {
           if (options?.onBack) {
             options.onBack();
           } else if (shouldApplyOnClose) {
-            onApply(buildResultForQuery(nextQuery), nextQuery);
+            onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
           }
           onReturn?.();
         },
-        onExitRoot: (nextQuery) => {
+        onExitRoot: (nextQuery, nextFieldState) => {
           if (options?.onExitRoot) {
             options.onExitRoot();
             return;
           }
           if (shouldApplyOnClose) {
-            onApply(buildResultForQuery(nextQuery), nextQuery);
+            onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
           }
         },
-        onCancel: options?.onCancel ? () => options.onCancel?.() : undefined,
+        onCancel: options?.onCancel ? (_nextQuery, _nextFieldState) => options.onCancel?.() : undefined,
         singleFieldBehavior: "directValues",
       });
     },
@@ -183,23 +194,22 @@ export function useSearchQueryFieldEditing({
         return false;
       }
 
+      const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
+      const preservedMetadata = user.search.prepareFilterExplorerDraft(query, scopedFields).preservedMetadata;
+      const buildNodeForFieldState = (fieldState: SearchFilterExplorerFieldState): MetadataFilterNode | null =>
+        user.search.buildFilterExplorerMetadataNode(buildSearchFilterExplorerComposeDraft(fieldState), {
+          preservedMetadata,
+        });
+
       return openFilterExplorer({
         queryOverride: query,
         fieldOptions,
         singleFieldBehavior: fieldOptions.length === 1 ? "directValues" : "list",
-        onBack: (nextQuery) => {
-          const preparedDraft = user.search.prepareFilterExplorerDraft(
-            nextQuery,
-            fieldOptions.map((fieldOption) => fieldOption.value),
-          );
-          onApply(user.search.buildFilterExplorerMetadataNode(preparedDraft.draft, { preservedMetadata: preparedDraft.preservedMetadata }));
+        onBack: (_nextQuery, nextFieldState) => {
+          onApply(buildNodeForFieldState(nextFieldState));
         },
-        onExitRoot: (nextQuery) => {
-          const preparedDraft = user.search.prepareFilterExplorerDraft(
-            nextQuery,
-            fieldOptions.map((fieldOption) => fieldOption.value),
-          );
-          onApply(user.search.buildFilterExplorerMetadataNode(preparedDraft.draft, { preservedMetadata: preparedDraft.preservedMetadata }));
+        onExitRoot: (_nextQuery, nextFieldState) => {
+          onApply(buildNodeForFieldState(nextFieldState));
         },
       });
     },

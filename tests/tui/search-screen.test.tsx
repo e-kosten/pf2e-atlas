@@ -3633,7 +3633,7 @@ describe("search screen", () => {
           title: "Traits Explorer",
           model,
           query,
-          initialDraft: seededState.initialDraft,
+          initialFieldState: seededState.initialFieldState,
           preservedMetadata: seededState.preservedMetadata,
           fieldOptions,
           onQueryChange: (nextQuery) => {

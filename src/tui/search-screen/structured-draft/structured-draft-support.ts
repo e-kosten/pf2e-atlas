@@ -61,6 +61,19 @@ type ActiveGroupChildRenderItem =
   | { kind: "bucket"; bucket: ActiveGroupFieldBucket }
   | { kind: "node"; child: SearchFilterNode; childIndex: number };
 
+function compareActiveGroupFieldBuckets(left: ActiveGroupFieldBucket, right: ActiveGroupFieldBucket): number {
+  const fieldCompare = left.fieldLabel.localeCompare(right.fieldLabel);
+  if (fieldCompare !== 0) {
+    return fieldCompare;
+  }
+
+  if (left.operator !== right.operator) {
+    return left.operator === "include" ? -1 : 1;
+  }
+
+  return left.firstIndex - right.firstIndex;
+}
+
 function getFilterRootDisplayNodes(node: SearchFilterNode | undefined): FilterDisplayNode[] {
   if (!node) {
     return [];
@@ -173,7 +186,7 @@ function buildActiveGroupFieldBuckets(
   children: SearchFilterNode[],
   path: number[],
   groupedFieldValues: ReadonlySet<string>,
-): { bucketsByChildIndex: Map<number, ActiveGroupFieldBucket>; groupedChildIndexes: Set<number> } {
+): { buckets: ActiveGroupFieldBucket[]; groupedChildIndexes: Set<number> } {
   const bucketsByKey = new Map<string, ActiveGroupFieldBucket>();
   const groupedChildIndexes = new Set<number>();
   const fieldMemberPathsByField = new Map<string, number[][]>();
@@ -209,16 +222,18 @@ function buildActiveGroupFieldBuckets(
     }
   });
 
-  for (const bucket of bucketsByKey.values()) {
+  const buckets = [...bucketsByKey.values()]
+    .map((bucket) => ({
+      ...bucket,
+      values: [...bucket.values].sort((left, right) => left.localeCompare(right)),
+    }))
+    .sort(compareActiveGroupFieldBuckets);
+
+  for (const bucket of buckets) {
     bucket.fieldMemberPaths = fieldMemberPathsByField.get(bucket.field) ?? [...bucket.memberPaths];
   }
 
-  const bucketsByChildIndex = new Map<number, ActiveGroupFieldBucket>();
-  for (const bucket of bucketsByKey.values()) {
-    bucketsByChildIndex.set(bucket.firstIndex, bucket);
-  }
-
-  return { bucketsByChildIndex, groupedChildIndexes };
+  return { buckets, groupedChildIndexes };
 }
 
 function resolveActiveGroupPath(
@@ -317,21 +332,20 @@ function buildFilterTreeEntries(
       current.kind === "allOf" &&
       options.activeGroupPath !== null &&
       pathsEqual(path, options.activeGroupPath);
-    const { bucketsByChildIndex, groupedChildIndexes } = useActiveGroupProjection
+    const { buckets, groupedChildIndexes } = useActiveGroupProjection
       ? buildActiveGroupFieldBuckets(children, path, options.groupedFieldValues)
-      : { bucketsByChildIndex: new Map<number, ActiveGroupFieldBucket>(), groupedChildIndexes: new Set<number>() };
+      : { buckets: [], groupedChildIndexes: new Set<number>() };
 
     const childRenderItems: ActiveGroupChildRenderItem[] = [];
     children.forEach((child, childIndex) => {
-      if (bucketsByChildIndex.has(childIndex)) {
-        childRenderItems.push({ kind: "bucket", bucket: bucketsByChildIndex.get(childIndex)! });
-        return;
-      }
       if (groupedChildIndexes.has(childIndex)) {
         return;
       }
       childRenderItems.push({ kind: "node", child, childIndex });
     });
+    for (const bucket of buckets) {
+      childRenderItems.push({ kind: "bucket", bucket });
+    }
 
     childRenderItems.forEach((item, renderIndex) => {
       const childIsLast = renderIndex === childRenderItems.length - 1 && !showInsertionSlot;
@@ -377,22 +391,21 @@ function buildFilterTreeEntries(
     node !== undefined &&
     node.kind === "allOf";
   if (useRootActiveGroupProjection && node) {
-    const { bucketsByChildIndex, groupedChildIndexes } = buildActiveGroupFieldBuckets(
+    const { buckets, groupedChildIndexes } = buildActiveGroupFieldBuckets(
       node.children,
       [],
       options.groupedFieldValues,
     );
     const rootRenderItems: ActiveGroupChildRenderItem[] = [];
     node.children.forEach((child, childIndex) => {
-      if (bucketsByChildIndex.has(childIndex)) {
-        rootRenderItems.push({ kind: "bucket", bucket: bucketsByChildIndex.get(childIndex)! });
-        return;
-      }
       if (groupedChildIndexes.has(childIndex)) {
         return;
       }
       rootRenderItems.push({ kind: "node", child, childIndex });
     });
+    for (const bucket of buckets) {
+      rootRenderItems.push({ kind: "bucket", bucket });
+    }
 
     rootRenderItems.forEach((item, renderIndex) => {
       const isLast = renderIndex === rootRenderItems.length - 1 && !showRootInsertionSlot;
