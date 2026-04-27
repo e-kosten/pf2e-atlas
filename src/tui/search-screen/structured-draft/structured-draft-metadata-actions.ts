@@ -4,10 +4,12 @@ import { inferActorMetricValueType } from "../../../domain/actor-metrics.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../../domain/categories.js";
 import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
-import type {
-  SearchNumericMatch,
-  SearchFilterNode,
-  SearchScopeSubcategoryMatch,
+import {
+  buildAllOfFilter,
+  findSearchScopeFilter,
+  type SearchNumericMatch,
+  type SearchFilterNode,
+  type SearchScopeSubcategoryMatch,
 } from "../../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import {
@@ -160,6 +162,73 @@ function toSearchFilterNodeEditorResult(
   }
 
   return metadataFilterNodeToCanonicalFilter(result.node) ?? null;
+}
+
+export function buildGroupedFieldSeedState(
+  query: Pf2eTerminalSearchQuery,
+  groupPath: number[],
+): {
+  seedGroupPath: number[];
+  seedQuery: Pf2eTerminalSearchQuery;
+} {
+  const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+  if (!groupNode) {
+    return {
+      seedGroupPath: [],
+      seedQuery: query,
+    };
+  }
+
+  const scopeNode = findSearchScopeFilter(query.filter);
+  if (groupPath.length === 0 || !scopeNode) {
+    return {
+      seedGroupPath: [],
+      seedQuery: {
+        ...query,
+        filter: groupNode,
+      },
+    };
+  }
+
+  return {
+    seedGroupPath: [1],
+    seedQuery: {
+      ...query,
+      filter: buildAllOfFilter([scopeNode, groupNode]),
+    },
+  };
+}
+
+export function applyGroupedFieldSeedQueryToQuery(
+  query: Pf2eTerminalSearchQuery,
+  groupPath: number[],
+  seedGroupPath: number[],
+  field: string,
+  nextSeedQuery: Pf2eTerminalSearchQuery,
+): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } {
+  const nextGroupNode =
+    seedGroupPath.length === 0
+      ? nextSeedQuery.filter
+      : getSearchFilterNodeAtPath(nextSeedQuery.filter, seedGroupPath) ?? undefined;
+  const nextFilter =
+    groupPath.length === 0
+      ? nextGroupNode
+      : updateSearchFilterNodeAtPath(query.filter, groupPath, () => nextGroupNode);
+  const nextGroupNodeInQuery =
+    groupPath.length === 0 ? nextGroupNode ?? null : getSearchFilterNodeAtPath(nextFilter, groupPath);
+  const nextFocusPath = nextGroupNodeInQuery
+    ? getFirstGroupedFieldMemberPath(nextGroupNodeInQuery, groupPath, field) ?? (groupPath.length > 0 ? groupPath : null)
+    : groupPath.length > 0
+      ? groupPath
+      : null;
+
+  return {
+    nextQuery: {
+      ...query,
+      filter: nextFilter,
+    },
+    nextFocusPath,
+  };
 }
 
 function buildInsertionActionEntries(
@@ -355,50 +424,6 @@ export function useSearchStructuredDraftMetadataActions({
     [replaceStructuredDraftProjection],
   );
 
-  const buildGroupedFieldSeedQuery = React.useCallback(
-    (
-      query: Pf2eTerminalSearchQuery,
-      groupPath: number[],
-    ): Pf2eTerminalSearchQuery => {
-      const filter = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
-      return {
-        ...query,
-        filter,
-      };
-    },
-    [],
-  );
-
-  const applyGroupedFieldQueryToQuery = React.useCallback(
-    (
-      query: Pf2eTerminalSearchQuery,
-      groupPath: number[],
-      field: string,
-      nextGroupQuery: Pf2eTerminalSearchQuery,
-    ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } => {
-      const nextFilter =
-        groupPath.length === 0
-          ? nextGroupQuery.filter
-          : updateSearchFilterNodeAtPath(query.filter, groupPath, () => nextGroupQuery.filter);
-      const nextGroupNode =
-        groupPath.length === 0 ? nextGroupQuery.filter ?? null : getSearchFilterNodeAtPath(nextFilter, groupPath);
-      const nextFocusPath = nextGroupNode
-        ? getFirstGroupedFieldMemberPath(nextGroupNode, groupPath, field) ?? (groupPath.length > 0 ? groupPath : null)
-        : groupPath.length > 0
-          ? groupPath
-          : null;
-
-      return {
-        nextQuery: {
-          ...query,
-          filter: nextFilter,
-        },
-        nextFocusPath,
-      };
-    },
-    [],
-  );
-
   const openLiveExplorerFieldClause = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -469,18 +494,30 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
 
-      const seedQuery = buildGroupedFieldSeedQuery(query, groupPath);
+      const { seedGroupPath, seedQuery } = buildGroupedFieldSeedState(query, groupPath);
       await openOntologyFieldEditor(
         seedQuery,
         fieldOption,
         null,
         (_result, nextGroupQuery) => {
-          const { nextQuery, nextFocusPath } = applyGroupedFieldQueryToQuery(query, groupPath, field, nextGroupQuery);
+          const { nextQuery, nextFocusPath } = applyGroupedFieldSeedQueryToQuery(
+            query,
+            groupPath,
+            seedGroupPath,
+            field,
+            nextGroupQuery,
+          );
           replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
         },
         undefined,
         (_result, nextGroupQuery) => {
-          const { nextQuery, nextFocusPath } = applyGroupedFieldQueryToQuery(query, groupPath, field, nextGroupQuery);
+          const { nextQuery, nextFocusPath } = applyGroupedFieldSeedQueryToQuery(
+            query,
+            groupPath,
+            seedGroupPath,
+            field,
+            nextGroupQuery,
+          );
           replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
         },
         {
@@ -490,8 +527,6 @@ export function useSearchStructuredDraftMetadataActions({
       );
     },
     [
-      applyGroupedFieldQueryToQuery,
-      buildGroupedFieldSeedQuery,
       getScopedFieldOptions,
       openOntologyFieldEditor,
       replaceStructuredDraftProjection,
