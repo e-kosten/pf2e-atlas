@@ -273,14 +273,14 @@ export function buildStructuredQuerySummaryLines(
   query: Pf2eTerminalSearchQuery,
   renderOptions: SearchFilterRenderOptions = {},
 ): DerivedTagTerminalLine[] {
-  return buildSummaryLines(buildSearchQuerySummary(query, renderOptions), "Staged Structured Query");
+  return buildSummaryLines(buildSearchQuerySummary(query, renderOptions), "Live Structured Query");
 }
 
 export function buildStructuredWorkspaceEntryFocusLines(entry: SearchWorkspaceEntry): DerivedTagTerminalLine[] {
   return [
     { text: "Focused Entry", tone: "section" },
     { text: entry.label, tone: "accent" },
-    { text: `Current staged value: ${entry.value}` },
+    { text: `Current value: ${entry.value}` },
     {
       text: entry.disabled ? `Unavailable: ${entry.disabledReason ?? entry.description}` : entry.description,
       tone: entry.disabled ? "warning" : "default",

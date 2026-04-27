@@ -1,9 +1,6 @@
 import type { Pf2eTerminalAppServices } from "../../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
-  Pf2eTerminalFilterExplorerDraft,
-  Pf2eTerminalPreparedFilterExplorerContext,
-  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -24,31 +21,10 @@ export type SearchWorkspaceUser = Pick<Pf2eTerminalAppServices["user"], "search"
 export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
-  initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
-  buildQueryForDraft?: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => Pf2eTerminalSearchQuery;
-  onDraftChange?: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => void;
-  onApply: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => void;
+  onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
   onReturn?: () => void;
-  onCancel?: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => void;
-  onBack?: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => void;
-  onExitRoot?: (
-    draft: Pf2eTerminalFilterExplorerDraft,
-    context: Pf2eTerminalPreparedFilterExplorerContext,
-  ) => void;
+  onCancel?: (query: Pf2eTerminalSearchQuery) => void;
+  onBack?: (query: Pf2eTerminalSearchQuery) => void;
+  onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
   singleFieldBehavior?: "list" | "directValues";
 }) => Promise<boolean>;

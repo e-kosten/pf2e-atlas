@@ -94,6 +94,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const terminal = useDerivedTagTerminalApp();
   const { notification, showNotification } = useTerminalListDetailNotification();
   const composeMode = options.mode.kind === "compose" ? options.mode : null;
+  const selectionPresentation = options.host.selectionPresentation;
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
   const size = useDerivedTagTerminalSize();
   const [actionTargetState, dispatchActionTarget] = React.useReducer(
@@ -120,21 +121,28 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const normalizedBrowserState = normalizeFilterExplorerBrowserState(options.model, state.browserState);
   const selection = getFilterExplorerBrowserSelection(options.model, normalizedBrowserState);
   const selectedTarget = resolveFilterExplorerHostTarget(options.host, selection.currentNode);
+  const detailDraft = options.host.getDraft?.() ?? draft;
   const detailLines =
-    composeMode
+    composeMode || selectionPresentation
       ? buildFilterExplorerComposeDetailLines({
-          mode: composeMode,
-          draft,
+          mode: {
+            kind: "compose",
+            detailTitle: composeMode?.detailTitle ?? selectionPresentation?.detailTitle,
+            emptySelectionText: composeMode?.emptySelectionText ?? selectionPresentation?.emptySelectionText,
+            focusedClauseTitle: composeMode?.focusedClauseTitle ?? selectionPresentation?.focusedClauseTitle,
+            stagedClausesTitle: composeMode?.stagedClausesTitle ?? selectionPresentation?.selectionTitle,
+          },
+          draft: detailDraft,
           currentNodeLabel: selection.currentNode?.label,
           selectedTarget,
-          selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, draft),
-          selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, draft),
+          selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, detailDraft),
+          selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, detailDraft),
           baseDetailLines:
             selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
         })
       : buildFilterExplorerDetailLines(options.model, normalizedBrowserState);
-  const detailTitle = composeMode
-    ? composeMode.detailTitle ?? "Detail"
+  const detailTitle = composeMode || selectionPresentation
+    ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
     : getFilterExplorerDetailTitle(options.model, normalizedBrowserState);
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,

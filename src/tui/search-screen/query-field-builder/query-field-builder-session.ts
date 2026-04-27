@@ -11,7 +11,10 @@ import {
 } from "../../interaction-bindings.js";
 import type { SearchWorkspaceEntry } from "../workspace/workspace.js";
 import { buildStructuredWorkspaceEntryFocusLines, formatSearchWorkspaceEntryLine } from "../workspace/workspace.js";
-import type { Pf2eTerminalFilterExplorerDraft } from "../../search/service.js";
+import type {
+  Pf2eTerminalQueryFieldOption,
+  Pf2eTerminalSearchQuery,
+} from "../../search/service.js";
 import type { DerivedTagTerminalLine } from "../../framework/types.js";
 import {
   createMergedReturnFooterBinding,
@@ -24,14 +27,14 @@ export type SearchFilterExplorerSession = {
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
-  draft: Pf2eTerminalFilterExplorerDraft;
-  refreshOnDraftChange?: boolean;
-  onDraftChange?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
-  resolveSelectionTarget: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-  onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
-  onBack?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
-  onExitRoot?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
-  onCancel?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+  query: Pf2eTerminalSearchQuery;
+  refreshOnQueryChange?: boolean;
+  fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
+  resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+  onQueryChange: (query: Pf2eTerminalSearchQuery) => void;
+  onBack?: (query: Pf2eTerminalSearchQuery) => void;
+  onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
+  onCancel?: (query: Pf2eTerminalSearchQuery) => void;
 };
 
 export type SearchStructuredEditorItem =
@@ -43,11 +46,6 @@ export type SearchStructuredEditorItem =
     }
   | {
       kind: "treeEntry";
-      label: string;
-      detailLines?: DerivedTagTerminalLine[];
-    }
-  | {
-      kind: "finish" | "cancel";
       label: string;
       detailLines?: DerivedTagTerminalLine[];
     };
@@ -66,7 +64,7 @@ export type SearchStructuredEditorSession = {
   leftTitle?: string;
   rightTitle?: string;
   statusText?: string;
-  stagedPartCount?: number;
+  activePartCount?: number;
   summaryLines?: DerivedTagTerminalLine[];
   buildFocusedDetailLines?: (item: SearchStructuredEditorItem | undefined) => DerivedTagTerminalLine[];
   helpTitle?: string;
@@ -79,10 +77,10 @@ function getSearchStructuredEditorNotes(session: SearchStructuredEditorSession):
   }
 
   return [
-    { text: "Use this editor to stage structured search changes before committing them.", tone: "section" },
-    { text: "The right pane keeps the full staged query summary visible while you move focus on the left." },
+    { text: "Use this editor to change the live structured query tree directly.", tone: "section" },
+    { text: "The right pane keeps the current query summary visible while you move focus on the left." },
     {
-      text: "Open a row to edit it, then continue staging more changes or finish when the staged query looks correct.",
+      text: "Open a row to edit it. Changes apply immediately, and Left returns to the main query editor.",
     },
   ];
 }
@@ -119,10 +117,10 @@ export function createSearchStructuredEditorInteractions(
         {
           title: "Navigation",
           actions: [
-            { id: "move", label: "select", helpText: "move through the staged query list" },
-            { id: "jump", helpText: "jump through the staged query list" },
-            { id: "page", helpText: "page through the staged query list" },
-            { id: "edge", helpText: "jump to the start or end of the staged query list" },
+            { id: "move", label: "select", helpText: "move through the live query tree" },
+            { id: "jump", helpText: "jump through the live query tree" },
+            { id: "page", helpText: "page through the live query tree" },
+            { id: "edge", helpText: "jump to the start or end of the live query tree" },
           ],
         },
         {
@@ -138,7 +136,7 @@ export function createSearchStructuredEditorInteractions(
                     ? "focus the node-action rail for grouping, moving, wrapping, and other restructuring"
                     : action.id === "help"
                       ? "show this help"
-                      : "apply the staged structured query and return to the live editor",
+                      : "return to the main query editor",
               label: action.id === "back" || action.id === "quit" ? "return" : action.label,
             })),
         },
@@ -168,10 +166,10 @@ export function buildSearchStructuredEditorHelpLines(
       {
         title: "Navigation",
         actions: [
-          { id: "move", label: "select", helpText: "move through the staged query list" },
-          { id: "jump", helpText: "jump through the staged query list" },
-          { id: "page", helpText: "page through the staged query list" },
-          { id: "edge", helpText: "jump to the start or end of the staged query list" },
+          { id: "move", label: "select", helpText: "move through the live query tree" },
+          { id: "jump", helpText: "jump through the live query tree" },
+          { id: "page", helpText: "page through the live query tree" },
+          { id: "edge", helpText: "jump to the start or end of the live query tree" },
         ],
       },
       {
@@ -185,13 +183,13 @@ export function buildSearchStructuredEditorHelpLines(
                 ? "open the focused row"
                 : action.id === "actions"
                   ? "focus the node-action rail"
-                : action.id === "help"
-                  ? "show this help"
-                  : "apply the staged structured query and return to the live editor",
+                  : action.id === "help"
+                    ? "show this help"
+                    : "return to the main query editor",
             label: action.id === "back" || action.id === "quit" ? "return" : action.label,
           })),
       },
-  ]),
+    ]),
     { text: "" },
     ...buildDerivedTagTerminalActionTargetHelpLines({
       orientation: "horizontal",
@@ -208,7 +206,7 @@ function buildDefaultFocusedDetailLines(
   item: SearchStructuredEditorItem | undefined,
 ): DerivedTagTerminalLine[] {
   if (!item) {
-    return [{ text: "No staged entry is selected.", tone: "dim" }];
+    return [{ text: "No query-tree entry is selected.", tone: "dim" }];
   }
   if (item.detailLines && item.detailLines.length > 0) {
     return item.detailLines;
@@ -216,21 +214,7 @@ function buildDefaultFocusedDetailLines(
   if (item.kind === "workspaceEntry") {
     return buildStructuredWorkspaceEntryFocusLines(item.workspaceEntry);
   }
-  if (item.kind === "treeEntry") {
-    return item.detailLines ?? [{ text: "Open this tree row to edit the selected node or insertion slot." }];
-  }
-  if (item.kind === "finish") {
-    return [
-      { text: "Focused Entry", tone: "section" },
-      { text: "Finish staged changes", tone: "accent" },
-      { text: "Apply the full staged structured query to the live query and return to the editor." },
-    ];
-  }
-  return [
-    { text: "Focused Entry", tone: "section" },
-    { text: "Cancel staged changes", tone: "warning" },
-    { text: "Discard the staged structured query and return to the editor." },
-  ];
+  return item.detailLines ?? [{ text: "Open this tree row to edit the selected node or insertion slot." }];
 }
 
 function getSelectedItem(session: SearchStructuredEditorSession): SearchStructuredEditorItem | undefined {
@@ -238,7 +222,7 @@ function getSelectedItem(session: SearchStructuredEditorSession): SearchStructur
 }
 
 function countStructuredSelections(session: SearchStructuredEditorSession): number {
-  return session.stagedPartCount ?? 0;
+  return session.activePartCount ?? 0;
 }
 
 export function buildSearchStructuredEditorMenuItems(session: SearchStructuredEditorSession): Array<{ label: string }> {
@@ -256,8 +240,8 @@ export function buildSearchStructuredEditorDetailLines(
   const summaryLines = session.summaryLines && session.summaryLines.length > 0
     ? session.summaryLines
     : [
-        { text: "Staged Structured Query", tone: "section" as const },
-        { text: "No staged structured changes yet.", tone: "dim" as const },
+        { text: "Live Structured Query", tone: "section" as const },
+        { text: "No structured query clauses yet.", tone: "dim" as const },
       ];
   const focusedLines =
     session.buildFocusedDetailLines?.(getSelectedItem(session)) ?? buildDefaultFocusedDetailLines(getSelectedItem(session));
@@ -269,7 +253,7 @@ export function buildSearchStructuredEditorStatusLine(session: SearchStructuredE
   return {
     text:
       session.statusText ??
-      `${countStructuredSelections(session)} staged structured part${countStructuredSelections(session) === 1 ? "" : "s"} | live query unchanged until finish`,
+      `${countStructuredSelections(session)} structured part${countStructuredSelections(session) === 1 ? "" : "s"} | live query updates immediately`,
     tone: "accent",
   };
 }

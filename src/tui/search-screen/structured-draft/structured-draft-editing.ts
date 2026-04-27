@@ -4,10 +4,7 @@ import type { SearchStructuredDraftEntry } from "../../search/structured-draft-s
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type {
-  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
-  Pf2eTerminalPreparedFilterExplorerContext,
-  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -62,21 +59,14 @@ export function useSearchStructuredDraftEditing({
     currentNode: MetadataFilterNode | null,
     onApply: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
+      nextQuery: Pf2eTerminalSearchQuery,
     ) => void,
     onReturn?: () => void,
-    onDraftChange?: (
+    onQueryChange?: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
+      nextQuery: Pf2eTerminalSearchQuery,
     ) => void,
     options?: {
-      buildQueryForDraft?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => Pf2eTerminalSearchQuery;
-      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
@@ -129,21 +119,11 @@ export function useSearchStructuredDraftEditing({
     if (!selectedEntry) {
       return;
     }
-    if (selectedEntry.kind === "finish") {
-      finishStructuredDraftSession();
-      return;
-    }
-    if (selectedEntry.kind === "cancel") {
-      cancelStructuredDraftSession();
-      return;
-    }
     void editStructuredDraftMetadata(selectedEntry);
   }, [
-    cancelStructuredDraftSession,
     clearStructuredDraftMoveSource,
     editStructuredDraftMetadata,
     enterStructuredDraftMoveMode,
-    finishStructuredDraftSession,
     structuredDraftEntries,
     structuredDraftState,
   ]);
@@ -165,42 +145,29 @@ export function useSearchStructuredDraftEditing({
     }
 
     const selectedActionEntries: DerivedTagTerminalActionTargetOption<string>[] =
-      selectedStructuredDraftEntry?.kind === "finish"
-        ? [{ id: "apply", label: "Apply Structured Edit", description: "Commit the staged structured query back into the live editor." }]
-        : selectedStructuredDraftEntry?.kind === "cancel"
-          ? [{ id: "discard", label: "Discard Structured Edit", description: "Discard the staged structured query and keep the live query unchanged." }]
-          : getStructuredDraftEntryActions(selectedStructuredDraftEntry);
+      getStructuredDraftEntryActions(selectedStructuredDraftEntry);
 
     return {
       title: "Structured Query Editor",
-      subtitle: "Structured Query Editor | Stage structured search changes before applying them to the live query",
-      leftTitle: "[STAGED QUERY]",
-      rightTitle: "Staged Summary & Detail",
+      subtitle: "Structured Query Editor | Edit the live structured query tree",
+      leftTitle: "[QUERY TREE]",
+      rightTitle: "Live Summary & Detail",
       statusText: structuredDraftState.moveSourcePath
         ? "Move mode: select a visible destination slot, Enter confirms, Left/Esc cancels the move."
-        : "Left/Esc applies the staged query and returns. Use the discard row to abandon it.",
-      stagedPartCount: structuredDraftQuery ? buildSearchQuerySummary(structuredDraftQuery).activeStructuredPartCount : 0,
+        : "Left/Esc returns to the main editor. Query-tree changes apply immediately.",
+      activePartCount: structuredDraftQuery ? buildSearchQuerySummary(structuredDraftQuery).activeStructuredPartCount : 0,
       summaryLines: structuredDraftQuery
         ? buildStructuredQuerySummaryLines(structuredDraftQuery, {
             packLabelResolver: user.search.getPackLabel,
           })
         : undefined,
-      items: structuredDraftEntries.map((entry) =>
-        entry.kind === "finish" || entry.kind === "cancel"
-          ? { kind: entry.kind, label: entry.label }
-          : {
-              kind: "treeEntry" as const,
-              label: entry.menuLabel ?? entry.label,
-            },
-      ),
+      items: structuredDraftEntries.map((entry) => ({
+        kind: "treeEntry" as const,
+        label: entry.menuLabel ?? entry.label,
+      })),
       actionEntries: selectedActionEntries,
       runAction: (actionId) => {
-        if (selectedStructuredDraftEntry?.kind === "finish") {
-          finishStructuredDraftSession();
-          return;
-        }
-        if (selectedStructuredDraftEntry?.kind === "cancel") {
-          cancelStructuredDraftSession();
+        if (!selectedStructuredDraftEntry) {
           return;
         }
         void runStructuredDraftEntryAction(
@@ -215,19 +182,18 @@ export function useSearchStructuredDraftEditing({
       cancel: structuredDraftState.moveSourcePath ? clearStructuredDraftMoveSource : finishStructuredDraftSession,
       helpTitle: "Structured Query Editor Help",
       helpBody: [
-        { text: "Stage structured search changes before applying them to the live query.", tone: "section" },
-        { text: "The summary stays visible while you move focus so prior staged selections do not disappear." },
+        { text: "Edit the live structured query tree directly.", tone: "section" },
+        { text: "The summary stays visible while you move focus so active query changes do not disappear." },
         {
           text: structuredDraftState.moveSourcePath
             ? "Use Left or Esc to cancel move mode and keep the current tree unchanged."
-            : "Use Left or Esc to apply the staged query and return to the top editor.",
+            : "Use Left or Esc to return to the main editor.",
         },
-        { text: "Use the discard row only when you want to abandon the staged query entirely." },
+        { text: "Grouping, wrapping, and clause edits update the live query as soon as they land." },
       ],
     };
   }, [
     clearStructuredDraftMoveSource,
-    cancelStructuredDraftSession,
     finishStructuredDraftSession,
     getStructuredDraftEntryActions,
     moveStructuredDraftSelection,

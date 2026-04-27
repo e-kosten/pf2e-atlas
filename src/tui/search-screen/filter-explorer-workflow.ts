@@ -5,9 +5,6 @@ import {
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
 import type {
-  Pf2eTerminalFilterExplorerDraft,
-  Pf2eTerminalPreparedFilterExplorerContext,
-  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -29,32 +26,11 @@ export function useSearchFilterExplorerWorkflow({
   openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
-    initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
-    buildQueryForDraft?: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => Pf2eTerminalSearchQuery;
-    onDraftChange?: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => void;
-    onApply: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => void;
+    onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
     onReturn?: () => void;
-    onCancel?: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => void;
-    onBack?: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => void;
-    onExitRoot?: (
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
-    ) => void;
+    onCancel?: (query: Pf2eTerminalSearchQuery) => void;
+    onBack?: (query: Pf2eTerminalSearchQuery) => void;
+    onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeFilterExplorer: () => void;
@@ -65,10 +41,7 @@ export function useSearchFilterExplorerWorkflow({
     async ({
       queryOverride,
       fieldOptions,
-      initialPreparedDraft,
-      buildQueryForDraft,
-      onDraftChange,
-      onApply,
+      onQueryChange,
       onReturn,
       onCancel,
       onBack,
@@ -77,38 +50,16 @@ export function useSearchFilterExplorerWorkflow({
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
-      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
-      buildQueryForDraft?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => Pf2eTerminalSearchQuery;
-      onDraftChange?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => void;
-      onApply: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => void;
+      onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
       onReturn?: () => void;
-      onCancel?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => void;
-      onBack?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => void;
-      onExitRoot?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => void;
+      onCancel?: (query: Pf2eTerminalSearchQuery) => void;
+      onBack?: (query: Pf2eTerminalSearchQuery) => void;
+      onExitRoot?: (query: Pf2eTerminalSearchQuery) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
-      const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
       const title = fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer";
       if (!scopeCategory) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
@@ -119,22 +70,14 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
-      const preparedDraft = initialPreparedDraft ?? services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields);
-      const preparedContext: Pf2eTerminalPreparedFilterExplorerContext = {
-        preservedMetadata: preparedDraft.preservedMetadata,
-        scopedFields: preparedDraft.scopedFields,
-      };
-      const shouldApplyOnClose = !buildQueryForDraft;
-      const currentDraftRef = {
-        current: preparedDraft.draft,
+      const currentQueryRef = {
+        current: scopeQuery,
       };
 
       const buildPreparedModel = async (
         discoveryMode: "matching" | "catalog",
       ): Promise<ReturnType<typeof buildSearchFilterExplorerModel>> => {
-        const request = services.search.normalizeQuery(
-          buildQueryForDraft?.(currentDraftRef.current, preparedContext) ?? scopeQuery,
-        );
+        const request = services.search.normalizeQuery(currentQueryRef.current);
         const requestCategory = getSearchQueryCategory(request);
         const requestSubcategory = getSearchQuerySubcategory(request);
         const preparedDomain = await services.ontology.loadSearchFilterExplorerDomain({
@@ -143,7 +86,7 @@ export function useSearchFilterExplorerWorkflow({
         });
         return buildSearchFilterExplorerModel(preparedDomain, {
           category: requestCategory ?? scopeCategory,
-          subcategory: requestSubcategory,
+          subcategory: requestSubcategory ?? scopeSubcategory,
           fieldOptions,
           singleFieldBehavior,
         });
@@ -154,44 +97,33 @@ export function useSearchFilterExplorerWorkflow({
         model: createSearchFilterExplorerLoadingModel(title),
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
-        draft: preparedDraft.draft,
-        refreshOnDraftChange: Boolean(buildQueryForDraft),
-        onDraftChange: (nextDraft) => {
-          currentDraftRef.current = nextDraft;
+        query: scopeQuery,
+        fieldOptions,
+        refreshOnQueryChange: Boolean(onQueryChange),
+        onQueryChange: (nextQuery) => {
+          currentQueryRef.current = nextQuery;
           setFilterExplorerSession((currentSession) =>
             currentSession
               ? {
                   ...currentSession,
-                  draft: nextDraft,
+                  query: nextQuery,
                 }
               : currentSession,
           );
-          onDraftChange?.(nextDraft, preparedContext);
+          onQueryChange?.(nextQuery);
         },
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
-        onApply: (nextDraft) => {
-          onApply(nextDraft, preparedContext);
-          setFilterExplorerSession(null);
-        },
-        onBack: (nextDraft) => {
-          if (onBack) {
-            onBack(nextDraft, preparedContext);
-          } else if (shouldApplyOnClose) {
-            onApply(nextDraft, preparedContext);
-          }
+        onBack: (nextQuery) => {
+          onBack?.(nextQuery);
           setFilterExplorerSession(null);
           onReturn?.();
         },
-        onExitRoot: (nextDraft) => {
-          if (onExitRoot) {
-            onExitRoot(nextDraft, preparedContext);
-          } else if (shouldApplyOnClose) {
-            onApply(nextDraft, preparedContext);
-          }
+        onExitRoot: (nextQuery) => {
+          onExitRoot?.(nextQuery);
           setFilterExplorerSession(null);
         },
-        onCancel: (nextDraft) => {
-          onCancel?.(nextDraft, preparedContext);
+        onCancel: (nextQuery) => {
+          onCancel?.(nextQuery);
           setFilterExplorerSession(null);
         },
       });

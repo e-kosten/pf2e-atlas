@@ -10,7 +10,7 @@ import {
   getFilterExplorerDiscreteClause,
   getFilterExplorerScalarClause,
 } from "./compose-state.js";
-import { resolveFilterExplorerHostTarget } from "./host-adapter.js";
+import { describeFilterExplorerHostNode, resolveFilterExplorerHostTarget } from "./host-adapter.js";
 import {
   buildFilterExplorerInspectResult,
   openFilterExplorerInspectQuery,
@@ -51,7 +51,7 @@ export function buildFilterExplorerControllerContext(args: {
   actionTargetState: FilterExplorerControllerContext["actionTargetState"];
   notification?: FilterExplorerControllerContext["notification"];
 }): FilterExplorerControllerContext {
-  const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
+  const effectiveDraft = args.options.host.getDraft?.() ?? args.draft;
   const currentNode = args.browser.currentNode;
   const selectedTarget = resolveFilterExplorerHostTarget(args.options.host, currentNode);
 
@@ -61,11 +61,11 @@ export function buildFilterExplorerControllerContext(args: {
     mode: args.options.mode,
     screenTitle: resolveScreenTitle(args.options),
     browser: args.browser,
-    draft: args.draft,
-    discreteClauses: args.draft.discreteClauses,
+    draft: effectiveDraft,
+    discreteClauses: effectiveDraft.discreteClauses,
     selectedTarget,
-    selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, args.draft),
-    selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, args.draft),
+    selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, effectiveDraft),
+    selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, effectiveDraft),
     selectedInspectResult:
       args.options.mode.kind === "inspect-and-open"
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode, selectedTarget)
@@ -189,6 +189,13 @@ function resolveFilterExplorerListRightBehavior(args: {
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
 }): TerminalListDetailRightBehaviorContract {
   const { browserContext, dispatch, draft, keyContext, options, updateDraft } = args;
+  const context = buildFilterExplorerControllerContext({
+    options,
+    browser: keyContext,
+    draft,
+    actionEntries: [],
+    actionTargetState: { activeTarget: "content", selectedActionIndex: 0 },
+  });
 
   if (options.mode.kind === "compose") {
     const composeMode = options.mode;
@@ -230,6 +237,29 @@ function resolveFilterExplorerListRightBehavior(args: {
   }
 
   const inspectTarget = resolveFilterExplorerHostTarget(options.host, keyContext.currentNode);
+  const inspectPresentation = describeFilterExplorerHostNode({
+    host: options.host,
+    node: keyContext.currentNode,
+    target: inspectTarget,
+    isFocused: true,
+    controller: context,
+  });
+  if (
+    inspectTarget &&
+    inspectPresentation &&
+    (inspectPresentation.activationStyle === "toggle" || inspectPresentation.activationStyle === "edit") &&
+    options.host.activateTarget
+  ) {
+    return {
+      rightIntent: "open",
+      destination: {
+        availability: "available",
+        perform: () => {
+          options.host.activateTarget?.({ target: inspectTarget, controller: context, reason: "open" });
+        },
+      },
+    };
+  }
   const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode, inspectTarget);
   const shouldOpenResult =
     (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult) ||

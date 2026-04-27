@@ -88,6 +88,18 @@ export type FilterExplorerDescribeNodeArgs = {
 export type FilterExplorerHostAdapter = {
   readonly resolveTarget?: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
   readonly describeNode: (args: FilterExplorerDescribeNodeArgs) => FilterExplorerTargetPresentation | undefined;
+  readonly getDraft?: () => FilterExplorerComposeDraft;
+  readonly activateTarget?: (args: {
+    readonly target: FilterExplorerComposeTarget;
+    readonly controller: FilterExplorerControllerContext;
+    readonly reason: "open" | "cycle";
+  }) => boolean;
+  readonly selectionPresentation?: {
+    readonly detailTitle?: string;
+    readonly emptySelectionText?: string;
+    readonly focusedClauseTitle?: string;
+    readonly selectionTitle?: string;
+  };
 };
 
 export type FilterExplorerSelectTargetOutcome = {

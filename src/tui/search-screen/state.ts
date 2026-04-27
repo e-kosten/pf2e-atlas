@@ -11,7 +11,6 @@ export type {
   SearchStructuredDraftAnchor,
   SearchStructuredDraftEntry,
   SearchStructuredDraftEntryKind,
-  SearchStructuredDraftSession,
 } from "../search/structured-draft-session.js";
 
 export type SearchScreenLayout = "editor" | "results";

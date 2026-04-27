@@ -39,7 +39,7 @@ function isDetailContext(controller: FilterExplorerBrowserContext): boolean {
 }
 
 function isAtExitDepth(mode: FilterExplorerMode, controller: FilterExplorerBrowserContext, rootDepth: number): boolean {
-  return mode.kind === "compose" && controller.effectiveState.depth === rootDepth;
+  return controller.effectiveState.depth === rootDepth;
 }
 
 function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBrowserContext): string {
@@ -57,6 +57,10 @@ function shouldShowActionRail(hasActionEntries: boolean): boolean {
   return hasActionEntries;
 }
 
+function isSelectionExplorer(controller: FilterExplorerControllerContext): boolean {
+  return controller.mode.kind === "compose" || Boolean(controller.host.selectionPresentation);
+}
+
 function getCurrentActivationStyle(controller: FilterExplorerControllerContext): FilterExplorerActivationStyle {
   return describeFilterExplorerHostNode({
     host: controller.host,
@@ -71,7 +75,7 @@ export function getFilterExplorerInteractionActions(
   hasActionEntries = false,
 ): TerminalInteractionAction[] {
   const { browser, mode } = controller;
-  if (mode.kind === "compose") {
+  if (isSelectionExplorer(controller)) {
     const composeActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "cycle";
 
     if (browser.layoutMode === "detail-only") {
@@ -663,7 +667,7 @@ export function buildFilterExplorerScreenModel(
   const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
-    controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);
+    isSelectionExplorer(controller) ? buildComposeStatus(controller) : buildInspectStatus(controller);
   const statusText = controller.discovery ? `${statusSuffix} | ${formatDiscoveryStatus(controller.discovery)}` : statusSuffix;
   const actionRailVisible =
     controller.actionEntries.length > 0 && shouldRenderDerivedTagTerminalActionTarget(controller.actionTargetState, "onDemand");

@@ -1,6 +1,3 @@
-import type { Pf2eTerminalSearchQuery } from "./service.js";
-import type { Pf2eTerminalSearchQueryBase } from "./query-projection.js";
-
 export type SearchStructuredDraftAnchor =
   | { kind: "addQueryPart" }
   | { kind: "queryTreeRoot" }
@@ -13,9 +10,7 @@ export type SearchStructuredDraftEntryKind =
   | "queryTreeRoot"
   | "queryNode"
   | "queryFieldBucket"
-  | "queryInsertionSlot"
-  | "finish"
-  | "cancel";
+  | "queryInsertionSlot";
 
 export type SearchStructuredDraftEntry = {
   kind: SearchStructuredDraftEntryKind;
@@ -34,16 +29,6 @@ export type SearchStructuredDraftEntry = {
   insertionPath?: number[];
   indent?: number;
   menuLabel?: string;
-};
-
-export type SearchStructuredDraftSession = {
-  kind: "structuredDraft";
-  anchor: SearchStructuredDraftAnchor;
-  baseQuery: Pf2eTerminalSearchQueryBase;
-  draftFilter: Pf2eTerminalSearchQuery["filter"];
-  entries: SearchStructuredDraftEntry[];
-  selectedIndex: number;
-  metadataFocusPath: number[] | null;
 };
 
 export function clampStructuredDraftSelection(index: number, itemCount: number): number {

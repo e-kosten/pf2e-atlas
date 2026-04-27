@@ -106,6 +106,19 @@ export function handleFilterExplorerAction(args: {
     );
   }
 
+  if (
+    action.id === "cycle" &&
+    options.mode.kind !== "compose" &&
+    context.selectedTarget &&
+    options.host.activateTarget
+  ) {
+    return options.host.activateTarget({
+      target: context.selectedTarget,
+      controller: context,
+      reason: "cycle",
+    });
+  }
+
   if (action.id === "help") {
     void showTerminalReturnDialog(adapters, `${context.screenTitle} Help`, buildFilterExplorerHelpLines(context));
     return true;

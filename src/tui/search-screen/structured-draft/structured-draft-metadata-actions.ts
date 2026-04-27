@@ -28,10 +28,7 @@ import {
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchQueryCategory, getSearchQueryRootOperator, getSearchQuerySubcategory } from "../../search/query-state.js";
 import type {
-  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
-  Pf2eTerminalPreparedFilterExplorerContext,
-  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -310,21 +307,14 @@ export function useSearchStructuredDraftMetadataActions({
     currentNode: MetadataFilterNode | null,
     onApply: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
+      nextQuery: Pf2eTerminalSearchQuery,
     ) => void,
     onReturn?: () => void,
-    onDraftChange?: (
+    onQueryChange?: (
       result: Pf2eTerminalFilterExplorerInsertionResult,
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
+      nextQuery: Pf2eTerminalSearchQuery,
     ) => void,
     options?: {
-      buildQueryForDraft?: (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => Pf2eTerminalSearchQuery;
-      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
@@ -379,16 +369,13 @@ export function useSearchStructuredDraftMetadataActions({
     [],
   );
 
-  const applyGroupedFieldDraftToQuery = React.useCallback(
+  const applyGroupedFieldQueryToQuery = React.useCallback(
     (
       query: Pf2eTerminalSearchQuery,
       groupPath: number[],
       field: string,
-      draft: Pf2eTerminalFilterExplorerDraft,
-      context: Pf2eTerminalPreparedFilterExplorerContext,
+      nextGroupQuery: Pf2eTerminalSearchQuery,
     ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } => {
-      const seedQuery = buildGroupedFieldSeedQuery(query, groupPath);
-      const nextGroupQuery = user.search.applyFilterExplorerDraft(seedQuery, draft, context);
       const nextFilter =
         groupPath.length === 0
           ? nextGroupQuery.filter
@@ -409,7 +396,7 @@ export function useSearchStructuredDraftMetadataActions({
         nextFocusPath,
       };
     },
-    [buildGroupedFieldSeedQuery, user.search],
+    [],
   );
 
   const openLiveExplorerFieldClause = React.useCallback(
@@ -483,41 +470,32 @@ export function useSearchStructuredDraftMetadataActions({
       }
 
       const seedQuery = buildGroupedFieldSeedQuery(query, groupPath);
-      const applyDraft = (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => {
-        const { nextQuery, nextFocusPath } = applyGroupedFieldDraftToQuery(query, groupPath, field, draft, context);
-        replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
-      };
-
       await openOntologyFieldEditor(
         seedQuery,
         fieldOption,
         null,
-        (_result, draft, context) => {
-          applyDraft(draft, context);
+        (_result, nextGroupQuery) => {
+          const { nextQuery, nextFocusPath } = applyGroupedFieldQueryToQuery(query, groupPath, field, nextGroupQuery);
+          replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
         },
         undefined,
-        (_result, draft, context) => {
-          applyDraft(draft, context);
+        (_result, nextGroupQuery) => {
+          const { nextQuery, nextFocusPath } = applyGroupedFieldQueryToQuery(query, groupPath, field, nextGroupQuery);
+          replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
         },
         {
-          buildQueryForDraft: (draft, context) => applyGroupedFieldDraftToQuery(query, groupPath, field, draft, context).nextQuery,
-          initialPreparedDraft: user.search.prepareFilterExplorerDraft(seedQuery, [fieldOption.value]),
           onBack: () => {},
           onExitRoot: () => {},
         },
       );
     },
     [
-      applyGroupedFieldDraftToQuery,
+      applyGroupedFieldQueryToQuery,
       buildGroupedFieldSeedQuery,
       getScopedFieldOptions,
       openOntologyFieldEditor,
       replaceStructuredDraftProjection,
       terminal,
-      user.search,
     ],
   );
 
@@ -526,33 +504,24 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
     ) => {
-      const applyDraft = (
-        draft: Pf2eTerminalFilterExplorerDraft,
-        context: Pf2eTerminalPreparedFilterExplorerContext,
-      ) => {
-        replaceStructuredDraftProjection((currentQuery) => user.search.applyFilterExplorerDraft(currentQuery, draft, context));
-      };
-
       await openOntologyFieldEditor(
         query,
         fieldOption,
         null,
-        (_result, draft, context) => {
-          applyDraft(draft, context);
+        (_result, nextQuery) => {
+          replaceStructuredDraftProjection(() => nextQuery);
         },
         undefined,
-        (_result, draft, context) => {
-          applyDraft(draft, context);
+        (_result, nextQuery) => {
+          replaceStructuredDraftProjection(() => nextQuery);
         },
         {
-          buildQueryForDraft: (draft, context) => user.search.applyFilterExplorerDraft(query, draft, context),
-          initialPreparedDraft: user.search.prepareFilterExplorerDraft(query, [fieldOption.value]),
           onBack: () => {},
           onExitRoot: () => {},
         },
       );
     },
-    [openOntologyFieldEditor, replaceStructuredDraftProjection, user.search],
+    [openOntologyFieldEditor, replaceStructuredDraftProjection],
   );
 
   const promptForPickerDiscoveryMode = React.useCallback(
@@ -1568,7 +1537,7 @@ export function useSearchStructuredDraftMetadataActions({
         },
         { id: "move", label: "Move Node", description: "Move this clause to another visible insertion slot." },
         ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this clause out of its current boolean group." }] : []),
-        { id: "remove", label: "Remove Clause", description: "Delete this clause from the staged query." },
+        { id: "remove", label: "Remove Clause", description: "Delete this clause from the live query tree." },
       ];
     },
     [getScopedFieldOptions],
@@ -1704,7 +1673,7 @@ export function useSearchStructuredDraftMetadataActions({
       const entries = getLeafActionEntries(query, path, node);
       const result = await prompts.promptSelectOption({
         title: "Query Clause",
-        prompt: "Choose how to update this staged query clause",
+        prompt: "Choose how to update this live query clause",
         entries: entries.map((entry) => ({
           value: entry.id,
           label: entry.label,
@@ -1774,7 +1743,7 @@ export function useSearchStructuredDraftMetadataActions({
       const entries = getNotActionEntries(query, path);
       const result = await prompts.promptSelectOption({
         title: `${formatFriendlyGroupLabel("not")} Group`,
-        prompt: "Choose how to update this negated staged clause",
+        prompt: "Choose how to update this negated live clause",
         entries: entries.map((entry) => ({
           value: entry.id,
           label: entry.label,
@@ -1886,7 +1855,7 @@ export function useSearchStructuredDraftMetadataActions({
       const entries = getGroupActionEntries(query, path, node);
       const result = await prompts.promptSelectOption({
         title: "Boolean Group",
-        prompt: "Choose how to update this staged boolean group",
+        prompt: "Choose how to update this live boolean group",
         entries: entries.map((entry) => ({
           value: entry.id,
           label: entry.label,

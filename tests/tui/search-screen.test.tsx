@@ -2081,7 +2081,7 @@ describe("search screen", () => {
     });
   });
 
-  it("applies the staged query when returning from the top-level structured editor", async () => {
+  it("keeps live query-tree edits when returning from the top-level structured editor", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -2132,7 +2132,7 @@ describe("search screen", () => {
 
     app.stdin.write("?");
     await flushInk();
-    expect(app.lastFrame()).toContain("q: apply the staged structured query and return to the live editor");
+    expect(app.lastFrame()).toContain("q: return to the main query editor");
     expect(app.lastFrame()).toContain("Press : to open the action rail");
 
     app.stdin.write("x");
@@ -2178,7 +2178,7 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Staged clauses");
+    expect(app.lastFrame()).toContain("Current clauses");
     expect(app.lastFrame()).toContain("coastal_setting");
 
     pressLeft(app);
@@ -2208,7 +2208,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
-  it("uses the shared rarity explorer for staged rows and returns to the structured editor", async () => {
+  it("uses the shared rarity explorer for live query-tree rows and returns to the structured editor", async () => {
     const services = createServices();
     services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
       async () => createFacetPickerOntologyDomainWithDiscreteFields(),
@@ -2337,7 +2337,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Rarity: Common");
   });
 
-  it("uses friendly aliases in structured-draft clause and exclude-group action menus", async () => {
+  it("uses friendly aliases in live clause and exclude-group action menus", async () => {
     const services = createServices();
 
     const app = render(
@@ -2391,7 +2391,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Remove NOT");
   });
 
-  it("defaults structured-draft shared explorers to matching counts", async () => {
+  it("defaults live query-tree shared explorers to matching counts", async () => {
     const services = createServices();
     const loadSearchFilterExplorerDomain = vi.fn(
       async ({ discoveryMode }: { discoveryMode: "matching" | "catalog" }) => {
@@ -2459,7 +2459,7 @@ describe("search screen", () => {
     });
   });
 
-  it("routes staged ontology composition through clause-kind and field pickers before opening the shared explorer", async () => {
+  it("routes live ontology composition through clause-kind and field pickers before opening the shared explorer", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -2641,7 +2641,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Scope");
   });
 
-  it("scopes ontology-backed query fields from the staged category instead of the live query", async () => {
+  it("scopes ontology-backed query fields from the current tree category instead of the live query", async () => {
     const services = createServices();
     services.user.search.getCategoryOptions = vi.fn(() => [
       { value: null, label: "Any Category", description: "Browse every category." },
@@ -3017,6 +3017,7 @@ describe("search screen", () => {
   });
 
   it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {
+    const services = createServices();
     const model = createCreatureMetricExplorerModel();
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
       session: SearchFilterExplorerSession;
@@ -3024,10 +3025,20 @@ describe("search screen", () => {
     const session: SearchFilterExplorerSession = {
       title: "Creature Statistics Explorer",
       model,
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
+      query: browseQuery("Browse creatures", {
+        filter: scopeFilter("creature"),
+        limit: 20,
+      }).request,
+      fieldOptions: [
+        {
+          value: "actorMetric",
+          label: "Creature Statistics",
+          description: "Browse live creature metrics.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
       resolveSelectionTarget: (node: OntologyNode | undefined): FilterExplorerComposeTarget | undefined =>
         node?.kind === "metric"
           ? {
@@ -3039,10 +3050,13 @@ describe("search screen", () => {
               editorLabel: `Creature Statistics / ${node.label}`,
             }
           : undefined,
-      onApply: () => {},
     };
     const searchFilterExplorerElement = React.createElement(SearchFilterExplorer, { session });
-    const app = render(<DerivedTagTerminalProvider>{searchFilterExplorerElement}</DerivedTagTerminalProvider>);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>{searchFilterExplorerElement}</Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
 
     await flushInk();
     expect(app.lastFrame()).toContain("Creature Statistics Explorer");
@@ -3069,12 +3083,12 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("= 12");
   });
 
-  it("emits live draft changes before returning from the shared search explorer", async () => {
+  it("emits live query changes before returning from the shared search explorer", async () => {
+    const services = createServices();
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
       session: SearchFilterExplorerSession;
     }>;
-    const onDraftChange = vi.fn();
-    const onApply = vi.fn();
+    const onQueryChange = vi.fn();
     const session: SearchFilterExplorerSession = {
       title: "Rarity Explorer",
       model: {
@@ -3107,11 +3121,20 @@ describe("search screen", () => {
           },
         ],
       },
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
-      onDraftChange,
+      query: browseQuery("Browse spells", {
+        filter: scopeFilter("spell"),
+        limit: 20,
+      }).request,
+      fieldOptions: [
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange,
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
         {
           value: "rarity",
@@ -3121,11 +3144,12 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ]),
-      onApply,
     };
     const app = render(
       <DerivedTagTerminalProvider>
-        <SearchFilterExplorer session={session} />
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 
@@ -3138,10 +3162,9 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
-    expect(onDraftChange).toHaveBeenCalled();
-    expect(onApply).not.toHaveBeenCalled();
-    expect(onDraftChange.mock.calls.at(-1)?.[0]).toMatchObject({
-      discreteClauses: [{ field: "rarity", value: "common", operator: "include" }],
+    expect(onQueryChange).toHaveBeenCalled();
+    expect(onQueryChange.mock.calls.at(-1)?.[0]).toMatchObject({
+      filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
     });
   });
 
@@ -3204,17 +3227,24 @@ describe("search screen", () => {
   });
 
   it("renders the explorer immediately while the initial model refresh is still loading", async () => {
+    const services = createServices();
     const session: SearchFilterExplorerSession = {
       title: "Derived Tags Explorer",
       model: createLoadingExplorerModel("Derived Tags Explorer"),
       initialDiscoveryMode: "matching",
       loadModelForDiscoveryMode: vi.fn(() => Promise.resolve(createFacetPickerOntologyDomain())),
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "derivedTags",
+          label: "Derived Tags",
+          description: "Browse live derived tags for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
       resolveSelectionTarget: () => undefined,
-      onApply: () => {},
     };
 
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
@@ -3222,7 +3252,9 @@ describe("search screen", () => {
     }>;
     const app = render(
       <DerivedTagTerminalProvider>
-        <SearchFilterExplorer session={session} />
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 
@@ -3234,6 +3266,7 @@ describe("search screen", () => {
   });
 
   it("ignores stale explorer loads after the session changes", async () => {
+    const services = createServices();
     const firstDeferred = createDeferred<OntologyDomainModel>();
     const secondDeferred = createDeferred<OntologyDomainModel>();
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
@@ -3244,27 +3277,45 @@ describe("search screen", () => {
       model: createLoadingExplorerModel("First Explorer"),
       initialDiscoveryMode: "matching",
       loadModelForDiscoveryMode: vi.fn(() => firstDeferred.promise),
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "derivedTags",
+          label: "Derived Tags",
+          description: "Browse live derived tags for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
       resolveSelectionTarget: () => undefined,
-      onApply: () => {},
     };
     const secondSession: SearchFilterExplorerSession = {
       title: "Second Explorer",
       model: createLoadingExplorerModel("Second Explorer"),
       initialDiscoveryMode: "matching",
       loadModelForDiscoveryMode: vi.fn(() => secondDeferred.promise),
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "derivedTags",
+          label: "Derived Tags",
+          description: "Browse live derived tags for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
       resolveSelectionTarget: () => undefined,
-      onApply: () => {},
     };
 
-    const app = render(<DerivedTagTerminalProvider><SearchFilterExplorer session={firstSession} /></DerivedTagTerminalProvider>);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={firstSession} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
     const rerender = app.rerender as ((tree: React.ReactNode) => void) | undefined;
 
     await flushInk();
@@ -3272,7 +3323,9 @@ describe("search screen", () => {
 
     rerender?.(
       <DerivedTagTerminalProvider>
-        <SearchFilterExplorer session={secondSession} />
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={secondSession} />
+        </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
     await flushInk();
@@ -3289,6 +3342,7 @@ describe("search screen", () => {
   });
 
   it("completes matching and catalog refresh transitions through the live explorer action rail", async () => {
+    const services = createServices();
     const catalogDeferred = createDeferred<OntologyDomainModel>();
     const loadModelForDiscoveryMode = vi.fn((mode: "matching" | "catalog") =>
       mode === "catalog" ? catalogDeferred.promise : Promise.resolve(createNamedExplorerDomain("Matching Result")),
@@ -3298,19 +3352,27 @@ describe("search screen", () => {
       model: createNamedExplorerDomain("Matching Result"),
       initialDiscoveryMode: "matching",
       loadModelForDiscoveryMode,
-      draft: {
-        discreteClauses: [],
-        scalarClauses: {},
-      },
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "derivedTags",
+          label: "Derived Tags",
+          description: "Browse live derived tags for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
       resolveSelectionTarget: () => undefined,
-      onApply: () => {},
     };
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
       session: SearchFilterExplorerSession;
     }>;
     const app = render(
       <DerivedTagTerminalProvider>
-        <SearchFilterExplorer session={session} />
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 

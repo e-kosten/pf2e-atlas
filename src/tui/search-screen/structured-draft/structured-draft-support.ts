@@ -22,14 +22,15 @@ import {
 
 export type SearchStructuredDraftState = {
   anchor: SearchStructuredDraftAnchor;
-  baseQuery: Pf2eTerminalSearchQueryBase;
-  draftFilter: Pf2eTerminalSearchQuery["filter"];
   metadataFocusPath: number[] | null;
   moveSourcePath: number[] | null;
   selectedIndex: number;
 };
 
-export function buildStructuredDraftQuery(state: Pick<SearchStructuredDraftState, "baseQuery" | "draftFilter">): Pf2eTerminalSearchQuery {
+export function buildStructuredDraftQuery(state: {
+  baseQuery: Pf2eTerminalSearchQueryBase;
+  draftFilter: Pf2eTerminalSearchQuery["filter"];
+}): Pf2eTerminalSearchQuery {
   return projectSearchQueryFilter(state.baseQuery, state.draftFilter);
 }
 
@@ -454,20 +455,6 @@ export function buildStructuredDraftEntries(
       moveSourcePath: options.moveSourcePath ?? null,
       rootOperator: getSearchQueryRootOperator(draftQuery),
     }),
-    {
-      kind: "finish",
-      key: "finish",
-      label: "Apply Structured Edit",
-      value: "Apply staged query",
-      description: "Commit the staged structured query back into the live editor.",
-    },
-    {
-      kind: "cancel",
-      key: "cancel",
-      label: "Discard Structured Edit",
-      value: "Discard staged query",
-      description: "Discard the staged structured query and keep the live query unchanged.",
-    },
   ];
 
   if (metadataFocusPath) {

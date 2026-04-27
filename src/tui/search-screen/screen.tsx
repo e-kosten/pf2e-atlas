@@ -26,9 +26,9 @@ export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
     return (
       <TerminalActionMenuScreen
         title={session.title ?? "Structured Query Editor"}
-        subtitle={session.subtitle ?? "Stage structured search changes before applying them to the live query"}
-        leftTitle={session.leftTitle ?? "[STAGED QUERY]"}
-        rightTitle={session.rightTitle ?? "Staged Summary & Detail"}
+        subtitle={session.subtitle ?? "Edit the live structured query tree"}
+        leftTitle={session.leftTitle ?? "[QUERY TREE]"}
+        rightTitle={session.rightTitle ?? "Live Summary & Detail"}
         leftWidth={32}
         items={buildSearchStructuredEditorMenuItems(session)}
         selectedIndex={session.selectedIndex}
