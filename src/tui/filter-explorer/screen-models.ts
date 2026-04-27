@@ -17,11 +17,7 @@ import {
   type TerminalListDetailScreenModel,
 } from "../list-detail-presentation.js";
 import { buildFilterExplorerListRows } from "./browser.js";
-import {
-  getFilterExplorerDiscreteClauseOperator,
-  getFilterExplorerScalarClause,
-  isFilterExplorerScalarTarget,
-} from "./compose-state.js";
+import { describeFilterExplorerHostNode } from "./host-adapter.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 import type {
   FilterExplorerActionEntry,
@@ -35,6 +31,7 @@ import type {
   FilterExplorerInspectResult,
   FilterExplorerMode,
   FilterExplorerScalarClause,
+  FilterExplorerStateBadge,
 } from "./types.js";
 
 function isDetailContext(controller: FilterExplorerBrowserContext): boolean {
@@ -60,27 +57,24 @@ function shouldShowActionRail(hasActionEntries: boolean): boolean {
   return hasActionEntries;
 }
 
-function getComposeActivationStyle(
-  mode: FilterExplorerComposeMode,
-  controller: FilterExplorerBrowserContext,
-): FilterExplorerActivationStyle {
-  const focusedTarget = mode.resolveSelectionTarget(controller.selection.currentNode);
-  if (!focusedTarget) {
-    return "none";
-  }
-
-  return focusedTarget.kind === "scalar" ? "edit" : "toggle";
+function getCurrentActivationStyle(controller: FilterExplorerControllerContext): FilterExplorerActivationStyle {
+  return describeFilterExplorerHostNode({
+    host: controller.host,
+    node: controller.browser.selection.currentNode,
+    isFocused: true,
+    controller,
+  })?.activationStyle ?? "none";
 }
 
 export function getFilterExplorerInteractionActions(
-  mode: FilterExplorerMode,
-  controller: FilterExplorerBrowserContext,
+  controller: FilterExplorerControllerContext,
   hasActionEntries = false,
 ): TerminalInteractionAction[] {
+  const { browser, mode } = controller;
   if (mode.kind === "compose") {
-    const composeActionLabel = getComposeActivationStyle(mode, controller) === "edit" ? "edit" : "cycle";
+    const composeActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "cycle";
 
-    if (controller.layoutMode === "detail-only") {
+    if (browser.layoutMode === "detail-only") {
       return [
         { id: "scroll" },
         { id: "jump" },
@@ -96,7 +90,7 @@ export function getFilterExplorerInteractionActions(
       ];
     }
 
-    if (controller.state.activePane === "list") {
+    if (browser.state.activePane === "list") {
       return [
         { id: "move", label: "select" },
         { id: "jump" },
@@ -105,7 +99,7 @@ export function getFilterExplorerInteractionActions(
         { id: "cycle", label: composeActionLabel },
         { id: "focus", label: "pane" },
         { id: "layout", label: "detail-only" },
-        ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
+        ...(browser.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
         { id: "back" },
         { id: "search" },
         ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
@@ -129,7 +123,9 @@ export function getFilterExplorerInteractionActions(
     ];
   }
 
-  if (controller.layoutMode === "detail-only") {
+  const inspectActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "open";
+
+  if (browser.layoutMode === "detail-only") {
     return [
       { id: "scroll" },
       { id: "jump" },
@@ -144,16 +140,16 @@ export function getFilterExplorerInteractionActions(
     ];
   }
 
-  if (controller.state.activePane === "list") {
+  if (browser.state.activePane === "list") {
     return [
       { id: "move" },
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      { id: "open", label: "open" },
+      { id: "open", label: inspectActionLabel },
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
-      ...(controller.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
+      ...(browser.effectiveState.filter ? [{ id: "cancel" as const, label: "clear filter" }] : []),
       { id: "back" },
       { id: "search" },
       ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
@@ -177,36 +173,38 @@ export function getFilterExplorerInteractionActions(
   ];
 }
 
-function getDiscreteClausePresentation(
-  operator: FilterExplorerDiscreteClauseOperator | undefined,
-): { badge: string; label: string; tone: DerivedTagTerminalSegment["tone"] } {
-  switch (operator) {
+function getStateBadgePresentation(
+  badge: FilterExplorerStateBadge | undefined,
+): { text: string; label: string; tone: DerivedTagTerminalSegment["tone"]; bracketed: boolean } {
+  switch (badge?.kind) {
     case "include":
-      return { badge: "check", label: "include", tone: "success" };
+      return { text: "\u2713", label: "include", tone: "success", bracketed: true };
     case "exclude":
-      return { badge: "x", label: "exclude", tone: "danger" };
+      return { text: "x", label: "exclude", tone: "danger", bracketed: true };
+    case "custom":
+      return { text: badge.text, label: badge.text, tone: badge.tone ?? "accent", bracketed: false };
     default:
-      return { badge: ".", label: "off", tone: "dim" };
+      return { text: ".", label: "off", tone: "dim", bracketed: true };
   }
 }
 
-function buildDiscreteClauseBadgeSegments(
-  operator: FilterExplorerDiscreteClauseOperator | undefined,
+function buildStateBadgeSegments(
+  badge: FilterExplorerStateBadge | undefined,
 ): DerivedTagTerminalSegment[] {
-  const presentation = getDiscreteClausePresentation(operator);
-  return [
-    { text: "[", tone: "dim" },
-    { text: presentation.badge === "check" ? "\u2713" : presentation.badge, tone: presentation.tone },
-    { text: "]", tone: "dim" },
-  ];
+  const presentation = getStateBadgePresentation(badge);
+  if (!presentation.bracketed) {
+    return [{ text: presentation.text, tone: presentation.tone }];
+  }
+
+  return [{ text: "[", tone: "dim" }, { text: presentation.text, tone: presentation.tone }, { text: "]", tone: "dim" }];
 }
 
-function buildDiscreteClauseLabelSegments(
-  operator: FilterExplorerDiscreteClauseOperator | undefined,
+function buildStateBadgeLabelSegments(
+  badge: FilterExplorerStateBadge | undefined,
 ): DerivedTagTerminalSegment[] {
-  const presentation = getDiscreteClausePresentation(operator);
+  const presentation = getStateBadgePresentation(badge);
   return [
-    ...buildDiscreteClauseBadgeSegments(operator),
+    ...buildStateBadgeSegments(badge),
     { text: ` ${presentation.label}`, tone: presentation.tone },
   ];
 }
@@ -216,7 +214,9 @@ function buildDiscreteClauseEntrySegments(
 ): DerivedTagTerminalSegment[] {
   return [
     { text: `${formatOntologySearchVocabularyLabel(clause.field)}: ` },
-    ...buildDiscreteClauseLabelSegments(clause.operator),
+    ...buildStateBadgeLabelSegments(
+      clause.operator === "include" ? { kind: "include" } : clause.operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
+    ),
     { text: ` ${clause.value}` },
   ];
 }
@@ -228,7 +228,9 @@ function buildGroupedDiscreteClauseEntrySegments(
 ): DerivedTagTerminalSegment[] {
   return [
     { text: `${formatOntologySearchVocabularyLabel(field)}: ` },
-    ...buildDiscreteClauseLabelSegments(operator),
+    ...buildStateBadgeLabelSegments(
+      operator === "include" ? { kind: "include" } : operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
+    ),
     { text: ` ${values.join(", ")}` },
   ];
 }
@@ -299,10 +301,22 @@ export function buildFilterExplorerComposeDetailLines(args: {
       text: `${args.selectedTarget.fieldLabel}: ${args.selectedTarget.valueLabel ?? args.currentNodeLabel ?? args.selectedTarget.value}`,
     });
     lines.push({
-      text: `Focused clause: ${getDiscreteClausePresentation(args.selectedDiscreteClause?.operator).label}`,
+      text: `Focused clause: ${getStateBadgePresentation(
+        args.selectedDiscreteClause?.operator === "include"
+          ? { kind: "include" }
+          : args.selectedDiscreteClause?.operator === "exclude"
+            ? { kind: "exclude" }
+            : { kind: "off" },
+      ).label}`,
       segments: [
         { text: "Focused clause: ", tone: "accent" },
-        ...buildDiscreteClauseLabelSegments(args.selectedDiscreteClause?.operator),
+        ...buildStateBadgeLabelSegments(
+          args.selectedDiscreteClause?.operator === "include"
+            ? { kind: "include" }
+            : args.selectedDiscreteClause?.operator === "exclude"
+              ? { kind: "exclude" }
+              : { kind: "off" },
+        ),
       ],
     });
   } else if (args.selectedTarget?.kind === "scalar") {
@@ -339,7 +353,9 @@ export function buildFilterExplorerComposeDetailLines(args: {
   )) {
     const values = [...new Set(entry.values)].sort((left, right) => left.localeCompare(right));
     lines.push({
-      text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${getDiscreteClausePresentation(entry.operator).label} ${values.join(", ")}`,
+      text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${getStateBadgePresentation(
+        entry.operator === "include" ? { kind: "include" } : entry.operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
+      ).label} ${values.join(", ")}`,
       segments: buildGroupedDiscreteClauseEntrySegments(entry.field, entry.operator, values),
     });
   }
@@ -361,36 +377,30 @@ function buildComposeListSegments(
   nodeId: string,
   isSelected: boolean,
 ): DerivedTagTerminalSegment[] | undefined {
-  if (controller.mode.kind !== "compose") {
-    return undefined;
-  }
-
   const node = controller.browser.selection.currentNodes.find((candidate) => candidate.id === nodeId);
-  const target = controller.mode.resolveSelectionTarget(node);
-  if (!target) {
+  if (!node) {
     return undefined;
   }
 
-  if (isFilterExplorerScalarTarget(target)) {
-    const clause = getFilterExplorerScalarClause(target, controller.draft);
-    return [
-      { text: clause ? "ƒ" : "·", tone: clause ? "accent" : "dim" },
-      { text: " ", tone: "default" },
-      { text: label, tone: isSelected ? "selected" : "default" },
-      ...(clause
-        ? [
-            { text: "  ", tone: "dim" } as const,
-            { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" as const },
-          ]
-        : []),
-    ];
+  const presentation = describeFilterExplorerHostNode({
+    host: controller.host,
+    node,
+    isFocused: isSelected,
+    controller,
+  });
+  if (!presentation || (!presentation.stateBadge && !presentation.suffixText)) {
+    return undefined;
   }
 
-  const operator = getFilterExplorerDiscreteClauseOperator(target, controller.draft);
   return [
-    ...buildDiscreteClauseBadgeSegments(operator),
-    { text: " ", tone: "default" },
-    { text: label, tone: isSelected ? "selected" : "default" },
+    ...(presentation.stateBadge ? [...buildStateBadgeSegments(presentation.stateBadge), { text: " ", tone: "default" as const }] : []),
+    { text: label, tone: isSelected ? "selected" : presentation.tone ?? "default" },
+    ...(presentation.suffixText
+      ? [
+          { text: "  ", tone: "dim" } as const,
+          { text: presentation.suffixText, tone: "accent" as const },
+        ]
+      : []),
   ];
 }
 
@@ -494,11 +504,7 @@ export function buildFilterExplorerActionEntries(
 }
 
 export function buildFilterExplorerHelpLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
-  const interactionActions = getFilterExplorerInteractionActions(
-    controller.mode,
-    controller.browser,
-    controller.actionEntries.length > 0,
-  );
+  const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
   const actionActions = interactionActions
     .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
     .map((action) => ({
@@ -576,7 +582,13 @@ function buildComposeStatus(controller: FilterExplorerControllerContext): string
     return `Focused ${focusedSummary} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
   }
 
-  const focusedClause = getDiscreteClausePresentation(controller.selectedDiscreteClause?.operator).label;
+  const focusedClause = getStateBadgePresentation(
+    controller.selectedDiscreteClause?.operator === "include"
+      ? { kind: "include" }
+      : controller.selectedDiscreteClause?.operator === "exclude"
+        ? { kind: "exclude" }
+        : { kind: "off" },
+  ).label;
   return `Focused ${focusedClause} | ${totalCount} filter${totalCount === 1 ? "" : "s"} selected`;
 }
 
@@ -648,11 +660,7 @@ function formatDiscoveryStatus(discovery: NonNullable<FilterExplorerControllerCo
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
 ): TerminalListDetailScreenModel {
-  const interactionActions = getFilterExplorerInteractionActions(
-    controller.mode,
-    controller.browser,
-    controller.actionEntries.length > 0,
-  );
+  const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
   const leftLines = buildFilterExplorerListLines(controller);
   const statusSuffix =
     controller.mode.kind === "compose" ? buildComposeStatus(controller) : buildInspectStatus(controller);

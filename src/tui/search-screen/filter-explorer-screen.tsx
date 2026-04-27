@@ -1,12 +1,17 @@
 import React from "react";
 
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
+import { createComposeFilterExplorerHostAdapter } from "../filter-explorer/host-adapter.js";
+import {
+  createFilterExplorerDiscoveryState,
+  createFilterExplorerNumericScalarEditHandler,
+  createFilterExplorerOutcomeHandler,
+} from "../filter-explorer/host-helpers.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import { cloneFilterExplorerComposeDraft } from "../filter-explorer/compose-state.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { SearchFilterExplorerSession } from "./query-field-builder/query-field-builder-session.js";
-import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
 import type {
   FilterExplorerDiscoveryState,
   FilterExplorerModeSwitchOption,
@@ -184,23 +189,47 @@ export function SearchFilterExplorerScreen({
     [runModelRefresh],
   );
 
-  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(() => {
-    if (!session.loadModelForDiscoveryMode) {
-      return undefined;
-    }
+  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(
+    () =>
+      createFilterExplorerDiscoveryState({
+        mode: discoveryMode,
+        modes: SEARCH_DISCOVERY_MODE_OPTIONS,
+        pendingMode: refreshState?.pendingMode,
+        isRefreshing: refreshState !== null,
+        onModeChange: onDiscoveryModeChange,
+        enabled: Boolean(session.loadModelForDiscoveryMode),
+      }),
+    [discoveryMode, onDiscoveryModeChange, refreshState, session.loadModelForDiscoveryMode],
+  );
 
-    return {
-      mode: discoveryMode,
-      modes: SEARCH_DISCOVERY_MODE_OPTIONS,
-      pendingMode: refreshState?.pendingMode,
-      isRefreshing: refreshState !== null,
-      onModeChange: onDiscoveryModeChange,
-    };
-  }, [discoveryMode, onDiscoveryModeChange, refreshState, session.loadModelForDiscoveryMode]);
+  const handleOutcome = React.useMemo(
+    () =>
+      createFilterExplorerOutcomeHandler({
+        onBack: () => {
+          session.onApply(draftRef.current);
+        },
+        onExitRoot: () => {
+          session.onApply(draftRef.current);
+        },
+        onCancel: () => {
+          session.onApply(draftRef.current);
+        },
+      }),
+    [session],
+  );
 
-  const handleOutcome = React.useCallback(() => {
-    session.onApply(draftRef.current);
-  }, [session]);
+  const onEditScalarTarget = React.useMemo(
+    () => createFilterExplorerNumericScalarEditHandler(prompts, terminal),
+    [prompts, terminal],
+  );
+  const host = React.useMemo(
+    () =>
+      createComposeFilterExplorerHostAdapter({
+        resolveTarget: session.resolveSelectionTarget,
+        onEditScalarTarget,
+      }),
+    [onEditScalarTarget, session.resolveSelectionTarget],
+  );
 
   const updateDraft = React.useCallback((nextComposeDraft: typeof draft) => {
     const nextDraft = cloneFilterExplorerComposeDraft(nextComposeDraft);
@@ -212,6 +241,7 @@ export function SearchFilterExplorerScreen({
     <FilterExplorerScreen
       title={session.title}
       model={model}
+      host={host}
       rootDepth={0}
       exitAtRootDepth
       onOutcome={handleOutcome}
@@ -222,33 +252,7 @@ export function SearchFilterExplorerScreen({
         onDraftChange: (nextComposeDraft) => {
           updateDraft(nextComposeDraft);
         },
-        resolveSelectionTarget: session.resolveSelectionTarget,
-        onEditScalarTarget: async ({ target, currentClause }) => {
-          if (target.valueType !== "number") {
-            return undefined;
-          }
-
-          const nextClause = await promptNumericScalarClause(prompts, terminal, {
-            title: target.editorLabel ?? `${target.fieldLabel} / ${target.subjectLabel}`,
-            currentClause:
-              currentClause?.operator === "between"
-                ? { op: "between", min: currentClause.min, max: currentClause.max }
-                : typeof currentClause?.value === "number"
-                  ? { op: currentClause.operator, value: currentClause.value }
-                  : null,
-          });
-
-          if (nextClause === undefined) {
-            return undefined;
-          }
-          if (nextClause === null) {
-            return null;
-          }
-
-          return nextClause.op === "between"
-            ? { operator: "between", min: nextClause.min, max: nextClause.max }
-            : { operator: nextClause.op, value: nextClause.value };
-        },
+        onEditScalarTarget,
       }}
     />
   );

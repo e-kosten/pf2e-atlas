@@ -28,6 +28,7 @@ import {
   getFilterExplorerScalarClause,
   normalizeFilterExplorerComposeDraft,
 } from "./compose-state.js";
+import { resolveFilterExplorerHostTarget } from "./host-adapter.js";
 import {
   buildFilterExplorerControllerContext,
   handleFilterExplorerInteractionRoute,
@@ -118,21 +119,16 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   });
   const normalizedBrowserState = normalizeFilterExplorerBrowserState(options.model, state.browserState);
   const selection = getFilterExplorerBrowserSelection(options.model, normalizedBrowserState);
+  const selectedTarget = resolveFilterExplorerHostTarget(options.host, selection.currentNode);
   const detailLines =
     composeMode
       ? buildFilterExplorerComposeDetailLines({
           mode: composeMode,
           draft,
           currentNodeLabel: selection.currentNode?.label,
-          selectedTarget: composeMode.resolveSelectionTarget(selection.currentNode),
-          selectedDiscreteClause: getFilterExplorerDiscreteClause(
-            composeMode.resolveSelectionTarget(selection.currentNode),
-            draft,
-          ),
-          selectedScalarClause: getFilterExplorerScalarClause(
-            composeMode.resolveSelectionTarget(selection.currentNode),
-            draft,
-          ),
+          selectedTarget,
+          selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, draft),
+          selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, draft),
           baseDetailLines:
             selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
         })
@@ -193,7 +189,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     notification,
   });
   const actionEntries = buildFilterExplorerActionEntries(baseContext);
-  const interactionActions = getFilterExplorerInteractionActions(options.mode, browserContext, actionEntries.length > 0);
+  const interactionActions = getFilterExplorerInteractionActions(baseContext, actionEntries.length > 0);
 
   const handleRoute = React.useCallback(
     (route: FilterExplorerInteractionRoute) => {

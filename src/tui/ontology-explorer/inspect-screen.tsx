@@ -6,6 +6,14 @@ import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-grou
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
+import {
+  createInspectFilterExplorerHostAdapter,
+} from "../filter-explorer/host-adapter.js";
+import {
+  createFilterExplorerDiscoveryState,
+  createFilterExplorerNumericScalarEditHandler,
+  createFilterExplorerOutcomeHandler,
+} from "../filter-explorer/host-helpers.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import type {
   FilterExplorerModeSwitchOption,
@@ -15,13 +23,10 @@ import type {
 import type {
   FilterExplorerComposeTarget,
   FilterExplorerDiscoveryState,
-  FilterExplorerScalarClause,
-  FilterExplorerScalarEditRequest,
 } from "../filter-explorer/types.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
-import { promptNumericScalarClause, type NumericScalarClauseDraft } from "../filter-explorer/scalar-editor.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
 export type OntologyInspectExplorerSnapshot = NonNullable<FilterExplorerOptions["initialSnapshot"]>;
@@ -82,40 +87,6 @@ function buildOntologyInspectScalarTarget(
   };
 }
 
-function toNumericScalarDraft(
-  clause: FilterExplorerScalarClause | undefined,
-): NumericScalarClauseDraft | null {
-  if (!clause) {
-    return null;
-  }
-
-  if (clause.operator === "between") {
-    return { op: "between", min: clause.min, max: clause.max };
-  }
-
-  if (typeof clause.value !== "number") {
-    return null;
-  }
-
-  return { op: clause.operator, value: clause.value };
-}
-
-function toFilterExplorerScalarClause(
-  clause: NumericScalarClauseDraft | null | undefined,
-): FilterExplorerScalarClause | null | undefined {
-  if (clause === undefined) {
-    return undefined;
-  }
-
-  if (clause === null) {
-    return null;
-  }
-
-  return clause.op === "between"
-    ? { operator: "between", min: clause.min, max: clause.max }
-    : { operator: clause.op, value: clause.value };
-}
-
 export function OntologyInspectScreen({
   routeData,
   onExit,
@@ -143,20 +114,17 @@ export function OntologyInspectScreen({
   const resolveInspectTarget = React.useCallback((node: OntologyDomainModel["rootNodes"][number] | undefined) => {
     return node ? buildOntologyInspectScalarTarget(node) : undefined;
   }, []);
-  const onEditScalarTarget = React.useCallback(
-    async ({ target, currentClause }: FilterExplorerScalarEditRequest) => {
-      if (target.valueType !== "number") {
-        return undefined;
-      }
-
-      const nextClause = await promptNumericScalarClause(prompts, terminal, {
-        title: target.editorLabel ?? `${target.fieldLabel} / ${target.subjectLabel}`,
-        currentClause: toNumericScalarDraft(currentClause),
-      });
-
-      return toFilterExplorerScalarClause(nextClause);
-    },
+  const onEditScalarTarget = React.useMemo(
+    () => createFilterExplorerNumericScalarEditHandler(prompts, terminal),
     [prompts, terminal],
+  );
+  const host = React.useMemo(
+    () =>
+      createInspectFilterExplorerHostAdapter({
+        resolveTarget: resolveInspectTarget,
+        onEditScalarTarget,
+      }),
+    [onEditScalarTarget, resolveInspectTarget],
   );
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -189,26 +157,25 @@ export function OntologyInspectScreen({
     },
     [discoveryMode, routeData, terminal],
   );
-  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(() => {
-    if (!routeData.loadModelForDiscoveryMode) {
-      return undefined;
-    }
+  const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(
+    () =>
+      createFilterExplorerDiscoveryState({
+        mode: discoveryMode,
+        modes: SEARCH_DISCOVERY_MODE_OPTIONS,
+        onModeChange: onDiscoveryModeChange,
+        enabled: Boolean(routeData.loadModelForDiscoveryMode),
+      }),
+    [discoveryMode, onDiscoveryModeChange, routeData.loadModelForDiscoveryMode],
+  );
 
-    return {
-      mode: discoveryMode,
-      modes: SEARCH_DISCOVERY_MODE_OPTIONS,
-      onModeChange: onDiscoveryModeChange,
-    };
-  }, [discoveryMode, onDiscoveryModeChange, routeData.loadModelForDiscoveryMode]);
-
-  const handleOutcome = React.useCallback<FilterExplorerOptions["onOutcome"]>(
-    (outcome, snapshot) => {
-      if (outcome.kind === "selectTarget") {
-        onSelectTarget?.(outcome, snapshot);
-        return;
-      }
-      onExit();
-    },
+  const handleOutcome = React.useMemo<FilterExplorerOptions["onOutcome"]>(
+    () =>
+      createFilterExplorerOutcomeHandler({
+        onBack: onExit,
+        onExitRoot: onExit,
+        onCancel: onExit,
+        onSelectTarget,
+      }),
     [onExit, onSelectTarget],
   );
 
@@ -216,13 +183,13 @@ export function OntologyInspectScreen({
     <FilterExplorerScreen
       title={model.label}
       model={model}
+      host={host}
       initialSnapshot={initialSnapshot}
       onOutcome={handleOutcome}
       discovery={discovery}
       transitionStatus={transitionStatus}
       mode={{
         kind: "inspect-and-open",
-        resolveInspectTarget,
         onEditScalarTarget,
       }}
     />

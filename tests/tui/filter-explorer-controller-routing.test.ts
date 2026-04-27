@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-target.js";
+import { createComposeFilterExplorerHostAdapter } from "../../src/tui/filter-explorer/host-adapter.js";
 import { handleFilterExplorerInteractionRoute } from "../../src/tui/filter-explorer/controller-routing.js";
 import type {
   FilterExplorerBrowserContext,
@@ -58,9 +59,11 @@ function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> =
 function createOptions(overrides: Partial<FilterExplorerOptions> = {}): FilterExplorerOptions {
   return {
     model: createModel(),
+    host: createComposeFilterExplorerHostAdapter({
+      resolveTarget: () => undefined,
+    }),
     mode: {
       kind: "compose",
-      resolveSelectionTarget: () => undefined,
     },
     onOutcome: vi.fn(),
     ...overrides,

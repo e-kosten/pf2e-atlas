@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FilterExplorerScreen,
   FILTER_EXPLORER_LAUNCH_INTENT,
+  createInspectFilterExplorerHostAdapter,
   type FilterExplorerModel,
   type FilterExplorerSelectTargetOutcome,
 } from "../../src/tui/filter-explorer/index.js";
@@ -59,6 +60,7 @@ describe("filter explorer launch intent", () => {
         <FilterExplorerScreen
           title="Search Semantics"
           model={createModel()}
+          host={createInspectFilterExplorerHostAdapter({})}
           onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",
@@ -85,6 +87,7 @@ describe("filter explorer launch intent", () => {
         <FilterExplorerScreen
           title="Search Semantics"
           model={createModel()}
+          host={createInspectFilterExplorerHostAdapter({})}
           onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",
@@ -125,6 +128,7 @@ describe("filter explorer launch intent", () => {
               },
             ],
           }}
+          host={createInspectFilterExplorerHostAdapter({})}
           onOutcome={onOutcome}
           mode={{
             kind: "inspect-and-open",

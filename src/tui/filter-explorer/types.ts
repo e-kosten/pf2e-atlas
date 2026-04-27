@@ -61,6 +61,35 @@ export type FilterExplorerQueryOpenIntent = {
   readonly launchIntent: FilterExplorerLaunchIntent;
 };
 
+export type FilterExplorerStateBadge =
+  | { readonly kind: "include" }
+  | { readonly kind: "exclude" }
+  | { readonly kind: "off" }
+  | {
+      readonly kind: "custom";
+      readonly text: string;
+      readonly tone?: DerivedTagTerminalTone;
+    };
+
+export type FilterExplorerTargetPresentation = {
+  readonly activationStyle: FilterExplorerActivationStyle;
+  readonly stateBadge?: FilterExplorerStateBadge;
+  readonly suffixText?: string;
+  readonly tone?: DerivedTagTerminalTone;
+};
+
+export type FilterExplorerDescribeNodeArgs = {
+  readonly node: FilterExplorerNode | undefined;
+  readonly target?: FilterExplorerComposeTarget;
+  readonly isFocused: boolean;
+  readonly controller?: FilterExplorerControllerContext;
+};
+
+export type FilterExplorerHostAdapter = {
+  readonly resolveTarget?: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
+  readonly describeNode: (args: FilterExplorerDescribeNodeArgs) => FilterExplorerTargetPresentation | undefined;
+};
+
 export type FilterExplorerSelectTargetOutcome = {
   readonly kind: "selectTarget";
   readonly activationStyle: FilterExplorerActivationStyle;
@@ -205,7 +234,6 @@ export type FilterExplorerInspectResult = {
 
 export type FilterExplorerInspectAndOpenMode = {
   kind: "inspect-and-open";
-  resolveInspectTarget?: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
   onEditScalarTarget?: (
     request: FilterExplorerScalarEditRequest,
   ) => Promise<FilterExplorerScalarClause | null | undefined> | FilterExplorerScalarClause | null | undefined;
@@ -214,7 +242,6 @@ export type FilterExplorerInspectAndOpenMode = {
 
 export type FilterExplorerComposeMode = {
   kind: "compose";
-  resolveSelectionTarget: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
   draft?: FilterExplorerComposeDraft;
   initialDraft?: FilterExplorerComposeDraft;
   onDraftChange?: (draft: FilterExplorerComposeDraft) => void;
@@ -234,6 +261,7 @@ export type FilterExplorerOptions = {
   initialSnapshot?: FilterExplorerBrowserSnapshot;
   rootDepth?: number;
   exitAtRootDepth?: boolean;
+  host: FilterExplorerHostAdapter;
   mode: FilterExplorerMode;
   discovery?: FilterExplorerDiscoveryState;
   onOutcome: (outcome: FilterExplorerOutcome, snapshot: FilterExplorerBrowserSnapshot) => void;
@@ -243,6 +271,7 @@ export type FilterExplorerOptions = {
 
 export type FilterExplorerControllerContext = {
   model: FilterExplorerModel;
+  host: FilterExplorerHostAdapter;
   mode: FilterExplorerMode;
   screenTitle: string;
   browser: FilterExplorerBrowserContext;

@@ -10,6 +10,7 @@ import {
 } from "../../src/tui/filter-explorer/controller-inspect.js";
 import {
   FILTER_EXPLORER_LAUNCH_INTENT,
+  createInspectFilterExplorerHostAdapter,
   type FilterExplorerInspectAndOpenMode,
   type FilterExplorerSelectTargetOutcome,
 } from "../../src/tui/filter-explorer/index.js";
@@ -98,6 +99,7 @@ function createOptions(mode: FilterExplorerInspectAndOpenMode): FilterExplorerOp
       description: "Search semantics ontology",
       rootNodes: [createNode()],
     },
+    host: createInspectFilterExplorerHostAdapter({}),
     mode,
     onOutcome: vi.fn(),
   };
@@ -127,15 +129,15 @@ describe("filter explorer controller inspect", () => {
     const result = buildFilterExplorerInspectResult(
       {
         kind: "inspect-and-open",
-        resolveInspectTarget: () => ({
-          kind: "scalar",
-          key: "actorMetric:attributes.hp.max",
-          fieldLabel: "Hit Points",
-          subjectLabel: "Hit Points",
-          valueType: "number",
-        }),
       },
       createNode(),
+      {
+        kind: "scalar",
+        key: "actorMetric:attributes.hp.max",
+        fieldLabel: "Hit Points",
+        subjectLabel: "Hit Points",
+        valueType: "number",
+      },
     );
 
     const compiled = buildCompiledFilterExplorerInspectResult(result!, {
@@ -204,18 +206,22 @@ describe("filter explorer controller inspect", () => {
   });
 
   it("compiles scalar inspect edits before opening results", async () => {
+    const scalarTarget = {
+      kind: "scalar" as const,
+      key: "actorMetric:speed.land",
+      fieldLabel: "Land Speed",
+      subjectLabel: "Land Speed",
+      valueType: "number" as const,
+    };
     const options = createOptions({
       kind: "inspect-and-open",
       onEditScalarTarget: () => ({ operator: "gte", value: 12 }),
-      resolveInspectTarget: () => ({
-        kind: "scalar",
-        key: "actorMetric:speed.land",
-        fieldLabel: "Land Speed",
-        subjectLabel: "Land Speed",
-        valueType: "number",
-      }),
     });
-    const result = buildFilterExplorerInspectResult(options.mode, createNode());
+    options.host = createInspectFilterExplorerHostAdapter({
+      resolveTarget: () => scalarTarget,
+      onEditScalarTarget: options.mode.onEditScalarTarget,
+    });
+    const result = buildFilterExplorerInspectResult(options.mode, createNode(), scalarTarget);
 
     const handled = openFilterExplorerInspectResult({
       options,

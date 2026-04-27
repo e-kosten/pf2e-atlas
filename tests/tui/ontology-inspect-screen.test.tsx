@@ -38,6 +38,29 @@ function createOntologyModel(): OntologyDomainModel {
   };
 }
 
+function createMetricOntologyModel(): OntologyDomainModel {
+  return {
+    id: "search-semantics",
+    label: "Search Semantics",
+    description: "Search semantics ontology",
+    rootNodes: [
+      {
+        id: "creature:actorMetrics:hp.value",
+        kind: "metric",
+        label: "Hit Points",
+        filterText: "hit points",
+        listLabel: "hp.",
+        detailTitle: "Metric",
+        detailLines: [{ text: "Hit Points", tone: "section" }],
+        query: browseQuery("Browse creatures by hit points", {
+          filter: scopeFilter("creature"),
+          limit: 20,
+        }),
+      },
+    ],
+  };
+}
+
 afterEach(() => {
   cleanup();
 });
@@ -62,5 +85,31 @@ describe("OntologyInspectScreen", () => {
     expect(frame).toContain("Explorer Entries");
     expect(frame).toContain("Pathfinder Monster Core | 320");
     expect(frame).toContain("Loading next view | Opening browse/search...");
+  });
+
+  it("opens the shared numeric scalar editor for metric nodes through the inspect host adapter", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <OntologyInspectScreen
+          routeData={{ model: createMetricOntologyModel() }}
+          onExit={vi.fn()}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Search Semantics");
+    expect(app.lastFrame()).toContain("hp.");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Creature Statistics / Hit Points");
+    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`.");
   });
 });

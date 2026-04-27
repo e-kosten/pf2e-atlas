@@ -5,9 +5,11 @@ import {
 import { createEmptyFilterExplorerComposeDraft, isFilterExplorerScalarTarget } from "./compose-state.js";
 import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import type { FilterExplorerKeyContext } from "./controller-types.js";
+import { describeFilterExplorerHostNode } from "./host-adapter.js";
 import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   type FilterExplorerActivationStyle,
+  type FilterExplorerComposeTarget,
   type FilterExplorerInspectAndOpenMode,
   type FilterExplorerInspectResult,
   type FilterExplorerSelectTargetOutcome,
@@ -34,6 +36,7 @@ export function resolveFilterExplorerLaunchIntent(
 export function buildFilterExplorerInspectResult(
   mode: FilterExplorerInspectAndOpenMode,
   node: FilterExplorerNode | undefined,
+  target?: FilterExplorerComposeTarget,
 ): FilterExplorerInspectResult | undefined {
   if (!node?.query) {
     return undefined;
@@ -42,7 +45,7 @@ export function buildFilterExplorerInspectResult(
   return {
     node,
     query: node.query,
-    target: mode.resolveInspectTarget?.(node),
+    target,
     launchIntent: resolveFilterExplorerLaunchIntent(mode, node.query),
   };
 }
@@ -168,18 +171,25 @@ function buildFilterExplorerQueryOpenIntent(
 }
 
 function resolveFilterExplorerInspectActivationStyle(
+  options: Pick<FilterExplorerOptions, "host">,
   result: FilterExplorerInspectResult,
 ): FilterExplorerActivationStyle {
-  return result.target?.kind === "scalar" ? "edit" : "open";
+  return describeFilterExplorerHostNode({
+    host: options.host,
+    node: result.node,
+    target: result.target,
+    isFocused: true,
+  })?.activationStyle ?? (result.target?.kind === "scalar" ? "edit" : "open");
 }
 
 function buildFilterExplorerSelectTargetOutcome(
+  options: Pick<FilterExplorerOptions, "host">,
   result: FilterExplorerInspectResult,
   launchIntent: FilterExplorerLaunchIntent,
 ): FilterExplorerSelectTargetOutcome {
   return {
     kind: "selectTarget",
-    activationStyle: resolveFilterExplorerInspectActivationStyle(result),
+    activationStyle: resolveFilterExplorerInspectActivationStyle(options, result),
     result: launchIntent === result.launchIntent ? result : { ...result, launchIntent },
     queryIntent: buildFilterExplorerQueryOpenIntent(result.query, launchIntent),
   };
@@ -195,7 +205,7 @@ function openFilterExplorerInspectResultDirect(
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  options.onOutcome(buildFilterExplorerSelectTargetOutcome(result, result.launchIntent), snapshot);
+  options.onOutcome(buildFilterExplorerSelectTargetOutcome(options, result, result.launchIntent), snapshot);
   return true;
 }
 
@@ -247,7 +257,10 @@ export function openFilterExplorerInspectQuery(args: {
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
-  options.onOutcome(buildFilterExplorerSelectTargetOutcome(result, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR), snapshot);
+  options.onOutcome(
+    buildFilterExplorerSelectTargetOutcome(options, result, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR),
+    snapshot,
+  );
   return true;
 }
 

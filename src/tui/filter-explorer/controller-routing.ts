@@ -10,6 +10,7 @@ import {
   getFilterExplorerDiscreteClause,
   getFilterExplorerScalarClause,
 } from "./compose-state.js";
+import { resolveFilterExplorerHostTarget } from "./host-adapter.js";
 import {
   buildFilterExplorerInspectResult,
   openFilterExplorerInspectQuery,
@@ -52,10 +53,11 @@ export function buildFilterExplorerControllerContext(args: {
 }): FilterExplorerControllerContext {
   const composeMode = args.options.mode.kind === "compose" ? args.options.mode : null;
   const currentNode = args.browser.currentNode;
-  const selectedTarget = composeMode?.resolveSelectionTarget(currentNode);
+  const selectedTarget = resolveFilterExplorerHostTarget(args.options.host, currentNode);
 
   return {
     model: args.options.model,
+    host: args.options.host,
     mode: args.options.mode,
     screenTitle: resolveScreenTitle(args.options),
     browser: args.browser,
@@ -66,7 +68,7 @@ export function buildFilterExplorerControllerContext(args: {
     selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, args.draft),
     selectedInspectResult:
       args.options.mode.kind === "inspect-and-open"
-        ? buildFilterExplorerInspectResult(args.options.mode, currentNode)
+        ? buildFilterExplorerInspectResult(args.options.mode, currentNode, selectedTarget)
         : undefined,
     discovery: args.options.discovery,
     actionEntries: args.actionEntries,
@@ -190,7 +192,7 @@ function resolveFilterExplorerListRightBehavior(args: {
 
   if (options.mode.kind === "compose") {
     const composeMode = options.mode;
-    const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
+    const target = resolveFilterExplorerHostTarget(options.host, keyContext.currentNode);
     const canOpenTarget = Boolean(target && (target.kind !== "scalar" || composeMode.onEditScalarTarget));
 
     if (canOpenTarget) {
@@ -201,7 +203,7 @@ function resolveFilterExplorerListRightBehavior(args: {
           perform: () => {
             void (
               openComposeScalarEditor(composeMode, target, draft, updateDraft) ||
-              applyComposeCycleSelection(composeMode, keyContext, updateDraft)
+              applyComposeCycleSelection(target, keyContext, updateDraft)
             );
           },
         },
@@ -227,7 +229,8 @@ function resolveFilterExplorerListRightBehavior(args: {
     };
   }
 
-  const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode);
+  const inspectTarget = resolveFilterExplorerHostTarget(options.host, keyContext.currentNode);
+  const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode, inspectTarget);
   const shouldOpenResult =
     (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult) ||
       (!keyContext.currentNodeHasChildren && Boolean(inspectResult))) &&

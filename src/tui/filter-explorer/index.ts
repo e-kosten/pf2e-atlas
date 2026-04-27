@@ -2,6 +2,10 @@ export { useFilterExplorerController } from "./controller.js";
 export { FilterExplorerScreen } from "./screen.js";
 export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
 export {
+  createComposeFilterExplorerHostAdapter,
+  createInspectFilterExplorerHostAdapter,
+} from "./host-adapter.js";
+export {
   applyFilterExplorerDraft,
   buildFilterExplorerMetadataNode,
   prepareFilterExplorerDraftFromMetadataNode,
@@ -25,7 +29,9 @@ export type {
   FilterExplorerComposeTarget,
   FilterExplorerControllerContext,
   FilterExplorerDiscoveryState,
+  FilterExplorerHostAdapter,
   FilterExplorerDomainId,
+  FilterExplorerDescribeNodeArgs,
   FilterExplorerInspectAndOpenMode,
   FilterExplorerInspectResult,
   FilterExplorerLaunchIntent,

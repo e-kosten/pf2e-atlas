@@ -26,7 +26,7 @@ type FilterExplorerKeyContext = FilterExplorerBrowserContext & {
 };
 
 export function applyComposeCycleSelection(
-  composeMode: FilterExplorerComposeMode,
+  target: FilterExplorerControllerContext["selectedTarget"],
   keyContext: Pick<FilterExplorerKeyContext, "currentNode" | "event">,
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
 ): boolean {
@@ -35,7 +35,6 @@ export function applyComposeCycleSelection(
     return false;
   }
 
-  const target = composeMode.resolveSelectionTarget(keyContext.currentNode);
   if (!target || target.kind === "scalar") {
     return false;
   }
@@ -48,7 +47,7 @@ export function applyComposeCycleSelection(
 
 export function openComposeScalarEditor(
   composeMode: FilterExplorerComposeMode,
-  target: ReturnType<FilterExplorerComposeMode["resolveSelectionTarget"]>,
+  target: FilterExplorerControllerContext["selectedTarget"],
   draft: FilterExplorerComposeDraft,
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void,
 ): boolean {
@@ -100,10 +99,10 @@ export function handleFilterExplorerAction(args: {
   }
 
   if (action.id === "cycle" && options.mode.kind === "compose") {
-    const target = options.mode.resolveSelectionTarget(keyContext.currentNode);
+    const target = context.selectedTarget;
     return (
       openComposeScalarEditor(options.mode, target, draft, updateDraft) ||
-      applyComposeCycleSelection(options.mode, keyContext, updateDraft)
+      applyComposeCycleSelection(target, keyContext, updateDraft)
     );
   }
 
