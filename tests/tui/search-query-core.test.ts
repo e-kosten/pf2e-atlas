@@ -540,4 +540,14 @@ describe("search query-core metric labels", () => {
       children: tree.children,
     });
   });
+
+  it("renders simple negation aliases inline with a leading bang", () => {
+    const tree: SearchFilterNode = {
+      kind: "not",
+      child: { kind: "pack", value: "monster-core" },
+    };
+
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "compact" })).toBe("! Pack: monster-core");
+    expect(formatSearchFilterNodePresentationAlias(tree, { style: "tree" })).toBe("! Pack: monster-core");
+  });
 });

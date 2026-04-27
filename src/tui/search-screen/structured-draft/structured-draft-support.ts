@@ -79,7 +79,11 @@ function formatTreePrefix(ancestorContinuations: boolean[], isLast: boolean): st
 }
 
 function formatStructuredDraftBucketLabel(bucket: ActiveGroupFieldBucket): string {
-  return `${bucket.fieldLabel}: ${bucket.operator === "include" ? "Include" : "Exclude"} ${bucket.values.join(", ")}`;
+  if (bucket.operator === "exclude") {
+    return `${bucket.fieldLabel}: ${bucket.values.map((value) => `!${value}`).join(", ")}`;
+  }
+
+  return `${bucket.fieldLabel}: Include ${bucket.values.join(", ")}`;
 }
 
 function collectTopLevelSelectionMembers(
@@ -277,7 +281,7 @@ function buildFilterTreeEntries(
     ancestorContinuations: boolean[],
     isLast: boolean,
   ): void => {
-    const isGroup = isSearchFilterBooleanGroup(current) || current.kind === "not";
+    const isGroup = isSearchFilterBooleanGroup(current) || (current.kind === "not" && isSearchFilterBooleanGroup(current.child));
     const menuLabel = `${formatTreePrefix(ancestorContinuations, isLast)}${formatSearchFilterNodePresentationAlias(current, {
       category: options.category,
       packLabelResolver: options.packLabelResolver,

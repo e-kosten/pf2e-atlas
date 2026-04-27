@@ -103,7 +103,7 @@ describe("structured draft support", () => {
     expect(bucketEntries).toHaveLength(2);
     expect(bucketEntries[0]?.label).toBe("Traits: Include illusion, auditory");
     expect(bucketEntries[0]?.fieldMemberPaths).toEqual([[1], [2], [3]]);
-    expect(bucketEntries[1]?.label).toBe("Traits: Exclude emotion");
+    expect(bucketEntries[1]?.label).toBe("Traits: !emotion");
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(false);
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(false);
   });
@@ -128,5 +128,29 @@ describe("structured draft support", () => {
 
     expect(entries[selectedIndex]?.kind).toBe("queryFieldBucket");
     expect(entries[selectedIndex]?.label).toBe("Traits: Include illusion, auditory");
+  });
+
+  it("flattens simple negated nodes into a single inline tree row", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "pack", value: "abomination-vaults" },
+          {
+            kind: "not",
+            child: { kind: "pack", value: "monster-core" },
+          },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, null, {});
+    const menuLabels = entries.map((entry) => entry.menuLabel).filter((label): label is string => Boolean(label));
+
+    expect(menuLabels).toContain("├─ Pack: abomination-vaults");
+    expect(menuLabels).toContain("├─ ! Pack: monster-core");
+    expect(menuLabels.some((label) => label.includes("Exclude"))).toBe(false);
+    expect(entries.filter((entry) => entry.kind === "queryNode" && entry.label === "Pack: monster-core")).toHaveLength(0);
   });
 });

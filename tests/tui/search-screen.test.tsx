@@ -2413,7 +2413,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
-    expect(app.lastFrame()).toContain("Exclude Rarity: Common");
+    expect(app.lastFrame()).toContain("! Rarity: Common");
 
     app.stdin.write("\r");
     await flushInk();

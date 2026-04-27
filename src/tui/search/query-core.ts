@@ -996,11 +996,8 @@ function formatBooleanGroupAlias(
   return label;
 }
 
-function formatNegationAlias(
-  childAlias: string | null,
-  style: SearchFilterPresentationAliasStyle | SearchMetadataPresentationAliasStyle,
-): string {
-  return style === "compact" && childAlias ? `Exclude ${childAlias}` : "Exclude";
+function formatNegationAlias(childAlias: string | null): string {
+  return childAlias ? `! ${childAlias}` : "!";
 }
 
 function formatSearchNullableMatch(match: Extract<SearchFilterNode, { kind: "rarity" }>["match"] | Extract<SearchFilterNode, { kind: "actionCost" }>["match"]): string {
@@ -1066,12 +1063,7 @@ export function formatSearchFilterNodePresentationAlias(
     case "anyOf":
       return formatBooleanGroupAlias("anyOf", node.children.length, style);
     case "not":
-      return formatNegationAlias(
-        style === "compact"
-          ? formatSearchFilterNodePresentationAlias(node.child, { ...options, style: "compact" })
-          : null,
-        style,
-      );
+      return formatNegationAlias(formatSearchFilterNodePresentationAlias(node.child, { ...options, style }));
     case "scope":
       return `Scope: ${humanizeOntologySearchIdentifier(node.category)}${
         node.subcategory.kind === "eq" ? ` / ${humanizeOntologySearchIdentifier(node.subcategory.value)}` : ""
@@ -1221,10 +1213,7 @@ export function formatMetadataNodePresentationAlias(
   }
 
   if ("not" in node) {
-    return formatNegationAlias(
-      style === "compact" ? formatMetadataNodePresentationAlias(node.not, { category, style: "compact" }) : null,
-      style,
-    );
+    return formatNegationAlias(formatMetadataNodePresentationAlias(node.not, { category, style }));
   }
 
   const summary = describeMetadataNode(node, { rootLabel: "node", category });
