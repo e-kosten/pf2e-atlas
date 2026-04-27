@@ -7,6 +7,7 @@ import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalPreparedFilterExplorerContext,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -70,6 +71,16 @@ export function useSearchStructuredDraftEditing({
       draft: Pf2eTerminalFilterExplorerDraft,
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
+    options?: {
+      buildQueryForDraft?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => Pf2eTerminalSearchQuery;
+      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      onBack?: () => void;
+      onExitRoot?: () => void;
+      onCancel?: () => void;
+    },
   ) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;

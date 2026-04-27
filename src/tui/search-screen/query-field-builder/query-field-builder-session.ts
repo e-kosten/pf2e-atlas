@@ -25,9 +25,13 @@ export type SearchFilterExplorerSession = {
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
   draft: Pf2eTerminalFilterExplorerDraft;
+  refreshOnDraftChange?: boolean;
   onDraftChange?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
   resolveSelectionTarget: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onApply: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+  onBack?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+  onExitRoot?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
+  onCancel?: (draft: Pf2eTerminalFilterExplorerDraft) => void;
 };
 
 export type SearchStructuredEditorItem =

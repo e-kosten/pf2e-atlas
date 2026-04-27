@@ -76,4 +76,57 @@ describe("structured draft support", () => {
     expect(selectedEntry?.kind).toBe("queryInsertionSlot");
     expect(selectedEntry?.insertionPath).toEqual([0]);
   });
+
+  it("projects active-group shared-explorer clauses into grouped field buckets", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "emotion" } },
+          },
+          { kind: "pack", value: "monster-core" },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, [1], {
+      groupedFieldValues: new Set(["traits"]),
+    });
+    const bucketEntries = entries.filter((entry) => entry.kind === "queryFieldBucket");
+
+    expect(bucketEntries).toHaveLength(2);
+    expect(bucketEntries[0]?.label).toBe("Traits: Include illusion, auditory");
+    expect(bucketEntries[0]?.fieldMemberPaths).toEqual([[1], [2], [3]]);
+    expect(bucketEntries[1]?.label).toBe("Traits: Exclude emotion");
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(false);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(false);
+  });
+
+  it("selects the grouped field bucket when the focused member path is projected away", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, [2], {
+      groupedFieldValues: new Set(["traits"]),
+    });
+    const selectedIndex = getStructuredDraftSelectionIndexForPath(entries, [2], 0);
+
+    expect(entries[selectedIndex]?.kind).toBe("queryFieldBucket");
+    expect(entries[selectedIndex]?.label).toBe("Traits: Include illusion, auditory");
+  });
 });

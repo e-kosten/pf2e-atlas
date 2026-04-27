@@ -12,7 +12,7 @@ import {
   stripSearchQueryFilter,
 } from "../../search/query-projection.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
-import { getSearchQueryRootOperator } from "../../search/query-state.js";
+import { getSearchQueryCategory, getSearchQueryRootOperator, getSearchQuerySubcategory } from "../../search/query-state.js";
 import {
   canonicalFilterToMetadataNode,
   metadataFilterNodeToCanonicalFilter,
@@ -61,11 +61,23 @@ export function useSearchStructuredDraftActions({
 } {
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
 
+  const getGroupedFieldValuesForQuery = React.useCallback(
+    (query: Pf2eTerminalSearchQuery): ReadonlySet<string> =>
+      new Set(
+        user.search
+          .getQueryFieldOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query))
+          .filter((fieldOption) => fieldOption.editor === "sharedExplorer")
+          .map((fieldOption) => fieldOption.value),
+      ),
+    [user.search],
+  );
+
   const openStructuredDraftSession = React.useCallback(
     (anchor: SearchStructuredDraftState["anchor"], query: Pf2eTerminalSearchQuery = currentQuery) => {
       const draftQuery = user.search.normalizeQuery(query);
       const metadataFocusPath = anchor.kind === "queryNode" ? [...anchor.path] : null;
       const entries = buildStructuredDraftEntries(draftQuery, metadataFocusPath, {
+        groupedFieldValues: getGroupedFieldValuesForQuery(draftQuery),
         packLabelResolver: user.search.getPackLabel,
       });
 
@@ -94,6 +106,7 @@ export function useSearchStructuredDraftActions({
         const nextDraftQuery = user.search.normalizeQuery(update(buildStructuredDraftQuery(current)));
         const metadataFocusPath = options?.metadataFocusPath ?? current.metadataFocusPath;
         const entries = buildStructuredDraftEntries(nextDraftQuery, metadataFocusPath, {
+          groupedFieldValues: getGroupedFieldValuesForQuery(nextDraftQuery),
           packLabelResolver: user.search.getPackLabel,
           moveSourcePath: current.moveSourcePath,
         });
@@ -156,6 +169,7 @@ export function useSearchStructuredDraftActions({
         const metadataFocusPath =
           options?.metadataFocusPath ?? (nextCanonicalNode ? path : path.length > 0 ? path.slice(0, -1) : null);
         const entries = buildStructuredDraftEntries(nextDraftQuery, metadataFocusPath, {
+          groupedFieldValues: getGroupedFieldValuesForQuery(nextDraftQuery),
           packLabelResolver: user.search.getPackLabel,
           moveSourcePath: current.moveSourcePath,
         });
@@ -180,6 +194,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, path, {
+        groupedFieldValues: getGroupedFieldValuesForQuery(currentQuery),
         packLabelResolver: user.search.getPackLabel,
         moveSourcePath: current.moveSourcePath,
       });
@@ -210,6 +225,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
+        groupedFieldValues: getGroupedFieldValuesForQuery(currentQuery),
         packLabelResolver: user.search.getPackLabel,
       });
       const selectionIndex = current.moveSourcePath
@@ -255,6 +271,7 @@ export function useSearchStructuredDraftActions({
 
         const currentQuery = buildStructuredDraftQuery(current);
         const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
+          groupedFieldValues: getGroupedFieldValuesForQuery(currentQuery),
           packLabelResolver: user.search.getPackLabel,
           moveSourcePath: path,
         });
@@ -278,6 +295,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQuery = buildStructuredDraftQuery(current);
       const entries = buildStructuredDraftEntries(currentQuery, current.metadataFocusPath, {
+        groupedFieldValues: getGroupedFieldValuesForQuery(currentQuery),
         packLabelResolver: user.search.getPackLabel,
         moveSourcePath: current.moveSourcePath,
       });
@@ -307,11 +325,12 @@ export function useSearchStructuredDraftActions({
     () =>
       structuredDraftState
         ? buildStructuredDraftEntries(buildStructuredDraftQuery(structuredDraftState), structuredDraftState.metadataFocusPath, {
+            groupedFieldValues: getGroupedFieldValuesForQuery(buildStructuredDraftQuery(structuredDraftState)),
             packLabelResolver: user.search.getPackLabel,
             moveSourcePath: structuredDraftState.moveSourcePath,
           })
         : [],
-    [structuredDraftState, user.search],
+    [getGroupedFieldValuesForQuery, structuredDraftState, user.search],
   );
 
   const structuredDraftQuery = React.useMemo(

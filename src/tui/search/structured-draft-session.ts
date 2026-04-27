@@ -12,6 +12,7 @@ export type SearchStructuredDraftAnchor =
 export type SearchStructuredDraftEntryKind =
   | "queryTreeRoot"
   | "queryNode"
+  | "queryFieldBucket"
   | "queryInsertionSlot"
   | "finish"
   | "cancel";
@@ -25,6 +26,11 @@ export type SearchStructuredDraftEntry = {
   disabled?: boolean;
   disabledReason?: string;
   treePath?: number[];
+  groupPath?: number[];
+  field?: string;
+  fieldOperator?: "include" | "exclude";
+  memberPaths?: number[][];
+  fieldMemberPaths?: number[][];
   insertionPath?: number[];
   indent?: number;
   menuLabel?: string;

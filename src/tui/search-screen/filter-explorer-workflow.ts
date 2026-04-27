@@ -30,6 +30,10 @@ export function useSearchFilterExplorerWorkflow({
     queryOverride?: Pf2eTerminalSearchQuery;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+    buildQueryForDraft?: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => Pf2eTerminalSearchQuery;
     onDraftChange?: (
       draft: Pf2eTerminalFilterExplorerDraft,
       context: Pf2eTerminalPreparedFilterExplorerContext,
@@ -39,6 +43,18 @@ export function useSearchFilterExplorerWorkflow({
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void;
     onReturn?: () => void;
+    onCancel?: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void;
+    onBack?: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void;
+    onExitRoot?: (
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeFilterExplorer: () => void;
@@ -50,14 +66,22 @@ export function useSearchFilterExplorerWorkflow({
       queryOverride,
       fieldOptions,
       initialPreparedDraft,
+      buildQueryForDraft,
       onDraftChange,
       onApply,
       onReturn,
+      onCancel,
+      onBack,
+      onExitRoot,
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      buildQueryForDraft?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => Pf2eTerminalSearchQuery;
       onDraftChange?: (
         draft: Pf2eTerminalFilterExplorerDraft,
         context: Pf2eTerminalPreparedFilterExplorerContext,
@@ -67,6 +91,18 @@ export function useSearchFilterExplorerWorkflow({
         context: Pf2eTerminalPreparedFilterExplorerContext,
       ) => void;
       onReturn?: () => void;
+      onCancel?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void;
+      onBack?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void;
+      onExitRoot?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
@@ -83,22 +119,34 @@ export function useSearchFilterExplorerWorkflow({
         return false;
       }
 
+      const preparedDraft = initialPreparedDraft ?? services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields);
+      const preparedContext: Pf2eTerminalPreparedFilterExplorerContext = {
+        preservedMetadata: preparedDraft.preservedMetadata,
+        scopedFields: preparedDraft.scopedFields,
+      };
+      const currentDraftRef = {
+        current: preparedDraft.draft,
+      };
+
       const buildPreparedModel = async (
         discoveryMode: "matching" | "catalog",
       ): Promise<ReturnType<typeof buildSearchFilterExplorerModel>> => {
+        const request = services.search.normalizeQuery(
+          buildQueryForDraft?.(currentDraftRef.current, preparedContext) ?? scopeQuery,
+        );
+        const requestCategory = getSearchQueryCategory(request);
+        const requestSubcategory = getSearchQuerySubcategory(request);
         const preparedDomain = await services.ontology.loadSearchFilterExplorerDomain({
-          request: scopeQuery,
+          request,
           discoveryMode,
         });
         return buildSearchFilterExplorerModel(preparedDomain, {
-          category: scopeCategory,
-          subcategory: scopeSubcategory,
+          category: requestCategory ?? scopeCategory,
+          subcategory: requestSubcategory,
           fieldOptions,
           singleFieldBehavior,
         });
       };
-
-      const preparedDraft = initialPreparedDraft ?? services.search.prepareFilterExplorerDraft(scopeQuery, scopedFields);
 
       setFilterExplorerSession({
         title,
@@ -106,7 +154,9 @@ export function useSearchFilterExplorerWorkflow({
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         draft: preparedDraft.draft,
+        refreshOnDraftChange: Boolean(buildQueryForDraft),
         onDraftChange: (nextDraft) => {
+          currentDraftRef.current = nextDraft;
           setFilterExplorerSession((currentSession) =>
             currentSession
               ? {
@@ -115,19 +165,33 @@ export function useSearchFilterExplorerWorkflow({
                 }
               : currentSession,
           );
-          onDraftChange?.(nextDraft, {
-            preservedMetadata: preparedDraft.preservedMetadata,
-            scopedFields: preparedDraft.scopedFields,
-          });
+          onDraftChange?.(nextDraft, preparedContext);
         },
         resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         onApply: (nextDraft) => {
-          onApply(nextDraft, {
-            preservedMetadata: preparedDraft.preservedMetadata,
-            scopedFields: preparedDraft.scopedFields,
-          });
+          onApply(nextDraft, preparedContext);
+          setFilterExplorerSession(null);
+        },
+        onBack: (nextDraft) => {
+          if (onBack) {
+            onBack(nextDraft, preparedContext);
+          } else {
+            onApply(nextDraft, preparedContext);
+          }
           setFilterExplorerSession(null);
           onReturn?.();
+        },
+        onExitRoot: (nextDraft) => {
+          if (onExitRoot) {
+            onExitRoot(nextDraft, preparedContext);
+          } else {
+            onApply(nextDraft, preparedContext);
+          }
+          setFilterExplorerSession(null);
+        },
+        onCancel: (nextDraft) => {
+          onCancel?.(nextDraft, preparedContext);
+          setFilterExplorerSession(null);
         },
       });
       return true;

@@ -175,7 +175,7 @@ export function SearchFilterExplorerScreen({
     return () => {
       invalidateRefreshes();
     };
-  }, [initialDiscoveryMode, invalidateRefreshes, runModelRefresh, session]);
+  }, [initialDiscoveryMode, invalidateRefreshes, runModelRefresh, session.loadModelForDiscoveryMode, session.model]);
 
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -205,13 +205,13 @@ export function SearchFilterExplorerScreen({
     () =>
       createFilterExplorerOutcomeHandler({
         onBack: () => {
-          session.onApply(draftRef.current);
+          session.onBack?.(draftRef.current);
         },
         onExitRoot: () => {
-          session.onApply(draftRef.current);
+          session.onExitRoot?.(draftRef.current);
         },
         onCancel: () => {
-          session.onApply(draftRef.current);
+          session.onCancel?.(draftRef.current);
         },
       }),
     [session],
@@ -230,11 +230,6 @@ export function SearchFilterExplorerScreen({
     [onEditScalarTarget, session.resolveSelectionTarget],
   );
 
-  React.useEffect(() => {
-    draftRef.current = cloneFilterExplorerComposeDraft(session.draft);
-    setRenderDraft(draftRef.current);
-  }, [session.draft]);
-
   return (
     <FilterExplorerScreen
       title={session.title}
@@ -252,6 +247,9 @@ export function SearchFilterExplorerScreen({
           draftRef.current = nextDraft;
           setRenderDraft(nextDraft);
           session.onDraftChange?.(nextDraft);
+          if (session.refreshOnDraftChange && session.loadModelForDiscoveryMode) {
+            runModelRefresh(discoveryModeRef.current, { force: true });
+          }
         },
         onEditScalarTarget,
       }}

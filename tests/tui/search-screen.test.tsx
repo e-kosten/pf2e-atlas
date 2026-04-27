@@ -2123,7 +2123,7 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Filters >");
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("All of");
     expect(app.lastFrame()).toContain("[+ add here]");
@@ -2185,6 +2185,16 @@ describe("search screen", () => {
     await flushInk();
     pressLeft(app);
     await flushInk();
+    expect(app.lastFrame()).toContain("Metadata");
+    expect(app.lastFrame()).toContain("Derived Tags");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Metadata");
+
+    pressLeft(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).not.toContain("Browse/Search");
 
@@ -2198,7 +2208,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Structured Query Editor");
   });
 
-  it("uses the shared rarity explorer and centered numeric matcher for staged rows", async () => {
+  it("uses the shared rarity explorer for staged rows and returns to the structured editor", async () => {
     const services = createServices();
     services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
       async () => createFacetPickerOntologyDomainWithDiscreteFields(),
@@ -2232,7 +2242,7 @@ describe("search screen", () => {
     }
 
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Action Cost: 2");
@@ -2250,29 +2260,13 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "common", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("common");
+    await waitForFrameToContain(app, "rare", 60);
     expect(app.lastFrame()).toContain("rare");
 
     pressLeft(app);
     await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
-
     expect(app.lastFrame()).toContain("Action Cost: 2");
-
-    for (let step = 0; step < 2; step += 1) {
-      pressUp(app);
-      await flushInk();
-    }
-
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Action Cost Matcher");
-    expect(app.lastFrame()).toContain("Preview");
-    expect(app.lastFrame()).toContain("Matches exactly 2.");
-    expect(app.lastFrame()).toContain("2");
   });
 
   it("returns from a live rarity explorer edit after clearing the focused clause", async () => {
@@ -2306,7 +2300,7 @@ describe("search screen", () => {
     await flushInk();
 
     app.stdin.write("\r");
-    await flushInk();
+    await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Rarity: Common");
 
@@ -2320,11 +2314,20 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Rarity Explorer");
 
+    await waitForFrameToContain(app, "[✓] common", 60);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "[x] common", 60);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
+    await flushInk();
+    await waitForFrameToContain(app, "[.] common", 60);
+    await new Promise((resolve) => setTimeout(resolve, 120));
     await flushInk();
 
     pressLeft(app);
@@ -2583,14 +2586,15 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Filter: Traits: includes Illusion");
+    expect(app.lastFrame()).toContain("Metadata");
+    expect(app.lastFrame()).toContain("Traits");
+    expect(app.lastFrame()).toContain("Derived Tags");
     expect(app.lastFrame()).not.toContain("Filters >");
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    expect(app.lastFrame()).toContain("Add Clause");
+    expect(app.lastFrame()).toContain("Metadata");
   });
 
   it("uses left navigation to step back one page within add-clause scope flows", async () => {

@@ -31,6 +31,7 @@ import type {
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalPreparedFilterExplorerContext,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -48,9 +49,20 @@ type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
 type MetricKeySelection = { value: string; discoveryMode: SearchFilterDiscoveryMode };
 const CLAUSE_BACK = Symbol("search-structured-draft-clause-back");
+const CLAUSE_CONTINUE = Symbol("search-structured-draft-clause-continue");
 type ClausePromptBackResult = typeof CLAUSE_BACK;
+type ClausePromptContinueResult = {
+  kind: typeof CLAUSE_CONTINUE;
+  node: SearchFilterNode | SearchFilterNode[];
+};
 type PromptStepResult<T> = T | ClausePromptBackResult | undefined;
-type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | ClausePromptBackResult | null | undefined;
+type SearchFilterNodeEditorResult =
+  | SearchFilterNode
+  | SearchFilterNode[]
+  | ClausePromptBackResult
+  | ClausePromptContinueResult
+  | null
+  | undefined;
 type ClausePromptResult = ClauseKind | ClausePromptBackResult | null;
 type ClauseApplyResult = "applied" | "back" | "cancelled";
 type StructuredDraftEntryActionId =
@@ -69,6 +81,10 @@ type StructuredDraftEntryActionId =
   | "remove"
   | "unwrap"
   | "toggleGroup";
+
+function isClausePromptContinueResult(result: SearchFilterNodeEditorResult): result is ClausePromptContinueResult {
+  return Boolean(result && typeof result === "object" && !Array.isArray(result) && "kind" in result && result.kind === CLAUSE_CONTINUE);
+}
 
 function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
   switch (kind) {
@@ -94,6 +110,59 @@ function buildExplorerOnlyFieldOption(
     fieldType,
     editor: "sharedExplorer",
   };
+}
+
+function getFirstGroupedFieldMemberPath(
+  node: SearchFilterNode,
+  path: number[],
+  field: string,
+): number[] | null {
+  if (field === "rarity" || field === "actionCost") {
+    if (node.kind === field && node.match.kind === "eq") {
+      return path;
+    }
+    if (node.kind === "anyOf") {
+      for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
+        const childPath = getFirstGroupedFieldMemberPath(node.children[childIndex]!, [...path, childIndex], field);
+        if (childPath) {
+          return childPath;
+        }
+      }
+      return null;
+    }
+    if (node.kind === "not") {
+      return getFirstGroupedFieldMemberPath(node.child, [...path, 0], field);
+    }
+    return null;
+  }
+
+  if (node.kind === "metadataPredicate" && node.predicate.field === field) {
+    return path;
+  }
+  if (node.kind === "not") {
+    return getFirstGroupedFieldMemberPath(node.child, [...path, 0], field);
+  }
+  if (node.kind === "anyOf") {
+    for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
+      const childPath = getFirstGroupedFieldMemberPath(node.children[childIndex]!, [...path, childIndex], field);
+      if (childPath) {
+        return childPath;
+      }
+    }
+  }
+  return null;
+}
+
+function toSearchFilterNodeEditorResult(
+  result: Pf2eTerminalFilterExplorerInsertionResult,
+): SearchFilterNode | SearchFilterNode[] | null {
+  if (result.kind === "insert") {
+    return result.nodes
+      .map((node) => metadataFilterNodeToCanonicalFilter(node))
+      .filter((node): node is SearchFilterNode => Boolean(node));
+  }
+
+  return metadataFilterNodeToCanonicalFilter(result.node) ?? null;
 }
 
 function buildInsertionActionEntries(
@@ -250,10 +319,23 @@ export function useSearchStructuredDraftMetadataActions({
       draft: Pf2eTerminalFilterExplorerDraft,
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
+    options?: {
+      buildQueryForDraft?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => Pf2eTerminalSearchQuery;
+      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      onBack?: () => void;
+      onExitRoot?: () => void;
+      onCancel?: () => void;
+    },
   ) => Promise<boolean>;
   moveSourcePath: number[] | null;
   prompts: SearchWorkspacePromptAdapters;
-  replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
+  replaceStructuredDraftProjection: (
+    update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
+    options?: { metadataFocusPath?: number[] | null },
+  ) => void;
   setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   terminal: SearchWorkspaceTerminal;
@@ -283,6 +365,53 @@ export function useSearchStructuredDraftMetadataActions({
     [replaceStructuredDraftProjection],
   );
 
+  const buildGroupedFieldSeedQuery = React.useCallback(
+    (
+      query: Pf2eTerminalSearchQuery,
+      groupPath: number[],
+    ): Pf2eTerminalSearchQuery => {
+      const filter = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+      return {
+        ...query,
+        filter,
+      };
+    },
+    [],
+  );
+
+  const applyGroupedFieldDraftToQuery = React.useCallback(
+    (
+      query: Pf2eTerminalSearchQuery,
+      groupPath: number[],
+      field: string,
+      draft: Pf2eTerminalFilterExplorerDraft,
+      context: Pf2eTerminalPreparedFilterExplorerContext,
+    ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } => {
+      const seedQuery = buildGroupedFieldSeedQuery(query, groupPath);
+      const nextGroupQuery = user.search.applyFilterExplorerDraft(seedQuery, draft, context);
+      const nextFilter =
+        groupPath.length === 0
+          ? nextGroupQuery.filter
+          : updateSearchFilterNodeAtPath(query.filter, groupPath, () => nextGroupQuery.filter);
+      const nextGroupNode =
+        groupPath.length === 0 ? nextGroupQuery.filter ?? null : getSearchFilterNodeAtPath(nextFilter, groupPath);
+      const nextFocusPath = nextGroupNode
+        ? getFirstGroupedFieldMemberPath(nextGroupNode, groupPath, field) ?? (groupPath.length > 0 ? groupPath : null)
+        : groupPath.length > 0
+          ? groupPath
+          : null;
+
+      return {
+        nextQuery: {
+          ...query,
+          filter: nextFilter,
+        },
+        nextFocusPath,
+      };
+    },
+    [buildGroupedFieldSeedQuery, user.search],
+  );
+
   const openLiveExplorerFieldClause = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -290,25 +419,140 @@ export function useSearchStructuredDraftMetadataActions({
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
     ) => {
+      const applyResult = (result: Pf2eTerminalFilterExplorerInsertionResult) => {
+        if (result.kind !== "replace") {
+          return;
+        }
+
+        updateStructuredDraftMetadataNode(path, () => result.node, {
+          metadataFocusPath: result.node ? path : path.length > 0 ? path.slice(0, -1) : null,
+        });
+      };
       setStructuredDraftMetadataFocusPath(path);
       await openOntologyFieldEditor(
         query,
         fieldOption,
         currentNode,
-        () => {},
+        (result) => {
+          applyResult(result);
+        },
         undefined,
         (result) => {
-          if (result.kind !== "replace") {
-            return;
-          }
-
-          updateStructuredDraftMetadataNode(path, () => result.node, {
-            metadataFocusPath: result.node ? path : path.length > 0 ? path.slice(0, -1) : null,
-          });
+          applyResult(result);
+        },
+        {
+          onBack: () => {},
+          onExitRoot: () => {},
         },
       );
     },
     [openOntologyFieldEditor, setStructuredDraftMetadataFocusPath, updateStructuredDraftMetadataNode],
+  );
+
+  const openLiveExplorerGroupedField = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      entry: SearchStructuredDraftEntry,
+    ) => {
+      const groupPath = entry.groupPath ?? [];
+      const fieldMemberPaths = entry.fieldMemberPaths ?? entry.memberPaths ?? [];
+      const field = entry.field;
+      if (!field || fieldMemberPaths.length === 0) {
+        return;
+      }
+
+      const fieldOption =
+        field === "rarity"
+          ? buildExplorerOnlyFieldOption(
+              "rarity",
+              "Rarity",
+              "Browse live rarities for the current group and stage canonical rarity clauses.",
+              "enumString",
+            )
+          : field === "actionCost"
+            ? buildExplorerOnlyFieldOption(
+                "actionCost",
+                "Action Cost",
+                "Browse live action costs for the current group and stage canonical action-cost clauses.",
+                "number",
+              )
+            : getScopedFieldOptions(query).find((candidate) => candidate.value === field) ?? null;
+      if (!fieldOption || fieldOption.editor !== "sharedExplorer") {
+        await terminal.pauseForAnyKey("That grouped row cannot be edited through the shared explorer.");
+        return;
+      }
+
+      const seedQuery = buildGroupedFieldSeedQuery(query, groupPath);
+      const applyDraft = (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => {
+        const { nextQuery, nextFocusPath } = applyGroupedFieldDraftToQuery(query, groupPath, field, draft, context);
+        replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
+      };
+
+      await openOntologyFieldEditor(
+        seedQuery,
+        fieldOption,
+        null,
+        (_result, draft, context) => {
+          applyDraft(draft, context);
+        },
+        undefined,
+        (_result, draft, context) => {
+          applyDraft(draft, context);
+        },
+        {
+          buildQueryForDraft: (draft, context) => applyGroupedFieldDraftToQuery(query, groupPath, field, draft, context).nextQuery,
+          initialPreparedDraft: user.search.prepareFilterExplorerDraft(seedQuery, [fieldOption.value]),
+          onBack: () => {},
+          onExitRoot: () => {},
+        },
+      );
+    },
+    [
+      applyGroupedFieldDraftToQuery,
+      buildGroupedFieldSeedQuery,
+      getScopedFieldOptions,
+      openOntologyFieldEditor,
+      replaceStructuredDraftProjection,
+      terminal,
+      user.search,
+    ],
+  );
+
+  const openLiveExplorerQueryField = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      fieldOption: Pf2eTerminalQueryFieldOption,
+    ) => {
+      const applyDraft = (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => {
+        replaceStructuredDraftProjection((currentQuery) => user.search.applyFilterExplorerDraft(currentQuery, draft, context));
+      };
+
+      await openOntologyFieldEditor(
+        query,
+        fieldOption,
+        null,
+        (_result, draft, context) => {
+          applyDraft(draft, context);
+        },
+        undefined,
+        (_result, draft, context) => {
+          applyDraft(draft, context);
+        },
+        {
+          buildQueryForDraft: (draft, context) => user.search.applyFilterExplorerDraft(query, draft, context),
+          initialPreparedDraft: user.search.prepareFilterExplorerDraft(query, [fieldOption.value]),
+          onBack: () => {},
+          onExitRoot: () => {},
+        },
+      );
+    },
+    [openOntologyFieldEditor, replaceStructuredDraftProjection, user.search],
   );
 
   const promptForPickerDiscoveryMode = React.useCallback(
@@ -364,7 +608,7 @@ export function useSearchStructuredDraftMetadataActions({
         return undefined;
       }
 
-      const selectedValue =
+      let preferredFieldValue =
         currentNode &&
         !("and" in currentNode) &&
         !("or" in currentNode) &&
@@ -372,50 +616,69 @@ export function useSearchStructuredDraftMetadataActions({
         "field" in currentNode
           ? currentNode.field
           : fieldOptions[0]!.value;
-      const selection = await promptSession.promptSelectOption({
-        title: family === "metric" ? "Metric" : "Metadata",
-        prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the metadata field for the next clause",
-        entries: fieldOptions.map((fieldOption) => ({
-          value: fieldOption.value,
-          label: fieldOption.label,
-          description: fieldOption.description,
-        })),
-        selectedValue:
-          selectedValue && fieldOptions.some((fieldOption) => fieldOption.value === selectedValue)
-            ? selectedValue
-            : fieldOptions[0]!.value,
-      });
-      if (selection.kind === "back") {
-        return CLAUSE_BACK;
-      }
-      if (selection.kind !== "selected") {
-        return undefined;
-      }
+      let pendingExplorerResult: SearchFilterNode | SearchFilterNode[] | null | undefined;
 
-      const fieldOption = fieldOptions.find((candidate) => candidate.value === selection.value);
-      if (!fieldOption) {
-        return undefined;
-      }
-
-      if (fieldOption.editor === "sharedExplorer") {
-        return new Promise<SearchFilterNodeEditorResult>((resolve) => {
-          void openOntologyFieldEditor(query, fieldOption, currentNode, (result) => {
-            if (result.kind === "insert") {
-              resolve(
-                result.nodes
-                  .map((node) => metadataFilterNodeToCanonicalFilter(node))
-                  .filter((node): node is SearchFilterNode => Boolean(node)),
-              );
-              return;
-            }
-
-            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
-          });
+      while (true) {
+        const selection = await promptSession.promptSelectOption({
+          title: family === "metric" ? "Metric" : "Metadata",
+          prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the metadata field for the next clause",
+          entries: fieldOptions.map((fieldOption) => ({
+            value: fieldOption.value,
+            label: fieldOption.label,
+            description: fieldOption.description,
+          })),
+          selectedValue:
+            preferredFieldValue && fieldOptions.some((fieldOption) => fieldOption.value === preferredFieldValue)
+              ? preferredFieldValue
+              : fieldOptions[0]!.value,
         });
-      }
+        if (selection.kind === "back") {
+          if (pendingExplorerResult) {
+            return {
+              kind: CLAUSE_CONTINUE,
+              node: pendingExplorerResult,
+            };
+          }
+          return CLAUSE_BACK;
+        }
+        if (selection.kind !== "selected") {
+          return undefined;
+        }
 
-      const nextNode = await editFieldClause(query, fieldOption, currentNode);
-      return nextNode === undefined ? undefined : nextNode ? metadataFilterNodeToCanonicalFilter(nextNode) ?? null : null;
+        preferredFieldValue = selection.value;
+        const fieldOption = fieldOptions.find((candidate) => candidate.value === selection.value);
+        if (!fieldOption) {
+          return undefined;
+        }
+
+        if (fieldOption.editor === "sharedExplorer") {
+          const explorerResult = await new Promise<SearchFilterNodeEditorResult | typeof CLAUSE_BACK | undefined>((resolve) => {
+            void openOntologyFieldEditor(
+              query,
+              fieldOption,
+              currentNode,
+              (result) => {
+                resolve(toSearchFilterNodeEditorResult(result));
+              },
+              () => resolve(CLAUSE_BACK),
+              (result) => {
+                pendingExplorerResult = toSearchFilterNodeEditorResult(result);
+              },
+              {
+                onCancel: () => resolve(undefined),
+              },
+            );
+          });
+
+          if (explorerResult === CLAUSE_BACK) {
+            continue;
+          }
+          return explorerResult;
+        }
+
+        const nextNode = await editFieldClause(query, fieldOption, currentNode);
+        return nextNode === undefined ? undefined : nextNode ? metadataFilterNodeToCanonicalFilter(nextNode) ?? null : null;
+      }
     },
     [editFieldClause, getScopedFieldOptions, openOntologyFieldEditor, prompts, terminal],
   );
@@ -964,6 +1227,11 @@ export function useSearchStructuredDraftMetadataActions({
             }
             resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
           },
+          () => resolve(CLAUSE_BACK),
+          undefined,
+          {
+            onCancel: () => resolve(undefined),
+          },
         );
       });
     },
@@ -1097,40 +1365,51 @@ export function useSearchStructuredDraftMetadataActions({
   const addQueryClauseAtPath = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not"): Promise<ClauseApplyResult> => {
       return terminal.runPromptSession(async (session) => {
+        let workingQuery = query;
         while (true) {
-          const clauseKind = await promptForClauseKind(session, query);
+          const clauseKind = await promptForClauseKind(session, workingQuery);
           if (clauseKind === CLAUSE_BACK) {
             return "back";
           }
           if (!clauseKind) {
             return "cancelled";
           }
-          const nextNode = await promptForClauseNode(session, query, clauseKind);
+          const nextNode = await promptForClauseNode(session, workingQuery, clauseKind);
           if (nextNode === CLAUSE_BACK) {
             continue;
           }
           if (!nextNode) {
             return "cancelled";
           }
+          const shouldContinue = isClausePromptContinueResult(nextNode);
+          const appliedNode = shouldContinue ? nextNode.node : nextNode;
           const wrappedNode =
             wrapper === "allOf" || wrapper === "anyOf"
               ? ({
                   kind: wrapper,
-                  children: Array.isArray(nextNode) ? nextNode : [nextNode],
+                  children: Array.isArray(appliedNode) ? appliedNode : [appliedNode],
                 } as SearchFilterNode)
               : wrapper === "not"
                 ? ({
                     kind: "not",
-                    child: Array.isArray(nextNode)
-                      ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
-                      : nextNode,
+                    child: Array.isArray(appliedNode)
+                      ? ({ kind: "allOf", children: appliedNode } as SearchFilterNode)
+                      : appliedNode,
                   } as SearchFilterNode)
-                : nextNode;
+                : appliedNode;
+          const nextFilter = Array.isArray(wrappedNode)
+            ? appendSearchFilterNodesAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery))
+            : appendSearchFilterNodeAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery));
+          workingQuery = {
+            ...workingQuery,
+            filter: nextFilter,
+          };
           applyNextTree(
-            Array.isArray(wrappedNode)
-              ? appendSearchFilterNodesAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query))
-              : appendSearchFilterNodeAtPath(query.filter, path, wrappedNode, getSearchQueryRootOperator(query)),
-          );
+            nextFilter,
+        );
+        if (shouldContinue) {
+          continue;
+        }
           return "applied";
         }
       });
@@ -1334,31 +1613,27 @@ export function useSearchStructuredDraftMetadataActions({
           await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
           return;
         }
-        if (editableClauseKind === "rarity" && editableMetadataNode) {
-          await openLiveExplorerFieldClause(
+        if (editableClauseKind === "rarity") {
+          await openLiveExplorerQueryField(
             query,
-            path,
             buildExplorerOnlyFieldOption(
               "rarity",
               "Rarity",
               "Browse live rarities for the current scope and stage canonical rarity clauses.",
               "enumString",
             ),
-            editableMetadataNode,
           );
           return;
         }
-        if (editableClauseKind === "actionCost" && editableMetadataNode) {
-          await openLiveExplorerFieldClause(
+        if (editableClauseKind === "actionCost") {
+          await openLiveExplorerQueryField(
             query,
-            path,
             buildExplorerOnlyFieldOption(
               "actionCost",
               "Action Cost",
               "Browse live action costs for the current scope and stage canonical action-cost clauses.",
               "number",
             ),
-            editableMetadataNode,
           );
           return;
         }
@@ -1377,10 +1652,15 @@ export function useSearchStructuredDraftMetadataActions({
         const nextNode = await terminal.runPromptSession((session) =>
           promptForClauseNode(session, query, editableClauseKind, node),
         );
-        if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode)) {
+        const shouldContinue = isClausePromptContinueResult(nextNode);
+        if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode) || shouldContinue) {
           return;
         }
-        applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNode ?? undefined));
+        if (nextNode === null) {
+          applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+          return;
+        }
+        applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNode));
         return;
       }
 
@@ -1411,6 +1691,7 @@ export function useSearchStructuredDraftMetadataActions({
       editFieldClause,
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
+      openLiveExplorerQueryField,
       openLiveExplorerFieldClause,
       promptForClauseNode,
       terminal,
@@ -1628,6 +1909,14 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
       if (entry.kind === "queryTreeRoot") {
+        const rootPath = entry.treePath ?? [];
+        if (rootPath.length > 0) {
+          const rootNode = getSearchFilterNodeAtPath(draftQuery.filter, rootPath);
+          if (rootNode && isSearchFilterBooleanGroup(rootNode)) {
+            await promptForGroupAction(draftQuery, rootPath, rootNode);
+            return;
+          }
+        }
         await promptForRootAction(draftQuery);
         return;
       }
@@ -1645,6 +1934,10 @@ export function useSearchStructuredDraftMetadataActions({
           return;
         }
         await runInsertionAction(draftQuery, entry.insertionPath ?? [], "addClause");
+        return;
+      }
+      if (entry.kind === "queryFieldBucket") {
+        await openLiveExplorerGroupedField(draftQuery, entry);
         return;
       }
       if (entry.kind !== "queryNode") {
@@ -1687,10 +1980,20 @@ export function useSearchStructuredDraftMetadataActions({
         return [];
       }
       if (entry.kind === "queryTreeRoot") {
+        const rootPath = entry.treePath ?? [];
+        if (rootPath.length > 0) {
+          const rootNode = getSearchFilterNodeAtPath(draftQuery.filter, rootPath);
+          if (rootNode && isSearchFilterBooleanGroup(rootNode)) {
+            return getGroupActionEntries(draftQuery, rootPath, rootNode);
+          }
+        }
         return buildRootActionEntries(draftQuery);
       }
       if (entry.kind === "queryInsertionSlot") {
         return buildInsertionActionEntries(Boolean(moveSourcePath));
+      }
+      if (entry.kind === "queryFieldBucket") {
+        return [{ id: "edit", label: "Edit Clause", description: "Edit this current-group field bucket through the shared explorer." }];
       }
       if (entry.kind !== "queryNode") {
         return [];
@@ -1727,11 +2030,25 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
       if (entry.kind === "queryTreeRoot") {
+        const rootPath = entry.treePath ?? [];
+        if (rootPath.length > 0) {
+          const rootNode = getSearchFilterNodeAtPath(draftQuery.filter, rootPath);
+          if (rootNode && isSearchFilterBooleanGroup(rootNode)) {
+            await runGroupAction(draftQuery, rootPath, rootNode, actionId);
+            return;
+          }
+        }
         await runRootAction(draftQuery, actionId);
         return;
       }
       if (entry.kind === "queryInsertionSlot") {
         await runInsertionAction(draftQuery, entry.insertionPath ?? [], actionId);
+        return;
+      }
+      if (entry.kind === "queryFieldBucket") {
+        if (actionId === "edit") {
+          await openLiveExplorerGroupedField(draftQuery, entry);
+        }
         return;
       }
       if (entry.kind !== "queryNode") {
@@ -1758,6 +2075,7 @@ export function useSearchStructuredDraftMetadataActions({
       runInsertionAction,
       runLeafAction,
       runNotAction,
+      openLiveExplorerGroupedField,
       runRootAction,
       structuredDraftQuery,
     ],

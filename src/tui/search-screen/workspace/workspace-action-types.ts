@@ -25,6 +25,10 @@ export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+  buildQueryForDraft?: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
+  ) => Pf2eTerminalSearchQuery;
   onDraftChange?: (
     draft: Pf2eTerminalFilterExplorerDraft,
     context: Pf2eTerminalPreparedFilterExplorerContext,
@@ -34,5 +38,17 @@ export type OpenSearchFilterExplorer = (options: {
     context: Pf2eTerminalPreparedFilterExplorerContext,
   ) => void;
   onReturn?: () => void;
+  onCancel?: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
+  ) => void;
+  onBack?: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
+  ) => void;
+  onExitRoot?: (
+    draft: Pf2eTerminalFilterExplorerDraft,
+    context: Pf2eTerminalPreparedFilterExplorerContext,
+  ) => void;
   singleFieldBehavior?: "list" | "directValues";
 }) => Promise<boolean>;

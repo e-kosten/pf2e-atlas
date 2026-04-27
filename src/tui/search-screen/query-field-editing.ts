@@ -9,6 +9,7 @@ import type {
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalPreparedFilterExplorerContext,
+  Pf2eTerminalPreparedFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -58,6 +59,16 @@ export function useSearchQueryFieldEditing({
       draft: Pf2eTerminalFilterExplorerDraft,
       context: Pf2eTerminalPreparedFilterExplorerContext,
     ) => void,
+    options?: {
+      buildQueryForDraft?: (
+        draft: Pf2eTerminalFilterExplorerDraft,
+        context: Pf2eTerminalPreparedFilterExplorerContext,
+      ) => Pf2eTerminalSearchQuery;
+      initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+      onBack?: () => void;
+      onExitRoot?: () => void;
+      onCancel?: () => void;
+    },
   ) => Promise<boolean>;
   openOntologyFieldExplorer: (
     query: Pf2eTerminalSearchQuery,
@@ -121,6 +132,16 @@ export function useSearchQueryFieldEditing({
         draft: Pf2eTerminalFilterExplorerDraft,
         context: Pf2eTerminalPreparedFilterExplorerContext,
       ) => void,
+      options?: {
+        buildQueryForDraft?: (
+          draft: Pf2eTerminalFilterExplorerDraft,
+          context: Pf2eTerminalPreparedFilterExplorerContext,
+        ) => Pf2eTerminalSearchQuery;
+        initialPreparedDraft?: Pf2eTerminalPreparedFilterExplorerDraft;
+        onBack?: () => void;
+        onExitRoot?: () => void;
+        onCancel?: () => void;
+      },
     ): Promise<boolean> => {
       if (fieldOption.editor !== "sharedExplorer") {
         return false;
@@ -129,7 +150,10 @@ export function useSearchQueryFieldEditing({
       return openFilterExplorer({
         queryOverride: query,
         fieldOptions: [fieldOption],
-        initialPreparedDraft: user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
+        initialPreparedDraft:
+          options?.initialPreparedDraft ??
+          user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]),
+        buildQueryForDraft: options?.buildQueryForDraft,
         onDraftChange: onDraftChange
           ? (draft, context) =>
               onDraftChange(
@@ -141,7 +165,9 @@ export function useSearchQueryFieldEditing({
                 context,
               )
           : undefined,
-        onReturn,
+        onBack: options?.onBack ? () => options.onBack?.() : onReturn ? () => onReturn() : undefined,
+        onExitRoot: options?.onExitRoot ? () => options.onExitRoot?.() : undefined,
+        onCancel: options?.onCancel ? () => options.onCancel?.() : undefined,
         singleFieldBehavior: "directValues",
         onApply: (draft, context) =>
           onApply(
