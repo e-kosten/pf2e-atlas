@@ -30,6 +30,7 @@ import {
   shouldApplySearchFilterExplorerRefresh,
 } from "./filter-explorer-refresh.js";
 import { buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft-model.js";
+import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
 const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
@@ -45,6 +46,45 @@ const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<Sea
   },
 ];
 
+function mergeExplorerNodeTrees(
+  visibleNodes: readonly OntologyNode[],
+  refreshedNodes: readonly OntologyNode[],
+): OntologyNode[] {
+  const refreshedById = new Map(refreshedNodes.map((node) => [node.id, node]));
+
+  return visibleNodes.map((visibleNode) => {
+    const refreshedNode = refreshedById.get(visibleNode.id);
+    if (!refreshedNode) {
+      return visibleNode;
+    }
+
+    const visibleChildren = visibleNode.children;
+    const refreshedChildren = refreshedNode.children;
+    if (!visibleChildren || !refreshedChildren) {
+      return refreshedNode;
+    }
+
+    return {
+      ...refreshedNode,
+      children: mergeExplorerNodeTrees(visibleChildren, refreshedChildren),
+    };
+  });
+}
+
+function mergeExplorerModelPreservingVisibleNodes(
+  visibleModel: OntologyDomainModel,
+  refreshedModel: OntologyDomainModel,
+): OntologyDomainModel {
+  if (visibleModel.id !== refreshedModel.id) {
+    return refreshedModel;
+  }
+
+  return {
+    ...refreshedModel,
+    rootNodes: mergeExplorerNodeTrees(visibleModel.rootNodes, refreshedModel.rootNodes),
+  };
+}
+
 export function SearchFilterExplorerScreen({
   session,
 }: {
@@ -54,21 +94,26 @@ export function SearchFilterExplorerScreen({
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
+  const loadModelForDiscoveryMode = session.loadModelForDiscoveryMode;
   const scopedFields = React.useMemo(() => session.fieldOptions.map((fieldOption) => fieldOption.value), [session.fieldOptions]);
   const prepareDraft = React.useCallback(
     (query: typeof session.query) => user.search.prepareFilterExplorerDraft(query, scopedFields),
     [scopedFields, user.search],
   );
   const buildDraft = React.useCallback(
-    (): FilterExplorerComposeDraft => prepareDraft(queryRef.current).draft,
-    [prepareDraft],
+    (): FilterExplorerComposeDraft => draftRef.current,
+    [],
   );
   const [model, setModel] = React.useState(session.model);
+  const [, rerenderDraft] = React.useReducer((value: number) => value + 1, 0);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const queryRef = React.useRef(session.query);
+  const draftRef = React.useRef<FilterExplorerComposeDraft>(prepareDraft(session.query).draft);
   const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const modelCacheRef = React.useRef(new Map<SearchFilterDiscoveryMode, SearchFilterExplorerSession["model"]>());
+  const preservedMetadataRef = React.useRef(prepareDraft(session.query).preservedMetadata);
+  const scopedFieldsRef = React.useRef<readonly typeof scopedFields[number][]>(prepareDraft(session.query).scopedFields);
   const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,7 +132,7 @@ export function SearchFilterExplorerScreen({
 
   const runModelRefresh = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode, options: { debounceMs?: number; force?: boolean } = {}) => {
-      if (!session.loadModelForDiscoveryMode) {
+      if (!loadModelForDiscoveryMode) {
         setDiscoveryMode(nextMode);
         setRefreshState(null);
         discoveryModeRef.current = nextMode;
@@ -95,6 +140,7 @@ export function SearchFilterExplorerScreen({
       }
 
       const { debounceMs = DISCOVERY_REFRESH_DEBOUNCE_MS, force = false } = options;
+      const preserveVisibleNodes = force && nextMode === discoveryModeRef.current;
       const plan = planSearchFilterExplorerRefresh({
         nextMode,
         displayedMode: discoveryModeRef.current,
@@ -122,8 +168,7 @@ export function SearchFilterExplorerScreen({
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
-        void session
-          .loadModelForDiscoveryMode!(nextMode)
+        void loadModelForDiscoveryMode(nextMode)
           .then((nextModel) => {
             if (
               !shouldApplySearchFilterExplorerRefresh({
@@ -134,7 +179,11 @@ export function SearchFilterExplorerScreen({
               return;
             }
             modelCacheRef.current.set(nextMode, nextModel);
-            setModel(nextModel);
+            setModel((currentModel) =>
+              preserveVisibleNodes && !isSearchFilterExplorerLoadingModel(currentModel)
+                ? mergeExplorerModelPreservingVisibleNodes(currentModel, nextModel)
+                : nextModel,
+            );
             setDiscoveryMode(nextMode);
             discoveryModeRef.current = nextMode;
             setRefreshState(null);
@@ -160,7 +209,7 @@ export function SearchFilterExplorerScreen({
 
       executeRefresh();
     },
-    [invalidateRefreshes, session, terminal],
+    [invalidateRefreshes, loadModelForDiscoveryMode, terminal],
   );
 
   React.useEffect(() => {
@@ -172,8 +221,17 @@ export function SearchFilterExplorerScreen({
   }, [discoveryMode]);
 
   React.useEffect(() => {
-    invalidateRefreshes();
     queryRef.current = session.query;
+  }, [session.query]);
+
+  React.useEffect(() => {
+    invalidateRefreshes();
+    const preparedDraft = prepareDraft(session.query);
+    queryRef.current = session.query;
+    draftRef.current = preparedDraft.draft;
+    preservedMetadataRef.current = preparedDraft.preservedMetadata;
+    scopedFieldsRef.current = preparedDraft.scopedFields;
+    rerenderDraft();
     setModel(session.model);
     setDiscoveryMode(initialDiscoveryMode);
     discoveryModeRef.current = initialDiscoveryMode;
@@ -181,18 +239,18 @@ export function SearchFilterExplorerScreen({
       isSearchFilterExplorerLoadingModel(session.model) ? [] : [[initialDiscoveryMode, session.model]],
     );
     setRefreshState(
-      session.loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)
+      loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)
         ? { pendingMode: initialDiscoveryMode }
         : null,
     );
-    if (session.loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)) {
+    if (loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)) {
       runModelRefresh(initialDiscoveryMode, { debounceMs: 0, force: true });
     }
 
     return () => {
       invalidateRefreshes();
     };
-  }, [initialDiscoveryMode, invalidateRefreshes, runModelRefresh, session.loadModelForDiscoveryMode, session.model, session.query]);
+  }, [initialDiscoveryMode, invalidateRefreshes, loadModelForDiscoveryMode, prepareDraft, runModelRefresh, session.model]);
 
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -241,10 +299,11 @@ export function SearchFilterExplorerScreen({
 
   const applyNextDraft = React.useCallback(
     (nextDraft: FilterExplorerComposeDraft) => {
-      const preparedDraft = prepareDraft(queryRef.current);
+      draftRef.current = nextDraft;
+      rerenderDraft();
       const nextQuery = user.search.applyFilterExplorerDraft(queryRef.current, nextDraft, {
-        preservedMetadata: preparedDraft.preservedMetadata,
-        scopedFields: preparedDraft.scopedFields,
+        preservedMetadata: preservedMetadataRef.current,
+        scopedFields: scopedFieldsRef.current,
       });
       queryRef.current = nextQuery;
       session.onQueryChange(nextQuery);
@@ -252,7 +311,7 @@ export function SearchFilterExplorerScreen({
         runModelRefresh(discoveryModeRef.current, { force: true });
       }
     },
-    [prepareDraft, runModelRefresh, session, user.search],
+    [runModelRefresh, session, user.search],
   );
 
   const host = React.useMemo<FilterExplorerHostAdapter>(

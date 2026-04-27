@@ -674,6 +674,38 @@ function createNamedExplorerDomain(label: string): OntologyDomainModel {
   };
 }
 
+function createRarityExplorerDomain(values: readonly string[]): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Rarity Explorer",
+    description: "Rarity explorer test domain",
+    rootNodes: [
+      {
+        id: "spell:field:rarity",
+        kind: "field",
+        label: "Rarity",
+        filterText: "rarity",
+        listLabel: "Rarity",
+        detailTitle: "Metadata Field Details",
+        detailLines: [{ text: "Rarity", tone: "section" }],
+        children: values.map((value) => ({
+          id: `spell:field:rarity:value:${value}`,
+          kind: "value",
+          label: value,
+          filterText: value,
+          listLabel: value,
+          detailTitle: "Value Details",
+          detailLines: [{ text: value, tone: "section" }],
+          query: browseQuery(`Browse ${value} spells`, {
+            filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value })]),
+            limit: 20,
+          }),
+        })),
+      },
+    ],
+  };
+}
+
 describe("search screen", () => {
   afterEach(() => {
     cleanup();
@@ -3425,5 +3457,148 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Matching Result");
     expect(app.lastFrame()).not.toContain("Catalog Result");
+  });
+
+  it("preserves live discrete selections across parent query rerenders", async () => {
+    const services = createServices();
+    const fieldOptions = [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+
+    function Harness(): React.JSX.Element {
+      const [query, setQuery] = React.useState(
+        browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      );
+      const model = React.useMemo(() => createRarityExplorerDomain(["common"]), []);
+
+      const session = React.useMemo<SearchFilterExplorerSession>(
+        () => ({
+          title: "Rarity Explorer",
+          model,
+          query,
+          fieldOptions,
+          onQueryChange: (nextQuery) => {
+            setQuery(setSearchQueryRaritySelection(nextQuery, { include: [], exclude: [] }));
+          },
+          resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+        }),
+        [model, query],
+      );
+
+      return <SearchFilterExplorer session={session} />;
+    }
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <Harness />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await waitForFrameToContain(app, "Rarity Explorer");
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "common", 60);
+    expect(app.lastFrame()).toContain("common");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[✓] common");
+    expect(app.lastFrame()).toContain("Current clauses");
+    expect(app.lastFrame()).not.toContain("No filter values selected yet.");
+  });
+
+  it("keeps excluded values visible while matching counts refresh in place", async () => {
+    const services = createServices();
+    const fieldOptions = [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+
+    function Harness(): React.JSX.Element {
+      const [query, setQuery] = React.useState(
+        browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      );
+      const queryRef = React.useRef(query);
+
+      React.useEffect(() => {
+        queryRef.current = query;
+      }, [query]);
+
+      const loadModelForDiscoveryMode = React.useCallback(async () => {
+        const filter = JSON.stringify(queryRef.current.filter);
+        return filter.includes("\"notIn\"") ? createRarityExplorerDomain(["common"]) : createRarityExplorerDomain(["common", "rare"]);
+      }, []);
+
+      const session = React.useMemo<SearchFilterExplorerSession>(
+        () => ({
+          title: "Rarity Explorer",
+          model: createRarityExplorerDomain(["common", "rare"]),
+          query,
+          fieldOptions,
+          onQueryChange: (nextQuery) => {
+            queryRef.current = nextQuery;
+            setQuery(nextQuery);
+          },
+          resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+          refreshOnQueryChange: true,
+          initialDiscoveryMode: "matching",
+          loadModelForDiscoveryMode,
+        }),
+        [loadModelForDiscoveryMode, query],
+      );
+
+      return <SearchFilterExplorer session={session} />;
+    }
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <Harness />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).toContain("rare");
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("[x] rare");
+    expect(app.lastFrame()).toContain("Current clauses");
+    expect(app.lastFrame()).not.toContain("No filter values selected yet.");
   });
 });
