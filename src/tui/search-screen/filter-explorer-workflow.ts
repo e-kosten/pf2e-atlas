@@ -5,6 +5,7 @@ import {
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
 import type {
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -25,6 +26,7 @@ export function useSearchFilterExplorerWorkflow({
   filterExplorerSession: SearchFilterExplorerSession | null;
   openFilterExplorer: (options: {
     queryOverride?: Pf2eTerminalSearchQuery;
+    initialDraft?: Pf2eTerminalFilterExplorerDraft;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
     onReturn?: () => void;
@@ -40,6 +42,7 @@ export function useSearchFilterExplorerWorkflow({
   const openFilterExplorer = React.useCallback(
     async ({
       queryOverride,
+      initialDraft,
       fieldOptions,
       onQueryChange,
       onReturn,
@@ -49,6 +52,7 @@ export function useSearchFilterExplorerWorkflow({
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
       queryOverride?: Pf2eTerminalSearchQuery;
+      initialDraft?: Pf2eTerminalFilterExplorerDraft;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
       onReturn?: () => void;
@@ -98,6 +102,7 @@ export function useSearchFilterExplorerWorkflow({
         initialDiscoveryMode: "matching",
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         query: scopeQuery,
+        initialDraft,
         fieldOptions,
         refreshOnQueryChange: Boolean(onQueryChange),
         onQueryChange: (nextQuery) => {

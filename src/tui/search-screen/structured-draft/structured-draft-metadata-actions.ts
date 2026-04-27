@@ -30,6 +30,7 @@ import {
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchQueryCategory, getSearchQueryRootOperator, getSearchQuerySubcategory } from "../../search/query-state.js";
 import type {
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -164,20 +165,110 @@ function toSearchFilterNodeEditorResult(
   return metadataFilterNodeToCanonicalFilter(result.node) ?? null;
 }
 
+function buildGroupedFieldSeedDiscreteClauses(
+  node: SearchFilterNode | undefined,
+  field: string | undefined,
+  operator: "include" | "exclude" = "include",
+): Pf2eTerminalFilterExplorerDraft["discreteClauses"] {
+  if (!node || !field) {
+    return [];
+  }
+
+  if (field === "rarity" || field === "actionCost") {
+    if (node.kind === field && node.match.kind === "eq") {
+      return [{ field, value: String(node.match.value), operator }];
+    }
+    if (node.kind === "anyOf") {
+      return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
+    }
+    if (node.kind === "not") {
+      return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+    }
+    return [];
+  }
+
+  if (node.kind === "metadataPredicate" && node.predicate.field === field && "value" in node.predicate) {
+    return [{ field, value: String(node.predicate.value), operator }];
+  }
+  if (node.kind === "not") {
+    return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+  }
+
+  return [];
+}
+
+function buildGroupedFieldSeedGroupNode(
+  groupNode: Extract<SearchFilterNode, { kind: "allOf" } | { kind: "anyOf" }>,
+  removedChildIndexes: ReadonlySet<number>,
+): SearchFilterNode | undefined {
+  const remainingChildren = groupNode.children.filter((_child, childIndex) => !removedChildIndexes.has(childIndex));
+  if (remainingChildren.length === 0) {
+    return undefined;
+  }
+  if (remainingChildren.length === 1) {
+    return remainingChildren[0];
+  }
+  return {
+    kind: groupNode.kind,
+    children: remainingChildren,
+  };
+}
+
 export function buildGroupedFieldSeedState(
   query: Pf2eTerminalSearchQuery,
   groupPath: number[],
+  options?: {
+    field?: string;
+    fieldMemberPaths?: number[][];
+  },
 ): {
   seedGroupPath: number[];
   seedQuery: Pf2eTerminalSearchQuery;
+  initialDraft: Pf2eTerminalFilterExplorerDraft;
 } {
   const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
   if (!groupNode) {
     return {
       seedGroupPath: [],
       seedQuery: query,
+      initialDraft: {
+        discreteClauses: [],
+        scalarClauses: {},
+      },
     };
   }
+
+  const fieldChildIndexes = new Set<number>();
+  for (const memberPath of options?.fieldMemberPaths ?? []) {
+    if (memberPath.length <= groupPath.length) {
+      continue;
+    }
+    const isInGroup = groupPath.every((segment, index) => memberPath[index] === segment);
+    if (!isInGroup) {
+      continue;
+    }
+    const childIndex = memberPath[groupPath.length];
+    if (childIndex !== undefined) {
+      fieldChildIndexes.add(childIndex);
+    }
+  }
+
+  const initialDraft: Pf2eTerminalFilterExplorerDraft = {
+    discreteClauses: [...fieldChildIndexes]
+      .sort((left, right) => left - right)
+      .flatMap((childIndex) =>
+        buildGroupedFieldSeedDiscreteClauses(
+          isSearchFilterBooleanGroup(groupNode) ? groupNode.children[childIndex] : undefined,
+          options?.field,
+        ),
+      ),
+    scalarClauses: {},
+  };
+
+  const seedGroupNode =
+    isSearchFilterBooleanGroup(groupNode) && fieldChildIndexes.size > 0
+      ? buildGroupedFieldSeedGroupNode(groupNode, fieldChildIndexes)
+      : groupNode;
 
   const scopeNode = findSearchScopeFilter(query.filter);
   if (groupPath.length === 0 || !scopeNode) {
@@ -185,8 +276,9 @@ export function buildGroupedFieldSeedState(
       seedGroupPath: [],
       seedQuery: {
         ...query,
-        filter: groupNode,
+        filter: seedGroupNode,
       },
+      initialDraft,
     };
   }
 
@@ -194,8 +286,9 @@ export function buildGroupedFieldSeedState(
     seedGroupPath: [1],
     seedQuery: {
       ...query,
-      filter: buildAllOfFilter([scopeNode, groupNode]),
+      filter: seedGroupNode ? buildAllOfFilter([scopeNode, seedGroupNode]) : scopeNode,
     },
+    initialDraft,
   };
 }
 
@@ -387,6 +480,7 @@ export function useSearchStructuredDraftMetadataActions({
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
+      initialDraft?: Pf2eTerminalFilterExplorerDraft;
     },
   ) => Promise<boolean>;
   moveSourcePath: number[] | null;
@@ -494,7 +588,10 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
 
-      const { seedGroupPath, seedQuery } = buildGroupedFieldSeedState(query, groupPath);
+      const { seedGroupPath, seedQuery, initialDraft } = buildGroupedFieldSeedState(query, groupPath, {
+        field,
+        fieldMemberPaths,
+      });
       await openOntologyFieldEditor(
         seedQuery,
         fieldOption,
@@ -523,6 +620,7 @@ export function useSearchStructuredDraftMetadataActions({
         {
           onBack: () => {},
           onExitRoot: () => {},
+          initialDraft,
         },
       );
     },

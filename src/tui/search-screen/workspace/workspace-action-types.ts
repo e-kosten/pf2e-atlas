@@ -1,6 +1,7 @@
 import type { Pf2eTerminalAppServices } from "../../app-services.js";
 import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -20,6 +21,7 @@ export type SearchWorkspaceUser = Pick<Pf2eTerminalAppServices["user"], "search"
 
 export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
+  initialDraft?: Pf2eTerminalFilterExplorerDraft;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   onQueryChange?: (query: Pf2eTerminalSearchQuery) => void;
   onReturn?: () => void;

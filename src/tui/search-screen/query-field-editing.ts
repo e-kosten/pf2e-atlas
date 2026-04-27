@@ -4,6 +4,7 @@ import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { isMetadataPredicate } from "../search/query-core.js";
 import type {
   Pf2eTerminalFacetField,
+  Pf2eTerminalFilterExplorerDraft,
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -53,6 +54,7 @@ export function useSearchQueryFieldEditing({
       onBack?: () => void;
       onExitRoot?: () => void;
       onCancel?: () => void;
+      initialDraft?: Pf2eTerminalFilterExplorerDraft;
     },
   ) => Promise<boolean>;
   openOntologyFieldExplorer: (
@@ -119,6 +121,7 @@ export function useSearchQueryFieldEditing({
         onBack?: () => void;
         onExitRoot?: () => void;
         onCancel?: () => void;
+        initialDraft?: Pf2eTerminalFilterExplorerDraft;
       },
     ): Promise<boolean> => {
       if (fieldOption.editor !== "sharedExplorer") {
@@ -136,6 +139,7 @@ export function useSearchQueryFieldEditing({
 
       return openFilterExplorer({
         queryOverride: query,
+        initialDraft: options?.initialDraft,
         fieldOptions: [fieldOption],
         onQueryChange: onQueryChange
           ? (nextQuery) => {
