@@ -124,6 +124,7 @@ export function useSearchFilterExplorerWorkflow({
         preservedMetadata: preparedDraft.preservedMetadata,
         scopedFields: preparedDraft.scopedFields,
       };
+      const shouldApplyOnClose = !buildQueryForDraft;
       const currentDraftRef = {
         current: preparedDraft.draft,
       };
@@ -175,7 +176,7 @@ export function useSearchFilterExplorerWorkflow({
         onBack: (nextDraft) => {
           if (onBack) {
             onBack(nextDraft, preparedContext);
-          } else {
+          } else if (shouldApplyOnClose) {
             onApply(nextDraft, preparedContext);
           }
           setFilterExplorerSession(null);
@@ -184,7 +185,7 @@ export function useSearchFilterExplorerWorkflow({
         onExitRoot: (nextDraft) => {
           if (onExitRoot) {
             onExitRoot(nextDraft, preparedContext);
-          } else {
+          } else if (shouldApplyOnClose) {
             onApply(nextDraft, preparedContext);
           }
           setFilterExplorerSession(null);
