@@ -736,7 +736,7 @@ describe("pf2e terminal app", () => {
     app.stdin.write("?");
     await flushInk();
 
-    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return to the previous level");
+    expect(app.lastFrame()).toContain("\u2190 or h / Backspace / Escape: return from the explorer");
     expect(app.lastFrame()).toContain("q: leave the explorer");
   });
 

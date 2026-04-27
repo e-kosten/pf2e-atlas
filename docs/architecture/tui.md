@@ -178,7 +178,7 @@ This keeps query editing and result reading logic in the TUI while leaving share
 Within the search screen, the live workspace no longer renders structured rows directly from raw query state. The search-screen workspace derives a summary/document model from the canonical query state first, then renders:
 
 - workspace rows
-- staged structured-query summaries
+- live structured-query summaries
 - query-status/detail summaries
 
 That summary layer owns stable anchors for major query branches and filter nodes. The durable rule is:
@@ -190,9 +190,9 @@ That summary layer owns stable anchors for major query branches and filter nodes
 - the workspace summary/document model owns editor-facing identity and display structure
 - terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane
 
-The dedicated structured editor presents a visible root boolean group for editing, but that editor framing is not itself the durable storage model. Single-child wrapper groups that exist only to support editor presentation should collapse back to the underlying canonical filter node when they do not carry additional shared semantics.
+The dedicated structured editor presents a visible root boolean group for editing, but that editor framing is a live host surface over canonical query state rather than a separate staged query model. Single-child wrapper groups that exist only to support editor presentation should collapse back to the underlying canonical filter node when they do not carry additional shared semantics.
 
-Structured editing keeps only the staged canonical filter projection plus local cursor/move state. Focused add/edit flows such as the query-field builder keep short-lived dialog-local builder state and derive preview summaries from the canonical query shell plus the staged filter nodes they are about to commit.
+Structured editing keeps canonical `SearchRequest` state live plus local cursor and move state. Focused add/edit flows such as the query-field builder keep short-lived dialog-local builder state while they collect enough input to emit a valid canonical node. Explorer-backed field editing may derive transient selection state from the current query to drive row badges, grouped buckets, or scalar summaries, but those projections apply changes back into the live query immediately instead of owning a second staged search-edit model.
 
 ### Ontology Explorer Layer
 
@@ -222,6 +222,7 @@ Shared between them:
 - `OntologyDomainModel` and `OntologyNode` remain the tree contract
 - `FilterExplorerScreen` remains the shared list/detail explorer surface
 - the shared action rail remains the owner for discovery-mode actions such as `Use Matching Counts` and `Use Catalog Counts`
+- the shared explorer may expose generic mode-switch affordances, while each host owns its own mode type and mode semantics
 - app-layer ontology and discovery services remain the semantic owners below the TUI
 
 Different between them:
@@ -279,10 +280,10 @@ Both surfaces enter the same shared explorer behavior after their host-specific 
 ```mermaid
 stateDiagram-v2
   [*] --> OntologyPrepared : ontology route prepared
-  [*] --> SearchPrepared : compose session opened
+  [*] --> SearchPrepared : search edit session opened
 
   OntologyPrepared --> InspectSession : mount inspect-and-open host
-  SearchPrepared --> ComposeSession : mount compose host
+  SearchPrepared --> SearchLiveSession : mount inspect-and-open host
 
   state SharedExplorer {
     [*] --> Browsing
@@ -297,20 +298,21 @@ stateDiagram-v2
   }
 
   InspectSession --> SharedExplorer
-  ComposeSession --> SharedExplorer
+  SearchLiveSession --> SharedExplorer
 
   InspectSession --> OpenSearch : open editor or results
   OpenSearch --> [*]
 
   InspectSession --> [*] : exit at root
-  ComposeSession --> ApplyDraft : exit at root
-  ApplyDraft --> [*]
+  SearchLiveSession --> ReturnToTree : back outcome
+  ReturnToTree --> [*]
+  SearchLiveSession --> [*] : exitRoot or cancel
 ```
 
 The durable split is:
 
 - ontology browse enters the shared explorer in inspect mode and exits by opening a search route or returning to the ontology area
-- search filter building enters the shared explorer in compose mode and exits by applying a draft back into canonical search-query state
+- search field editing enters the shared explorer in inspect-and-open mode with host-provided activation and selection presentation, and the search host applies live query updates plus close/back outcomes around that shared session
 - matching/catalog refresh, action rail behavior, list/detail routing, and scalar edit prompts are shared explorer behaviors even when the surrounding host lifecycle differs
 
 For the sequence views below:
@@ -396,7 +398,7 @@ sequenceDiagram
     box rgba(255, 243, 205, 0.75) Search-builder-only host and workflow
         participant SearchHost as search-screen/controller.ts + query-field-builder session
         participant Workflow as search-screen/filter-explorer-workflow.ts
-        participant ComposeHost as search-screen/filter-explorer-screen.tsx
+        participant SearchExplorerHost as search-screen/filter-explorer-screen.tsx
     end
     box rgba(217, 247, 208, 0.65) Shared explorer and app services
         participant Explorer as FilterExplorerScreen
@@ -409,39 +411,41 @@ sequenceDiagram
     rect rgba(255, 243, 205, 0.35)
         User->>SearchHost: Open dedicated filter builder
         SearchHost->>Workflow: openFilterExplorer(...)
-        Workflow->>Search: normalizeQuery() + prepareFilterExplorerDraft()
+        Workflow->>Search: normalizeQuery()
         Workflow->>Ontology: loadSearchFilterExplorerDomain(request, matching)
         Ontology->>Data: build prepared search-scoped model
         Data-->>Ontology: prepared OntologyDomainModel
         Ontology-->>Workflow: prepared explorer model
-        Workflow->>ComposeHost: create compose session
+        Workflow->>SearchExplorerHost: create live explorer session
     end
 
     rect rgba(217, 247, 208, 0.28)
-        ComposeHost->>Explorer: mount compose session
+        SearchExplorerHost->>Explorer: mount inspect-and-open session with host selection state
+        SearchExplorerHost->>Search: derive transient selection state from the live query
         Explorer->>Controller: create shared list/detail state
         Controller-->>Explorer: rows, detail, action rail
         User->>Explorer: browse, drill, edit clauses
-        Explorer-->>ComposeHost: draft mutations
+        Explorer-->>SearchExplorerHost: target activation and explorer outcomes
     end
 
     rect rgba(255, 243, 205, 0.35)
         User->>Explorer: switch matching/catalog counts
-        Explorer->>ComposeHost: request discovery-mode change
-        ComposeHost->>Ontology: loadSearchFilterExplorerDomain(request, nextMode)
+        Explorer->>SearchExplorerHost: request discovery-mode change
+        SearchExplorerHost->>Ontology: loadSearchFilterExplorerDomain(request, nextMode)
         Ontology->>Data: rebuild prepared scoped model
         Data-->>Ontology: refreshed domain
-        Ontology-->>ComposeHost: refreshed model
-        ComposeHost->>Explorer: replace shared model
+        Ontology-->>SearchExplorerHost: refreshed model
+        SearchExplorerHost->>Explorer: replace shared model
     end
 
     rect rgba(255, 243, 205, 0.35)
-        User->>Explorer: exit at root / apply
-        Explorer->>ComposeHost: onExit()
-        ComposeHost->>Workflow: session.onApply(draft)
-        Workflow->>Search: applyFilterExplorerDraft(...)
-        Search-->>SearchHost: updated canonical query projection
-        SearchHost-->>User: return to search screen with updated filter tree
+        User->>Explorer: toggle or edit a clause
+        Explorer->>SearchExplorerHost: onQueryChange(nextQuery)
+        SearchExplorerHost-->>SearchHost: updated live canonical query
+        SearchHost-->>User: continue in the live query tree
+        User->>Explorer: back, exitRoot, or cancel
+        Explorer->>SearchExplorerHost: onOutcome(...)
+        SearchExplorerHost-->>SearchHost: close or return with current live query state
     end
 ```
 
@@ -450,9 +454,9 @@ The search explorer owns:
 - taking the live canonical query as scope
 - loading a prepared model for the current `SearchRequest`
 - caching and refreshing discovery-mode transitions within the search workflow
-- applying the resulting draft back into the search query editor
+- deriving transient selection state from the live query and applying query updates immediately through host callbacks
 
-This is still the path where `matching` versus `catalog` has the broader query-scoped semantic effect, even though the broad ontology browser now also uses the same mode vocabulary for derived-tag family visibility and counts.
+This is still the path where `matching` versus `catalog` has the broader query-scoped semantic effect, even though the broad ontology browser now also uses the same labels for derived-tag family visibility and counts. The shared explorer layer does not own one repo-wide `matching` / `catalog` mode type; search and ontology each own the host type and semantics for their own flow.
 
 ### Picker Flows
 
@@ -598,10 +602,10 @@ The search flow shows the intended layering most clearly.
 The async work is pushed further down:
 
 - `search-screen/session-workflow.ts` manages live counts, result-window execution, prefetch, sort changes, and session disposal
-- `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer in compose mode for ontology-backed field editing
+- `search-screen/filter-explorer-workflow.ts` opens the shared filter explorer as a search-hosted inspect-and-open session for ontology-backed field editing and live query mutation
 - `filter-explorer/controller.ts` owns reducer-backed browser state and screen orchestration, while `filter-explorer/workflow-actions.ts` owns command/help/open/compose workflow behavior
 - `search-screen/interactions.ts` maps state into terminal actions and help/command models
-- `search-screen/query-field-builder/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so staged-query screens do not hand-maintain separate action tables
+- `search-screen/query-field-builder/query-field-builder-session.ts` owns the structured-editor menu bindings, footer copy, and help sections so live query-tree screens do not hand-maintain separate action tables
 - `list-detail-presentation.ts` now owns the shared measurement and route-setup seam used by search result-reader, filter explorer, and review screens
 
 The search screen is intentionally render-only at route entry:
