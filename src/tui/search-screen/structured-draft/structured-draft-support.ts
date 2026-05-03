@@ -488,6 +488,20 @@ function pathsMatch(path: number[] | undefined, targetPath: number[]): boolean {
   return Boolean(path) && JSON.stringify(path) === JSON.stringify(targetPath);
 }
 
+export function findStructuredDraftGroupedFieldBucketForPath(
+  draftQuery: Pf2eTerminalSearchQuery,
+  focusPath: number[],
+  groupedFieldValues: ReadonlySet<string>,
+): SearchStructuredDraftEntry | null {
+  return (
+    buildStructuredDraftEntries(draftQuery, focusPath, { groupedFieldValues }).find(
+      (entry) =>
+        entry.kind === "queryFieldBucket" &&
+        [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathsMatch(path, focusPath)),
+    ) ?? null
+  );
+}
+
 export function getStructuredDraftSelectionIndexForPath(
   entries: SearchStructuredDraftEntry[],
   focusPath: number[] | null,

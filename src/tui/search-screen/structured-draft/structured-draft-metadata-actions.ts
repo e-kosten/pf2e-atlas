@@ -40,7 +40,10 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
-import { buildStructuredDraftEntries } from "./structured-draft-support.js";
+import {
+  buildStructuredDraftEntries,
+  findStructuredDraftGroupedFieldBucketForPath,
+} from "./structured-draft-support.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
@@ -275,8 +278,10 @@ function buildGroupedFieldReplacementNodes(
   searchUser: SearchWorkspaceUser["search"],
   query: Pf2eTerminalSearchQuery,
   fieldState: SearchFilterExplorerFieldState,
-  field: string,
+  fieldOption: Pf2eTerminalQueryFieldOption,
+  options?: { preserveFlatSetClauses?: boolean },
 ): SearchFilterNode[] {
+  const field = fieldOption.value;
   const selection = fieldState.discreteSelections[field] ?? { include: [], exclude: [] };
   const draft = buildSearchFilterExplorerComposeDraft(fieldState);
   const discreteClauses = draft.discreteClauses.filter((clause) => clause.field === field);
@@ -309,6 +314,25 @@ function buildGroupedFieldReplacementNodes(
         );
     }
     return replacementNodes;
+  }
+
+  if (fieldOption.fieldType === "set" && options?.preserveFlatSetClauses) {
+    return discreteClauses.flatMap((clause) => {
+      const selection =
+        clause.operator === "include"
+          ? { include: [clause.value], exclude: [] }
+          : { include: [], exclude: [clause.value] };
+      const replacementNode = metadataFilterNodeToCanonicalFilter(
+        getSearchQueryMetadataTree(
+          searchUser.applyDiscoverableQueryFieldSelections(
+            setSearchQueryMetadataTree(query, null),
+            { [field]: selection },
+            [field],
+          ),
+        ),
+      );
+      return replacementNode ? [replacementNode] : [];
+    });
   }
 
   const replacementNode = metadataFilterNodeToCanonicalFilter(
@@ -746,7 +770,9 @@ export function useSearchStructuredDraftMetadataActions({
           if (!nextFieldState) {
             return;
           }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, field);
+          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
+            preserveFlatSetClauses: fieldMemberPaths.length > 0,
+          });
           const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
             query,
             groupPath,
@@ -761,7 +787,9 @@ export function useSearchStructuredDraftMetadataActions({
           if (!nextFieldState) {
             return;
           }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, field);
+          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
+            preserveFlatSetClauses: fieldMemberPaths.length > 0,
+          });
           const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
             query,
             groupPath,
@@ -1966,6 +1994,16 @@ export function useSearchStructuredDraftMetadataActions({
         }
         if ((editableClauseKind === "field" || editableClauseKind === "metric") && fieldOption && editableMetadataNode) {
           if (fieldOption.editor === "sharedExplorer") {
+            const groupedFieldValues = new Set(
+              fieldOptions
+                .filter((candidate) => candidate.editor === "sharedExplorer")
+                .map((candidate) => candidate.value),
+            );
+            const groupedFieldBucket = findStructuredDraftGroupedFieldBucketForPath(query, path, groupedFieldValues);
+            if (groupedFieldBucket) {
+              await openLiveExplorerGroupedField(query, groupedFieldBucket);
+              return;
+            }
             await openLiveExplorerFieldClause(query, path, fieldOption, editableMetadataNode);
             return;
           }
@@ -2018,6 +2056,7 @@ export function useSearchStructuredDraftMetadataActions({
       editFieldClause,
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
+      openLiveExplorerGroupedField,
       openLiveExplorerQueryField,
       openLiveExplorerFieldClause,
       promptForClauseNode,
