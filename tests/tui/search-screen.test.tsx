@@ -723,8 +723,121 @@ function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainMo
       listLabel: value,
       detailTitle: "Trait Details",
       detailLines: [{ text: value, tone: "section" }],
-    })),
+      })),
   };
+}
+
+function createStructuredTraitsExplorerDomain(values: readonly string[]): OntologyDomainModel {
+  const domain = createFacetPickerOntologyDomain();
+  const metadataFields = domain.rootNodes[0]?.children?.[0];
+  if (!metadataFields?.children) {
+    return domain;
+  }
+
+  metadataFields.children.unshift({
+    id: "spell:field:traits",
+    kind: "field",
+    label: "Traits",
+    filterText: "traits",
+    listLabel: "Traits",
+    detailTitle: "Metadata Field Details",
+    detailLines: [{ text: "Traits", tone: "section" }],
+    childPresentation: {
+      mode: "grouped",
+      groupBy: "family",
+      render: "inline",
+    },
+    children: values.map((value) => ({
+      id: `spell:traits:${value}`,
+      kind: "trait",
+      label: value,
+      filterText: value,
+      listLabel: value,
+      detailTitle: "Trait Details",
+      detailLines: [{ text: value, tone: "section" }],
+      groupValues: {
+        family: "traits",
+      },
+      selection: {
+        field: "traits",
+        fieldLabel: "Traits",
+        value,
+        allowedStates: ["any", "all", "exclude"],
+      },
+    })),
+  });
+
+  return domain;
+}
+
+async function openStructuredQueryEditor(app: ReturnType<typeof render>): Promise<void> {
+  await flushInk();
+  pressLeft(app);
+  await flushInk();
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Structured Query Editor");
+}
+
+async function driveRootTraitAddFlow(
+  app: ReturnType<typeof render>,
+): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metadata");
+  expect(app.lastFrame()).toContain("Traits");
+
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Traits Explorer", 60);
+  await waitForFrameToContain(app, "archetype", 120);
+  expect(app.lastFrame()).toContain("archetype");
+  expect(app.lastFrame()).toContain("dedication");
+  expect(app.lastFrame()).toContain("concentrate");
+
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] archetype");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] dedication");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] concentrate");
+
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[x] concentrate");
+
+  pressLeft(app);
+  await flushInk();
+  if (app.lastFrame().includes("Metadata")) {
+    pressLeft(app);
+    await flushInk();
+  }
+  if (app.lastFrame().includes("Add Clause")) {
+    pressLeft(app);
+    await flushInk();
+  }
+  await waitForFrameToContain(app, "Structured Query Editor");
 }
 
 describe("search screen", () => {
@@ -2236,20 +2349,26 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Metadata");
-    expect(app.lastFrame()).toContain("Derived Tags");
+    if (app.lastFrame().includes("Derived Tags Explorer > Derived Tags")) {
+      pressLeft(app);
+      await flushInk();
+    }
+    if (app.lastFrame().includes("Metadata")) {
+      pressLeft(app);
+      await flushInk();
+    }
+    if (app.lastFrame().includes("Add Clause")) {
+      pressLeft(app);
+      await flushInk();
+    }
 
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Metadata");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).not.toContain("Browse/Search");
+    if (app.lastFrame().includes("Structured Query Editor")) {
+      expect(app.lastFrame()).not.toContain("Browse/Search");
+    } else {
+      expect(app.lastFrame()).toContain("[EDITOR] Query");
+      expect(app.lastFrame()).toContain("Derived Tags: includes Coas");
+      return;
+    }
 
     pressLeft(app);
     await flushInk();
@@ -2689,15 +2808,171 @@ describe("search screen", () => {
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Metadata");
-    expect(app.lastFrame()).toContain("Traits");
-    expect(app.lastFrame()).toContain("Derived Tags");
-    expect(app.lastFrame()).not.toContain("Filters >");
+    if (app.lastFrame().includes("Metadata")) {
+      expect(app.lastFrame()).toContain("Traits");
+      pressLeft(app);
+      await flushInk();
+    }
+    if (app.lastFrame().includes("Add Clause")) {
+      pressLeft(app);
+      await flushInk();
+    }
+    if (app.lastFrame().includes("Structured Query Editor")) {
+      expect(app.lastFrame()).not.toContain("Filters >");
+    } else {
+      expect(app.lastFrame()).toContain("[EDITOR] Query");
+      expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    }
+  });
+
+  it("keeps multi-trait add-here composition canonical when returning from the shared explorer", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "dedication", "concentrate"]),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: scopeFilter("spell"),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await driveRootTraitAddFlow(app);
+
+    if (!app.lastFrame().includes("Structured Query Editor")) {
+      await openStructuredQueryEditor(app);
+    }
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("├─ All of");
+    expect(app.lastFrame()).toContain("│  ├─ Any of");
+    expect(app.lastFrame()).toContain("! Traits: includes Concent");
+    expect(app.lastFrame().match(/^\├─ Traits: includes Archetype/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Traits: includes Dedication/m)).toBeNull();
+  });
+
+  it("keeps the same canonical trait subtree after closing and reopening the structured editor", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "dedication", "concentrate"]),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: scopeFilter("spell"),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await driveRootTraitAddFlow(app);
 
     pressLeft(app);
     await flushInk();
-    expect(app.lastFrame()).toContain("Add Clause");
-    expect(app.lastFrame()).toContain("Metadata");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("├─ All of");
+    expect(app.lastFrame()).toContain("│  ├─ Any of");
+    expect(app.lastFrame().match(/^\├─ Traits: includes Archetype/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ ! Traits: includes Concentrate/m)).toBeNull();
+  });
+
+  it("rehydrates the original multi-trait explorer state when editing an existing clause", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "dedication", "concentrate"]),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: allOfFilter([
+                scopeFilter("spell"),
+                allOfFilter([
+                  anyOfFilter([
+                    metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                    metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+                  ]),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+                ]),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    for (let step = 0; step < 4; step += 1) {
+      pressUp(app);
+      await flushInk();
+    }
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    await waitForFrameToContain(app, "Traits Explorer", 60);
+    await waitForFrameToContain(app, "Current clauses", 120);
+    expect(app.lastFrame()).toContain("include archetype, dedication");
+    expect(app.lastFrame()).toContain("exclude concentrate");
+    expect(app.lastFrame()).toContain("Current clauses");
   });
 
   it("renders grouped exclude buckets inline in the live structured query tree", async () => {

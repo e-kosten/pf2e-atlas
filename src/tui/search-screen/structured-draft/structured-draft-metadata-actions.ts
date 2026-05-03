@@ -31,6 +31,7 @@ import {
   getSearchQueryMetadataTree,
   getSearchQueryRootOperator,
   getSearchQuerySubcategory,
+  setSearchQueryMetadataTree,
 } from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
@@ -39,6 +40,7 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
+import { buildStructuredDraftEntries } from "./structured-draft-support.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
@@ -103,6 +105,10 @@ function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
     case "not":
       return "Exclude";
   }
+}
+
+function groupPathsEqual(left: number[] | undefined, right: number[]): boolean {
+  return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
 }
 
 function buildExplorerOnlyFieldOption(
@@ -248,9 +254,11 @@ function getGroupedFieldChildIndexes(groupPath: number[], fieldMemberPaths: read
 
 function buildGroupedFieldReplacementNodes(
   searchUser: SearchWorkspaceUser["search"],
+  query: Pf2eTerminalSearchQuery,
   fieldState: SearchFilterExplorerFieldState,
   field: string,
 ): SearchFilterNode[] {
+  const selection = fieldState.discreteSelections[field] ?? { include: [], exclude: [] };
   const draft = buildSearchFilterExplorerComposeDraft(fieldState);
   const discreteClauses = draft.discreteClauses.filter((clause) => clause.field === field);
 
@@ -284,14 +292,15 @@ function buildGroupedFieldReplacementNodes(
     return replacementNodes;
   }
 
-  const insertionResult = searchUser.buildFilterExplorerInsertionResult(draft);
-  if (insertionResult.kind === "insert") {
-    return insertionResult.nodes
-      .map((node) => metadataFilterNodeToCanonicalFilter(node))
-      .filter((node): node is SearchFilterNode => Boolean(node));
-  }
-
-  const replacementNode = metadataFilterNodeToCanonicalFilter(insertionResult.node);
+  const replacementNode = metadataFilterNodeToCanonicalFilter(
+    getSearchQueryMetadataTree(
+      searchUser.applyDiscoverableQueryFieldSelections(
+        setSearchQueryMetadataTree(query, null),
+        { [field]: selection },
+        [field],
+      ),
+    ),
+  );
   return replacementNode ? [replacementNode] : [];
 }
 
@@ -363,6 +372,20 @@ export function applyGroupedFieldReplacementToQuery(
   replacementNodes: readonly SearchFilterNode[],
 ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } {
   const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+  if (groupPath.length === 0 && replacementNodes.length > 0 && (!groupNode || !isSearchFilterBooleanGroup(groupNode))) {
+    const nextFilter = Array.isArray(replacementNodes) && replacementNodes.length > 1
+      ? appendSearchFilterNodesAtPath(query.filter, [], replacementNodes, getSearchQueryRootOperator(query))
+      : appendSearchFilterNodeAtPath(query.filter, [], replacementNodes[0]!, getSearchQueryRootOperator(query));
+    const nextFocusPath = nextFilter ? getFirstGroupedFieldMemberPath(nextFilter, [], field) : null;
+    return {
+      nextQuery: {
+        ...query,
+        filter: nextFilter,
+      },
+      nextFocusPath,
+    };
+  }
+
   if (!groupNode || !isSearchFilterBooleanGroup(groupNode)) {
     return { nextQuery: query, nextFocusPath: groupPath.length > 0 ? groupPath : null };
   }
@@ -657,7 +680,7 @@ export function useSearchStructuredDraftMetadataActions({
       const groupPath = entry.groupPath ?? [];
       const fieldMemberPaths = entry.fieldMemberPaths ?? entry.memberPaths ?? [];
       const field = entry.field;
-      if (!field || fieldMemberPaths.length === 0) {
+      if (!field) {
         return;
       }
 
@@ -694,7 +717,7 @@ export function useSearchStructuredDraftMetadataActions({
           if (!nextFieldState) {
             return;
           }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, nextFieldState, field);
+          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, field);
           const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
             query,
             groupPath,
@@ -709,7 +732,7 @@ export function useSearchStructuredDraftMetadataActions({
           if (!nextFieldState) {
             return;
           }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, nextFieldState, field);
+          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, field);
           const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
             query,
             groupPath,
@@ -735,6 +758,43 @@ export function useSearchStructuredDraftMetadataActions({
       terminal,
       user.search,
     ],
+  );
+
+  const openLiveExplorerGroupFieldByName = React.useCallback(
+    async (
+      query: Pf2eTerminalSearchQuery,
+      groupPath: number[],
+      fieldOption: Pf2eTerminalQueryFieldOption,
+    ) => {
+      const groupedFieldValues = new Set(
+        getScopedFieldOptions(query)
+          .filter((candidate) => candidate.editor === "sharedExplorer")
+          .map((candidate) => candidate.value),
+      );
+      const existingBucket = buildStructuredDraftEntries(query, groupPath, {
+        groupedFieldValues,
+      }).find(
+        (entry) =>
+          entry.kind === "queryFieldBucket" &&
+          groupPathsEqual(entry.groupPath, groupPath) &&
+          entry.field === fieldOption.value,
+      );
+
+      await openLiveExplorerGroupedField(query, {
+        kind: "queryFieldBucket",
+        key: `synthetic:${groupPath.join(".")}:${fieldOption.value}`,
+        label: fieldOption.label,
+        description: fieldOption.description,
+        groupPath,
+        field: fieldOption.value,
+        fieldOperator: existingBucket?.fieldOperator ?? "include",
+        memberPaths: existingBucket?.memberPaths ?? [],
+        fieldMemberPaths: existingBucket?.fieldMemberPaths ?? [],
+        indent: groupPath.length + 1,
+        menuLabel: fieldOption.label,
+      });
+    },
+    [getScopedFieldOptions, openLiveExplorerGroupedField],
   );
 
   const openLiveExplorerQueryField = React.useCallback(
@@ -1582,6 +1642,36 @@ export function useSearchStructuredDraftMetadataActions({
           if (!clauseKind) {
             return "cancelled";
           }
+          if (clauseKind === "field" && wrapper === undefined) {
+            const fieldOptions = getScopedFieldOptions(workingQuery).filter(
+              (fieldOption) => !isMetricFieldOptionValue(fieldOption.value) && fieldOption.editor === "sharedExplorer",
+            );
+            if (fieldOptions.length > 0) {
+              const selection = await session.promptSelectOption({
+                title: "Metadata",
+                prompt: "Choose the metadata field for the next clause",
+                entries: fieldOptions.map((fieldOption) => ({
+                  value: fieldOption.value,
+                  label: fieldOption.label,
+                  description: fieldOption.description,
+                })),
+                selectedValue: fieldOptions[0]!.value,
+              });
+              if (selection.kind === "back") {
+                continue;
+              }
+              if (selection.kind !== "selected") {
+                return "cancelled";
+              }
+              const fieldOption = fieldOptions.find((candidate) => candidate.value === selection.value);
+              if (!fieldOption) {
+                return "cancelled";
+              }
+
+              await openLiveExplorerGroupFieldByName(workingQuery, path, fieldOption);
+              return "applied";
+            }
+          }
           const nextNode = await promptForClauseNode(session, workingQuery, clauseKind);
           if (nextNode === CLAUSE_BACK) {
             continue;
@@ -1622,7 +1712,7 @@ export function useSearchStructuredDraftMetadataActions({
         }
       });
     },
-    [applyNextTree, promptForClauseKind, promptForClauseNode, terminal],
+    [applyNextTree, getScopedFieldOptions, openLiveExplorerGroupFieldByName, promptForClauseKind, promptForClauseNode, terminal],
   );
 
   const runInsertionAction = React.useCallback(
