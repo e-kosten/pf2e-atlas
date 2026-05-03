@@ -3181,6 +3181,121 @@ describe("search screen", () => {
     }
   });
 
+  it("returns grouped add-clause metadata explorers directly to the structured editor on back", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(() =>
+      createStructuredTraitsExplorerDomain(["illusion", "emotion"]),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: scopeFilter("spell"),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await openTraitsExplorerFromAddHere(app);
+    await waitForFrameToContain(app, "illusion", 120);
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("[✓] illusion");
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "Structured Query Editor");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    expect(app.lastFrame()).not.toContain("Add Clause");
+  });
+
+  it("steps single-clause shared-explorer flows back through the metadata picker before returning to the query editor", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(() =>
+      createStructuredTraitsExplorerDomain(["illusion", "emotion"]),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse spells", {
+              filter: scopeFilter("spell"),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Insertion Slot");
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    for (let attempt = 0; attempt < 4 && !app.lastFrame().includes("Choose the metadata field for the next clause"); attempt += 1) {
+      if (app.lastFrame().includes("Choose the clause kind to insert into the current group")) {
+        pressDown(app);
+        await flushInk();
+        app.stdin.write("\r");
+        await flushInk();
+        continue;
+      }
+      await flushInk();
+    }
+
+    expect(app.lastFrame()).toContain("Traits");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await waitForFrameToContain(app, "Traits Explorer", 60);
+    await waitForFrameToContain(app, "illusion", 120);
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).toContain("[✓] illusion");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Metadata");
+    expect(app.lastFrame()).toContain("Traits");
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query");
+    expect(app.lastFrame()).toContain("[EDITOR] Query");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+  });
+
   it("keeps multi-trait add-here composition canonical when returning from the shared explorer", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [

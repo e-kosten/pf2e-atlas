@@ -69,6 +69,15 @@ type ClausePromptContinueResult = {
   node: SearchFilterNode | SearchFilterNode[];
 };
 type PromptStepResult<T> = T | ClausePromptBackResult | undefined;
+type StructuredDraftSharedExplorerSnapshot = {
+  result: Pf2eTerminalFilterExplorerInsertionResult;
+  nextQuery: Pf2eTerminalSearchQuery;
+  nextFieldState?: SearchFilterExplorerFieldState;
+};
+type StructuredDraftSharedExplorerSessionResult =
+  | { kind: "applied"; snapshot: StructuredDraftSharedExplorerSnapshot }
+  | { kind: "back"; snapshot?: StructuredDraftSharedExplorerSnapshot }
+  | { kind: "cancelled"; snapshot?: StructuredDraftSharedExplorerSnapshot };
 type SearchFilterNodeEditorResult =
   | SearchFilterNode
   | SearchFilterNode[]
@@ -691,6 +700,99 @@ export function useSearchStructuredDraftMetadataActions({
     [replaceStructuredDraftProjection],
   );
 
+  const openStructuredDraftSharedExplorerSession = React.useCallback(
+    async ({
+      applyLatestOnClose = false,
+      currentNode,
+      fieldOption,
+      initialFieldState,
+      onLiveSnapshot,
+      preservedMetadata,
+      query,
+    }: {
+      applyLatestOnClose?: boolean;
+      currentNode: MetadataFilterNode | null;
+      fieldOption: Pf2eTerminalQueryFieldOption;
+      initialFieldState?: SearchFilterExplorerFieldState;
+      onLiveSnapshot?: (snapshot: StructuredDraftSharedExplorerSnapshot) => void;
+      preservedMetadata?: MetadataFilterNode | null;
+      query: Pf2eTerminalSearchQuery;
+    }): Promise<StructuredDraftSharedExplorerSessionResult | null> => {
+      return new Promise<StructuredDraftSharedExplorerSessionResult | null>((resolve, reject) => {
+        let latestSnapshot: StructuredDraftSharedExplorerSnapshot | undefined;
+        let appliedSnapshot: StructuredDraftSharedExplorerSnapshot | undefined;
+        let settled = false;
+
+        const rememberSnapshot = (
+          result: Pf2eTerminalFilterExplorerInsertionResult,
+          nextQuery: Pf2eTerminalSearchQuery,
+          nextFieldState?: SearchFilterExplorerFieldState,
+        ): StructuredDraftSharedExplorerSnapshot => {
+          const snapshot = { result, nextQuery, nextFieldState };
+          latestSnapshot = snapshot;
+          return snapshot;
+        };
+
+        const finish = (result: StructuredDraftSharedExplorerSessionResult | null): void => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(result);
+        };
+
+        const finishWithLatest = (kind: "back" | "cancelled"): void => {
+          finish(latestSnapshot ? { kind, snapshot: latestSnapshot } : { kind });
+        };
+
+        const finishWithAppliedOrBack = (): void => {
+          finish(
+            appliedSnapshot
+              ? { kind: "applied", snapshot: appliedSnapshot }
+              : latestSnapshot
+                ? { kind: "back", snapshot: latestSnapshot }
+                : { kind: "back" },
+          );
+        };
+
+        void openOntologyFieldEditor(
+          query,
+          fieldOption,
+          currentNode,
+          (result, nextQuery, nextFieldState) => {
+            appliedSnapshot = rememberSnapshot(result, nextQuery, nextFieldState);
+          },
+          finishWithAppliedOrBack,
+          (result, nextQuery, nextFieldState) => {
+            const snapshot = rememberSnapshot(result, nextQuery, nextFieldState);
+            onLiveSnapshot?.(snapshot);
+          },
+          {
+            applyLatestOnClose,
+            initialFieldState,
+            preservedMetadata,
+            onExitRoot: finishWithAppliedOrBack,
+            onCancel: () => {
+              finishWithLatest("cancelled");
+            },
+          },
+        )
+          .then((opened) => {
+            if (!opened) {
+              finish(null);
+            }
+          })
+          .catch((error) => {
+            if (settled) {
+              return;
+            }
+            reject(error instanceof Error ? error : new Error(String(error)));
+          });
+      });
+    },
+    [openOntologyFieldEditor],
+  );
+
   const openLiveExplorerFieldClause = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
@@ -698,7 +800,7 @@ export function useSearchStructuredDraftMetadataActions({
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
     ) => {
-      const applyResult = (result: Pf2eTerminalFilterExplorerInsertionResult) => {
+      const applySnapshot = ({ result }: StructuredDraftSharedExplorerSnapshot) => {
         if (result.kind !== "replace") {
           return;
         }
@@ -708,25 +810,18 @@ export function useSearchStructuredDraftMetadataActions({
         });
       };
       setStructuredDraftMetadataFocusPath(path);
-      await openOntologyFieldEditor(
+      const sessionResult = await openStructuredDraftSharedExplorerSession({
         query,
         fieldOption,
         currentNode,
-        (result) => {
-          applyResult(result);
-        },
-        undefined,
-        (result) => {
-          applyResult(result);
-        },
-        {
-          applyLatestOnClose: true,
-          onBack: () => {},
-          onExitRoot: () => {},
-        },
-      );
+        applyLatestOnClose: true,
+        onLiveSnapshot: applySnapshot,
+      });
+      if (sessionResult?.kind === "applied") {
+        applySnapshot(sessionResult.snapshot);
+      }
     },
-    [openOntologyFieldEditor, setStructuredDraftMetadataFocusPath, updateStructuredDraftMetadataNode],
+    [openStructuredDraftSharedExplorerSession, setStructuredDraftMetadataFocusPath, updateStructuredDraftMetadataNode],
   );
 
   const openLiveExplorerGroupedField = React.useCallback(
@@ -766,55 +861,38 @@ export function useSearchStructuredDraftMetadataActions({
         field,
         fieldMemberPaths,
       });
-      await openOntologyFieldEditor(
-        seedQuery,
+      const applySnapshot = ({ nextFieldState }: StructuredDraftSharedExplorerSnapshot) => {
+        if (!nextFieldState) {
+          return;
+        }
+        const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
+          preserveFlatSetClauses: fieldMemberPaths.length > 0,
+        });
+        const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
+          query,
+          groupPath,
+          field,
+          fieldMemberPaths,
+          replacementNodes,
+        );
+        replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
+      };
+      const sessionResult = await openStructuredDraftSharedExplorerSession({
+        query: seedQuery,
         fieldOption,
-        null,
-        (_result, _nextGroupQuery, nextFieldState) => {
-          if (!nextFieldState) {
-            return;
-          }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
-            preserveFlatSetClauses: fieldMemberPaths.length > 0,
-          });
-          const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
-            query,
-            groupPath,
-            field,
-            fieldMemberPaths,
-            replacementNodes,
-          );
-          replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
-        },
-        undefined,
-        (_result, _nextGroupQuery, nextFieldState) => {
-          if (!nextFieldState) {
-            return;
-          }
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
-            preserveFlatSetClauses: fieldMemberPaths.length > 0,
-          });
-          const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
-            query,
-            groupPath,
-            field,
-            fieldMemberPaths,
-            replacementNodes,
-          );
-          replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
-        },
-        {
-          applyLatestOnClose: true,
-          onBack: () => {},
-          onExitRoot: () => {},
-          initialFieldState,
-          preservedMetadata,
-        },
-      );
+        currentNode: null,
+        applyLatestOnClose: true,
+        initialFieldState,
+        preservedMetadata,
+        onLiveSnapshot: applySnapshot,
+      });
+      if (sessionResult?.kind === "applied") {
+        applySnapshot(sessionResult.snapshot);
+      }
     },
     [
       getScopedFieldOptions,
-      openOntologyFieldEditor,
+      openStructuredDraftSharedExplorerSession,
       replaceStructuredDraftProjection,
       terminal,
       user.search,
@@ -863,25 +941,21 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
     ) => {
-      await openOntologyFieldEditor(
+      const applySnapshot = ({ nextQuery }: StructuredDraftSharedExplorerSnapshot) => {
+        replaceStructuredDraftProjection(() => nextQuery);
+      };
+      const sessionResult = await openStructuredDraftSharedExplorerSession({
         query,
         fieldOption,
-        null,
-        (_result, nextQuery) => {
-          replaceStructuredDraftProjection(() => nextQuery);
-        },
-        undefined,
-        (_result, nextQuery) => {
-          replaceStructuredDraftProjection(() => nextQuery);
-        },
-        {
-          applyLatestOnClose: true,
-          onBack: () => {},
-          onExitRoot: () => {},
-        },
-      );
+        currentNode: null,
+        applyLatestOnClose: true,
+        onLiveSnapshot: applySnapshot,
+      });
+      if (sessionResult?.kind === "applied") {
+        applySnapshot(sessionResult.snapshot);
+      }
     },
-    [openOntologyFieldEditor, replaceStructuredDraftProjection],
+    [openStructuredDraftSharedExplorerSession, replaceStructuredDraftProjection],
   );
 
   const promptForPickerDiscoveryMode = React.useCallback(
@@ -981,35 +1055,30 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         if (fieldOption.editor === "sharedExplorer") {
-          const explorerResult = await new Promise<SearchFilterNodeEditorResult | typeof CLAUSE_BACK | undefined>((resolve) => {
-            void openOntologyFieldEditor(
-              query,
-              fieldOption,
-              currentNode,
-              (result) => {
-                resolve(toSearchFilterNodeEditorResult(result));
-              },
-              () => resolve(CLAUSE_BACK),
-              (result) => {
-                pendingExplorerResult = toSearchFilterNodeEditorResult(result);
-              },
-              {
-                onCancel: () => resolve(undefined),
-              },
-            );
+          const sessionResult = await openStructuredDraftSharedExplorerSession({
+            query,
+            fieldOption,
+            currentNode,
           });
+          if (!sessionResult || sessionResult.kind === "cancelled") {
+            return undefined;
+          }
 
-          if (explorerResult === CLAUSE_BACK) {
+          if (sessionResult.kind === "back") {
+            pendingExplorerResult = sessionResult.snapshot
+              ? toSearchFilterNodeEditorResult(sessionResult.snapshot.result)
+              : pendingExplorerResult;
             continue;
           }
-          return explorerResult;
+
+          return toSearchFilterNodeEditorResult(sessionResult.snapshot.result);
         }
 
         const nextNode = await editFieldClause(query, fieldOption, currentNode);
         return nextNode === undefined ? undefined : nextNode ? metadataFilterNodeToCanonicalFilter(nextNode) ?? null : null;
       }
     },
-    [editFieldClause, getScopedFieldOptions, openOntologyFieldEditor, prompts, terminal],
+    [editFieldClause, getScopedFieldOptions, openStructuredDraftSharedExplorerSession, prompts, terminal],
   );
 
   const getAvailableMetricFamilies = React.useCallback(
@@ -1539,36 +1608,30 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       node?: Extract<SearchFilterNode, { kind: "rarity" }>,
     ): Promise<SearchFilterNodeEditorResult> => {
-      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
-        void openOntologyFieldEditor(
-          query,
-          buildExplorerOnlyFieldOption(
-            "rarity",
-            "Rarity",
-            "Browse live rarities for the current scope and stage canonical rarity clauses.",
-            "enumString",
-          ),
-          node ? canonicalFilterToMetadataNode(node) : null,
-          (result) => {
-            if (result.kind === "insert") {
-              resolve(
-                result.nodes
-                  .map((metadataNode) => metadataFilterNodeToCanonicalFilter(metadataNode))
-                  .filter((candidate): candidate is SearchFilterNode => Boolean(candidate)),
-              );
-              return;
-            }
-            resolve(metadataFilterNodeToCanonicalFilter(result.node) ?? null);
-          },
-          () => resolve(CLAUSE_BACK),
-          undefined,
-          {
-            onCancel: () => resolve(undefined),
-          },
-        );
+      const sessionResult = await openStructuredDraftSharedExplorerSession({
+        query,
+        fieldOption: buildExplorerOnlyFieldOption(
+          "rarity",
+          "Rarity",
+          "Browse live rarities for the current scope and stage canonical rarity clauses.",
+          "enumString",
+        ),
+        currentNode: node ? canonicalFilterToMetadataNode(node) : null,
+        applyLatestOnClose: true,
       });
+      if (!sessionResult) {
+        return undefined;
+      }
+      if (sessionResult.kind === "cancelled") {
+        return undefined;
+      }
+      if (sessionResult.kind === "back") {
+        return CLAUSE_BACK;
+      }
+
+      return toSearchFilterNodeEditorResult(sessionResult.snapshot.result);
     },
-    [openOntologyFieldEditor],
+    [openStructuredDraftSharedExplorerSession],
   );
 
   const promptForClauseNode = React.useCallback(

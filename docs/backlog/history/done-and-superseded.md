@@ -54,6 +54,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Shared list/detail behavior contracts](./items/shared-list-detail-behavior-contracts.md)
   Rightward list/detail intent, dead-end handling, and explicit-only focus policy now live on a shared behavior contract instead of drifting across the qualifying search and explorer screens. Status: done.
 
+- [Structured draft shared explorer session cleanup](./items/structured-draft-shared-explorer-session-cleanup.md)
+  Structured-draft metadata actions now route grouped and single-clause shared-explorer launches through one session coordinator without changing their distinct writeback semantics. Status: done.
+
 - [Incomplete search tail in nested explorer lists](./items/incomplete-search-tail.md)
   The shared ontology leaf and result-reader path now appears to keep deep explorer counts aligned closely enough in practice that this is no longer active backlog work. Status: done.
 
