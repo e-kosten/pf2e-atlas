@@ -727,15 +727,35 @@ function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainMo
   };
 }
 
-function createStructuredTraitsExplorerDomain(values: readonly string[]): OntologyDomainModel {
+function createStructuredTraitsExplorerDomain(
+  values: readonly string[],
+  options: { categoryKey?: string; categoryLabel?: string } = {},
+): OntologyDomainModel {
+  const categoryKey = options.categoryKey ?? "spell";
+  const categoryLabel = options.categoryLabel ?? "Spell";
   const domain = createFacetPickerOntologyDomain();
+  const rewriteNodeIds = (node: OntologyNode): void => {
+    if (node.id.startsWith("spell:")) {
+      node.id = `${categoryKey}:${node.id.slice("spell:".length)}`;
+    }
+    node.children?.forEach(rewriteNodeIds);
+  };
+  const categoryNode = domain.rootNodes[0];
+  if (categoryNode) {
+    categoryNode.id = `searchSemantics:${categoryKey}`;
+    categoryNode.label = categoryLabel;
+    categoryNode.listLabel = categoryLabel;
+    categoryNode.detailTitle = categoryLabel;
+    categoryNode.detailLines = [{ text: categoryLabel, tone: "section" }];
+    categoryNode.children?.forEach(rewriteNodeIds);
+  }
   const metadataFields = domain.rootNodes[0]?.children?.[0];
   if (!metadataFields?.children) {
     return domain;
   }
 
   metadataFields.children.unshift({
-    id: "spell:field:traits",
+    id: `${categoryKey}:field:traits`,
     kind: "field",
     label: "Traits",
     filterText: "traits",
@@ -748,7 +768,7 @@ function createStructuredTraitsExplorerDomain(values: readonly string[]): Ontolo
       render: "inline",
     },
     children: values.map((value) => ({
-      id: `spell:traits:${value}`,
+      id: `${categoryKey}:traits:${value}`,
       kind: "trait",
       label: value,
       filterText: value,
@@ -838,6 +858,93 @@ async function driveRootTraitAddFlow(
     await flushInk();
   }
   await waitForFrameToContain(app, "Structured Query Editor");
+}
+
+async function openTraitsExplorerFromAddHere(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metadata");
+  expect(app.lastFrame()).toContain("Traits");
+
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Traits Explorer", 60);
+}
+
+async function returnFromExplorerToStructuredEditor(app: ReturnType<typeof render>): Promise<void> {
+  pressLeft(app);
+  await flushInk();
+  if (app.lastFrame().includes("Metadata")) {
+    pressLeft(app);
+    await flushInk();
+  }
+  if (app.lastFrame().includes("Add Clause")) {
+    pressLeft(app);
+    await flushInk();
+  }
+  await waitForFrameToContain(app, "Structured Query Editor");
+}
+
+async function driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promise<void> {
+  await openTraitsExplorerFromAddHere(app);
+  for (let attempt = 0; attempt < 3 && !app.lastFrame().includes("archetype"); attempt += 1) {
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+  }
+  await waitForFrameToContain(app, "archetype", 120);
+  expect(app.lastFrame()).toContain("skill");
+  expect(app.lastFrame()).toContain("concentrate");
+
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] archetype");
+
+  pressDown(app);
+  await flushInk();
+  pressDown(app);
+  await flushInk();
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] concentrate");
+
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[x] concentrate");
+
+  await returnFromExplorerToStructuredEditor(app);
+}
+
+async function addSkillToCurrentTraitSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
+  await waitForFrameToContain(app, "Traits Explorer", 60);
+  await waitForFrameToContain(app, "Current clauses", 120);
+  for (let attempt = 0; attempt < 3 && !app.lastFrame().includes("skill"); attempt += 1) {
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+  }
+  expect(app.lastFrame()).toContain("archetype");
+  expect(app.lastFrame()).toContain("concentrate");
+  expect(app.lastFrame()).toContain("skill");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] skill");
+
+  await returnFromExplorerToStructuredEditor(app);
 }
 
 describe("search screen", () => {
@@ -2972,6 +3079,126 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("include archetype, dedication");
     expect(app.lastFrame()).toContain("exclude concentrate");
     expect(app.lastFrame()).toContain("Current clauses");
+  });
+
+  it("keeps feat trait edit-clause additions flat instead of wrapping them in a nested group", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "skill", "concentrate"], {
+        categoryKey: "feat",
+        categoryLabel: "Feat",
+      }),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse feats", {
+              filter: allOfFilter([
+                scopeFilter("feat"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame().toLowerCase()).toContain("concent");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+
+    pressUp(app);
+    await flushInk();
+    pressUp(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    await addSkillToCurrentTraitSelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Skill");
+    expect(app.lastFrame().toLowerCase()).toContain("concent");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+  });
+
+  it("keeps feat trait add-here additions flat instead of converting the field into a nested any-of group", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "skill", "concentrate"], {
+        categoryKey: "feat",
+        categoryLabel: "Feat",
+      }),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse feats", {
+              filter: allOfFilter([
+                scopeFilter("feat"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame().toLowerCase()).toContain("concent");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+
+    await openTraitsExplorerFromAddHere(app);
+    await addSkillToCurrentTraitSelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Skill");
+    expect(app.lastFrame().toLowerCase()).toContain("concent");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
   });
 
   it("renders grouped exclude buckets inline in the live structured query tree", async () => {
