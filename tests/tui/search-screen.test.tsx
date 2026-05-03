@@ -790,6 +790,179 @@ function createStructuredTraitsExplorerDomain(
   return domain;
 }
 
+function createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Creature",
+    description: "Creature structured explorer test domain",
+    rootNodes: [
+      {
+        id: "searchSemantics:creature",
+        kind: "category",
+        label: "Creature",
+        shortLabel: "creature",
+        filterText: "creature",
+        detailTitle: "Creature",
+        detailLines: [{ text: "Creature", tone: "section" }],
+        children: [
+          {
+            id: "creature:metadataFields",
+            kind: "group",
+            label: "Metadata Fields",
+            filterText: "metadata fields",
+            detailTitle: "Metadata Fields",
+            detailLines: [{ text: "Metadata Fields", tone: "section" }],
+            children: [
+              {
+                id: "creature:field:traits",
+                kind: "field",
+                label: "Traits",
+                filterText: "traits",
+                listLabel: "Traits",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "Traits", tone: "section" }],
+                childPresentation: {
+                  mode: "grouped",
+                  groupBy: "family",
+                  render: "inline",
+                },
+                children: [
+                  {
+                    id: "creature:traits:humanoid",
+                    kind: "trait",
+                    label: "humanoid",
+                    filterText: "humanoid",
+                    listLabel: "humanoid",
+                    detailTitle: "Trait Details",
+                    detailLines: [{ text: "humanoid", tone: "section" }],
+                    groupValues: { family: "traits" },
+                    selection: {
+                      field: "traits",
+                      fieldLabel: "Traits",
+                      value: "humanoid",
+                      allowedStates: ["any", "all", "exclude"],
+                    },
+                  },
+                  {
+                    id: "creature:traits:evil",
+                    kind: "trait",
+                    label: "evil",
+                    filterText: "evil",
+                    listLabel: "evil",
+                    detailTitle: "Trait Details",
+                    detailLines: [{ text: "evil", tone: "section" }],
+                    groupValues: { family: "traits" },
+                    selection: {
+                      field: "traits",
+                      fieldLabel: "Traits",
+                      value: "evil",
+                      allowedStates: ["any", "all", "exclude"],
+                    },
+                  },
+                ],
+              },
+              {
+                id: "creature:field:families",
+                kind: "field",
+                label: "Families",
+                filterText: "families",
+                listLabel: "Families",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "Families", tone: "section" }],
+                children: [
+                  {
+                    id: "creature:field:families:value:ancestry_npcs",
+                    kind: "value",
+                    label: "ancestry npcs",
+                    filterText: "ancestry npcs",
+                    listLabel: "ancestry npcs",
+                    detailTitle: "Value Details",
+                    detailLines: [{ text: "ancestry npcs", tone: "section" }],
+                  },
+                  {
+                    id: "creature:field:families:value:humanoid",
+                    kind: "value",
+                    label: "humanoid",
+                    filterText: "humanoid",
+                    listLabel: "humanoid",
+                    detailTitle: "Value Details",
+                    detailLines: [{ text: "humanoid", tone: "section" }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: "creature:actorMetrics:discovery",
+            kind: "group",
+            label: "Creature Statistics",
+            filterText: "creature statistics metrics",
+            listLabel: "Creature Statistics",
+            detailTitle: "Creature Statistics",
+            detailLines: [{ text: "Creature Statistics", tone: "section" }],
+            children: [
+              {
+                id: "creature:actorMetrics:ac.",
+                kind: "metricNamespace",
+                label: "ac.",
+                filterText: "ac armor class",
+                listLabel: "ac. | 1 metric",
+                detailTitle: "Metric Namespace",
+                detailLines: [{ text: "ac.", tone: "section" }],
+                children: [
+                  {
+                    id: "creature:actorMetrics:ac.value",
+                    kind: "metric",
+                    label: "Armor Class",
+                    filterText: "ac armor class",
+                    listLabel: "Armor Class | 3",
+                    detailTitle: "Metric Details",
+                    detailLines: [{ text: "Armor Class", tone: "section" }],
+                    query: browseQuery("Browse creatures by armor class", {
+                      filter: allOfFilter([
+                        scopeFilter("creature"),
+                        metricCompareFilter("ac.value", "gte", "ac.value"),
+                      ]),
+                      limit: 20,
+                    }),
+                  },
+                ],
+              },
+              {
+                id: "creature:actorMetrics:hp.",
+                kind: "metricNamespace",
+                label: "hp.",
+                filterText: "hp hit points",
+                listLabel: "hp. | 1 metric",
+                detailTitle: "Metric Namespace",
+                detailLines: [{ text: "hp.", tone: "section" }],
+                children: [
+                  {
+                    id: "creature:actorMetrics:hp.value",
+                    kind: "metric",
+                    label: "Hit Points",
+                    filterText: "hp hit points",
+                    listLabel: "Hit Points | 4",
+                    detailTitle: "Metric Details",
+                    detailLines: [{ text: "Hit Points", tone: "section" }],
+                    query: browseQuery("Browse creatures by hit points", {
+                      filter: allOfFilter([
+                        scopeFilter("creature"),
+                        metricCompareFilter("hp.value", "gte", "hp.value"),
+                      ]),
+                      limit: 20,
+                    }),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 async function openStructuredQueryEditor(app: ReturnType<typeof render>): Promise<void> {
   await flushInk();
   pressLeft(app);
@@ -879,17 +1052,93 @@ async function openTraitsExplorerFromAddHere(app: ReturnType<typeof render>): Pr
 }
 
 async function returnFromExplorerToStructuredEditor(app: ReturnType<typeof render>): Promise<void> {
-  pressLeft(app);
-  await flushInk();
-  if (app.lastFrame().includes("Metadata")) {
-    pressLeft(app);
-    await flushInk();
-  }
-  if (app.lastFrame().includes("Add Clause")) {
+  for (let step = 0; step < 6; step += 1) {
+    if (app.lastFrame().includes("Structured Query Editor")) {
+      return;
+    }
     pressLeft(app);
     await flushInk();
   }
   await waitForFrameToContain(app, "Structured Query Editor");
+}
+
+async function openFamiliesExplorerFromAddHere(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metadata");
+  expect(app.lastFrame()).toContain("Families");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Families Explorer", 60);
+}
+
+async function addAncestryNpcsFromCurrentFamiliesSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
+  await waitForFrameToContain(app, "Families Explorer", 60);
+  await waitForFrameToContain(app, "ancestry npcs", 120);
+  expect(app.lastFrame().toLowerCase()).toContain("humanoid");
+
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("[✓] ancestry npcs");
+
+  await returnFromExplorerToStructuredEditor(app);
+}
+
+async function openMetricExplorerFromAddHere(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metric");
+  expect(app.lastFrame()).toContain("Creature Statistics");
+
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Creature Statistics Explorer", 60);
+}
+
+async function addAcGte10FromCurrentMetricSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
+  await waitForFrameToContain(app, "Creature Statistics Explorer", 60);
+  await waitForFrameToContain(app, "ac.", 120);
+  expect(app.lastFrame()).toContain("hp.");
+
+  app.stdin.write("\r");
+  await flushInk();
+  await waitForFrameToContain(app, "Armor Class", 60);
+
+  app.stdin.write("\r");
+  await flushInk();
+  await waitForFrameToContain(app, "Creature Statistics / Armor Class", 60);
+  expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.");
+
+  for (const character of ">=10") {
+    app.stdin.write(character);
+    await flushInk();
+  }
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Armor Class", 60);
+
+  await returnFromExplorerToStructuredEditor(app);
 }
 
 async function driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promise<void> {
@@ -3197,6 +3446,134 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Skill");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+  });
+
+  it("keeps flat grouped trait rows stable when adding a metric scalar clause from add-here", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live creature metrics.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse creatures", {
+              filter: allOfFilter([
+                scopeFilter("creature"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("evil");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+
+    await openMetricExplorerFromAddHere(app);
+    await addAcGte10FromCurrentMetricSelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame()).toContain("Creature Statistics: ac.va");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+  });
+
+  it("keeps the tree flat after reopening a mixed trait and family query", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+      {
+        value: "families",
+        label: "Families",
+        description: "Family query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live creature metrics.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={browseQuery("Browse creatures", {
+              filter: allOfFilter([
+                scopeFilter("creature"),
+                metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+              ]),
+              limit: 20,
+            }).request}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await openFamiliesExplorerFromAddHere(app);
+    await addAncestryNpcsFromCurrentFamiliesSelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame()).toContain("Families: includes Ancestry Npcs");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+
+    pressLeft(app);
+    await flushInk();
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame()).toContain("Families: includes Ancestry Npcs");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
   });
