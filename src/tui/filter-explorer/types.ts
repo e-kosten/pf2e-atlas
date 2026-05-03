@@ -179,7 +179,7 @@ export type FilterExplorerBrowserContext = {
   searchIndicator: string;
 };
 
-export type FilterExplorerScalarOperator = "eq" | "neq" | "gte" | "lte" | "between";
+export type FilterExplorerScalarOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "between";
 export type FilterExplorerDiscreteClauseOperator = "include" | "exclude";
 
 export type FilterExplorerDiscreteClause = {

@@ -29,8 +29,12 @@ function formatScalarClauseSummary(clause: FilterExplorerScalarClause): string {
       ? "="
       : clause.operator === "neq"
         ? "!="
+        : clause.operator === "gt"
+          ? ">"
         : clause.operator === "gte"
           ? ">="
+          : clause.operator === "lt"
+            ? "<"
           : "<=";
   return `${operator} ${String(clause.valueLabel ?? clause.value)}`;
 }

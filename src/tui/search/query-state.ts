@@ -8,6 +8,7 @@ import {
   buildAnyOfFilter,
   findSearchScopeFilter,
   type SearchFilterNode,
+  type SearchNumericMatch,
   type SearchRequest,
 } from "../../domain/search-request-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
@@ -291,10 +292,42 @@ function isTopLevelMetadataChild(child: SearchFilterNode): boolean {
   return isCanonicalMetadataFilterCandidate(child) && Boolean(canonicalFilterToMetadataNode(child));
 }
 
+function isSearchNumericMatch(
+  value: {
+    levelMin: number | null;
+    levelMax: number | null;
+  } | SearchNumericMatch | null,
+): value is SearchNumericMatch {
+  return Boolean(value && typeof value === "object" && "kind" in value);
+}
+
+function normalizeSearchNumericMatch(match: SearchNumericMatch): SearchNumericMatch {
+  if (match.kind !== "between") {
+    return match;
+  }
+
+  return {
+    kind: "between",
+    min: Math.min(match.min, match.max),
+    max: Math.max(match.min, match.max),
+  };
+}
+
 function buildLevelFilter(levelRange: {
   levelMin: number | null;
   levelMax: number | null;
-}): Extract<SearchFilterNode, { kind: "level" }> | null {
+} | SearchNumericMatch | null): Extract<SearchFilterNode, { kind: "level" }> | null {
+  if (levelRange === null) {
+    return null;
+  }
+
+  if (isSearchNumericMatch(levelRange)) {
+    return {
+      kind: "level",
+      match: normalizeSearchNumericMatch(levelRange),
+    };
+  }
+
   const { levelMin, levelMax } = levelRange;
   if (levelMin === null && levelMax === null) {
     return null;
@@ -475,25 +508,29 @@ export function getSearchQueryLevelRange(query: Pf2eTerminalSearchQuery): {
   levelMin: number | null;
   levelMax: number | null;
 } {
-  const part = findTopLevelLevelFilter(query.filter);
+  const match = getSearchQueryLevelMatch(query);
   return {
     levelMin:
-      part?.match.kind === "eq"
-        ? part.match.value
-        : part?.match.kind === "gte"
-          ? part.match.value
-          : part?.match.kind === "between"
-            ? part.match.min
+      match?.kind === "eq"
+        ? match.value
+        : match?.kind === "gt" || match?.kind === "gte"
+          ? match.value
+          : match?.kind === "between"
+            ? match.min
             : null,
     levelMax:
-      part?.match.kind === "eq"
-        ? part.match.value
-        : part?.match.kind === "lte"
-          ? part.match.value
-          : part?.match.kind === "between"
-            ? part.match.max
+      match?.kind === "eq"
+        ? match.value
+        : match?.kind === "lt" || match?.kind === "lte"
+          ? match.value
+          : match?.kind === "between"
+            ? match.max
             : null,
   };
+}
+
+export function getSearchQueryLevelMatch(query: Pf2eTerminalSearchQuery): SearchNumericMatch | null {
+  return findTopLevelLevelFilter(query.filter)?.match ?? null;
 }
 
 export function getSearchQueryRaritySelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
@@ -560,7 +597,7 @@ export function setSearchQueryLevelRange(
   levelRange: {
     levelMin: number | null;
     levelMax: number | null;
-  },
+  } | SearchNumericMatch | null,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
   let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "level");

@@ -136,6 +136,8 @@ flowchart TD
 
 That shared semantic contract includes metadata field names, field kinds, and atomic metadata predicate operators as part of cross-surface query meaning. Boolean composition is owned by the canonical `SearchFilterNode` tree itself via `allOf`, `anyOf`, and `not`, not by a separate metadata-owned grouped AST.
 
+Top-level numeric matcher leaves preserve exact, strict, inclusive, and bounded-range semantics as distinct canonical variants. The shared contract treats `eq`, `gt`, `gte`, `lt`, `lte`, and `between` as different matcher kinds rather than editor sugar over a smaller inclusive-only model.
+
 `compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
 
 - reading the canonical `mode` branch and its mode-specific fields

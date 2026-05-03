@@ -1022,7 +1022,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await waitForFrameToExclude(app, "Choose Search Mode");
-    expect(app.lastFrame()).toContain("Search | Any Category | Unavailable until you enter search text.");
+    expect(app.lastFrame()).toContain("Search | Any Category | Enter search text to enable this search.");
     expect(app.lastFrame()).toContain("[EDITOR] Query");
     expect(app.lastFrame()).toContain("Query Status");
     expect(app.lastFrame()).toContain("Execute Query");
@@ -3720,7 +3720,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Creature Statistics / Hit Points");
-    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`.");
+    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.");
 
     for (const character of "12") {
       app.stdin.write(character);

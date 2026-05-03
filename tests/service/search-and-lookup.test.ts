@@ -19,6 +19,7 @@ import {
   metricFilter,
   notFilter,
   packFilter,
+  priceFilter,
   rarityFilter,
   scopeFilter,
   searchRequest,
@@ -2432,5 +2433,36 @@ describe("Pf2eDataService / Search and Lookup", () => {
 
       service.closeSearchWindow(windowPage.id);
     }
+  });
+
+  it("distinguishes strict and inclusive numeric matchers", async () => {
+    const fixture = await createHardFilterFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+
+    const inclusiveLevels = service.listRecords(
+      browseScoped("equipment", [levelFilter({ kind: "gte", value: 6 })]),
+    ).records;
+    const strictLevels = service.listRecords(
+      browseScoped("equipment", [levelFilter({ kind: "gt", value: 6 })]),
+    ).records;
+
+    expect(inclusiveLevels.some((record) => record.level === 6)).toBe(true);
+    expect(strictLevels).not.toHaveLength(0);
+    expect(strictLevels.every((record) => record.level !== null && record.level > 6)).toBe(true);
+    expect(strictLevels.some((record) => record.level === 6)).toBe(false);
+
+    const inclusivePrices = service.listRecords(
+      browseScoped("equipment", [priceFilter({ kind: "gte", value: 1800 })]),
+    ).records;
+    const strictPrices = service.listRecords(
+      browseScoped("equipment", [priceFilter({ kind: "gt", value: 1800 })]),
+    ).records;
+
+    expect(inclusivePrices.some((record) => record.priceCp === 1800)).toBe(true);
+    expect(strictPrices).not.toHaveLength(0);
+    expect(strictPrices.every((record) => record.priceCp !== null && record.priceCp > 1800)).toBe(true);
+    expect(strictPrices.some((record) => record.priceCp === 1800)).toBe(false);
   });
 });

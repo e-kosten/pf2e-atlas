@@ -110,6 +110,6 @@ describe("OntologyInspectScreen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("Creature Statistics / Hit Points");
-    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`.");
+    expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.");
   });
 });

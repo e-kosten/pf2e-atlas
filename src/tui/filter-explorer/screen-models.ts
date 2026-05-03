@@ -255,7 +255,9 @@ function buildFilterExplorerScalarClauseSummary(clause: FilterExplorerScalarClau
   const operatorLabel = {
     eq: "=",
     neq: "!=",
+    gt: ">",
     gte: ">=",
+    lt: "<",
     lte: "<=",
   }[clause.operator];
 

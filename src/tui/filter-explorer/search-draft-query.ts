@@ -213,8 +213,12 @@ function extractMetricScalarClauseFromPredicate(
       ? "eq"
       : node.op === "!="
         ? "neq"
+        : node.op === ">"
+          ? "gt"
         : node.op === ">="
           ? "gte"
+          : node.op === "<"
+            ? "lt"
           : node.op === "<="
             ? "lte"
             : null;
@@ -385,7 +389,7 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
     });
   }
 
-  let op: "==" | "!=" | ">=" | "<=";
+  let op: "==" | "!=" | ">" | ">=" | "<" | "<=";
   switch (clause.operator) {
     case "eq":
       op = "==";
@@ -393,8 +397,14 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
     case "neq":
       op = "!=";
       break;
+    case "gt":
+      op = ">";
+      break;
     case "gte":
       op = ">=";
+      break;
+    case "lt":
+      op = "<";
       break;
     case "lte":
       op = "<=";
@@ -405,7 +415,7 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
     return {
       field: metricKey.field,
       metric: metricKey.metric,
-      op: op === ">=" || op === "<=" ? "==" : op,
+      op: op === ">" || op === ">=" || op === "<" || op === "<=" ? "==" : op,
       value: clause.value as string | boolean,
     };
   }

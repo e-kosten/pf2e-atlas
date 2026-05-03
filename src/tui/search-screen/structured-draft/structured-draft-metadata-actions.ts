@@ -590,8 +590,12 @@ function formatNumericMatch(match: SearchNumericMatch): string {
   switch (match.kind) {
     case "eq":
       return String(match.value);
+    case "gt":
+      return `>${match.value}`;
     case "gte":
       return `>=${match.value}`;
+    case "lt":
+      return `<${match.value}`;
     case "lte":
       return `<=${match.value}`;
     case "between":
@@ -1439,6 +1443,7 @@ export function useSearchStructuredDraftMetadataActions({
         | Extract<SearchFilterNode, { kind: "level" }>
         | Extract<SearchFilterNode, { kind: "price" }>
         | Extract<SearchFilterNode, { kind: "actionCost" }>
+        | null
         | undefined
       > => {
       if (node?.kind === "actionCost" && (node.match.kind === "isNull" || node.match.kind === "isNotNull")) {
@@ -1449,7 +1454,9 @@ export function useSearchStructuredDraftMetadataActions({
       if (node?.kind === "actionCost") {
         switch (node.match.kind) {
           case "eq":
+          case "gt":
           case "gte":
+          case "lt":
           case "lte":
           case "between":
             currentNumericMatch = node.match;
@@ -1469,25 +1476,19 @@ export function useSearchStructuredDraftMetadataActions({
         if (parsed === undefined) {
           return undefined;
         }
-        if (parsed.levelMin === null && parsed.levelMax === null) {
-          return undefined;
-        }
-        if (parsed.levelMin !== null && parsed.levelMax !== null) {
-          return {
-            kind: nodeKind,
-            match:
-              parsed.levelMin === parsed.levelMax
-                ? { kind: "eq", value: parsed.levelMin }
-                : {
-                    kind: "between",
-                    min: Math.min(parsed.levelMin, parsed.levelMax),
-                    max: Math.max(parsed.levelMin, parsed.levelMax),
-                  },
-          };
+        if (parsed === null) {
+          return null;
         }
         return {
           kind: nodeKind,
-          match: parsed.levelMin !== null ? { kind: "gte", value: parsed.levelMin } : { kind: "lte", value: parsed.levelMax! },
+          match:
+            parsed.kind === "between"
+              ? {
+                  kind: "between",
+                  min: Math.min(parsed.min, parsed.max),
+                  max: Math.max(parsed.min, parsed.max),
+                }
+              : parsed,
         };
       }
 
@@ -1496,12 +1497,19 @@ export function useSearchStructuredDraftMetadataActions({
         currentClause:
           currentNumericMatch?.kind === "between"
             ? { op: "between", min: currentNumericMatch.min, max: currentNumericMatch.max }
-            : currentNumericMatch?.kind === "eq" || currentNumericMatch?.kind === "gte" || currentNumericMatch?.kind === "lte"
+            : currentNumericMatch?.kind === "eq" ||
+                currentNumericMatch?.kind === "gt" ||
+                currentNumericMatch?.kind === "gte" ||
+                currentNumericMatch?.kind === "lt" ||
+                currentNumericMatch?.kind === "lte"
               ? { op: currentNumericMatch.kind, value: currentNumericMatch.value }
               : null,
       });
-      if (!parsed) {
+      if (parsed === undefined) {
         return undefined;
+      }
+      if (parsed === null) {
+        return null;
       }
       if (parsed.op === "neq") {
         await terminal.pauseForAnyKey("`!=` is not supported for this matcher. Use an exact, minimum, maximum, or range value.");

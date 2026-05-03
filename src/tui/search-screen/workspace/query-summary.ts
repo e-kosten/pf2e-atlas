@@ -9,7 +9,7 @@ import type {
 import {
   getSearchQueryCategory,
   getSearchQueryExcludeText,
-  getSearchQueryLevelRange,
+  getSearchQueryLevelMatch,
   getSearchQueryMetadataTree,
   getSearchQueryRootOperator,
   getSearchQuerySearchProfile,
@@ -99,17 +99,25 @@ export function hasFilterSelection<T extends number | string>(selection: Pf2eTer
 }
 
 export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
-  const { levelMin, levelMax } = getSearchQueryLevelRange(request);
-  if (levelMin === null && levelMax === null) {
+  const match = getSearchQueryLevelMatch(request);
+  if (!match) {
     return "(any)";
   }
-  if (levelMin !== null && levelMax !== null) {
-    return levelMin === levelMax ? `L${levelMin}` : `L${levelMin}-L${levelMax}`;
+
+  switch (match.kind) {
+    case "eq":
+      return `L${match.value}`;
+    case "gt":
+      return `> L${match.value}`;
+    case "gte":
+      return `L${match.value}+`;
+    case "lt":
+      return `< L${match.value}`;
+    case "lte":
+      return `<= L${match.value}`;
+    case "between":
+      return `L${match.min}-L${match.max}`;
   }
-  if (levelMin !== null) {
-    return `L${levelMin}+`;
-  }
-  return `<= L${levelMax}`;
 }
 
 function getVisibleRootChildren(

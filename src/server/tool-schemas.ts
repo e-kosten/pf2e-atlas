@@ -265,7 +265,9 @@ const searchScopeSubcategoryMatchSchema = z.union([
 
 const searchNumericMatchSchema = z.union([
   buildStrictObjectSchema({ kind: z.literal("eq"), value: z.number() }),
+  buildStrictObjectSchema({ kind: z.literal("gt"), value: z.number() }),
   buildStrictObjectSchema({ kind: z.literal("gte"), value: z.number() }),
+  buildStrictObjectSchema({ kind: z.literal("lt"), value: z.number() }),
   buildStrictObjectSchema({ kind: z.literal("lte"), value: z.number() }),
   buildStrictObjectSchema({ kind: z.literal("between"), min: z.number(), max: z.number() }),
 ]);

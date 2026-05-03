@@ -70,8 +70,14 @@ function recordMatchesNumericMatch(
   if (match.kind === "eq") {
     return value === match.value;
   }
+  if (match.kind === "gt") {
+    return value > match.value;
+  }
   if (match.kind === "gte") {
     return value >= match.value;
+  }
+  if (match.kind === "lt") {
+    return value < match.value;
   }
   if (match.kind === "lte") {
     return value <= match.value;

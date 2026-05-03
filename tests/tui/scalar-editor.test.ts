@@ -7,7 +7,7 @@ import {
 
 describe("scalar-editor prompts", () => {
   it("parses overlay numeric matcher input for shared scalar clauses", async () => {
-    const promptTextInput = vi.fn().mockResolvedValue(">=5");
+    const promptTextInput = vi.fn().mockResolvedValue(">5");
     const pauseForAnyKey = vi.fn();
 
     await expect(
@@ -19,7 +19,7 @@ describe("scalar-editor prompts", () => {
           currentClause: null,
         },
       ),
-    ).resolves.toEqual({ op: "gte", value: 5 });
+    ).resolves.toEqual({ op: "gt", value: 5 });
 
     expect(promptTextInput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -32,8 +32,8 @@ describe("scalar-editor prompts", () => {
     expect(pauseForAnyKey).not.toHaveBeenCalled();
   });
 
-  it("accepts >= level syntax in the overlay level matcher", async () => {
-    const promptTextInput = vi.fn().mockResolvedValue(">=7");
+  it("accepts strict upper-bound level syntax in the overlay level matcher", async () => {
+    const promptTextInput = vi.fn().mockResolvedValue("<7");
     const pauseForAnyKey = vi.fn();
 
     await expect(
@@ -44,7 +44,7 @@ describe("scalar-editor prompts", () => {
           defaultValue: ">=5",
         },
       ),
-    ).resolves.toEqual({ levelMin: 7, levelMax: null });
+    ).resolves.toEqual({ kind: "lt", value: 7 });
 
     expect(promptTextInput).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -98,8 +98,14 @@ function buildSearchFilterClause(
       if (filter.match.kind === "eq") {
         return { clause: `${context.levelExpr} = ?`, params: [filter.match.value] };
       }
+      if (filter.match.kind === "gt") {
+        return { clause: `${context.levelExpr} > ?`, params: [filter.match.value] };
+      }
       if (filter.match.kind === "gte") {
         return { clause: `${context.levelExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lt") {
+        return { clause: `${context.levelExpr} < ?`, params: [filter.match.value] };
       }
       if (filter.match.kind === "lte") {
         return { clause: `${context.levelExpr} <= ?`, params: [filter.match.value] };
@@ -112,8 +118,14 @@ function buildSearchFilterClause(
       if (filter.match.kind === "eq") {
         return { clause: `${context.priceExpr} = ?`, params: [filter.match.value] };
       }
+      if (filter.match.kind === "gt") {
+        return { clause: `${context.priceExpr} > ?`, params: [filter.match.value] };
+      }
       if (filter.match.kind === "gte") {
         return { clause: `${context.priceExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lt") {
+        return { clause: `${context.priceExpr} < ?`, params: [filter.match.value] };
       }
       if (filter.match.kind === "lte") {
         return { clause: `${context.priceExpr} <= ?`, params: [filter.match.value] };
@@ -143,8 +155,14 @@ function buildSearchFilterClause(
       if (filter.match.kind === "eq") {
         return { clause: `${context.actionCostExpr} = ?`, params: [filter.match.value] };
       }
+      if (filter.match.kind === "gt") {
+        return { clause: `${context.actionCostExpr} > ?`, params: [filter.match.value] };
+      }
       if (filter.match.kind === "gte") {
         return { clause: `${context.actionCostExpr} >= ?`, params: [filter.match.value] };
+      }
+      if (filter.match.kind === "lt") {
+        return { clause: `${context.actionCostExpr} < ?`, params: [filter.match.value] };
       }
       if (filter.match.kind === "lte") {
         return { clause: `${context.actionCostExpr} <= ?`, params: [filter.match.value] };

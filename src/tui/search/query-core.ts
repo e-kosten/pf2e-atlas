@@ -956,8 +956,12 @@ function formatSearchNumericMatch(match: Extract<SearchFilterNode, { kind: "leve
   switch (match.kind) {
     case "eq":
       return `${match.value}`;
+    case "gt":
+      return `> ${match.value}`;
     case "gte":
       return `>= ${match.value}`;
+    case "lt":
+      return `< ${match.value}`;
     case "lte":
       return `<= ${match.value}`;
     case "between":
@@ -1004,8 +1008,12 @@ function formatSearchNullableMatch(match: Extract<SearchFilterNode, { kind: "rar
   switch (match.kind) {
     case "eq":
       return humanizeOntologySearchIdentifier(String(match.value));
+    case "gt":
+      return `> ${match.value}`;
     case "gte":
       return `>= ${match.value}`;
+    case "lt":
+      return `< ${match.value}`;
     case "lte":
       return `<= ${match.value}`;
     case "between":
@@ -1036,8 +1044,12 @@ function formatCanonicalMetadataPredicateValue(
         return `is ${formatMetadataScalar(predicate.value)}`;
       case "notEq":
         return `is not ${formatMetadataScalar(predicate.value)}`;
+      case "gt":
+        return `> ${predicate.value}`;
       case "gte":
         return `>= ${predicate.value}`;
+      case "lt":
+        return `< ${predicate.value}`;
       case "lte":
         return `<= ${predicate.value}`;
       case "isNull":

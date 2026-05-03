@@ -111,8 +111,8 @@ function normalizeFilterNode(
           kind: node.match.kind,
           value: normalizeSearchPromotedNumberValue(
             "actionCost",
-            (node.match as Extract<typeof node.match, { kind: "eq" | "gte" | "lte" }>).value,
-          ) ?? (node.match as Extract<typeof node.match, { kind: "eq" | "gte" | "lte" }>).value,
+            (node.match as Extract<typeof node.match, { kind: "eq" | "gt" | "gte" | "lt" | "lte" }>).value,
+          ) ?? (node.match as Extract<typeof node.match, { kind: "eq" | "gt" | "gte" | "lt" | "lte" }>).value,
         },
       };
     case "linksTo":

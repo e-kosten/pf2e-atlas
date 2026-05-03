@@ -99,8 +99,12 @@ function buildInspectScalarPredicate(
       ? "=="
       : clause.operator === "neq"
         ? "!="
+        : clause.operator === "gt"
+          ? ">"
         : clause.operator === "gte"
           ? ">="
+          : clause.operator === "lt"
+            ? "<"
           : "<=";
 
   return {
@@ -121,8 +125,12 @@ function formatInspectScalarClauseSummary(clause: FilterExplorerScalarClause): s
       ? "="
       : clause.operator === "neq"
         ? "!="
+        : clause.operator === "gt"
+          ? ">"
         : clause.operator === "gte"
           ? ">="
+          : clause.operator === "lt"
+            ? "<"
           : "<=";
   return `${operator} ${clause.value}`;
 }

@@ -29,6 +29,7 @@ Adopt one canonical shared search-request model with these durable rules:
   - `allOf`
   - `not`
 - filter concepts such as scope, links, pack, numeric matchers, metadata predicates, and metric predicates live as atomic canonical leaves under that tree
+- top-level numeric matchers preserve exact, strict, inclusive, and bounded-range meaning as distinct canonical variants
 - metadata predicates remain atomic in the canonical model
   - multiplicity is expressed through boolean composition, not plural payload shapes
 - surface sugar is allowed only at the transport or editor edge

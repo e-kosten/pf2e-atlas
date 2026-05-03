@@ -89,6 +89,26 @@ describe("tool schemas", () => {
 
     expect(
       searchFilterSchema.safeParse({
+        kind: "level",
+        match: {
+          kind: "gt",
+          value: 4,
+        },
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchFilterSchema.safeParse({
+        kind: "actionCost",
+        match: {
+          kind: "lt",
+          value: 2,
+        },
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchFilterSchema.safeParse({
         field: "traits",
         op: "includesAny",
         values: ["undead"],

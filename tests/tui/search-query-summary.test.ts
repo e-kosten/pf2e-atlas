@@ -18,6 +18,7 @@ import {
 } from "../../src/tui/search-screen/workspace/workspace.js";
 import {
   buildSearchQuerySummary,
+  formatLevelRange,
   getVisibleSearchQuerySummaryEntries,
 } from "../../src/tui/search-screen/workspace/query-summary.js";
 
@@ -136,6 +137,18 @@ describe("search query summary", () => {
     expect(visibleEntries.find((entry) => entry.key === "queryNode:0")?.value).toBe("Level: 5-7");
     expect(visibleEntries.find((entry) => entry.key === "queryNode:3")?.value).toBe("Any of (2 filters)");
     expect(visibleEntries.some((entry) => entry.value === "Scope: Creature")).toBe(false);
+  });
+
+  it("preserves strict level matchers in canonical summaries", () => {
+    let query = createDefaultQuery("search");
+    query = setSearchQueryCategory(query, "creature");
+    query = setSearchQueryLevelRange(query, { kind: "gt", value: 5 });
+
+    const summary = buildSearchQuerySummary(query);
+    const visibleEntries = getVisibleSearchQuerySummaryEntries(summary);
+
+    expect(visibleEntries.find((entry) => entry.key === "queryNode:1")?.value).toBe("Level: > 5");
+    expect(formatLevelRange(query)).toBe("> L5");
   });
 
   it("drives workspace structured rows from the same summary model", () => {

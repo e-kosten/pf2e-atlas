@@ -1,7 +1,8 @@
 import type { DerivedTagTerminalApp } from "../framework/types.js";
 import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
+import type { SearchNumericMatch } from "../../domain/search-request-types.js";
 
-export type NumericScalarOperator = "eq" | "neq" | "gte" | "lte" | "between";
+export type NumericScalarOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "between";
 
 export type NumericScalarClauseDraft =
   | {
@@ -14,10 +15,7 @@ export type NumericScalarClauseDraft =
       value: number;
     };
 
-export type LevelRangeDraft = {
-  levelMin: number | null;
-  levelMax: number | null;
-};
+export type LevelRangeDraft = SearchNumericMatch | null;
 
 type ScalarTextPrompts = Pick<SearchTerminalPromptAdapters, "promptTextInput">;
 type ScalarEditorPrompts = Pick<SearchTerminalPromptAdapters, "promptTextInput">;
@@ -90,14 +88,25 @@ function parseNumericScalarClauseInput(value: string): NumericScalarClauseDraft 
     return { op: "between", ...between };
   }
 
-  const prefixedMatch = trimmed.match(/^(=|!=|>=|<=)\s*(-?\d+(?:\.\d+)?)$/);
+  const prefixedMatch = trimmed.match(/^(=|!=|>=|>|<=|<)\s*(-?\d+(?:\.\d+)?)$/);
   if (prefixedMatch) {
     const parsedValue = Number.parseFloat(prefixedMatch[2]!);
     if (!Number.isFinite(parsedValue)) {
       return "Enter a valid number.";
     }
 
-    const op = prefixedMatch[1] === "=" ? "eq" : prefixedMatch[1] === "!=" ? "neq" : prefixedMatch[1] === ">=" ? "gte" : "lte";
+    const op =
+      prefixedMatch[1] === "="
+        ? "eq"
+        : prefixedMatch[1] === "!="
+          ? "neq"
+          : prefixedMatch[1] === ">"
+            ? "gt"
+            : prefixedMatch[1] === ">="
+              ? "gte"
+              : prefixedMatch[1] === "<"
+                ? "lt"
+                : "lte";
     return { op, value: parsedValue };
   }
 
@@ -108,7 +117,7 @@ function parseNumericScalarClauseInput(value: string): NumericScalarClauseDraft 
 
   const parsedValue = parseSingleNumericValue(trimmed);
   if (typeof parsedValue === "string") {
-    return "Use `5`, `!=5`, `>=5`, `<=5`, or `3-8`.";
+    return "Use `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.";
   }
   return { op: "eq", value: parsedValue };
 }
@@ -116,38 +125,44 @@ function parseNumericScalarClauseInput(value: string): NumericScalarClauseDraft 
 export function parseLevelRangeInput(value: string): LevelRangeDraft | string {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { levelMin: null, levelMax: null };
+    return null;
   }
 
   const betweenMatch = trimmed.match(/^(\d+)\s*-\s*(\d+)$/);
   if (betweenMatch) {
-    return {
-      levelMin: Number.parseInt(betweenMatch[1]!, 10),
-      levelMax: Number.parseInt(betweenMatch[2]!, 10),
-    };
+    const min = Number.parseInt(betweenMatch[1]!, 10);
+    const max = Number.parseInt(betweenMatch[2]!, 10);
+    if (min === max) {
+      return { kind: "eq", value: min };
+    }
+    return { kind: "between", min, max };
   }
 
   if (/^\d+$/.test(trimmed)) {
-    const level = Number.parseInt(trimmed, 10);
-    return { levelMin: level, levelMax: level };
+    return { kind: "eq", value: Number.parseInt(trimmed, 10) };
   }
 
   const minMatch = trimmed.match(/^(\d+)\+$/);
   if (minMatch) {
-    return { levelMin: Number.parseInt(minMatch[1]!, 10), levelMax: null };
+    return { kind: "gte", value: Number.parseInt(minMatch[1]!, 10) };
   }
 
-  const minOrGreaterMatch = trimmed.match(/^>=?\s*(\d+)$/);
-  if (minOrGreaterMatch) {
-    return { levelMin: Number.parseInt(minOrGreaterMatch[1]!, 10), levelMax: null };
+  const orderedMatch = trimmed.match(/^(>=|>|<=|<)\s*(\d+)$/);
+  if (orderedMatch) {
+    const value = Number.parseInt(orderedMatch[2]!, 10);
+    if (orderedMatch[1] === ">") {
+      return { kind: "gt", value };
+    }
+    if (orderedMatch[1] === ">=") {
+      return { kind: "gte", value };
+    }
+    if (orderedMatch[1] === "<") {
+      return { kind: "lt", value };
+    }
+    return { kind: "lte", value };
   }
 
-  const maxMatch = trimmed.match(/^<=\s*(\d+)$/);
-  if (maxMatch) {
-    return { levelMin: null, levelMax: Number.parseInt(maxMatch[1]!, 10) };
-  }
-
-  return "Use `3-8`, `5`, `>=5`, `5+`, or `<=10`.";
+  return "Use `3-8`, `5`, `>5`, `>=5`, `5+`, `<10`, or `<=10`.";
 }
 
 export function formatNumericScalarInput(draft: NumericScalarClauseDraft | null): string {
@@ -163,8 +178,14 @@ export function formatNumericScalarInput(draft: NumericScalarClauseDraft | null)
   if (draft.op === "neq") {
     return `!=${draft.value}`;
   }
+  if (draft.op === "gt") {
+    return `>${draft.value}`;
+  }
   if (draft.op === "gte") {
     return `>=${draft.value}`;
+  }
+  if (draft.op === "lt") {
+    return `<${draft.value}`;
   }
   return `<=${draft.value}`;
 }
@@ -189,8 +210,12 @@ function buildNumericScalarPreviewLines(currentValue: string): import("../framew
       ? `exactly ${parsed.value}`
       : parsed.op === "neq"
         ? `anything except ${parsed.value}`
+        : parsed.op === "gt"
+          ? `greater than ${parsed.value}`
         : parsed.op === "gte"
           ? `${parsed.value} or greater`
+          : parsed.op === "lt"
+            ? `less than ${parsed.value}`
           : `${parsed.value} or lower`;
   return [{ text: `Matches ${operatorText}.`, tone: "accent" }];
 }
@@ -205,24 +230,24 @@ function buildLevelPreviewLines(currentValue: string): import("../framework/type
   if (typeof parsed === "string") {
     return [{ text: parsed, tone: "warning" }];
   }
-
-  if (parsed.levelMin !== null && parsed.levelMax !== null) {
-    return [
-      {
-        text:
-          parsed.levelMin === parsed.levelMax
-            ? `Matches only level ${parsed.levelMin}.`
-            : `Matches levels ${parsed.levelMin} through ${parsed.levelMax}.`,
-        tone: "accent",
-      },
-    ];
+  if (parsed === null) {
+    return [{ text: "Clears the level matcher.", tone: "dim" }];
   }
 
-  if (parsed.levelMin !== null) {
-    return [{ text: `Matches level ${parsed.levelMin} and above.`, tone: "accent" }];
+  switch (parsed.kind) {
+    case "eq":
+      return [{ text: `Matches only level ${parsed.value}.`, tone: "accent" }];
+    case "gt":
+      return [{ text: `Matches levels above ${parsed.value}.`, tone: "accent" }];
+    case "gte":
+      return [{ text: `Matches level ${parsed.value} and above.`, tone: "accent" }];
+    case "lt":
+      return [{ text: `Matches levels below ${parsed.value}.`, tone: "accent" }];
+    case "lte":
+      return [{ text: `Matches level ${parsed.value} and below.`, tone: "accent" }];
+    case "between":
+      return [{ text: `Matches levels ${parsed.min} through ${parsed.max}.`, tone: "accent" }];
   }
-
-  return [{ text: `Matches level ${parsed.levelMax} and below.`, tone: "accent" }];
 }
 
 export async function promptNumericScalarClause(
@@ -235,9 +260,9 @@ export async function promptNumericScalarClause(
 ): Promise<NumericScalarClauseDraft | null | undefined> {
   return promptParsedScalarInput(prompts, terminal, {
     title: options.title,
-    prompt: "Enter `5`, `!=5`, `>=5`, `<=5`, or `3-8`. Leave blank to clear.",
+    prompt: "Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`. Leave blank to clear.",
     defaultValue: formatNumericScalarInput(options.currentClause),
-    hint: "Examples: 5, !=5, >=5, <=5, 3-8",
+    hint: "Examples: 5, !=5, >5, >=5, <5, <=5, 3-8",
     previewTitle: "Preview",
     buildPreviewLines: buildNumericScalarPreviewLines,
     parse: parseNumericScalarClauseInput,
@@ -254,12 +279,12 @@ export async function promptLevelRangeDraft(
 ): Promise<LevelRangeDraft | undefined> {
   return promptParsedScalarInput(prompts, terminal, {
     title: "Level Range",
-    prompt: "Enter `3-8`, `5`, `>=5`, `5+`, or `<=10`. Leave blank to clear.",
+    prompt: "Enter `3-8`, `5`, `>5`, `>=5`, `5+`, `<10`, or `<=10`. Leave blank to clear.",
     defaultValue: options.defaultValue,
-    hint: "Examples: 3-8, >=5, <=5",
+    hint: "Examples: 3-8, >5, >=5, <10, <=10",
     previewTitle: "Preview",
     buildPreviewLines: buildLevelPreviewLines,
     parse: parseLevelRangeInput,
-    whenEmpty: () => ({ levelMin: null, levelMax: null }),
+    whenEmpty: () => null,
   });
 }

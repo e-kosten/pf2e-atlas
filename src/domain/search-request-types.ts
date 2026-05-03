@@ -12,7 +12,9 @@ export type SearchScopeSubcategoryMatch =
 
 export type SearchNumericMatch =
   | { kind: "eq"; value: number }
+  | { kind: "gt"; value: number }
   | { kind: "gte"; value: number }
+  | { kind: "lt"; value: number }
   | { kind: "lte"; value: number }
   | { kind: "between"; min: number; max: number };
 

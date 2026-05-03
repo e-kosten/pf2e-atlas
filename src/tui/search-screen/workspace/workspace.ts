@@ -112,7 +112,7 @@ export function getExecuteAvailability(request: Pf2eTerminalSearchQuery): {
   if (request.mode === "search" && !queryText) {
     return {
       disabled: true,
-      reason: "Unavailable until you enter search text.",
+      reason: "Enter search text to enable this search.",
     };
   }
 
