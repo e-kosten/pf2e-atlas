@@ -252,6 +252,25 @@ function getGroupedFieldChildIndexes(groupPath: number[], fieldMemberPaths: read
   return [...childIndexes].sort((left, right) => left - right);
 }
 
+function flattenReplacementNodesForGroup(
+  groupKind: "allOf" | "anyOf" | "not",
+  replacementNodes: readonly SearchFilterNode[],
+): SearchFilterNode[] {
+  if (groupKind === "not") {
+    return [...replacementNodes];
+  }
+  if (replacementNodes.length !== 1) {
+    return [...replacementNodes];
+  }
+
+  const [node] = replacementNodes;
+  if (!node || node.kind !== groupKind) {
+    return [...replacementNodes];
+  }
+
+  return [...node.children];
+}
+
 function buildGroupedFieldReplacementNodes(
   searchUser: SearchWorkspaceUser["search"],
   query: Pf2eTerminalSearchQuery,
@@ -372,10 +391,19 @@ export function applyGroupedFieldReplacementToQuery(
   replacementNodes: readonly SearchFilterNode[],
 ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } {
   const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+  const flattenedRootReplacementNodes = flattenReplacementNodesForGroup(
+    getSearchQueryRootOperator(query),
+    replacementNodes,
+  );
   if (groupPath.length === 0 && replacementNodes.length > 0 && (!groupNode || !isSearchFilterBooleanGroup(groupNode))) {
-    const nextFilter = Array.isArray(replacementNodes) && replacementNodes.length > 1
-      ? appendSearchFilterNodesAtPath(query.filter, [], replacementNodes, getSearchQueryRootOperator(query))
-      : appendSearchFilterNodeAtPath(query.filter, [], replacementNodes[0]!, getSearchQueryRootOperator(query));
+    const nextFilter = flattenedRootReplacementNodes.length > 1
+      ? appendSearchFilterNodesAtPath(query.filter, [], flattenedRootReplacementNodes, getSearchQueryRootOperator(query))
+      : appendSearchFilterNodeAtPath(
+          query.filter,
+          [],
+          flattenedRootReplacementNodes[0]!,
+          getSearchQueryRootOperator(query),
+        );
     const nextFocusPath = nextFilter ? getFirstGroupedFieldMemberPath(nextFilter, [], field) : null;
     return {
       nextQuery: {
@@ -391,13 +419,14 @@ export function applyGroupedFieldReplacementToQuery(
   }
 
   const fieldChildIndexes = new Set<number>(getGroupedFieldChildIndexes(groupPath, fieldMemberPaths));
+  const flattenedReplacementNodes = flattenReplacementNodesForGroup(groupNode.kind, replacementNodes);
   const nextChildren: SearchFilterNode[] = [];
   let insertedReplacement = false;
 
   groupNode.children.forEach((child, childIndex) => {
     if (fieldChildIndexes.has(childIndex)) {
       if (!insertedReplacement) {
-        nextChildren.push(...replacementNodes);
+        nextChildren.push(...flattenedReplacementNodes);
         insertedReplacement = true;
       }
       return;
@@ -405,8 +434,8 @@ export function applyGroupedFieldReplacementToQuery(
     nextChildren.push(child);
   });
 
-  if (!insertedReplacement && replacementNodes.length > 0) {
-    nextChildren.push(...replacementNodes);
+  if (!insertedReplacement && flattenedReplacementNodes.length > 0) {
+    nextChildren.push(...flattenedReplacementNodes);
   }
 
   const nextGroupNode =

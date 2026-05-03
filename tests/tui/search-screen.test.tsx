@@ -2860,13 +2860,12 @@ describe("search screen", () => {
     if (!app.lastFrame().includes("Structured Query Editor")) {
       await openStructuredQueryEditor(app);
     }
-    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("├─ All of");
-    expect(app.lastFrame()).toContain("│  ├─ Any of");
+    expect(app.lastFrame()).toContain("├─ Any of");
     expect(app.lastFrame()).toContain("! Traits: includes Concent");
-    expect(app.lastFrame().match(/^\├─ Traits: includes Archetype/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Traits: includes Dedication/m)).toBeNull();
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
   });
 
   it("keeps the same canonical trait subtree after closing and reopening the structured editor", async () => {
@@ -2904,17 +2903,17 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
 
     await openStructuredQueryEditor(app);
 
-    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("├─ All of");
-    expect(app.lastFrame()).toContain("│  ├─ Any of");
-    expect(app.lastFrame().match(/^\├─ Traits: includes Archetype/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ ! Traits: includes Concentrate/m)).toBeNull();
+    expect(app.lastFrame()).toContain("├─ Any of");
+    expect(app.lastFrame().match(/^\├─ (! Traits: includes Concent|Traits: !concentrate)/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
   });
 
   it("rehydrates the original multi-trait explorer state when editing an existing clause", async () => {
