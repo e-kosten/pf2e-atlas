@@ -26,7 +26,6 @@ import type {
   FilterExplorerComposeMode,
   FilterExplorerBrowserContext,
   FilterExplorerControllerContext,
-  FilterExplorerDiscreteClause,
   FilterExplorerDiscreteClauseOperator,
   FilterExplorerInspectResult,
   FilterExplorerMode,
@@ -89,7 +88,7 @@ export function getFilterExplorerInteractionActions(
   controller: FilterExplorerControllerContext,
   hasActionEntries = false,
 ): TerminalInteractionAction[] {
-  const { browser, mode } = controller;
+  const { browser } = controller;
   const pageDetailState = browser.detailInteractionState;
   if (isSelectionExplorer(controller)) {
     const composeActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "cycle";
@@ -244,9 +243,14 @@ function getStateBadgePresentation(
       return { text: "x", label: "exclude", tone: "danger", bracketed: true };
     case "custom":
       return { text: badge.text, label: badge.text, tone: badge.tone ?? "accent", bracketed: false };
-    default:
+    case "off":
+    case undefined:
       return { text: ".", label: "off", tone: "dim", bracketed: true };
   }
+}
+
+function getDiscreteOperatorStateBadge(operator: FilterExplorerDiscreteClauseOperator): FilterExplorerStateBadge {
+  return operator === "include" ? { kind: "include" } : { kind: "exclude" };
 }
 
 function buildStateBadgeSegments(
@@ -270,18 +274,6 @@ function buildStateBadgeLabelSegments(
   ];
 }
 
-function buildDiscreteClauseEntrySegments(
-  clause: FilterExplorerDiscreteClause,
-): DerivedTagTerminalSegment[] {
-  return [
-    { text: `${formatOntologySearchVocabularyLabel(clause.field)}: ` },
-    ...buildStateBadgeLabelSegments(
-      clause.operator === "include" ? { kind: "include" } : clause.operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
-    ),
-    { text: ` ${clause.value}` },
-  ];
-}
-
 function buildGroupedDiscreteClauseEntrySegments(
   field: string,
   operator: FilterExplorerDiscreteClauseOperator,
@@ -289,9 +281,7 @@ function buildGroupedDiscreteClauseEntrySegments(
 ): DerivedTagTerminalSegment[] {
   return [
     { text: `${formatOntologySearchVocabularyLabel(field)}: ` },
-    ...buildStateBadgeLabelSegments(
-      operator === "include" ? { kind: "include" } : operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
-    ),
+    ...buildStateBadgeLabelSegments(getDiscreteOperatorStateBadge(operator)),
     { text: ` ${values.join(", ")}` },
   ];
 }
@@ -417,7 +407,7 @@ export function buildFilterExplorerComposeDetailLines(args: {
     const values = [...new Set(entry.values)].sort((left, right) => left.localeCompare(right));
     lines.push({
       text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${getStateBadgePresentation(
-        entry.operator === "include" ? { kind: "include" } : entry.operator === "exclude" ? { kind: "exclude" } : { kind: "off" },
+        getDiscreteOperatorStateBadge(entry.operator),
       ).label} ${values.join(", ")}`,
       segments: buildGroupedDiscreteClauseEntrySegments(entry.field, entry.operator, values),
     });

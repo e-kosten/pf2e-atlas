@@ -5,7 +5,6 @@ import type {
   VariantSource,
 } from "../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
-import { getLookupMatchType } from "../domain/lookup-match-type.js";
 import type { PageReferenceEdge } from "../domain/page-relations-types.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { ActorMetricMap } from "../domain/actor-metrics.js";

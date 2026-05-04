@@ -413,60 +413,56 @@ export function planTerminalModalStateLayout(
     });
   }
 
-  if (modal.kind === "multiselect") {
-    const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
-    const filteringEnabled = getMultiSelectPromptFilteringEnabled(modal.options);
-    const filteredEntries = filteringEnabled
-      ? filterPromptEntries(modal.options.entries, modal.filterText)
-      : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
+  const normalizedPresentation = normalizeTerminalPromptPresentation(modal.options.presentation);
+  const filteringEnabled = getMultiSelectPromptFilteringEnabled(modal.options);
+  const filteredEntries = filteringEnabled
+    ? filterPromptEntries(modal.options.entries, modal.filterText)
+    : modal.options.entries.map((entry, originalIndex) => ({ entry, originalIndex }));
 
-    if (filteredEntries.length === 0) {
-      return planTerminalModalLayout({
-        kind: "multiselect",
-        terminalWidth,
-        terminalHeight,
-        forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
-        headerRows: 3,
-        footerRows: 2,
-        descriptor: createTerminalMessageSizingDescriptor({
-          bodyLineCount: getRenderedTerminalLineCount(
-            [
-              { text: modal.options.prompt, tone: "section" },
-              ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
-              {
-                text: modal.filterText
-                  ? "No options match the current filter."
-                  : "No options are available for this scope.",
-                tone: "warning",
-              },
-            ],
-            terminalWidth,
-          ),
-        }),
-      });
-    }
-
-    const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
-    const selectedOption = modal.options.entries[selectedIndex];
-    const selectedSet = new Set(modal.selectedValues);
-    const selectedLabels = modal.options.entries
-      .filter((entry) => selectedSet.has(entry.value))
-      .map((entry) => entry.label);
+  if (filteredEntries.length === 0) {
     return planTerminalModalLayout({
       kind: "multiselect",
       terminalWidth,
       terminalHeight,
       forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
       headerRows: 3,
-      footerRows: 3,
-      descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
-        ...buildPromptDetailLines(selectedOption),
-        { text: "" },
-        { text: "Current Selection", tone: "section" },
-        { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
-      ]),
+      footerRows: 2,
+      descriptor: createTerminalMessageSizingDescriptor({
+        bodyLineCount: getRenderedTerminalLineCount(
+          [
+            { text: modal.options.prompt, tone: "section" },
+            ...(modal.filterText ? [{ text: `Search /${modal.filterText}`, tone: "accent" as const }] : []),
+            {
+              text: modal.filterText
+                ? "No options match the current filter."
+                : "No options are available for this scope.",
+              tone: "warning",
+            },
+          ],
+          terminalWidth,
+        ),
+      }),
     });
   }
 
-  throw new Error("Unsupported terminal modal state.");
+  const selectedIndex = getFilteredPromptSelectionIndex(modal.options.entries, modal.selectedIndex, modal.filterText);
+  const selectedOption = modal.options.entries[selectedIndex];
+  const selectedSet = new Set(modal.selectedValues);
+  const selectedLabels = modal.options.entries
+    .filter((entry) => selectedSet.has(entry.value))
+    .map((entry) => entry.label);
+  return planTerminalModalLayout({
+    kind: "multiselect",
+    terminalWidth,
+    terminalHeight,
+    forcedPresentation: coerceBaseModalPresentation(normalizedPresentation, "screen"),
+    headerRows: 3,
+    footerRows: 3,
+    descriptor: createChoicePromptDescriptor(terminalWidth, filteredEntries.length, [
+      ...buildPromptDetailLines(selectedOption),
+      { text: "" },
+      { text: "Current Selection", tone: "section" },
+      { text: selectedLabels.length > 0 ? selectedLabels.join(", ") : "(none)" },
+    ]),
+  });
 }

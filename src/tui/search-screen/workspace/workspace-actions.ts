@@ -307,6 +307,14 @@ export function useSearchWorkspaceActions({
         case "detail_boundary":
           dispatch({ type: "detail_boundary", boundary: intent.boundary, maxDetailScroll });
           return;
+        case "move_detail_section":
+        case "detail_section_boundary":
+        case "enter_detail_targets":
+        case "leave_detail_targets":
+        case "move_detail_target":
+        case "detail_target_boundary":
+        case "open_detail_target":
+          return;
       }
     },
     [

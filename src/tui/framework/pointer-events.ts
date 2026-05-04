@@ -1,9 +1,11 @@
 import type { DerivedTagTerminalPointerEvent, DerivedTagTerminalPointerRect, DerivedTagTerminalPointerRegion } from "./types.js";
 
-const SGR_MOUSE_PATTERN = /^(?:\u001b)?\[<(\d+);(\d+);(\d+)([mM])$/;
+const ESCAPE_CHARACTER = String.fromCharCode(27);
+const SGR_MOUSE_PATTERN = /^\[<(\d+);(\d+);(\d+)([mM])$/;
 
 export function parseDerivedTagTerminalPointerEvent(input: string): DerivedTagTerminalPointerEvent | undefined {
-  const match = SGR_MOUSE_PATTERN.exec(input);
+  const mouseInput = input.startsWith(ESCAPE_CHARACTER) ? input.slice(1) : input;
+  const match = SGR_MOUSE_PATTERN.exec(mouseInput);
   if (!match) {
     return undefined;
   }

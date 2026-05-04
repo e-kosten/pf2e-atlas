@@ -151,14 +151,14 @@ export function DerivedTagTerminalModalHost({
         }
         if (routed.route.textEntryIntent?.kind === "deleteBackward") {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
+            current.kind === "text" ? { ...current, value: [...current.value].slice(0, -1).join("") } : current,
           );
           return;
         }
         if (routed.route.textEntryIntent?.kind === "append") {
           const appendText = routed.route.textEntryIntent.text;
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "text" ? { ...current, value: current.value + appendText } : current,
+            current.kind === "text" ? { ...current, value: current.value + appendText } : current,
           );
         }
         return;
@@ -170,7 +170,7 @@ export function DerivedTagTerminalModalHost({
       if (modal.filterMode) {
         if (event.isConfirmKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current && (current.kind === "select" || current.kind === "multiselect")
+            current.kind === "select" || current.kind === "multiselect"
               ? { ...current, filterMode: false }
               : current,
           );
@@ -178,7 +178,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (event.textInputAction === "cancel" || event.isBackNavigationKey() || event.isTerminalQuitKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current && (current.kind === "select" || current.kind === "multiselect")
+            current.kind === "select" || current.kind === "multiselect"
               ? { ...current, filterMode: false, filterText: "" }
               : current,
           );
@@ -186,7 +186,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (event.textInputAction === "deleteBackward") {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current && (current.kind === "select" || current.kind === "multiselect")
+            current.kind === "select" || current.kind === "multiselect"
               ? {
                   ...current,
                   filterText: [...current.filterText].slice(0, -1).join(""),
@@ -201,7 +201,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (event.printable) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current && (current.kind === "select" || current.kind === "multiselect")
+            current.kind === "select" || current.kind === "multiselect"
               ? {
                   ...current,
                   filterText: current.filterText + event.printable,
@@ -215,7 +215,7 @@ export function DerivedTagTerminalModalHost({
 
       if (getChoicePromptFilteringEnabled(modal) && event.isSearchKey()) {
         updateModalForLease(modal.ownership.leaseId, (current) =>
-          current && (current.kind === "select" || current.kind === "multiselect")
+          current.kind === "select" || current.kind === "multiselect"
             ? { ...current, filterMode: true }
             : current,
         );
@@ -232,14 +232,12 @@ export function DerivedTagTerminalModalHost({
             );
             return;
           }
-          if (modal.kind === "multiselect") {
-            closeModalAfterResolution(
-              modal,
-              modal.resolve,
-              event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" },
-            );
-            return;
-          }
+          closeModalAfterResolution(
+            modal,
+            modal.resolve,
+            event.isBackNavigationKey() ? { kind: "back" } : { kind: "cancelled" },
+          );
+          return;
         }
         return;
       }
@@ -251,7 +249,7 @@ export function DerivedTagTerminalModalHost({
         );
         if (event.isMoveLeftKey() || event.isMoveUpKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "select"
+            current.kind === "select"
               ? {
                   ...current,
                   selectedIndex:
@@ -265,7 +263,7 @@ export function DerivedTagTerminalModalHost({
         }
         if (event.isMoveRightKey() || event.isMoveDownKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "select"
+            current.kind === "select"
               ? {
                   ...current,
                   selectedIndex:
@@ -279,13 +277,13 @@ export function DerivedTagTerminalModalHost({
         }
         if (event.isTerminalBoundaryStartKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "select" ? { ...current, selectedIndex: filteredEntries[0]?.originalIndex ?? 0 } : current,
+            current.kind === "select" ? { ...current, selectedIndex: filteredEntries[0]?.originalIndex ?? 0 } : current,
           );
           return;
         }
         if (event.isTerminalBoundaryEndKey()) {
           updateModalForLease(modal.ownership.leaseId, (current) =>
-            current?.kind === "select"
+            current.kind === "select"
               ? { ...current, selectedIndex: filteredEntries.at(-1)?.originalIndex ?? current.selectedIndex }
               : current,
           );
@@ -329,7 +327,7 @@ export function DerivedTagTerminalModalHost({
           filteredEntries.findIndex((entry) => entry.originalIndex === filteredSelectedIndex),
         );
         updateModalForLease(modal.ownership.leaseId, (current) =>
-          current && (current.kind === "select" || current.kind === "multiselect")
+          current.kind === "select" || current.kind === "multiselect"
             ? {
                 ...current,
                 selectedIndex:
@@ -344,7 +342,7 @@ export function DerivedTagTerminalModalHost({
       if (routed.route.navigationAction?.kind === "cursorBoundary") {
         const boundary = routed.route.navigationAction.boundary;
         updateModalForLease(modal.ownership.leaseId, (current) =>
-          current && (current.kind === "select" || current.kind === "multiselect")
+          current.kind === "select" || current.kind === "multiselect"
             ? {
                 ...current,
                 selectedIndex:
@@ -362,7 +360,7 @@ export function DerivedTagTerminalModalHost({
           return;
         }
         updateModalForLease(modal.ownership.leaseId, (current) =>
-          current?.kind === "multiselect"
+          current.kind === "multiselect"
             ? {
                 ...current,
                 selectedValues: current.selectedValues.includes(selected)

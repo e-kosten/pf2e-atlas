@@ -23,7 +23,6 @@ import type {
 
 export function useSearchStructuredDraftEditing({
   appendStructuredDraftMetadataNode,
-  cancelStructuredDraftSession,
   clearStructuredDraftMoveSource,
   editFieldClause,
   enterStructuredDraftMoveMode,

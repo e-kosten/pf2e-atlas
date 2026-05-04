@@ -103,7 +103,10 @@ const DATABASE_SYNC_ALLOWED_PATHS = [
 
 const SEARCH_DISCOVERY_PRIMITIVE_ALLOWED_PATHS = [
   "src/app/search-discovery-service.ts",
+  "src/data/backend/search-service.ts",
+  "src/data/service.ts",
   "src/server/register-search-tools.ts",
+  "src/tui/search/service.ts",
 ];
 
 const localRules = {

@@ -3,14 +3,6 @@ import { describe, expect, it } from "vitest";
 import { getMetadataFilterSemantics } from "../../src/search/filters/semantics.js";
 import { filterValueFieldSchema } from "../../src/server/tool-schemas.js";
 
-function matcherArrayContaining(values: unknown[]): unknown {
-  return expect.arrayContaining(values);
-}
-
-function matcherObjectContaining(value: Record<string, unknown>): unknown {
-  return expect.objectContaining(value);
-}
-
 describe("metadata search semantics", () => {
   it("lists meaningful metadata fields by category", () => {
     const semantics = getMetadataFilterSemantics();

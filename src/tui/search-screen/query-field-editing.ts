@@ -226,8 +226,6 @@ export function useSearchQueryFieldEditing({
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null = null,
     ): Promise<MetadataFilterNode | null | undefined> => {
-      const queryCategory = getSearchQueryCategory(query);
-      const querySubcategory = getSearchQuerySubcategory(query);
       if (fieldOption.editor === "sharedExplorer") {
         return currentNode;
       }

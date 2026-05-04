@@ -15,7 +15,6 @@ import {
   type FilterValueQuery,
 } from "../domain/search-types.js";
 import type { NormalizedSearchFilters, SearchExecutionFilterNode, SqlValue } from "./contracts.js";
-import { normalizeText } from "../shared/utils.js";
 import {
   buildMetadataAtomicPredicateClause,
   buildMetricCompareClause,
@@ -157,35 +156,32 @@ function buildSearchFilterClause(
         clause: `LOWER(COALESCE(${context.rarityExpr}, '')) = LOWER(?)`,
         params: [(filter.match as Extract<typeof filter.match, { kind: "eq" }>).value],
       };
-    case "actionCost":
-      if (filter.match.kind === "isNull") {
-        return { clause: `${context.actionCostExpr} IS NULL`, params: [] };
+    case "actionCost": {
+      switch (filter.match.kind) {
+        case "isNull":
+          return { clause: `${context.actionCostExpr} IS NULL`, params: [] };
+        case "isNotNull":
+          return { clause: `${context.actionCostExpr} IS NOT NULL`, params: [] };
+        case "eq":
+          return { clause: `${context.actionCostExpr} = ?`, params: [filter.match.value] };
+        case "gt":
+          return { clause: `${context.actionCostExpr} > ?`, params: [filter.match.value] };
+        case "gte":
+          return { clause: `${context.actionCostExpr} >= ?`, params: [filter.match.value] };
+        case "lt":
+          return { clause: `${context.actionCostExpr} < ?`, params: [filter.match.value] };
+        case "lte":
+          return { clause: `${context.actionCostExpr} <= ?`, params: [filter.match.value] };
+        case "between": {
+          const params: SqlValue[] = [filter.match.min, filter.match.max];
+          return {
+            clause: `(${context.actionCostExpr} >= ? AND ${context.actionCostExpr} <= ?)`,
+            params,
+          };
+        }
       }
-      if (filter.match.kind === "isNotNull") {
-        return { clause: `${context.actionCostExpr} IS NOT NULL`, params: [] };
-      }
-      if (filter.match.kind === "eq") {
-        return { clause: `${context.actionCostExpr} = ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gt") {
-        return { clause: `${context.actionCostExpr} > ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gte") {
-        return { clause: `${context.actionCostExpr} >= ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lt") {
-        return { clause: `${context.actionCostExpr} < ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lte") {
-        return { clause: `${context.actionCostExpr} <= ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind !== "between") {
-        throw new Error(`Unsupported actionCost matcher "${filter.match.kind}".`);
-      }
-      return {
-        clause: `(${context.actionCostExpr} >= ? AND ${context.actionCostExpr} <= ?)`,
-        params: [filter.match.min, filter.match.max],
-      };
+      throw new Error("Unsupported actionCost matcher.");
+    }
     case "linksTo":
       return buildLinksToClause(filter.target, context.recordKeyExpr);
     case "linkedFrom":
@@ -648,10 +644,6 @@ export function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchF
   return filters.filter
     ? Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.min(1000, Math.max(boundedBaseLimit * 2, boundedBaseLimit + 50)))
     : boundedBaseLimit;
-}
-
-function normalizeVectorText(value: string | null | undefined): string {
-  return normalizeText(value ?? "") || "";
 }
 
 export function buildSemanticRetrievalQuery(

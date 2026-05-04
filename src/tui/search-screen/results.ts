@@ -142,9 +142,7 @@ export function buildResultDetailHeaderLines(
   const matchType =
     lookupMatchType === "none"
       ? null
-      : lookupMatchType === "exact" || lookupMatchType === "normalized_exact" || lookupMatchType === "fuzzy"
-        ? formatLookupMatchTypeLabel(lookupMatchType)
-        : null;
+      : formatLookupMatchTypeLabel(lookupMatchType);
   return [
     { text: "Result Preview", tone: "section" },
     ...buildTerminalListDetailMetadataLines([

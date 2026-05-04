@@ -1,5 +1,6 @@
 import type { Pf2eDataService } from "../data/service.js";
 import { inferActorMetricValueType } from "../domain/actor-metrics.js";
+import { normalizeSearchCategory, normalizeSearchSubcategory } from "../domain/categories.js";
 import { orderFilterValues, type FilterValueOrdering } from "../domain/filter-value-ordering.js";
 import { inferItemMetricValueType } from "../domain/item-metrics.js";
 import type { MetadataFieldName, MetadataFieldType } from "../domain/metadata-field-types.js";
@@ -15,7 +16,7 @@ import {
   type SearchPromotedFieldDomainKey,
 } from "../domain/search-field-domains.js";
 import type { SearchRequest, SearchRequestMode } from "../domain/search-request-types.js";
-import type { FilterValueField, FilterValueQuery, SearchCategory, SearchCategoryInput, SearchScope, SearchSubcategory, SearchSubcategoryInput } from "../domain/search-types.js";
+import type { FilterValueField, FilterValueQuery, SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
 
 type SearchDiscoveryDataService = Pick<Pf2eDataService, "discoverFilterValues" | "getPack" | "listFilterValues">;
@@ -151,18 +152,33 @@ function buildFilterValueQuery(
   const [firstScope] = applicability.scopes;
 
   if (applicability.scopes.length === 1 && firstScope) {
-    query.category = firstScope.category as SearchCategoryInput;
+    const category = normalizeSearchCategory(firstScope.category);
+    if (category) {
+      query.category = category;
+    }
     if (firstScope.subcategory) {
-      query.subcategory = firstScope.subcategory as SearchSubcategoryInput;
+      const subcategory = normalizeSearchSubcategory(firstScope.subcategory);
+      if (subcategory) {
+        query.subcategory = subcategory;
+      }
     }
     return query;
   }
 
   if (applicability.scopes.length > 1) {
-    query.scopes = applicability.scopes.map((scope) => ({
-      category: scope.category,
-      ...(scope.subcategory ? { subcategory: scope.subcategory } : {}),
-    })) as SearchScope[];
+    query.scopes = applicability.scopes.flatMap((scope) => {
+      const category = normalizeSearchCategory(scope.category);
+      if (!category) {
+        return [];
+      }
+      const subcategory = scope.subcategory ? normalizeSearchSubcategory(scope.subcategory) : null;
+      return [
+        {
+          category,
+          ...(subcategory ? { subcategory } : {}),
+        },
+      ];
+    });
   }
 
   return query;
@@ -208,7 +224,7 @@ export function createPf2eApplicationSearchDiscoveryService(
       return cached;
     }
 
-    const fields = (semantics.metadataFieldsByCategory[scope.category] ?? [])
+    const fields = semantics.metadataFieldsByCategory[scope.category]
       .map((field) => metadataFieldsByName.get(field))
       .filter((field): field is SearchDiscoveryField => Boolean(field))
       .filter(
@@ -444,12 +460,15 @@ export function createPf2eApplicationSearchDiscoveryService(
   ): Promise<SearchSemanticsDiscoveryReader> {
     const context = createSearchFilterDiscoveryContext(request);
     const [scopeEntry] = context.applicability.scopes;
-    const scope = scopeEntry
-      ? ({
-          category: scopeEntry.category as SearchCategory,
-          subcategory: (scopeEntry.subcategory ?? null) as SearchSubcategory | null,
-        } satisfies SearchDiscoveryScope)
-      : null;
+    const category = scopeEntry ? normalizeSearchCategory(scopeEntry.category) : null;
+    const subcategory =
+      scopeEntry?.subcategory === undefined || scopeEntry.subcategory === null
+        ? null
+        : normalizeSearchSubcategory(scopeEntry.subcategory);
+    const scope =
+      scopeEntry && category && (scopeEntry.subcategory === undefined || scopeEntry.subcategory === null || subcategory)
+        ? ({ category, subcategory } satisfies SearchDiscoveryScope)
+        : null;
     if (!scope) {
       return {
         scope: null,

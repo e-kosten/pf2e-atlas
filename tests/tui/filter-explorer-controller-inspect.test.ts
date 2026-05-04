@@ -12,7 +12,6 @@ import {
   FILTER_EXPLORER_LAUNCH_INTENT,
   createInspectFilterExplorerHostAdapter,
   type FilterExplorerInspectAndOpenMode,
-  type FilterExplorerSelectTargetOutcome,
 } from "../../src/tui/filter-explorer/index.js";
 import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import type { FilterExplorerKeyContext } from "../../src/tui/filter-explorer/controller-types.js";

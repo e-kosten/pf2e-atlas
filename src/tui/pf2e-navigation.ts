@@ -475,7 +475,7 @@ export function usePf2eNavigation({
     (recordKey: RecordKey) => {
       void runRouteTransition({
         message: "Opening Entity Page...",
-        prepare: async () => {
+        prepare: () => {
           const document = services.user.entityPages.buildDocumentByRecordKey(recordKey, {
             recordTargetAction: "open",
           });

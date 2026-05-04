@@ -266,9 +266,9 @@ function resolveFilterExplorerListRightBehavior(args: {
   }
   const inspectResult = buildFilterExplorerInspectResult(options.mode, keyContext.currentNode, inspectTarget);
   const shouldOpenResult =
+    inspectResult !== undefined &&
     (shouldOpenImmediateFilterExplorerInspectResult(keyContext.currentNode, inspectResult) ||
-      (!keyContext.currentNodeHasChildren && Boolean(inspectResult))) &&
-    Boolean(inspectResult && (options.onOutcome || (inspectResult.target?.kind === "scalar" && options.mode.onEditScalarTarget)));
+      !keyContext.currentNodeHasChildren);
 
   if (shouldOpenResult) {
     return {

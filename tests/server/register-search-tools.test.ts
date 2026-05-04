@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { registerSearchTools } from "../../src/server/register-search-tools.js";
 
-type RegisteredToolHandler = (input: Record<string, unknown>) => unknown | Promise<unknown>;
+type RegisteredToolHandler = (input: Record<string, unknown>) => Promise<unknown>;
 
 function createServerHarness() {
   const handlers = new Map<string, RegisteredToolHandler>();

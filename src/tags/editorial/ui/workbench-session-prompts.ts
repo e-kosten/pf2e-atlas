@@ -372,9 +372,6 @@ async function promptTag(
   if (result.kind === "all") {
     return {};
   }
-  if (result.kind !== "selected") {
-    return undefined;
-  }
   const value = result.value;
   if (!category) {
     const [resolvedCategory, resolvedTag] = value.split(":", 2);

@@ -8,17 +8,6 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import {
-  ACTOR_METRIC_COMPARE_PREDICATE_SPEC,
-  ACTOR_METRIC_PREDICATE_SPEC,
-  ITEM_METRIC_COMPARE_PREDICATE_SPEC,
-  ITEM_METRIC_PREDICATE_SPEC,
-  METADATA_FIELD_PREDICATE_VARIANTS,
-  type MetadataMetricComparePredicateSpec,
-  type MetadataMetricValuePredicateSpec,
-  type MetadataPredicatePayloadKind,
-  type MetadataPredicateVariantSpec,
-} from "../domain/metadata-predicate-spec.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
 import type { BrowseSortSpec, SearchFilterNode } from "../domain/search-request-types.js";
 import {
@@ -100,93 +89,9 @@ const metadataTextStringFieldSchema = z.enum(METADATA_TEXT_STRING_FIELDS);
 const metadataNumberFieldSchema = z.enum(METADATA_NUMBER_FIELDS);
 const metadataBooleanFieldSchema = z.enum(METADATA_BOOLEAN_FIELDS);
 
-const METADATA_PREDICATE_PAYLOAD_SCHEMAS = {
-  string: z.object({ value: z.string() }),
-  stringArray: z.object({ values: z.array(z.string()).min(1) }),
-  number: z.object({ value: z.number() }),
-  numberRange: z.object({ min: z.number(), max: z.number() }),
-  boolean: z.object({ value: z.boolean() }),
-} as const satisfies Record<MetadataPredicatePayloadKind, z.ZodObject<z.ZodRawShape>>;
-
 function buildStrictObjectSchema(shape: z.ZodRawShape): z.ZodObject<z.ZodRawShape> {
   return z.object(shape).strict();
 }
-
-function buildVariantPredicateSchema(
-  fieldSchema: z.ZodTypeAny,
-  variant: MetadataPredicateVariantSpec,
-): z.ZodObject<z.ZodRawShape> {
-  return buildStrictObjectSchema({
-    field: fieldSchema,
-    op: z.literal(variant.op),
-    ...METADATA_PREDICATE_PAYLOAD_SCHEMAS[variant.payload].shape,
-  });
-}
-
-function buildMetadataFieldPredicateSchema(
-  fieldSchema: z.ZodTypeAny,
-  variants: readonly MetadataPredicateVariantSpec[],
-): z.ZodTypeAny {
-  const visibleVariants = variants.filter((variant) => variant.exposeInSchema);
-  const variantSchemas = visibleVariants.map((variant) => buildVariantPredicateSchema(fieldSchema, variant));
-  const [firstSchema, secondSchema, ...restSchemas] = variantSchemas;
-  if (!firstSchema) {
-    throw new Error("Metadata predicate schema requires at least one visible variant.");
-  }
-
-  if (!secondSchema) {
-    return firstSchema;
-  }
-
-  return z.discriminatedUnion("op", [firstSchema, secondSchema, ...restSchemas]);
-}
-
-function buildMetricValuePredicateSchema(spec: MetadataMetricValuePredicateSpec): z.ZodTypeAny {
-  return z.union([
-    buildStrictObjectSchema({
-      field: z.literal(spec.field),
-      [spec.metricKey]: z.string(),
-      op: z.enum(spec.numericOperators as [string, ...string[]]),
-      value: z.number(),
-    }),
-    buildStrictObjectSchema({
-      field: z.literal(spec.field),
-      [spec.metricKey]: z.string(),
-      op: z.enum(spec.scalarOperators as [string, ...string[]]),
-      value: z.union([z.string(), z.boolean()]),
-    }),
-  ]);
-}
-
-function buildMetricComparePredicateSchema(spec: MetadataMetricComparePredicateSpec): z.ZodTypeAny {
-  return buildStrictObjectSchema({
-    field: z.literal(spec.field),
-    [spec.leftMetricKey]: z.string(),
-    op: z.enum(spec.operators as [string, ...string[]]),
-    [spec.rightMetricKey]: z.string(),
-  });
-}
-
-const metadataSetPredicateSchema = buildMetadataFieldPredicateSchema(
-  metadataSetFieldSchema,
-  METADATA_FIELD_PREDICATE_VARIANTS.set,
-);
-const metadataEnumStringPredicateSchema = buildMetadataFieldPredicateSchema(
-  metadataEnumStringFieldSchema,
-  METADATA_FIELD_PREDICATE_VARIANTS.enumString,
-);
-const metadataTextStringPredicateSchema = buildMetadataFieldPredicateSchema(
-  metadataTextStringFieldSchema,
-  METADATA_FIELD_PREDICATE_VARIANTS.text,
-);
-const metadataNumberPredicateSchema = buildMetadataFieldPredicateSchema(
-  metadataNumberFieldSchema,
-  METADATA_FIELD_PREDICATE_VARIANTS.number,
-);
-const metadataBooleanPredicateSchema = buildMetadataFieldPredicateSchema(
-  metadataBooleanFieldSchema,
-  METADATA_FIELD_PREDICATE_VARIANTS.boolean,
-);
 
 export const filterValueFieldSchema: z.ZodType<FilterValueField> = z.enum(FILTER_VALUE_FIELDS);
 

@@ -10,10 +10,6 @@ import type {
   FilterExplorerScalarComposeTarget,
 } from "./types.js";
 
-function sortUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
-
 function getDiscreteClauseIdentity(clause: Pick<FilterExplorerDiscreteClause, "field" | "value">): string {
   return `${clause.field}\u0000${clause.value}`;
 }

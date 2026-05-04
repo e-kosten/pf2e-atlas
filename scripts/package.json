@@ -9,7 +9,7 @@
     "format": "cd .. && node ./node_modules/prettier/bin/prettier.cjs . --check",
     "format:write": "cd .. && node ./node_modules/prettier/bin/prettier.cjs . --write",
     "install-hooks": "./install-git-hooks.sh",
-    "lint": "cd .. && node ./node_modules/eslint/bin/eslint.js . --cache --cache-location .cache/eslint/",
+    "lint": "cd .. && node ./node_modules/eslint/bin/eslint.js . --cache --cache-strategy content --cache-location .cache/eslint/",
     "lint:fix": "npm run lint -- --fix",
     "measure:search-semantics-startup": "cd .. && node --import ./node_modules/tsx/dist/esm/index.mjs ./scripts/measure-search-semantics-startup.ts",
     "preflight": "./preflight.sh",

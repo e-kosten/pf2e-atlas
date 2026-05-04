@@ -221,12 +221,7 @@ function extractMetricScalarClauseFromPredicate(
           ? "gte"
           : node.op === "<"
             ? "lt"
-          : node.op === "<="
-            ? "lte"
-            : null;
-  if (!operator) {
-    return null;
-  }
+            : "lte";
 
   return {
     key: buildMetricClauseKey(node.field, node.metric),
@@ -502,11 +497,11 @@ function buildDiscreteClausesFromSelectionMap(
   const clauses: FilterExplorerDiscreteClause[] = [];
 
   for (const [field, selection] of Object.entries(normalizedSelections)) {
-    const includeValues = sortUnique(selection.include ?? []);
+    const includeValues = sortUnique(selection.include);
     for (const value of includeValues) {
       clauses.push({ field, value, operator: "include" });
     }
-    for (const value of sortUnique(selection.exclude ?? [])) {
+    for (const value of sortUnique(selection.exclude)) {
       clauses.push({ field, value, operator: "exclude" });
     }
   }

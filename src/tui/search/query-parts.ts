@@ -230,7 +230,14 @@ export function canonicalFilterToMetadataNode(filter: SearchFilterNode | undefin
       const child = canonicalFilterToMetadataNode(filter.child);
       return child ? { not: child } : null;
     }
-    default:
+    case "pack":
+    case "scope":
+    case "level":
+    case "price":
+    case "rarity":
+    case "actionCost":
+    case "linksTo":
+    case "linkedFrom":
       return null;
   }
 }

@@ -7,7 +7,7 @@ import {
 } from "../../domain/presentation-vocabulary.js";
 import { normalizeMetadataNode } from "./query-core.js";
 import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import type { SearchCategory } from "../../domain/search-types.js";
 import {
   createEmptyStringSelection,
   createScopedSelectionMap,
@@ -53,7 +53,7 @@ function extractSelectionFromMetadataPredicate(
     if ("values" in node && node.op === "in") {
       return { field: node.field, selection: { include: node.values.map(String), exclude: [] } };
     }
-    if ("values" in node && node.op === "notIn") {
+    if ("values" in node) {
       return { field: node.field, selection: { include: [], exclude: node.values.map(String) } };
     }
     return null;

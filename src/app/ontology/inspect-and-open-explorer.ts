@@ -4,7 +4,7 @@ import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
-import { buildAllOfFilter, buildScopeFilter, findSearchScopeFilter } from "../../domain/search-request-types.js";
+import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
 import {
   buildNormalizedRecordNode,

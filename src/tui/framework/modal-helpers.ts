@@ -137,24 +137,3 @@ export function getFilteredPromptSelectionIndex<T extends TerminalSelectOptionDe
 export function getMultiSelectPromptFilteringEnabled(options: MultiSelectPromptOptions<string>): boolean {
   return options.filtering ?? true;
 }
-
-function filterEntriesByTerms<T>(
-  entries: readonly T[],
-  filterText: string,
-  buildSearchableTerms: (entry: T) => string[],
-): T[] {
-  const normalizedTerms = filterText
-    .toLowerCase()
-    .split(/\s+/)
-    .map((term) => term.trim())
-    .filter((term) => term.length > 0);
-
-  if (normalizedTerms.length === 0) {
-    return [...entries];
-  }
-
-  return entries.filter((entry) => {
-    const searchableText = buildSearchableTerms(entry).join(" ").toLowerCase();
-    return normalizedTerms.every((term) => searchableText.includes(term));
-  });
-}

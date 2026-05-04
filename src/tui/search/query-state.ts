@@ -9,7 +9,6 @@ import {
   findSearchScopeFilter,
   type SearchFilterNode,
   type SearchNumericMatch,
-  type SearchRequest,
 } from "../../domain/search-request-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type {
@@ -315,7 +314,7 @@ export function tryExtractSearchFilterValueSelection(
   if (raritySelection && hasSelectionValues(raritySelection)) {
     return {
       kind: "rarity",
-      selection: cloneStringSelection(raritySelection as Pf2eTerminalValueSelection<string>),
+      selection: cloneStringSelection(raritySelection),
     };
   }
 
@@ -323,7 +322,7 @@ export function tryExtractSearchFilterValueSelection(
   if (actionCostSelection && hasSelectionValues(actionCostSelection)) {
     return {
       kind: "actionCost",
-      selection: cloneNumberSelection(actionCostSelection as Pf2eTerminalValueSelection<number>),
+      selection: cloneNumberSelection(actionCostSelection),
     };
   }
 
@@ -555,15 +554,15 @@ export function getSearchQueryText(query: Pf2eTerminalSearchQuery): string {
     return "";
   }
 
-  return query.search?.query ?? "";
+  return query.search.query;
 }
 
 export function getSearchQueryExcludeText(query: Pf2eTerminalSearchQuery): string {
-  return query.mode === "search" ? query.search?.exclude ?? "" : "";
+  return query.mode === "search" ? query.search.exclude ?? "" : "";
 }
 
 export function getSearchQuerySearchProfile(query: Pf2eTerminalSearchQuery): SearchProfile | null {
-  return query.mode === "search" ? (query.search?.profile ?? DEFAULT_SEARCH_PROFILE) : null;
+  return query.mode === "search" ? (query.search.profile ?? DEFAULT_SEARCH_PROFILE) : null;
 }
 
 export function setSearchQueryText(
@@ -950,11 +949,11 @@ export function normalizeSearchQuery(query: Pf2eTerminalSearchQuery): Pf2eTermin
         filter: query.filter,
         sort: query.sort,
         search: {
-          query: query.search?.query?.trim() ?? "",
+          query: query.search.query.trim(),
         },
       };
     case "search": {
-      const exclude = trimOptionalText(query.search?.exclude);
+      const exclude = trimOptionalText(query.search.exclude);
       return {
         mode: "search",
         limit,
@@ -962,8 +961,8 @@ export function normalizeSearchQuery(query: Pf2eTerminalSearchQuery): Pf2eTermin
         filter: query.filter,
         explain: query.explain,
         search: {
-          query: query.search?.query?.trim() ?? "",
-          profile: query.search?.profile ?? DEFAULT_SEARCH_PROFILE,
+          query: query.search.query.trim(),
+          profile: query.search.profile ?? DEFAULT_SEARCH_PROFILE,
           ...(exclude ? { exclude } : {}),
         },
       };

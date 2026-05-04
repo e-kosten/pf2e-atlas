@@ -96,7 +96,7 @@ function getSearchStructuredEditorNotes(session: SearchStructuredEditorSession):
 }
 
 export function getSearchStructuredEditorInteractionActions(
-  session: SearchStructuredEditorSession,
+  _session: SearchStructuredEditorSession,
 ): TerminalInteractionAction[] {
   return [
     { id: "move", label: "select" },

@@ -36,7 +36,6 @@ import {
   getMetadataSetRecordValues,
   getMetadataStringRecordValue,
   getMetadataTextFieldSpec,
-  isMetadataBooleanField,
   isMetadataEnumStringField,
   isMetadataNumberField,
   isMetadataSetField,
@@ -622,10 +621,10 @@ export function recordMatchesMetadataAtomicPredicate(record: NormalizedRecord, p
 
   const value = getMetadataBooleanRecordValue(record, normalized.field);
   if (normalized.op === "isNull") {
-    return value === null;
+    return false;
   }
   if (normalized.op === "isNotNull") {
-    return value !== null;
+    return true;
   }
   return normalized.op === "eq" ? value === normalized.value : value !== normalized.value;
 }

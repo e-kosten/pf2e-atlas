@@ -1,4 +1,3 @@
-import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { Pf2eApplicationSearchDiscoveryService } from "../../app/search-discovery-service.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";

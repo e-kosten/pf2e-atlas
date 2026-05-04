@@ -410,7 +410,7 @@ function buildFilterTreeEntries(
     options.activeGroupPath.length === 0 &&
     node !== undefined &&
     node.kind === "allOf";
-  if (useRootActiveGroupProjection && node) {
+  if (useRootActiveGroupProjection) {
     const { buckets, groupedChildIndexes } = buildActiveGroupFieldBuckets(
       node.children,
       [],
@@ -625,10 +625,8 @@ export function getStructuredDraftSelectionIndex(
     return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
   }
 
-  if (anchor.kind === "queryTreeRoot") {
-    const matchIndex = entries.findIndex((entry) => entry.kind === "queryTreeRoot");
-    return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
-  }
+  const matchIndex = entries.findIndex((entry) => entry.kind === "queryTreeRoot");
+  return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
 
   const entryIndex = entries.findIndex((entry) => entry.kind === preferredKind);
   return clampStructuredDraftSelection(entryIndex >= 0 ? entryIndex : 0, entries.length);

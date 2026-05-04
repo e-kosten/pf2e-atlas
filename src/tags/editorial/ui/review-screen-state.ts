@@ -83,6 +83,7 @@ export function reduceDerivedTagReviewScreenState(
     case "toggle_focus":
     case "toggle_layout":
     case "leave_detail":
+    case "set_focus":
       return {
         ...state,
         ...reduceDerivedTagTerminalTwoPaneState(state, action),

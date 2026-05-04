@@ -87,16 +87,12 @@ export function useSearchStructuredDraftActions({
       update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
       options?: { metadataFocusPath?: number[] | null },
     ) => {
-      let nextQuery: Pf2eTerminalSearchQuery | null = null;
+      let appliedQuery = currentQueryRef.current;
       applyQueryUpdate((query) => {
-        nextQuery = user.search.normalizeQuery(update(query));
-        return nextQuery;
+        appliedQuery = user.search.normalizeQuery(update(query));
+        return appliedQuery;
       });
-      if (!nextQuery) {
-        return;
-      }
 
-      const appliedQuery = nextQuery;
       currentQueryRef.current = appliedQuery;
       setStructuredDraftState((current) => {
         if (!current) {

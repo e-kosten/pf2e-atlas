@@ -1,6 +1,6 @@
 import type { SearchProfile, SearchCategoryInput, SearchSubcategoryInput } from "./search-types.js";
 import type { MetadataAtomicPredicate } from "./search-filter-metadata.js";
-import type { MetricOperator, NullOperator, NumericMetricOperator, NumericOperator } from "./search-filter-operators.js";
+import type { MetricOperator, NullOperator, NumericMetricOperator } from "./search-filter-operators.js";
 import type { RecordKey } from "./record-types.js";
 
 export type SearchRequestMode = "browse" | "search" | "lookup";

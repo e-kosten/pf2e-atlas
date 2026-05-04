@@ -3,7 +3,6 @@ import {
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
 import type { SearchFilterNode, SearchRequest } from "../domain/search-request-types.js";
-import type { SearchCategory, SearchSort, SearchSubcategory } from "../domain/search-types.js";
 import type {
   SearchExecutionFilterNode,
   SearchExecutionFilters,

@@ -239,9 +239,16 @@ function collectDiscoveryApplicability(
         collectDiscoveryApplicability(child, scopes, packs);
       }
       return;
+    case "metric":
+    case "level":
+    case "price":
+    case "rarity":
+    case "actionCost":
+    case "linksTo":
+    case "linkedFrom":
+    case "metadataPredicate":
+    case "metricCompare":
     case "not":
-      return;
-    default:
       return;
   }
 }

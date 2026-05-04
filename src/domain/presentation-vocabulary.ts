@@ -1,6 +1,6 @@
 import type { MetadataFieldName, MetadataFieldType } from "./metadata-field-types.js";
 
-const METADATA_FIELD_LABELS: Partial<Record<MetadataFieldName, string>> = {
+const METADATA_FIELD_LABELS = {
   actionCost: "Action Cost",
   areaType: "Area Type",
   areaValue: "Area Value",
@@ -35,7 +35,8 @@ const METADATA_FIELD_LABELS: Partial<Record<MetadataFieldName, string>> = {
   variantFamilyKey: "Variant Family",
   variantLabel: "Variant Label",
   weaponGroup: "Weapon Group",
-};
+} satisfies Partial<Record<MetadataFieldName, string>>;
+const METADATA_FIELD_LABELS_BY_VALUE: Partial<Record<string, string>> = METADATA_FIELD_LABELS;
 
 const METADATA_FIELD_TYPE_LABELS: Record<MetadataFieldType, string> = {
   set: "String Set",
@@ -44,6 +45,7 @@ const METADATA_FIELD_TYPE_LABELS: Record<MetadataFieldType, string> = {
   number: "Number",
   boolean: "Boolean",
 };
+const METADATA_FIELD_TYPE_LABELS_BY_VALUE: Partial<Record<string, string>> = METADATA_FIELD_TYPE_LABELS;
 
 export function humanizeOntologySearchIdentifier(value: string): string {
   return value
@@ -57,15 +59,15 @@ export function humanizeOntologySearchIdentifier(value: string): string {
     .join(" ");
 }
 
-export function formatMetadataFieldLabel(field: MetadataFieldName | string): string {
-  return METADATA_FIELD_LABELS[field as MetadataFieldName] ?? humanizeOntologySearchIdentifier(field);
+export function formatMetadataFieldLabel(field: string): string {
+  return METADATA_FIELD_LABELS_BY_VALUE[field] ?? humanizeOntologySearchIdentifier(field);
 }
 
-export function formatMetadataFieldTypeLabel(fieldType: MetadataFieldType | string): string {
-  return METADATA_FIELD_TYPE_LABELS[fieldType as MetadataFieldType] ?? humanizeOntologySearchIdentifier(fieldType);
+export function formatMetadataFieldTypeLabel(fieldType: string): string {
+  return METADATA_FIELD_TYPE_LABELS_BY_VALUE[fieldType] ?? humanizeOntologySearchIdentifier(fieldType);
 }
 
-export function describeMetadataFieldType(fieldType: MetadataFieldType | string): string {
+export function describeMetadataFieldType(fieldType: string): string {
   return formatMetadataFieldTypeLabel(fieldType).toLowerCase();
 }
 

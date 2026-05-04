@@ -562,22 +562,19 @@ function FilterableChoicePromptHarness({
         .then((selection) => setResult(formatSelectResult(selection)));
       return;
     }
-    if (kind === "multiselect") {
-      void terminal
-        .promptMultiSelectOption({
-          title: "Filterable Multi",
-          prompt: "Choose values",
-          entries,
-        })
-        .then((selection) => {
-          if (selection.kind === "selected") {
-            setResult(selection.values.join(",") || "empty");
-            return;
-          }
-          setResult("cancelled");
-        });
-      return;
-    }
+    void terminal
+      .promptMultiSelectOption({
+        title: "Filterable Multi",
+        prompt: "Choose values",
+        entries,
+      })
+      .then((selection) => {
+        if (selection.kind === "selected") {
+          setResult(selection.values.join(",") || "empty");
+          return;
+        }
+        setResult("cancelled");
+      });
   }, [entries, kind]);
 
   return <TerminalTextScreen title="Harness" body={[{ text: `kind=${kind}` }, { text: `result=${result}` }]} />;
@@ -860,7 +857,7 @@ function SelectThenMultiSelectWithCommandPaletteKeyHarness(): React.JSX.Element 
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }]} />;
 }
 
-function EventDrivenSelectChainHarness(): React.JSX.Element {
+function _EventDrivenSelectChainHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [started, setStarted] = React.useState(false);
   const [result, setResult] = React.useState("pending");
@@ -902,7 +899,7 @@ function EventDrivenSelectChainHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: `result=${result}` }, { text: "Press Enter to start" }]} />;
 }
 
-function MenuScreenDrivenPromptHarness(): React.JSX.Element {
+function _MenuScreenDrivenPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [result, setResult] = React.useState("pending");

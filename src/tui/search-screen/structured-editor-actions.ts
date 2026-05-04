@@ -33,12 +33,9 @@ export function useSearchStructuredEditorActions({
   structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const {
-    chooseQueryField,
     editFieldClause,
-    getExplorerBackedFieldOptions,
     getScopedFieldOptions,
     openOntologyFieldEditor,
-    openOntologyFieldExplorer,
   } = useSearchQueryFieldEditing({
     openFilterExplorer,
     prompts,

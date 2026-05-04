@@ -9,7 +9,7 @@ import {
   type SearchDiscoveryField,
   type SearchSemanticsDiscoveryReader,
 } from "../search-discovery-service.js";
-import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import { getMetadataFilterSemantics } from "../../search/filters/semantics.js";
 import { readMetadataGlossaryArtifact } from "../../data/metadata-glossary.js";
 import type { Pf2eDataService } from "../../data/service.js";
 import type { SearchSemanticsBootstrapSummaryResult } from "../../data/vocabulary.js";

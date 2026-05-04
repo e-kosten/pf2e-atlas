@@ -12,7 +12,9 @@ export function normalizeTerminalPromptPresentation(
       return "overlay";
     case "blanked":
       return "blanked";
-    default:
+    case "inline":
+    case "screen":
+    case undefined:
       return presentation;
   }
 }

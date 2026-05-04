@@ -1,7 +1,5 @@
 import {
   ACTOR_METRIC_DISCOVERY_NAMESPACES,
-  ACTOR_METRIC_NUMERIC_OPERATORS,
-  ACTOR_METRIC_SCALAR_OPERATORS,
 } from "../../domain/actor-metrics.js";
 import { ITEM_METRIC_DISCOVERY_NAMESPACES } from "../../domain/item-metrics.js";
 import { SEARCH_CATEGORIES } from "../../domain/categories.js";

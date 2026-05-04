@@ -92,16 +92,15 @@ async function waitForFrameToContain(
   app: ReturnType<typeof render>,
   text: string,
   attempts = 12,
-): Promise<void> {
+): Promise<string> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (app.lastFrame().includes(text)) {
-      return;
+    const frame = app.lastFrame();
+    if (frame.includes(text)) {
+      return frame;
     }
     await flushInk();
   }
-  if (app.lastFrame().includes(text)) {
-    return;
-  }
+  return app.lastFrame();
 }
 
 async function waitForFrameToExclude(
@@ -1364,7 +1363,7 @@ async function addAcGte10FromCurrentMetricSelectionFromExplorer(app: ReturnType<
   await returnFromExplorerToStructuredEditor(app);
 }
 
-async function driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promise<void> {
+async function _driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promise<void> {
   await openTraitsExplorerFromAddHere(app);
   for (let attempt = 0; attempt < 3 && !app.lastFrame().includes("archetype"); attempt += 1) {
     app.stdin.write("\r");
@@ -2024,7 +2023,7 @@ describe("search screen", () => {
     await flushInk();
 
     app.stdin.write(":");
-    await flushInk();
+    await waitForFrameToContain(app, "Actions:");
 
     expect(app.lastFrame()).toContain("Actions:");
     expect(app.lastFrame()).toContain("Jump to Result");
@@ -2038,7 +2037,7 @@ describe("search screen", () => {
           <SearchScreen
             entry="results"
             initialSession={createSearchSession({
-              query: searchRequest("alarm ward"),
+              query: searchRequest({ search: { query: "alarm ward" }, limit: 20 }),
               resultMode: "hybrid",
               searchProfile: "balanced",
               sort: "ranked",
@@ -2052,11 +2051,11 @@ describe("search screen", () => {
     await flushInk();
 
     app.stdin.write(":");
-    await flushInk();
+    const actionsFrame = await waitForFrameToContain(app, "Actions:");
 
-    expect(app.lastFrame()).toContain("Actions:");
-    expect(app.lastFrame()).toContain("Jump to Result");
-    expect(app.lastFrame()).not.toContain("Change Sort");
+    expect(actionsFrame).toContain("Actions:");
+    expect(actionsFrame).toContain("Jump to Result");
+    expect(actionsFrame).not.toContain("Change Sort");
   });
 
   it("uses space to open add-query-part and keeps derived-tag composition on the shared explorer path", async () => {
@@ -3883,8 +3882,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits: Include archetype, de");
     expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
     expect(app.lastFrame()).toContain("Traits: !concentrate");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();
   });
 
   it("keeps the same canonical trait subtree after closing and reopening the structured editor", async () => {
@@ -3932,8 +3931,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits: Include archetype, de");
     expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
     expect(app.lastFrame()).toContain("Traits: !concentrate");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();
   });
 
   it("rehydrates the original multi-trait explorer state when editing an existing clause", async () => {
@@ -3980,7 +3979,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("├─ All of");
     expect(app.lastFrame()).toContain("│  ├─ Any of");
     expect(app.lastFrame()).toContain("Traits: includes Dedica");
-    expect(app.lastFrame().match(/^\│  ├─ ! Traits: includes Concent/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^│ {2}├─ ! Traits: includes Concent/m)).not.toBeNull();
 
     for (let step = 0; step < 4; step += 1) {
       pressUp(app);
@@ -4004,7 +4003,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("├─ All of");
     expect(app.lastFrame()).toContain("│  ├─ Any of");
     expect(app.lastFrame()).toContain("Traits: includes Dedica");
-    expect(app.lastFrame().match(/^\│  ├─ ! Traits: includes Concent/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^│ {2}├─ ! Traits: includes Concent/m)).not.toBeNull();
   });
 
   it("keeps feat trait edit-clause additions flat instead of wrapping them in a nested group", async () => {
@@ -4047,8 +4046,8 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
 
     pressUp(app);
     await flushInk();
@@ -4068,8 +4067,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Skill");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
   });
 
   it("keeps feat trait add-here additions flat instead of converting the field into a nested any-of group", async () => {
@@ -4112,8 +4111,8 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
 
     await openTraitsExplorerFromAddHere(app);
     await addSkillToCurrentTraitSelectionFromExplorer(app);
@@ -4123,8 +4122,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Skill");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
   });
 
   it("keeps flat grouped trait rows stable when adding a metric scalar clause from add-here", async () => {
@@ -4171,18 +4170,18 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Traits: includes Humanoid");
     expect(app.lastFrame().toLowerCase()).toContain("evil");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
 
     await openMetricExplorerFromAddHere(app);
     await addAcGte10FromCurrentMetricSelectionFromExplorer(app);
 
     expect(app.lastFrame()).toContain("Traits: includes Humanoid");
-    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
     expect(app.lastFrame()).toContain("Creature Statistics: ac.va");
     expect(app.lastFrame()).toContain("Top-level filters: 4");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
   });
 
   it("keeps the tree flat after reopening a mixed trait and family query", async () => {
@@ -4237,22 +4236,22 @@ describe("search screen", () => {
     await addAncestryNpcsFromCurrentFamiliesSelectionFromExplorer(app);
 
     expect(app.lastFrame()).toContain("Traits: includes Humanoid");
-    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
     expect(app.lastFrame()).toContain("Families: includes Ancestry Npcs");
     expect(app.lastFrame()).toContain("Top-level filters: 4");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
 
     pressLeft(app);
     await flushInk();
     await openStructuredQueryEditor(app);
 
     expect(app.lastFrame()).toContain("Traits: includes Humanoid");
-    expect(app.lastFrame().match(/^\├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
+    expect(app.lastFrame().match(/^├─ (! Traits: includes Evil|Traits: !evil)/m)).not.toBeNull();
     expect(app.lastFrame()).toContain("Families: includes Ancestry Npcs");
     expect(app.lastFrame()).toContain("Top-level filters: 4");
-    expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().match(/^\├─ Any of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
   });
 
   it("renders grouped exclude buckets inline in the live structured query tree", async () => {

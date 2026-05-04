@@ -90,8 +90,7 @@ export function handleFilterExplorerAction(args: {
   options: FilterExplorerOptions;
   updateDraft: (updater: (current: FilterExplorerComposeDraft) => FilterExplorerComposeDraft) => void;
 }): boolean {
-  const { action, adapters, context, draft, keyContext, onOpenInspectQuery, onOpenInspectResult, options, updateDraft } =
-    args;
+  const { action, adapters, context, draft, keyContext, options, updateDraft } = args;
 
   if (action.id === "back" && shouldExitAtRootDepth(options, keyContext)) {
     options.onOutcome({ kind: "back" }, createFilterExplorerBrowserSnapshot(keyContext));
@@ -146,7 +145,5 @@ export function applyFilterExplorerActionEntry(args: {
     return;
   }
 
-  if (actionEntry.action.selection === "query") {
-    onOpenInspectQuery(inspectResult);
-  }
+  onOpenInspectQuery(inspectResult);
 }

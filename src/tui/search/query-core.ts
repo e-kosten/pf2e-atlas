@@ -1056,6 +1056,9 @@ function formatCanonicalMetadataPredicateValue(
         return "is empty";
       case "isNotNull":
         return "has value";
+      case "includes":
+      case "between":
+        return predicate.op;
     }
   }
   return predicate.op;
