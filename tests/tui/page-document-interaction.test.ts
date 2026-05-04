@@ -216,6 +216,67 @@ function createInlineTargetDocument(): PageDocumentModel {
   };
 }
 
+function createWrappedInlineTargetDocument(): PageDocumentModel {
+  const target = { kind: "record" as const, label: "Delayed Blast Fireball", recordKey: "spell:delayed-blast-fireball", action: "open" as const };
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    nodes: [
+      { id: "header:title", kind: "title", line: { text: "Fireball" }, anchorRole: "content" },
+      {
+        id: "section:description:heading",
+        kind: "sectionHeading",
+        sectionId: "description",
+        line: { text: "Description" },
+        anchorRole: "sectionStart",
+      },
+      {
+        id: "section:description:text:0",
+        kind: "text",
+        sectionId: "description",
+        line: {
+          text: "A long line that wraps before the inline target named Delayed Blast Fireball appears.",
+          segments: [
+            { text: "A long line that wraps before the inline target named " },
+            { text: "Delayed Blast Fireball" },
+            { text: " appears." },
+          ],
+        },
+        inlineTargets: [
+          {
+            targetId: "section:description:text:0:target:0",
+            segmentId: "section:description:text:0:segment:0",
+            segmentIndex: 1,
+            target,
+          },
+        ],
+        anchorRole: "target",
+      },
+    ],
+    sections: [
+      {
+        id: "description",
+        kind: "description",
+        title: "Description",
+        startNodeIndex: 1,
+        endNodeIndex: 2,
+        targetNodeIds: ["section:description:text:0:target:0"],
+      },
+    ],
+    sectionAnchors: [{ sectionId: "description", nodeIndex: 1 }],
+    targetNodes: [
+      {
+        targetId: "section:description:text:0:target:0",
+        nodeId: "section:description:text:0",
+        sectionId: "description",
+        target,
+        location: { kind: "span", nodeId: "section:description:text:0", segmentId: "section:description:text:0:segment:0" },
+      },
+    ],
+  };
+}
+
 describe("page document interaction", () => {
   it("derives the reading anchor from a stable viewport offset", () => {
     expect(getPageDocumentReadingAnchorOffset(9)).toBe(3);
@@ -507,5 +568,26 @@ describe("page document interaction", () => {
       "Open in Archives of Nethys",
     );
     expect(getSelectedPageDocumentTarget({ document, state: start.state })?.target.label).toBe("Trait: Concentrate");
+  });
+
+  it("scrolls a wrapped inline span target's containing rendered line into view", () => {
+    const document = createWrappedInlineTargetDocument();
+    const nodeStartRows = [0, 1, 12];
+
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 0,
+      bodyHeight: 3,
+      maxScroll: 30,
+      nodeStartRows,
+      sectionId: "description",
+    });
+
+    expect(getSelectedPageDocumentTarget({ document, state: entered.state })?.target.label).toBe(
+      "Delayed Blast Fireball",
+    );
+    expect(entered.scroll).toBe(11);
+    expect(nodeStartRows[2]).toBeGreaterThanOrEqual(entered.scroll);
+    expect(nodeStartRows[2]).toBeLessThan(entered.scroll + 3);
   });
 });

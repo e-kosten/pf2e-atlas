@@ -222,6 +222,16 @@ const NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS = {
   ],
 };
 
+const LEGACY_ENTITY_DETAIL_PRESENTER_IMPORT_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ["**/app/ontology/presenter.js"],
+      message:
+        "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the plain-line presenter directly.",
+    },
+  ],
+};
+
 const SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   patterns: [
     {
@@ -1137,13 +1147,7 @@ export default defineConfig(
               "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
           },
         ],
-        patterns: [
-          {
-            group: ["**/app/ontology/presenter.js"],
-            message:
-              "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the legacy detail-line presenter directly.",
-          },
-        ],
+        patterns: LEGACY_ENTITY_DETAIL_PRESENTER_IMPORT_RESTRICTIONS.patterns,
       }),
     },
   },
@@ -1195,15 +1199,16 @@ export default defineConfig(
   {
     files: ["src/tui/ontology-explorer/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
-        patterns: [
-          {
-            group: ["**/app/ontology/presenter.js"],
-            message:
-              "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the legacy detail-line presenter directly.",
-          },
-        ],
-      }),
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS,
+        LEGACY_ENTITY_DETAIL_PRESENTER_IMPORT_RESTRICTIONS,
+      ),
+    },
+  },
+  {
+    files: ["src/tui/filter-explorer/**/*.{ts,tsx}", "src/tui/entity-page-screen.tsx"],
+    rules: {
+      "no-restricted-imports": mergeNonTagRestrictedImports(LEGACY_ENTITY_DETAIL_PRESENTER_IMPORT_RESTRICTIONS),
     },
   },
   {

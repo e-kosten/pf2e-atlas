@@ -29,6 +29,9 @@ Adopt one canonical shared search-request model with these durable rules:
   - `allOf`
   - `not`
 - filter concepts such as scope, links, pack, numeric matchers, metadata predicates, and metric predicates live as atomic canonical leaves under that tree
+- exact record-link filters are represented by the symmetric canonical leaves `linksTo` and `linkedFrom`
+  - `linksTo` matches records with an outgoing reference edge to the given target record key
+  - `linkedFrom` matches records with an incoming reference edge from the given source record key
 - top-level numeric matchers preserve exact, strict, inclusive, and bounded-range meaning as distinct canonical variants
 - metadata predicates remain atomic in the canonical model
   - multiplicity is expressed through boolean composition, not plural payload shapes

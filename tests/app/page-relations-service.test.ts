@@ -166,4 +166,58 @@ describe("page relations service", () => {
       },
     ]);
   });
+
+  it("preserves incoming creature records as a visible backlink group with a canonical linksTo browse request", () => {
+    const graph: PageReferenceCollectionResult = {
+      outgoing: { records: [], edges: [] },
+      incoming: {
+        records: [
+          createRecord({
+            recordKey: "creature:fire-imp",
+            name: "Fire Imp",
+            category: "creature",
+          }),
+          createRecord({
+            recordKey: "creature:ember-drake",
+            name: "Ember Drake",
+            category: "creature",
+          }),
+        ],
+        edges: [],
+      },
+      edges: [],
+    };
+
+    const service = createPf2eApplicationPageRelationsService({
+      getReferenceEdges: vi.fn(() => graph),
+    });
+    const relations = service.loadPageRelations("spells:fireball");
+
+    expect(relations.incomingGroups).toEqual([
+      {
+        category: "creature",
+        subcategory: null,
+        count: 2,
+        request: {
+          mode: "browse",
+          filter: {
+            kind: "allOf",
+            children: [
+              {
+                kind: "scope",
+                category: "creature",
+                subcategory: { kind: "any" },
+              },
+              {
+                kind: "linksTo",
+                target: "spells:fireball",
+              },
+            ],
+          },
+          sort: { kind: "alphabetical" },
+          limit: 50,
+        },
+      },
+    ]);
+  });
 });

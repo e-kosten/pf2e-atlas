@@ -159,8 +159,8 @@ Important expectations:
 - route cross-surface search discovery semantics through `src/app/search-discovery-service.ts` rather than rebuilding applicability, ordering, or pack-resolution logic from raw `listFilterValues(...)` calls
 - treat ontology nodes as readonly browse models
 - keep helper caches alongside ontology helpers rather than mutating shared nodes from UI code
-- keep shared entity-page document and page-text rendering in `src/app/ontology/entity-page.ts`, keep raw/vendor page fact projection in `src/app/ontology/entity-page-facts.ts`, route relation-aware page composition through `src/app/ontology/entity-page-service.ts`, and route qualifying TUI page consumers through `services.user.entityPages` plus `src/tui/page-document/*` instead of importing the legacy detail-line presenter directly
-- treat `src/app/ontology/presenter.ts` as a quarantined line-detail path for non-qualifying ontology/editorial consumers that still need plain `OntologyTextLine[]`; do not use it for structured record-page TUI routes, inline targets, or relation-aware page navigation
+- keep shared entity-page document and page-text rendering in `src/app/ontology/entity-page.ts`, keep raw/vendor page fact projection in `src/app/ontology/entity-page-facts.ts`, route relation-aware page composition through `src/app/ontology/entity-page-service.ts`, and route qualifying TUI page consumers through `services.user.entityPages` plus `src/tui/page-document/*` instead of importing the plain-line presenter directly
+- treat `src/app/ontology/presenter.ts` as the durable plain-line presentation path for non-qualifying ontology/editorial consumers that still need `OntologyTextLine[]`; do not use it for structured record-page TUI routes, inline targets, or relation-aware page navigation
 - move shared vocabulary into `src/domain/` when the concept is no longer ontology-specific
 - route shared ontology/search labels and friendly fallback humanization through `src/domain/presentation-vocabulary.ts` instead of screen-local humanization or raw ids
 

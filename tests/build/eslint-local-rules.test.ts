@@ -679,4 +679,26 @@ describe("eslint local architecture rules", () => {
       "no-restricted-imports",
     );
   });
+
+  it("blocks qualifying TUI page consumers from importing the plain-line entity presenter", async () => {
+    await expectRuleMessage(
+      "src/tui/filter-explorer/controller.ts",
+      'import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";\nexport const value = buildOntologyExplorerEntityDetailLines;\n',
+      "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the plain-line presenter directly.",
+      "no-restricted-imports",
+    );
+
+    await expectRuleMessage(
+      "src/tui/entity-page-screen.tsx",
+      'import { buildOntologyExplorerEntityDetailLines } from "../app/ontology/presenter.js";\nexport const value = buildOntologyExplorerEntityDetailLines;\n',
+      "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the plain-line presenter directly.",
+      "no-restricted-imports",
+    );
+
+    await expectNoRuleMessages(
+      "src/tags/editorial/ui/review-detail-content.ts",
+      'import { buildOntologyExplorerEntityDetailLines } from "../../../app/ontology/presenter.js";\nexport const value = buildOntologyExplorerEntityDetailLines;\n',
+      "no-restricted-imports",
+    );
+  });
 });

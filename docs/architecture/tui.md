@@ -226,7 +226,7 @@ In the current split:
 - `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - ontology record mapping, relation-aware page composition, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
-- `src/app/ontology/presenter.ts` remains a quarantined line-detail compatibility path for non-qualifying ontology/editorial consumers only; qualifying record-page TUI consumers must use `services.user.entityPages` and compile through `src/tui/page-document/*`
+- `src/app/ontology/presenter.ts` is the durable plain-line presentation path for non-qualifying ontology/editorial consumers only; qualifying record-page TUI consumers must use `services.user.entityPages` and compile through `src/tui/page-document/*`
 
 The remaining line-detail presenter callers are `src/app/ontology/derived-tags-domain.ts`, `src/app/ontology/node-helpers.ts`, and `src/tags/editorial/ui/review-detail-content.ts`. Those callers produce readonly ontology labels or editorial text-line previews, not structured entity-page routes, inline page targets, or relation-aware page navigation.
 
