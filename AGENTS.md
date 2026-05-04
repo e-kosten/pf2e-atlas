@@ -133,11 +133,12 @@ Agents must do implementation work in a dedicated git worktree, not in the share
 - When the worktree change is ready to land, inspect the shared `main` checkout first. If `main` has any uncommitted tracked changes, stop and tell the user instead of merging.
 - Before attempting to merge back, rebase the worktree branch onto the current `main` so parallel agent commits already landed on `main` are incorporated first.
 - If the rebase hits conflicts, stop there and tell the user what conflicted so they can decide the next step.
-- After a clean rebase, rerun `npm run build` and `cd scripts && npm test` in the rebased worktree. If either fails, stop and tell the user instead of merging.
-- Only after `main` is clean, the rebase is conflict-free, the rebased worktree passes build and tests, and the full requested workset is complete should the agent merge the branch back into `main`.
+- After a clean rebase, rerun `cd scripts && npm run lint`, `npm run build`, and `cd scripts && npm test` in the rebased worktree. If any fail, stop and tell the user instead of merging.
+- Land implementation worktrees with `scripts/land-worktree.sh` from the linked task worktree instead of running `git merge` directly from `main`. The landing script rebases onto `main`, runs lint/build/test before merge, fast-forwards `main`, and reruns lint/build/test on `main`.
+- Only after `main` is clean, the rebase is conflict-free, the rebased worktree passes lint/build/test, and the full requested workset is complete should the agent merge the branch back into `main`.
 - Merging back into the shared `main` checkout can require sandbox approval because git updates shared refs such as `ORIG_HEAD`; request escalation when the environment blocks that write.
 - Do not assume a fast-forward merge will be available before rebasing; parallel agent work commonly means the landing branch has diverged from `main`.
-- After merging back into `main`, rerun `npm run build` and `cd scripts && npm test` on `main`, and only then report the task complete.
+- After merging back into `main`, rerun `cd scripts && npm run lint`, `npm run build`, and `cd scripts && npm test` on `main`, and only then report the task complete.
 - Remove the temporary worktree after the change has been safely integrated unless the user asks to keep it. This applies to every temporary worktree created for the task, including sub-agent worktrees, and cleanup must happen before the task is reported complete.
 
 ## Configuration & Data Notes

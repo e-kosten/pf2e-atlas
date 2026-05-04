@@ -164,7 +164,16 @@ Tracked git hooks live in `.githooks/` and enforce:
 
 - `pre-commit`: fail from the primary checkout or branch `main`
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
-- `pre-push`: rerun `cd scripts && npm run verify`
+- `pre-merge-commit`: rerun lint, build, and tests for non-docs merge commits
+- `pre-push`: rerun lint, build, and tests
+
+Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
+
+```bash
+scripts/land-worktree.sh
+```
+
+Run that command from the linked task worktree. It rebases onto `main`, runs lint/build/test, fast-forwards `main`, and reruns lint/build/test on `main`.
 
 ## Vendored PF2E Data
 

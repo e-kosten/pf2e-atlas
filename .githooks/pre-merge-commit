@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -eu
+
+HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+. "$HOOK_DIR/../scripts/git-hooks/common.sh"
+
+if staged_changes_are_docs_only; then
+  echo "Docs-only merge detected; skipping pre-merge verification." >&2
+  exit 0
+fi
+
+echo "Running pre-merge checks (lint + build + test)..." >&2
+(
+  cd scripts &&
+    npm run lint &&
+    npm run build &&
+    npm run test
+)
