@@ -125,34 +125,82 @@ function createRecordPageDocument(): EntityPageDocument {
   };
 }
 
-function createTargetFirstRecordPageDocument(): EntityPageDocument {
-  const document = createRecordPageDocument();
+function createPreviewTargetRecordPageDocument(): EntityPageDocument {
   return {
-    ...document,
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: ["Fire"],
     sections: [
       {
-        ...document.sections[1]!,
+        id: "references",
+        kind: "references",
+        title: "References",
         blocks: [
           { kind: "text", text: "Target intro 1" },
           { kind: "text", text: "Target intro 2" },
           { kind: "text", text: "Target intro 3" },
           { kind: "text", text: "Target intro 4" },
-          ...document.sections[1]!.blocks,
+          {
+            kind: "targetList",
+            targets: [
+              {
+                kind: "record",
+                label: "Chain Lightning",
+                recordKey: "spell:test-chain-lightning",
+                action: "preview",
+              },
+            ],
+          },
+        ],
+        targets: [
+          {
+            kind: "record",
+            label: "Chain Lightning",
+            recordKey: "spell:test-chain-lightning",
+            action: "preview",
+          },
         ],
       },
-      document.sections[0]!,
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused page summary." }],
+        targets: [],
+      },
     ],
   };
 }
 
-function createServices(document: EntityPageDocument | null = null) {
+function createPreviewTargetDocument(): EntityPageDocument {
+  return {
+    recordKey: "spell:test-chain-lightning",
+    title: "Chain Lightning",
+    identityLine: "Spell | Rank 6 | Common | Pathfinder Player Core",
+    traits: ["Electricity"],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "Preview-only target summary." }],
+        targets: [],
+      },
+    ],
+  };
+}
+
+function createServices(documents: EntityPageDocument | readonly EntityPageDocument[] | null = null) {
+  const documentList = documents == null ? [] : Array.isArray(documents) ? [...documents] : [documents];
+  const documentsByRecordKey = new Map(documentList.map((document) => [document.recordKey, document]));
   return {
     config: {} as never,
     user: {
       entityPages: {
         buildDocument: vi.fn(),
         buildDocumentByRecordKey: vi.fn((recordKey: string) =>
-          document && recordKey === document.recordKey ? document : null,
+          documentsByRecordKey.get(recordKey) ?? null,
         ),
         buildDetailLines: vi.fn(),
       },
@@ -245,7 +293,44 @@ describe("OntologyInspectScreen", () => {
     expect(frame).toContain("A focused page summary.");
     expect(frame).toContain("References");
     expect(frame).toContain("Creatures (2)");
-    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball");
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
+      recordTargetAction: "preview",
+    });
+  });
+
+  it("previews record page targets in place through the ontology inspect host", async () => {
+    const sourceDocument = createPreviewTargetRecordPageDocument();
+    const targetDocument = createPreviewTargetDocument();
+    const services = createServices([sourceDocument, targetDocument]);
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+
+    app.stdin.write("\t");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    const frame = app.lastFrame();
+    expect(frame).toContain("Chain Lightning");
+    expect(frame).toContain("Preview-only target summary.");
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
+      recordTargetAction: "preview",
+    });
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-chain-lightning", {
+      recordTargetAction: "preview",
+    });
   });
 
 });

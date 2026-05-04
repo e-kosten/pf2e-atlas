@@ -292,7 +292,9 @@ describe("pf2e navigation", () => {
       await flushReact();
     });
 
-    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-alarm");
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-alarm", {
+      recordTargetAction: "open",
+    });
     expect(capture.current!.state.routeStack).toEqual([
       initialRoute,
       expect.objectContaining({

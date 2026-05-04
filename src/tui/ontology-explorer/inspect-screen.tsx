@@ -5,7 +5,7 @@ import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
-import type { EntityPageTarget } from "../../app/ontology/entity-page.js";
+import type { EntityPageDocument, EntityPageTarget } from "../../app/ontology/entity-page.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
 import { usePf2eTerminalAppServices } from "../app-service-context.js";
 import {
@@ -110,11 +110,15 @@ export function OntologyInspectScreen({
   const initialDiscoveryMode = routeData.initialDiscoveryMode ?? "matching";
   const [model, setModel] = React.useState(routeData.model);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
+  const [previewDocumentsByRecordKey, setPreviewDocumentsByRecordKey] = React.useState<Map<string, EntityPageDocument>>(
+    () => new Map(),
+  );
   const refreshRequestIdRef = React.useRef(0);
 
   React.useEffect(() => {
     setModel(routeData.model);
     setDiscoveryMode(initialDiscoveryMode);
+    setPreviewDocumentsByRecordKey(new Map());
   }, [initialDiscoveryMode, routeData.model]);
 
   const resolveInspectTarget = React.useCallback((node: OntologyDomainModel["rootNodes"][number] | undefined) => {
@@ -182,20 +186,47 @@ export function OntologyInspectScreen({
         return null;
       }
 
-      const document = user.entityPages.buildDocumentByRecordKey(node.id);
+      const document =
+        previewDocumentsByRecordKey.get(node.id) ??
+        user.entityPages.buildDocumentByRecordKey(node.id, { recordTargetAction: "preview" });
       return document ? buildPageDocumentModel(document) : null;
     },
-    [user.entityPages],
+    [previewDocumentsByRecordKey, user.entityPages],
   );
   const host = React.useMemo(
     () =>
       createInspectFilterExplorerHostAdapter({
         resolveTarget: resolveInspectTarget,
         resolvePageDocument,
-        activatePageTarget: onActivatePageTarget ? ({ target }) => onActivatePageTarget(target) : undefined,
+        activatePageTarget: ({ target, controller }) => {
+          if (target.kind === "record" && target.action === "preview") {
+            const previewDocument = user.entityPages.buildDocumentByRecordKey(target.recordKey, {
+              recordTargetAction: "preview",
+            });
+            if (!previewDocument) {
+              return false;
+            }
+
+            const sourceRecordKey = controller.browser.currentNode?.kind === "record"
+              ? controller.browser.currentNode.id
+              : null;
+            if (!sourceRecordKey) {
+              return false;
+            }
+
+            setPreviewDocumentsByRecordKey((current) => {
+              const next = new Map(current);
+              next.set(sourceRecordKey, previewDocument);
+              return next;
+            });
+            return true;
+          }
+
+          return onActivatePageTarget?.(target);
+        },
         onEditScalarTarget,
       }),
-    [onActivatePageTarget, onEditScalarTarget, resolveInspectTarget, resolvePageDocument],
+    [onActivatePageTarget, onEditScalarTarget, resolveInspectTarget, resolvePageDocument, user.entityPages],
   );
 
   return (

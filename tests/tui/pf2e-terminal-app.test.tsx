@@ -322,6 +322,71 @@ function createScrollablePageDocument() {
   };
 }
 
+function createOpenTargetPageDocument(): {
+  source: ReturnType<typeof createScrollablePageDocument>;
+  target: ReturnType<typeof createScrollablePageDocument>;
+} {
+  return {
+    source: {
+      recordKey: "spell:test-alarm",
+      title: "Alarm Ward",
+      identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+      traits: ["Arcane", "Alarm"],
+      sections: [
+        {
+          id: "references",
+          kind: "references" as const,
+          title: "References",
+          blocks: [
+            { kind: "text" as const, text: "Follow the linked spell page." },
+            {
+              kind: "targetList" as const,
+              targets: [
+                {
+                  kind: "record" as const,
+                  label: "Fireball",
+                  recordKey: "spell:test-fireball",
+                  action: "open" as const,
+                },
+              ],
+            },
+          ],
+          targets: [
+            {
+              kind: "record" as const,
+              label: "Fireball",
+              recordKey: "spell:test-fireball",
+              action: "open" as const,
+            },
+          ],
+        },
+        {
+          id: "summary",
+          kind: "summary" as const,
+          title: "Summary",
+          blocks: [{ kind: "text" as const, text: "A focused ward that rings when trespassers approach." }],
+          targets: [],
+        },
+      ],
+    },
+    target: {
+      recordKey: "spell:test-fireball",
+      title: "Fireball",
+      identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+      traits: ["Arcane", "Fire"],
+      sections: [
+        {
+          id: "summary",
+          kind: "summary" as const,
+          title: "Summary",
+          blocks: [{ kind: "text" as const, text: "A roaring blast of fire detonates at a spot you designate." }],
+          targets: [],
+        },
+      ],
+    },
+  };
+}
+
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
   const listFilterValues = vi.fn(({ field }) => {
@@ -1332,6 +1397,51 @@ describe("pf2e terminal app", () => {
 
     expect(services.user.search.executeQuery).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Summary");
+  });
+
+  it("opens record page targets through dedicated page routes and returns to the previous page", async () => {
+    const services = createFakeServices();
+    const documents = createOpenTargetPageDocument();
+    services.user.entityPages = {
+      ...services.user.entityPages,
+      buildDocumentByRecordKey: vi.fn((recordKey: string) => {
+        if (recordKey === documents.target.recordKey) {
+          return documents.target;
+        }
+        return null;
+      }),
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(documents.source)}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Alarm Ward");
+    expect(app.lastFrame()).toContain("Follow the linked spell page.");
+
+    app.stdin.write("\r");
+    await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(3);
+
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
+      recordTargetAction: "open",
+    });
+    expect(app.lastFrame()).toContain("Fireball");
+    expect(app.lastFrame()).toContain("A roaring blast of fire detonates at a spot you designate.");
+
+    app.stdin.write("q");
+    await flushFrames(2);
+
+    expect(app.lastFrame()).toContain("Alarm Ward");
+    expect(app.lastFrame()).toContain("Follow the linked spell page.");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {
