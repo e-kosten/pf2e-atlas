@@ -1,3 +1,5 @@
+import type { ActorMetricMap } from "../domain/actor-metrics.js";
+import type { ItemMetricMap } from "../domain/item-metrics.js";
 import {
   categorySupportsSubcategory,
   normalizeSearchCategory,
@@ -77,6 +79,94 @@ export function parseStringArrayJson(value: string | null | undefined, fieldName
   }
 
   return result;
+}
+
+type MetricJsonRow = {
+  metricKey: string;
+  valueType: "number" | "text" | "boolean";
+  numberValue: number | null;
+  textValue: string | null;
+  boolValue: number | null;
+};
+
+function isMetricJsonRow(value: unknown): value is MetricJsonRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.metricKey === "string" &&
+    (row.valueType === "number" || row.valueType === "text" || row.valueType === "boolean") &&
+    (typeof row.numberValue === "number" || row.numberValue === null) &&
+    (typeof row.textValue === "string" || row.textValue === null) &&
+    (typeof row.boolValue === "number" || row.boolValue === null)
+  );
+}
+
+function parseMetricMapJson(
+  value: string | null | undefined,
+  fieldName: string,
+  context: string,
+): ActorMetricMap {
+  if (!value) {
+    return {};
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || !parsed.every(isMetricJsonRow)) {
+    throw new Error(`Expected ${fieldName} for ${context} to be a JSON metric row array.`);
+  }
+
+  const metrics: ActorMetricMap = {};
+  for (const row of parsed) {
+    if (row.valueType === "number" && row.numberValue !== null) {
+      metrics[row.metricKey] = row.numberValue;
+      continue;
+    }
+    if (row.valueType === "text" && row.textValue !== null) {
+      metrics[row.metricKey] = row.textValue;
+      continue;
+    }
+    if (row.valueType === "boolean") {
+      metrics[row.metricKey] = Boolean(row.boolValue);
+    }
+  }
+
+  return metrics;
+}
+
+export function parseActorMetricMapJson(
+  value: string | null | undefined,
+  fieldName: string,
+  context: string,
+): ActorMetricMap {
+  return parseMetricMapJson(value, fieldName, context);
+}
+
+export function parseItemMetricMapJson(
+  value: string | null | undefined,
+  fieldName: string,
+  context: string,
+): ItemMetricMap {
+  return parseMetricMapJson(value, fieldName, context);
+}
+
+export function parseJsonObject(
+  value: string | null | undefined,
+  fieldName: string,
+  context: string,
+): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Expected ${fieldName} for ${context} to be a JSON object.`);
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 export function toSqliteNumber(value: number | bigint, context: string): number {

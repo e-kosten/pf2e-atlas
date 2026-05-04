@@ -6,6 +6,9 @@ import {
   parseSearchCategoryValue,
   parseSearchSubcategoryForCategory,
   parseSourceCategoryValue,
+  parseActorMetricMapJson,
+  parseItemMetricMapJson,
+  parseJsonObject,
   parseStringArrayJson,
   toSqliteNumber,
 } from "../../data/sql-row-decoding.js";
@@ -218,76 +221,9 @@ export function buildOntologyExplorerEntityRecordSelectColumns(
   ];
 }
 
-type EntityMetricJsonRow = {
-  metricKey: string;
-  valueType: "number" | "text" | "boolean";
-  numberValue: number | null;
-  textValue: string | null;
-  boolValue: number | null;
-};
-
-function isEntityMetricJsonRow(value: unknown): value is EntityMetricJsonRow {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-
-  const row = value as Record<string, unknown>;
-  return (
-    typeof row.metricKey === "string" &&
-    (row.valueType === "number" || row.valueType === "text" || row.valueType === "boolean") &&
-    (typeof row.numberValue === "number" || row.numberValue === null) &&
-    (typeof row.textValue === "string" || row.textValue === null) &&
-    (typeof row.boolValue === "number" || row.boolValue === null)
-  );
-}
-
-function parseEntityMetricsJson(
-  value: string | null | undefined,
-  fieldName: string,
-  recordKey: string,
-): ActorMetricMap | ItemMetricMap {
-  if (!value) {
-    return {};
-  }
-
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed) || !parsed.every(isEntityMetricJsonRow)) {
-    throw new Error(`Expected ${fieldName} for ontology explorer record "${recordKey}" to be a JSON metric row array.`);
-  }
-
-  const metrics: ActorMetricMap = {};
-  for (const row of parsed) {
-    if (row.valueType === "number" && row.numberValue !== null) {
-      metrics[row.metricKey] = row.numberValue;
-      continue;
-    }
-    if (row.valueType === "text" && row.textValue !== null) {
-      metrics[row.metricKey] = row.textValue;
-      continue;
-    }
-    if (row.valueType === "boolean") {
-      metrics[row.metricKey] = Boolean(row.boolValue);
-    }
-  }
-
-  return metrics;
-}
-
-function parseRawRecordJson(value: string | null | undefined, recordKey: string): Record<string, unknown> {
-  if (!value) {
-    return {};
-  }
-
-  const parsed: unknown = JSON.parse(value);
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error(`Expected rawJson for ontology explorer record "${recordKey}" to be a JSON object.`);
-  }
-
-  return parsed as Record<string, unknown>;
-}
-
 export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRecordRow): OntologyExplorerEntityRecord {
   const category = parseSearchCategoryValue(row.category, `ontology explorer record "${row.recordKey}"`);
+  const context = `ontology explorer record "${row.recordKey}"`;
   return {
     recordKey: row.recordKey,
     packName: row.packName ?? row.recordKey.split(":")[0] ?? "",
@@ -377,9 +313,9 @@ export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRe
       `ontology explorer record "${row.recordKey}"`,
     ),
     isComplex: Boolean(row.isComplex),
-    actorMetrics: parseEntityMetricsJson(row.actorMetricsJson, "actorMetricsJson", row.recordKey) as ActorMetricMap,
-    itemMetrics: parseEntityMetricsJson(row.itemMetricsJson, "itemMetricsJson", row.recordKey) as ItemMetricMap,
-    raw: parseRawRecordJson(row.rawJson, row.recordKey),
+    actorMetrics: parseActorMetricMapJson(row.actorMetricsJson, "actorMetricsJson", context),
+    itemMetrics: parseItemMetricMapJson(row.itemMetricsJson, "itemMetricsJson", context),
+    raw: parseJsonObject(row.rawJson, "rawJson", context),
   };
 }
 

@@ -55,6 +55,11 @@ function buildRow(overrides: Partial<OntologyExplorerEntityRecordRow> = {}): Ont
     disableText: null,
     disableSkillsJson: "[]",
     isComplex: 0,
+    actorMetricsJson:
+      '[{"metricKey":"save.ref","valueType":"number","numberValue":12,"textValue":null,"boolValue":null}]',
+    itemMetricsJson:
+      '[{"metricKey":"weapon.reload","valueType":"number","numberValue":1,"textValue":null,"boolValue":null}]',
+    rawJson: '{"system":{"slug":"test-record"}}',
     ...overrides,
   };
 }
@@ -70,6 +75,9 @@ describe("ontology explorer entity record decoding", () => {
     expect(record.traditions).toEqual(["arcane"]);
     expect(record.spellKinds).toEqual(["focus"]);
     expect(record.basicSave).toBe(true);
+    expect(record.actorMetrics).toEqual({ "save.ref": 12 });
+    expect(record.itemMetrics).toEqual({ "weapon.reload": 1 });
+    expect(record.raw).toEqual({ system: { slug: "test-record" } });
   });
 
   it("rejects invalid category and subcategory combinations", () => {
@@ -100,5 +108,37 @@ describe("ontology explorer entity record decoding", () => {
         }),
       ),
     ).toThrow('Expected traitsJson for ontology explorer record "spell:test-record" to be a JSON string array.');
+  });
+
+  it("preserves empty metric and raw JSON behavior", () => {
+    const record = mapOntologyExplorerEntityRecordRow(
+      buildRow({
+        actorMetricsJson: null,
+        itemMetricsJson: "",
+        rawJson: null,
+      }),
+    );
+
+    expect(record.actorMetrics).toEqual({});
+    expect(record.itemMetrics).toEqual({});
+    expect(record.raw).toEqual({});
+  });
+
+  it("rejects malformed metric and raw object payloads", () => {
+    expect(() =>
+      mapOntologyExplorerEntityRecordRow(
+        buildRow({
+          actorMetricsJson: '{"bad":true}',
+        }),
+      ),
+    ).toThrow('Expected actorMetricsJson for ontology explorer record "spell:test-record" to be a JSON metric row array.');
+
+    expect(() =>
+      mapOntologyExplorerEntityRecordRow(
+        buildRow({
+          rawJson: "[]",
+        }),
+      ),
+    ).toThrow('Expected rawJson for ontology explorer record "spell:test-record" to be a JSON object.');
   });
 });
