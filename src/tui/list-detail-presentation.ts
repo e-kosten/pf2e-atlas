@@ -34,6 +34,7 @@ import type {
   DerivedTagTerminalActionTargetOrientation,
   DerivedTagTerminalActionTargetState,
 } from "./action-target.js";
+import type { DerivedTagTerminalPointerEvent } from "./framework/types.js";
 
 export const TERMINAL_LIST_DETAIL_NOTIFICATION_DURATION_MS = 1800;
 
@@ -264,6 +265,12 @@ export function buildTerminalListDetailScreenModel(options: {
   footer: DerivedTagTerminalLine[];
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
+  pointerRegions?: {
+    detail?: {
+      onPointerEvent: (event: DerivedTagTerminalPointerEvent) => boolean | void;
+      priority?: number;
+    };
+  };
 }): TerminalListDetailScreenModel {
   const notificationLine = buildTerminalListDetailNotificationLine(options.notification);
   const footer = appendRouteTransitionFooterLine(
@@ -281,6 +288,7 @@ export function buildTerminalListDetailScreenModel(options: {
           title: options.rightPane.detailOnlyTitle ?? options.rightPane.title,
           lines: options.metrics.visibleDetailLines,
           active: true,
+          pointerRegion: options.pointerRegions?.detail,
         },
         footer,
       },
@@ -301,6 +309,7 @@ export function buildTerminalListDetailScreenModel(options: {
         title: options.rightPane.title,
         lines: options.metrics.visibleDetailLines,
         active: options.activePane === "detail",
+        pointerRegion: options.pointerRegions?.detail,
       },
       footer,
       leftWidth: options.leftWidth,

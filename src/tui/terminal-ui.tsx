@@ -25,7 +25,11 @@ export type {
   DerivedTagTerminalListNavigationOptions,
   DerivedTagTerminalListNavigationState,
 } from "./framework/input.js";
-export { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "./framework/context.js";
+export {
+  useDerivedTagTerminalApp,
+  useDerivedTagTerminalSize,
+  useRegisterDerivedTagTerminalPointerRegion,
+} from "./framework/context.js";
 export {
   createDerivedTagTerminalInputEvent,
   createDerivedTagTerminalListNavigationState,

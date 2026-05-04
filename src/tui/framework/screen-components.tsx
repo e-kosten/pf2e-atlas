@@ -4,6 +4,7 @@ import { Box, Text } from "ink";
 import {
   useDerivedTagTerminalBackdropActive,
   useDerivedTagTerminalCapabilities,
+  useRegisterDerivedTagTerminalPointerRegion,
   useDerivedTagTerminalSize,
   useDerivedTagTerminalViewportSize,
 } from "./context.js";
@@ -55,6 +56,33 @@ function TerminalPanelSurface({
       {children}
     </Box>
   );
+}
+
+function useTerminalPanePointerRegion(options: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pointerRegion?: DerivedTagTerminalPane["pointerRegion"];
+}): void {
+  const region = React.useMemo(
+    () =>
+      options.pointerRegion && options.width > 0 && options.height > 0
+        ? {
+            rect: {
+              x: options.x,
+              y: options.y,
+              width: options.width,
+              height: options.height,
+            },
+            priority: options.pointerRegion.priority,
+            onPointerEvent: options.pointerRegion.onPointerEvent,
+          }
+        : null,
+    [options.height, options.pointerRegion, options.width, options.x, options.y],
+  );
+
+  useRegisterDerivedTagTerminalPointerRegion(region);
 }
 
 export function TerminalHeader({
@@ -184,15 +212,31 @@ export function TerminalCenteredOverlayPanel({
   width,
   height,
   children,
+  capturePointerEvents = false,
 }: {
   width: number;
   height: number;
   children: React.ReactNode;
+  capturePointerEvents?: boolean;
 }): React.JSX.Element {
   const size = useDerivedTagTerminalViewportSize();
   const topOffset = Math.max(0, Math.floor((Math.max(0, size.height - height)) / 3));
   const leftOffset = Math.max(0, Math.floor((Math.max(0, size.width - width)) / 2));
   const rightOffset = Math.max(0, size.width - leftOffset - width);
+  useRegisterDerivedTagTerminalPointerRegion(
+    capturePointerEvents
+      ? {
+          rect: {
+            x: leftOffset,
+            y: topOffset,
+            width,
+            height,
+          },
+          priority: 1000,
+          onPointerEvent: () => true,
+        }
+      : null,
+  );
 
   return (
     <Box position="absolute" flexDirection="column" top={topOffset} left={leftOffset} right={rightOffset}>
@@ -235,6 +279,13 @@ export function TerminalPaneScreen({
   const headerHeight = subtitle ? 3 : 2;
   const footerHeight = footer?.length ?? 0;
   const contentHeight = Math.max(0, height - headerHeight - footerHeight);
+  useTerminalPanePointerRegion({
+    x: 0,
+    y: headerHeight,
+    width,
+    height: contentHeight,
+    pointerRegion: pane.pointerRegion,
+  });
 
   return (
     <Box flexDirection="column" width={width} height={height}>
@@ -260,6 +311,20 @@ export function TerminalTwoPaneScreen({
   const contentHeight = Math.max(0, size.height - headerHeight - footerHeight);
   const dimensions = getTerminalTwoPaneDimensions(size.width, leftWidth);
   const separator = Array.from({ length: Math.max(1, contentHeight) }, () => "│").join("\n");
+  useTerminalPanePointerRegion({
+    x: 0,
+    y: headerHeight,
+    width: dimensions.leftWidth,
+    height: contentHeight,
+    pointerRegion: left.pointerRegion,
+  });
+  useTerminalPanePointerRegion({
+    x: dimensions.leftWidth + 1,
+    y: headerHeight,
+    width: dimensions.rightWidth,
+    height: contentHeight,
+    pointerRegion: right.pointerRegion,
+  });
 
   return (
     <Box flexDirection="column" width={size.width} height={size.height}>

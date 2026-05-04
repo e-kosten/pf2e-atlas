@@ -430,7 +430,9 @@ export function DerivedTagTerminalModalHost({
       : width;
   const renderPanel = (panel: React.JSX.Element): React.JSX.Element =>
     isCenteredPromptPresentation(layout.centeredPromptBackground) ? (
-      <TerminalCenteredOverlayPanel width={panelWidth} height={layout.totalHeight}>{panel}</TerminalCenteredOverlayPanel>
+      <TerminalCenteredOverlayPanel width={panelWidth} height={layout.totalHeight} capturePointerEvents>
+        {panel}
+      </TerminalCenteredOverlayPanel>
     ) : (
       panel
     );

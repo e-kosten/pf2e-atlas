@@ -1,6 +1,10 @@
 import React from "react";
 
-import type { DerivedTagTerminalCapabilities, DerivedTagTerminalContextValue } from "./types.js";
+import type {
+  DerivedTagTerminalCapabilities,
+  DerivedTagTerminalContextValue,
+  DerivedTagTerminalPointerRegion,
+} from "./types.js";
 
 export const DerivedTagTerminalContext = React.createContext<DerivedTagTerminalContextValue | null>(null);
 
@@ -38,4 +42,18 @@ export function useDerivedTagTerminalViewportSize(): { width: number; height: nu
     width: terminal.getViewportWidth(),
     height: terminal.getViewportHeight(),
   };
+}
+
+export function useRegisterDerivedTagTerminalPointerRegion(
+  region: DerivedTagTerminalPointerRegion | null | undefined,
+): void {
+  const terminal = ensureTerminalContext();
+
+  React.useEffect(() => {
+    if (!region) {
+      return undefined;
+    }
+
+    return terminal.registerPointerRegion(region);
+  }, [region, terminal]);
 }

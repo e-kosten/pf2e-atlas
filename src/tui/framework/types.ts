@@ -36,6 +36,7 @@ export type DerivedTagTerminalPane = {
   title: string;
   lines: DerivedTagTerminalLine[];
   active?: boolean;
+  pointerRegion?: DerivedTagTerminalPanePointerRegion;
 };
 
 export type DerivedTagTerminalSelectOption<T = string> = {
@@ -51,6 +52,25 @@ export type DerivedTagTerminalTwoPaneFocus = "list" | "detail";
 export type DerivedTagTerminalTwoPaneLayoutMode = "split" | "detail-only";
 export type DerivedTagTerminalTextInputAction = "submit" | "cancel" | "deleteBackward";
 export type DerivedTagTerminalSystemAction = "interrupt";
+export type DerivedTagTerminalPointerEvent =
+  | {
+      kind: "wheel";
+      x: number;
+      y: number;
+      deltaY: -1 | 1;
+    };
+export type DerivedTagTerminalPointerRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+export type DerivedTagTerminalPointerRegion = {
+  rect: DerivedTagTerminalPointerRect;
+  priority?: number;
+  onPointerEvent: (event: DerivedTagTerminalPointerEvent) => boolean | void;
+};
+export type DerivedTagTerminalPanePointerRegion = Omit<DerivedTagTerminalPointerRegion, "rect">;
 
 export type DerivedTagTerminalInputEvent = {
   input: string;
@@ -289,6 +309,7 @@ export type DerivedTagTerminalContextValue = {
   getViewportWidth: () => number;
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
+  registerPointerRegion: (region: DerivedTagTerminalPointerRegion) => () => void;
   runPromptSession: <T>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>) => Promise<T>;
   promptOptionalSelectOption: <T>(
     options: OptionalSelectPromptOptions<T>,

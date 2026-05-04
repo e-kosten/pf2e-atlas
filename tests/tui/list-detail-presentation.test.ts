@@ -33,6 +33,7 @@ describe("list detail presentation", () => {
   });
 
   it("builds a two-pane screen model with active pane flags", () => {
+    const onPointerEvent = () => true;
     const screen = buildTerminalListDetailScreenModel({
       title: "Shared Screen",
       subtitle: "Subtitle",
@@ -50,6 +51,11 @@ describe("list detail presentation", () => {
         visibleDetailLines: [{ text: "Detail 1" }],
       },
       footer: [{ text: "Bindings", tone: "dim" }],
+      pointerRegions: {
+        detail: {
+          onPointerEvent,
+        },
+      },
     });
 
     expect(screen.kind).toBe("two-pane");
@@ -59,6 +65,7 @@ describe("list detail presentation", () => {
     expect(screen.props.left.active).toBe(false);
     expect(screen.props.right.active).toBe(true);
     expect(screen.props.right.lines).toEqual([{ text: "Detail 1" }]);
+    expect(screen.props.right.pointerRegion?.onPointerEvent).toBe(onPointerEvent);
   });
 
   it("builds grouped list rows through the shared list/detail presentation owner", () => {
@@ -81,6 +88,7 @@ describe("list detail presentation", () => {
   });
 
   it("builds a detail-only screen model and appends transition footer status", () => {
+    const onPointerEvent = () => true;
     const screen = buildTerminalListDetailScreenModel({
       title: "Shared Screen",
       subtitle: "Subtitle",
@@ -104,6 +112,11 @@ describe("list detail presentation", () => {
         message: "Loading detail",
         frame: 0,
       },
+      pointerRegions: {
+        detail: {
+          onPointerEvent,
+        },
+      },
     });
 
     expect(screen.kind).toBe("detail-only");
@@ -111,6 +124,7 @@ describe("list detail presentation", () => {
       throw new Error("expected detail-only model");
     }
     expect(screen.props.pane.title).toBe("[FOCUSED DETAIL] Detail");
+    expect(screen.props.pane.pointerRegion?.onPointerEvent).toBe(onPointerEvent);
     expect(screen.props.footer).toHaveLength(2);
     expect(screen.props.footer?.[1]?.text).toContain("Loading next view");
   });

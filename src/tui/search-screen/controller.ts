@@ -429,6 +429,20 @@ export function useSearchScreenController({
     ],
     notification,
     transitionStatus,
+    pointerRegions: {
+      detail:
+        state.layout === "results"
+          ? {
+              onPointerEvent: (event) => {
+                if (event.kind !== "wheel") {
+                  return false;
+                }
+                handleIntent({ type: "move_detail", delta: event.deltaY });
+                return true;
+              },
+            }
+          : undefined,
+    },
   });
   if (screenModel.kind !== "two-pane") {
     throw new Error("Browse/search screen must render as a two-pane presentation.");

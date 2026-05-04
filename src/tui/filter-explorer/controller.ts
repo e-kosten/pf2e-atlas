@@ -194,6 +194,13 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     draft,
     actionEntries: [],
     actionTargetState,
+    onDetailPointerEvent: (event) => {
+      if (event.kind !== "wheel") {
+        return false;
+      }
+      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
+      return true;
+    },
     notification,
   });
   const actionEntries = buildFilterExplorerActionEntries(baseContext);
@@ -269,6 +276,13 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     draft,
     actionEntries,
     actionTargetState,
+    onDetailPointerEvent: (event) => {
+      if (event.kind !== "wheel") {
+        return false;
+      }
+      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
+      return true;
+    },
     notification,
   });
 }

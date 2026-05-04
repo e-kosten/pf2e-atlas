@@ -1,9 +1,10 @@
 import React from "react";
-import { Box, render as renderInkApp, useApp, useWindowSize } from "ink";
+import { Box, render as renderInkApp, useApp, useInput, useWindowSize } from "ink";
 import { useStdout } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
 import { DerivedTagTerminalContext } from "./context.js";
+import { dispatchDerivedTagTerminalPointerEvent, parseDerivedTagTerminalPointerEvent } from "./pointer-events.js";
 import {
   buildOptionalSelectModalOptions,
   buildSelectModalOptions,
@@ -15,6 +16,7 @@ import { isBlankedPromptPresentation } from "./prompt-presentation.js";
 import type {
   DerivedTagTerminalContextValue,
   DerivedTagTerminalHyperlinkSupport,
+  DerivedTagTerminalPointerRegion,
   DerivedTagTerminalMultiSelectPromptResult,
   DerivedTagTerminalOptionalSelectPromptResult,
   DerivedTagTerminalSelectPromptResult,
@@ -86,6 +88,8 @@ export function DerivedTagTerminalProvider({
   const modalLayout = React.useMemo(() => planTerminalModalStateLayout(modal, columns, rows), [columns, modal, rows]);
   const overlayBackdropActive = modalLayout?.centeredPromptBackground === "overlay";
   const blankedPromptActive = isBlankedPromptPresentation(modalLayout?.centeredPromptBackground);
+  const pointerRegionsRef = React.useRef<(DerivedTagTerminalPointerRegion & { order: number })[]>([]);
+  const nextPointerRegionOrderRef = React.useRef(1);
   const availableRows =
     modalLayout?.centeredPromptBackground
       ? blankedPromptActive
@@ -255,6 +259,36 @@ export function DerivedTagTerminalProvider({
   );
   const promptSession = React.useMemo(() => createPromptSession({ ownerKind: "shared", sessionId: null }), [createPromptSession]);
 
+  const registerPointerRegion = React.useCallback((region: DerivedTagTerminalPointerRegion): (() => void) => {
+    const order = nextPointerRegionOrderRef.current++;
+    const entry = { ...region, order };
+    pointerRegionsRef.current = [...pointerRegionsRef.current, entry];
+
+    return () => {
+      pointerRegionsRef.current = pointerRegionsRef.current.filter((candidate) => candidate.order !== order);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!stdout.isTTY || stdout !== process.stdout) {
+      return undefined;
+    }
+
+    stdout.write("\u001b[?1000h\u001b[?1006h");
+    return () => {
+      stdout.write("\u001b[?1000l\u001b[?1006l");
+    };
+  }, [stdout]);
+
+  useInput((input) => {
+    const pointerEvent = parseDerivedTagTerminalPointerEvent(input);
+    if (!pointerEvent) {
+      return;
+    }
+
+    dispatchDerivedTagTerminalPointerEvent(pointerRegionsRef.current, pointerEvent);
+  });
+
   const runPromptSession = React.useCallback(
     async <T,>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>): Promise<T> => {
       const sessionId = nextSessionIdRef.current++;
@@ -305,13 +339,14 @@ export function DerivedTagTerminalProvider({
       modalActive: modal !== null,
       runPromptSession,
       pauseForAnyKey: promptSession.pauseForAnyKey,
+      registerPointerRegion,
       promptOptionalSelectOption: promptSession.promptOptionalSelectOption,
       promptMultiSelectOption: promptSession.promptMultiSelectOption,
       promptSelectOption: promptSession.promptSelectOption,
       promptTextInput: promptSession.promptTextInput,
       showDialog: promptSession.showDialog,
     }),
-    [capabilities, columns, exit, modal, promptSession, rows, runPromptSession],
+    [capabilities, columns, exit, modal, promptSession, registerPointerRegion, rows, runPromptSession],
   );
 
   const modalContextValue = React.useMemo<DerivedTagTerminalContextValue>(

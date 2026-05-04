@@ -753,6 +753,13 @@ export function buildFilterExplorerScreenModel(
       },
       statusLine,
     ],
+    pointerRegions: {
+      detail: controller.onDetailPointerEvent
+        ? {
+            onPointerEvent: controller.onDetailPointerEvent,
+          }
+        : undefined,
+    },
     notification: controller.notification,
     transitionStatus: controller.transitionStatus,
   });

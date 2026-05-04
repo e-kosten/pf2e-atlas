@@ -12,6 +12,7 @@ import type {
 } from "../action-target.js";
 import type {
   DerivedTagTerminalLine,
+  DerivedTagTerminalPointerEvent,
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
@@ -296,6 +297,7 @@ export type FilterExplorerControllerContext = {
   discovery?: FilterExplorerDiscoveryState;
   actionEntries: readonly FilterExplorerActionEntry[];
   actionTargetState: DerivedTagTerminalActionTargetState;
+  onDetailPointerEvent?: (event: DerivedTagTerminalPointerEvent) => boolean | void;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
 };
