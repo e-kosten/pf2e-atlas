@@ -33,6 +33,48 @@ describe("terminal hyperlink rendering helpers", () => {
     });
   });
 
+  it("wraps styled segments while preserving segment tones", () => {
+    const rows = renderRows(
+      [
+        {
+          text: "Alpha Beta Gamma Delta",
+          indent: 2,
+          segments: [
+            { text: "Alpha " },
+            { text: "Beta Gamma", tone: "accent" },
+            { text: " Delta" },
+          ],
+        },
+      ],
+      14,
+      3,
+    );
+
+    expect(rows.slice(0, 3)).toEqual([
+      {
+        text: "  Alpha Beta",
+        tone: "default",
+        segments: [
+          { text: "  ", tone: "default" },
+          { text: "Alpha", tone: "default", href: undefined },
+          { text: " " },
+          { text: "Beta", tone: "accent", href: undefined },
+        ],
+      },
+      {
+        text: "  Gamma Delta",
+        tone: "default",
+        segments: [
+          { text: "  ", tone: "default" },
+          { text: "Gamma", tone: "accent", href: undefined },
+          { text: " " },
+          { text: "Delta", tone: "default", href: undefined },
+        ],
+      },
+      { text: "", tone: "default" },
+    ]);
+  });
+
   it("preserves line hyperlinks through rendered-line slicing", () => {
     const sliced = sliceRenderedTerminalLines(
       [{ text: "Alpha Beta Gamma", href: "https://example.com/browse" }],

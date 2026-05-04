@@ -214,10 +214,7 @@ describe("entity page document", () => {
     expect(lines[0]).toMatchObject({ text: "Fireball", tone: "section" });
     expect(lines[1]).toMatchObject({ text: "Spell | Rank 3 | Common | Pathfinder Player Core", indent: 2 });
     expect(lines[2]).toMatchObject({ text: "Open in Archives of Nethys", indent: 2 });
-    expect(lines[3]).toMatchObject({ text: "Traits", tone: "section" });
-    expect(lines[4]).toMatchObject({ text: "Trait: Concentrate", indent: 2 });
-    expect(lines[5]).toMatchObject({ text: "Trait: Fire", indent: 2 });
-    expect(lines[6]).toMatchObject({ text: "Trait: Manipulate", indent: 2 });
+    expect(lines[3]).toMatchObject({ text: "Traits: Concentrate, Fire, Manipulate", indent: 2 });
     expect(document.traitTargets?.map((target) => target.label)).toEqual([
       "Trait: Concentrate",
       "Trait: Fire",
@@ -570,6 +567,57 @@ describe("entity page document", () => {
         action: "preview",
       },
     ]);
+  });
+
+  it("compiles resolved UUID prose links into readable inline record target spans", () => {
+    const referenceText = "@UUID[Compendium.pf2e.spells.Item.fireball-effect]{Fireball Effect}";
+    const relations = createRelations();
+    relations.outgoing.edges[0] = {
+      ...relations.outgoing.edges[0]!,
+      referenceText,
+    };
+    relations.edges = [relations.outgoing.edges[0]!];
+    const document = buildEntityPageDocument(
+      createRecord({
+        descriptionText: `Cast ${referenceText} before the flames spread.`,
+      }),
+      relations,
+      { recordTargetAction: "preview" },
+    );
+    const description = document.sections.find((section) => section.id === "description");
+    const block = description?.blocks[0];
+
+    expect(block).toMatchObject({
+      kind: "text",
+      text: "Cast Spell Effect: Fireball before the flames spread.",
+    });
+    expect(block?.kind === "text" ? block.segments : undefined).toEqual([
+      { text: "Cast " },
+      {
+        text: "Spell Effect: Fireball",
+        target: {
+          kind: "record",
+          label: "Spell Effect: Fireball",
+          recordKey: "spells:fireball-effect",
+          action: "preview",
+        },
+      },
+      { text: " before the flames spread." },
+    ]);
+  });
+
+  it("renders unresolved UUID prose markup as a readable fallback without leaking raw markup", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        descriptionText: "Study @UUID[Compendium.pf2e.spells.Item.missing]{Missing Spell} carefully.",
+      }),
+    );
+    const lines = renderEntityPageDocument(document);
+    const renderedText = lines.map((line) => line.text).join("\n");
+
+    expect(renderedText).toContain("Study Missing Spell carefully.");
+    expect(renderedText).not.toContain("@UUID");
+    expect(renderedText).not.toContain("Compendium.pf2e");
   });
 
   it("renders the AoN page action as a linked header line", () => {

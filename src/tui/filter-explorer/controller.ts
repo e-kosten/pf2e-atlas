@@ -152,10 +152,10 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     () =>
       pageDocument
         ? renderPageDocumentModel(pageDocument, {
-            selectedTargetNodeId: selectedPageTarget?.nodeId,
+            selectedTargetId: selectedPageTarget?.targetId,
           })
         : null,
-    [pageDocument, selectedPageTarget?.nodeId],
+    [pageDocument, selectedPageTarget?.targetId],
   );
   const detailDraft = options.host.getDraft?.() ?? draft;
   const detailLines =
@@ -225,10 +225,10 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       pageDocument
         ? renderPageDocumentModel(pageDocument, {
             activeSectionId: focusedPageSection?.id,
-            selectedTargetNodeId: selectedPageTarget?.nodeId,
+            selectedTargetId: selectedPageTarget?.targetId,
           })
         : null,
-    [focusedPageSection?.id, pageDocument, selectedPageTarget?.nodeId],
+    [focusedPageSection?.id, pageDocument, selectedPageTarget?.targetId],
   );
   const detailLinesWithFocus =
     composeMode || selectionPresentation

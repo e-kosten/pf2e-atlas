@@ -86,6 +86,135 @@ function truncateSegments(segments: DerivedTagTerminalSegment[], width: number):
   return truncated;
 }
 
+type SegmentCharacter = {
+  character: string;
+  tone?: DerivedTagTerminalTone;
+  href?: string;
+};
+
+function sameSegmentStyle(
+  left: Pick<SegmentCharacter, "tone" | "href">,
+  right: Pick<SegmentCharacter, "tone" | "href">,
+): boolean {
+  return left.tone === right.tone && left.href === right.href;
+}
+
+function normalizeSegmentCharacters(segments: DerivedTagTerminalSegment[]): SegmentCharacter[] {
+  const characters: SegmentCharacter[] = [];
+  let pendingWhitespace: SegmentCharacter | null = null;
+
+  for (const segment of segments) {
+    for (const character of segment.text) {
+      if (/\s/.test(character)) {
+        if (characters.length > 0) {
+          pendingWhitespace = { character: " ", tone: segment.tone, href: segment.href };
+        }
+        continue;
+      }
+
+      if (pendingWhitespace) {
+        characters.push(pendingWhitespace);
+        pendingWhitespace = null;
+      }
+      characters.push({ character, tone: segment.tone, href: segment.href });
+    }
+  }
+
+  return characters;
+}
+
+function compactSegmentCharacters(characters: SegmentCharacter[]): DerivedTagTerminalSegment[] {
+  const compacted: DerivedTagTerminalSegment[] = [];
+
+  for (const character of characters) {
+    const previous = compacted.at(-1);
+    if (previous && sameSegmentStyle(previous, character)) {
+      previous.text += character.character;
+      continue;
+    }
+    compacted.push({
+      text: character.character,
+      tone: character.tone,
+      href: character.href,
+    });
+  }
+
+  return compacted;
+}
+
+function splitSegmentCharactersAtWords(characters: SegmentCharacter[]): SegmentCharacter[][] {
+  const words: SegmentCharacter[][] = [];
+  let current: SegmentCharacter[] = [];
+
+  for (const character of characters) {
+    if (character.character === " ") {
+      if (current.length > 0) {
+        words.push(current);
+        current = [];
+      }
+      continue;
+    }
+    current.push(character);
+  }
+
+  if (current.length > 0) {
+    words.push(current);
+  }
+
+  return words;
+}
+
+function splitLongSegmentWord(word: SegmentCharacter[], width: number): SegmentCharacter[][] {
+  const chunks: SegmentCharacter[][] = [];
+  for (let index = 0; index < word.length; index += width) {
+    chunks.push(word.slice(index, index + width));
+  }
+  return chunks;
+}
+
+function wrapSegments(segments: DerivedTagTerminalSegment[], width: number): DerivedTagTerminalSegment[][] {
+  if (width <= 0) {
+    return [];
+  }
+
+  const words = splitSegmentCharactersAtWords(normalizeSegmentCharacters(segments));
+  if (words.length === 0) {
+    return [[]];
+  }
+
+  const rows: SegmentCharacter[][] = [];
+  let current: SegmentCharacter[] = [];
+
+  for (const word of words) {
+    const separator: SegmentCharacter[] = current.length > 0 ? [{ character: " " }] : [];
+    const candidateWidth = current.length + separator.length + word.length;
+    if (candidateWidth <= width) {
+      current.push(...separator, ...word);
+      continue;
+    }
+
+    if (current.length > 0) {
+      rows.push(current);
+      current = [];
+    }
+
+    if (word.length <= width) {
+      current = [...word];
+      continue;
+    }
+
+    const chunks = splitLongSegmentWord(word, width);
+    rows.push(...chunks.slice(0, -1));
+    current = chunks.at(-1) ?? [];
+  }
+
+  if (current.length > 0) {
+    rows.push(current);
+  }
+
+  return rows.map(compactSegmentCharacters);
+}
+
 export function fitToWidth(text: string, width: number): string {
   const truncated = truncateText(text, width);
   const paddingWidth = Math.max(0, width - visibleWidth(truncated));
@@ -221,11 +350,18 @@ function buildRenderedTerminalLines(
     const usableWidth = Math.max(1, width - indent.length);
 
     if (line.segments.length > 0) {
-      const renderedSegments = truncateSegments(
-        buildIndentedSegments(buildLineSegments(line, hyperlinkSupport), indent, "default"),
-        width,
-      );
-      renderedLines.push(buildRenderedLineFromSegments(renderedSegments, line.tone));
+      const segments = buildLineSegments(line, hyperlinkSupport);
+      if (line.noWrap) {
+        const renderedSegments = truncateSegments(buildIndentedSegments(segments, indent, "default"), width);
+        renderedLines.push(buildRenderedLineFromSegments(renderedSegments, line.tone));
+        continue;
+      }
+
+      for (const wrappedSegments of wrapSegments(segments, usableWidth)) {
+        renderedLines.push(
+          buildRenderedLineFromSegments(buildIndentedSegments(wrappedSegments, indent, "default"), line.tone),
+        );
+      }
       continue;
     }
 

@@ -2,9 +2,11 @@ import type {
   EntityPageDocument,
   EntityPageSection,
   EntityPageTarget,
+  EntityPageTextSegment,
 } from "../../app/ontology/entity-page.js";
+import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { RecordKey } from "../../domain/record-types.js";
-import type { DerivedTagTerminalLine } from "../framework/types.js";
+import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "../framework/types.js";
 
 export type PageDocumentNodeKind =
   | "title"
@@ -22,6 +24,7 @@ export type PageDocumentNode = {
   line: DerivedTagTerminalLine;
   sectionId?: string;
   target?: EntityPageTarget;
+  inlineTargets?: PageDocumentInlineTarget[];
   anchorRole: "content" | "sectionStart" | "target";
 };
 
@@ -40,9 +43,13 @@ export type PageDocumentSectionAnchor = {
 };
 
 export type PageDocumentTargetNode = {
+  targetId: string;
   nodeId: string;
   sectionId: string;
   target: EntityPageTarget;
+  location:
+    | { kind: "line"; nodeId: string }
+    | { kind: "span"; nodeId: string; segmentId: string };
 };
 
 export type PageDocumentModel = {
@@ -52,6 +59,13 @@ export type PageDocumentModel = {
   sections: PageDocumentSectionModel[];
   sectionAnchors: PageDocumentSectionAnchor[];
   targetNodes: PageDocumentTargetNode[];
+};
+
+type PageDocumentInlineTarget = {
+  targetId: string;
+  segmentId: string;
+  segmentIndex: number;
+  target: EntityPageTarget;
 };
 
 function toTargetLine(target: EntityPageTarget): DerivedTagTerminalLine {
@@ -70,6 +84,83 @@ function toTargetLine(target: EntityPageTarget): DerivedTagTerminalLine {
   };
 }
 
+function toInlineTraitLine(traits: readonly string[], targets: readonly EntityPageTarget[]): {
+  line: DerivedTagTerminalLine;
+  inlineTargets: PageDocumentInlineTarget[];
+} {
+  const segments: DerivedTagTerminalSegment[] = [{ text: "Traits: " }];
+  const inlineTargets: PageDocumentInlineTarget[] = [];
+
+  traits.forEach((trait, traitIndex) => {
+    if (traitIndex > 0) {
+      segments.push({ text: ", " });
+    }
+
+    const target = targets[traitIndex];
+    const segmentIndex = segments.length;
+    segments.push({ text: formatOntologySearchVocabularyLabel(trait) });
+    if (target) {
+      inlineTargets.push({
+        targetId: `header:traits:target:${traitIndex}`,
+        segmentId: `header:traits:segment:${traitIndex}`,
+        segmentIndex,
+        target,
+      });
+    }
+  });
+
+  return {
+    line: {
+      text: segments.map((segment) => segment.text).join(""),
+      indent: 2,
+      segments,
+    },
+    inlineTargets,
+  };
+}
+
+function toInlineTextLine(args: {
+  nodeId: string;
+  text: string;
+  segments: readonly EntityPageTextSegment[] | undefined;
+}): {
+  line: DerivedTagTerminalLine;
+  inlineTargets: PageDocumentInlineTarget[];
+} {
+  if (!args.segments || args.segments.length === 0) {
+    return {
+      line: { text: args.text, indent: 2 },
+      inlineTargets: [],
+    };
+  }
+
+  const renderedSegments: DerivedTagTerminalSegment[] = args.segments.map((segment) => ({
+    text: segment.text,
+    tone: segment.tone,
+  }));
+  const inlineTargets: PageDocumentInlineTarget[] = [];
+  args.segments.forEach((segment, segmentIndex) => {
+    if (!segment.target) {
+      return;
+    }
+    inlineTargets.push({
+      targetId: `${args.nodeId}:target:${inlineTargets.length}`,
+      segmentId: `${args.nodeId}:segment:${segmentIndex}`,
+      segmentIndex,
+      target: segment.target,
+    });
+  });
+
+  return {
+    line: {
+      text: renderedSegments.map((segment) => segment.text).join(""),
+      indent: 2,
+      segments: renderedSegments,
+    },
+    inlineTargets,
+  };
+}
+
 export function buildPageDocumentModel(
   document: EntityPageDocument,
   options: { includeHeader?: boolean } = {},
@@ -83,6 +174,23 @@ export function buildPageDocumentModel(
   const pushNode = (node: PageDocumentNode): number => {
     nodes.push(node);
     return nodes.length - 1;
+  };
+
+  const pushInlineTargets = (node: PageDocumentNode, sectionId: string, targetIds: string[]): void => {
+    for (const inlineTarget of node.inlineTargets ?? []) {
+      targetIds.push(inlineTarget.targetId);
+      targetNodes.push({
+        targetId: inlineTarget.targetId,
+        nodeId: node.id,
+        sectionId,
+        target: inlineTarget.target,
+        location: {
+          kind: "span",
+          nodeId: node.id,
+          segmentId: inlineTarget.segmentId,
+        },
+      });
+    }
   };
 
   if (includeHeader) {
@@ -102,83 +210,58 @@ export function buildPageDocumentModel(
     }
   }
 
+  const headerStartNodeIndex = nodes.length;
+  const headerTargetIds: string[] = [];
+  let headerAnchorNodeIndex: number | null = null;
+
   if (document.aonLink) {
     const nodeId = "header:external:aon";
     const nodeIndex = pushNode({
-      id: "header:external:aon",
+      id: nodeId,
       kind: "external",
       line: toTargetLine(document.aonLink),
       target: document.aonLink,
       anchorRole: "target",
     });
-    sections.push({
-      id: "header",
-      kind: "identity",
-      title: "Actions",
-      startNodeIndex: nodeIndex,
-      endNodeIndex: nodeIndex,
-      targetNodeIds: [nodeId],
-    });
-    sectionAnchors.push({
-      sectionId: "header",
-      nodeIndex,
-    });
+    headerAnchorNodeIndex ??= nodeIndex;
+    headerTargetIds.push(nodeId);
     targetNodes.push({
+      targetId: nodeId,
       nodeId,
       sectionId: "header",
       target: document.aonLink,
+      location: { kind: "line", nodeId },
     });
   }
 
   if (document.traits.length > 0) {
-    const traitTargets = document.traitTargets ?? [];
-    if (traitTargets.length > 0) {
-      const startNodeIndex = nodes.length;
-      const targetNodeIds: string[] = [];
-      const headingIndex = pushNode({
-        id: "header:traits:heading",
-        kind: "sectionHeading",
-        sectionId: "traits",
-        line: { text: "Traits", tone: "section" },
-        anchorRole: "sectionStart",
-      });
+    const traitLine = toInlineTraitLine(document.traits, document.traitTargets ?? []);
+    const node: PageDocumentNode = {
+      id: "header:traits",
+      kind: "traits",
+      sectionId: "header",
+      line: traitLine.line,
+      inlineTargets: traitLine.inlineTargets,
+      anchorRole: traitLine.inlineTargets.length > 0 ? "target" : "content",
+    };
+    const nodeIndex = pushNode(node);
+    headerAnchorNodeIndex ??= nodeIndex;
+    pushInlineTargets(node, "header", headerTargetIds);
+  }
 
-      traitTargets.forEach((target, targetIndex) => {
-        const nodeId = `header:traits:target:${targetIndex}`;
-        pushNode({
-          id: nodeId,
-          kind: "target",
-          sectionId: "traits",
-          line: toTargetLine(target),
-          target,
-          anchorRole: "target",
-        });
-        targetNodeIds.push(nodeId);
-        targetNodes.push({
-          nodeId,
-          sectionId: "traits",
-          target,
-        });
-      });
-
-      sections.push({
-        id: "traits",
-        kind: "traits",
-        title: "Traits",
-        startNodeIndex,
-        endNodeIndex: Math.max(startNodeIndex, nodes.length - 1),
-        targetNodeIds,
-      });
+  if (headerTargetIds.length > 0) {
+    sections.push({
+      id: "header",
+      kind: "identity",
+      title: "Identity",
+      startNodeIndex: Math.min(headerStartNodeIndex, Math.max(0, nodes.length - 1)),
+      endNodeIndex: Math.max(headerStartNodeIndex, nodes.length - 1),
+      targetNodeIds: headerTargetIds,
+    });
+    if (headerAnchorNodeIndex != null) {
       sectionAnchors.push({
-        sectionId: "traits",
-        nodeIndex: headingIndex,
-      });
-    } else {
-      pushNode({
-        id: "header:traits",
-        kind: "traits",
-        line: { text: `Traits: ${document.traits.join(", ")}`, indent: 2 },
-        anchorRole: "content",
+        sectionId: "header",
+        nodeIndex: headerAnchorNodeIndex,
       });
     }
   }
@@ -200,14 +283,23 @@ export function buildPageDocumentModel(
 
     section.blocks.forEach((block, blockIndex) => {
       if (block.kind === "text") {
-        const nodeIndex = pushNode({
-          id: `section:${section.id}:text:${blockIndex}`,
+        const nodeId = `section:${section.id}:text:${blockIndex}`;
+        const textLine = toInlineTextLine({
+          nodeId,
+          text: block.text,
+          segments: block.segments,
+        });
+        const node: PageDocumentNode = {
+          id: nodeId,
           kind: "text",
           sectionId: section.id,
-          line: { text: block.text, indent: 2 },
-          anchorRole: "content",
-        });
+          line: textLine.line,
+          inlineTargets: textLine.inlineTargets,
+          anchorRole: textLine.inlineTargets.length > 0 ? "target" : "content",
+        };
+        const nodeIndex = pushNode(node);
         anchorNodeIndex ??= nodeIndex;
+        pushInlineTargets(node, section.id, targetNodeIds);
         return;
       }
 
@@ -238,9 +330,11 @@ export function buildPageDocumentModel(
         anchorNodeIndex ??= nodeIndex;
         targetNodeIds.push(nodeId);
         targetNodes.push({
+          targetId: nodeId,
           nodeId,
           sectionId: section.id,
           target,
+          location: { kind: "line", nodeId },
         });
       });
     });
@@ -276,14 +370,41 @@ export function renderPageDocumentModel(
   model: PageDocumentModel,
   options: {
     activeSectionId?: string | null;
-    selectedTargetNodeId?: string | null;
+    selectedTargetId?: string | null;
   } = {},
 ): DerivedTagTerminalLine[] {
   return model.nodes.map((node) => {
-    if (options.selectedTargetNodeId && node.id === options.selectedTargetNodeId) {
+    const selectedTargetId = options.selectedTargetId ?? null;
+    if (node.inlineTargets && node.inlineTargets.length > 0) {
+      const inlineTargetsBySegmentIndex = new Map(
+        node.inlineTargets.map((target) => [target.segmentIndex, target]),
+      );
+      return {
+        ...node.line,
+        segments: node.line.segments?.map((segment, segmentIndex) => {
+          const inlineTarget = inlineTargetsBySegmentIndex.get(segmentIndex);
+          if (!inlineTarget) {
+            return segment;
+          }
+          return {
+            ...segment,
+            tone: inlineTarget.targetId === selectedTargetId ? "selected" : "accent",
+          };
+        }),
+      };
+    }
+
+    if (selectedTargetId && node.target && node.id === selectedTargetId) {
       return {
         ...node.line,
         tone: "selected",
+      };
+    }
+
+    if (node.target) {
+      return {
+        ...node.line,
+        tone: "accent",
       };
     }
 

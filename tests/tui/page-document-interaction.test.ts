@@ -64,14 +64,119 @@ function createDocument(): PageDocumentModel {
     ],
     targetNodes: [
       {
+        targetId: "section:references:target:0:0",
         nodeId: "section:references:target:0:0",
         sectionId: "references",
         target: { kind: "record", label: "Spell Effect: Fireball", recordKey: "spell:fireball-effect", action: "open" },
+        location: { kind: "line", nodeId: "section:references:target:0:0" },
       },
       {
+        targetId: "section:references:target:0:1",
         nodeId: "section:references:target:0:1",
         sectionId: "references",
         target: { kind: "record", label: "Spell Effect: Delayed Blast", recordKey: "spell:delayed-blast", action: "open" },
+        location: { kind: "line", nodeId: "section:references:target:0:1" },
+      },
+    ],
+  };
+}
+
+function createInlineTargetDocument(): PageDocumentModel {
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    nodes: [
+      { id: "header:title", kind: "title", line: { text: "Fireball" }, anchorRole: "content" },
+      {
+        id: "header:traits",
+        kind: "traits",
+        sectionId: "header",
+        line: {
+          text: "Traits: Concentrate, Fire, Manipulate",
+          segments: [
+            { text: "Traits: " },
+            { text: "Concentrate" },
+            { text: ", " },
+            { text: "Fire" },
+            { text: ", " },
+            { text: "Manipulate" },
+          ],
+        },
+        inlineTargets: [
+          {
+            targetId: "header:traits:target:0",
+            segmentId: "header:traits:segment:0",
+            segmentIndex: 1,
+            target: { kind: "searchPivot", label: "Trait: Concentrate", request: { mode: "browse", limit: 50 } },
+          },
+          {
+            targetId: "header:traits:target:1",
+            segmentId: "header:traits:segment:1",
+            segmentIndex: 3,
+            target: { kind: "searchPivot", label: "Trait: Fire", request: { mode: "browse", limit: 50 } },
+          },
+          {
+            targetId: "header:traits:target:2",
+            segmentId: "header:traits:segment:2",
+            segmentIndex: 5,
+            target: { kind: "searchPivot", label: "Trait: Manipulate", request: { mode: "browse", limit: 50 } },
+          },
+        ],
+        anchorRole: "target",
+      },
+      {
+        id: "header:row:target",
+        kind: "target",
+        sectionId: "header",
+        line: { text: "Open in Archives of Nethys" },
+        target: { kind: "external", label: "Open in Archives of Nethys", href: "https://example.com" },
+        anchorRole: "target",
+      },
+    ],
+    sections: [
+      {
+        id: "header",
+        kind: "identity",
+        title: "Identity",
+        startNodeIndex: 0,
+        endNodeIndex: 2,
+        targetNodeIds: [
+          "header:traits:target:0",
+          "header:traits:target:1",
+          "header:traits:target:2",
+          "header:row:target",
+        ],
+      },
+    ],
+    sectionAnchors: [{ sectionId: "header", nodeIndex: 1 }],
+    targetNodes: [
+      {
+        targetId: "header:traits:target:0",
+        nodeId: "header:traits",
+        sectionId: "header",
+        target: { kind: "searchPivot", label: "Trait: Concentrate", request: { mode: "browse", limit: 50 } },
+        location: { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:0" },
+      },
+      {
+        targetId: "header:traits:target:1",
+        nodeId: "header:traits",
+        sectionId: "header",
+        target: { kind: "searchPivot", label: "Trait: Fire", request: { mode: "browse", limit: 50 } },
+        location: { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:1" },
+      },
+      {
+        targetId: "header:traits:target:2",
+        nodeId: "header:traits",
+        sectionId: "header",
+        target: { kind: "searchPivot", label: "Trait: Manipulate", request: { mode: "browse", limit: 50 } },
+        location: { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:2" },
+      },
+      {
+        targetId: "header:row:target",
+        nodeId: "header:row:target",
+        sectionId: "header",
+        target: { kind: "external", label: "Open in Archives of Nethys", href: "https://example.com" },
+        location: { kind: "line", nodeId: "header:row:target" },
       },
     ],
   };
@@ -272,5 +377,72 @@ describe("page document interaction", () => {
       targetIndex: 1,
     });
     expect(moved.scroll).toBe(5);
+  });
+
+  it("traverses multiple inline targets on one line before later row targets", () => {
+    const document = createInlineTargetDocument();
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 0,
+      bodyHeight: 6,
+      maxScroll: 6,
+      sectionId: "header",
+    });
+    const second = movePageDocumentTarget({
+      document,
+      state: entered.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: 1,
+    });
+    const third = movePageDocumentTarget({
+      document,
+      state: second.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: 1,
+    });
+    const row = movePageDocumentTarget({
+      document,
+      state: third.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: 1,
+    });
+
+    expect(getSelectedPageDocumentTarget({ document, state: entered.state })?.target.label).toBe("Trait: Concentrate");
+    expect(getSelectedPageDocumentTarget({ document, state: second.state })?.target.label).toBe("Trait: Fire");
+    expect(getSelectedPageDocumentTarget({ document, state: third.state })?.target.label).toBe("Trait: Manipulate");
+    expect(getSelectedPageDocumentTarget({ document, state: row.state })?.target.label).toBe("Open in Archives of Nethys");
+  });
+
+  it("honors inline targets for target boundary movement", () => {
+    const document = createInlineTargetDocument();
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 0,
+      bodyHeight: 6,
+      maxScroll: 6,
+      sectionId: "header",
+    });
+    const end = movePageDocumentTargetBoundary({
+      document,
+      state: entered.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      boundary: "end",
+    });
+    const start = movePageDocumentTargetBoundary({
+      document,
+      state: end.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      boundary: "start",
+    });
+
+    expect(getSelectedPageDocumentTarget({ document, state: end.state })?.target.label).toBe(
+      "Open in Archives of Nethys",
+    );
+    expect(getSelectedPageDocumentTarget({ document, state: start.state })?.target.label).toBe("Trait: Concentrate");
   });
 });

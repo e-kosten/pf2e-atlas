@@ -261,10 +261,10 @@ export function useSearchScreenController({
     () =>
       selectedResultPageModel
         ? renderPageDocumentModel(selectedResultPageModel, {
-            selectedTargetNodeId: selectedPageTargetNode?.nodeId,
+            selectedTargetId: selectedPageTargetNode?.targetId,
           })
         : null,
-    [selectedPageTargetNode?.nodeId, selectedResultPageModel],
+    [selectedPageTargetNode?.targetId, selectedResultPageModel],
   );
   const selectedResultDetailHeaderLines = React.useMemo(
     () =>
@@ -354,10 +354,10 @@ export function useSearchScreenController({
       selectedResultPageModel
         ? renderPageDocumentModel(selectedResultPageModel, {
             activeSectionId: focusedResultPageSection?.id,
-            selectedTargetNodeId: selectedPageTargetNode?.nodeId,
+            selectedTargetId: selectedPageTargetNode?.targetId,
           })
         : null,
-    [focusedResultPageSection?.id, selectedPageTargetNode?.nodeId, selectedResultPageModel],
+    [focusedResultPageSection?.id, selectedPageTargetNode?.targetId, selectedResultPageModel],
   );
   const detailLinesWithFocus =
     state.layout === "results" && state.session

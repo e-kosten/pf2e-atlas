@@ -23,9 +23,15 @@ export type EntityPageFact = {
   value: string;
 };
 
+export type EntityPageTextSegment = {
+  text: string;
+  target?: EntityPageTarget;
+  tone?: OntologyTextLine["tone"];
+};
+
 export type EntityPageBlock =
   | { kind: "factList"; facts: EntityPageFact[] }
-  | { kind: "text"; text: string }
+  | { kind: "text"; text: string; segments?: EntityPageTextSegment[] }
   | { kind: "targetList"; targets: EntityPageTarget[] };
 
 export type EntityPageSection = {
@@ -63,12 +69,17 @@ type PreparedEntityPageInput = {
   identityLine: string;
   traits: string[];
   aonLink?: Extract<EntityPageTarget, { kind: "external" }>;
-  blurb?: string;
-  description?: string;
+  blurb?: EntityPageTextContent;
+  description?: EntityPageTextContent;
   traitTargets: EntityPageTarget[];
   classificationTargets: EntityPageTarget[];
   references: EntityPageTarget[];
   referencedBy: EntityPageTarget[];
+};
+
+type EntityPageTextContent = {
+  text: string;
+  segments?: EntityPageTextSegment[];
 };
 
 type EntityPageRecipeKind = "spell" | "creature" | "equipment" | "featAction" | "hazard" | "fallback";
@@ -79,6 +90,8 @@ type EntityPageRecipeBuildContext = {
   seenFacts: Set<string>;
   push: (section: EntityPageSection | null) => void;
 };
+
+const UUID_REFERENCE_MARKUP_PATTERN = /@UUID\[[^\]]+\](?:\{([^}]+)\})?/g;
 
 function humanize(value: string | null | undefined): string {
   if (!value) {
@@ -362,39 +375,54 @@ function buildClassificationTargets(record: OntologyExplorerEntityRecord): Entit
   ].filter((target): target is EntityPageTarget => Boolean(target));
 }
 
-function buildReferenceTargets(
+function buildReferenceTargetData(
   relations: PageRelationsResult | undefined,
   recordTargetAction: EntityPageRecordTargetAction,
-): EntityPageTarget[] {
+): {
+  targets: EntityPageTarget[];
+  targetsByReferenceText: Map<string, EntityPageTarget>;
+} {
   if (!relations) {
-    return [];
+    return {
+      targets: [],
+      targetsByReferenceText: new Map(),
+    };
   }
 
   const recordsByKey = new Map(relations.outgoing.records.map((record) => [record.recordKey, record]));
   const seen = new Set<string>();
+  const targets: EntityPageTarget[] = [];
+  const targetsByReferenceText = new Map<string, EntityPageTarget>();
 
-  return relations.outgoing.edges.flatMap((edge) => {
+  for (const edge of relations.outgoing.edges) {
     const record = recordsByKey.get(edge.toRecordKey);
     if (!record) {
-      return [];
+      continue;
     }
 
     const label = edge.displayText?.trim() || record.name || edge.referenceText;
+    const target: EntityPageTarget = {
+      kind: "record",
+      label,
+      recordKey: record.recordKey,
+      action: recordTargetAction,
+    };
+    if (edge.referenceText.trim()) {
+      targetsByReferenceText.set(edge.referenceText, target);
+    }
+
     const dedupeKey = `${record.recordKey}|${label}`;
     if (seen.has(dedupeKey)) {
-      return [];
+      continue;
     }
     seen.add(dedupeKey);
+    targets.push(target);
+  }
 
-    return [
-      {
-        kind: "record" as const,
-        label,
-        recordKey: record.recordKey,
-        action: recordTargetAction,
-      },
-    ];
-  });
+  return {
+    targets,
+    targetsByReferenceText,
+  };
 }
 
 function buildBacklinkTargets(relations?: PageRelationsResult): EntityPageTarget[] {
@@ -409,6 +437,51 @@ function buildBacklinkTargets(relations?: PageRelationsResult): EntityPageTarget
   }));
 }
 
+function compileProseReferenceSegments(
+  text: string | null | undefined,
+  targetsByReferenceText: ReadonlyMap<string, EntityPageTarget>,
+): EntityPageTextContent | undefined {
+  if (!text) {
+    return undefined;
+  }
+
+  const segments: EntityPageTextSegment[] = [];
+  let lastIndex = 0;
+  let replacedMarkup = false;
+
+  for (const match of text.matchAll(UUID_REFERENCE_MARKUP_PATTERN)) {
+    const referenceText = match[0];
+    const startIndex = match.index ?? 0;
+    if (startIndex > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, startIndex) });
+    }
+
+    const target = targetsByReferenceText.get(referenceText);
+    if (target) {
+      segments.push({ text: target.label, target });
+    } else {
+      const fallbackLabel = match[1]?.trim() || "unresolved reference";
+      segments.push({ text: fallbackLabel, tone: "dim" });
+    }
+
+    replacedMarkup = true;
+    lastIndex = startIndex + referenceText.length;
+  }
+
+  if (!replacedMarkup) {
+    return { text };
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex) });
+  }
+
+  return {
+    text: segments.map((segment) => segment.text).join(""),
+    segments,
+  };
+}
+
 function buildEntityPageInput(
   record: OntologyExplorerEntityRecord,
   relations?: PageRelationsResult,
@@ -416,6 +489,7 @@ function buildEntityPageInput(
 ): PreparedEntityPageInput {
   const aonLink = buildAonSearchLink(record);
   const recordTargetAction = options.recordTargetAction ?? "open";
+  const referenceTargetData = buildReferenceTargetData(relations, recordTargetAction);
 
   return {
     record,
@@ -429,11 +503,11 @@ function buildEntityPageInput(
           plainTextFallback: aonLink.plainTextFallback,
         }
       : undefined,
-    blurb: record.blurbText ?? undefined,
-    description: record.descriptionText ?? undefined,
+    blurb: compileProseReferenceSegments(record.blurbText, referenceTargetData.targetsByReferenceText),
+    description: compileProseReferenceSegments(record.descriptionText, referenceTargetData.targetsByReferenceText),
     traitTargets: buildMetadataPivotTargets(record, "header"),
     classificationTargets: buildClassificationTargets(record),
-    references: buildReferenceTargets(relations, recordTargetAction),
+    references: referenceTargetData.targets,
     referencedBy: buildBacklinkTargets(relations),
   };
 }
@@ -473,7 +547,7 @@ function createFactSection(
 }
 
 function createSummarySection(
-  blurb: string | undefined,
+  blurb: EntityPageTextContent | undefined,
   facts: EntityPageFact[],
   seenFacts: Set<string>,
 ): EntityPageSection | null {
@@ -487,7 +561,7 @@ function createSummarySection(
     kind: "summary",
     title: "Summary",
     blocks: [
-      ...(blurb ? [{ kind: "text" as const, text: blurb }] : []),
+      ...(blurb ? [{ kind: "text" as const, text: blurb.text, segments: blurb.segments }] : []),
       ...(dedupedFacts.length > 0 ? [{ kind: "factList" as const, facts: dedupedFacts }] : []),
     ],
     targets: [],
@@ -498,7 +572,7 @@ function createTextSection(
   id: string,
   kind: EntityPageSection["kind"],
   title: string,
-  text: string | undefined,
+  text: EntityPageTextContent | undefined,
 ): EntityPageSection | null {
   if (!text) {
     return null;
@@ -508,7 +582,7 @@ function createTextSection(
     id,
     kind,
     title,
-    blocks: [{ kind: "text", text }],
+    blocks: [{ kind: "text", text: text.text, segments: text.segments }],
     targets: [],
   };
 }
@@ -675,13 +749,7 @@ export function renderEntityPageDocument(
       plainTextFallback: document.aonLink.plainTextFallback,
     });
   }
-  const traitTargets = document.traitTargets ?? [];
-  if (traitTargets.length > 0) {
-    lines.push({ text: "Traits", tone: "section" });
-    for (const target of traitTargets) {
-      lines.push({ text: target.label, indent: 2 });
-    }
-  } else if (document.traits.length > 0) {
+  if (document.traits.length > 0) {
     lines.push({ text: `Traits: ${document.traits.map(humanize).join(", ")}`, indent: 2 });
   }
 

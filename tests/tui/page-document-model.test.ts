@@ -192,7 +192,6 @@ describe("page document model", () => {
 
     expect(model.sections.map((section) => section.id)).toEqual([
       "header",
-      "traits",
       "summary",
       "description",
       "details",
@@ -202,7 +201,6 @@ describe("page document model", () => {
     ]);
     expect(model.sectionAnchors.map((anchor) => anchor.sectionId)).toEqual([
       "header",
-      "traits",
       "summary",
       "description",
       "details",
@@ -222,11 +220,87 @@ describe("page document model", () => {
       "Derived Tags: Explosive Magic",
       "Families: Damage Burst",
     ]);
+    expect(model.targetNodes.slice(1, 4).map((node) => node.location)).toEqual([
+      { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:0" },
+      { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:1" },
+      { kind: "span", nodeId: "header:traits", segmentId: "header:traits:segment:2" },
+    ]);
+    expect(model.sections[0]?.targetNodeIds).toEqual([
+      "header:external:aon",
+      "header:traits:target:0",
+      "header:traits:target:1",
+      "header:traits:target:2",
+    ]);
   });
 
-  it("renders the compiled model back to the legacy compatible line output", () => {
+  it("renders the compiled model with the same visible text as the app page renderer", () => {
     const document = buildEntityPageDocument(createRecord(), createRelations());
 
-    expect(renderPageDocumentModel(buildPageDocumentModel(document))).toEqual(renderEntityPageDocument(document));
+    expect(renderPageDocumentModel(buildPageDocumentModel(document)).map((line) => line.text)).toEqual(
+      renderEntityPageDocument(document).map((line) => line.text),
+    );
+  });
+
+  it("renders selectable inline spans with accent and focused inline target with selected tone", () => {
+    const model = buildPageDocumentModel(buildEntityPageDocument(createRecord()));
+    const rendered = renderPageDocumentModel(model, {
+      selectedTargetId: "header:traits:target:1",
+    });
+    const traitsLine = rendered.find((line) => line.text === "Traits: Concentrate, Fire, Manipulate");
+
+    expect(traitsLine?.segments).toEqual([
+      { text: "Traits: " },
+      { text: "Concentrate", tone: "accent" },
+      { text: ", " },
+      { text: "Fire", tone: "selected" },
+      { text: ", " },
+      { text: "Manipulate", tone: "accent" },
+    ]);
+  });
+
+  it("renders row targets with accent and selected styling", () => {
+    const model = buildPageDocumentModel(buildEntityPageDocument(createRecord(), createRelations()));
+    const rendered = renderPageDocumentModel(model, {
+      selectedTargetId: "section:references:target:0:0",
+    });
+
+    expect(rendered.find((line) => line.text === "Open in Archives of Nethys")?.tone).toBe("accent");
+    expect(rendered.find((line) => line.text === "Spell Effect: Fireball")?.tone).toBe("selected");
+  });
+
+  it("compiles resolved UUID prose links into inline record target spans", () => {
+    const referenceText = "@UUID[Compendium.pf2e.spells.Item.fireball-effect]{Fireball Effect}";
+    const relations = createRelations();
+    relations.outgoing.edges[0] = {
+      ...relations.outgoing.edges[0]!,
+      referenceText,
+    };
+    const model = buildPageDocumentModel(
+      buildEntityPageDocument(
+        createRecord({
+          descriptionText: `Cast ${referenceText} before the flames spread.`,
+        }),
+        relations,
+      ),
+    );
+    const descriptionTarget = model.targetNodes.find((node) => node.target.label === "Spell Effect: Fireball");
+    const rendered = renderPageDocumentModel(model, {
+      selectedTargetId: descriptionTarget?.targetId,
+    });
+    const descriptionLine = rendered.find((line) =>
+      line.text.includes("Cast Spell Effect: Fireball before the flames spread."),
+    );
+
+    expect(descriptionTarget).toMatchObject({
+      nodeId: "section:description:text:0",
+      sectionId: "description",
+      location: { kind: "span", nodeId: "section:description:text:0", segmentId: "section:description:text:0:segment:1" },
+      target: { kind: "record", label: "Spell Effect: Fireball", recordKey: "spell:fireball-effect" },
+    });
+    expect(descriptionLine?.segments).toEqual([
+      { text: "Cast " },
+      { text: "Spell Effect: Fireball", tone: "selected" },
+      { text: " before the flames spread." },
+    ]);
   });
 });

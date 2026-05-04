@@ -465,6 +465,86 @@ function createOpenTargetPageDocument(): {
   };
 }
 
+function createInlineTraitPageDocument(request: SearchRequest): EntityPageDocument {
+  const fireTraitTarget = {
+    kind: "searchPivot" as const,
+    label: "Trait: Fire",
+    request,
+  };
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: ["Fire"],
+    traitTargets: [fireTraitTarget],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused fire spell." }],
+        targets: [],
+      },
+    ],
+  };
+}
+
+function createInlineUuidOpenTargetPageDocuments(): {
+  source: EntityPageDocument;
+  target: EntityPageDocument;
+} {
+  const inlineTarget = {
+    kind: "record" as const,
+    label: "Fireball",
+    recordKey: "spell:test-fireball" as const,
+    action: "open" as const,
+  };
+
+  return {
+    source: {
+      recordKey: "spell:test-alarm",
+      title: "Alarm Ward",
+      identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+      traits: ["Arcane", "Alarm"],
+      sections: [
+        {
+          id: "description",
+          kind: "description",
+          title: "Description",
+          blocks: [
+            {
+              kind: "text",
+              text: "Follow Fireball from the ward.",
+              segments: [
+                { text: "Follow " },
+                { text: "Fireball", target: inlineTarget },
+                { text: " from the ward." },
+              ],
+            },
+          ],
+          targets: [],
+        },
+      ],
+    },
+    target: {
+      recordKey: "spell:test-fireball",
+      title: "Fireball",
+      identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+      traits: ["Arcane", "Fire"],
+      sections: [
+        {
+          id: "summary",
+          kind: "summary",
+          title: "Summary",
+          blocks: [{ kind: "text", text: "A roaring blast of fire detonates at a spot you designate." }],
+          targets: [],
+        },
+      ],
+    },
+  };
+}
+
 function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): Pf2eTerminalAppServices {
   const record = createRecord();
   const listFilterValues = vi.fn(({ field }) => {
@@ -1657,7 +1737,104 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(services.user.search.executeQuery).not.toHaveBeenCalled();
-    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Actions");
+    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Identity");
+  });
+
+  it("previews inline UUID record targets in place from the shared search preview host", async () => {
+    const services = createFakeServices();
+    services.user.search.executeQuery = vi.fn(services.user.search.executeQuery) as typeof services.user.search.executeQuery;
+    const referenceText = "@UUID[Compendium.pf2e.spells.Item.fireball]{Fireball}";
+    const sourceRecord = createRecord({
+      descriptionText: `Trigger ${referenceText} from the ward.`,
+      descriptionSnippet: `Trigger ${referenceText} from the ward.`,
+    });
+    const targetRecord = createRecord({
+      recordKey: "spell:test-fireball",
+      id: "test-fireball",
+      name: "Fireball",
+      normalizedName: "fireball",
+      descriptionText: "A roaring blast of fire detonates at a spot you designate.",
+      descriptionSnippet: "A roaring blast of fire detonates at a spot you designate.",
+      rangeText: "500 feet",
+      targetText: null,
+    });
+    const edge = {
+      fromRecordKey: sourceRecord.recordKey,
+      toRecordKey: targetRecord.recordKey,
+      displayText: "Fireball",
+      referenceText,
+      direction: "outgoing" as const,
+      relationshipType: "references" as const,
+      sourcePackName: sourceRecord.packName,
+      sourceRecordType: sourceRecord.type,
+      sourceDocumentType: sourceRecord.documentType,
+      sourceCategory: sourceRecord.sourceCategory,
+    };
+    services.user.entityPages = createPf2eApplicationEntityPageService({
+      loadPageRelations: vi.fn(() => ({
+        recordKey: sourceRecord.recordKey,
+        outgoing: {
+          records: [targetRecord],
+          edges: [edge],
+        },
+        incoming: { records: [], edges: [] },
+        edges: [edge],
+        incomingGroups: [],
+      })),
+      getRecord: vi.fn((recordKey) => {
+        if (recordKey === sourceRecord.recordKey) {
+          return sourceRecord;
+        }
+        if (recordKey === targetRecord.recordKey) {
+          return targetRecord;
+        }
+        return undefined;
+      }),
+    });
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2eSearchResultsRoute({
+            initialSession: {
+              windowId: "window-1",
+              query: services.user.search.createDefaultQuery("browse"),
+              results: [sourceRecord],
+              windowOffset: 0,
+              resultMode: "browse",
+              total: 1,
+              loadedCount: 1,
+              hasMore: false,
+              nextOffset: null,
+              searchProfile: null,
+              sort: "alphabetical",
+              sortSeed: null,
+            },
+          })}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Description");
+    expect(app.lastFrame()).toContain("Trigger Fireball from the ward.");
+    expect(app.lastFrame()).not.toContain("@UUID");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(services.user.search.executeQuery).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Identity");
   });
 
   it("opens record page targets through dedicated page routes and returns to the previous page", async () => {
@@ -1703,6 +1880,96 @@ describe("pf2e terminal app", () => {
 
     expect(app.lastFrame()).toContain("Alarm Ward");
     expect(app.lastFrame()).toContain("Follow the linked spell page.");
+  });
+
+  it("opens inline trait page targets from dedicated page routes", async () => {
+    const services = createFakeServices();
+    const request = browseQuery("Browse fire spells", {
+      filter: scopeFilter("spell"),
+      limit: 20,
+    }).request;
+    const result = createRecord({
+      recordKey: "spell:fire-result",
+      id: "fire-result",
+      name: "Fire Result",
+      normalizedName: "fire result",
+      traits: ["fire"],
+    });
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-inline-trait",
+      query: request,
+      results: [result],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(createInlineTraitPageDocument(request))}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Traits: Fire");
+
+    app.stdin.write("\r");
+    await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(10);
+
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(request);
+    expect(app.lastFrame()).toContain("Browse | Spell |");
+    expect(app.lastFrame()).toContain("Fire Result");
+  });
+
+  it("opens inline UUID record targets from dedicated page routes", async () => {
+    const services = createFakeServices();
+    const documents = createInlineUuidOpenTargetPageDocuments();
+    services.user.entityPages = {
+      ...services.user.entityPages,
+      buildDocumentByRecordKey: vi.fn((recordKey: string) => {
+        if (recordKey === documents.target.recordKey) {
+          return documents.target;
+        }
+        return null;
+      }),
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(documents.source)}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Follow Fireball from the ward.");
+
+    app.stdin.write("\r");
+    await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(3);
+
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
+      recordTargetAction: "open",
+    });
+    expect(app.lastFrame()).toContain("Fireball");
+    expect(app.lastFrame()).toContain("A roaring blast of fire detonates at a spot you designate.");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

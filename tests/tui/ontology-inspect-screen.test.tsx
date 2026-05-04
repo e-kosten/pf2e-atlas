@@ -191,6 +191,69 @@ function createPreviewTargetDocument(): EntityPageDocument {
   };
 }
 
+function createInlineTraitRecordPageDocument(): EntityPageDocument {
+  const fireTraitTarget = {
+    kind: "searchPivot" as const,
+    label: "Trait: Fire",
+    request: browseQuery("Browse fire spells", {
+      filter: scopeFilter("spell"),
+      limit: 20,
+    }).request,
+  };
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: ["Fire"],
+    traitTargets: [fireTraitTarget],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused page summary." }],
+        targets: [],
+      },
+    ],
+  };
+}
+
+function createInlineUuidRecordPageDocument(): EntityPageDocument {
+  const target = {
+    kind: "record" as const,
+    label: "Chain Lightning",
+    recordKey: "spell:test-chain-lightning" as const,
+    action: "preview" as const,
+  };
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: ["Fire"],
+    sections: [
+      {
+        id: "description",
+        kind: "description",
+        title: "Description",
+        blocks: [
+          {
+            kind: "text",
+            text: "Reference Chain Lightning in the storm.",
+            segments: [
+              { text: "Reference " },
+              { text: "Chain Lightning", target },
+              { text: " in the storm." },
+            ],
+          },
+        ],
+        targets: [],
+      },
+    ],
+  };
+}
+
 function createServices(documents: EntityPageDocument | readonly EntityPageDocument[] | null = null) {
   const documentList = documents == null ? [] : Array.isArray(documents) ? [...documents] : [documents];
   const documentsByRecordKey = new Map(documentList.map((document) => [document.recordKey, document]));
@@ -328,6 +391,64 @@ describe("OntologyInspectScreen", () => {
     expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
       recordTargetAction: "preview",
     });
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-chain-lightning", {
+      recordTargetAction: "preview",
+    });
+  });
+
+  it("activates inline trait targets through the ontology inspect host", async () => {
+    const onActivatePageTarget = vi.fn(() => true);
+    const sourceDocument = createInlineTraitRecordPageDocument();
+    const services = createServices(sourceDocument);
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onActivatePageTarget={onActivatePageTarget}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Traits: Fire");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(sourceDocument.traitTargets?.[0]);
+  });
+
+  it("previews inline UUID record targets through the ontology inspect host", async () => {
+    const sourceDocument = createInlineUuidRecordPageDocument();
+    const targetDocument = createPreviewTargetDocument();
+    const services = createServices([sourceDocument, targetDocument]);
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Reference Chain Lightning in the storm.");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Chain Lightning");
+    expect(app.lastFrame()).toContain("Preview-only target summary.");
     expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-chain-lightning", {
       recordTargetAction: "preview",
     });

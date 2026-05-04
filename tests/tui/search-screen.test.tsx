@@ -1418,7 +1418,7 @@ describe("search screen", () => {
 
     expect(services.user.pageRelations.loadPageRelations).toHaveBeenCalledWith("spell:test-alarm");
     expect(app.lastFrame()).toContain("Alarm Ward");
-    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Identity");
   });
 
   it("routes hybrid page-preview navigation through shared section and target interactions", async () => {
@@ -1438,7 +1438,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Identity");
     expect(app.lastFrame()).toContain("↑/↓ section");
 
     pressDown(app);
@@ -1543,7 +1543,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Identity");
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("Archives of Nethys");
     expect(app.lastFrame()).not.toContain("Reference 01");
@@ -1563,7 +1563,7 @@ describe("search screen", () => {
       await flushInk();
     }
 
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Identity");
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("Archives of Nethys");
     expect(app.lastFrame()).not.toContain("Reference 01");
@@ -1589,12 +1589,12 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    pressDown(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Traits");
-    expect(app.lastFrame()).toContain("Trait: Fire");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Identity");
+    expect(app.lastFrame()).toContain("Traits: Fire");
 
     app.stdin.write("\r");
+    await flushInk();
+    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
@@ -5470,14 +5470,14 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[<0;70;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Identity");
 
     app.stdin.write("\u001b[<0;10;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Actions");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Identity");
 
     app.stdin.write("\u001b[<65;10;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("Preview | Barrier Ward | Actions");
+    expect(app.lastFrame()).toContain("Preview | Barrier Ward | Identity");
   });
 });
