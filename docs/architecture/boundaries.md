@@ -190,6 +190,19 @@ Second, TUI feature code should use shared framework primitives instead of rebui
 
 Those rules are not cosmetic. They encode a deliberate push toward reusable controllers, interaction routers, and screen-model helpers.
 
+Structured search-editor continuation is a TUI-internal workflow boundary. Child prompts and shared-explorer sessions may collect local values or generic explorer drafts, but the structured search host owns how child-flow outcomes become canonical query mutations and resume targets. New structured-editor continuation paths should route through the owners documented in `docs/architecture/tui.md`: the continuation coordinator, the resume-target state owner, structured-draft support projection, and metadata-action mutation helpers.
+
+The stable rule is:
+
+- `SearchRequest` remains the only long-lived search state
+- `structured-draft-state.ts` owns durable resume-target state for root, group-local, and exact-node resume
+- group-local live continuation uses canonical `groupPath` as its anchor
+- projected field buckets are derived presentation rows, not durable continuation owners
+- unary `not` is a node wrapper, not a peer live group context
+- generic filter-explorer draft helpers stay below the host seam and do not own structured-editor writeback semantics
+
+The continuation seam is not lint-enforced yet. The boundary is currently guarded by owner-specific tests, architecture documentation, and grep/code-audit checks for retired callback vocabulary and query-global writeback shortcuts. Add lint when the next bypass pattern is concrete enough to block narrowly without banning legitimate prompt-local builders or generic explorer internals.
+
 Menu-style TUI editors should also derive footer and help bindings from one shared action table. If a screen has to keep footer text, help copy, and active bindings aligned manually, that is a sign the interaction model still needs a helper owner.
 
 List/detail screens that fit the shared contract should go through `src/tui/list-detail-presentation.ts`. Repeating pane measurement, transition-footer composition, visible-detail slicing, or list/detail router setup in feature controllers is an architecture violation once that shared presentation owner applies.

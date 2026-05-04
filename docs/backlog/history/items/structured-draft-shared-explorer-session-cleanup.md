@@ -7,7 +7,7 @@ Last reviewed: 2026-05-03
 
 ## Problem
 
-This item is complete. It remains here as durable context for the structured-draft metadata action cleanup that landed on 2026-05-03.
+This item is complete. It remains here as durable context for the structured-draft metadata action cleanup that landed on 2026-05-03. The broader structured-editor continuation convergence later replaced that intermediate lifecycle coordinator with a search-host continuation model.
 
 Before that cleanup, the search structured-draft metadata actions carried duplicated shared-explorer session wiring across:
 
@@ -17,7 +17,7 @@ Before that cleanup, the search structured-draft metadata actions carried duplic
 Those flows intentionally had different writeback shapes, but they each hand-wired their own explorer lifecycle behavior. That duplication increased drift risk around:
 
 - back and cancel behavior
-- `applyLatestOnClose`
+- apply-latest-on-exit behavior
 - seed-state and preserved-field-state handling
 - future bug fixes landing in only one launcher path
 
@@ -25,14 +25,13 @@ Those flows intentionally had different writeback shapes, but they each hand-wir
 
 This outcome is now landed.
 
-Grouped and single-clause shared-explorer launches now run through one explicit session coordinator that:
+The cleanup outcome was an intermediate session coordinator that:
 
-- opens `openOntologyFieldEditor(...)`
 - seeds the explorer from the caller's query and current field state
 - normalizes `applied`, `back`, and `cancelled` outcomes
-- centralizes `applyLatestOnClose`, `onExitRoot`, and `onCancel`
+- centralizes explorer exit and cancel handling
 
-The cleanup preserves the caller-owned writeback split:
+The cleanup preserved the caller-owned writeback split:
 
 - single-clause flows still return canonical filter nodes
 - grouped-field flows still rebuild grouped replacement nodes and focus paths
@@ -48,9 +47,9 @@ The cleanup preserves the caller-owned writeback split:
 
 ### Landed seam
 
-The shared explorer lifecycle now routes through one file-local coordinator in `structured-draft-metadata-actions.ts`.
+The shared explorer lifecycle routed through one file-local coordinator in `structured-draft-metadata-actions.ts`.
 
-The affected callers now share that seam instead of each calling `openOntologyFieldEditor(...)` with their own partially duplicated lifecycle wiring.
+The affected callers shared that seam instead of each carrying partially duplicated lifecycle wiring.
 
 ### Preserved behavior
 

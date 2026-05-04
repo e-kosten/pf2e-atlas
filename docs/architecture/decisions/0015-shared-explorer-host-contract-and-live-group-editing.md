@@ -38,6 +38,10 @@ In practice this means:
 - ontology and search hosts should continue to own their own route/session semantics, model loading, and leaf behavior
 - discovery-mode affordances may be shared, but ontology and search should own their own mode types and the actual meaning of those modes
 - grouped search editing should move toward live in-place mutation of the focused structural block in the canonical query tree
+- structured search editing owns a host-level continuation coordinator above prompt and explorer child flows; the coordinator interprets shared explorer outcomes into search-owned resume and mutation semantics
+- group-local structured-editor continuation should use canonical `groupPath` as the normal resume anchor, while exact node paths remain reserved for genuinely node-scoped operations
+- shared-explorer-backed leaf edits and grouped field edits should converge on the same host-owned continuation path while preserving distinct bounded mutation kinds
+- generic draft/query helpers below the explorer seam may emit generic replace or insert outputs, but the structured search host translates those into structured-editor mutation intent instead of treating generic whole-query replacement as the default
 - a dedicated search-specific tree editor may remain above the shared explorer layer when it acts as a live host surface over canonical query state rather than reviving a separate staged query model
 - broad group-level staged draft editing should not be the primary model for search-group refinement
 - prompt-local drafts remain appropriate for incomplete value-entry flows such as numeric scalar input, but those small drafts should not expand into a second long-lived query model
@@ -51,5 +55,6 @@ In practice this means:
 - `Esc` may return the user from a nested field flow to the surrounding tree view while preserving already-applied live edits
 - search may keep a separate tree-editor surface, but that surface must remain a live host over canonical search state rather than a parallel staged editing architecture
 - search-specific grouped editing keeps its own tree/block mutation logic instead of pushing that state into the shared explorer layer
+- future structured-editor child flows should add tests under the named continuation, state, helper, or structured-editor interaction surfaces rather than only extending broad search-screen smoke coverage
 - future divergence in ontology versus search mode vocabularies will not require undoing the shared explorer contract, because the shared layer does not own one canonical mode type
 - implementation work in this area should remove duplicated host glue where it is truly generic, but should not collapse ontology leaf behavior, search leaf behavior, and search-group mutation semantics into one universal host model

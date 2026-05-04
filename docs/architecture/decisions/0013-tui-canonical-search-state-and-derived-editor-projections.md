@@ -23,6 +23,9 @@ The TUI may derive additional editor-facing models, but their ownership is const
 - summary/document models are derived presentation projections of canonical `SearchRequest`
 - dedicated search-specific tree-editor surfaces may exist as derived live presentations over canonical `SearchRequest`, but they must not own a second staged query model
 - focused editor builders and drafts are transient local state used only while an editor is collecting enough input to emit a valid canonical node
+- structured search-editor resume targets are transient host state over canonical `SearchRequest`, limited to root resume, group-local resume by canonical `groupPath`, and exact-node resume for truly node-scoped operations
+- projected grouped field buckets may be reselected after projection, but their identity is derived from canonical group/member paths rather than stored as durable editor identity
+- unary `not` remains a wrapper over one child node and should not be treated as a peer group-local continuation owner
 - incomplete drafts must not become canonical workspace state
 - canonical workspace state must not be represented as `Partial<SearchRequest>` or `Partial<SearchFilterNode>`
 
@@ -43,5 +46,6 @@ The TUI does not own:
 - The TUI search editor becomes a consumer and presenter of shared search meaning rather than an alternate owner of that meaning.
 - UI-local identity and insertion structure may still exist, but only as derived/transient state.
 - A separate tree-editor screen remains acceptable only when it is a live host over canonical state rather than a durable staged query owner.
+- Group-local structured-editor continuation should resume from canonical group context first, then derive visible row selection from the current projection.
 - Future TUI work should add editor affordances by projecting from canonical `SearchRequest`, not by inventing a second semantic query shape.
 - This supersedes the older assumption from ADR 0010 that TUI query parts remain the preferred durable local editing model.

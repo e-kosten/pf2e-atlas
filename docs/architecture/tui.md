@@ -216,6 +216,25 @@ The dedicated structured editor presents a visible root boolean group for editin
 
 Structured editing keeps canonical `SearchRequest` state live plus local cursor and move state. Focused add/edit flows such as the query-field builder keep short-lived dialog-local builder state while they collect enough input to emit a valid canonical node. Explorer-backed field editing may derive transient selection state from the current query to drive row badges, grouped buckets, or scalar summaries, but those projections apply changes back into the live query immediately instead of owning a second staged search-edit model.
 
+### Structured Editor Continuation
+
+The structured search editor owns continuation semantics for child prompt and explorer flows. The shared explorer remains generic: it reports explorer outcomes and draft/query translations, while the search host decides how those outcomes mutate canonical `SearchRequest` state and where the editor resumes.
+
+The durable owners are:
+
+- `src/tui/search-screen/structured-draft/structured-draft-continuation.ts` for shared-explorer child-flow continuation inside the structured editor
+- `src/tui/search-screen/structured-draft/structured-draft-state.ts` for resume targets over canonical search state
+- `src/tui/search-screen/structured-draft/structured-draft-support.ts` for deriving visible rows and selection from the current query plus resume target
+- `src/tui/search-screen/structured-draft/structured-draft-metadata-actions.ts` for translating child-flow results into bounded structured-editor mutations
+
+Resume targets are host state, not canonical search data. The allowed durable targets are root resume, group-local resume by canonical `groupPath`, and exact-node resume by canonical node path when the operation is genuinely node-scoped. Group-local continuation is the default for live prompt and explorer flows. Projected field buckets are presentation-derived from canonical members, and unary `not` remains a wrapper over one child node rather than a peer group-editing anchor.
+
+Structured-editor child flows should emit or be translated into bounded mutation families such as replace node, append nodes, and replace grouped field. Query-global replacement belongs only to explicitly query-global search flows. Generic helpers in `src/tui/filter-explorer/search-draft-query.ts` and `src/tui/search/service.ts` may keep preparing explorer drafts and generic insertion results, but they do not own structured-editor mutation or resume semantics.
+
+Prompt-local builders may keep incomplete value-entry state while collecting valid scalar, metric, pack, scope, level, price, or action-cost input. Once a valid canonical node or node set exists, the host resumes through the same structured-editor state and focus rules used by explorer-backed flows.
+
+This seam is enforced by named owner tests for the continuation coordinator, resume-target state, grouped-field helpers, and broad search-screen interaction flows. Lint is intentionally deferred for this seam because the risk is callback and workflow ownership rather than an import boundary that can be banned without false positives. Future work should add lint only if a stable syntactic bypass appears, such as direct structured-editor use of a generic whole-query draft writeback helper where a bounded host mutation is required.
+
 ### Ontology Explorer Layer
 
 `src/tui/ontology-explorer/` still owns ontology-specific hosting concerns, but the durable browse surface is now the shared filter explorer in inspect mode rather than a separate ontology-only screen.

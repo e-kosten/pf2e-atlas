@@ -1,13 +1,15 @@
 # Structured Editor Continuation Model Convergence
 
-Status: proposed  
+Status: done  
 Priority: soon  
 Owner: unassigned  
-Last reviewed: 2026-05-03
+Last reviewed: 2026-05-04
 
 ## Problem
 
-The live structured search editor still routes similar user intents through multiple continuation and mutation pathways.
+This item is complete. It remains here as durable context for the structured search-editor continuation model that landed on 2026-05-04.
+
+Before this work, the live structured search editor routed similar user intents through multiple continuation and mutation pathways.
 
 Examples that should feel like one interaction family but do not consistently share one host-owned path include:
 
@@ -21,7 +23,7 @@ That split keeps surfacing regressions where one path preserves the intended fla
 
 ## Desired Outcome
 
-Make the structured search editor use one explicit search-host-owned continuation model for child editing flows while keeping canonical query state live in `SearchRequest`.
+The landed outcome makes the structured search editor use one explicit search-host-owned continuation model for child editing flows while keeping canonical query state live in `SearchRequest`.
 
 That end state should:
 
@@ -41,7 +43,7 @@ That end state should:
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [ADR 0013: TUI canonical search state and derived editor projections](../../architecture/decisions/0013-tui-canonical-search-state-and-derived-editor-projections.md)
-- [ADR 0015: shared explorer host contract and live group editing](../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
+- [TUI architecture](../../../architecture/tui.md)
+- [ADR 0013: TUI canonical search state and derived editor projections](../../../architecture/decisions/0013-tui-canonical-search-state-and-derived-editor-projections.md)
+- [ADR 0015: shared explorer host contract and live group editing](../../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
 - [Structured draft shared explorer session cleanup](./structured-draft-shared-explorer-session-cleanup.md)
