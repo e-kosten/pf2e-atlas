@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pathfinder Worktree Lifecycle"
+  short_description: "Safe task worktree lifecycle."
+  default_prompt: "Use this skill before creating, validating, committing, landing, or cleaning up an implementation worktree in the Pathfinder MCP repository."
