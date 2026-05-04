@@ -192,6 +192,7 @@ describe("page document model", () => {
 
     expect(model.sections.map((section) => section.id)).toEqual([
       "header",
+      "traits",
       "summary",
       "description",
       "details",
@@ -201,6 +202,7 @@ describe("page document model", () => {
     ]);
     expect(model.sectionAnchors.map((anchor) => anchor.sectionId)).toEqual([
       "header",
+      "traits",
       "summary",
       "description",
       "details",
@@ -210,13 +212,13 @@ describe("page document model", () => {
     ]);
     expect(model.targetNodes.map((node) => node.target.label)).toEqual([
       "Open in Archives of Nethys",
+      "Trait: Concentrate",
+      "Trait: Fire",
+      "Trait: Manipulate",
       "Spell Effect: Fireball",
       "Feat (2)",
       "Pack: spells",
       "Category: Spell",
-      "Trait: Concentrate",
-      "Trait: Fire",
-      "Trait: Manipulate",
       "Derived Tags: Explosive Magic",
       "Families: Damage Burst",
     ]);

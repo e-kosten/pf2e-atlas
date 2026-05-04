@@ -214,7 +214,15 @@ describe("entity page document", () => {
     expect(lines[0]).toMatchObject({ text: "Fireball", tone: "section" });
     expect(lines[1]).toMatchObject({ text: "Spell | Rank 3 | Common | Pathfinder Player Core", indent: 2 });
     expect(lines[2]).toMatchObject({ text: "Open in Archives of Nethys", indent: 2 });
-    expect(lines[3]).toMatchObject({ text: "Traits: Concentrate, Fire, Manipulate", indent: 2 });
+    expect(lines[3]).toMatchObject({ text: "Traits", tone: "section" });
+    expect(lines[4]).toMatchObject({ text: "Trait: Concentrate", indent: 2 });
+    expect(lines[5]).toMatchObject({ text: "Trait: Fire", indent: 2 });
+    expect(lines[6]).toMatchObject({ text: "Trait: Manipulate", indent: 2 });
+    expect(document.traitTargets?.map((target) => target.label)).toEqual([
+      "Trait: Concentrate",
+      "Trait: Fire",
+      "Trait: Manipulate",
+    ]);
   });
 
   it("uses the spell recipe ordering with summary, description, details, and classification", () => {
@@ -442,29 +450,6 @@ describe("entity page document", () => {
                 kind: "scope",
                 category: "spell",
                 subcategory: { kind: "any" },
-              },
-              sort: { kind: "alphabetical" },
-              limit: 50,
-            },
-          },
-          {
-            kind: "searchPivot",
-            label: "Trait: Fire",
-            request: {
-              mode: "browse",
-              filter: {
-                kind: "allOf",
-                children: [
-                  {
-                    kind: "scope",
-                    category: "spell",
-                    subcategory: { kind: "any" },
-                  },
-                  {
-                    kind: "metadataPredicate",
-                    predicate: { field: "traits", op: "includes", value: "fire" },
-                  },
-                ],
               },
               sort: { kind: "alphabetical" },
               limit: 50,

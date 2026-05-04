@@ -168,7 +168,7 @@ Page/document navigation must operate against rendered terminal rows when a host
 
 `Referenced By` page sections render grouped backlink rows as section-local search-pivot targets. Activating one of those targets opens a prepared search-results route through the shared app navigation seam using the target's canonical `SearchRequest`, with the rendered result-reader surface as the user-visible outcome.
 
-Entity-page metadata pivots are generated from the page model rather than from host-local affordances. Header traits remain readable summary text, while selectable metadata such as traits, derived tags, families, pack, category, and subcategory appears as section-local search-pivot targets in the page's classification section.
+Entity-page metadata pivots are generated from the page model rather than from host-local affordances. Visible traits render as a near-header section-local target group, while classification metadata such as derived tags, families, pack, category, and subcategory appears as section-local search-pivot targets in the page's classification section.
 
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 

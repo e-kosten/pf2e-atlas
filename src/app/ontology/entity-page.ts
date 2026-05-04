@@ -32,6 +32,7 @@ export type EntityPageSection = {
   id: string;
   kind:
     | "identity"
+    | "traits"
     | "summary"
     | "description"
     | "defense"
@@ -53,6 +54,7 @@ export type EntityPageDocument = {
   identityLine?: string;
   aonLink?: Extract<EntityPageTarget, { kind: "external" }>;
   traits: string[];
+  traitTargets?: EntityPageTarget[];
   sections: EntityPageSection[];
 };
 
@@ -63,6 +65,7 @@ type PreparedEntityPageInput = {
   aonLink?: Extract<EntityPageTarget, { kind: "external" }>;
   blurb?: string;
   description?: string;
+  traitTargets: EntityPageTarget[];
   classificationTargets: EntityPageTarget[];
   references: EntityPageTarget[];
   referencedBy: EntityPageTarget[];
@@ -296,6 +299,7 @@ function buildSubcategoryTarget(record: OntologyExplorerEntityRecord): EntityPag
 type EntityPageMetadataPivotSpec = {
   field: MetadataSetField;
   label: string;
+  placement: "header" | "classification";
   getValues: (record: OntologyExplorerEntityRecord) => string[];
 };
 
@@ -303,16 +307,19 @@ const ENTITY_PAGE_METADATA_PIVOTS: readonly EntityPageMetadataPivotSpec[] = [
   {
     field: "traits",
     label: "Trait",
+    placement: "header",
     getValues: (record) => record.traits,
   },
   {
     field: "derivedTags",
     label: "Derived Tags",
+    placement: "classification",
     getValues: (record) => record.derivedTags,
   },
   {
     field: "families",
     label: "Families",
+    placement: "classification",
     getValues: (record) => record.families,
   },
 ];
@@ -337,8 +344,11 @@ function buildMetadataPivotTarget(
   };
 }
 
-function buildMetadataPivotTargets(record: OntologyExplorerEntityRecord): EntityPageTarget[] {
-  return ENTITY_PAGE_METADATA_PIVOTS.flatMap((spec) =>
+function buildMetadataPivotTargets(
+  record: OntologyExplorerEntityRecord,
+  placement: EntityPageMetadataPivotSpec["placement"],
+): EntityPageTarget[] {
+  return ENTITY_PAGE_METADATA_PIVOTS.filter((spec) => spec.placement === placement).flatMap((spec) =>
     spec.getValues(record).map((value) => buildMetadataPivotTarget(record, spec, value)),
   );
 }
@@ -348,7 +358,7 @@ function buildClassificationTargets(record: OntologyExplorerEntityRecord): Entit
     buildPackTarget(record),
     buildCategoryTarget(record),
     buildSubcategoryTarget(record),
-    ...buildMetadataPivotTargets(record),
+    ...buildMetadataPivotTargets(record, "classification"),
   ].filter((target): target is EntityPageTarget => Boolean(target));
 }
 
@@ -421,6 +431,7 @@ function buildEntityPageInput(
       : undefined,
     blurb: record.blurbText ?? undefined,
     description: record.descriptionText ?? undefined,
+    traitTargets: buildMetadataPivotTargets(record, "header"),
     classificationTargets: buildClassificationTargets(record),
     references: buildReferenceTargets(relations, recordTargetAction),
     referencedBy: buildBacklinkTargets(relations),
@@ -637,6 +648,7 @@ export function buildEntityPageDocument(
     identityLine: input.identityLine,
     aonLink: input.aonLink,
     traits: input.traits,
+    traitTargets: input.traitTargets,
     sections: buildRecipeSections(input, seenFacts),
   };
 }
@@ -663,7 +675,13 @@ export function renderEntityPageDocument(
       plainTextFallback: document.aonLink.plainTextFallback,
     });
   }
-  if (document.traits.length > 0) {
+  const traitTargets = document.traitTargets ?? [];
+  if (traitTargets.length > 0) {
+    lines.push({ text: "Traits", tone: "section" });
+    for (const target of traitTargets) {
+      lines.push({ text: target.label, indent: 2 });
+    }
+  } else if (document.traits.length > 0) {
     lines.push({ text: `Traits: ${document.traits.map(humanize).join(", ")}`, indent: 2 });
   }
 

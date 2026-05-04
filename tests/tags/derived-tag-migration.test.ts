@@ -601,7 +601,9 @@ describe("derived tag migration tooling", () => {
       ),
     ).toBeLessThan(rendered.indexOf("Open in Archives of Nethys"));
     expect(rendered).toContain("Open in Archives of Nethys");
-    expect(rendered).toContain("Traits: Incorporeal, Undead");
+    expect(rendered).toContain("Traits");
+    expect(rendered).toContain("Trait: Incorporeal");
+    expect(rendered).toContain("Trait: Undead");
     expect(rendered).toContain("Summary");
     expect(rendered).toContain("Derived Tags: Urban Setting");
     expect(rendered).toContain("An undead sentinel bound to a haunted district.");

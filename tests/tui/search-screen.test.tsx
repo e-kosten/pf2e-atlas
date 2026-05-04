@@ -1589,13 +1589,12 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    app.stdin.write("G");
+    pressDown(app);
     await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Traits");
+    expect(app.lastFrame()).toContain("Trait: Fire");
+
     app.stdin.write("\r");
-    await flushInk();
-    pressDown(app);
-    await flushInk();
-    pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();

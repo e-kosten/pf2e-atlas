@@ -131,12 +131,56 @@ export function buildPageDocumentModel(
   }
 
   if (document.traits.length > 0) {
-    pushNode({
-      id: "header:traits",
-      kind: "traits",
-      line: { text: `Traits: ${document.traits.join(", ")}`, indent: 2 },
-      anchorRole: "content",
-    });
+    const traitTargets = document.traitTargets ?? [];
+    if (traitTargets.length > 0) {
+      const startNodeIndex = nodes.length;
+      const targetNodeIds: string[] = [];
+      const headingIndex = pushNode({
+        id: "header:traits:heading",
+        kind: "sectionHeading",
+        sectionId: "traits",
+        line: { text: "Traits", tone: "section" },
+        anchorRole: "sectionStart",
+      });
+
+      traitTargets.forEach((target, targetIndex) => {
+        const nodeId = `header:traits:target:${targetIndex}`;
+        pushNode({
+          id: nodeId,
+          kind: "target",
+          sectionId: "traits",
+          line: toTargetLine(target),
+          target,
+          anchorRole: "target",
+        });
+        targetNodeIds.push(nodeId);
+        targetNodes.push({
+          nodeId,
+          sectionId: "traits",
+          target,
+        });
+      });
+
+      sections.push({
+        id: "traits",
+        kind: "traits",
+        title: "Traits",
+        startNodeIndex,
+        endNodeIndex: Math.max(startNodeIndex, nodes.length - 1),
+        targetNodeIds,
+      });
+      sectionAnchors.push({
+        sectionId: "traits",
+        nodeIndex: headingIndex,
+      });
+    } else {
+      pushNode({
+        id: "header:traits",
+        kind: "traits",
+        line: { text: `Traits: ${document.traits.join(", ")}`, indent: 2 },
+        anchorRole: "content",
+      });
+    }
   }
 
   for (const section of document.sections) {
