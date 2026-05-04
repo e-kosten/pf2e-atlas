@@ -119,6 +119,8 @@ function buildFallbackSelectColumns(options: {
     optionalJoinedColumn(includeItem, "i.item_category", "itemCategory"),
     optionalJoinedColumn(includeItem, "i.base_item", "baseItem"),
     optionalJoinedColumn(includeItem, "i.price_cp", "priceCp"),
+    optionalJoinedColumn(includeItem, "i.bulk_value", "bulkValue"),
+    `COALESCE(${includeSpell ? "s.action_cost" : "NULL"}, ${includeItem ? "i.action_cost" : "NULL"}) AS actionCost`,
     optionalJoinedColumn(includeItem, "i.usage_text", "usage"),
     optionalJoinedColumn(includeItem, "i.hands", "hands"),
     optionalJoinedColumn(includeItem, "i.damage_types_json", "damageTypesJson"),
@@ -134,6 +136,9 @@ function buildFallbackSelectColumns(options: {
     optionalJoinedColumn(includeSpell, "s.area_value", "areaValue"),
     optionalJoinedColumn(includeSpell, "s.sustained", "sustained"),
     optionalJoinedColumn(includeSpell, "s.basic_save", "basicSave"),
+    "NULL AS actorMetricsJson",
+    "NULL AS itemMetricsJson",
+    optionalRecordColumn("raw_json", "rawJson", "NULL"),
   ];
 }
 
@@ -244,8 +249,14 @@ export function loadDerivedTagMigrationRecords(
   const includeActor = hasTable(db, "actor_records");
   const includeItem = hasTable(db, "item_records");
   const includeSpell = hasTable(db, "spell_records");
+  const includeActorMetrics = hasTable(db, "actor_metrics");
+  const includeItemMetrics = hasTable(db, "item_metrics");
   const recordColumns = listTableColumns(db, "records");
-  const hasFullRecordProjection = FULL_RECORD_ENTITY_COLUMNS.every((column) => recordColumns.has(column));
+  const hasFullRecordProjection =
+    FULL_RECORD_ENTITY_COLUMNS.every((column) => recordColumns.has(column)) &&
+    recordColumns.has("raw_json") &&
+    includeActorMetrics &&
+    includeItemMetrics;
   const selectColumns = hasFullRecordProjection
     ? buildOntologyExplorerEntityRecordSelectColumns({
         includeActor,
