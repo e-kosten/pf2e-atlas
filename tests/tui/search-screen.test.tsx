@@ -1023,6 +1023,56 @@ function createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(): Ontolo
   };
 }
 
+function createStructuredCreatureTraitsRarityExplorerDomain(): OntologyDomainModel {
+  const domain = createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain();
+  const categoryNode = domain.rootNodes[0];
+  const metadataFieldsNode = categoryNode?.children?.[0];
+  if (!metadataFieldsNode?.children) {
+    return domain;
+  }
+
+  metadataFieldsNode.children.unshift({
+    id: "creature:field:rarity",
+    kind: "field",
+    label: "Rarity",
+    filterText: "rarity",
+    listLabel: "Rarity",
+    detailTitle: "Metadata Field Details",
+    detailLines: [{ text: "Rarity", tone: "section" }],
+    children: [
+      {
+        id: "creature:field:rarity:value:common",
+        kind: "value",
+        label: "common",
+        filterText: "common",
+        listLabel: "common",
+        detailTitle: "Value Details",
+        detailLines: [{ text: "common", tone: "section" }],
+      },
+      {
+        id: "creature:field:rarity:value:rare",
+        kind: "value",
+        label: "rare",
+        filterText: "rare",
+        listLabel: "rare",
+        detailTitle: "Value Details",
+        detailLines: [{ text: "rare", tone: "section" }],
+      },
+      {
+        id: "creature:field:rarity:value:uncommon",
+        kind: "value",
+        label: "uncommon",
+        filterText: "uncommon",
+        listLabel: "uncommon",
+        detailTitle: "Value Details",
+        detailLines: [{ text: "uncommon", tone: "section" }],
+      },
+    ],
+  });
+
+  return domain;
+}
+
 function createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(): OntologyDomainModel {
   const domain = createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain();
   const categoryNode = domain.rootNodes[0];
@@ -1317,6 +1367,37 @@ async function openMetricExplorerFromAddHere(app: ReturnType<typeof render>): Pr
   await flushInk();
   await flushInk();
   await waitForFrameToContain(app, "Creature Statistics Explorer", 60);
+}
+
+async function openRarityExplorerFromAddHere(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metadata");
+  expect(app.lastFrame()).toContain("Rarity");
+
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Rarity Explorer", 60);
+}
+
+async function addCommonToCurrentRaritySelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
+  await waitForFrameToContain(app, "Rarity Explorer", 60);
+  await waitForFrameToContain(app, "common", 120);
+  await waitForFrameToContain(app, "[ ] common", 120);
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "[x] common", 120);
+  await flushInk();
+  await returnFromExplorerToStructuredEditor(app);
+  await waitForFrameToContain(app, "Rarity: Common", 120);
 }
 
 async function addAcGte10FromCurrentMetricSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
@@ -4165,6 +4246,64 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
+  });
+
+  it("keeps mixed trait and rarity add-here additions flat", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsRarityExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: allOfFilter([
+                  scopeFilter("creature"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" })),
+                ]),
+                limit: 20,
+              }).request
+            }
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("evil");
+    expect(app.lastFrame().toLowerCase()).toContain("unholy");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+
+    await openRarityExplorerFromAddHere(app);
+    await addCommonToCurrentRaritySelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("evil");
+    expect(app.lastFrame().toLowerCase()).toContain("unholy");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil, !unholy");
   });
 
   it("keeps the tree flat after reopening a mixed trait and family query", async () => {

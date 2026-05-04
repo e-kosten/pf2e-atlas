@@ -880,7 +880,7 @@ export function useSearchStructuredDraftMetadataActions({
         const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, fieldState, fieldOption, {
           preserveFlatSetClauses: fieldMemberPaths.length > 0,
         });
-        const { nextQuery, nextFocusPath } = applyGroupedFieldReplacementToQuery(
+        const { nextQuery } = applyGroupedFieldReplacementToQuery(
           query,
           groupPath,
           field,
@@ -888,7 +888,7 @@ export function useSearchStructuredDraftMetadataActions({
           replacementNodes,
         );
         replaceStructuredDraftProjection(() => nextQuery, {
-          resumeTarget: createStructuredDraftGroupResumeTarget(nextFocusPath ?? groupPath),
+          resumeTarget: createStructuredDraftGroupResumeTarget(groupPath),
         });
       };
       const continuation = await openStructuredDraftExplorerContinuation({
