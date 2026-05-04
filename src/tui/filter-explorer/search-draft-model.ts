@@ -157,6 +157,13 @@ function findSearchFilterExplorerFieldNode(
     );
   }
 
+  if (fieldOption.value === "pack") {
+    return (
+      (subcategory ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:pack`) : undefined) ??
+      findDirectNodeById(categoryChildren, `${category}:pack`)
+    );
+  }
+
   const subcategoryFieldNode = subcategory
     ? findScopedSearchFilterExplorerMetadataFieldNode(
         subcategoryNode,
@@ -220,6 +227,29 @@ function buildFieldSelectionTarget(
   };
 }
 
+function buildPackSelectionTarget(
+  fieldOption: Pf2eTerminalQueryFieldOption,
+  node: OntologyNode,
+): FilterExplorerComposeTarget | undefined {
+  if (fieldOption.value !== "pack" || node.kind !== "value") {
+    return undefined;
+  }
+
+  const packMatch = node.id.match(/:pack[s]?:([^:]+)$/);
+  if (!packMatch?.[1]) {
+    return undefined;
+  }
+
+  return {
+    kind: "discrete",
+    field: fieldOption.value,
+    fieldLabel: fieldOption.label,
+    value: packMatch[1],
+    valueLabel: node.label,
+    allowedOperators: ["include", "exclude"],
+  };
+}
+
 function parseMetricNodeSelectionKey(node: OntologyNode): MetricFieldSelectionKey | null {
   const actorMetricMatch = node.id.match(/:(actorMetrics):([^:]+)$/);
   if (actorMetricMatch) {
@@ -276,6 +306,11 @@ function buildFallbackFieldSelectionTarget(
 ): FilterExplorerComposeTarget | undefined {
   if (!fieldOption) {
     return undefined;
+  }
+
+  const packTarget = buildPackSelectionTarget(fieldOption, node);
+  if (packTarget) {
+    return packTarget;
   }
 
   if (fieldOption.value === "derivedTags" && node.kind === "tag") {

@@ -29,7 +29,6 @@ export type TerminalInteractionActionId =
   | "search"
   | "help"
   | "quit"
-  | "commands"
   | "actions"
   | "apply"
   | "close"
@@ -192,11 +191,6 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     footerKeys: "q",
     helpKeys: "q",
     defaultLabel: "back",
-  },
-  commands: {
-    footerKeys: ":",
-    helpKeys: ":",
-    defaultLabel: "commands",
   },
   actions: {
     footerKeys: ":",
@@ -456,7 +450,6 @@ function matchesTerminalInteractionAction(
       return event.isHelpKey();
     case "quit":
       return event.isTerminalQuitKey();
-    case "commands":
     case "actions":
       return event.isCommandPaletteKey();
     case "apply":

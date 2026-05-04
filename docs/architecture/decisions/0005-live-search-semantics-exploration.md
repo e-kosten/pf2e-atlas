@@ -27,6 +27,7 @@ In practice this means:
 
 - `src/app/ontology-service.ts` continues to publish the full readonly search-semantics browse model
 - scoped query-field entry in the TUI should seed the shared explorer directly instead of maintaining a separate reduced picker ontology or hosted compatibility layer
+- structured-editor discovery steps that need live field values or metric keys should compose that same shared explorer surface rather than introducing picker-local discovery paths
 - concrete search-semantics leaves should launch the normal result behavior against the live corpus instead of showing special-case tiny samples
 - scoped entry flows may seed explorer state, but they should still land inside the same underlying browse surface
 
@@ -35,4 +36,5 @@ In practice this means:
 - Users can inspect the same hierarchy for ontology browsing, search-semantics understanding, and structured query construction.
 - Search-semantics branches and leaf results stay aligned with the live corpus instead of drifting toward curated examples.
 - Query-field entry stays on the shared explorer surface instead of preserving a parallel picker compatibility stack.
+- Structured-editor flows such as pack selection and metric-key selection stay on the same explorer-backed discovery model as the rest of live query-field entry.
 - Future work that needs a scoped search-semantics entry point should compose shared explorer state directly, not create another standalone picker tree.

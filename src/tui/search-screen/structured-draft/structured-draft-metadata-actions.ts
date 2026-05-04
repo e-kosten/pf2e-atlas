@@ -27,10 +27,13 @@ import {
 } from "../../search/query-core.js";
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import {
+  buildSearchFilterPackSelectionNode,
   getSearchQueryCategory,
   getSearchQueryMetadataTree,
+  getSearchQueryPackSelection,
   getSearchQueryRootOperator,
   getSearchQuerySubcategory,
+  setSearchQueryPackSelection,
   setSearchQueryMetadataTree,
 } from "../../search/query-state.js";
 import type {
@@ -45,8 +48,10 @@ import {
   findStructuredDraftGroupedFieldBucketForPath,
 } from "./structured-draft-support.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
+import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/types.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
 import type {
+  OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
@@ -136,6 +141,17 @@ function buildExplorerOnlyFieldOption(
     fieldType,
     editor: "sharedExplorer",
   };
+}
+
+function searchFilterExplorerFieldStatesEqual(
+  left: SearchFilterExplorerFieldState | undefined,
+  right: SearchFilterExplorerFieldState | undefined,
+): boolean {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return JSON.stringify(buildSearchFilterExplorerComposeDraft(left)) === JSON.stringify(buildSearchFilterExplorerComposeDraft(right));
 }
 
 function getFirstGroupedFieldMemberPath(
@@ -612,8 +628,60 @@ function formatNumericMatch(match: SearchNumericMatch): string {
   }
 }
 
-function buildDiscoveryModeSubtitle(discoveryMode: SearchFilterDiscoveryMode): string {
-  return discoveryMode === "matching" ? "Matching counts" : "Catalog counts";
+function buildPackClauseFieldOption(): Pf2eTerminalQueryFieldOption {
+  return buildExplorerOnlyFieldOption(
+    "pack",
+    "Pack",
+    "Browse live packs for the current scope and stage canonical pack clauses.",
+    "enumString",
+  );
+}
+
+export function buildMetricSelectionTargetResolver(
+  family: MetricFieldFamily,
+  fieldLabel: string,
+  options: { numericOnly?: boolean } = {},
+): (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined {
+  return (node) => {
+    if (node?.kind !== "metric") {
+      return undefined;
+    }
+
+    const metricKey = node.id.split(":").at(-1);
+    if (!metricKey) {
+      return undefined;
+    }
+
+    const valueType = family === "actorMetric" ? inferActorMetricValueType(metricKey) : inferItemMetricValueType(metricKey);
+    if (!valueType) {
+      return undefined;
+    }
+    if (options.numericOnly && valueType !== "number") {
+      return undefined;
+    }
+
+    return {
+      kind: "scalar",
+      key: `${family}:${metricKey}`,
+      fieldLabel,
+      subjectLabel: node.label,
+      valueType,
+      editorLabel: `${fieldLabel} / ${node.label}`,
+    };
+  };
+}
+
+function extractMetricKeyFromSelectTargetOutcome(
+  outcome: FilterExplorerSelectTargetOutcome,
+  family: MetricFieldFamily,
+): string | null {
+  const target = outcome.result.target;
+  if (!target || target.kind !== "scalar") {
+    return null;
+  }
+
+  const prefix = `${family}:`;
+  return target.key.startsWith(prefix) ? target.key.slice(prefix.length) : null;
 }
 
 export function useSearchStructuredDraftMetadataActions({
@@ -623,6 +691,7 @@ export function useSearchStructuredDraftMetadataActions({
   enterStructuredDraftMoveMode,
   getScopedFieldOptions,
   moveSourcePath,
+  openFilterExplorer,
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
@@ -641,6 +710,7 @@ export function useSearchStructuredDraftMetadataActions({
   ) => Promise<MetadataFilterNode | null | undefined>;
   enterStructuredDraftMoveMode: (path: number[]) => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
+  openFilterExplorer: OpenSearchFilterExplorer;
   openOntologyFieldEditor: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
@@ -800,10 +870,12 @@ export function useSearchStructuredDraftMetadataActions({
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
     ) => {
+      let sawLiveSnapshot = false;
       const applySnapshot = ({ result }: StructuredDraftSharedExplorerSnapshot) => {
         if (result.kind !== "replace") {
           return;
         }
+        sawLiveSnapshot = true;
 
         updateStructuredDraftMetadataNode(path, () => result.node, {
           metadataFocusPath: result.node ? path : path.length > 0 ? path.slice(0, -1) : null,
@@ -817,7 +889,12 @@ export function useSearchStructuredDraftMetadataActions({
         applyLatestOnClose: true,
         onLiveSnapshot: applySnapshot,
       });
-      if (sessionResult?.kind === "applied") {
+      if (
+        sessionResult?.snapshot &&
+        !sawLiveSnapshot &&
+        sessionResult.snapshot.result.kind === "replace" &&
+        JSON.stringify(sessionResult.snapshot.result.node) !== JSON.stringify(currentNode)
+      ) {
         applySnapshot(sessionResult.snapshot);
       }
     },
@@ -861,10 +938,12 @@ export function useSearchStructuredDraftMetadataActions({
         field,
         fieldMemberPaths,
       });
+      let sawLiveSnapshot = false;
       const applySnapshot = ({ nextFieldState }: StructuredDraftSharedExplorerSnapshot) => {
         if (!nextFieldState) {
           return;
         }
+        sawLiveSnapshot = true;
         const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, nextFieldState, fieldOption, {
           preserveFlatSetClauses: fieldMemberPaths.length > 0,
         });
@@ -886,7 +965,11 @@ export function useSearchStructuredDraftMetadataActions({
         preservedMetadata,
         onLiveSnapshot: applySnapshot,
       });
-      if (sessionResult?.kind === "applied") {
+      if (
+        sessionResult?.snapshot &&
+        !sawLiveSnapshot &&
+        !searchFilterExplorerFieldStatesEqual(sessionResult.snapshot.nextFieldState, initialFieldState)
+      ) {
         applySnapshot(sessionResult.snapshot);
       }
     },
@@ -951,45 +1034,11 @@ export function useSearchStructuredDraftMetadataActions({
         applyLatestOnClose: true,
         onLiveSnapshot: applySnapshot,
       });
-      if (sessionResult?.kind === "applied") {
+      if (sessionResult?.snapshot) {
         applySnapshot(sessionResult.snapshot);
       }
     },
     [openStructuredDraftSharedExplorerSession, replaceStructuredDraftProjection],
-  );
-
-  const promptForPickerDiscoveryMode = React.useCallback(
-    async (
-      promptSession: SearchWorkspacePromptAdapters,
-      title: string,
-      discoveryMode: SearchFilterDiscoveryMode,
-    ): Promise<SearchFilterDiscoveryMode | undefined> => {
-      const selected = await promptSession.promptSelectOption({
-        title: `${title} Count Source`,
-        prompt: "Choose how this picker should source counts",
-        entries: [
-          {
-            value: "matching",
-            label: "Use Matching Counts",
-            description: "Show values and counts from the active query context.",
-          },
-          {
-            value: "catalog",
-            label: "Use Catalog Counts",
-            description: "Show values and counts from the broader applicability slice.",
-          },
-        ],
-        selectedValue: discoveryMode,
-      });
-      if (selected.kind === "back") {
-        return discoveryMode;
-      }
-      if (selected.kind !== "selected") {
-        return undefined;
-      }
-      return selected.value as SearchFilterDiscoveryMode;
-    },
-    [prompts],
   );
 
   const promptForFieldClause = React.useCallback(
@@ -1138,59 +1187,60 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForMetricKey = React.useCallback(
     async (
-      promptSession: SearchWorkspacePromptAdapters,
+      _promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       family: MetricFieldFamily,
       title: string,
-      prompt: string,
-      currentMetric?: string,
+      _prompt: string,
+      _currentMetric?: string,
       options: { numericOnly?: boolean } = {},
       initialDiscoveryMode: SearchFilterDiscoveryMode = "matching",
     ): Promise<PromptStepResult<MetricKeySelection>> => {
-      let discoveryMode: SearchFilterDiscoveryMode = initialDiscoveryMode;
-
-      while (true) {
-        const metricOptions = await user.search.loadMetricKeyOptions(query, family, discoveryMode, options);
-        if (metricOptions.length === 0) {
-          return undefined;
-        }
-
-        const selection = await promptSession.promptSelectOption({
-          title,
-          subtitle: buildDiscoveryModeSubtitle(discoveryMode),
-          prompt,
-          entries: metricOptions.map((metricOption) => ({
-            value: metricOption.value,
-            label: metricOption.label,
-            description: metricOption.description,
-          })),
-          selectedValue:
-            currentMetric && metricOptions.some((metricOption) => metricOption.value === currentMetric)
-              ? currentMetric
-              : metricOptions[0]!.value,
-          supportsCommands: true,
-        });
-        if (selection.kind === "selected") {
-          return {
-            value: selection.value,
-            discoveryMode,
-          };
-        }
-        if (selection.kind === "back") {
-          return CLAUSE_BACK;
-        }
-        if (selection.kind !== "commands") {
-          return undefined;
-        }
-
-        const nextMode = await promptForPickerDiscoveryMode(promptSession, title, discoveryMode);
-        if (!nextMode) {
-          return undefined;
-        }
-        discoveryMode = nextMode;
+      const fieldOption = getScopedFieldOptions(query).find((candidate) => candidate.value === family);
+      if (!fieldOption) {
+        return undefined;
       }
+
+      return new Promise<PromptStepResult<MetricKeySelection>>((resolve) => {
+        let settled = false;
+        const finish = (result: PromptStepResult<MetricKeySelection>) => {
+          if (!settled) {
+            settled = true;
+            resolve(result);
+          }
+        };
+
+        void openFilterExplorer({
+          title,
+          queryOverride: query,
+          initialDiscoveryMode,
+          fieldOptions: [fieldOption],
+          resolveSelectionTarget: buildMetricSelectionTargetResolver(family, fieldOption.label, options),
+          onBack: () => {
+            finish(CLAUSE_BACK);
+          },
+          onCancel: () => {
+            finish(undefined);
+          },
+          onSelectTarget: (outcome, _nextQuery, _nextFieldState, discoveryMode) => {
+            const metricKey = extractMetricKeyFromSelectTargetOutcome(outcome, family);
+            finish(
+              metricKey
+                ? {
+                    value: metricKey,
+                    discoveryMode,
+                  }
+                : undefined,
+            );
+          },
+        }).then((opened) => {
+          if (!opened) {
+            finish(undefined);
+          }
+        });
+      });
     },
-    [promptForPickerDiscoveryMode, prompts, user.search],
+    [getScopedFieldOptions, openFilterExplorer],
   );
 
   const promptForMetricCompareClause = React.useCallback(
@@ -1302,83 +1352,76 @@ export function useSearchStructuredDraftMetadataActions({
 
   const promptForPackClause = React.useCallback(
     async (
-      promptSession: SearchWorkspacePromptAdapters,
+      _promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-    ): Promise<
-      Extract<SearchFilterNode, { kind: "pack" }> | Extract<SearchFilterNode, { kind: "pack" }>[] | ClausePromptBackResult | undefined
-    > => {
-      let discoveryMode: SearchFilterDiscoveryMode = "matching";
+    ): Promise<SearchFilterNodeEditorResult> => {
+      const baseQuery = setSearchQueryPackSelection(query, { include: [], exclude: [] });
+      const seededQuery = currentNode
+        ? setSearchQueryPackSelection(baseQuery, { include: [currentNode.value], exclude: [] })
+        : baseQuery;
+      const initialFieldState = buildSearchFilterExplorerFieldState(
+        user.search.prepareFilterExplorerDraft(seededQuery, ["pack"]).draft,
+      );
 
-      while (true) {
-        const packOptions = await user.search.loadPackOptions(query, discoveryMode);
-        if (packOptions.length === 0) {
-          await terminal.pauseForAnyKey("No packs are available for the current query.");
-          return undefined;
-        }
+      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
+        let settled = false;
+        let latestQuery: Pf2eTerminalSearchQuery | undefined;
+        let latestFieldState: SearchFilterExplorerFieldState | undefined;
+        const finish = (result: SearchFilterNodeEditorResult) => {
+          if (!settled) {
+            settled = true;
+            resolve(result);
+          }
+        };
 
-        if (currentNode) {
-          const selection = await promptSession.promptSelectOption({
-            title: "Pack",
-            subtitle: buildDiscoveryModeSubtitle(discoveryMode),
-            prompt: "Choose the pack for this clause",
-            entries: packOptions.map((packOption) => ({
-              value: packOption.value,
-              label: packOption.label,
-              description: packOption.description,
-            })),
-            selectedValue:
-              currentNode.value && packOptions.some((packOption) => packOption.value === currentNode.value)
-                ? currentNode.value
-                : packOptions[0]!.value,
-            supportsCommands: true,
-          });
-          if (selection.kind === "selected") {
-            return {
-              kind: "pack",
-              value: selection.value,
-            };
+        const finishFromQuery = (
+          nextQuery?: Pf2eTerminalSearchQuery,
+          nextFieldState?: SearchFilterExplorerFieldState,
+        ) => {
+          const resolvedFieldState = latestFieldState ?? nextFieldState;
+          const selection = resolvedFieldState?.discreteSelections.pack
+            ? {
+                include: [...resolvedFieldState.discreteSelections.pack.include],
+                exclude: [...resolvedFieldState.discreteSelections.pack.exclude],
+              }
+            : getSearchQueryPackSelection(latestQuery ?? nextQuery ?? baseQuery);
+          const hasSelection = selection.include.length > 0 || selection.exclude.length > 0;
+          if (!hasSelection) {
+            finish(currentNode ? null : CLAUSE_BACK);
+            return;
           }
-          if (selection.kind === "back") {
-            return CLAUSE_BACK;
-          }
-          if (selection.kind !== "commands") {
-            return undefined;
-          }
-        } else {
-          const selection = await promptSession.promptMultiSelectOption({
-            title: "Pack",
-            subtitle: buildDiscoveryModeSubtitle(discoveryMode),
-            prompt: "Choose one or more packs for this clause",
-            entries: packOptions.map((packOption) => ({
-              value: packOption.value,
-              label: packOption.label,
-              description: packOption.description,
-            })),
-            supportsCommands: true,
-          });
-          if (selection.kind === "selected") {
-            return selection.values.map((value) => ({
-              kind: "pack" as const,
-              value,
-            }));
-          }
-          if (selection.kind === "back") {
-            return CLAUSE_BACK;
-          }
-          if (selection.kind !== "commands") {
-            return undefined;
-          }
-        }
 
-        const nextMode = await promptForPickerDiscoveryMode(promptSession, "Pack", discoveryMode);
-        if (!nextMode) {
-          return undefined;
-        }
-        discoveryMode = nextMode;
-      }
+          finish(buildSearchFilterPackSelectionNode(selection));
+        };
+
+        void openFilterExplorer({
+          title: "Pack",
+          queryOverride: baseQuery,
+          initialFieldState,
+          fieldOptions: [buildPackClauseFieldOption()],
+          onQueryChange: (nextQuery, nextFieldState) => {
+            latestQuery = nextQuery;
+            latestFieldState = nextFieldState;
+          },
+          onBack: (nextQuery, nextFieldState) => {
+            finishFromQuery(nextQuery, nextFieldState);
+          },
+          onExitRoot: (nextQuery, nextFieldState) => {
+            finishFromQuery(nextQuery, nextFieldState);
+          },
+          onCancel: () => {
+            finish(undefined);
+          },
+          singleFieldBehavior: "directValues",
+        }).then((opened) => {
+          if (!opened) {
+            finish(undefined);
+          }
+        });
+      });
     },
-    [promptForPickerDiscoveryMode, prompts, terminal, user.search],
+    [openFilterExplorer, user.search],
   );
 
   const promptForScopeClause = React.useCallback(

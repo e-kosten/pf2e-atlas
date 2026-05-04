@@ -14,6 +14,8 @@ import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
 import { createSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
 import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-state.js";
+import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
+import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../filter-explorer/types.js";
 
 export function useSearchFilterExplorerWorkflow({
   query,
@@ -26,15 +28,24 @@ export function useSearchFilterExplorerWorkflow({
 }): {
   filterExplorerSession: SearchFilterExplorerSession | null;
   openFilterExplorer: (options: {
+    title?: string;
     queryOverride?: Pf2eTerminalSearchQuery;
+    initialDiscoveryMode?: SearchFilterDiscoveryMode;
     initialFieldState?: SearchFilterExplorerFieldState;
     preservedMetadata?: MetadataFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
+    resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
     onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
     onReturn?: () => void;
     onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
     onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
     onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+    onSelectTarget?: (
+      outcome: FilterExplorerSelectTargetOutcome,
+      query: Pf2eTerminalSearchQuery,
+      fieldState: SearchFilterExplorerFieldState,
+      discoveryMode: SearchFilterDiscoveryMode,
+    ) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeFilterExplorer: () => void;
@@ -43,32 +54,45 @@ export function useSearchFilterExplorerWorkflow({
 
   const openFilterExplorer = React.useCallback(
     async ({
+      title,
       queryOverride,
+      initialDiscoveryMode = "matching",
       initialFieldState,
       preservedMetadata,
       fieldOptions,
+      resolveSelectionTarget,
       onQueryChange,
       onReturn,
       onCancel,
       onBack,
       onExitRoot,
+      onSelectTarget,
       singleFieldBehavior = onReturn ? "directValues" : "list",
     }: {
+      title?: string;
       queryOverride?: Pf2eTerminalSearchQuery;
+      initialDiscoveryMode?: SearchFilterDiscoveryMode;
       initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
+      resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
       onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
       onReturn?: () => void;
       onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
       onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
       onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+      onSelectTarget?: (
+        outcome: FilterExplorerSelectTargetOutcome,
+        query: Pf2eTerminalSearchQuery,
+        fieldState: SearchFilterExplorerFieldState,
+        discoveryMode: SearchFilterDiscoveryMode,
+      ) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
-      const title = fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer";
+      const sessionTitle = title ?? (fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer");
       if (!scopeCategory) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
@@ -101,9 +125,9 @@ export function useSearchFilterExplorerWorkflow({
       };
 
       setFilterExplorerSession({
-        title,
-        model: createSearchFilterExplorerLoadingModel(title),
-        initialDiscoveryMode: "matching",
+        title: sessionTitle,
+        model: createSearchFilterExplorerLoadingModel(sessionTitle),
+        initialDiscoveryMode,
         loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
         query: scopeQuery,
         initialFieldState,
@@ -122,7 +146,7 @@ export function useSearchFilterExplorerWorkflow({
           );
           onQueryChange?.(nextQuery, nextFieldState);
         },
-        resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+        resolveSelectionTarget: resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(fieldOptions),
         onBack: (nextQuery, nextFieldState) => {
           onBack?.(nextQuery, nextFieldState);
           setFilterExplorerSession(null);
@@ -136,6 +160,12 @@ export function useSearchFilterExplorerWorkflow({
           onCancel?.(nextQuery, nextFieldState);
           setFilterExplorerSession(null);
         },
+        onSelectTarget: onSelectTarget
+          ? (outcome, nextQuery, nextFieldState, discoveryMode) => {
+              onSelectTarget(outcome, nextQuery, nextFieldState, discoveryMode);
+              setFilterExplorerSession(null);
+            }
+          : undefined,
       });
       return true;
     },

@@ -14,7 +14,9 @@ import {
   buildMetadataNodeForQueryFieldSelection,
   getSearchQueryActionCostSelection,
   getSearchQueryMetadataTree,
+  getSearchQueryPackSelection,
   getSearchQueryRaritySelection,
+  setSearchQueryPackSelection,
   setSearchQueryActionCostSelection,
   setSearchQueryMetadataTree,
   setSearchQueryRaritySelection,
@@ -37,7 +39,7 @@ import type {
 import { normalizeFilterExplorerComposeDraft } from "./compose-state.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
-type SearchFilterExplorerTopLevelField = "rarity" | "actionCost";
+type SearchFilterExplorerTopLevelField = "rarity" | "actionCost" | "pack";
 type MetricValueType = "number" | "text" | "boolean";
 
 function isMetricQueryField(field: Pf2eTerminalQueryField): field is SearchFilterExplorerMetricField {
@@ -45,7 +47,7 @@ function isMetricQueryField(field: Pf2eTerminalQueryField): field is SearchFilte
 }
 
 function isTopLevelSearchFilterExplorerField(field: string): field is SearchFilterExplorerTopLevelField {
-  return field === "rarity" || field === "actionCost";
+  return field === "rarity" || field === "actionCost" || field === "pack";
 }
 
 function isBooleanString(value: string): boolean {
@@ -83,7 +85,7 @@ function normalizeFilterExplorerSelectionMap(
 
   for (const [fieldKey, selection] of Object.entries(fieldSelections)) {
     const metricField = parseMetricSelectionKey(fieldKey);
-    if (metricField || fieldKey === "actionCost" || fieldKey === "rarity") {
+    if (metricField || fieldKey === "actionCost" || fieldKey === "rarity" || fieldKey === "pack") {
       next[fieldKey] = normalizeMetricSelection(selection);
       continue;
     }
@@ -527,7 +529,7 @@ function inferScopedFieldsFromDraft(draft: Pf2eTerminalFilterExplorerDraft): Pf2
   const scopedFields = new Set<Pf2eTerminalQueryField>();
 
   for (const clause of draft.discreteClauses) {
-    if (clause.field === "rarity" || clause.field === "actionCost") {
+    if (clause.field === "rarity" || clause.field === "actionCost" || clause.field === "pack") {
       scopedFields.add(clause.field);
       continue;
     }
@@ -583,6 +585,20 @@ function buildActionCostSelectionFromDraft(
   };
 }
 
+function buildPackSelectionFromDraft(
+  draft: Pf2eTerminalFilterExplorerDraft,
+): Pf2eTerminalValueSelection<string> | null {
+  const clauses = draft.discreteClauses.filter((clause) => clause.field === "pack");
+  if (clauses.length === 0) {
+    return null;
+  }
+
+  return {
+    include: clauses.filter((clause) => clause.operator === "include").map((clause) => clause.value),
+    exclude: clauses.filter((clause) => clause.operator === "exclude").map((clause) => clause.value),
+  };
+}
+
 export function prepareFilterExplorerDraftFromMetadataNode(
   node: MetadataFilterNode | null,
   scopedFields: readonly Pf2eTerminalQueryField[],
@@ -634,6 +650,12 @@ export function prepareFilterExplorerDraftFromQuery(
         include: actionCostSelection.include.map(String),
         exclude: actionCostSelection.exclude.map(String),
       }),
+    );
+  }
+
+  if (scopedFields.includes("pack")) {
+    discreteClauses.push(
+      ...buildDiscreteClausesFromTopLevelSelection("pack", cloneSelection(getSearchQueryPackSelection(query))),
     );
   }
 
@@ -743,6 +765,10 @@ export function applyFilterExplorerDraft(
       nextQuery,
       buildActionCostSelectionFromDraft(draft) ?? { include: [], exclude: [] },
     );
+  }
+
+  if (scopedFieldSet.has("pack")) {
+    nextQuery = setSearchQueryPackSelection(nextQuery, buildPackSelectionFromDraft(draft) ?? { include: [], exclude: [] });
   }
 
   return nextQuery;

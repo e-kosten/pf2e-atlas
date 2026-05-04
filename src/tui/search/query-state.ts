@@ -76,6 +76,13 @@ function buildSelectionLeaf(
     : { kind, match: { kind: "eq", value: value as number } };
 }
 
+function buildPackLeaf(value: string): SearchFilterNode {
+  return {
+    kind: "pack",
+    value,
+  };
+}
+
 function buildSelectionFilter(
   kind: "rarity" | "actionCost",
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
@@ -108,6 +115,33 @@ export function buildSearchFilterValueSelectionNode(
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
   return buildSelectionFilter(kind, selection);
+}
+
+export function buildSearchFilterPackSelectionNode(
+  selection: Pf2eTerminalValueSelection<string>,
+): SearchFilterNode | null {
+  const normalizedSelection = cloneStringSelection(selection);
+  const includeChildren = normalizedSelection.include.map((value) => buildPackLeaf(value));
+  const excludeChildren = normalizedSelection.exclude.map((value) => buildPackLeaf(value));
+  const children: SearchFilterNode[] = [];
+
+  if (includeChildren.length === 1) {
+    children.push(includeChildren[0]!);
+  } else if (includeChildren.length > 1) {
+    children.push({ kind: "anyOf", children: includeChildren });
+  }
+
+  if (excludeChildren.length === 1) {
+    children.push({ kind: "not", child: excludeChildren[0]! });
+  } else if (excludeChildren.length > 1) {
+    children.push({ kind: "not", child: { kind: "anyOf", children: excludeChildren } });
+  }
+
+  if (children.length === 0) {
+    return null;
+  }
+
+  return children.length === 1 ? children[0]! : { kind: "allOf", children };
 }
 
 function collectSelectionEqValues<K extends "rarity" | "actionCost">(
@@ -183,6 +217,83 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
 
   if (filter.kind === "not") {
     const excludedValues = collectSelectionEqValues(filter.child, kind);
+    return excludedValues
+      ? {
+          include: [],
+          exclude: excludedValues,
+        }
+      : null;
+  }
+
+  return null;
+}
+
+function collectPackValues(filter: SearchFilterNode): string[] | null {
+  if (filter.kind === "pack") {
+    return [filter.value];
+  }
+
+  if (filter.kind === "anyOf" || filter.kind === "allOf") {
+    const values: string[] = [];
+    for (const child of filter.children) {
+      const childValues = collectPackValues(child);
+      if (!childValues) {
+        return null;
+      }
+      values.push(...childValues);
+    }
+    return values;
+  }
+
+  return null;
+}
+
+function extractPackSelection(filter: SearchFilterNode): Pf2eTerminalValueSelection<string> | null {
+  if (filter.kind === "pack") {
+    return {
+      include: [filter.value],
+      exclude: [],
+    };
+  }
+
+  if (filter.kind === "anyOf") {
+    const values = collectPackValues(filter);
+    return values
+      ? {
+          include: values,
+          exclude: [],
+        }
+      : null;
+  }
+
+  if (filter.kind === "allOf") {
+    const selection: Pf2eTerminalValueSelection<string> = {
+      include: [],
+      exclude: [],
+    };
+
+    for (const child of filter.children) {
+      if (child.kind === "not") {
+        const excludedValues = collectPackValues(child.child);
+        if (!excludedValues) {
+          return null;
+        }
+        selection.exclude.push(...excludedValues);
+        continue;
+      }
+
+      const values = collectPackValues(child);
+      if (!values) {
+        return null;
+      }
+      selection.include.push(...values);
+    }
+
+    return selection;
+  }
+
+  if (filter.kind === "not") {
+    const excludedValues = collectPackValues(filter.child);
     return excludedValues
       ? {
           include: [],
@@ -288,6 +399,11 @@ function isTopLevelSelectionChild(
   return Boolean(selection && hasSelectionValues(selection));
 }
 
+function isTopLevelPackSelectionChild(child: SearchFilterNode): boolean {
+  const selection = extractPackSelection(child);
+  return Boolean(selection && hasSelectionValues(selection));
+}
+
 function isTopLevelMetadataChild(child: SearchFilterNode): boolean {
   return isCanonicalMetadataFilterCandidate(child) && Boolean(canonicalFilterToMetadataNode(child));
 }
@@ -369,6 +485,19 @@ function findTopLevelSelectionFilter<K extends "rarity" | "actionCost">(
 ): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
   for (const child of getTopLevelQueryChildren(filter)) {
     const selection = extractSelectionFilter(child, kind);
+    if (selection && hasSelectionValues(selection)) {
+      return selection;
+    }
+  }
+
+  return null;
+}
+
+function findTopLevelPackSelectionFilter(
+  filter: SearchFilterNode | undefined,
+): Pf2eTerminalValueSelection<string> | null {
+  for (const child of getTopLevelQueryChildren(filter)) {
+    const selection = extractPackSelection(child);
     if (selection && hasSelectionValues(selection)) {
       return selection;
     }
@@ -543,6 +672,10 @@ export function getSearchQueryActionCostSelection(query: Pf2eTerminalSearchQuery
   );
 }
 
+export function getSearchQueryPackSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
+  return cloneStringSelection(findTopLevelPackSelectionFilter(query.filter) ?? createEmptyStringSelection());
+}
+
 export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
   return extractQueryMetadataTree(query.filter);
 }
@@ -638,7 +771,32 @@ export function setSearchQueryActionCostSelection(
     children = insertAfterCanonicalPrefix(
       children,
       actionCostFilter,
-      (child) => child.kind === "scope" || child.kind === "level" || isTopLevelSelectionChild(child, "rarity"),
+      (child) =>
+        child.kind === "scope" ||
+        child.kind === "level" ||
+        isTopLevelPackSelectionChild(child) ||
+        isTopLevelSelectionChild(child, "rarity"),
+    );
+  }
+  return buildQueryFromTopLevelChildren(query, rootOperator, children);
+}
+
+export function setSearchQueryPackSelection(
+  query: Pf2eTerminalSearchQuery,
+  selection: Pf2eTerminalValueSelection<string>,
+): Pf2eTerminalSearchQuery {
+  const rootOperator = getQueryRootOperator(query.filter);
+  let children = removeFirstMatchingTopLevelChild(
+    getTopLevelQueryChildren(query.filter),
+    isTopLevelPackSelectionChild,
+  );
+  const packFilter = buildSearchFilterPackSelectionNode(selection);
+  if (packFilter) {
+    children = insertAfterCanonicalPrefix(
+      children,
+      packFilter,
+      (child) =>
+        child.kind === "scope" || child.kind === "level" || isTopLevelSelectionChild(child, "rarity"),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -658,6 +816,7 @@ export function setSearchQueryMetadataTree(
       (child) =>
         child.kind === "scope" ||
         child.kind === "level" ||
+        isTopLevelPackSelectionChild(child) ||
         isTopLevelSelectionChild(child, "rarity") ||
         isTopLevelSelectionChild(child, "actionCost"),
     );

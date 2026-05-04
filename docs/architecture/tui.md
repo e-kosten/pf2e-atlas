@@ -458,35 +458,19 @@ The search explorer owns:
 
 This is still the path where `matching` versus `catalog` has the broader query-scoped semantic effect, even though the broad ontology browser now also uses the same labels for derived-tag family visibility and counts. The shared explorer layer does not own one repo-wide `matching` / `catalog` mode type; search and ontology each own the host type and semantics for their own flow.
 
-### Picker Flows
+### Centered Prompt Flows
 
-A picker is the smaller centered selection prompt used for tasks such as choosing:
+Centered prompts remain the smaller selection surface for short non-discovery decisions such as choosing:
 
-- a pack
-- a metric key
-- a metadata field
+- a metadata field family
 - a clause kind
+- a comparison operator
 
-Pickers use the same discovery vocabulary, but they are not the same surface as the explorer screen.
-
-```mermaid
-flowchart TD
-  A["structured draft action"] --> B["structured draft metadata actions"]
-  B --> C["picker local discovery mode state"]
-  C --> D["search service option loaders"]
-  D --> E["mode-aware option list"]
-  E --> F["centered picker prompt"]
-```
-
-These picker flows are narrower than the shared explorer:
-
-- they do not mount the full list/detail explorer screen
-- they use prompt-local mode switching instead of the full explorer action rail
-- they still use the same `matching` / `catalog` vocabulary and the same app-facing discovery owners below the TUI
+These prompts do not own live discovery mode state or query-scoped value exploration. Scoped discovery steps such as pack selection and metric-key selection mount the shared explorer screen instead and use the shared action rail for `matching` / `catalog` transitions.
 
 ### What The Similarity Means
 
-Search explorer, ontology browser, and picker flows should not invent different core discovery semantics. They should share:
+Search explorer, ontology browser, and centered prompt flows should not invent different core discovery semantics. They should share:
 
 - the same discovery vocabulary
 - the same app/domain owners for applicability and counts
@@ -644,7 +628,7 @@ That means:
 The TUI uses the shared action-target rail for screen-level and selection-level actions. Broad page actions should not fall back to a hidden command palette when the same action set can be surfaced through the rail.
 
 - focused action rails are the default fit for constrained, high-frequency action sets on a selected record, result, or editor surface
-- picker-local `supportsCommands` flows are allowed when a modal needs a small mode-switch or auxiliary action path without leaving the picker
+- discovery-mode changes and other auxiliary selection actions should route through the same shared explorer and action-rail model instead of picker-local command paths
 - page-specific one-letter commands should remain rare; new screen-specific actions should usually be surfaced through the shared action rail
 
 ### Action-Target Contract
@@ -653,7 +637,6 @@ When a screen adopts the shared action-target model, preserve the same focus and
 
 - `:` is the explicit entry point for command-oriented interactions
 - on action-target pages, `:` enters the action target, and `:` or `Esc` leaves it
-- on picker-local auxiliary-command pages, `:` invokes the picker's auxiliary command path rather than a separate command-palette surface
 - `Enter` applies the selected action
 - arrows and vim keys should act inside the focused target only
 - persistent action rails should still require explicit entry; users should not move into them accidentally
@@ -667,6 +650,7 @@ The shared exploration model also carries a few durable presentation and return-
 - field and semantic labels should emphasize the entity name; long inline operator lists should not dominate metadata-field views
 - derived-tag organization should preserve axis and family structure consistently across search-semantics and scoped query-entry surfaces
 - scoped query-field entry should preserve shared explorer state instead of rebuilding a separate picker-only path
+- scoped structured-editor discovery steps such as pack selection and metric-key selection should use the same shared explorer surface and action rail as other live field discovery flows
 - concrete semantic entities that advertise live record counts should open the normal result behavior instead of a special-case sample view
 
 ### Modal Presentation Defaults

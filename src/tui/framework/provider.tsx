@@ -17,9 +17,9 @@ import type {
   DerivedTagTerminalHyperlinkSupport,
   DerivedTagTerminalMultiSelectPromptResult,
   DerivedTagTerminalOptionalSelectPromptResult,
+  DerivedTagTerminalSelectPromptResult,
   DerivedTagTerminalPromptSession,
   DerivedTagTerminalProviderProps,
-  DerivedTagTerminalPickerSelectPromptResult,
   DialogOptions,
   MultiSelectPromptOptions,
   OptionalSelectPromptOptions,
@@ -183,7 +183,7 @@ export function DerivedTagTerminalProvider({
           filterMode: false,
           resolve: resolve as (
             value:
-              | DerivedTagTerminalPickerSelectPromptResult<unknown>
+              | DerivedTagTerminalSelectPromptResult<unknown>
               | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
           ) => void,
         }));
@@ -207,7 +207,7 @@ export function DerivedTagTerminalProvider({
 
       const promptSelectOption = async <T,>(
         options: SelectPromptOptions<T>,
-      ): Promise<DerivedTagTerminalPickerSelectPromptResult<T>> => {
+      ): Promise<DerivedTagTerminalSelectPromptResult<T>> => {
         const modalOptions = buildSelectModalOptions(options);
         return claimPromptLease(owner, (ownership, resolve) => ({
           ownership,
@@ -218,7 +218,7 @@ export function DerivedTagTerminalProvider({
           filterMode: false,
           resolve: resolve as (
             value:
-              | DerivedTagTerminalPickerSelectPromptResult<unknown>
+              | DerivedTagTerminalSelectPromptResult<unknown>
               | DerivedTagTerminalOptionalSelectPromptResult<unknown>,
           ) => void,
         }));

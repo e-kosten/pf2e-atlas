@@ -12,10 +12,12 @@ import { cloneFilterExplorerComposeDraft } from "../../src/tui/filter-explorer/c
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import {
   getSearchQueryActionCostSelection,
+  getSearchQueryPackSelection,
   getSearchQueryText,
   getSearchQueryMetadataTree,
   getSearchQueryRaritySelection,
   setSearchQueryActionCostSelection,
+  setSearchQueryPackSelection,
   setSearchQueryMetadataTree,
   setSearchQueryRaritySelection,
   setSearchQuerySearchProfile,
@@ -875,6 +877,70 @@ describe("createPf2eTerminalSearchService", () => {
           value: "evocation",
         },
       ],
+    } satisfies MetadataFilterNode);
+  });
+
+  it("round-trips canonical pack clauses through the shared explorer draft without emitting impossible conjunctions", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const defaultQuery = service.createDefaultQuery();
+    const query = setSearchQueryMetadataTree(
+      setSearchQueryPackSelection(
+        {
+          ...defaultQuery,
+          filter: {
+            kind: "scope",
+            category: "creature",
+            subcategory: { kind: "any" },
+          },
+        },
+        {
+          include: ["pathfinder-npc-core", "monster-core"],
+          exclude: ["abomination-vaults"],
+        },
+      ),
+      {
+        field: "traits",
+        op: "includes",
+        value: "undead",
+      },
+    );
+
+    const preparedDraft = service.prepareFilterExplorerDraft(query, ["pack"]);
+    expect(preparedDraft.scopedFields).toEqual(["pack"]);
+    expect(preparedDraft.preservedMetadata).toEqual({
+      field: "traits",
+      op: "includes",
+      value: "undead",
+    } satisfies MetadataFilterNode);
+    expect(preparedDraft.draft.discreteClauses).toEqual([
+      { field: "pack", value: "abomination-vaults", operator: "exclude" },
+      { field: "pack", value: "monster-core", operator: "include" },
+      { field: "pack", value: "pathfinder-npc-core", operator: "include" },
+    ]);
+
+    const updated = service.applyFilterExplorerDraft(
+      query,
+      {
+        ...preparedDraft.draft,
+        discreteClauses: [
+          { field: "pack", value: "monster-core", operator: "exclude" },
+          { field: "pack", value: "pathfinder-npc-core", operator: "include" },
+        ],
+      },
+      {
+        preservedMetadata: preparedDraft.preservedMetadata,
+        scopedFields: preparedDraft.scopedFields,
+      },
+    );
+
+    expect(getSearchQueryPackSelection(updated)).toEqual({
+      include: ["pathfinder-npc-core"],
+      exclude: ["monster-core"],
+    });
+    expect(getSearchQueryMetadataTree(updated)).toEqual({
+      field: "traits",
+      op: "includes",
+      value: "undead",
     } satisfies MetadataFilterNode);
   });
 

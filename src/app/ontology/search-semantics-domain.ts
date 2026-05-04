@@ -32,10 +32,11 @@ import { buildFilterText, buildKeyValueDetailLines, cloneOntologyNode, titleCase
 import {
   buildFieldValueNodes,
   buildMetricDiscoveryGroup,
+  buildPackValueNodes,
   buildSearchSemanticsMetadataQuery,
 } from "./search-semantics-helpers.js";
 
-type SearchSemanticsDataService = Pick<Pf2eDataService, "listRecords"> & {
+type SearchSemanticsDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> & {
   getSearchSemanticsBootstrapSummary: (options?: { traitLimitPerCategory?: number }) => SearchSemanticsBootstrapSummaryResult;
 };
 
@@ -929,9 +930,48 @@ export async function buildPreparedSearchFilterExplorerDomain(
     );
   }
 
+  function buildPackFieldNode(category: SearchCategory, subcategory: SearchSubcategory | null): OntologyNode {
+    const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+    return {
+      id: `${idPrefix}:pack`,
+      kind: "field",
+      label: "Pack",
+      filterText: buildFilterText(category, subcategory ?? "", "pack", "source", "compendium"),
+      listLabel: "Pack",
+      detailTitle: "Pack Details",
+      detailLines: [
+        { text: "Pack", tone: "section" },
+        { text: `Category: ${formatOntologySearchVocabularyLabel(category)}` },
+        { text: `Subcategory: ${subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"}` },
+        {
+          text:
+            options.discoveryMode === "matching"
+              ? "Drill in to browse packs from the current matching query context."
+              : "Drill in to browse packs from the current applicability slice.",
+        },
+      ],
+      loadChildren: () =>
+        buildPackValueNodes(
+          dataService,
+          category,
+          subcategory,
+          preparedReader.discoverFieldValues({
+            category,
+            subcategory,
+            field: "packs",
+          }).map((entry) => ({
+            value: String(entry.value),
+            count: entry.count,
+          })),
+          { countLabel },
+        ),
+    };
+  }
+
   function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
     const metadataFieldNodes = buildMetadataFieldNodes(category, subcategory);
     const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, subcategory);
+    const packFieldNode = buildPackFieldNode(category, subcategory);
     const children: OntologyNode[] = [];
 
     if (metadataFieldNodes.length > 0) {
@@ -961,6 +1001,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
     }
 
     children.push(...metricDiscoveryGroups);
+    children.push(packFieldNode);
 
     return {
       id: `${category}:subcategory:${subcategory}`,
@@ -987,6 +1028,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
   const categoryFields = getCategoryScopedFields(category, null);
   const metadataFieldNodes = buildMetadataFieldNodes(category, null);
   const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, null);
+  const packFieldNode = buildPackFieldNode(category, null);
   const children: OntologyNode[] = [];
 
   if (scope.subcategory) {
@@ -1031,6 +1073,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
       });
     }
     children.push(...metricDiscoveryGroups);
+    children.push(packFieldNode);
   }
 
   return {

@@ -291,10 +291,6 @@ export function DerivedTagTerminalModalHost({
           );
           return;
         }
-        if (event.isCommandPaletteKey() && modal.options.supportsCommands) {
-          closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
-          return;
-        }
         if (event.isConfirmKey()) {
           const selected = modal.options.entries[filteredSelectedIndex];
           if (!selected) {
@@ -316,17 +312,8 @@ export function DerivedTagTerminalModalHost({
 
       const choiceContext =
         modal.kind === "multiselect"
-          ? createTerminalMultiSelectPromptInteractionContext(pageSize, modal.options.supportsCommands ?? false)
-          : createTerminalSelectPromptInteractionContext(pageSize, modal.options.supportsCommands);
-
-      if (modal.kind === "select" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
-        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
-        return;
-      }
-      if (modal.kind === "multiselect" && event.isCommandPaletteKey() && modal.options.supportsCommands) {
-        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
-        return;
-      }
+          ? createTerminalMultiSelectPromptInteractionContext(pageSize)
+          : createTerminalSelectPromptInteractionContext(pageSize);
       if (modal.kind === "select" && event.isBackNavigationKey()) {
         closeModalAfterResolution(modal, modal.resolve, { kind: "back" });
         return;
@@ -397,18 +384,6 @@ export function DerivedTagTerminalModalHost({
           modal.resolve,
           selected.kind === "all" ? { kind: "all" } : { kind: "selected", value: selected.value },
         );
-        return;
-      }
-      if (modal.kind === "select" && routed.route.interactionAction?.id === "commands" && modal.options.supportsCommands) {
-        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
-        return;
-      }
-      if (
-        modal.kind === "multiselect" &&
-        routed.route.interactionAction?.id === "commands" &&
-        modal.options.supportsCommands
-      ) {
-        closeModalAfterResolution(modal, modal.resolve, { kind: "commands" });
         return;
       }
       if (modal.kind === "multiselect" && routed.route.interactionAction?.id === "return") {

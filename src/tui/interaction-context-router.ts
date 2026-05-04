@@ -307,14 +307,12 @@ export function createTerminalTextPromptInteractionContext(): TerminalInteractio
 
 export function createTerminalSelectPromptInteractionContext(
   pageSize: number,
-  supportsCommands = false,
 ): TerminalInteractionContextConfig<"selectPrompt"> {
   return {
     id: "selectPrompt",
     kind: "selectPrompt",
     interactionActions: [
       { id: "select" },
-      ...(supportsCommands ? [{ id: "commands" as const }] : []),
       { id: "cancel" as const },
       { id: "back" as const },
     ],
@@ -329,14 +327,12 @@ export function createTerminalSelectPromptInteractionContext(
 
 export function createTerminalMultiSelectPromptInteractionContext(
   pageSize: number,
-  supportsCommands = false,
 ): TerminalInteractionContextConfig<"multiSelectPrompt"> {
   return {
     id: "multiSelectPrompt",
     kind: "multiSelectPrompt",
     interactionActions: [
       { id: "toggle" },
-      ...(supportsCommands ? [{ id: "commands" as const }] : []),
       { id: "return" },
       { id: "cancel" as const },
       { id: "back" as const },

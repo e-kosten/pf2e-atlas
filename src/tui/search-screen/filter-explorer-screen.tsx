@@ -3,13 +3,13 @@ import React from "react";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import { usePf2eTerminalAppServices } from "../app-service-context.js";
 import {
-  isFilterExplorerScalarTarget,
-} from "../filter-explorer/compose-state.js";
-import {
   createFilterExplorerDiscoveryState,
   createFilterExplorerNumericScalarEditHandler,
   createFilterExplorerOutcomeHandler,
 } from "../filter-explorer/host-helpers.js";
+import {
+  createComposeFilterExplorerHostAdapter,
+} from "../filter-explorer/host-adapter.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
@@ -31,10 +31,6 @@ import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-ty
 import {
   buildSearchFilterExplorerComposeDraft,
   buildSearchFilterExplorerFieldState,
-  cycleSearchFilterExplorerDiscreteSelection,
-  getSearchFilterExplorerDiscreteOperator,
-  getSearchFilterExplorerScalarClause,
-  setSearchFilterExplorerScalarClause,
   type SearchFilterExplorerFieldState,
 } from "./filter-explorer-field-state.js";
 
@@ -117,6 +113,7 @@ export function SearchFilterExplorerScreen({
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
   const loadModelForDiscoveryMode = session.loadModelForDiscoveryMode;
+  const selectTargetMode = Boolean(session.onSelectTarget);
   const scopedFields = React.useMemo(() => session.fieldOptions.map((fieldOption) => fieldOption.value), [session.fieldOptions]);
   const prepareDraft = React.useCallback(
     (query: typeof session.query) => user.search.prepareFilterExplorerDraft(query, scopedFields),
@@ -310,6 +307,12 @@ export function SearchFilterExplorerScreen({
         onCancel: () => {
           session.onCancel?.(queryRef.current, fieldStateRef.current);
         },
+        onSelectTarget: (outcome) => {
+          if (!outcome.result.target) {
+            return;
+          }
+          session.onSelectTarget?.(outcome, queryRef.current, fieldStateRef.current, discoveryModeRef.current);
+        },
       }),
     [session],
   );
@@ -340,63 +343,22 @@ export function SearchFilterExplorerScreen({
     [runModelRefresh, session, user.search],
   );
 
-  const host = React.useMemo<FilterExplorerHostAdapter>(
-    () => ({
-      resolveTarget: session.resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(session.fieldOptions),
-      getDraft: () => buildDraft(),
-      selectionPresentation: {
-        selectionTitle: "Current clauses",
-      },
-      describeNode: (args) => {
-        const { node, target } = args;
-        if (!target) {
-          return { activationStyle: "none" as const };
-        }
+  const host = React.useMemo<FilterExplorerHostAdapter>(() => {
+    const resolveTarget = session.resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(session.fieldOptions);
+    if (selectTargetMode) {
+      return {
+        resolveTarget,
+        describeNode: ({ target }) => ({
+          activationStyle: target ? "open" : "none",
+        }),
+      };
+    }
 
-        if (isFilterExplorerScalarTarget(target)) {
-          const clause = getSearchFilterExplorerScalarClause(fieldStateRef.current, target);
-          return {
-            activationStyle: "edit" as const,
-            stateBadge: clause ? { kind: "custom" as const, text: "ƒ", tone: "accent" } : { kind: "custom" as const, text: "·", tone: "dim" },
-            suffixText: node && clause ? clause.summaryLabel : undefined,
-          };
-        }
-
-        const operator = getSearchFilterExplorerDiscreteOperator(fieldStateRef.current, target);
-        return {
-          activationStyle: "toggle" as const,
-          stateBadge:
-            operator === "include"
-              ? { kind: "include" as const }
-              : operator === "exclude"
-                ? { kind: "exclude" as const }
-                : { kind: "off" as const },
-        };
-      },
-      activateTarget: ({ target }) => {
-        const currentFieldState = fieldStateRef.current;
-        if (isFilterExplorerScalarTarget(target)) {
-          void Promise.resolve(
-            onEditScalarTarget({
-              target,
-              currentClause: getSearchFilterExplorerScalarClause(currentFieldState, target),
-              draft: buildSearchFilterExplorerComposeDraft(currentFieldState),
-            }),
-          ).then((nextClause) => {
-            if (nextClause === undefined) {
-              return;
-            }
-            applyNextFieldState(setSearchFilterExplorerScalarClause(currentFieldState, target, nextClause));
-          });
-          return true;
-        }
-
-        applyNextFieldState(cycleSearchFilterExplorerDiscreteSelection(currentFieldState, target, 1));
-        return true;
-      },
-    }),
-    [applyNextFieldState, onEditScalarTarget, session.fieldOptions, session.resolveSelectionTarget],
-  );
+    return createComposeFilterExplorerHostAdapter({
+      resolveTarget,
+      onEditScalarTarget,
+    });
+  }, [onEditScalarTarget, selectTargetMode, session.fieldOptions, session.resolveSelectionTarget]);
 
   return (
     <FilterExplorerScreen
@@ -407,10 +369,19 @@ export function SearchFilterExplorerScreen({
       exitAtRootDepth
       onOutcome={handleOutcome}
       discovery={discovery}
-      mode={{
-        kind: "inspect-and-open",
-        onEditScalarTarget,
-      }}
+      mode={
+        selectTargetMode
+          ? { kind: "inspect-and-open" }
+          : {
+              kind: "compose",
+              draft: buildDraft(),
+              onDraftChange: (nextDraft) => {
+                applyNextFieldState(buildSearchFilterExplorerFieldState(nextDraft));
+              },
+              onEditScalarTarget,
+              stagedClausesTitle: "Current clauses",
+            }
+      }
     />
   );
 }

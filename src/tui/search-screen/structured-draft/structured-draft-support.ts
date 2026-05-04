@@ -104,6 +104,18 @@ function collectTopLevelSelectionMembers(
   path: number[],
   operator: "include" | "exclude",
 ): ActiveGroupFieldMember[] | null {
+  if (node.kind === "metadataPredicate" && "value" in node.predicate) {
+    return [
+      {
+        field: node.predicate.field,
+        fieldLabel: formatMetadataFieldLabel(node.predicate.field),
+        operator,
+        valueLabel: String(node.predicate.value),
+        path,
+      },
+    ];
+  }
+
   if (node.kind === "rarity" && node.match.kind === "eq") {
     return [
       {
@@ -257,6 +269,14 @@ function resolveActiveGroupPath(
 
 function pathsEqual(left: number[] | undefined, right: number[]): boolean {
   return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
+}
+
+function pathContains(descendant: number[], ancestor: number[] | undefined): boolean {
+  if (!ancestor || ancestor.length > descendant.length) {
+    return false;
+  }
+
+  return ancestor.every((segment, index) => descendant[index] === segment);
 }
 
 function buildFilterTreeEntries(
@@ -493,13 +513,20 @@ export function findStructuredDraftGroupedFieldBucketForPath(
   focusPath: number[],
   groupedFieldValues: ReadonlySet<string>,
 ): SearchStructuredDraftEntry | null {
-  return (
-    buildStructuredDraftEntries(draftQuery, focusPath, { groupedFieldValues }).find(
-      (entry) =>
-        entry.kind === "queryFieldBucket" &&
-        [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathsMatch(path, focusPath)),
-    ) ?? null
-  );
+  for (let depth = focusPath.length; depth >= 0; depth -= 1) {
+    const scopedFocusPath = focusPath.slice(0, depth);
+    const bucket =
+      buildStructuredDraftEntries(draftQuery, scopedFocusPath, { groupedFieldValues }).find(
+        (entry) =>
+          entry.kind === "queryFieldBucket" &&
+          [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathContains(focusPath, path)),
+      ) ?? null;
+    if (bucket) {
+      return bucket;
+    }
+  }
+
+  return null;
 }
 
 export function getStructuredDraftSelectionIndexForPath(

@@ -74,7 +74,11 @@ export type Pf2eTerminalValueSelection<T extends number | string = string> = {
 
 export type Pf2eTerminalFacetField = MetadataFieldSemantics["field"];
 export type Pf2eTerminalMetricQueryField = "actorMetric" | "itemMetric";
-export type Pf2eTerminalQueryField = MetadataFieldSemantics["field"] | Pf2eTerminalMetricQueryField;
+export type Pf2eTerminalSyntheticQueryField = "pack";
+export type Pf2eTerminalQueryField =
+  | MetadataFieldSemantics["field"]
+  | Pf2eTerminalMetricQueryField
+  | Pf2eTerminalSyntheticQueryField;
 
 export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
 export type Pf2eTerminalBrowseSort = "alphabetical" | "levelAsc" | "levelDesc" | "random";

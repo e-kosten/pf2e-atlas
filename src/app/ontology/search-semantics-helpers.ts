@@ -25,6 +25,7 @@ import {
 
 type SearchSemanticsRecordsDataService = {
   listRecords: (request: SearchRequest) => SearchResult;
+  getPack?: (packValue: string) => { name: string; label?: string } | undefined;
 };
 
 const METRIC_SEGMENT_LABELS: Readonly<Record<string, string>> = {
@@ -315,6 +316,14 @@ function buildMetadataValueQuery(
   }
 }
 
+function getPackPresentationLabel(
+  recordsService: SearchSemanticsRecordsDataService,
+  packValue: string,
+): string {
+  const pack = recordsService.getPack?.(packValue);
+  return pack?.label ?? pack?.name ?? packValue;
+}
+
 function buildMetricScalarMetadataQuery(
   field: "actorMetric" | "itemMetric",
   metric: string,
@@ -411,6 +420,51 @@ export function buildFieldValueNodes(
               ),
             )
         : undefined,
+    };
+  });
+}
+
+export function buildPackValueNodes(
+  dataService: SearchSemanticsRecordsDataService,
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  values: ReadonlyArray<{ value: string; count: number }>,
+  options: { countLabel?: string } = {},
+): readonly OntologyNode[] {
+  const idPrefix = subcategory ? `${category}:${subcategory}` : category;
+  const countLabel = options.countLabel ?? "Live canonical records";
+
+  return values.map((entry): OntologyNode => {
+    const packLabel = getPackPresentationLabel(dataService, entry.value);
+    const query = buildSearchSemanticsMetadataQuery(
+      category,
+      subcategory,
+      `Browse records from ${packLabel}`,
+      {
+        kind: "pack",
+        value: entry.value,
+      },
+    );
+
+    return {
+      id: `${idPrefix}:pack:${entry.value}`,
+      kind: "value",
+      label: packLabel,
+      filterText: buildFilterText(category, subcategory ?? "", "pack", entry.value, packLabel),
+      listLabel: `${packLabel} | ${entry.count}`,
+      detailTitle: "Pack Details",
+      detailLines: buildKeyValueDetailLines(
+        packLabel,
+        [
+          ["Category", category],
+          ["Subcategory", subcategory ?? "(all)"],
+          ["Pack", entry.value],
+          [countLabel, entry.count],
+        ],
+        buildResultReaderHint(),
+      ),
+      query,
+      loadChildren: () => buildQueryRecordChildren(dataService, query),
     };
   });
 }

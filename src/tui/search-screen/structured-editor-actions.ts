@@ -61,6 +61,7 @@ export function useSearchStructuredEditorActions({
     finishStructuredDraftSession: structuredDraftActions.finishStructuredDraftSession,
     getScopedFieldOptions,
     moveStructuredDraftSelection: structuredDraftActions.moveStructuredDraftSelection,
+    openFilterExplorer,
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection: structuredDraftActions.replaceStructuredDraftProjection,

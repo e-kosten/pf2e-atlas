@@ -20,7 +20,7 @@ export type Pf2eApplicationOntologyService = {
   }) => Promise<OntologyDomainModel>;
 };
 
-type OntologyDomainDataService = Pick<Pf2eDataService, "listRecords"> & {
+type OntologyDomainDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> & {
   getSearchSemanticsBootstrapSummary: (options?: {
     traitLimitPerCategory?: number;
   }) => SearchSemanticsBootstrapSummaryResult;

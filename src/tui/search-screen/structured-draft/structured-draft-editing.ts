@@ -30,6 +30,7 @@ export function useSearchStructuredDraftEditing({
   finishStructuredDraftSession,
   getScopedFieldOptions,
   moveStructuredDraftSelection,
+  openFilterExplorer,
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
@@ -53,6 +54,7 @@ export function useSearchStructuredDraftEditing({
   finishStructuredDraftSession: () => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   moveStructuredDraftSelection: (delta: number, itemCount: number) => void;
+  openFilterExplorer: OpenSearchFilterExplorer;
   openOntologyFieldEditor: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
@@ -97,6 +99,7 @@ export function useSearchStructuredDraftEditing({
     enterStructuredDraftMoveMode,
     getScopedFieldOptions,
     moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
+    openFilterExplorer,
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection,

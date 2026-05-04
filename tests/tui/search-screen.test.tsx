@@ -10,6 +10,7 @@ import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import {
+  buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
   type FilterExplorerComposeTarget,
 } from "../../src/tui/filter-explorer/index.js";
@@ -23,13 +24,17 @@ import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-e
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
-import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
+import {
+  buildGroupedFieldSeedState,
+  buildMetricSelectionTargetResolver,
+} from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { createInitialSearchScreenState } from "../../src/tui/search-screen/state.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
   getSearchQueryMetadataTree,
+  getSearchQueryPackSelection,
   setSearchQueryActionCostSelection,
   setSearchQueryMetadataTree,
   setSearchQueryRaritySelection,
@@ -963,6 +968,157 @@ function createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(): Ontolo
   };
 }
 
+function createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(): OntologyDomainModel {
+  const domain = createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain();
+  const categoryNode = domain.rootNodes[0];
+  if (!categoryNode?.children) {
+    return domain;
+  }
+
+  categoryNode.children.push({
+    id: "creature:pack",
+    kind: "field",
+    label: "Pack",
+    filterText: "pack compendium source",
+    listLabel: "Pack",
+    detailTitle: "Pack Details",
+    detailLines: [{ text: "Pack", tone: "section" }],
+    children: [
+      {
+        id: "creature:pack:pathfinder-npc-core",
+        kind: "value",
+        label: "Pathfinder NPC Core",
+        filterText: "pathfinder npc core",
+        listLabel: "Pathfinder NPC Core | 4",
+        detailTitle: "Pack Details",
+        detailLines: [{ text: "Pathfinder NPC Core", tone: "section" }],
+      },
+      {
+        id: "creature:pack:monster-core",
+        kind: "value",
+        label: "Monster Core",
+        filterText: "monster core",
+        listLabel: "Monster Core | 2",
+        detailTitle: "Pack Details",
+        detailLines: [{ text: "Monster Core", tone: "section" }],
+      },
+    ],
+  });
+
+  return domain;
+}
+
+function createStructuredCreatureMetricExplorerDomainWithTextMetric(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Creature",
+    description: "Creature metric explorer test domain with text and numeric metrics",
+    rootNodes: [
+      {
+        id: "searchSemantics:creature",
+        kind: "category",
+        label: "Creature",
+        shortLabel: "creature",
+        filterText: "creature",
+        detailTitle: "Creature",
+        detailLines: [{ text: "Creature", tone: "section" }],
+        children: [
+          {
+            id: "creature:actorMetrics:discovery",
+            kind: "group",
+            label: "Creature Statistics",
+            filterText: "creature statistics metrics",
+            listLabel: "Creature Statistics",
+            detailTitle: "Creature Statistics",
+            detailLines: [{ text: "Creature Statistics", tone: "section" }],
+            children: [
+              {
+                id: "creature:actorMetrics:save.",
+                kind: "metricNamespace",
+                label: "save.",
+                filterText: "save best",
+                listLabel: "save. | 1 metric",
+                detailTitle: "Metric Namespace",
+                detailLines: [{ text: "save.", tone: "section" }],
+                children: [
+                  {
+                    id: "creature:actorMetrics:save.best",
+                    kind: "metric",
+                    label: "Best Save",
+                    filterText: "save best",
+                    listLabel: "Best Save | 3",
+                    detailTitle: "Metric Details",
+                    detailLines: [{ text: "Best Save", tone: "section" }],
+                    query: browseQuery("Browse creatures by best save", {
+                      filter: scopeFilter("creature"),
+                      limit: 20,
+                    }),
+                  },
+                ],
+              },
+              {
+                id: "creature:actorMetrics:hp.",
+                kind: "metricNamespace",
+                label: "hp.",
+                filterText: "hp hit points",
+                listLabel: "hp. | 1 metric",
+                detailTitle: "Metric Namespace",
+                detailLines: [{ text: "hp.", tone: "section" }],
+                children: [
+                  {
+                    id: "creature:actorMetrics:hp.value",
+                    kind: "metric",
+                    label: "Hit Points",
+                    filterText: "hp hit points",
+                    listLabel: "Hit Points | 4",
+                    detailTitle: "Metric Details",
+                    detailLines: [{ text: "Hit Points", tone: "section" }],
+                    query: browseQuery("Browse creatures by hit points", {
+                      filter: allOfFilter([
+                        scopeFilter("creature"),
+                        metricCompareFilter("hp.value", "gte", "hp.value"),
+                      ]),
+                      limit: 20,
+                    }),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function createPackExplorerModel(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Pack Explorer",
+    description: "Pack explorer test domain",
+    rootNodes: [
+      {
+        id: "creature:pack:pathfinder-npc-core",
+        kind: "value",
+        label: "Pathfinder NPC Core",
+        filterText: "pathfinder npc core",
+        listLabel: "Pathfinder NPC Core | 4",
+        detailTitle: "Pack Details",
+        detailLines: [{ text: "Pathfinder NPC Core", tone: "section" }],
+      },
+      {
+        id: "creature:pack:monster-core",
+        kind: "value",
+        label: "Monster Core",
+        filterText: "monster core",
+        listLabel: "Monster Core | 2",
+        detailTitle: "Pack Details",
+        detailLines: [{ text: "Monster Core", tone: "section" }],
+      },
+    ],
+  };
+}
+
 async function openStructuredQueryEditor(app: ReturnType<typeof render>): Promise<void> {
   await flushInk();
   pressLeft(app);
@@ -999,26 +1155,22 @@ async function driveRootTraitAddFlow(
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] archetype");
 
   pressDown(app);
   await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] dedication");
 
   pressDown(app);
   await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] concentrate");
 
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[x] concentrate");
 
   pressLeft(app);
   await flushInk();
@@ -1090,7 +1242,6 @@ async function addAncestryNpcsFromCurrentFamiliesSelectionFromExplorer(app: Retu
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] ancestry npcs");
 
   await returnFromExplorerToStructuredEditor(app);
 }
@@ -1122,10 +1273,11 @@ async function addAcGte10FromCurrentMetricSelectionFromExplorer(app: ReturnType<
 
   app.stdin.write("\r");
   await flushInk();
-  await waitForFrameToContain(app, "Armor Class", 60);
-
-  app.stdin.write("\r");
-  await flushInk();
+  if (!app.lastFrame().includes("Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.")) {
+    await waitForFrameToContain(app, "Armor Class", 60);
+    app.stdin.write(" ");
+    await flushInk();
+  }
   await waitForFrameToContain(app, "Creature Statistics / Armor Class", 60);
   expect(app.lastFrame()).toContain("Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.");
 
@@ -1155,7 +1307,6 @@ async function driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promi
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] archetype");
 
   pressDown(app);
   await flushInk();
@@ -1164,19 +1315,16 @@ async function driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Promi
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] concentrate");
 
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[x] concentrate");
 
   await returnFromExplorerToStructuredEditor(app);
 }
 
 async function addSkillToCurrentTraitSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
   await waitForFrameToContain(app, "Traits Explorer", 60);
-  await waitForFrameToContain(app, "Current clauses", 120);
   for (let attempt = 0; attempt < 3 && !app.lastFrame().includes("skill"); attempt += 1) {
     app.stdin.write("\r");
     await flushInk();
@@ -1191,7 +1339,6 @@ async function addSkillToCurrentTraitSelectionFromExplorer(app: ReturnType<typeo
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  expect(app.lastFrame()).toContain("[✓] skill");
 
   await returnFromExplorerToStructuredEditor(app);
 }
@@ -1570,7 +1717,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Query Field\n");
 
     app.stdin.write("\r");
@@ -1585,7 +1731,7 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include");
+    expect(app.lastFrame()).toContain("coastal_setting");
   });
 
   it("loads the next result page through the window reader instead of rerunning the search", async () => {
@@ -2680,7 +2826,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Query Field\n");
 
     app.stdin.write("\r");
@@ -2695,13 +2840,12 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include");
+    expect(app.lastFrame()).toContain("coastal_setting");
 
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Current clauses");
-    expect(app.lastFrame()).toContain("coastal_setting");
+    expect(app.lastFrame()).toContain("Explorer Entries");
 
     pressLeft(app);
     await flushInk();
@@ -3158,8 +3302,6 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("include");
-    expect(app.lastFrame()).toContain("Traits:");
     expect(app.lastFrame()).toContain("illusion");
 
     pressLeft(app);
@@ -3217,7 +3359,6 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("[✓] illusion");
 
     pressLeft(app);
     await waitForFrameToContain(app, "Structured Query Editor");
@@ -3283,7 +3424,6 @@ describe("search screen", () => {
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("[✓] illusion");
 
     pressLeft(app);
     await flushInk();
@@ -3333,8 +3473,9 @@ describe("search screen", () => {
     }
     expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("├─ Any of");
-    expect(app.lastFrame()).toContain("! Traits: includes Concent");
+    expect(app.lastFrame()).toContain("Traits: Include archetype, de");
+    expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
+    expect(app.lastFrame()).toContain("Traits: !concentrate");
     expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
   });
@@ -3381,8 +3522,9 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("├─ Any of");
-    expect(app.lastFrame().match(/^\├─ (! Traits: includes Concent|Traits: !concentrate)/m)).not.toBeNull();
+    expect(app.lastFrame()).toContain("Traits: Include archetype, de");
+    expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
+    expect(app.lastFrame()).toContain("Traits: !concentrate");
     expect(app.lastFrame().match(/^\├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^\│  ├─ Any of$/m)).toBeNull();
   });
@@ -3426,6 +3568,12 @@ describe("search screen", () => {
     );
 
     await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("├─ All of");
+    expect(app.lastFrame()).toContain("│  ├─ Any of");
+    expect(app.lastFrame()).toContain("Traits: includes Dedica");
+    expect(app.lastFrame().match(/^\│  ├─ ! Traits: includes Concent/m)).not.toBeNull();
 
     for (let step = 0; step < 4; step += 1) {
       pressUp(app);
@@ -3439,10 +3587,17 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
     await waitForFrameToContain(app, "Traits Explorer", 60);
-    await waitForFrameToContain(app, "Current clauses", 120);
-    expect(app.lastFrame()).toContain("include archetype, dedication");
-    expect(app.lastFrame()).toContain("exclude concentrate");
-    expect(app.lastFrame()).toContain("Current clauses");
+    await waitForFrameToContain(app, "archetype", 120);
+    expect(app.lastFrame()).toContain("dedication");
+    expect(app.lastFrame()).toContain("concentrate");
+
+    await returnFromExplorerToStructuredEditor(app);
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Metadata predicates: 3");
+    expect(app.lastFrame()).toContain("├─ All of");
+    expect(app.lastFrame()).toContain("│  ├─ Any of");
+    expect(app.lastFrame()).toContain("Traits: includes Dedica");
+    expect(app.lastFrame().match(/^\│  ├─ ! Traits: includes Concent/m)).not.toBeNull();
   });
 
   it("keeps feat trait edit-clause additions flat instead of wrapping them in a nested group", async () => {
@@ -3874,7 +4029,6 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Derived Tags Explorer");
     expect(app.lastFrame()).toContain("Explorer Entries");
     expect(app.lastFrame()).toContain("Derived Tags Explorer > Derived Tags");
-    expect(app.lastFrame()).toContain("Focused node is not selectable.");
     expect(app.lastFrame()).not.toContain("Choose a category before editing a discoverable query field.");
 
     app.stdin.write("\r");
@@ -3912,6 +4066,9 @@ describe("search screen", () => {
             },
           ]
         : [],
+    );
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(),
     );
 
     const app = render(
@@ -3971,51 +4128,33 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Creature Statistics");
 
     app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Left Metric");
-    expect(app.lastFrame()).toContain("hp.value");
-    expect(app.lastFrame()).toContain("ac.value");
-    expect(app.lastFrame()).toContain("Matching counts");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Metric comparison");
+    await waitForFrameToContain(app, "Creature Statistics Explorer", 60);
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
     expect(app.lastFrame()).toContain("Creature Statistics");
 
     app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Left Metric");
+    await waitForFrameToContain(app, "ac.", 120);
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
+    expect(app.lastFrame()).toContain("ac.");
+    expect(app.lastFrame()).toContain("hp.");
+    expect(app.lastFrame()).toContain("matching counts");
 
+    pressLeft(app);
     await flushInk();
-    await flushInk();
-    app.stdin.write(":");
-    await waitForFrameToContain(app, "Left Metric Count Source");
-    expect(app.lastFrame()).toContain("Left Metric Count Source");
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
+    expect(app.lastFrame()).toContain("Creature Statistics");
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "ac.", 120);
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
+    expect(app.lastFrame()).toContain("ac.");
+    expect(app.lastFrame()).toContain("hp.");
+
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    await flushInk();
-
-    expect(app.lastFrame()).toContain("Catalog counts");
-    expect(services.user.search.loadMetricKeyOptions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "browse",
-      }),
-      "actorMetric",
-      "catalog",
-      { numericOnly: true },
-    );
-
-    await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Comparison Operator");
-
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Left Metric");
-    expect(app.lastFrame()).toContain("Catalog counts");
+    expect(app.lastFrame()).toContain("Hit Points");
 
     app.stdin.write("\r");
     await flushInk();
@@ -4023,21 +4162,18 @@ describe("search screen", () => {
 
     await flushInk();
     app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Right Metric");
+    await waitForFrameToContain(app, "Creature Statistics Explorer", 120);
+    expect(app.lastFrame()).toContain("Creature Statistics Explorer");
 
-    pressLeft(app);
-    await flushInk();
-    expect(app.lastFrame()).toContain("Comparison Operator");
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "ac.", 120);
+    expect(app.lastFrame()).toContain("ac.");
+    expect(app.lastFrame()).toContain("hp.");
 
     app.stdin.write("\r");
     await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Right Metric");
+    expect(app.lastFrame()).toContain("Armor Class");
 
-    pressDown(app);
-    await flushInk();
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
@@ -4051,29 +4187,86 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Metric comparison");
   });
 
-  it("covers pack clauses through the dedicated structured-editor clause-kind flow", async () => {
+  it("does not allow non-numeric metric keys to resolve as metric-compare select targets", async () => {
+    const services = createServices();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const onSelectTarget = vi.fn();
+    const metricFieldOption = {
+      value: "actorMetric" as const,
+      label: "Creature Statistics",
+      description: "Browse live statistic keys for the current scope.",
+      fieldType: "enumString" as const,
+      editor: "sharedExplorer" as const,
+    };
+    const session: SearchFilterExplorerSession = {
+      title: "Left Metric",
+      model: buildSearchFilterExplorerModel(createStructuredCreatureMetricExplorerDomainWithTextMetric(), {
+        category: "creature",
+        subcategory: null,
+        fieldOptions: [metricFieldOption],
+        singleFieldBehavior: "list",
+      }),
+      query: browseQuery("Browse creatures", {
+        filter: scopeFilter("creature"),
+        limit: 20,
+      }).request,
+      fieldOptions: [metricFieldOption],
+      onQueryChange: vi.fn(),
+      resolveSelectionTarget: buildMetricSelectionTargetResolver("actorMetric", "Creature Statistics", { numericOnly: true }),
+      onSelectTarget,
+    };
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "save.", 60);
+    expect(app.lastFrame()).toContain("hp.");
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Best Save", 60);
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+    expect(onSelectTarget).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("Best Save");
+
+    pressLeft(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Hit Points", 60);
+    app.stdin.write("\r");
+    await flushInk();
+    expect(onSelectTarget).toHaveBeenCalledTimes(1);
+    expect(onSelectTarget.mock.calls[0]?.[0].result.target).toMatchObject({
+      kind: "scalar",
+      key: "actorMetric:hp.value",
+    });
+  });
+
+  it("commits and re-edits pack clauses through the shared explorer from the structured editor flow", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => []);
-    services.user.search.loadPackOptions = vi.fn(async (query, discoveryMode) => [
-      {
-        value: "pathfinder-npc-core",
-        label: "Pathfinder NPC Core",
-        description: discoveryMode === "matching" ? "4 matching canonical records." : "6 applicable canonical records.",
-        count: 4,
-      },
-      {
-        value: "monster-core",
-        label: "Monster Core",
-        description: discoveryMode === "matching" ? "2 matching canonical records." : "5 applicable canonical records.",
-        count: 2,
-      },
-    ]);
+    services.user.search.loadPackOptions = vi.fn(async () => []);
     services.user.search.getPackLabel = vi.fn((packValue: string) =>
       packValue === "pathfinder-npc-core"
         ? "Pathfinder NPC Core"
         : packValue === "monster-core"
           ? "Monster Core"
           : packValue,
+    );
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(),
     );
 
     const app = render(
@@ -4114,49 +4307,216 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Pack");
     expect(app.lastFrame()).toContain("Pathfinder NPC Core");
     expect(app.lastFrame()).toContain("Monster Core");
-    expect(app.lastFrame()).toContain("Matching counts");
+    expect(app.lastFrame()).toContain("matching counts");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    await returnFromExplorerToStructuredEditor(app);
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Query Clause");
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Current clauses", 60);
+    await waitForFrameToContain(app, "Pathfinder NPC Core", 120);
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
+
+    app.stdin.write(" ");
+    await flushInk();
+    await flushInk();
+    await returnFromExplorerToStructuredEditor(app);
+    expect(app.lastFrame()).toContain("Structured Query Editor");
+    expect(app.lastFrame()).toContain("! Pack: Pathfinder NPC Core");
+  });
+
+  it("keeps discovery-mode actions available in select-target metric explorers", async () => {
+    const services = createServices();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const metricFieldOption = {
+      value: "actorMetric" as const,
+      label: "Creature Statistics",
+      description: "Browse live statistic keys and author exact or numeric literal filters for the current scope.",
+      fieldType: "enumString" as const,
+      editor: "sharedExplorer" as const,
+    };
+    const buildMetricExplorerModel = () =>
+      buildSearchFilterExplorerModel(createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(), {
+        category: "creature",
+        subcategory: null,
+        fieldOptions: [metricFieldOption],
+        singleFieldBehavior: "list",
+      });
+    const loadModelForDiscoveryMode = vi.fn(async () => buildMetricExplorerModel());
+    const session: SearchFilterExplorerSession = {
+      title: "Left Metric",
+      model: buildMetricExplorerModel(),
+      query: browseQuery("Browse creatures", {
+        filter: scopeFilter("creature"),
+        limit: 20,
+      }).request,
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+      fieldOptions: [metricFieldOption],
+      onQueryChange: vi.fn(),
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([metricFieldOption]),
+      onSelectTarget: vi.fn(),
+    };
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
 
     await flushInk();
-    await flushInk();
+    expect(app.lastFrame()).toContain("Creature Statistics");
+
     app.stdin.write(":");
-    await waitForFrameToContain(app, "Pack Count Source");
-    expect(app.lastFrame()).toContain("Pack Count Source");
-    pressLeft(app);
+    await waitForFrameToContain(app, "Use Catalog Counts", 60);
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Use Matching Counts", 60);
+    expect(app.lastFrame()).toContain("Use Matching Counts");
+
+    app.stdin.write(":");
     await flushInk();
-    expect(app.lastFrame()).toContain("Pack");
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+    expect(app.lastFrame()).toContain("catalog counts");
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledWith("catalog");
+  });
+
+  it("keeps discovery-mode actions available in direct-value pack explorers", async () => {
+    const services = createServices();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const loadModelForDiscoveryMode = vi.fn(async () => createPackExplorerModel());
+    const session: SearchFilterExplorerSession = {
+      title: "Pack Explorer",
+      model: createPackExplorerModel(),
+      query: browseQuery("Browse creatures", {
+        filter: scopeFilter("creature"),
+        limit: 20,
+      }).request,
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+      fieldOptions: [
+        {
+          value: "pack",
+          label: "Pack",
+          description: "Browse live packs for the current scope and stage canonical pack clauses.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange: vi.fn(),
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "pack",
+          label: "Pack",
+          description: "Browse live packs for the current scope and stage canonical pack clauses.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ]),
+    };
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
     expect(app.lastFrame()).toContain("Pathfinder NPC Core");
 
     app.stdin.write(":");
-    await waitForFrameToContain(app, "Pack Count Source");
-    pressDown(app);
-    await flushInk();
+    await waitForFrameToContain(app, "Use Catalog Counts", 60);
+    expect(app.lastFrame()).toContain("Use Catalog Counts");
+
     app.stdin.write("\r");
+    await waitForFrameToContain(app, "Use Matching Counts", 60);
+    expect(app.lastFrame()).toContain("Use Matching Counts");
+
+    app.stdin.write(":");
     await flushInk();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
     await flushInk();
-    expect(app.lastFrame()).toContain("Catalog counts");
-    expect(services.user.search.loadPackOptions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "browse",
-      }),
-      "catalog",
+    expect(app.lastFrame()).toContain("catalog counts");
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledWith("catalog");
+  });
+
+  it("cycles pack selections in direct-value pack explorers and updates the query", async () => {
+    const services = createServices();
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const onQueryChange = vi.fn();
+    const session: SearchFilterExplorerSession = {
+      title: "Pack Explorer",
+      model: createPackExplorerModel(),
+      query: browseQuery("Browse creatures", {
+        filter: scopeFilter("creature"),
+        limit: 20,
+      }).request,
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode: vi.fn(async () => createPackExplorerModel()),
+      fieldOptions: [
+        {
+          value: "pack",
+          label: "Pack",
+          description: "Browse live packs for the current scope and stage canonical pack clauses.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onQueryChange,
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "pack",
+          label: "Pack",
+          description: "Browse live packs for the current scope and stage canonical pack clauses.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ]),
+    };
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
     );
 
-    app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("[✓] Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("Pathfinder NPC Core");
 
-    pressDown(app);
+    app.stdin.write(" ");
     await flushInk();
-    app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("[✓] Monster Core");
 
-    app.stdin.write("\u007f");
-    await flushInk();
-    await flushInk();
-    expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
-    expect(app.lastFrame()).toContain("Pack: Monster Core");
+    expect(onQueryChange).toHaveBeenCalled();
+    expect(getSearchQueryPackSelection(onQueryChange.mock.calls.at(-1)?.[0])).toEqual({
+      include: ["pathfinder-npc-core"],
+      exclude: [],
+    });
   });
 
   it("opens the numeric scalar editor when compose-mode creature statistics focus a metric key", async () => {

@@ -1,6 +1,6 @@
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
-import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
+import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/index.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
@@ -39,6 +39,12 @@ export type SearchFilterExplorerSession = {
   onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
   onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
   onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
+  onSelectTarget?: (
+    outcome: FilterExplorerSelectTargetOutcome,
+    query: Pf2eTerminalSearchQuery,
+    fieldState: SearchFilterExplorerFieldState,
+    discoveryMode: SearchFilterDiscoveryMode,
+  ) => void;
 };
 
 export type SearchStructuredEditorItem =
