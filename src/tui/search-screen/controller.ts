@@ -521,51 +521,34 @@ export function useSearchScreenController({
           if (pageInteractionState.mode.kind !== "section") {
             return;
           }
-          const currentSection = focusedResultPageSection;
-          const currentIndex = currentSection
-            ? selectedResultPageModel.sections.findIndex((section) => section.id === currentSection.id)
-            : 0;
-          const nextIndex = Math.max(
-            0,
-            Math.min(currentIndex + intent.delta, Math.max(0, selectedResultPageModel.sections.length - 1)),
-          );
-          const nextSection = selectedResultPageModel.sections[nextIndex];
-          if (nextSection) {
-            setPageInteractionState(focusPageDocumentSection(nextSection.id));
-          }
-          scrollTo(
-            movePageDocumentSection({
-              document: selectedResultPageModel,
-              scroll: state.detailScroll,
-              bodyHeight: presentationMetrics.bodyHeight,
-              maxScroll: maxDetailScroll,
-              delta: intent.delta,
-              nodeStartRows: pageDocumentNodeStartRows,
-              state: pageInteractionState,
-            }),
-          );
+          const moved = movePageDocumentSection({
+            document: selectedResultPageModel,
+            scroll: state.detailScroll,
+            bodyHeight: presentationMetrics.bodyHeight,
+            maxScroll: maxDetailScroll,
+            delta: intent.delta,
+            nodeStartRows: pageDocumentNodeStartRows,
+            state: pageInteractionState,
+          });
+          setPageInteractionState(moved.state);
+          scrollTo(moved.scroll);
           return;
         }
         case "detail_section_boundary": {
           if (pageInteractionState.mode.kind !== "section") {
             return;
           }
-          const targetSection =
-            intent.boundary === "start"
-              ? selectedResultPageModel.sections[0]
-              : selectedResultPageModel.sections.at(-1);
-          if (targetSection) {
-            setPageInteractionState(focusPageDocumentSection(targetSection.id));
-          }
-          scrollTo(
-            movePageDocumentSectionBoundary({
-              document: selectedResultPageModel,
-              boundary: intent.boundary,
-              bodyHeight: presentationMetrics.bodyHeight,
-              maxScroll: maxDetailScroll,
-              nodeStartRows: pageDocumentNodeStartRows,
-            }),
-          );
+          const moved = movePageDocumentSectionBoundary({
+            document: selectedResultPageModel,
+            boundary: intent.boundary,
+            bodyHeight: presentationMetrics.bodyHeight,
+            maxScroll: maxDetailScroll,
+            nodeStartRows: pageDocumentNodeStartRows,
+            scroll: state.detailScroll,
+            state: pageInteractionState,
+          });
+          setPageInteractionState(moved.state);
+          scrollTo(moved.scroll);
           return;
         }
         case "enter_detail_targets": {

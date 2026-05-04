@@ -458,34 +458,17 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
             return;
           }
 
-          {
-            const currentSection = browserContext.focusedPageSection;
-            const currentIndex = currentSection
-              ? pageDocument.sections.findIndex((section) => section.id === currentSection.id)
-              : 0;
-            const nextIndex = Math.max(
-              0,
-              Math.min(
-                currentIndex + detailNavigationAction.delta,
-                Math.max(0, pageDocument.sections.length - 1),
-              ),
-            );
-            const nextSection = pageDocument.sections[nextIndex];
-            if (nextSection) {
-              setPageInteractionState(focusPageDocumentSection(nextSection.id));
-            }
-          }
-          scrollTo(
-            movePageDocumentSection({
-              document: pageDocument,
-              scroll: browserContext.effectiveState.detailScroll,
-              bodyHeight: browserContext.bodyHeight,
-              maxScroll: browserContext.maxDetailScroll,
-              delta: detailNavigationAction.delta,
-              nodeStartRows: pageDocumentNodeStartRows,
-              state: pageInteractionState,
-            }),
-          );
+          const moved = movePageDocumentSection({
+            document: pageDocument,
+            scroll: browserContext.effectiveState.detailScroll,
+            bodyHeight: browserContext.bodyHeight,
+            maxScroll: browserContext.maxDetailScroll,
+            delta: detailNavigationAction.delta,
+            nodeStartRows: pageDocumentNodeStartRows,
+            state: pageInteractionState,
+          });
+          setPageInteractionState(moved.state);
+          scrollTo(moved.scroll);
           return;
         }
 
@@ -504,24 +487,17 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
             return;
           }
 
-          {
-            const targetSection =
-              detailNavigationAction.boundary === "start"
-                ? pageDocument.sections[0]
-                : pageDocument.sections.at(-1);
-            if (targetSection) {
-              setPageInteractionState(focusPageDocumentSection(targetSection.id));
-            }
-          }
-          scrollTo(
-            movePageDocumentSectionBoundary({
-              document: pageDocument,
-              boundary: detailNavigationAction.boundary,
-              bodyHeight: browserContext.bodyHeight,
-              maxScroll: browserContext.maxDetailScroll,
-              nodeStartRows: pageDocumentNodeStartRows,
-            }),
-          );
+          const moved = movePageDocumentSectionBoundary({
+            document: pageDocument,
+            boundary: detailNavigationAction.boundary,
+            bodyHeight: browserContext.bodyHeight,
+            maxScroll: browserContext.maxDetailScroll,
+            nodeStartRows: pageDocumentNodeStartRows,
+            scroll: browserContext.effectiveState.detailScroll,
+            state: pageInteractionState,
+          });
+          setPageInteractionState(moved.state);
+          scrollTo(moved.scroll);
           return;
         }
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPageDocumentInteractionState,
   enterPageDocumentTargetMode,
+  focusPageDocumentSection,
   getActivePageDocumentSection,
   getFocusedPageDocumentSection,
   getPageDocumentReadingAnchorNodeIndex,
@@ -132,6 +133,21 @@ function createInlineTargetDocument(): PageDocumentModel {
         target: { kind: "external", label: "Open in Archives of Nethys", href: "https://example.com" },
         anchorRole: "target",
       },
+      {
+        id: "section:summary:heading",
+        kind: "sectionHeading",
+        sectionId: "summary",
+        line: { text: "Summary" },
+        anchorRole: "sectionStart",
+      },
+      {
+        id: "section:summary:target:0:0",
+        kind: "target",
+        sectionId: "summary",
+        line: { text: "Related Spell" },
+        target: { kind: "record", label: "Related Spell", recordKey: "spell:related", action: "open" },
+        anchorRole: "target",
+      },
     ],
     sections: [
       {
@@ -147,8 +163,19 @@ function createInlineTargetDocument(): PageDocumentModel {
           "header:row:target",
         ],
       },
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        startNodeIndex: 3,
+        endNodeIndex: 4,
+        targetNodeIds: ["section:summary:target:0:0"],
+      },
     ],
-    sectionAnchors: [{ sectionId: "header", nodeIndex: 1 }],
+    sectionAnchors: [
+      { sectionId: "header", nodeIndex: 1 },
+      { sectionId: "summary", nodeIndex: 3 },
+    ],
     targetNodes: [
       {
         targetId: "header:traits:target:0",
@@ -177,6 +204,13 @@ function createInlineTargetDocument(): PageDocumentModel {
         sectionId: "header",
         target: { kind: "external", label: "Open in Archives of Nethys", href: "https://example.com" },
         location: { kind: "line", nodeId: "header:row:target" },
+      },
+      {
+        targetId: "section:summary:target:0:0",
+        nodeId: "section:summary:target:0:0",
+        sectionId: "summary",
+        target: { kind: "record", label: "Related Spell", recordKey: "spell:related", action: "open" },
+        location: { kind: "line", nodeId: "section:summary:target:0:0" },
       },
     ],
   };
@@ -260,15 +294,16 @@ describe("page document interaction", () => {
   it("moves section focus by scrolling to the next section anchor", () => {
     const document = createDocument();
 
-    expect(
-      movePageDocumentSection({
-        document,
-        scroll: 0,
-        bodyHeight: 6,
-        maxScroll: 6,
-        delta: 1,
-      }),
-    ).toBe(1);
+    const moved = movePageDocumentSection({
+      document,
+      scroll: 0,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: 1,
+    });
+
+    expect(moved.scroll).toBe(1);
+    expect(moved.state.mode).toEqual({ kind: "section", sectionId: "description" });
   });
 
   it("keeps focused section ownership while target mode is active", () => {
@@ -293,22 +328,23 @@ describe("page document interaction", () => {
   it("supports section boundary movement against the shared reading anchor", () => {
     const document = createDocument();
 
-    expect(
-      movePageDocumentSectionBoundary({
-        document,
-        boundary: "start",
-        bodyHeight: 6,
-        maxScroll: 6,
-      }),
-    ).toBe(0);
-    expect(
-      movePageDocumentSectionBoundary({
-        document,
-        boundary: "end",
-        bodyHeight: 6,
-        maxScroll: 6,
-      }),
-    ).toBe(3);
+    const start = movePageDocumentSectionBoundary({
+      document,
+      boundary: "start",
+      bodyHeight: 6,
+      maxScroll: 6,
+    });
+    const end = movePageDocumentSectionBoundary({
+      document,
+      boundary: "end",
+      bodyHeight: 6,
+      maxScroll: 6,
+    });
+
+    expect(start.scroll).toBe(0);
+    expect(start.state.mode).toEqual({ kind: "section", sectionId: "summary" });
+    expect(end.scroll).toBe(3);
+    expect(end.state.mode).toEqual({ kind: "section", sectionId: "references" });
   });
 
   it("enters target mode from the active section and restores section mode on exit", () => {
@@ -414,6 +450,33 @@ describe("page document interaction", () => {
     expect(getSelectedPageDocumentTarget({ document, state: second.state })?.target.label).toBe("Trait: Fire");
     expect(getSelectedPageDocumentTarget({ document, state: third.state })?.target.label).toBe("Trait: Manipulate");
     expect(getSelectedPageDocumentTarget({ document, state: row.state })?.target.label).toBe("Open in Archives of Nethys");
+  });
+
+  it("moves section focus over sections with inline span targets and row targets", () => {
+    const document = createInlineTargetDocument();
+    const next = movePageDocumentSection({
+      document,
+      state: focusPageDocumentSection("header"),
+      scroll: 0,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: 1,
+    });
+    const previous = movePageDocumentSection({
+      document,
+      state: next.state,
+      scroll: next.scroll,
+      bodyHeight: 6,
+      maxScroll: 6,
+      delta: -1,
+    });
+
+    expect(next.section?.id).toBe("summary");
+    expect(next.state.mode).toEqual({ kind: "section", sectionId: "summary" });
+    expect(next.scroll).toBe(1);
+    expect(previous.section?.id).toBe("header");
+    expect(previous.state.mode).toEqual({ kind: "section", sectionId: "header" });
+    expect(previous.scroll).toBe(0);
   });
 
   it("honors inline targets for target boundary movement", () => {

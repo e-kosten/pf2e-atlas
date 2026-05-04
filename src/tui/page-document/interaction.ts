@@ -129,6 +129,12 @@ export type PageDocumentInteractionState = {
   mode: PageDocumentInteractionMode;
 };
 
+export type PageDocumentSectionMovementResult = {
+  state: PageDocumentInteractionState;
+  scroll: number;
+  section: PageDocumentSectionModel | null;
+};
+
 export function createPageDocumentInteractionState(): PageDocumentInteractionState {
   return {
     mode: { kind: "section" },
@@ -176,28 +182,51 @@ export function movePageDocumentSection(options: {
   delta: number;
   nodeStartRows?: readonly number[];
   state?: PageDocumentInteractionState;
-}): number {
+}): PageDocumentSectionMovementResult {
+  const state = options.state ?? createPageDocumentInteractionState();
+  if (state.mode.kind === "target") {
+    return {
+      state,
+      scroll: options.scroll,
+      section: getPageDocumentSectionById(options.document, state.mode.sectionId),
+    };
+  }
+
   const activeSection =
-    options.state?.mode.kind === "section" && options.state.mode.sectionId
-      ? getPageDocumentSectionById(options.document, options.state.mode.sectionId)
+    state.mode.sectionId
+      ? getPageDocumentSectionById(options.document, state.mode.sectionId)
       : getActivePageDocumentSection({ ...options, maxScroll: options.maxScroll });
   if (!activeSection) {
-    return 0;
+    return {
+      state,
+      scroll: options.scroll,
+      section: null,
+    };
   }
 
   const currentIndex = options.document.sections.findIndex((section) => section.id === activeSection.id);
   const nextIndex = clamp(currentIndex + options.delta, 0, Math.max(0, options.document.sections.length - 1));
   const nextSection = options.document.sections[nextIndex];
 
-  return nextSection
-    ? getPageDocumentSectionScrollTarget({
-        document: options.document,
-        sectionId: nextSection.id,
-        bodyHeight: options.bodyHeight,
-        maxScroll: options.maxScroll,
-        nodeStartRows: options.nodeStartRows,
-      })
-    : options.scroll;
+  if (!nextSection) {
+    return {
+      state,
+      scroll: options.scroll,
+      section: null,
+    };
+  }
+
+  return {
+    state: focusPageDocumentSection(nextSection.id),
+    scroll: getPageDocumentSectionScrollTarget({
+      document: options.document,
+      sectionId: nextSection.id,
+      bodyHeight: options.bodyHeight,
+      maxScroll: options.maxScroll,
+      nodeStartRows: options.nodeStartRows,
+    }),
+    section: nextSection,
+  };
 }
 
 export function movePageDocumentSectionBoundary(options: {
@@ -206,19 +235,40 @@ export function movePageDocumentSectionBoundary(options: {
   bodyHeight: number;
   maxScroll: number;
   nodeStartRows?: readonly number[];
-}): number {
+  scroll?: number;
+  state?: PageDocumentInteractionState;
+}): PageDocumentSectionMovementResult {
+  const state = options.state ?? createPageDocumentInteractionState();
+  if (state.mode.kind === "target") {
+    return {
+      state,
+      scroll: options.scroll ?? 0,
+      section: getPageDocumentSectionById(options.document, state.mode.sectionId),
+    };
+  }
+
   const targetSection =
     options.boundary === "start" ? options.document.sections[0] : options.document.sections.at(-1);
 
-  return targetSection
-    ? getPageDocumentSectionScrollTarget({
-        document: options.document,
-        sectionId: targetSection.id,
-        bodyHeight: options.bodyHeight,
-        maxScroll: options.maxScroll,
-        nodeStartRows: options.nodeStartRows,
-      })
-    : 0;
+  if (!targetSection) {
+    return {
+      state,
+      scroll: options.scroll ?? 0,
+      section: null,
+    };
+  }
+
+  return {
+    state: focusPageDocumentSection(targetSection.id),
+    scroll: getPageDocumentSectionScrollTarget({
+      document: options.document,
+      sectionId: targetSection.id,
+      bodyHeight: options.bodyHeight,
+      maxScroll: options.maxScroll,
+      nodeStartRows: options.nodeStartRows,
+    }),
+    section: targetSection,
+  };
 }
 
 export function enterPageDocumentTargetMode(options: {
