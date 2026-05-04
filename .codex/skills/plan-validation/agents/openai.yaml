@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Validation"
+  short_description: "Audit completed plans for missing work"
+  default_prompt: "Use $plan-validation to audit this completed plan against the current implementation."
