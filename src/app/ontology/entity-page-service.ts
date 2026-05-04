@@ -15,10 +15,12 @@ type EntityPageSourceRecord = NormalizedRecord | OntologyExplorerEntityRecord;
 
 type EntityPageRelationsService = {
   loadPageRelations: (recordKey: RecordKey) => PageRelationsResult;
+  getRecord?: (recordKey: RecordKey) => NormalizedRecord | undefined;
 };
 
 export type Pf2eApplicationEntityPageService = {
   buildDocument: (record: EntityPageSourceRecord) => EntityPageDocument;
+  buildDocumentByRecordKey: (recordKey: RecordKey) => EntityPageDocument | null;
   buildDetailLines: (
     record: EntityPageSourceRecord,
     options?: { includeHeader?: boolean },
@@ -41,9 +43,14 @@ export function createPf2eApplicationEntityPageService(
     const relations = relationsService.loadPageRelations(entityRecord.recordKey);
     return buildEntityPageDocument(entityRecord, relations);
   };
+  const buildDocumentByRecordKey = (recordKey: RecordKey): EntityPageDocument | null => {
+    const record = relationsService.getRecord?.(recordKey);
+    return record ? buildDocument(record) : null;
+  };
 
   return {
     buildDocument,
+    buildDocumentByRecordKey,
     buildDetailLines: (record, options) => renderEntityPageDocument(buildDocument(record), options),
   };
 }

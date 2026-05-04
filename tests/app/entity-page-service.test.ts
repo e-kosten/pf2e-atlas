@@ -162,4 +162,17 @@ describe("entity page service", () => {
     expect(lines.some((line) => line.text === "Feat (2)")).toBe(true);
     expect(lines.some((line) => line.text === "Derived Tags: Explosive Magic")).toBe(true);
   });
+
+  it("builds a document directly from a record key when a record lookup is available", () => {
+    const record = createRecord();
+    const service = createPf2eApplicationEntityPageService({
+      loadPageRelations: vi.fn(() => createRelations()),
+      getRecord: vi.fn((recordKey) => (recordKey === record.recordKey ? record : undefined)),
+    });
+
+    const document = service.buildDocumentByRecordKey(record.recordKey);
+
+    expect(document?.recordKey).toBe(record.recordKey);
+    expect(document?.title).toBe("Fireball");
+  });
 });

@@ -5,11 +5,24 @@ import {
   getDerivedTagTerminalActionTargetInteractionActions,
   reduceDerivedTagTerminalActionTargetState,
 } from "../action-target.js";
+import type { DerivedTagTerminalPointerEvent } from "../framework/types.js";
 import {
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
   useTerminalListDetailInteractionRouter,
 } from "../list-detail-presentation.js";
+import { renderPageDocumentModel } from "../page-document/model.js";
+import {
+  createPageDocumentInteractionState,
+  enterPageDocumentTargetMode,
+  getFocusedPageDocumentSection,
+  getSelectedPageDocumentTarget,
+  leavePageDocumentTargetMode,
+  movePageDocumentSection,
+  movePageDocumentSectionBoundary,
+  movePageDocumentTarget,
+  movePageDocumentTargetBoundary,
+} from "../page-document/interaction.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import { getDerivedTagTerminalTwoPaneLayoutMode } from "../two-pane-state.js";
@@ -102,6 +115,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     undefined,
     () => createDerivedTagTerminalActionTargetState(),
   );
+  const [pageInteractionState, setPageInteractionState] = React.useState(createPageDocumentInteractionState);
   const [state, dispatch] = React.useReducer(
     (current: FilterExplorerBrowserUiState, action: FilterExplorerAction) =>
       filterExplorerReducer(options.model, current, action),
@@ -121,6 +135,26 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const normalizedBrowserState = normalizeFilterExplorerBrowserState(options.model, state.browserState);
   const selection = getFilterExplorerBrowserSelection(options.model, normalizedBrowserState);
   const selectedTarget = resolveFilterExplorerHostTarget(options.host, selection.currentNode);
+  const pageDocument =
+    options.mode.kind === "inspect-and-open" ? options.host.resolvePageDocument?.(selection.currentNode) ?? null : null;
+  React.useEffect(() => {
+    setPageInteractionState(createPageDocumentInteractionState());
+  }, [pageDocument?.recordKey, selection.currentNode?.id]);
+  const selectedPageTarget = pageDocument
+    ? getSelectedPageDocumentTarget({
+        document: pageDocument,
+        state: pageInteractionState,
+      })
+    : null;
+  const initialPageDetailLines = React.useMemo(
+    () =>
+      pageDocument
+        ? renderPageDocumentModel(pageDocument, {
+            selectedTargetNodeId: selectedPageTarget?.nodeId,
+          })
+        : null,
+    [pageDocument, selectedPageTarget?.nodeId],
+  );
   const detailDraft = options.host.getDraft?.() ?? draft;
   const detailLines =
     composeMode || selectionPresentation
@@ -140,10 +174,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           baseDetailLines:
             selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }],
         })
+      : initialPageDetailLines
+        ? initialPageDetailLines
       : buildFilterExplorerDetailLines(options.model, normalizedBrowserState);
-  const detailTitle = composeMode || selectionPresentation
-    ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
-    : getFilterExplorerDetailTitle(options.model, normalizedBrowserState);
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
@@ -156,7 +189,63 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     leftWidth: 46,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
-  const maxDetailScroll = presentationMetrics.maxDetailScroll;
+  const focusedPageSection = pageDocument
+    ? getFocusedPageDocumentSection({
+        document: pageDocument,
+        state: pageInteractionState,
+        scroll: normalizedBrowserState.detailScroll,
+        bodyHeight: presentationMetrics.bodyHeight,
+      })
+    : null;
+  const detailInteractionState =
+    pageDocument == null
+      ? { kind: "none" as const }
+      : pageInteractionState.mode.kind === "target"
+        ? { kind: "target" as const }
+        : {
+            kind: "section" as const,
+            canEnterTargets: Boolean(focusedPageSection?.targetNodeIds.length),
+          };
+  const detailTargetActionId =
+    pageInteractionState.mode.kind === "target" && selectedPageTarget
+      ? selectedPageTarget.target.kind === "record" && selectedPageTarget.target.action === "preview"
+        ? "preview"
+        : "open"
+      : null;
+  const pageDetailLines = React.useMemo(
+    () =>
+      pageDocument
+        ? renderPageDocumentModel(pageDocument, {
+            activeSectionId: focusedPageSection?.id,
+            selectedTargetNodeId: selectedPageTarget?.nodeId,
+          })
+        : null,
+    [focusedPageSection?.id, pageDocument, selectedPageTarget?.nodeId],
+  );
+  const detailLinesWithFocus =
+    composeMode || selectionPresentation
+      ? detailLines
+      : pageDetailLines
+        ? pageDetailLines
+        : detailLines;
+  const detailTitle = composeMode || selectionPresentation
+    ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
+    : pageDocument
+      ? `${pageDocument.title}${focusedPageSection?.title ? ` | ${focusedPageSection.title}` : ""}`
+      : getFilterExplorerDetailTitle(options.model, normalizedBrowserState);
+  const screenPresentationMetrics = measureTerminalListDetailPresentation({
+    terminalWidth: size.width,
+    terminalHeight: size.height,
+    footerLineCount: 2,
+    notification,
+    transitionStatus: options.transitionStatus,
+    detailLines: detailLinesWithFocus,
+    detailScroll: normalizedBrowserState.detailScroll,
+    layoutMode,
+    leftWidth: 46,
+    hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+  });
+  const maxDetailScroll = screenPresentationMetrics.maxDetailScroll;
   const effectiveState =
     normalizedBrowserState.detailScroll > maxDetailScroll
       ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
@@ -175,18 +264,34 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     currentNode: selection.currentNode,
     currentNodeHasChildren,
     breadcrumb: buildFilterExplorerBreadcrumb(options.model, selection),
-    bodyHeight: presentationMetrics.bodyHeight,
-    detailWidth: presentationMetrics.detailWidth,
-    detailLines,
-    visibleDetailLines: presentationMetrics.visibleDetailLines,
+    bodyHeight: screenPresentationMetrics.bodyHeight,
+    detailWidth: screenPresentationMetrics.detailWidth,
+    detailLines: detailLinesWithFocus,
+    visibleDetailLines: screenPresentationMetrics.visibleDetailLines,
     detailTitle,
     layoutMode,
     maxDetailScroll,
-    detailJumpSize: presentationMetrics.detailJumpSize,
-    detailPageSize: presentationMetrics.pageSize,
-    selectionJumpSize: presentationMetrics.selectionJumpSize,
+    detailJumpSize: screenPresentationMetrics.detailJumpSize,
+    detailPageSize: screenPresentationMetrics.pageSize,
+    selectionJumpSize: screenPresentationMetrics.selectionJumpSize,
     searchIndicator,
+    pageDocument,
+    pageInteractionState,
+    focusedPageSection,
+    selectedPageTarget,
+    detailInteractionState,
+    detailTargetActionId,
   };
+  const handleDetailPointerEvent = React.useCallback(
+    (event: DerivedTagTerminalPointerEvent) => {
+      if (event.kind !== "wheel") {
+        return false;
+      }
+      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
+      return true;
+    },
+    [browserContext.maxDetailScroll, dispatch],
+  );
 
   const baseContext = buildFilterExplorerControllerContext({
     options,
@@ -194,20 +299,177 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     draft,
     actionEntries: [],
     actionTargetState,
-    onDetailPointerEvent: (event) => {
-      if (event.kind !== "wheel") {
-        return false;
-      }
-      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
-      return true;
-    },
+    onDetailPointerEvent: handleDetailPointerEvent,
     notification,
   });
   const actionEntries = buildFilterExplorerActionEntries(baseContext);
+  const controllerContext = React.useMemo(
+    () =>
+      buildFilterExplorerControllerContext({
+        options,
+        browser: browserContext,
+        draft,
+        actionEntries,
+        actionTargetState,
+        onDetailPointerEvent: handleDetailPointerEvent,
+        notification,
+      }),
+    [actionEntries, actionTargetState, browserContext, draft, handleDetailPointerEvent, notification, options],
+  );
   const interactionActions = getFilterExplorerInteractionActions(baseContext, actionEntries.length > 0);
 
   const handleRoute = React.useCallback(
     (route: FilterExplorerInteractionRoute) => {
+      if ((browserContext.state.activePane === "detail" || browserContext.layoutMode === "detail-only") && pageDocument) {
+        const detailNavigationAction =
+          browserContext.layoutMode === "detail-only"
+            ? route.detailNavigationAction ?? route.listNavigationAction
+            : route.detailNavigationAction;
+        const scrollTo = (nextScroll: number) => {
+          dispatch({
+            type: "move_detail",
+            delta: nextScroll - browserContext.effectiveState.detailScroll,
+            maxDetailScroll: browserContext.maxDetailScroll,
+          });
+        };
+
+        if (
+          (route.interactionAction?.id === "back" || route.interactionAction?.id === "return") &&
+          detailInteractionState.kind === "target"
+        ) {
+          setPageInteractionState(leavePageDocumentTargetMode());
+          return;
+        }
+
+        if (detailNavigationAction?.kind === "confirm" && detailInteractionState.kind === "section") {
+          const entered = enterPageDocumentTargetMode({
+            document: pageDocument,
+            scroll: browserContext.effectiveState.detailScroll,
+            bodyHeight: browserContext.bodyHeight,
+            maxScroll: browserContext.maxDetailScroll,
+          });
+          if (entered.state.mode.kind === "section") {
+            showNotification({
+              message: "The active section has no targets.",
+              tone: "warning",
+            });
+            return;
+          }
+          setPageInteractionState(entered.state);
+          scrollTo(entered.scroll);
+          return;
+        }
+
+        if (detailNavigationAction?.kind === "confirm" && detailInteractionState.kind === "target") {
+          const target = selectedPageTarget?.target;
+          if (!target) {
+            return;
+          }
+
+          const handled =
+            options.mode.kind === "inspect-and-open"
+              ? options.host.activatePageTarget?.({
+                  target,
+                  controller: controllerContext,
+                })
+              : false;
+          if (handled) {
+            setPageInteractionState(createPageDocumentInteractionState());
+            return;
+          }
+
+          showNotification({
+            message:
+              target.kind === "searchPivot"
+                ? "Page pivots are unavailable in this host."
+                : target.kind === "record"
+                  ? "Record targets are not wired yet."
+                  : "This target opens outside the current page flow.",
+            tone: "warning",
+          });
+          return;
+        }
+
+        if (detailNavigationAction?.kind === "cursorMove") {
+          if (detailInteractionState.kind === "target") {
+            const moved = movePageDocumentTarget({
+              document: pageDocument,
+              state: pageInteractionState,
+              bodyHeight: browserContext.bodyHeight,
+              maxScroll: browserContext.maxDetailScroll,
+              delta: detailNavigationAction.delta,
+            });
+            setPageInteractionState(moved.state);
+            scrollTo(moved.scroll);
+            return;
+          }
+
+          scrollTo(
+            movePageDocumentSection({
+              document: pageDocument,
+              scroll: browserContext.effectiveState.detailScroll,
+              bodyHeight: browserContext.bodyHeight,
+              maxScroll: browserContext.maxDetailScroll,
+              delta: detailNavigationAction.delta,
+            }),
+          );
+          return;
+        }
+
+        if (detailNavigationAction?.kind === "cursorBoundary") {
+          if (detailInteractionState.kind === "target") {
+            const moved = movePageDocumentTargetBoundary({
+              document: pageDocument,
+              state: pageInteractionState,
+              bodyHeight: browserContext.bodyHeight,
+              maxScroll: browserContext.maxDetailScroll,
+              boundary: detailNavigationAction.boundary,
+            });
+            setPageInteractionState(moved.state);
+            scrollTo(moved.scroll);
+            return;
+          }
+
+          scrollTo(
+            movePageDocumentSectionBoundary({
+              document: pageDocument,
+              boundary: detailNavigationAction.boundary,
+              bodyHeight: browserContext.bodyHeight,
+              maxScroll: browserContext.maxDetailScroll,
+            }),
+          );
+          return;
+        }
+
+        if (
+          detailNavigationAction?.kind === "viewportScrollSmall" ||
+          detailNavigationAction?.kind === "viewportScrollLarge" ||
+          detailNavigationAction?.kind === "viewportPage"
+        ) {
+          if (pageInteractionState.mode.kind === "target") {
+            setPageInteractionState(leavePageDocumentTargetMode());
+          }
+          dispatch({
+            type: "move_detail",
+            delta: detailNavigationAction.delta,
+            maxDetailScroll: browserContext.maxDetailScroll,
+          });
+          return;
+        }
+
+        if (detailNavigationAction?.kind === "viewportEdge") {
+          if (pageInteractionState.mode.kind === "target") {
+            setPageInteractionState(leavePageDocumentTargetMode());
+          }
+          dispatch({
+            type: "detail_boundary",
+            boundary: detailNavigationAction.boundary,
+            maxDetailScroll: browserContext.maxDetailScroll,
+          });
+          return;
+        }
+      }
+
       handleFilterExplorerInteractionRoute({
         route,
         adapters,
@@ -222,7 +484,22 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         showNotification,
       });
     },
-    [actionEntries, actionTargetState, adapters, browserContext, dispatch, draft, options, showNotification, updateDraft],
+    [
+      actionEntries,
+      actionTargetState,
+      adapters,
+      browserContext,
+      detailInteractionState.kind,
+      dispatch,
+      draft,
+      controllerContext,
+      options,
+      pageDocument,
+      pageInteractionState,
+      selectedPageTarget?.target,
+      showNotification,
+      updateDraft,
+    ],
   );
 
   useTerminalListDetailInteractionRouter({
@@ -236,7 +513,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     detail: {
       interactionActions,
       pageSize: browserContext.detailPageSize,
-      jumpSize: browserContext.detailJumpSize,
+      jumpSize:
+        detailInteractionState.kind === "none" ? browserContext.detailJumpSize : browserContext.selectionJumpSize,
+      mode: detailInteractionState.kind === "none" ? "viewport" : "hybrid",
+      includeConfirmKeys: detailInteractionState.kind !== "none",
+      includeHorizontalConfirmKeys: detailInteractionState.kind !== "none",
       includeCancelKeys: true,
       includeHorizontalCancelKeys: true,
     },
@@ -259,7 +540,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       handleRoute({
         event: textEntry?.event ?? list.event,
         interactionAction:
-          browserContext.state.activePane === "detail" ? detail.interactionAction : list.interactionAction,
+          browserContext.state.activePane === "detail" || browserContext.layoutMode === "detail-only"
+            ? detail.interactionAction
+            : list.interactionAction,
         actionTargetInteractionAction: actionTarget?.interactionAction,
         actionTargetIntent: actionTarget?.actionTargetIntent,
         searchModeAction: textEntry?.interactionAction?.id === "cancel" ? { id: "cancel" } : undefined,
@@ -270,19 +553,5 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     },
   });
 
-  return buildFilterExplorerControllerContext({
-    options,
-    browser: browserContext,
-    draft,
-    actionEntries,
-    actionTargetState,
-    onDetailPointerEvent: (event) => {
-      if (event.kind !== "wheel") {
-        return false;
-      }
-      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
-      return true;
-    },
-    notification,
-  });
+  return controllerContext;
 }

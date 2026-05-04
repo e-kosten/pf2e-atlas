@@ -1,4 +1,5 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
+import type { EntityPageTarget } from "../../app/ontology/entity-page.js";
 import type {
   OntologyChildPresentation,
   OntologyDomainModel,
@@ -16,6 +17,12 @@ import type {
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
+import type { PageDocumentInteractionState } from "../page-document/interaction.js";
+import type {
+  PageDocumentModel,
+  PageDocumentSectionModel,
+  PageDocumentTargetNode,
+} from "../page-document/model.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
 
@@ -88,6 +95,7 @@ export type FilterExplorerDescribeNodeArgs = {
 
 export type FilterExplorerHostAdapter = {
   readonly resolveTarget?: (node: FilterExplorerNode | undefined) => FilterExplorerComposeTarget | undefined;
+  readonly resolvePageDocument?: (node: FilterExplorerNode | undefined) => PageDocumentModel | null | undefined;
   readonly describeNode: (args: FilterExplorerDescribeNodeArgs) => FilterExplorerTargetPresentation | undefined;
   readonly getDraft?: () => FilterExplorerComposeDraft;
   readonly activateTarget?: (args: {
@@ -95,6 +103,10 @@ export type FilterExplorerHostAdapter = {
     readonly controller: FilterExplorerControllerContext;
     readonly reason: "open" | "cycle";
   }) => boolean;
+  readonly activatePageTarget?: (args: {
+    readonly target: EntityPageTarget;
+    readonly controller: FilterExplorerControllerContext;
+  }) => boolean | void;
   readonly selectionPresentation?: {
     readonly detailTitle?: string;
     readonly emptySelectionText?: string;
@@ -178,6 +190,12 @@ export type FilterExplorerBrowserContext = {
   detailPageSize: number;
   selectionJumpSize: number;
   searchIndicator: string;
+  pageDocument?: PageDocumentModel | null;
+  pageInteractionState: PageDocumentInteractionState;
+  focusedPageSection?: PageDocumentSectionModel | null;
+  selectedPageTarget?: PageDocumentTargetNode | null;
+  detailInteractionState: FilterExplorerDetailPageInteractionState;
+  detailTargetActionId?: "open" | "preview" | null;
 };
 
 export type FilterExplorerScalarOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "between";
@@ -244,6 +262,16 @@ export type FilterExplorerInspectResult = {
   target?: FilterExplorerComposeTarget;
   launchIntent: FilterExplorerLaunchIntent;
 };
+
+export type FilterExplorerDetailPageInteractionState =
+  | { kind: "none" }
+  | {
+      kind: "section";
+      canEnterTargets: boolean;
+    }
+  | {
+      kind: "target";
+    };
 
 export type FilterExplorerInspectAndOpenMode = {
   kind: "inspect-and-open";

@@ -117,10 +117,14 @@ export function createComposeFilterExplorerHostAdapter(args: {
 
 export function createInspectFilterExplorerHostAdapter(args: {
   resolveTarget?: FilterExplorerHostAdapter["resolveTarget"];
+  resolvePageDocument?: FilterExplorerHostAdapter["resolvePageDocument"];
+  activatePageTarget?: FilterExplorerHostAdapter["activatePageTarget"];
   onEditScalarTarget?: FilterExplorerInspectAndOpenMode["onEditScalarTarget"];
 }): FilterExplorerHostAdapter {
   return {
     resolveTarget: args.resolveTarget,
+    resolvePageDocument: args.resolvePageDocument,
+    activatePageTarget: args.activatePageTarget,
     describeNode: ({ node, target }) => ({
       activationStyle:
         target?.kind === "scalar" && args.onEditScalarTarget

@@ -5,10 +5,12 @@ import {
   createInspectFilterExplorerHostAdapter,
   describeFilterExplorerHostNode,
 } from "../../src/tui/filter-explorer/host-adapter.js";
+import type { EntityPageTarget } from "../../src/app/ontology/entity-page.js";
 import type {
   FilterExplorerControllerContext,
   FilterExplorerNode,
 } from "../../src/tui/filter-explorer/types.js";
+import type { PageDocumentModel } from "../../src/tui/page-document/model.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {
@@ -158,5 +160,35 @@ describe("filter explorer host adapter", () => {
       activationStyle: "none",
       tone: undefined,
     });
+  });
+
+  it("passes inspect page-document and page-target seams through the shared host contract", () => {
+    const pageDocument: PageDocumentModel = {
+      recordKey: "spell:test-fireball",
+      title: "Fireball",
+      nodes: [],
+      sections: [],
+      sectionAnchors: [],
+      targetNodes: [],
+    };
+    const searchPivotTarget: EntityPageTarget = {
+      kind: "searchPivot",
+      label: "Creatures (2)",
+      request: { mode: "browse", limit: 20 },
+    };
+    const resolvePageDocument = () => pageDocument;
+    const activatePageTarget = () => true;
+    const host = createInspectFilterExplorerHostAdapter({
+      resolvePageDocument,
+      activatePageTarget,
+    });
+
+    expect(host.resolvePageDocument?.(createNode({ kind: "record" }))).toBe(pageDocument);
+    expect(
+      host.activatePageTarget?.({
+        target: searchPivotTarget,
+        controller: {} as FilterExplorerControllerContext,
+      }),
+    ).toBe(true);
   });
 });

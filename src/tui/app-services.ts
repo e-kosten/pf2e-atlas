@@ -102,7 +102,10 @@ export function createPf2eTerminalAppServices(
   return {
     config,
     user: {
-      entityPages: createPf2eApplicationEntityPageService(pageRelations),
+      entityPages: createPf2eApplicationEntityPageService({
+        ...pageRelations,
+        getRecord: (recordKey) => dataService.getRecord(recordKey),
+      }),
       ontology: createPf2eApplicationOntologyService(config, dataService, discovery),
       pageRelations,
       search: createPf2eTerminalSearchService({

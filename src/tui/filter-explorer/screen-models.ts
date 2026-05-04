@@ -43,6 +43,9 @@ function isAtExitDepth(mode: FilterExplorerMode, controller: FilterExplorerBrows
 }
 
 function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBrowserContext): string {
+  if (controller.detailInteractionState.kind === "target") {
+    return "leave target mode and return to section navigation";
+  }
   if (isDetailContext(controller)) {
     return "return to the entry list";
   }
@@ -87,6 +90,7 @@ export function getFilterExplorerInteractionActions(
   hasActionEntries = false,
 ): TerminalInteractionAction[] {
   const { browser, mode } = controller;
+  const pageDetailState = browser.detailInteractionState;
   if (isSelectionExplorer(controller)) {
     const composeActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "cycle";
 
@@ -140,6 +144,47 @@ export function getFilterExplorerInteractionActions(
   }
 
   const inspectActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "open";
+
+  if (pageDetailState.kind === "section" || pageDetailState.kind === "target") {
+    const pageActions: TerminalInteractionAction[] = [
+      { id: "move", label: pageDetailState.kind === "target" ? "target" : "section" },
+      { id: "viewportScrollSmall" },
+      { id: "viewportScrollLarge" },
+      { id: "viewportPage" },
+      { id: "viewportEdge" },
+      ...(pageDetailState.kind === "section" && pageDetailState.canEnterTargets
+        ? [{ id: "select", label: "targets" } as const]
+        : []),
+      ...(pageDetailState.kind === "target" && browser.detailTargetActionId
+        ? [{ id: browser.detailTargetActionId } as const]
+        : []),
+    ];
+
+    if (browser.layoutMode === "detail-only") {
+      return [
+        ...pageActions,
+        { id: "layout", label: "split-view" },
+        { id: "back" },
+        { id: "search" },
+        ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
+        { id: "help" },
+        { id: "quit", label: "back" },
+      ];
+    }
+
+    if (browser.state.activePane === "detail") {
+      return [
+        ...pageActions,
+        { id: "focus", label: "pane" },
+        { id: "layout", label: "detail-only" },
+        { id: "back" },
+        { id: "search" },
+        ...(shouldShowActionRail(hasActionEntries) ? [{ id: "actions" as const }] : []),
+        { id: "help" },
+        { id: "quit", label: "back" },
+      ];
+    }
+  }
 
   if (browser.layoutMode === "detail-only") {
     return [
@@ -523,32 +568,39 @@ export function buildFilterExplorerActionEntries(
 
 export function buildFilterExplorerHelpLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
   const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
+  const pageDetailState = controller.browser.detailInteractionState;
   const actionActions = interactionActions
     .filter((action) => !FILTER_EXPLORER_NAVIGATION_ACTION_IDS.has(action.id))
     .map((action) => ({
       ...action,
       helpText:
-        action.id === "open"
-          ? "drill into the focused node or open the focused selection"
-          : action.id === "cycle"
-            ? controller.selectedTarget?.kind === "scalar"
-              ? "open the focused scalar filter editor"
-              : "cycle the focused discrete clause through off and the allowed include/exclude operators"
-            : action.id === "focus"
-              ? "switch focus between list and detail"
-              : action.id === "layout"
-                ? "toggle split and detail-only layouts"
-                : action.id === "cancel"
-                  ? "clear the current filter without leaving this level"
-                  : action.id === "back"
-                    ? getBackHelpText(controller.mode, controller.browser)
-                    : action.id === "search"
-                      ? "start live filtering"
-                      : action.id === "actions"
-                        ? "focus the explorer action rail"
-                        : action.id === "help"
-                          ? "show this help"
-                          : "leave the explorer",
+        action.id === "select"
+          ? "enter link targets inside the active section"
+          : action.id === "preview"
+            ? "preview the focused page target"
+            : action.id === "open"
+              ? pageDetailState.kind === "target"
+                ? "open the focused page target"
+                : "drill into the focused node or open the focused selection"
+              : action.id === "cycle"
+                ? controller.selectedTarget?.kind === "scalar"
+                  ? "open the focused scalar filter editor"
+                  : "cycle the focused discrete clause through off and the allowed include/exclude operators"
+                : action.id === "focus"
+                  ? "switch focus between list and detail"
+                  : action.id === "layout"
+                    ? "toggle split and detail-only layouts"
+                    : action.id === "cancel"
+                      ? "clear the current filter without leaving this level"
+                      : action.id === "back"
+                        ? getBackHelpText(controller.mode, controller.browser)
+                        : action.id === "search"
+                          ? "start live filtering"
+                          : action.id === "actions"
+                            ? "focus the explorer action rail"
+                            : action.id === "help"
+                              ? "show this help"
+                              : "leave the explorer",
       label: action.id === "focus" ? "toggle pane" : action.label,
     }));
 
@@ -558,33 +610,49 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
       actions: [
         {
           id:
-            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+            controller.browser.detailInteractionState.kind === "section" ||
+            controller.browser.detailInteractionState.kind === "target"
               ? "move"
-              : "viewportScrollSmall",
+              : controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+                ? "move"
+                : "viewportScrollSmall",
           helpText:
-            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
-              ? "move through the active pane"
-              : "scroll the active pane",
+            controller.browser.detailInteractionState.kind === "target"
+              ? "move through targets in the active section"
+              : controller.browser.detailInteractionState.kind === "section"
+                ? "move through sections in the preview"
+                : controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+                  ? "move through the active pane"
+                  : "scroll the active pane",
         },
         {
           id:
-            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
-              ? "jump"
-              : "viewportScrollLarge",
+            controller.browser.detailInteractionState.kind === "section" ||
+            controller.browser.detailInteractionState.kind === "target"
+              ? "viewportScrollLarge"
+              : controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+                ? "jump"
+                : "viewportScrollLarge",
           helpText: "jump through the active pane",
         },
         {
           id:
-            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
-              ? "page"
-              : "viewportPage",
+            controller.browser.detailInteractionState.kind === "section" ||
+            controller.browser.detailInteractionState.kind === "target"
+              ? "viewportPage"
+              : controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+                ? "page"
+                : "viewportPage",
           helpText: "page through the active pane",
         },
         {
           id:
-            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
-              ? "edge"
-              : "viewportEdge",
+            controller.browser.detailInteractionState.kind === "section" ||
+            controller.browser.detailInteractionState.kind === "target"
+              ? "viewportEdge"
+              : controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+                ? "edge"
+                : "viewportEdge",
           helpText: "jump to the start or end of the active pane",
         },
       ],

@@ -143,6 +143,13 @@ export function Pf2eTerminalApp({
           loadModelForDiscoveryMode: route.loadModelForDiscoveryMode,
           snapshot: route.snapshot,
         }}
+        onActivatePageTarget={(target) => {
+          if (target.kind !== "searchPivot") {
+            return false;
+          }
+          navigation.openSearchResults(target.request);
+          return true;
+        }}
         onSelectTarget={(outcome, snapshot) => openOntologySearch(outcome, snapshot)}
         onExit={navigation.backOrExit}
         transitionStatus={transitionStatus}

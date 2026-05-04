@@ -53,6 +53,12 @@ function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> =
     detailPageSize: 10,
     selectionJumpSize: 5,
     searchIndicator: "",
+    pageDocument: null,
+    pageInteractionState: { mode: { kind: "section" } },
+    focusedPageSection: null,
+    selectedPageTarget: null,
+    detailInteractionState: { kind: "none" },
+    detailTargetActionId: null,
     ...overrides,
   };
 }
@@ -105,6 +111,54 @@ describe("filter explorer screen models", () => {
     expect(helpLines.some((line) => line.includes("Home / End"))).toBe(true);
   });
 
+  it("shows section-first page bindings in detail contexts with a page document", () => {
+    const controller = createControllerContext({
+      browser: {
+        state: {
+          activePane: "detail",
+          browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },
+          layoutMode: "split",
+          searchInput: "",
+          searchMode: false,
+        },
+        detailInteractionState: { kind: "section", canEnterTargets: true },
+      },
+    });
+
+    const footer = formatTerminalInteractionFooter(getFilterExplorerInteractionActions(controller));
+    const helpLines = buildFilterExplorerHelpLines(controller).map((line) => line.text);
+
+    expect(footer).toContain("↑/↓ section");
+    expect(footer).toContain("Enter/→ targets");
+    expect(footer).toContain("Ctrl-Y/E scroll");
+    expect(helpLines.some((line) => line.includes("move through sections in the preview"))).toBe(true);
+    expect(helpLines.some((line) => line.includes("enter link targets inside the active section"))).toBe(true);
+  });
+
+  it("shows target-mode bindings when a page target is focused", () => {
+    const controller = createControllerContext({
+      browser: {
+        state: {
+          activePane: "detail",
+          browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },
+          layoutMode: "split",
+          searchInput: "",
+          searchMode: false,
+        },
+        detailInteractionState: { kind: "target" },
+        detailTargetActionId: "open",
+      },
+    });
+
+    const footer = formatTerminalInteractionFooter(getFilterExplorerInteractionActions(controller));
+    const helpLines = buildFilterExplorerHelpLines(controller).map((line) => line.text);
+
+    expect(footer).toContain("↑/↓ target");
+    expect(footer).toContain("Enter/→ open");
+    expect(helpLines.some((line) => line.includes("move through targets in the active section"))).toBe(true);
+    expect(helpLines.some((line) => line.includes("open the focused page target"))).toBe(true);
+  });
+
   it("uses viewport navigation bindings in detail-only layouts", () => {
     const controller = createControllerContext({
       browser: {
@@ -136,5 +190,49 @@ describe("filter explorer screen models", () => {
     expect(footer).toContain("↑/↓ move");
     expect(footer).not.toContain("Ctrl-Y/E scroll");
     expect(helpLines.some((line) => line.includes("↑ / ↓ or j / k"))).toBe(true);
+  });
+
+  it("uses shared page-section bindings for record detail pages", () => {
+    const controller = createControllerContext({
+      browser: {
+        state: {
+          activePane: "detail",
+          browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },
+          layoutMode: "split",
+          searchInput: "",
+          searchMode: false,
+        },
+        detailInteractionState: { kind: "section", canEnterTargets: true },
+      },
+    });
+
+    const footer = formatTerminalInteractionFooter(getFilterExplorerInteractionActions(controller));
+    const helpLines = buildFilterExplorerHelpLines(controller).map((line) => line.text);
+
+    expect(footer).toContain("↑/↓ section");
+    expect(footer).toContain("Ctrl-Y/E scroll");
+    expect(helpLines.some((line) => line.includes("move through sections in the preview"))).toBe(true);
+    expect(helpLines.some((line) => line.includes("enter link targets inside the active section"))).toBe(true);
+  });
+
+  it("updates back help while record detail target mode is active", () => {
+    const controller = createControllerContext({
+      browser: {
+        state: {
+          activePane: "detail",
+          browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },
+          layoutMode: "split",
+          searchInput: "",
+          searchMode: false,
+        },
+        detailInteractionState: { kind: "target" },
+        detailTargetActionId: "open",
+      },
+    });
+
+    const helpLines = buildFilterExplorerHelpLines(controller).map((line) => line.text);
+
+    expect(helpLines.some((line) => line.includes("leave target mode and return to section navigation"))).toBe(true);
+    expect(helpLines.some((line) => line.includes("open the focused page target"))).toBe(true);
   });
 });

@@ -5,7 +5,9 @@ import { normalizeSearchCategory } from "../../domain/categories.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import type { OntologyDomainModel } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
+import type { EntityPageTarget } from "../../app/ontology/entity-page.js";
 import { findSearchScopeFilter } from "../../domain/search-request-types.js";
+import { usePf2eTerminalAppServices } from "../app-service-context.js";
 import {
   createInspectFilterExplorerHostAdapter,
 } from "../filter-explorer/host-adapter.js";
@@ -26,6 +28,7 @@ import type {
 } from "../filter-explorer/types.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
+import { buildPageDocumentModel } from "../page-document/model.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 
@@ -91,13 +94,16 @@ export function OntologyInspectScreen({
   routeData,
   onExit,
   onSelectTarget,
+  onActivatePageTarget,
   transitionStatus,
 }: {
   routeData: OntologyInspectRouteData;
   onExit: () => void;
   onSelectTarget?: (outcome: FilterExplorerSelectTargetOutcome, snapshot: OntologyInspectExplorerSnapshot) => void;
+  onActivatePageTarget?: (target: EntityPageTarget) => boolean | void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
+  const { user } = usePf2eTerminalAppServices();
   const { snapshot: initialSnapshot } = routeData;
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
@@ -117,14 +123,6 @@ export function OntologyInspectScreen({
   const onEditScalarTarget = React.useMemo(
     () => createFilterExplorerNumericScalarEditHandler(prompts, terminal),
     [prompts, terminal],
-  );
-  const host = React.useMemo(
-    () =>
-      createInspectFilterExplorerHostAdapter({
-        resolveTarget: resolveInspectTarget,
-        onEditScalarTarget,
-      }),
-    [onEditScalarTarget, resolveInspectTarget],
   );
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -177,6 +175,27 @@ export function OntologyInspectScreen({
         onSelectTarget,
       }),
     [onExit, onSelectTarget],
+  );
+  const resolvePageDocument = React.useCallback(
+    (node: OntologyDomainModel["rootNodes"][number] | undefined) => {
+      if (node?.kind !== "record" || !node.id) {
+        return null;
+      }
+
+      const document = user.entityPages.buildDocumentByRecordKey(node.id);
+      return document ? buildPageDocumentModel(document) : null;
+    },
+    [user.entityPages],
+  );
+  const host = React.useMemo(
+    () =>
+      createInspectFilterExplorerHostAdapter({
+        resolveTarget: resolveInspectTarget,
+        resolvePageDocument,
+        activatePageTarget: onActivatePageTarget ? ({ target }) => onActivatePageTarget(target) : undefined,
+        onEditScalarTarget,
+      }),
+    [onActivatePageTarget, onEditScalarTarget, resolveInspectTarget, resolvePageDocument],
   );
 
   return (

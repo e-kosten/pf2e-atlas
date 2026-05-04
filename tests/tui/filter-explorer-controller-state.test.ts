@@ -73,6 +73,12 @@ function createBrowserContext(
     detailPageSize: 10,
     selectionJumpSize: 5,
     searchIndicator: "",
+    pageDocument: null,
+    pageInteractionState: { mode: { kind: "section" } },
+    focusedPageSection: null,
+    selectedPageTarget: null,
+    detailInteractionState: { kind: "none" },
+    detailTargetActionId: null,
     ...overrides,
   };
 }
