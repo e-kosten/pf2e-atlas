@@ -3,13 +3,20 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EntityPageDocument } from "../../src/app/ontology/entity-page.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
+import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import { createPf2eApplicationEntityPageService } from "../../src/app/ontology/entity-page-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
-import { createPf2ePageRoute, createPf2eSearchResultsRoute, type Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
+import {
+  createPf2eOntologyRoute,
+  createPf2ePageRoute,
+  createPf2eSearchResultsRoute,
+  type Pf2eAppRoute,
+} from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -215,6 +222,29 @@ function createSearchSemanticsModel(): OntologyDomainModel {
   };
 }
 
+function createRecordOntologyModel(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Search Semantics",
+    description: "Search semantics ontology",
+    rootNodes: [
+      {
+        id: "spell:test-fireball",
+        kind: "record",
+        label: "Fireball",
+        filterText: "fireball",
+        listLabel: "Fireball",
+        detailTitle: "Record",
+        detailLines: [{ text: "Record detail fallback" }],
+        query: browseQuery("Browse fireball references", {
+          filter: scopeFilter("spell"),
+          limit: 20,
+        }),
+      },
+    ],
+  };
+}
+
 function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "catalog"): OntologyDomainModel {
   const createDerivedTagLeaf = (options: { id: string; label: string; count: number }): OntologyNode => ({
     id: `spell:derivedTag:${options.id}`,
@@ -317,6 +347,54 @@ function createScrollablePageDocument() {
         title: "References",
         blocks: [{ kind: "targetList" as const, targets: references }],
         targets: references,
+      },
+    ],
+  };
+}
+
+function createLinksToBrowseRequest(recordKey: string, category: "creature" | "feat"): SearchRequest {
+  return {
+    mode: "browse",
+    filter: {
+      kind: "allOf",
+      children: [
+        {
+          kind: "scope",
+          category,
+          subcategory: { kind: "any" },
+        },
+        {
+          kind: "linksTo",
+          target: recordKey,
+        },
+      ],
+    },
+    sort: { kind: "alphabetical" },
+    limit: 50,
+  };
+}
+
+function createReferencedByPageDocument(
+  backlinkTargets: readonly { label: string; request: SearchRequest }[],
+): EntityPageDocument {
+  const targets = backlinkTargets.map(({ label, request }) => ({
+    kind: "searchPivot" as const,
+    label,
+    request,
+  }));
+
+  return {
+    recordKey: "spell:test-alarm",
+    title: "Alarm Ward",
+    identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+    traits: ["Arcane", "Alarm"],
+    sections: [
+      {
+        id: "backlinks",
+        kind: "backlinks",
+        title: "Referenced By",
+        blocks: [{ kind: "targetList", targets }],
+        targets,
       },
     ],
   };
@@ -1197,7 +1275,26 @@ describe("pf2e terminal app", () => {
   it("opens grouped backlink page targets through the shared app search-navigation seam", async () => {
     const services = createFakeServices();
     const sourceRecord = createRecord();
-    const backlinkRequest = {
+    const creatureBacklinkRequest = {
+      mode: "browse" as const,
+      filter: {
+        kind: "allOf" as const,
+        children: [
+          {
+            kind: "scope" as const,
+            category: "creature" as const,
+            subcategory: { kind: "any" as const },
+          },
+          {
+            kind: "linksTo" as const,
+            target: sourceRecord.recordKey,
+          },
+        ],
+      },
+      sort: { kind: "alphabetical" as const },
+      limit: 50,
+    };
+    const featBacklinkRequest = {
       mode: "browse" as const,
       filter: {
         kind: "allOf" as const,
@@ -1216,6 +1313,19 @@ describe("pf2e terminal app", () => {
       sort: { kind: "alphabetical" as const },
       limit: 50,
     };
+    const backlinkResult = createRecord({
+      recordKey: "feat:backlink-feat",
+      id: "backlink-feat",
+      name: "Backlink Feat",
+      normalizedName: "backlink feat",
+      type: "feat",
+      category: "feat",
+      subcategory: null,
+      packName: "feat",
+      packLabel: "Feats",
+      descriptionText: "A feat that references Alarm Ward.",
+      descriptionSnippet: "A feat that references Alarm Ward.",
+    });
     services.user.entityPages = createPf2eApplicationEntityPageService({
       loadPageRelations: vi.fn(() => ({
         recordKey: sourceRecord.recordKey,
@@ -1224,18 +1334,24 @@ describe("pf2e terminal app", () => {
         edges: [],
         incomingGroups: [
           {
+            category: "creature",
+            subcategory: null,
+            count: 1,
+            request: creatureBacklinkRequest,
+          },
+          {
             category: "feat",
             subcategory: null,
             count: 2,
-            request: backlinkRequest,
+            request: featBacklinkRequest,
           },
         ],
       })),
     });
     services.user.search.executeQuery = vi.fn(async () => ({
       windowId: "window-2",
-      query: services.user.search.createDefaultQuery("browse"),
-      results: [sourceRecord],
+      query: featBacklinkRequest,
+      results: [backlinkResult],
       windowOffset: 0,
       resultMode: "browse",
       total: 1,
@@ -1288,10 +1404,151 @@ describe("pf2e terminal app", () => {
 
     app.stdin.write("\r");
     await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushFrames(10);
+
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(featBacklinkRequest);
+    expect(app.lastFrame()).toContain("Browse | Feat |");
+    expect(app.lastFrame()).toContain("Backlink Feat");
+  });
+
+  it("opens referenced-by page targets from dedicated entity-page routes", async () => {
+    const services = createFakeServices();
+    const sourceRecord = createRecord();
+    const request = createLinksToBrowseRequest(sourceRecord.recordKey, "feat");
+    const result = createRecord({
+      recordKey: "feat:dedicated-page-backlink",
+      id: "dedicated-page-backlink",
+      name: "Dedicated Page Backlink",
+      normalizedName: "dedicated page backlink",
+      type: "feat",
+      category: "feat",
+      subcategory: null,
+      packName: "feat",
+      packLabel: "Feats",
+      descriptionText: "A dedicated page backlink result.",
+      descriptionSnippet: "A dedicated page backlink result.",
+    });
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-entity-page-backlink",
+      query: request,
+      results: [result],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(
+            createReferencedByPageDocument([
+              {
+                label: "Feats (2)",
+                request,
+              },
+            ]),
+          )}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Referenced By");
+    expect(app.lastFrame()).toContain("Feats (2)");
+
     app.stdin.write("\r");
     await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(10);
 
-    expect(services.user.search.executeQuery).toHaveBeenCalledWith(backlinkRequest);
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(request);
+    expect(app.lastFrame()).toContain("Browse | Feat |");
+    expect(app.lastFrame()).toContain("Dedicated Page Backlink");
+  });
+
+  it("opens referenced-by page targets from ontology inspect routes", async () => {
+    const services = createFakeServices();
+    const sourceRecord = createRecord({ recordKey: "spell:test-fireball", name: "Fireball", normalizedName: "fireball" });
+    const request = createLinksToBrowseRequest(sourceRecord.recordKey, "feat");
+    const result = createRecord({
+      recordKey: "feat:ontology-backlink",
+      id: "ontology-backlink",
+      name: "Ontology Backlink",
+      normalizedName: "ontology backlink",
+      type: "feat",
+      category: "feat",
+      subcategory: null,
+      packName: "feat",
+      packLabel: "Feats",
+      descriptionText: "An ontology backlink result.",
+      descriptionSnippet: "An ontology backlink result.",
+    });
+    services.user.entityPages = {
+      ...services.user.entityPages,
+      buildDocumentByRecordKey: vi.fn(() =>
+        createReferencedByPageDocument([
+          {
+            label: "Feats (2)",
+            request,
+          },
+        ]),
+      ),
+    };
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-ontology-backlink",
+      query: request,
+      results: [result],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2eOntologyRoute({ model: createRecordOntologyModel() })}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Referenced By");
+    expect(app.lastFrame()).toContain("Feats (2)");
+
+    app.stdin.write("\t");
+    await flushFrames();
+    app.stdin.write("\r");
+    await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(10);
+
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-fireball", {
+      recordTargetAction: "preview",
+    });
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(request);
+    expect(app.lastFrame()).toContain("Browse | Feat |");
+    expect(app.lastFrame()).toContain("Ontology Backlink");
   });
 
   it("previews record page targets in place from the shared search preview host", async () => {

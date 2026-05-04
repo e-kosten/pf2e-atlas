@@ -187,6 +187,7 @@ export function Pf2eTerminalApp({
     screen =
       route.entry === PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS ? (
         <SearchScreen
+          key={`results:${route.initialSession.windowId}`}
           entry="results"
           initialSession={route.initialSession}
           transitionStatus={transitionStatus}

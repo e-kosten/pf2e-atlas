@@ -138,6 +138,8 @@ The current prepared-route set includes:
 - prepared search result routes
 - prepared entity-page routes, which now carry a ready `EntityPageDocument` payload instead of reopening page composition on mount
 
+Prepared search result routes are keyed by their prepared search window so pushing a new result route from an existing result-reader host mounts the new reader state instead of reusing the previous route's internal session.
+
 ### Shared List/Detail Presentation And Behavior Layer
 
 `src/tui/list-detail-presentation.ts`, `src/tui/list-detail-behavior.ts`, and `src/tui/list-detail-formatting.ts` sit above the lower-level interaction/router primitives and below feature controllers.
@@ -163,6 +165,8 @@ It does not own feature-domain workflows. Search, filter explorer, and review st
 Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition. The current qualifying consumers are the search result-reader preview, ontology record detail inside the shared filter explorer host, and the dedicated entity-page route screen.
 
 Page/document navigation must operate against rendered terminal rows when a host adds surrounding chrome or when content wraps. Hosts that prepend metadata, such as search result previews, provide rendered row offsets back to the page-document interaction owner so section focus and target focus stay visible in the actual pane rather than in raw document-node coordinates.
+
+`Referenced By` page sections render grouped backlink rows as section-local search-pivot targets. Activating one of those targets opens a prepared search-results route through the shared app navigation seam using the target's canonical `SearchRequest`, with the rendered result-reader surface as the user-visible outcome.
 
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 
