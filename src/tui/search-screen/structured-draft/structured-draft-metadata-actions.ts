@@ -1768,7 +1768,7 @@ export function useSearchStructuredDraftMetadataActions({
   const addQueryClauseAtPath = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not"): Promise<ClauseApplyResult> => {
       return terminal.runPromptSession(async (session) => {
-        let workingQuery = query;
+        const workingQuery = query;
         for (;;) {
           const clauseKind = await promptForClauseKind(session, workingQuery);
           if (clauseKind === CLAUSE_BACK) {
@@ -1831,13 +1831,7 @@ export function useSearchStructuredDraftMetadataActions({
           const nextFilter = Array.isArray(wrappedNode)
             ? appendSearchFilterNodesAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery))
             : appendSearchFilterNodeAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery));
-          workingQuery = {
-            ...workingQuery,
-            filter: nextFilter,
-          };
-          applyNextTree(
-            nextFilter,
-        );
+          applyNextTree(nextFilter);
           return "applied";
         }
       });
