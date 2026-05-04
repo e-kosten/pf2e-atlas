@@ -141,7 +141,8 @@ type SearchFilterNode =
   | { kind: "level" | "price"; match: SearchNumericMatch }
   | { kind: "rarity"; match: SearchNullableStringMatch }
   | { kind: "actionCost"; match: SearchNullableNumericMatch }
-  | { kind: "linksTo"; target: string }
+  | { kind: "linksTo"; target: RecordKey }
+  | { kind: "linkedFrom"; source: RecordKey }
   | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
   | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
   | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
@@ -162,7 +163,7 @@ interface SearchExecutionFilters {
 }
 ```
 
-`SearchRequest` is the cross-surface contract carried by MCP, TUI, and ontology-origin flows. `SearchExecutionFilters` is the compiled search-owned runtime input after mode resolution, request lowering, and filter normalization.
+`SearchRequest` is the cross-surface contract carried by MCP, TUI, and ontology-origin flows. Exact relation leaves such as `linksTo` and `linkedFrom` carry canonical record keys at that boundary. `SearchExecutionFilters` is the compiled search-owned runtime input after mode resolution, request lowering, and filter normalization.
 
 ## Search Pipeline
 

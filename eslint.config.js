@@ -1128,6 +1128,13 @@ export default defineConfig(
               "Search screen controllers must use shared result-window/session workflow modules instead of orchestrating buffer windows or session reads directly.",
           },
         ],
+        patterns: [
+          {
+            group: ["**/app/ontology/presenter.js"],
+            message:
+              "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the legacy detail-line presenter directly.",
+          },
+        ],
       }),
     },
   },
@@ -1171,6 +1178,20 @@ export default defineConfig(
             group: ["**/filter-explorer/search-draft-query.js"],
             message:
               "Search-screen workflow code must use the canonical search service preparation seam instead of importing filter-explorer draft-query helpers directly.",
+          },
+        ],
+      }),
+    },
+  },
+  {
+    files: ["src/tui/ontology-explorer/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {
+        patterns: [
+          {
+            group: ["**/app/ontology/presenter.js"],
+            message:
+              "Search preview and ontology record-page hosts must consume shared entity-page composition through services.user.entityPages and src/tui/page-document/* instead of importing the legacy detail-line presenter directly.",
           },
         ],
       }),

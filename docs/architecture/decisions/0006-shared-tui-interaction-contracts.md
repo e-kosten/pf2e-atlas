@@ -23,12 +23,14 @@ In practice this means:
 - feature screens route input through shared interaction helpers such as `src/tui/interaction-context-router.ts`
 - menu-style and action-target surfaces derive footer/help output from the same interaction action tables they execute
 - action-target pages use the shared action-target model and focus semantics instead of bespoke direct-action handling
+- page-document detail surfaces use the shared cursor-vs-viewport navigation split plus shared `select` descent and `back` / `return` ascent semantics instead of page-local raw input handling
 - modal discovery flows should expose auxiliary actions such as discovery-mode switching through the same shared action-rail contracts instead of picker-local command branches
 - editorial and search surfaces should adopt the same shared interaction routing path once their workflows are migrated
 
 ## Consequences
 
 - Vim keys, arrow keys, action-target entry/exit, and common screen actions stay consistent across migrated surfaces.
+- Section-first page navigation, section-local target mode, and footer/help derivation stay aligned across search preview and ontology record detail once those surfaces adopt the shared page-document interaction seam.
 - Footer and help copy are less likely to drift because they are generated from the same binding model that routes input.
 - Discovery flows no longer need a separate picker-command result path, which keeps `:` semantics aligned across screens and explorer-backed editors.
 - New TUI flows should extend shared interaction helpers or screen primitives when they need a new common behavior, rather than branching on raw terminal events in feature code.

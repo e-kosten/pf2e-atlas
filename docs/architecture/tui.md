@@ -154,7 +154,7 @@ It does not own feature-domain workflows. Search, filter explorer, and review st
 - how successful rightward intents map to local reducer actions or async workflow steps
 - which non-contract workflow outcomes still warrant local notification or prompt handling
 
-Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition.
+Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition. The current qualifying consumers are the search result-reader preview and ontology record detail inside the shared filter explorer host.
 
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 
@@ -204,7 +204,7 @@ In the current split:
 
 - `src/tui/filter-explorer/` owns the shared list/detail browser, controller-state and inspect/open helpers, route-handling helpers, query/model draft translation, and shared scalar editing prompts
 - `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
-- ontology record mapping, detail presentation, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
+- ontology record mapping, relation-aware page composition, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
 
 The ontology host still adds:
@@ -212,6 +212,7 @@ The ontology host still adds:
 - direct entry from the ontology area into the shared search-semantics explorer
 - restoring ontology snapshots when the user returns from search
 - launching either a seeded search editor route or a prepared result-reader route from selected ontology nodes
+- resolving record nodes into shared entity pages through `services.user.entityPages`, while leaving non-record ontology nodes on the ordinary line-detail path
 
 The durable rule is that the ontology area does not load its first frame after mount. Navigation prepares the ontology model first, keeps the current screen mounted with the shared transition footer, and commits the ontology route only once the route payload is ready.
 

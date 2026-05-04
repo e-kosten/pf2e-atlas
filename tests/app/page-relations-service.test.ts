@@ -131,8 +131,8 @@ describe("page relations service", () => {
                 subcategory: { kind: "any" },
               },
               {
-                kind: "linksTo",
-                target: "actions:action-refocus-1",
+                kind: "linkedFrom",
+                source: "actions:action-refocus-1",
               },
             ],
           },
@@ -155,8 +155,8 @@ describe("page relations service", () => {
                 subcategory: { kind: "any" },
               },
               {
-                kind: "linksTo",
-                target: "actions:action-refocus-1",
+                kind: "linkedFrom",
+                source: "actions:action-refocus-1",
               },
             ],
           },

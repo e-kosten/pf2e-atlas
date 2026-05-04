@@ -175,4 +175,25 @@ describe("entity page service", () => {
     expect(document?.recordKey).toBe(record.recordKey);
     expect(document?.title).toBe("Fireball");
   });
+
+  it("builds a lookup request directly from a record key when a record lookup is available", () => {
+    const record = createRecord();
+    const service = createPf2eApplicationEntityPageService({
+      loadPageRelations: vi.fn(() => createRelations()),
+      getRecord: vi.fn((recordKey) => (recordKey === record.recordKey ? record : undefined)),
+    });
+
+    expect(service.buildLookupRequestByRecordKey(record.recordKey)).toEqual({
+      mode: "lookup",
+      search: {
+        query: "Fireball",
+      },
+      filter: {
+        kind: "scope",
+        category: "spell",
+        subcategory: { kind: "any" },
+      },
+      limit: 5,
+    });
+  });
 });

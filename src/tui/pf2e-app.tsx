@@ -133,6 +133,25 @@ export function Pf2eTerminalApp({
     [navigation],
   );
 
+  const activatePageTarget = React.useCallback(
+    (target: Parameters<NonNullable<React.ComponentProps<typeof SearchScreen>["onActivatePageTarget"]>>[0]) => {
+      if (target.kind === "searchPivot") {
+        navigation.openSearchResults(target.request);
+        return true;
+      }
+      if (target.kind === "record") {
+        const request = services.user.entityPages.buildLookupRequestByRecordKey(target.recordKey);
+        if (!request) {
+          return false;
+        }
+        navigation.openSearchResults(request);
+        return true;
+      }
+      return false;
+    },
+    [navigation, services.user.entityPages],
+  );
+
   let screen: React.JSX.Element;
   if (route.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY) {
     screen = (
@@ -143,13 +162,7 @@ export function Pf2eTerminalApp({
           loadModelForDiscoveryMode: route.loadModelForDiscoveryMode,
           snapshot: route.snapshot,
         }}
-        onActivatePageTarget={(target) => {
-          if (target.kind !== "searchPivot") {
-            return false;
-          }
-          navigation.openSearchResults(target.request);
-          return true;
-        }}
+        onActivatePageTarget={activatePageTarget}
         onSelectTarget={(outcome, snapshot) => openOntologySearch(outcome, snapshot)}
         onExit={navigation.backOrExit}
         transitionStatus={transitionStatus}
@@ -172,13 +185,7 @@ export function Pf2eTerminalApp({
           initialSession={route.initialSession}
           transitionStatus={transitionStatus}
           origin={origin}
-          onActivatePageTarget={(target) => {
-            if (target.kind !== "searchPivot") {
-              return false;
-            }
-            navigation.openSearchResults(target.request);
-            return true;
-          }}
+          onActivatePageTarget={activatePageTarget}
           onBack={() => navigation.returnFromSearch(route)}
         />
       ) : (
@@ -188,13 +195,7 @@ export function Pf2eTerminalApp({
           promptForInitialMode={!route.initialQuery && !route.origin}
           transitionStatus={transitionStatus}
           origin={origin}
-          onActivatePageTarget={(target) => {
-            if (target.kind !== "searchPivot") {
-              return false;
-            }
-            navigation.openSearchResults(target.request);
-            return true;
-          }}
+          onActivatePageTarget={activatePageTarget}
           onBack={() => navigation.returnFromSearch(route)}
         />
       );

@@ -9,7 +9,7 @@ import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import { createPf2eApplicationEntityPageService } from "../../src/app/ontology/entity-page-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
-import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
+import { createPf2eSearchResultsRoute, type Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -45,6 +45,10 @@ function createDeferred<T>(): {
 
 function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
+}
+
+function pressDown(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[B");
 }
 
 async function openOntologyBrowser(app: ReturnType<typeof render>): Promise<void> {
@@ -1031,6 +1035,235 @@ describe("pf2e terminal app", () => {
     expect(recoveredFrame).toContain("Search Semantics");
     expect(recoveredFrame).toContain("Pathfinder Monster Core | 320");
     expect(recoveredFrame).not.toContain("Loading next view |");
+  });
+
+  it("opens grouped backlink page targets through the shared app search-navigation seam", async () => {
+    const services = createFakeServices();
+    const sourceRecord = createRecord();
+    const backlinkRequest = {
+      mode: "browse" as const,
+      filter: {
+        kind: "allOf" as const,
+        children: [
+          {
+            kind: "scope" as const,
+            category: "feat" as const,
+            subcategory: { kind: "any" as const },
+          },
+          {
+            kind: "linkedFrom" as const,
+            source: sourceRecord.recordKey,
+          },
+        ],
+      },
+      sort: { kind: "alphabetical" as const },
+      limit: 50,
+    };
+    services.user.entityPages = createPf2eApplicationEntityPageService({
+      loadPageRelations: vi.fn(() => ({
+        recordKey: sourceRecord.recordKey,
+        outgoing: { records: [], edges: [] },
+        incoming: { records: [], edges: [] },
+        edges: [],
+        incomingGroups: [
+          {
+            category: "feat",
+            subcategory: null,
+            count: 2,
+            request: backlinkRequest,
+          },
+        ],
+      })),
+    });
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-2",
+      query: services.user.search.createDefaultQuery("browse"),
+      results: [sourceRecord],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2eSearchResultsRoute({
+            initialSession: {
+              windowId: "window-1",
+              query: services.user.search.createDefaultQuery("browse"),
+              results: [sourceRecord],
+              windowOffset: 0,
+              resultMode: "browse",
+              total: 1,
+              loadedCount: 1,
+              hasMore: false,
+              nextOffset: null,
+              searchProfile: null,
+              sort: "alphabetical",
+              sortSeed: null,
+            },
+          })}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Referenced By");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushFrames(2);
+
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(backlinkRequest);
+  });
+
+  it("opens record page targets through lookup requests on the shared app search-navigation seam", async () => {
+    const services = createFakeServices();
+    const sourceRecord = createRecord();
+    const targetRecord = createRecord({
+      recordKey: "spell:test-fireball",
+      id: "test-fireball",
+      name: "Fireball",
+      normalizedName: "fireball",
+      descriptionText: "A roaring blast of fire detonates at a spot you designate.",
+      descriptionSnippet: "A roaring blast of fire detonates at a spot you designate.",
+      rangeText: "500 feet",
+      targetText: null,
+    });
+    services.user.entityPages = createPf2eApplicationEntityPageService({
+      loadPageRelations: vi.fn(() => ({
+        recordKey: sourceRecord.recordKey,
+        outgoing: {
+          records: [targetRecord],
+          edges: [
+            {
+              fromRecordKey: sourceRecord.recordKey,
+              toRecordKey: targetRecord.recordKey,
+              displayText: "Fireball",
+              referenceText: "Fireball",
+              direction: "outgoing",
+              relationshipType: "references",
+              sourcePackName: sourceRecord.packName,
+              sourceRecordType: sourceRecord.type,
+              sourceDocumentType: sourceRecord.documentType,
+              sourceCategory: sourceRecord.sourceCategory,
+            },
+          ],
+        },
+        incoming: { records: [], edges: [] },
+        edges: [
+          {
+            fromRecordKey: sourceRecord.recordKey,
+            toRecordKey: targetRecord.recordKey,
+            displayText: "Fireball",
+            referenceText: "Fireball",
+            direction: "outgoing",
+            relationshipType: "references",
+            sourcePackName: sourceRecord.packName,
+            sourceRecordType: sourceRecord.type,
+            sourceDocumentType: sourceRecord.documentType,
+            sourceCategory: sourceRecord.sourceCategory,
+          },
+        ],
+        incomingGroups: [],
+      })),
+      getRecord: vi.fn((recordKey) => {
+        if (recordKey === sourceRecord.recordKey) {
+          return sourceRecord;
+        }
+        if (recordKey === targetRecord.recordKey) {
+          return targetRecord;
+        }
+        return undefined;
+      }),
+    });
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-3",
+      query: services.user.search.createDefaultQuery("lookup"),
+      results: [targetRecord],
+      windowOffset: 0,
+      resultMode: "lookup",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2eSearchResultsRoute({
+            initialSession: {
+              windowId: "window-1",
+              query: services.user.search.createDefaultQuery("browse"),
+              results: [sourceRecord],
+              windowOffset: 0,
+              resultMode: "browse",
+              total: 1,
+              loadedCount: 1,
+              hasMore: false,
+              nextOffset: null,
+              searchProfile: null,
+              sort: "alphabetical",
+              sortSeed: null,
+            },
+          })}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | References");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushFrames(2);
+
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith({
+      mode: "lookup",
+      search: {
+        query: "Fireball",
+      },
+      filter: {
+        kind: "scope",
+        category: "spell",
+        subcategory: { kind: "any" },
+      },
+      limit: 5,
+    });
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

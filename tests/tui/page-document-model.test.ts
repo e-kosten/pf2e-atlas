@@ -173,8 +173,8 @@ function createRelations(): PageRelationsResult {
                 subcategory: { kind: "any" },
               },
               {
-                kind: "linksTo",
-                target: "spell:test-fireball",
+                kind: "linkedFrom",
+                source: "spell:test-fireball",
               },
             ],
           },
