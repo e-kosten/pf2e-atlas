@@ -1256,6 +1256,227 @@ describe("createPf2eTerminalSearchService", () => {
     expect(zeroCountLeaf?.query?.label).toBe("Browse records with the Coastal Setting derived tag");
   });
 
+  it("aggregates unscoped rarity direct-value counts across search categories", () => {
+    const rarityFieldOption = {
+      value: "rarity",
+      label: "Rarity",
+      description: "Rarity query field",
+      fieldType: "enumString",
+      editor: "sharedExplorer",
+    } as const;
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailTitle: "Spell",
+          detailLines: [{ text: "Spell" }],
+          children: [
+            {
+              id: "spell:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "spell:field:rarity",
+                  kind: "field",
+                  label: "Rarity",
+                  filterText: "rarity",
+                  detailTitle: "Rarity",
+                  detailLines: [{ text: "Rarity" }],
+                  children: [
+                    {
+                      id: "spell:field:rarity:value:common",
+                      kind: "value",
+                      label: "common",
+                      filterText: "common",
+                      listLabel: "common | 598",
+                      detailTitle: "Rarity",
+                      detailLines: [{ text: "common" }],
+                    },
+                    {
+                      id: "spell:field:rarity:value:rare",
+                      kind: "value",
+                      label: "rare",
+                      filterText: "rare",
+                      listLabel: "rare | 10",
+                      detailTitle: "Rarity",
+                      detailLines: [{ text: "rare" }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "searchSemantics:creature",
+          kind: "category",
+          label: "Creature",
+          filterText: "creature",
+          detailTitle: "Creature",
+          detailLines: [{ text: "Creature" }],
+          children: [
+            {
+              id: "creature:metadataFields",
+              kind: "group",
+              label: "Metadata Fields",
+              filterText: "metadata fields",
+              detailTitle: "Metadata Fields",
+              detailLines: [{ text: "Metadata Fields" }],
+              children: [
+                {
+                  id: "creature:field:rarity",
+                  kind: "field",
+                  label: "Rarity",
+                  filterText: "rarity",
+                  detailTitle: "Rarity",
+                  detailLines: [{ text: "Rarity" }],
+                  children: [
+                    {
+                      id: "creature:field:rarity:value:common",
+                      kind: "value",
+                      label: "common",
+                      filterText: "common",
+                      listLabel: "common | 14,000",
+                      detailTitle: "Rarity",
+                      detailLines: [{ text: "common" }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: null,
+        subcategory: null,
+        fieldOptions: [rarityFieldOption],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes.map((node) => node.listLabel)).toEqual(["common | 14598", "rare | 10"]);
+
+    const resolver = buildSearchFilterExplorerTargetResolver([rarityFieldOption]);
+    expect(resolver(model.rootNodes[0])).toEqual({
+      kind: "discrete",
+      field: "rarity",
+      fieldLabel: "Rarity",
+      value: "common",
+      valueLabel: "common",
+      allowedOperators: ["include", "exclude"],
+    });
+  });
+
+  it("aggregates unscoped pack direct-value counts across search categories", () => {
+    const packFieldOption = {
+      value: "pack",
+      label: "Pack",
+      description: "Pack query field",
+      fieldType: "enumString",
+      editor: "sharedExplorer",
+    } as const;
+    const model = buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:spell",
+          kind: "category",
+          label: "Spell",
+          filterText: "spell",
+          detailTitle: "Spell",
+          detailLines: [{ text: "Spell" }],
+          children: [
+            {
+              id: "spell:pack",
+              kind: "field",
+              label: "Pack",
+              filterText: "pack",
+              detailTitle: "Pack",
+              detailLines: [{ text: "Pack" }],
+              children: [
+                {
+                  id: "spell:pack:pathfinder-npc-core",
+                  kind: "value",
+                  label: "Pathfinder NPC Core",
+                  filterText: "pathfinder npc core",
+                  listLabel: "Pathfinder NPC Core | 2",
+                  detailTitle: "Pack",
+                  detailLines: [{ text: "Pathfinder NPC Core" }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "searchSemantics:creature",
+          kind: "category",
+          label: "Creature",
+          filterText: "creature",
+          detailTitle: "Creature",
+          detailLines: [{ text: "Creature" }],
+          children: [
+            {
+              id: "creature:pack",
+              kind: "field",
+              label: "Pack",
+              filterText: "pack",
+              detailTitle: "Pack",
+              detailLines: [{ text: "Pack" }],
+              children: [
+                {
+                  id: "creature:pack:pathfinder-npc-core",
+                  kind: "value",
+                  label: "Pathfinder NPC Core",
+                  filterText: "pathfinder npc core",
+                  listLabel: "Pathfinder NPC Core | 4",
+                  detailTitle: "Pack",
+                  detailLines: [{ text: "Pathfinder NPC Core" }],
+                },
+                {
+                  id: "creature:pack:monster-core",
+                  kind: "value",
+                  label: "Monster Core",
+                  filterText: "monster core",
+                  listLabel: "Monster Core | 8",
+                  detailTitle: "Pack",
+                  detailLines: [{ text: "Monster Core" }],
+                },
+              ],
+            },
+          ],
+        },
+      ]),
+      {
+        category: null,
+        subcategory: null,
+        fieldOptions: [packFieldOption],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes.map((node) => node.listLabel)).toEqual([
+      "Pathfinder NPC Core | 6",
+      "Monster Core | 8",
+    ]);
+
+    const resolver = buildSearchFilterExplorerTargetResolver([packFieldOption]);
+    expect(resolver(model.rootNodes[0])).toEqual({
+      kind: "discrete",
+      field: "pack",
+      fieldLabel: "Pack",
+      value: "pathfinder-npc-core",
+      valueLabel: "Pathfinder NPC Core",
+      allowedOperators: ["include", "exclude"],
+    });
+  });
+
   it("locates metric explorer roots without traversing unrelated ontology branches", () => {
     const unrelatedRootLoadChildren = vi.fn(() => [
       {

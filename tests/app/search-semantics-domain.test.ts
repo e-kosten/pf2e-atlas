@@ -155,6 +155,8 @@ function createDataService(options: {
               { value: "trap", count: 2 },
               { value: "haunt", count: 1 },
             ]
+          : field === "packs" && category === "hazard"
+            ? [{ value: "hazard-pack", count: 3 }]
           : field === "derivedTags" && category === "hazard" && subcategory === "trap"
             ? [
                 { value: "fogbound", count: 2 },
@@ -223,6 +225,28 @@ describe("buildSearchSemanticsDomain", () => {
     expect(stillAirTag).toBeUndefined();
     expect(fogboundTag?.children).toBeUndefined();
     expect(fogboundTag?.loadChildren).toBeUndefined();
+  });
+
+  it("exposes category-level pack fields in the broad search semantics domain", () => {
+    const dataService = createDataService();
+    dataService.getPack.mockImplementation((packValue: string) =>
+      packValue === "hazard-pack" ? { name: "hazard-pack", label: "Hazard Pack" } : undefined,
+    );
+    const domain = buildSearchSemanticsDomain(
+      createTestConfig(),
+      dataService,
+      createPf2eApplicationSearchDiscoveryService(dataService),
+    );
+
+    const packField = findNodeById(domain.rootNodes, "hazard:pack");
+    const packValues = packField?.loadChildren?.() ?? packField?.children ?? [];
+
+    expect(packField?.kind).toBe("field");
+    expect(packValues.map((node) => node.listLabel)).toEqual(["Hazard Pack | 3"]);
+    expect(dataService.listFilterValues).toHaveBeenCalledWith({
+      category: "hazard",
+      field: "packs",
+    });
   });
 
   it("loads matching-mode derived-tag family children with scoped live counts", () => {

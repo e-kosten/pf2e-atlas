@@ -137,6 +137,52 @@ function getUnscopedDirectValueKey(fieldOption: Pf2eTerminalQueryFieldOption, no
   return (valueSegments[0] === "value" ? valueSegments.slice(1) : valueSegments).join(":") || node.id;
 }
 
+function getUnscopedDirectValueCount(node: OntologyNode): number {
+  const countText = node.listLabel?.match(/\|\s*([0-9,]+)\s*$/)?.[1];
+  if (!countText) {
+    return 0;
+  }
+  const count = Number.parseInt(countText.replaceAll(",", ""), 10);
+  return Number.isFinite(count) ? count : 0;
+}
+
+function aggregateUnscopedDirectValueNodes(
+  fieldOption: Pf2eTerminalQueryFieldOption,
+  nodes: readonly OntologyNode[],
+): OntologyNode[] {
+  const aggregate = new Map<string, { node: OntologyNode; count: number }>();
+
+  for (const node of nodes) {
+    const key = getUnscopedDirectValueKey(fieldOption, node);
+    const current = aggregate.get(key);
+    aggregate.set(key, {
+      node: current?.node ?? node,
+      count: (current?.count ?? 0) + getUnscopedDirectValueCount(node),
+    });
+  }
+
+  return [...aggregate.entries()].map(([value, entry]) => {
+    const label = entry.node.label;
+    const nodeId =
+      fieldOption.value === "pack"
+        ? `unscoped:${fieldOption.value}:${value}`
+        : `unscoped:${fieldOption.value}:value:${value}`;
+    return {
+      ...entry.node,
+      id: nodeId,
+      listLabel: `${label} | ${entry.count}`,
+      detailLines: [
+        { text: label, tone: "section" },
+        { text: `Field: ${fieldOption.label}` },
+        { text: `Value: ${value}` },
+        { text: `Live canonical records: ${entry.count}` },
+      ],
+      loadChildren: undefined,
+      query: undefined,
+    };
+  });
+}
+
 function buildUnscopedSearchFilterExplorerRootNodes(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
@@ -165,7 +211,7 @@ function buildUnscopedSearchFilterExplorerRootNodes(
   ) {
     const fieldOption = options.fieldOptions[0]!;
     const directValueNodes = uniqueScopedFieldNodes.flatMap((node) => getOntologyNodeChildren(node));
-    return [...new Map(directValueNodes.map((node) => [getUnscopedDirectValueKey(fieldOption, node), node])).values()];
+    return aggregateUnscopedDirectValueNodes(fieldOption, directValueNodes);
   }
 
   return uniqueScopedFieldNodes;

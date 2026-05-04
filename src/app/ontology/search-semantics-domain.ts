@@ -557,6 +557,36 @@ export function buildSearchSemanticsDomain(
     );
   }
 
+  function buildPackFieldNode(category: SearchCategory): OntologyNode {
+    return {
+      id: `${category}:pack`,
+      kind: "field",
+      label: "Pack",
+      filterText: buildFilterText(category, "pack", "source", "compendium"),
+      listLabel: "Pack",
+      detailTitle: "Pack Details",
+      detailLines: [
+        { text: "Pack", tone: "section" },
+        { text: `Category: ${formatOntologySearchVocabularyLabel(category)}` },
+        { text: "Drill in to browse packs from this category." },
+      ],
+      loadChildren: () =>
+        buildPackValueNodes(
+          dataService,
+          category,
+          null,
+          searchSemanticsReader.discoverFieldValues({
+            category,
+            subcategory: null,
+            field: "packs",
+          }).map((entry) => ({
+            value: String(entry.value),
+            count: entry.count,
+          })),
+        ),
+    };
+  }
+
   function buildSubcategoryNode(category: SearchCategory, subcategory: SearchSubcategory): OntologyNode {
     const subcategoryMetadataFieldNodes = buildMetadataFieldNodes(category, subcategory);
     const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, subcategory);
@@ -628,6 +658,7 @@ export function buildSearchSemanticsDomain(
     const categoryFields = getCategoryScopedFields(category, null);
     const metadataFieldNodes = buildMetadataFieldNodes(category, null);
     const metricDiscoveryGroups = buildMetricDiscoveryGroups(category, null);
+    const packFieldNode = buildPackFieldNode(category);
 
     const subcategoryNodes: OntologyNode[] = CATEGORY_SUBCATEGORY_MAP[category].map(
       (subcategory): OntologyNode => buildSubcategoryNode(category, subcategory),
@@ -681,6 +712,7 @@ export function buildSearchSemanticsDomain(
         },
       });
     }
+    children.push(packFieldNode);
     children.push(...metricDiscoveryGroups);
     return {
       id: `searchSemantics:${category}`,
