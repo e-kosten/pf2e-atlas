@@ -79,27 +79,96 @@ function formatMetricLabel(metric: string, fallbackLabel?: string): string {
 export function buildSearchFilterExplorerModel(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
-    category: string;
+    category: string | null;
     subcategory: string | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
 ): OntologyDomainModel {
-  const categoryNode = findDirectNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
-  const rootNodes = categoryNode
-    ? buildSearchFilterExplorerRootNodes(categoryNode, {
+  const rootNodes = options.category
+    ? buildScopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
         category: options.category,
         subcategory: options.subcategory,
         fieldOptions: options.fieldOptions,
         singleFieldBehavior: options.singleFieldBehavior,
       })
-    : [];
+    : buildUnscopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
+        fieldOptions: options.fieldOptions,
+        singleFieldBehavior: options.singleFieldBehavior,
+      });
   return {
     ...searchSemanticsDomain,
     label: options.fieldOptions.length === 1 ? `${options.fieldOptions[0]!.label} Explorer` : "Filter Explorer",
     description: searchSemanticsDomain.description,
     rootNodes,
   };
+}
+
+function buildScopedSearchFilterExplorerRootNodes(
+  searchSemanticsDomain: OntologyDomainModel,
+  options: {
+    category: string;
+    subcategory: string | null;
+    fieldOptions: Pf2eTerminalQueryFieldOption[];
+    singleFieldBehavior: "list" | "directValues";
+  },
+): OntologyNode[] {
+  const categoryNode = findDirectNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
+  return categoryNode ? buildSearchFilterExplorerRootNodes(categoryNode, options) : [];
+}
+
+function getCategoryFromSearchSemanticsNode(node: OntologyNode): string | null {
+  const match = node.id.match(/^searchSemantics:(.+)$/);
+  return match?.[1] ?? null;
+}
+
+function isUnscopedSearchFilterExplorerField(fieldOption: Pf2eTerminalQueryFieldOption): boolean {
+  return fieldOption.value === "rarity" || fieldOption.value === "pack";
+}
+
+function getUnscopedDirectValueKey(fieldOption: Pf2eTerminalQueryFieldOption, node: OntologyNode): string {
+  if (fieldOption.value === "pack") {
+    return node.id.match(/:pack[s]?:([^:]+)$/)?.[1] ?? node.id;
+  }
+
+  const idSegments = node.id.split(":");
+  const fieldIndex = idSegments.findIndex((segment) => segment === fieldOption.value);
+  const valueSegments = fieldIndex === -1 ? [] : idSegments.slice(fieldIndex + 1);
+  return (valueSegments[0] === "value" ? valueSegments.slice(1) : valueSegments).join(":") || node.id;
+}
+
+function buildUnscopedSearchFilterExplorerRootNodes(
+  searchSemanticsDomain: OntologyDomainModel,
+  options: {
+    fieldOptions: Pf2eTerminalQueryFieldOption[];
+    singleFieldBehavior: "list" | "directValues";
+  },
+): OntologyNode[] {
+  if (options.fieldOptions.some((fieldOption) => !isUnscopedSearchFilterExplorerField(fieldOption))) {
+    return [];
+  }
+
+  const scopedFieldNodes = searchSemanticsDomain.rootNodes.flatMap((categoryNode) => {
+    const category = getCategoryFromSearchSemanticsNode(categoryNode);
+    return category
+      ? options.fieldOptions
+          .map((fieldOption) => findSearchFilterExplorerFieldNode(categoryNode, category, null, fieldOption))
+          .filter((node): node is OntologyNode => Boolean(node))
+      : [];
+  });
+  const uniqueScopedFieldNodes = [...new Map(scopedFieldNodes.map((node) => [node.id, node])).values()];
+
+  if (
+    options.singleFieldBehavior === "directValues" &&
+    options.fieldOptions.length === 1 &&
+    options.fieldOptions[0]?.value !== "derivedTags"
+  ) {
+    const fieldOption = options.fieldOptions[0]!;
+    const directValueNodes = uniqueScopedFieldNodes.flatMap((node) => getOntologyNodeChildren(node));
+    return [...new Map(directValueNodes.map((node) => [getUnscopedDirectValueKey(fieldOption, node), node])).values()];
+  }
+
+  return uniqueScopedFieldNodes;
 }
 
 function buildSearchFilterExplorerRootNodes(

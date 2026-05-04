@@ -233,6 +233,8 @@ Structured-editor child flows should emit or be translated into bounded mutation
 
 Prompt-local builders may keep incomplete value-entry state while collecting valid scalar, metric, pack, scope, level, price, or action-cost input. Once a valid canonical node or node set exists, the host resumes through the same structured-editor state and focus rules used by explorer-backed flows.
 
+Pack and rarity are query-global filter fields. Their shared-explorer child flows may open before a category scope exists; the search-hosted explorer model presents unscoped pack or rarity value roots by aggregating the search-semantics domain instead of requiring a scoped category. Scope-dependent metadata and metric explorer flows still require a category before opening.
+
 This seam is enforced by named owner tests for the continuation coordinator, resume-target state, grouped-field helpers, and broad search-screen interaction flows. Lint is intentionally deferred for this seam because the risk is callback and workflow ownership rather than an import boundary that can be banned without false positives. Future work should add lint only if a stable syntactic bypass appears, such as direct structured-editor use of a generic whole-query draft writeback helper where a bounded host mutation is required.
 
 ### Ontology Explorer Layer

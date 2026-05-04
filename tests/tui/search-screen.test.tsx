@@ -1387,6 +1387,50 @@ async function openRarityExplorerFromAddHere(app: ReturnType<typeof render>): Pr
   await waitForFrameToContain(app, "Rarity Explorer", 60);
 }
 
+async function openRarityExplorerFromAddClause(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  for (let step = 0; step < 4; step += 1) {
+    pressDown(app);
+    await flushInk();
+  }
+  expect(app.lastFrame()).toContain("Rarity");
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Rarity Explorer", 60);
+}
+
+async function openUnscopedRarityExplorerFromAddClause(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  for (let step = 0; step < 3; step += 1) {
+    pressDown(app);
+    await flushInk();
+  }
+  expect(app.lastFrame()).toContain("Rarity");
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Rarity Explorer", 60);
+}
+
+async function openUnscopedPackExplorerFromAddClause(app: ReturnType<typeof render>): Promise<void> {
+  app.stdin.write("\r");
+  await waitForFrameToContain(app, "Add Clause");
+
+  pressDown(app);
+  await flushInk();
+  expect(app.lastFrame()).toContain("Pack");
+  app.stdin.write("\r");
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, "Pack", 60);
+  await waitForFrameToContain(app, "Pathfinder NPC Core", 120);
+}
+
 async function addCommonToCurrentRaritySelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
   await waitForFrameToContain(app, "Rarity Explorer", 60);
   await waitForFrameToContain(app, "common", 120);
@@ -1398,6 +1442,15 @@ async function addCommonToCurrentRaritySelectionFromExplorer(app: ReturnType<typ
   await flushInk();
   await returnFromExplorerToStructuredEditor(app);
   await waitForFrameToContain(app, "Rarity: Common", 120);
+}
+
+async function addPathfinderNpcCoreToCurrentPackSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
+  await waitForFrameToContain(app, "Pathfinder NPC Core", 120);
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
+  await returnFromExplorerToStructuredEditor(app);
+  await waitForFrameToContain(app, "Pack: Pathfinder NPC Core", 120);
 }
 
 async function addAcGte10FromCurrentMetricSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
@@ -4304,6 +4357,130 @@ describe("search screen", () => {
     expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
     expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
     expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil, !unholy");
+  });
+
+  it("adds rarity via direct add-clause option when trait fields are also available", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsRarityExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: allOfFilter([
+                  scopeFilter("creature"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" })),
+                ]),
+                limit: 20,
+              }).request
+            }
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("evil");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
+
+    await openRarityExplorerFromAddClause(app);
+    await addCommonToCurrentRaritySelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Traits: includes Humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("evil");
+    expect(app.lastFrame().toLowerCase()).toContain("unholy");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil, !unholy");
+  });
+
+  it("adds rarity before selecting a scope", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => []);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsRarityExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={
+              browseQuery("Browse all records", {
+                limit: 20,
+              }).request
+            }
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await openUnscopedRarityExplorerFromAddClause(app);
+    await addCommonToCurrentRaritySelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expect(app.lastFrame()).toContain("Top-level filters: 1");
+    expect(app.lastFrame()).not.toContain("Scope:");
+  });
+
+  it("adds pack before selecting a scope", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => []);
+    services.user.search.loadPackOptions = vi.fn(async () => []);
+    services.user.search.getPackLabel = vi.fn((packValue: string) =>
+      packValue === "pathfinder-npc-core" ? "Pathfinder NPC Core" : packValue,
+    );
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(),
+    );
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={
+              browseQuery("Browse all records", {
+                limit: 20,
+              }).request
+            }
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+    await openUnscopedPackExplorerFromAddClause(app);
+    await addPathfinderNpcCoreToCurrentPackSelectionFromExplorer(app);
+
+    expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
+    expect(app.lastFrame()).toContain("Top-level filters: 1");
+    expect(app.lastFrame()).not.toContain("Scope:");
   });
 
   it("keeps the tree flat after reopening a mixed trait and family query", async () => {

@@ -28,14 +28,17 @@ import {
 } from "../../search/query-core.js";
 import { metadataFilterNodeToCanonicalFilter, canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import {
+  buildSearchFilterValueSelectionNode,
   buildSearchFilterPackSelectionNode,
   getSearchQueryCategory,
   getSearchQueryMetadataTree,
   getSearchQueryPackSelection,
+  getSearchQueryRaritySelection,
   getSearchQueryRootOperator,
   getSearchQuerySubcategory,
   setSearchQueryPackSelection,
   setSearchQueryMetadataTree,
+  setSearchQueryRaritySelection,
 } from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
@@ -1335,14 +1338,17 @@ export function useSearchStructuredDraftMetadataActions({
         user,
       });
 
-      if (continuation.kind === "cancel" || continuation.kind === "notOpened") {
+      if (continuation.kind === "notOpened") {
         return undefined;
       }
-      if (continuation.kind !== "resumeHost") {
+      if (continuation.kind !== "resumeHost" && continuation.kind !== "cancel") {
         return undefined;
+      }
+      if (!continuation.change) {
+        return currentNode ? null : CLAUSE_BACK;
       }
 
-      const selection = continuation.change?.fieldState.discreteSelections.pack
+      const selection = continuation.change.fieldState.discreteSelections.pack
         ? {
             include: [...continuation.change.fieldState.discreteSelections.pack.include],
             exclude: [...continuation.change.fieldState.discreteSelections.pack.exclude],
@@ -1591,29 +1597,54 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       node?: Extract<SearchFilterNode, { kind: "rarity" }>,
     ): Promise<SearchFilterNodeEditorResult> => {
+      const baseQuery = setSearchQueryRaritySelection(query, { include: [], exclude: [] });
+      const currentValue = node?.match.kind === "eq" ? node.match.value : null;
+      const seededQuery = currentValue
+        ? setSearchQueryRaritySelection(baseQuery, { include: [currentValue], exclude: [] })
+        : baseQuery;
+      const initialFieldState = buildSearchFilterExplorerFieldState(
+        user.search.prepareFilterExplorerDraft(seededQuery, ["rarity"]).draft,
+      );
       const continuation = await openStructuredDraftExplorerContinuation({
-        query,
+        currentNode: null,
         fieldOption: buildExplorerOnlyFieldOption(
           "rarity",
           "Rarity",
           "Browse live rarities for the current scope and stage canonical rarity clauses.",
           "enumString",
         ),
-        currentNode: node ? canonicalFilterToMetadataNode(node) : null,
+        initialFieldState,
+        query: baseQuery,
       });
       if (continuation.kind === "notOpened") {
         return undefined;
       }
-      if (continuation.kind === "cancel") {
+      if (continuation.kind !== "resumeHost" && continuation.kind !== "cancel") {
         return undefined;
       }
       if (!continuation.change) {
-        return CLAUSE_BACK;
+        return node ? null : CLAUSE_BACK;
       }
 
-      return toSearchFilterNodeEditorResult(continuation.change.result);
+      const nextSelection = continuation.change.fieldState.discreteSelections.rarity
+        ? {
+            include: [...continuation.change.fieldState.discreteSelections.rarity.include],
+            exclude: [...continuation.change.fieldState.discreteSelections.rarity.exclude],
+          }
+        : getSearchQueryRaritySelection(baseQuery);
+      const hasSelection = nextSelection.include.length > 0 || nextSelection.exclude.length > 0;
+      if (!hasSelection) {
+        return node ? null : CLAUSE_BACK;
+      }
+
+      return (
+        buildSearchFilterValueSelectionNode(
+          "rarity",
+          nextSelection,
+        ) ?? (node ? null : CLAUSE_BACK)
+      );
     },
-    [openStructuredDraftExplorerContinuation],
+    [buildSearchFilterExplorerFieldState, openStructuredDraftExplorerContinuation, user.search],
   );
 
   const promptForClauseNode = React.useCallback(

@@ -17,6 +17,10 @@ import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-sta
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
 import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../filter-explorer/types.js";
 
+function isUnscopedFilterExplorerField(fieldOption: Pf2eTerminalQueryFieldOption): boolean {
+  return fieldOption.value === "rarity" || fieldOption.value === "pack";
+}
+
 export function useSearchFilterExplorerWorkflow({
   query,
   services,
@@ -93,7 +97,7 @@ export function useSearchFilterExplorerWorkflow({
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
       const sessionTitle = title ?? (fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer");
-      if (!scopeCategory) {
+      if (!scopeCategory && fieldOptions.some((fieldOption) => !isUnscopedFilterExplorerField(fieldOption))) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
       }
