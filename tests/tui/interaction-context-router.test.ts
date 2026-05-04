@@ -37,7 +37,7 @@ describe("interaction context router", () => {
       contexts,
       firstG.state,
     );
-    expect(secondG.routes.list.navigationAction).toEqual({ kind: "boundary", boundary: "start" });
+    expect(secondG.routes.list.navigationAction).toEqual({ kind: "cursorBoundary", boundary: "start" });
   });
 
   it("can route text-entry semantics from the same raw input as shared interaction actions", () => {
@@ -123,14 +123,14 @@ describe("interaction context router", () => {
       [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5 })],
       createTerminalInteractionContextRouterState(),
     );
-    expect(detailBackward.routes.detail.navigationAction).toEqual({ kind: "move", delta: -1 });
+    expect(detailBackward.routes.detail.navigationAction).toEqual({ kind: "viewportScrollSmall", delta: -1 });
 
     const detailForward = routeTerminalInteractionContexts(
       createDerivedTagTerminalInputEvent("\u0005", {} as never),
       [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5 })],
       createTerminalInteractionContextRouterState(),
     );
-    expect(detailForward.routes.detail.navigationAction).toEqual({ kind: "move", delta: 1 });
+    expect(detailForward.routes.detail.navigationAction).toEqual({ kind: "viewportScrollSmall", delta: 1 });
 
     const list = routeTerminalInteractionContexts(
       createDerivedTagTerminalInputEvent("\u0019", {} as never),
@@ -138,6 +138,22 @@ describe("interaction context router", () => {
       createTerminalInteractionContextRouterState(),
     );
     expect(list.routes.list.navigationAction).toBeUndefined();
+  });
+
+  it("keeps cursor and viewport navigation distinct in hybrid detail contexts", () => {
+    const detailMove = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u001b[A", { upArrow: true } as never),
+      [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5, mode: "hybrid" })],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(detailMove.routes.detail.navigationAction).toEqual({ kind: "cursorMove", delta: -1 });
+
+    const detailJump = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u0015", {} as never),
+      [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5, mode: "hybrid" })],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(detailJump.routes.detail.navigationAction).toEqual({ kind: "viewportScrollLarge", delta: -5 });
   });
 
   it("resolves action-target intents as part of the shared routing result", () => {

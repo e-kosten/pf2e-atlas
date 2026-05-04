@@ -306,4 +306,39 @@ describe("search result detail lines", () => {
     expect(helpLines.some((line) => line.includes("Ctrl-Y / Ctrl-E"))).toBe(true);
     expect(helpLines.some((line) => line.toLowerCase().includes("jump to result"))).toBe(true);
   });
+
+  it("derives hybrid page footer and help copy from shared section-target bindings", () => {
+    const session = createSession(createRecord(), {
+      query: { mode: "browse", limit: 20 },
+      resultMode: "browse",
+      searchProfile: null,
+      sort: "alphabetical",
+    });
+    const state = {
+      ...createResultState(session),
+      activePane: "detail" as const,
+    };
+
+    const sectionFooter = buildSearchFooterText(state, false, "app", {
+      detailInteractionState: { kind: "section", canEnterTargets: true },
+    });
+    const sectionHelpLines = buildSearchHelpLines(
+      state,
+      [],
+      "app",
+      buildResultActionEntries(state, "app"),
+      { kind: "section", canEnterTargets: true },
+    ).map((line) => line.text);
+    const targetFooter = buildSearchFooterText(state, false, "app", {
+      detailInteractionState: { kind: "target" },
+    });
+
+    expect(sectionFooter).toContain("↑/↓ section");
+    expect(sectionFooter).toContain("Enter/→ targets");
+    expect(
+      sectionHelpLines.some((line) => line.includes("Enter / → or l: enter link targets inside the active section")),
+    ).toBe(true);
+    expect(targetFooter).toContain("↑/↓ target");
+    expect(targetFooter).toContain("←/Esc section");
+  });
 });

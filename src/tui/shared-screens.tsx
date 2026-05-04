@@ -245,11 +245,11 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
         onBack();
         return;
       }
-      if (menu.navigationAction?.kind === "move") {
+      if (menu.navigationAction?.kind === "cursorMove") {
         onMove(menu.navigationAction.delta, items.length);
         return;
       }
-      if (menu.navigationAction?.kind === "boundary") {
+      if (menu.navigationAction?.kind === "cursorBoundary") {
         onMove(
           menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex,
           items.length,
@@ -399,11 +399,11 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
         onBack();
         return;
       }
-      if (menu.navigationAction?.kind === "move") {
+      if (menu.navigationAction?.kind === "cursorMove") {
         onMove(menu.navigationAction.delta, items.length);
         return;
       }
-      if (menu.navigationAction?.kind === "boundary") {
+      if (menu.navigationAction?.kind === "cursorBoundary") {
         onMove(
           menu.navigationAction.boundary === "start" ? -selectedIndex : items.length - 1 - selectedIndex,
           items.length,

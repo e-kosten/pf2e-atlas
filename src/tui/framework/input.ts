@@ -51,8 +51,12 @@ export function moveSelectionWrapped(currentIndex: number, delta: number, itemCo
 }
 
 export type DerivedTagTerminalListNavigationAction =
-  | { kind: "move"; delta: number }
-  | { kind: "boundary"; boundary: "start" | "end" }
+  | { kind: "cursorMove"; delta: number }
+  | { kind: "cursorBoundary"; boundary: "start" | "end" }
+  | { kind: "viewportScrollSmall"; delta: -1 | 1 }
+  | { kind: "viewportScrollLarge"; delta: number }
+  | { kind: "viewportPage"; delta: number }
+  | { kind: "viewportEdge"; boundary: "start" | "end" }
   | { kind: "confirm" }
   | { kind: "cancel" };
 
@@ -61,7 +65,7 @@ export type DerivedTagTerminalListNavigationState = {
 };
 
 export type DerivedTagTerminalListNavigationOptions = {
-  mode?: "cursor" | "viewport";
+  mode?: "cursor" | "viewport" | "hybrid";
   pageSize: number;
   jumpSize?: number;
   includeConfirmKeys?: boolean;
@@ -82,36 +86,50 @@ export function getDerivedTagTerminalListNavigationAction(
 ): DerivedTagTerminalListNavigationAction | undefined {
   const mode = options.mode ?? "cursor";
   const jumpSize = options.jumpSize ?? options.pageSize;
+  const supportsCursor = mode === "cursor" || mode === "hybrid";
+  const supportsViewport = mode === "viewport" || mode === "hybrid";
 
   if (event.isMoveUpKey()) {
-    return { kind: "move", delta: -1 };
+    return supportsCursor ? { kind: "cursorMove", delta: -1 } : { kind: "viewportScrollSmall", delta: -1 };
   }
   if (event.isMoveDownKey()) {
-    return { kind: "move", delta: 1 };
+    return supportsCursor ? { kind: "cursorMove", delta: 1 } : { kind: "viewportScrollSmall", delta: 1 };
   }
-  if (mode === "viewport" && event.isTerminalViewportScrollBackwardKey()) {
-    return { kind: "move", delta: -1 };
+  if (supportsViewport && event.isTerminalViewportScrollBackwardKey()) {
+    return { kind: "viewportScrollSmall", delta: -1 };
   }
-  if (mode === "viewport" && event.isTerminalViewportScrollForwardKey()) {
-    return { kind: "move", delta: 1 };
+  if (supportsViewport && event.isTerminalViewportScrollForwardKey()) {
+    return { kind: "viewportScrollSmall", delta: 1 };
   }
   if (event.isTerminalJumpBackwardKey()) {
-    return { kind: "move", delta: -jumpSize };
+    return supportsViewport
+      ? { kind: "viewportScrollLarge", delta: -jumpSize }
+      : { kind: "cursorMove", delta: -jumpSize };
   }
   if (event.isTerminalJumpForwardKey()) {
-    return { kind: "move", delta: jumpSize };
+    return supportsViewport
+      ? { kind: "viewportScrollLarge", delta: jumpSize }
+      : { kind: "cursorMove", delta: jumpSize };
   }
   if (event.isPageUpKey()) {
-    return { kind: "move", delta: -options.pageSize };
+    return supportsViewport
+      ? { kind: "viewportPage", delta: -options.pageSize }
+      : { kind: "cursorMove", delta: -options.pageSize };
   }
   if (event.isPageDownKey()) {
-    return { kind: "move", delta: options.pageSize };
+    return supportsViewport
+      ? { kind: "viewportPage", delta: options.pageSize }
+      : { kind: "cursorMove", delta: options.pageSize };
   }
   if (event.isTerminalBoundaryStartKey()) {
-    return { kind: "boundary", boundary: "start" };
+    return supportsViewport
+      ? { kind: "viewportEdge", boundary: "start" }
+      : { kind: "cursorBoundary", boundary: "start" };
   }
   if (event.isTerminalBoundaryEndKey()) {
-    return { kind: "boundary", boundary: "end" };
+    return supportsViewport
+      ? { kind: "viewportEdge", boundary: "end" }
+      : { kind: "cursorBoundary", boundary: "end" };
   }
   if (
     options.includeConfirmKeys &&
@@ -141,7 +159,10 @@ export function resolveDerivedTagTerminalListNavigationAction(
 
   if (event.isExactPrintableKey("G")) {
     return {
-      action: { kind: "boundary", boundary: "end" },
+      action:
+        options.mode === "viewport"
+          ? { kind: "viewportEdge", boundary: "end" }
+          : { kind: "cursorBoundary", boundary: "end" },
       state: clearedState,
     };
   }
@@ -149,7 +170,10 @@ export function resolveDerivedTagTerminalListNavigationAction(
   if (event.isExactPrintableKey("g")) {
     if (state.pendingBoundaryPrefix === "g") {
       return {
-        action: { kind: "boundary", boundary: "start" },
+        action:
+          options.mode === "viewport"
+            ? { kind: "viewportEdge", boundary: "start" }
+            : { kind: "cursorBoundary", boundary: "start" },
         state: clearedState,
       };
     }

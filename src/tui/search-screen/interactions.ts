@@ -41,7 +41,23 @@ export type SearchScreenIntent =
   | { type: "result_selection_boundary"; boundary: "start" | "end" }
   | { type: "return_to_result_list" }
   | { type: "move_detail"; delta: number }
-  | { type: "detail_boundary"; boundary: "start" | "end" };
+  | { type: "detail_boundary"; boundary: "start" | "end" }
+  | { type: "move_detail_section"; delta: number }
+  | { type: "detail_section_boundary"; boundary: "start" | "end" }
+  | { type: "enter_detail_targets" }
+  | { type: "leave_detail_targets" }
+  | { type: "move_detail_target"; delta: number }
+  | { type: "detail_target_boundary"; boundary: "start" | "end" };
+
+export type SearchDetailPageInteractionState =
+  | { kind: "none" }
+  | {
+      kind: "section";
+      canEnterTargets: boolean;
+    }
+  | {
+      kind: "target";
+    };
 
 export function getSearchInteractionContext(state: SearchScreenState): SearchInteractionContext {
   if (state.layout === "editor") {
@@ -54,6 +70,7 @@ export function getSearchInteractionContext(state: SearchScreenState): SearchInt
 export function getSearchInteractionActions(
   state: SearchScreenState,
   origin: SearchScreenOrigin = "app",
+  detailInteractionState: SearchDetailPageInteractionState = { kind: "none" },
 ): TerminalInteractionAction[] {
   switch (getSearchInteractionContext(state)) {
     case "editor":
@@ -61,7 +78,7 @@ export function getSearchInteractionActions(
     case "result-list":
       return getSearchResultListInteractionActions(origin);
     case "result-detail":
-      return getSearchResultDetailInteractionActions(origin);
+      return getSearchResultDetailInteractionActions(origin, detailInteractionState);
   }
 }
 
@@ -92,9 +109,10 @@ export function getSearchResultListInteractionActions(origin: SearchScreenOrigin
 
 export function getSearchResultDetailInteractionActions(
   origin: SearchScreenOrigin = "app",
+  detailInteractionState: SearchDetailPageInteractionState = { kind: "none" },
 ): TerminalInteractionAction[] {
   return [
-    { id: "back", label: "results" },
+    { id: "back", label: detailInteractionState.kind === "target" ? "section" : "results" },
     { id: "focus", label: "pane" },
     { id: "actions" },
     { id: "help" },
@@ -108,6 +126,7 @@ export function buildSearchFooterText(
   origin: SearchScreenOrigin = "app",
   options: {
     actionTargetState?: DerivedTagTerminalActionTargetState;
+    detailInteractionState?: SearchDetailPageInteractionState;
   } = {},
 ): string {
   const context = getSearchInteractionContext(state);
@@ -125,7 +144,7 @@ export function buildSearchFooterText(
       { id: "jump" },
       { id: "page" },
       { id: "edge" },
-      ...getSearchInteractionActions(state, origin),
+      ...getSearchInteractionActions(state, origin, options.detailInteractionState),
     ]);
   }
 
@@ -140,12 +159,29 @@ export function buildSearchFooterText(
     return loadingMore ? `${footer}  Loading more...` : footer;
   }
 
+  if (options.detailInteractionState?.kind === "section" || options.detailInteractionState?.kind === "target") {
+    return formatTerminalInteractionFooter([
+      {
+        id: "move",
+        label: options.detailInteractionState.kind === "target" ? "target" : "section",
+      },
+      { id: "viewportScrollSmall" },
+      { id: "viewportScrollLarge" },
+      { id: "viewportPage" },
+      { id: "viewportEdge" },
+      ...(options.detailInteractionState.kind === "section" && options.detailInteractionState.canEnterTargets
+        ? [{ id: "select", label: "targets" } as const]
+        : []),
+      ...getSearchInteractionActions(state, origin, options.detailInteractionState),
+    ]);
+  }
+
   return formatTerminalInteractionFooter([
     { id: "viewportScrollSmall" },
     { id: "viewportScrollLarge" },
     { id: "viewportPage" },
     { id: "viewportEdge" },
-    ...getSearchInteractionActions(state, origin),
+    ...getSearchInteractionActions(state, origin, options.detailInteractionState),
   ]);
 }
 
@@ -154,6 +190,7 @@ export function buildSearchHelpLines(
   workspaceEntries: SearchWorkspaceEntry[],
   origin: SearchScreenOrigin = "app",
   actionEntries: readonly DerivedTagTerminalActionTargetOption[] = [],
+  detailInteractionState: SearchDetailPageInteractionState = { kind: "none" },
 ): DerivedTagTerminalLine[] {
   const context = getSearchInteractionContext(state);
 
@@ -209,10 +246,19 @@ export function buildSearchHelpLines(
     ];
   }
 
+  const usesHybridPageNavigation =
+    detailInteractionState.kind === "section" || detailInteractionState.kind === "target";
   const navigationActions: TerminalInteractionAction[] = [
     {
-      id: context === "result-list" ? "move" : "viewportScrollSmall",
-      label: context === "result-list" ? "move through results" : "scroll the preview",
+      id: context === "result-list" ? "move" : usesHybridPageNavigation ? "move" : "viewportScrollSmall",
+      label:
+        context === "result-list"
+          ? "move through results"
+          : detailInteractionState.kind === "target"
+            ? "move through targets in the active section"
+            : detailInteractionState.kind === "section"
+              ? "move through sections in the preview"
+              : "scroll the preview",
     },
     {
       id: context === "result-list" ? "jump" : "viewportScrollLarge",
@@ -227,15 +273,21 @@ export function buildSearchHelpLines(
       helpText: "jump to the start or end of the active pane",
     },
   ];
-  const resultActions: TerminalInteractionAction[] = getSearchInteractionActions(state, origin).map((action) => ({
-    ...action,
-    helpText:
-      action.id === "back" && context === "result-list" && origin === "ontology"
+  const resultActions: TerminalInteractionAction[] = [
+    ...(detailInteractionState.kind === "section" && detailInteractionState.canEnterTargets
+      ? [{ id: "select", label: "targets", helpText: "enter link targets inside the active section" } as const]
+      : []),
+    ...getSearchInteractionActions(state, origin, detailInteractionState).map((action) => ({
+      ...action,
+      helpText:
+        action.id === "back" && context === "result-list" && origin === "ontology"
           ? "return to the exact ontology location that launched this result reader"
           : action.id === "back" && context === "result-list"
             ? "return to the query editor"
-            : action.id === "back"
-              ? "return to the result list"
+            : action.id === "back" && detailInteractionState.kind === "target"
+              ? "leave target mode and return to section navigation"
+              : action.id === "back"
+                ? "return to the result list"
                 : action.id === "focus"
                   ? "switch focus between results and preview"
                   : action.id === "actions"
@@ -243,10 +295,11 @@ export function buildSearchHelpLines(
                     : action.id === "help"
                       ? "show search results help"
                       : origin === "ontology"
-                      ? "return to the launching ontology view"
-                      : "leave browse/search",
-    label: action.id === "focus" ? "toggle pane" : action.label,
-  }));
+                        ? "return to the launching ontology view"
+                        : "leave browse/search",
+      label: action.id === "focus" ? "toggle pane" : action.label,
+    })),
+  ];
 
   return [
     ...buildTerminalInteractionHelpLines([
@@ -300,6 +353,7 @@ export function useSearchScreenInteractionRouter(options: {
   pageSize: number;
   maxDetailScroll: number;
   hasSelectedResult: boolean;
+  detailInteractionState?: SearchDetailPageInteractionState;
   showNotification: (options: {
     message: string;
     tone?: TerminalListDetailNotificationTone;
@@ -327,9 +381,13 @@ export function useSearchScreenInteractionRouter(options: {
       includeHorizontalConfirmKeys: true,
     },
     detail: {
-      interactionActions: getSearchResultDetailInteractionActions(options.origin),
+      interactionActions: getSearchResultDetailInteractionActions(options.origin, options.detailInteractionState),
       pageSize: options.pageSize,
       jumpSize: options.selectionJumpSize,
+      mode:
+        options.detailInteractionState && options.detailInteractionState.kind !== "none" ? "hybrid" : "viewport",
+      includeConfirmKeys: options.detailInteractionState?.kind === "section",
+      includeHorizontalConfirmKeys: options.detailInteractionState?.kind === "section",
     },
     actionTarget: options.actionTarget
       ? {
@@ -393,11 +451,11 @@ export function useSearchScreenInteractionRouter(options: {
           options.onIntent({ type: "back_to_app" });
           return;
         }
-        if (list.navigationAction?.kind === "move") {
+        if (list.navigationAction?.kind === "cursorMove") {
           options.onIntent({ type: "move_workspace_selection", delta: list.navigationAction.delta });
           return;
         }
-        if (list.navigationAction?.kind === "boundary") {
+        if (list.navigationAction?.kind === "cursorBoundary") {
           options.onIntent({ type: "workspace_selection_boundary", boundary: list.navigationAction.boundary });
           return;
         }
@@ -458,25 +516,54 @@ export function useSearchScreenInteractionRouter(options: {
           });
           return;
         }
-        if (list.navigationAction?.kind === "move") {
+        if (list.navigationAction?.kind === "cursorMove") {
           options.onIntent({ type: "move_result_selection", delta: list.navigationAction.delta });
           return;
         }
-        if (list.navigationAction?.kind === "boundary") {
+        if (list.navigationAction?.kind === "cursorBoundary") {
           options.onIntent({ type: "result_selection_boundary", boundary: list.navigationAction.boundary });
         }
         return;
       }
 
       if (detail.interactionAction?.id === "back") {
+        if (options.detailInteractionState?.kind === "target") {
+          options.onIntent({ type: "leave_detail_targets" });
+          return;
+        }
         options.onIntent({ type: "return_to_result_list" });
         return;
       }
-      if (detail.navigationAction?.kind === "move") {
+      if (detail.navigationAction?.kind === "confirm" && options.detailInteractionState?.kind === "section") {
+        options.onIntent({ type: "enter_detail_targets" });
+        return;
+      }
+      if (detail.navigationAction?.kind === "cursorMove") {
+        options.onIntent({
+          type: options.detailInteractionState?.kind === "target" ? "move_detail_target" : "move_detail_section",
+          delta: detail.navigationAction.delta,
+        });
+        return;
+      }
+      if (detail.navigationAction?.kind === "cursorBoundary") {
+        options.onIntent({
+          type:
+            options.detailInteractionState?.kind === "target"
+              ? "detail_target_boundary"
+              : "detail_section_boundary",
+          boundary: detail.navigationAction.boundary,
+        });
+        return;
+      }
+      if (
+        detail.navigationAction?.kind === "viewportScrollSmall" ||
+        detail.navigationAction?.kind === "viewportScrollLarge" ||
+        detail.navigationAction?.kind === "viewportPage"
+      ) {
         options.onIntent({ type: "move_detail", delta: detail.navigationAction.delta });
         return;
       }
-      if (detail.navigationAction?.kind === "boundary") {
+      if (detail.navigationAction?.kind === "viewportEdge") {
         options.onIntent({ type: "detail_boundary", boundary: detail.navigationAction.boundary });
       }
     },

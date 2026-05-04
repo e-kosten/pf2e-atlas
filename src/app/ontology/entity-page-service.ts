@@ -1,5 +1,5 @@
 import type { OntologyTextLine } from "../../domain/ontology-types.js";
-import type { NormalizedRecord } from "../../domain/record-types.js";
+import type { NormalizedRecord, RecordKey } from "../../domain/record-types.js";
 import type { PageRelationsResult } from "../../domain/page-relations-types.js";
 import {
   buildEntityPageDocument,
@@ -14,7 +14,7 @@ import {
 type EntityPageSourceRecord = NormalizedRecord | OntologyExplorerEntityRecord;
 
 type EntityPageRelationsService = {
-  loadPageRelations: (recordKey: string) => PageRelationsResult;
+  loadPageRelations: (recordKey: RecordKey) => PageRelationsResult;
 };
 
 export type Pf2eApplicationEntityPageService = {

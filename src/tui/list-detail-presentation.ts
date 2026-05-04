@@ -338,6 +338,9 @@ export function useTerminalListDetailInteractionRouter(options: {
     includeHorizontalConfirmKeys?: boolean;
   };
   detail: TerminalListDetailInteractionConfig & {
+    mode?: "viewport" | "hybrid";
+    includeConfirmKeys?: boolean;
+    includeHorizontalConfirmKeys?: boolean;
     includeCancelKeys?: boolean;
     includeHorizontalCancelKeys?: boolean;
   };
@@ -365,6 +368,9 @@ export function useTerminalListDetailInteractionRouter(options: {
         interactionActions: options.detail.interactionActions,
         pageSize: options.detail.pageSize,
         jumpSize: options.detail.jumpSize,
+        mode: options.detail.mode,
+        includeConfirmKeys: options.detail.includeConfirmKeys,
+        includeHorizontalConfirmKeys: options.detail.includeHorizontalConfirmKeys,
         includeCancelKeys: options.detail.includeCancelKeys,
         includeHorizontalCancelKeys: options.detail.includeHorizontalCancelKeys,
       }),

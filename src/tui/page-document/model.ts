@@ -3,6 +3,7 @@ import type {
   EntityPageSection,
   EntityPageTarget,
 } from "../../app/ontology/entity-page.js";
+import type { RecordKey } from "../../domain/record-types.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 
 export type PageDocumentNodeKind =
@@ -45,7 +46,7 @@ export type PageDocumentTargetNode = {
 };
 
 export type PageDocumentModel = {
-  recordKey: string;
+  recordKey: RecordKey;
   title: string;
   nodes: PageDocumentNode[];
   sections: PageDocumentSectionModel[];
@@ -209,6 +210,28 @@ export function buildPageDocumentModel(
   };
 }
 
-export function renderPageDocumentModel(model: PageDocumentModel): DerivedTagTerminalLine[] {
-  return model.nodes.map((node) => node.line);
+export function renderPageDocumentModel(
+  model: PageDocumentModel,
+  options: {
+    activeSectionId?: string | null;
+    selectedTargetNodeId?: string | null;
+  } = {},
+): DerivedTagTerminalLine[] {
+  return model.nodes.map((node) => {
+    if (options.selectedTargetNodeId && node.id === options.selectedTargetNodeId) {
+      return {
+        ...node.line,
+        tone: "selected",
+      };
+    }
+
+    if (options.activeSectionId && node.kind === "sectionHeading" && node.sectionId === options.activeSectionId) {
+      return {
+        ...node.line,
+        tone: "selected",
+      };
+    }
+
+    return node.line;
+  });
 }

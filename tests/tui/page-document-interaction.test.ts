@@ -3,14 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   createPageDocumentInteractionState,
   enterPageDocumentTargetMode,
-  getSelectedPageDocumentTarget,
   getActivePageDocumentSection,
+  getFocusedPageDocumentSection,
   getPageDocumentReadingAnchorNodeIndex,
   getPageDocumentReadingAnchorOffset,
   getPageDocumentSectionScrollTarget,
+  getSelectedPageDocumentTarget,
   leavePageDocumentTargetMode,
   movePageDocumentSection,
+  movePageDocumentSectionBoundary,
   movePageDocumentTarget,
+  movePageDocumentTargetBoundary,
 } from "../../src/tui/page-document/interaction.js";
 import type { PageDocumentModel } from "../../src/tui/page-document/model.js";
 
@@ -129,6 +132,46 @@ describe("page document interaction", () => {
     ).toBe(1);
   });
 
+  it("keeps focused section ownership while target mode is active", () => {
+    const document = createDocument();
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 4,
+      bodyHeight: 6,
+      maxScroll: 6,
+    });
+
+    expect(
+      getFocusedPageDocumentSection({
+        document,
+        state: entered.state,
+        scroll: 0,
+        bodyHeight: 6,
+      })?.id,
+    ).toBe("references");
+  });
+
+  it("supports section boundary movement against the shared reading anchor", () => {
+    const document = createDocument();
+
+    expect(
+      movePageDocumentSectionBoundary({
+        document,
+        boundary: "start",
+        bodyHeight: 6,
+        maxScroll: 6,
+      }),
+    ).toBe(0);
+    expect(
+      movePageDocumentSectionBoundary({
+        document,
+        boundary: "end",
+        bodyHeight: 6,
+        maxScroll: 6,
+      }),
+    ).toBe(3);
+  });
+
   it("enters target mode from the active section and restores section mode on exit", () => {
     const document = createDocument();
 
@@ -170,6 +213,30 @@ describe("page document interaction", () => {
       targetIndex: 1,
     });
     expect(getSelectedPageDocumentTarget({ document, state: moved.state })?.target.label).toBe("Spell Effect: Delayed Blast");
+    expect(moved.scroll).toBe(5);
+  });
+
+  it("supports target boundary movement inside the active section", () => {
+    const document = createDocument();
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 4,
+      bodyHeight: 6,
+      maxScroll: 6,
+    });
+    const moved = movePageDocumentTargetBoundary({
+      document,
+      state: entered.state,
+      bodyHeight: 6,
+      maxScroll: 6,
+      boundary: "end",
+    });
+
+    expect(moved.state.mode).toEqual({
+      kind: "target",
+      sectionId: "references",
+      targetIndex: 1,
+    });
     expect(moved.scroll).toBe(5);
   });
 });

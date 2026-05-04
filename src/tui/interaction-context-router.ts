@@ -34,7 +34,7 @@ export type TerminalInteractionContextKind =
   | "dialog";
 
 export type TerminalInteractionContextNavigation = {
-  mode?: "cursor" | "viewport";
+  mode?: "cursor" | "viewport" | "hybrid";
   pageSize: number;
   jumpSize: number;
   includeConfirmKeys?: boolean;
@@ -252,6 +252,9 @@ export function createTerminalDetailInteractionContext<TContextId extends string
     interactionActions?: TerminalInteractionAction[];
     pageSize: number;
     jumpSize: number;
+    mode?: "viewport" | "hybrid";
+    includeConfirmKeys?: boolean;
+    includeHorizontalConfirmKeys?: boolean;
     includeCancelKeys?: boolean;
     includeHorizontalCancelKeys?: boolean;
   },
@@ -263,7 +266,9 @@ export function createTerminalDetailInteractionContext<TContextId extends string
     navigation: {
       pageSize: options.pageSize,
       jumpSize: options.jumpSize,
-      mode: "viewport",
+      mode: options.mode ?? "viewport",
+      includeConfirmKeys: options.includeConfirmKeys,
+      includeHorizontalConfirmKeys: options.includeHorizontalConfirmKeys,
       includeCancelKeys: options.includeCancelKeys,
       includeHorizontalCancelKeys: options.includeHorizontalCancelKeys,
     },

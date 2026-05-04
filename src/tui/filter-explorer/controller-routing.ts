@@ -421,7 +421,11 @@ export function handleFilterExplorerInteractionRoute(args: {
   }
 
   if (browserContext.state.activePane === "detail") {
-    if (detailNavigationAction?.kind === "move") {
+    if (
+      detailNavigationAction?.kind === "viewportScrollSmall" ||
+      detailNavigationAction?.kind === "viewportScrollLarge" ||
+      detailNavigationAction?.kind === "viewportPage"
+    ) {
       dispatch({
         type: "move_detail",
         delta: detailNavigationAction.delta,
@@ -429,7 +433,7 @@ export function handleFilterExplorerInteractionRoute(args: {
       });
       return;
     }
-    if (detailNavigationAction?.kind === "boundary") {
+    if (detailNavigationAction?.kind === "viewportEdge") {
       dispatch({
         type: "detail_boundary",
         boundary: detailNavigationAction.boundary,
@@ -457,7 +461,7 @@ export function handleFilterExplorerInteractionRoute(args: {
     return;
   }
 
-  if (listNavigationAction?.kind === "move") {
+  if (listNavigationAction?.kind === "cursorMove") {
     const isJump = Math.abs(listNavigationAction.delta) > 1;
     dispatch(
       isJump
@@ -466,7 +470,7 @@ export function handleFilterExplorerInteractionRoute(args: {
     );
     return;
   }
-  if (listNavigationAction?.kind === "boundary") {
+  if (listNavigationAction?.kind === "cursorBoundary") {
     dispatch({ type: "selection_boundary", boundary: listNavigationAction.boundary });
     return;
   }

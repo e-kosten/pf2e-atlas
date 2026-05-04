@@ -202,7 +202,7 @@ export function useDerivedTagReviewScreenController({
         dispatch({ type: "leave_detail" });
         return;
       }
-      if (activeContentRoute.navigationAction?.kind === "move") {
+      if (activeContentRoute.navigationAction?.kind === "cursorMove") {
         if (state.activePane === "list") {
           if (Math.abs(activeContentRoute.navigationAction.delta) === 1) {
             dispatch({
@@ -226,7 +226,19 @@ export function useDerivedTagReviewScreenController({
         });
         return;
       }
-      if (activeContentRoute.navigationAction?.kind === "boundary") {
+      if (
+        activeContentRoute.navigationAction?.kind === "viewportScrollSmall" ||
+        activeContentRoute.navigationAction?.kind === "viewportScrollLarge" ||
+        activeContentRoute.navigationAction?.kind === "viewportPage"
+      ) {
+        dispatch({
+          type: "move_detail",
+          delta: activeContentRoute.navigationAction.delta,
+          maxDetailScroll: screenModel.maxDetailScroll,
+        });
+        return;
+      }
+      if (activeContentRoute.navigationAction?.kind === "cursorBoundary") {
         if (state.activePane === "list") {
           dispatch({
             type: "list_boundary",
@@ -235,6 +247,15 @@ export function useDerivedTagReviewScreenController({
           });
           return;
         }
+      }
+      if (activeContentRoute.navigationAction?.kind === "viewportEdge") {
+        dispatch({
+          type: "detail_boundary",
+          boundary: activeContentRoute.navigationAction.boundary,
+          maxDetailScroll: screenModel.maxDetailScroll,
+        });
+      }
+      if (activeContentRoute.navigationAction?.kind === "cursorBoundary" && state.activePane === "detail") {
         dispatch({
           type: "detail_boundary",
           boundary: activeContentRoute.navigationAction.boundary,

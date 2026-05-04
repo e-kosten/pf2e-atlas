@@ -1413,6 +1413,46 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Preview | Alarm Ward | Summary");
   });
 
+  it("routes hybrid page-preview navigation through shared section and target interactions", async () => {
+    const services = createServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("↑/↓ section");
+
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Description");
+
+    app.stdin.write("G");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
+    expect(app.lastFrame()).toContain("Enter/→ targets");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("↑/↓ target");
+    expect(app.lastFrame()).toContain("←/Esc section");
+
+    pressLeft(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("↑/↓ section");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
+  });
+
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
     const search = vi.fn((request: SearchRequest) =>
       Promise.resolve({

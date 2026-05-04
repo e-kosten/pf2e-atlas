@@ -1804,7 +1804,7 @@ describe("derived tag terminal ink runtime", () => {
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("f", {} as never), {
         pageSize: 10,
       }),
-    ).toEqual({ kind: "move", delta: 10 });
+    ).toEqual({ kind: "cursorMove", delta: 10 });
   });
 
   it("keeps shared jump/page/edge behavior while adding viewport-only smooth scroll keys", () => {
@@ -1816,22 +1816,22 @@ describe("derived tag terminal ink runtime", () => {
 
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0019", {} as never), options),
-    ).toEqual({ kind: "move", delta: -1 });
+    ).toEqual({ kind: "viewportScrollSmall", delta: -1 });
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0005", {} as never), options),
-    ).toEqual({ kind: "move", delta: 1 });
+    ).toEqual({ kind: "viewportScrollSmall", delta: 1 });
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0015", {} as never), options),
-    ).toEqual({ kind: "move", delta: -5 });
+    ).toEqual({ kind: "viewportScrollLarge", delta: -5 });
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[6~", {} as never), options),
-    ).toEqual({ kind: "move", delta: 10 });
+    ).toEqual({ kind: "viewportPage", delta: 10 });
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[H", {} as never), options),
-    ).toEqual({ kind: "boundary", boundary: "start" });
+    ).toEqual({ kind: "viewportEdge", boundary: "start" });
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[F", {} as never), options),
-    ).toEqual({ kind: "boundary", boundary: "end" });
+    ).toEqual({ kind: "viewportEdge", boundary: "end" });
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {
@@ -1849,14 +1849,14 @@ describe("derived tag terminal ink runtime", () => {
       options,
       firstG.state,
     );
-    expect(secondG.action).toEqual({ kind: "boundary", boundary: "start" });
+    expect(secondG.action).toEqual({ kind: "cursorBoundary", boundary: "start" });
     expect(secondG.state).toEqual(createDerivedTagTerminalListNavigationState());
 
     const upperG = resolveDerivedTagTerminalListNavigationAction(
       createDerivedTagTerminalInputEvent("G", {} as never),
       options,
     );
-    expect(upperG.action).toEqual({ kind: "boundary", boundary: "end" });
+    expect(upperG.action).toEqual({ kind: "cursorBoundary", boundary: "end" });
     expect(upperG.state).toEqual(createDerivedTagTerminalListNavigationState());
   });
 });

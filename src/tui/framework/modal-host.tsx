@@ -322,7 +322,7 @@ export function DerivedTagTerminalModalHost({
       const routed = routeTerminalInteractionContext(event, choiceContext, routerStateRef.current);
       routerStateRef.current = routed.state;
 
-      if (routed.route.navigationAction?.kind === "move") {
+      if (routed.route.navigationAction?.kind === "cursorMove") {
         const delta = routed.route.navigationAction.delta;
         const selectedVisibleIndex = Math.max(
           0,
@@ -341,7 +341,7 @@ export function DerivedTagTerminalModalHost({
         );
         return;
       }
-      if (routed.route.navigationAction?.kind === "boundary") {
+      if (routed.route.navigationAction?.kind === "cursorBoundary") {
         const boundary = routed.route.navigationAction.boundary;
         updateModalForLease(modal.ownership.leaseId, (current) =>
           current && (current.kind === "select" || current.kind === "multiselect")
