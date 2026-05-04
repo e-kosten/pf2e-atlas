@@ -196,6 +196,21 @@ function getFirstGroupedFieldMemberPath(
   return null;
 }
 
+function getContainingBooleanGroupPath(
+  filter: SearchFilterNode | undefined,
+  path: number[],
+): number[] {
+  for (let depth = path.length - 1; depth >= 0; depth -= 1) {
+    const candidatePath = path.slice(0, depth);
+    const candidateNode = getSearchFilterNodeAtPath(filter, candidatePath);
+    if (candidateNode && isSearchFilterBooleanGroup(candidateNode)) {
+      return candidatePath;
+    }
+  }
+
+  return [];
+}
+
 function toSearchFilterNodeEditorResult(
   result: Pf2eTerminalFilterExplorerInsertionResult,
 ): SearchFilterNode | SearchFilterNode[] | null {
@@ -728,27 +743,6 @@ export function useSearchStructuredDraftMetadataActions({
   enterStructuredDraftMoveMode: (path: number[]) => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   openFilterExplorer: OpenSearchFilterExplorer;
-  openOntologyFieldEditor: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode: MetadataFilterNode | null,
-    onApply: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-      nextFieldState?: SearchFilterExplorerFieldState,
-    ) => void,
-    onReturn?: () => void,
-    onQueryChange?: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-      nextFieldState?: SearchFilterExplorerFieldState,
-    ) => void,
-    options?: {
-      onBack?: () => void;
-      onExitRoot?: () => void;
-      onCancel?: () => void;
-    },
-  ) => Promise<boolean>;
   moveSourcePath: number[] | null;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (
@@ -970,25 +964,76 @@ export function useSearchStructuredDraftMetadataActions({
     [getScopedFieldOptions, openLiveExplorerGroupedField],
   );
 
-  const openLiveExplorerQueryField = React.useCallback(
+  const openLiveExplorerCanonicalFieldMember = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
+      path: number[],
       fieldOption: Pf2eTerminalQueryFieldOption,
     ) => {
-      const applyChange = ({ query: nextQuery }: StructuredDraftExplorerContinuationChange) => {
-        replaceStructuredDraftProjection(() => nextQuery);
-      };
-      const continuation = await openStructuredDraftExplorerContinuation({
-        query,
-        fieldOption,
-        currentNode: null,
-        onHostChange: applyChange,
-      });
-      if (continuation.kind !== "notOpened" && continuation.change) {
-        applyChange(continuation.change);
+      if (path.length === 0) {
+        const initialFieldState = buildSearchFilterExplorerFieldState({
+          discreteClauses: buildGroupedFieldSeedDiscreteClauses(query.filter, fieldOption.value),
+          scalarClauses: {},
+        });
+        const seedQuery = { ...query, filter: undefined };
+        const liveChangeState = { saw: false };
+        const applyChange = ({ fieldState }: StructuredDraftExplorerContinuationChange) => {
+          liveChangeState.saw = true;
+          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, fieldState, fieldOption);
+          const nextFilter =
+            replacementNodes.length === 0
+              ? undefined
+              : replacementNodes.length === 1
+                ? replacementNodes[0]
+                : ({ kind: getSearchQueryRootOperator(query), children: replacementNodes } satisfies SearchFilterNode);
+          replaceStructuredDraftProjection(
+            () => ({
+              ...query,
+              filter: nextFilter,
+            }),
+            { resumeTarget: createStructuredDraftGroupResumeTarget([]) },
+          );
+        };
+        const continuation = await openStructuredDraftExplorerContinuation({
+          query: seedQuery,
+          fieldOption,
+          currentNode: null,
+          initialFieldState,
+          preservedMetadata: getSearchQueryMetadataTree(seedQuery),
+          onHostChange: applyChange,
+        });
+        if (
+          continuation.kind !== "notOpened" &&
+          continuation.change &&
+          !liveChangeState.saw &&
+          !searchFilterExplorerFieldStatesEqual(continuation.change.fieldState, initialFieldState)
+        ) {
+          applyChange(continuation.change);
+        }
+        return;
       }
+
+      const groupPath = getContainingBooleanGroupPath(query.filter, path);
+      await openLiveExplorerGroupedField(query, {
+        kind: "queryFieldBucket",
+        key: `synthetic:${groupPath.join(".")}:${fieldOption.value}:${path.join(".")}`,
+        label: fieldOption.label,
+        description: fieldOption.description,
+        groupPath,
+        field: fieldOption.value,
+        fieldOperator: "include",
+        memberPaths: [path],
+        fieldMemberPaths: [path],
+        indent: groupPath.length + 1,
+        menuLabel: fieldOption.label,
+      });
     },
-    [openStructuredDraftExplorerContinuation, replaceStructuredDraftProjection],
+    [
+      openLiveExplorerGroupedField,
+      openStructuredDraftExplorerContinuation,
+      replaceStructuredDraftProjection,
+      user.search,
+    ],
   );
 
   const promptForFieldClause = React.useCallback(
@@ -2012,8 +2057,9 @@ export function useSearchStructuredDraftMetadataActions({
           return;
         }
         if (editableClauseKind === "rarity") {
-          await openLiveExplorerQueryField(
+          await openLiveExplorerCanonicalFieldMember(
             query,
+            path,
             buildExplorerOnlyFieldOption(
               "rarity",
               "Rarity",
@@ -2024,8 +2070,9 @@ export function useSearchStructuredDraftMetadataActions({
           return;
         }
         if (editableClauseKind === "actionCost") {
-          await openLiveExplorerQueryField(
+          await openLiveExplorerCanonicalFieldMember(
             query,
+            path,
             buildExplorerOnlyFieldOption(
               "actionCost",
               "Action Cost",
@@ -2100,7 +2147,7 @@ export function useSearchStructuredDraftMetadataActions({
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
       openLiveExplorerGroupedField,
-      openLiveExplorerQueryField,
+      openLiveExplorerCanonicalFieldMember,
       openLiveExplorerFieldClause,
       promptForClauseNode,
       terminal,

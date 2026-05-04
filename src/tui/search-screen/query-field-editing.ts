@@ -4,7 +4,6 @@ import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { isMetadataPredicate } from "../search/query-core.js";
 import type {
   Pf2eTerminalFacetField,
-  Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../search/service.js";
@@ -40,30 +39,6 @@ export function useSearchQueryFieldEditing({
   ) => Promise<MetadataFilterNode | null | undefined>;
   getExplorerBackedFieldOptions: (fieldOptions: Pf2eTerminalQueryFieldOption[]) => Pf2eTerminalQueryFieldOption[];
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
-  openOntologyFieldEditor: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode: MetadataFilterNode | null,
-    onApply: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-      nextFieldState?: SearchFilterExplorerFieldState,
-    ) => void,
-    onReturn?: () => void,
-    onQueryChange?: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-      nextFieldState?: SearchFilterExplorerFieldState,
-    ) => void,
-    options?: {
-      onBack?: () => void;
-      onExitRoot?: () => void;
-      onCancel?: () => void;
-      applyLatestOnClose?: boolean;
-      initialFieldState?: SearchFilterExplorerFieldState;
-      preservedMetadata?: MetadataFilterNode | null;
-    },
-  ) => Promise<boolean>;
   openOntologyFieldExplorer: (
     query: Pf2eTerminalSearchQuery,
     fieldOptions: Pf2eTerminalQueryFieldOption[],
@@ -108,84 +83,6 @@ export function useSearchQueryFieldEditing({
     (fieldOptions: Pf2eTerminalQueryFieldOption[]) =>
       fieldOptions.filter((fieldOption) => fieldOption.editor === "sharedExplorer"),
     [],
-  );
-
-  const openOntologyFieldEditor = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      fieldOption: Pf2eTerminalQueryFieldOption,
-      currentNode: MetadataFilterNode | null,
-      onApply: (
-        result: Pf2eTerminalFilterExplorerInsertionResult,
-        nextQuery: Pf2eTerminalSearchQuery,
-        nextFieldState?: SearchFilterExplorerFieldState,
-      ) => void,
-      onReturn?: () => void,
-      onQueryChange?: (
-        result: Pf2eTerminalFilterExplorerInsertionResult,
-        nextQuery: Pf2eTerminalSearchQuery,
-        nextFieldState?: SearchFilterExplorerFieldState,
-      ) => void,
-      options?: {
-        onBack?: () => void;
-        onExitRoot?: () => void;
-        onCancel?: () => void;
-        applyLatestOnClose?: boolean;
-        initialFieldState?: SearchFilterExplorerFieldState;
-        preservedMetadata?: MetadataFilterNode | null;
-      },
-    ): Promise<boolean> => {
-      if (fieldOption.editor !== "sharedExplorer") {
-        return false;
-      }
-
-      const buildResultForFieldState = (
-        fieldState: SearchFilterExplorerFieldState,
-      ): Pf2eTerminalFilterExplorerInsertionResult => {
-        const preservedMetadata =
-          options?.preservedMetadata ??
-          user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata;
-        return user.search.buildFilterExplorerInsertionResult(buildSearchFilterExplorerComposeDraft(fieldState), {
-          preservedMetadata,
-          preferReplace: currentNode !== null,
-        });
-      };
-      const applyLatestFieldState = (
-        nextQuery: Pf2eTerminalSearchQuery,
-        nextFieldState: SearchFilterExplorerFieldState,
-      ): void => {
-        onApply(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
-      };
-      const shouldApplyOnClose = !onQueryChange || options?.applyLatestOnClose === true;
-
-      return openFilterExplorer({
-        queryOverride: query,
-        initialFieldState: options?.initialFieldState,
-        preservedMetadata: options?.preservedMetadata,
-        fieldOptions: [fieldOption],
-        onQueryChange: onQueryChange
-          ? (nextQuery, nextFieldState) => {
-              onQueryChange(buildResultForFieldState(nextFieldState), nextQuery, nextFieldState);
-            }
-          : undefined,
-        onBack: (nextQuery, nextFieldState) => {
-          if (shouldApplyOnClose) {
-            applyLatestFieldState(nextQuery, nextFieldState);
-          }
-          options?.onBack?.();
-          onReturn?.();
-        },
-        onExitRoot: (nextQuery, nextFieldState) => {
-          if (shouldApplyOnClose) {
-            applyLatestFieldState(nextQuery, nextFieldState);
-          }
-          options?.onExitRoot?.();
-        },
-        onCancel: options?.onCancel ? (_nextQuery, _nextFieldState) => options.onCancel?.() : undefined,
-        singleFieldBehavior: "directValues",
-      });
-    },
-    [openFilterExplorer, user.search],
   );
 
   const openOntologyFieldExplorer = React.useCallback(
@@ -350,7 +247,6 @@ export function useSearchQueryFieldEditing({
     editFieldClause,
     getExplorerBackedFieldOptions,
     getScopedFieldOptions,
-    openOntologyFieldEditor,
     openOntologyFieldExplorer,
   };
 }

@@ -4,7 +4,6 @@ import type { SearchStructuredDraftEntry } from "../../search/structured-draft-s
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type {
-  Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
@@ -33,7 +32,6 @@ export function useSearchStructuredDraftEditing({
   getScopedFieldOptions,
   moveStructuredDraftSelection,
   openFilterExplorer,
-  openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
   setStructuredDraftResumeTarget,
@@ -57,25 +55,6 @@ export function useSearchStructuredDraftEditing({
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   moveStructuredDraftSelection: (delta: number, itemCount: number) => void;
   openFilterExplorer: OpenSearchFilterExplorer;
-  openOntologyFieldEditor: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode: MetadataFilterNode | null,
-    onApply: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-    ) => void,
-    onReturn?: () => void,
-    onQueryChange?: (
-      result: Pf2eTerminalFilterExplorerInsertionResult,
-      nextQuery: Pf2eTerminalSearchQuery,
-    ) => void,
-    options?: {
-      onBack?: () => void;
-      onExitRoot?: () => void;
-      onCancel?: () => void;
-    },
-  ) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (
     update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
@@ -105,7 +84,6 @@ export function useSearchStructuredDraftEditing({
     getScopedFieldOptions,
     moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
     openFilterExplorer,
-    openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection,
     setStructuredDraftResumeTarget,

@@ -35,7 +35,6 @@ export function useSearchStructuredEditorActions({
   const {
     editFieldClause,
     getScopedFieldOptions,
-    openOntologyFieldEditor,
   } = useSearchQueryFieldEditing({
     openFilterExplorer,
     prompts,
@@ -59,7 +58,6 @@ export function useSearchStructuredEditorActions({
     getScopedFieldOptions,
     moveStructuredDraftSelection: structuredDraftActions.moveStructuredDraftSelection,
     openFilterExplorer,
-    openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection: structuredDraftActions.replaceStructuredDraftProjection,
     setStructuredDraftResumeTarget: structuredDraftActions.setStructuredDraftResumeTarget,
