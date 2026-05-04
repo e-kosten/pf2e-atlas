@@ -176,7 +176,7 @@ Inline record references in prose are compiled from existing outgoing page relat
 
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 
-The current qualifying callers are the search result reader and the filter explorer in both inspect and compose modes. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
+The current qualifying page-document callers are the search result-reader preview, ontology record detail inside the shared filter explorer inspect/open page contexts, and the dedicated entity-page route screen. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
 
 Shared pointer routing also lives at this layer boundary. Pane-level list/detail hosts should expose pointer regions for both panes so wheel or trackpad input follows the hovered pane, pane clicks can set focus explicitly, and overlays capture pointer input before background panes. Fine-grained in-pane target activation remains a separate concern from pane routing.
 

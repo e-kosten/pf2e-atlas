@@ -1510,6 +1510,30 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(searched.records.map((record) => record.name)).toEqual(expect.arrayContaining(["Track", "Cover Tracks"]));
   });
 
+  it("treats linksTo target and linkedFrom source as opposite endpoints of a reference edge", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const track = service.lookup("Track").match;
+    const trackersStew = service.lookup("Tracker's Stew").match;
+
+    expect(track).toBeTruthy();
+    expect(trackersStew).toBeTruthy();
+
+    const recordsLinkingToTrack = service
+      .listRecords(browseRequest({ filter: linksToFilter(track!.recordKey) }))
+      .records.map((record) => record.recordKey);
+    const recordsLinkedFromTrackersStew = service
+      .listRecords(browseRequest({ filter: linkedFromFilter(trackersStew!.recordKey) }))
+      .records.map((record) => record.recordKey);
+
+    expect(recordsLinkingToTrack).toContain(trackersStew!.recordKey);
+    expect(recordsLinkingToTrack).not.toContain(track!.recordKey);
+    expect(recordsLinkedFromTrackersStew).toContain(track!.recordKey);
+    expect(recordsLinkedFromTrackersStew).not.toContain(trackersStew!.recordKey);
+  });
+
   it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);
