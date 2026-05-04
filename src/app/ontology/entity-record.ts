@@ -113,6 +113,9 @@ export type OntologyExplorerEntityRecordRow = {
   disableText: string | null;
   disableSkillsJson: string | null;
   isComplex: number | null;
+  actorMetricsJson?: string | null;
+  itemMetricsJson?: string | null;
+  rawJson?: string | null;
 };
 
 function toNullableNumber(value: number | bigint | null, context: string): number | null {
@@ -189,7 +192,98 @@ export function buildOntologyExplorerEntityRecordSelectColumns(
     optionalColumn(includeSpell, `${spellAlias}.area_value`, "areaValue"),
     optionalColumn(includeSpell, `${spellAlias}.sustained`, "sustained"),
     optionalColumn(includeSpell, `${spellAlias}.basic_save`, "basicSave"),
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', am.metric_key,
+        'valueType', am.value_type,
+        'numberValue', am.number_value,
+        'textValue', am.text_value,
+        'boolValue', am.bool_value
+      ))
+      FROM actor_metrics am
+      WHERE am.record_key = ${recordAlias}.record_key
+    ), '[]') AS actorMetricsJson`,
+    `COALESCE((
+      SELECT json_group_array(json_object(
+        'metricKey', im.metric_key,
+        'valueType', im.value_type,
+        'numberValue', im.number_value,
+        'textValue', im.text_value,
+        'boolValue', im.bool_value
+      ))
+      FROM item_metrics im
+      WHERE im.record_key = ${recordAlias}.record_key
+    ), '[]') AS itemMetricsJson`,
+    `${recordAlias}.raw_json AS rawJson`,
   ];
+}
+
+type EntityMetricJsonRow = {
+  metricKey: string;
+  valueType: "number" | "text" | "boolean";
+  numberValue: number | null;
+  textValue: string | null;
+  boolValue: number | null;
+};
+
+function isEntityMetricJsonRow(value: unknown): value is EntityMetricJsonRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.metricKey === "string" &&
+    (row.valueType === "number" || row.valueType === "text" || row.valueType === "boolean") &&
+    (typeof row.numberValue === "number" || row.numberValue === null) &&
+    (typeof row.textValue === "string" || row.textValue === null) &&
+    (typeof row.boolValue === "number" || row.boolValue === null)
+  );
+}
+
+function parseEntityMetricsJson(
+  value: string | null | undefined,
+  fieldName: string,
+  recordKey: string,
+): ActorMetricMap | ItemMetricMap {
+  if (!value) {
+    return {};
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || !parsed.every(isEntityMetricJsonRow)) {
+    throw new Error(`Expected ${fieldName} for ontology explorer record "${recordKey}" to be a JSON metric row array.`);
+  }
+
+  const metrics: ActorMetricMap = {};
+  for (const row of parsed) {
+    if (row.valueType === "number" && row.numberValue !== null) {
+      metrics[row.metricKey] = row.numberValue;
+      continue;
+    }
+    if (row.valueType === "text" && row.textValue !== null) {
+      metrics[row.metricKey] = row.textValue;
+      continue;
+    }
+    if (row.valueType === "boolean") {
+      metrics[row.metricKey] = Boolean(row.boolValue);
+    }
+  }
+
+  return metrics;
+}
+
+function parseRawRecordJson(value: string | null | undefined, recordKey: string): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+
+  const parsed: unknown = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Expected rawJson for ontology explorer record "${recordKey}" to be a JSON object.`);
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRecordRow): OntologyExplorerEntityRecord {
@@ -283,9 +377,9 @@ export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRe
       `ontology explorer record "${row.recordKey}"`,
     ),
     isComplex: Boolean(row.isComplex),
-    actorMetrics: {},
-    itemMetrics: {},
-    raw: {},
+    actorMetrics: parseEntityMetricsJson(row.actorMetricsJson, "actorMetricsJson", row.recordKey) as ActorMetricMap,
+    itemMetrics: parseEntityMetricsJson(row.itemMetricsJson, "itemMetricsJson", row.recordKey) as ItemMetricMap,
+    raw: parseRawRecordJson(row.rawJson, row.recordKey),
   };
 }
 

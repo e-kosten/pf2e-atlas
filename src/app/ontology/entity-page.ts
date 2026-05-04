@@ -186,6 +186,10 @@ function getMetricNumber(metrics: Record<string, unknown>, key: string): number 
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function getRawObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
 function getRawPath(value: unknown, path: readonly string[]): unknown {
   let current = value;
   for (const segment of path) {
@@ -195,6 +199,11 @@ function getRawPath(value: unknown, path: readonly string[]): unknown {
     current = (current as Record<string, unknown>)[segment];
   }
   return current;
+}
+
+function getRawNumber(value: unknown, path: readonly string[]): number | null {
+  const rawValue = getRawPath(value, path);
+  return typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null;
 }
 
 function formatRawValue(value: unknown): string | null {
@@ -293,6 +302,100 @@ function formatSpeed(record: OntologyExplorerEntityRecord): string | null {
   return metricSpeeds.length > 0 ? metricSpeeds.join(", ") : formatSpeedTypes(record.speedTypes);
 }
 
+function formatHazardStealth(record: OntologyExplorerEntityRecord): string | null {
+  const stealthMod = formatModifier(getMetricNumber(record.actorMetrics ?? {}, "stealth.mod"));
+  const stealthDc = formatNumber(getMetricNumber(record.actorMetrics ?? {}, "stealth.dc"));
+  if (stealthMod && stealthDc) {
+    return `${stealthMod} (DC ${stealthDc})`;
+  }
+  if (stealthDc) {
+    return `DC ${stealthDc}`;
+  }
+  return stealthMod;
+}
+
+function formatWeaponDamageDice(record: OntologyExplorerEntityRecord): string | null {
+  const dice = getMetricNumber(record.itemMetrics ?? {}, "weapon.damage_dice");
+  const dieFaces = getMetricNumber(record.itemMetrics ?? {}, "weapon.damage_die_faces");
+  if (dice == null && dieFaces == null) {
+    return null;
+  }
+  if (dice != null && dieFaces != null) {
+    return `${dice}d${dieFaces}`;
+  }
+  if (dieFaces != null) {
+    return `d${dieFaces}`;
+  }
+  return String(dice);
+}
+
+function buildEquipmentItemMetricFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  const itemMetrics = record.itemMetrics ?? {};
+  return [
+    asFact("Range Increment", formatFeet(getMetricNumber(itemMetrics, "weapon.range_increment"))),
+    asFact("Reload", formatNumber(getMetricNumber(itemMetrics, "weapon.reload"))),
+    asFact("Weapon Damage Dice", formatWeaponDamageDice(record)),
+    asFact("Armor AC Bonus", formatModifier(getMetricNumber(itemMetrics, "armor.ac_bonus"))),
+    asFact("Dex Cap", formatModifier(getMetricNumber(itemMetrics, "armor.dex_cap"))),
+    asFact("Strength", formatNumber(getMetricNumber(itemMetrics, "armor.strength"))),
+    asFact("Check Penalty", formatModifier(getMetricNumber(itemMetrics, "armor.check_penalty"))),
+    asFact("Speed Penalty", formatFeet(getMetricNumber(itemMetrics, "armor.speed_penalty"))),
+    asFact("Shield AC Bonus", formatModifier(getMetricNumber(itemMetrics, "shield.ac_bonus"))),
+    asFact("Shield Hardness", formatNumber(getMetricNumber(itemMetrics, "shield.hardness"))),
+    asFact("Shield HP", formatNumber(getMetricNumber(itemMetrics, "shield.hp"))),
+    asFact("Shield BT", formatNumber(getMetricNumber(itemMetrics, "shield.bt"))),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function formatCreatureAttackDamage(attack: Record<string, unknown>): string | null {
+  const damageRolls = getRawPath(attack, ["system", "damageRolls"]);
+  const entries = Array.isArray(damageRolls) ? damageRolls : Object.values(getRawObject(damageRolls) ?? {});
+  const parts = entries
+    .map((entry) => {
+      const damage = getRawObject(entry);
+      if (!damage) {
+        return null;
+      }
+
+      const formula = formatRawValue(damage.damage ?? damage.formula);
+      const damageType = humanize(formatRawValue(damage.damageType) ?? "");
+      return [formula, damageType].filter(Boolean).join(" ");
+    })
+    .filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function formatCreatureAttackItem(attack: Record<string, unknown>): string | null {
+  const name = formatRawValue(attack.name);
+  if (!name) {
+    return null;
+  }
+
+  const bonus = formatModifier(
+    getRawNumber(attack, ["system", "bonus", "value"]) ?? getRawNumber(attack, ["system", "bonus"]),
+  );
+  const damage = formatCreatureAttackDamage(attack);
+  return [name, bonus, damage ? `(${damage})` : null].filter(Boolean).join(" ");
+}
+
+function formatCreatureAttacks(record: OntologyExplorerEntityRecord): string | null {
+  const items = getRawPath(record.raw ?? {}, ["items"]);
+  if (!Array.isArray(items)) {
+    return null;
+  }
+
+  const attacks = items
+    .map((item) => getRawObject(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .filter((item): item is Record<string, unknown> => {
+      const type = formatRawValue(item.type)?.toLowerCase();
+      return type === "melee" || type === "weapon";
+    })
+    .map(formatCreatureAttackItem)
+    .filter((attack): attack is string => Boolean(attack));
+  return attacks.length > 0 ? attacks.join(", ") : null;
+}
+
 function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
   const typeLabel =
     record.category === "spell"
@@ -347,6 +450,7 @@ function buildCreatureMovementFacts(record: OntologyExplorerEntityRecord): Entit
 
 function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
+    asFact("Attacks", formatCreatureAttacks(record)),
     asFact("Damage", formatList(record.damageTypes)),
     asFact("Spell Kinds", formatList(record.spellKinds)),
     asFact("Save", formatSave(record)),
@@ -364,6 +468,7 @@ function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): Entit
     asFact("Category", humanize(record.itemCategory)),
     asFact("Group", humanize(record.weaponGroup ?? record.armorGroup)),
     asFact("Damage", formatList(record.damageTypes)),
+    ...buildEquipmentItemMetricFacts(record),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
@@ -410,6 +515,7 @@ function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): Enti
 function buildHazardSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
     asFact("Complexity", formatBoolean(record.isComplex, "Complex")),
+    asFact("Stealth", formatHazardStealth(record)),
     asFact("Disable", record.disableText),
     asFact("Disable Skills", formatList(record.disableSkills)),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));

@@ -338,6 +338,51 @@ describe("entity page document", () => {
     ]);
   });
 
+  it("surfaces creature attacks from structured embedded items without prose extraction", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        recordKey: "creature:tooth-mauler",
+        name: "Tooth Mauler",
+        type: "creature",
+        category: "creature",
+        damageTypes: [],
+        spellKinds: [],
+        saveType: null,
+        raw: {
+          items: [
+            {
+              name: "Jaws",
+              type: "melee",
+              system: {
+                bonus: { value: 18 },
+                damageRolls: {
+                  primary: {
+                    damage: "2d10+8",
+                    damageType: "piercing",
+                  },
+                },
+              },
+            },
+            {
+              name: "Menacing Roar",
+              type: "action",
+              system: {
+                description: { value: "The creature roars." },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(document.sections.find((section) => section.title === "Offense")?.blocks).toEqual([
+      {
+        kind: "factList",
+        facts: [{ label: "Attacks", value: "Jaws +18 (2d10+8 Piercing)" }],
+      },
+    ]);
+  });
+
   it("uses equipment recipe sections for item-oriented facts", () => {
     const document = buildEntityPageDocument(
       createRecord({
@@ -372,6 +417,95 @@ describe("entity page document", () => {
             { label: "Bulk", value: "1" },
             { label: "Activation", value: "1 action" },
             { label: "Usage", value: "Held In One Hand" },
+          ]),
+        },
+      ]),
+    );
+  });
+
+  it("surfaces equipment weapon, armor, and shield metrics from normalized item facts", () => {
+    const weapon = buildEntityPageDocument(
+      createRecord({
+        recordKey: "equipment:longbow",
+        name: "Longbow",
+        type: "equipment",
+        category: "equipment",
+        itemCategory: "weapon",
+        itemMetrics: {
+          "weapon.range_increment": 100,
+          "weapon.reload": 0,
+          "weapon.damage_dice": 1,
+          "weapon.damage_die_faces": 8,
+        },
+      }),
+    );
+    const armor = buildEntityPageDocument(
+      createRecord({
+        recordKey: "equipment:breastplate",
+        name: "Breastplate",
+        type: "equipment",
+        category: "equipment",
+        itemCategory: "armor",
+        itemMetrics: {
+          "armor.ac_bonus": 4,
+          "armor.dex_cap": 1,
+          "armor.strength": 3,
+          "armor.check_penalty": -2,
+          "armor.speed_penalty": -5,
+        },
+      }),
+    );
+    const shield = buildEntityPageDocument(
+      createRecord({
+        recordKey: "equipment:tower-shield",
+        name: "Tower Shield",
+        type: "equipment",
+        category: "equipment",
+        itemCategory: "shield",
+        itemMetrics: {
+          "shield.ac_bonus": 2,
+          "shield.hardness": 10,
+          "shield.hp": 40,
+          "shield.bt": 20,
+        },
+      }),
+    );
+
+    expect(weapon.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Range Increment", value: "100 feet" },
+            { label: "Reload", value: "0" },
+            { label: "Weapon Damage Dice", value: "1d8" },
+          ]),
+        },
+      ]),
+    );
+    expect(armor.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Armor AC Bonus", value: "+4" },
+            { label: "Dex Cap", value: "+1" },
+            { label: "Strength", value: "3" },
+            { label: "Check Penalty", value: "-2" },
+            { label: "Speed Penalty", value: "-5 feet" },
+          ]),
+        },
+      ]),
+    );
+    expect(shield.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Shield AC Bonus", value: "+2" },
+            { label: "Shield Hardness", value: "10" },
+            { label: "Shield HP", value: "40" },
+            { label: "Shield BT", value: "20" },
           ]),
         },
       ]),
@@ -473,6 +607,8 @@ describe("entity page document", () => {
         areaValue: 30,
         damageTypes: ["fire"],
         actorMetrics: {
+          "stealth.mod": 12,
+          "stealth.dc": 22,
           "ac.value": 24,
           "hp.value": 64,
           "hardness.value": 12,
@@ -490,6 +626,18 @@ describe("entity page document", () => {
       "Details",
       "Classification",
     ]);
+    expect(document.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Stealth", value: "+12 (DC 22)" },
+            { label: "Disable", value: "Thievery DC 22 to jam the nozzle" },
+            { label: "Disable Skills", value: "Thievery" },
+          ]),
+        },
+      ]),
+    );
     expect(document.sections.find((section) => section.title === "Defense")?.blocks).toEqual([
       {
         kind: "factList",
