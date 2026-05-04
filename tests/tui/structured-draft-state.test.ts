@@ -21,18 +21,21 @@ import {
 } from "../helpers/search-request-fixture.js";
 
 /*
-Path matrix for the resume-target state owner.
+Path matrix for the structured-editor continuation model.
 
-| Intent family | Child surface | Durable target | Selection invariant |
-| --- | --- | --- | --- |
-| Reopen/root continuation | host tree | root | select visible root group |
-| Group-local continuation | prompt or explorer | groupPath | select containing group and derive active buckets from canonical paths |
-| Exact structural node action | host tree | node path | select exact node while it still exists |
-| Unary not wrapper | host tree | node/containing group | never derive a peer group anchor from the not wrapper itself |
-| Grouped field bucket | shared explorer | groupPath + member paths | select the projected bucket from canonical member paths, not durable projected identity |
+| Intent family | Child surface | Host entrypoint | Mutation kind | Resume/focus target |
+| --- | --- | --- | --- | --- |
+| Reopen/root continuation | host tree | structured draft session open | none | root resume selects visible root group |
+| Group-local add clause | prompt builder | addQueryClauseAtPath | appendNodes | containing groupPath, then derive visible row |
+| Group-local explorer field | shared explorer | runStructuredDraftExplorerContinuation | replaceGroupedField or appendNodes | groupPath; buckets derive from canonical members |
+| Exact structural edit | host tree | runNodeAction/runInsertionAction | replaceNode/remove/wrap/move/lift/unwrap | node path only while semantically present |
+| Metric-key or pack discovery | shared explorer | runStructuredDraftExplorerContinuation | bounded node result consumed by prompt flow | prompt resumes through host state, not explorer-local state |
+| Unary not wrapper | host tree | wrapNot/addNotGroup | replaceNode or appendNodes | node/containing group; never a peer group anchor |
 
-Continuation-coordinator and broad interaction-flow coverage belongs in later Slice A
-host/coordinator tests; this file only pins the state/resume-target invariants.
+This file pins the resume-target and projection rows. Coordinator lifecycle coverage
+lives in structured-editor-continuation-coordinator.test.ts, grouped mutation helper
+coverage lives in structured-draft-metadata-actions.test.ts, and broad end-to-end
+interaction coverage stays in search-screen.test.tsx.
 */
 
 function buildEntries(
@@ -92,7 +95,10 @@ describe("structured draft resume target state", () => {
         kind: "queryFieldBucket",
         groupPath: [1],
         field: "traits",
-        fieldMemberPaths: [[1, 0], [1, 1]],
+        fieldMemberPaths: [
+          [1, 0],
+          [1, 1],
+        ],
       }),
     );
   });

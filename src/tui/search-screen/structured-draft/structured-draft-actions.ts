@@ -8,14 +8,13 @@ import {
   updateSearchFilterNodeAtPath,
 } from "../../search/query-core.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
-import { getSearchQueryCategory, getSearchQuerySubcategory, getSearchQueryRootOperator } from "../../search/query-state.js";
 import {
-  canonicalFilterToMetadataNode,
-  metadataFilterNodeToCanonicalFilter,
-} from "../../search/query-parts.js";
-import {
-  buildStructuredDraftEntries,
-} from "./structured-draft-support.js";
+  getSearchQueryCategory,
+  getSearchQuerySubcategory,
+  getSearchQueryRootOperator,
+} from "../../search/query-state.js";
+import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
+import { buildStructuredDraftEntries } from "./structured-draft-support.js";
 import {
   createStructuredDraftGroupResumeTarget,
   createStructuredDraftNodeResumeTarget,
@@ -48,10 +47,7 @@ export function useSearchStructuredDraftActions({
   enterStructuredDraftMoveMode: (path: number[]) => void;
   finishStructuredDraftSession: () => void;
   moveStructuredDraftSelection: (delta: number, itemCount: number) => void;
-  openStructuredDraftSession: (
-    anchor: SearchStructuredDraftState["anchor"],
-    query?: Pf2eTerminalSearchQuery,
-  ) => void;
+  openStructuredDraftSession: (anchor: SearchStructuredDraftState["anchor"], query?: Pf2eTerminalSearchQuery) => void;
   replaceStructuredDraftProjection: (
     update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
     options?: StructuredDraftProjectionOptions,
@@ -85,7 +81,10 @@ export function useSearchStructuredDraftActions({
   );
 
   const buildEntriesForQuery = React.useCallback(
-    (query: Pf2eTerminalSearchQuery, options?: { resumeTarget?: StructuredDraftResumeTarget | null; moveSourcePath?: number[] | null }) =>
+    (
+      query: Pf2eTerminalSearchQuery,
+      options?: { resumeTarget?: StructuredDraftResumeTarget | null; moveSourcePath?: number[] | null },
+    ) =>
       buildStructuredDraftEntries(query, options?.resumeTarget ?? null, {
         groupedFieldValues: getGroupedFieldValuesForQuery(query),
         packLabelResolver: user.search.getPackLabel,
@@ -249,14 +248,16 @@ export function useSearchStructuredDraftActions({
       });
       const selectionIndex = entries.findIndex(
         (entry) =>
-          entry.kind === "queryNode" &&
-          JSON.stringify(entry.treePath ?? []) === JSON.stringify(current.moveSourcePath),
+          entry.kind === "queryNode" && JSON.stringify(entry.treePath ?? []) === JSON.stringify(current.moveSourcePath),
       );
 
       return {
         ...current,
         moveSourcePath: null,
-        selectedIndex: clampStructuredDraftSelection(selectionIndex >= 0 ? selectionIndex : current.selectedIndex, entries.length),
+        selectedIndex: clampStructuredDraftSelection(
+          selectionIndex >= 0 ? selectionIndex : current.selectedIndex,
+          entries.length,
+        ),
       };
     });
   }, [buildEntriesForQuery]);
@@ -296,7 +297,10 @@ export function useSearchStructuredDraftActions({
         return {
           ...current,
           moveSourcePath: [...path],
-          selectedIndex: clampStructuredDraftSelection(firstSlotIndex >= 0 ? firstSlotIndex : current.selectedIndex, entries.length),
+          selectedIndex: clampStructuredDraftSelection(
+            firstSlotIndex >= 0 ? firstSlotIndex : current.selectedIndex,
+            entries.length,
+          ),
         };
       });
     },

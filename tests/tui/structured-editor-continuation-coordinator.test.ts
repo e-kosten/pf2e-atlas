@@ -5,6 +5,7 @@ import type {
   Pf2eTerminalFilterExplorerInsertionResult,
   Pf2eTerminalQueryFieldOption,
 } from "../../src/tui/search/service.js";
+import type { FilterExplorerSelectTargetOutcome } from "../../src/tui/filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
 import { runStructuredDraftExplorerContinuation } from "../../src/tui/search-screen/structured-draft/structured-draft-continuation.js";
 import type {
@@ -45,7 +46,10 @@ function fieldState(include: string[]): SearchFilterExplorerFieldState {
   };
 }
 
-function createUser(searchResult: Pf2eTerminalFilterExplorerInsertionResult, preservedMetadata: MetadataFilterNode | null) {
+function createUser(
+  searchResult: Pf2eTerminalFilterExplorerInsertionResult,
+  preservedMetadata: MetadataFilterNode | null,
+) {
   return {
     search: {
       prepareFilterExplorerDraft: vi.fn(() => ({
@@ -173,12 +177,58 @@ describe("structured editor continuation coordinator", () => {
       },
     });
     expect(user.search.prepareFilterExplorerDraft).toHaveBeenCalledWith(query, ["traits"]);
-    expect(user.search.buildFilterExplorerInsertionResult).toHaveBeenCalledWith(
-      expect.any(Object),
-      {
-        preservedMetadata,
-        preferReplace: true,
+    expect(user.search.buildFilterExplorerInsertionResult).toHaveBeenCalledWith(expect.any(Object), {
+      preservedMetadata,
+      preferReplace: true,
+    });
+  });
+
+  it("only resolves select-target outcomes for coordinator callers that request target selection", async () => {
+    const insertionResult: Pf2eTerminalFilterExplorerInsertionResult = {
+      kind: "insert",
+      nodes: [],
+    };
+    const user = createUser(insertionResult, null);
+    let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
+    const openFilterExplorer: OpenSearchFilterExplorer = vi.fn(async (options) => {
+      explorerOptions = options;
+      return true;
+    });
+    const targetOutcome = {
+      result: {
+        target: {
+          kind: "scalar",
+          key: "actorMetric:ac.value",
+          fieldLabel: "Creature Statistics",
+          subjectLabel: "Armor Class",
+          valueType: "number",
+          editorLabel: "Creature Statistics / Armor Class",
+        },
       },
+    } as FilterExplorerSelectTargetOutcome;
+    const latestState = fieldState([]);
+    const continuation = runStructuredDraftExplorerContinuation({
+      currentNode: null,
+      fieldOption: sharedExplorerField,
+      openFilterExplorer,
+      query,
+      resolveSelectionTarget: () => targetOutcome.result.target,
+      title: "Creature Statistics",
+      user,
+    });
+
+    explorerOptions?.onSelectTarget?.(targetOutcome, query, latestState, "catalog");
+
+    await expect(continuation).resolves.toMatchObject({
+      kind: "selectTarget",
+      outcome: targetOutcome,
+      discoveryMode: "catalog",
+    });
+    expect(openFilterExplorer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Creature Statistics",
+        resolveSelectionTarget: expect.any(Function),
+      }),
     );
   });
 });

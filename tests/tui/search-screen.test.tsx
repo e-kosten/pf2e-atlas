@@ -16,10 +16,7 @@ import {
   buildSearchFilterExplorerTargetResolver,
   type FilterExplorerComposeTarget,
 } from "../../src/tui/filter-explorer/index.js";
-import {
-  createPf2eTerminalSearchService,
-  type Pf2eTerminalSearchSession,
-} from "../../src/tui/search/service.js";
+import { createPf2eTerminalSearchService, type Pf2eTerminalSearchSession } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
@@ -88,11 +85,7 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-async function waitForFrameToContain(
-  app: ReturnType<typeof render>,
-  text: string,
-  attempts = 12,
-): Promise<string> {
+async function waitForFrameToContain(app: ReturnType<typeof render>, text: string, attempts = 12): Promise<string> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const frame = app.lastFrame();
     if (frame.includes(text)) {
@@ -103,11 +96,7 @@ async function waitForFrameToContain(
   return app.lastFrame();
 }
 
-async function waitForFrameToExclude(
-  app: ReturnType<typeof render>,
-  text: string,
-  attempts = 12,
-): Promise<void> {
+async function waitForFrameToExclude(app: ReturnType<typeof render>, text: string, attempts = 12): Promise<void> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (!app.lastFrame().includes(text)) {
       return;
@@ -233,9 +222,7 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
   };
 }
 
-function createSearchSession(
-  overrides: Partial<Pf2eTerminalSearchSession> = {},
-): Pf2eTerminalSearchSession {
+function createSearchSession(overrides: Partial<Pf2eTerminalSearchSession> = {}): Pf2eTerminalSearchSession {
   const query = overrides.query ?? browseRequest({ filter: scopeFilter("spell"), limit: 20 });
   const results = overrides.results ?? [createRecord()];
 
@@ -370,12 +357,13 @@ function createServices(
       nextOffset: null,
       records: [record],
     }));
-  const lookup: LookupFn = overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [], matchType: "exact" as const }));
+  const lookup: LookupFn =
+    overrides.lookup ?? vi.fn(() => ({ match: record, alternatives: [], matchType: "exact" as const }));
   const search: SearchFn =
     overrides.search ??
     vi.fn((request: SearchRequest) =>
       Promise.resolve({
-        searchProfile: request.mode === "search" ? request.search.profile ?? "balanced" : null,
+        searchProfile: request.mode === "search" ? (request.search.profile ?? "balanced") : null,
         mode: "hybrid" as const,
         sort: "ranked" as const,
         total: 1,
@@ -717,10 +705,7 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
             detailTitle: "Metric Details",
             detailLines: [{ text: "Hit Points", tone: "section" }],
             query: browseQuery("Browse records with Hit Points", {
-              filter: allOfFilter([
-                scopeFilter("creature"),
-                metricCompareFilter("hp.value", "gte", "hp.value"),
-              ]),
+              filter: allOfFilter([scopeFilter("creature"), metricCompareFilter("hp.value", "gte", "hp.value")]),
               limit: 20,
             }),
           },
@@ -798,7 +783,7 @@ function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainMo
       listLabel: value,
       detailTitle: "Trait Details",
       detailLines: [{ text: value, tone: "section" }],
-      })),
+    })),
   };
 }
 
@@ -1199,9 +1184,7 @@ async function openStructuredQueryEditor(app: ReturnType<typeof render>): Promis
   await waitForFrameToContain(app, "Structured Query Editor");
 }
 
-async function driveRootTraitAddFlow(
-  app: ReturnType<typeof render>,
-): Promise<void> {
+async function driveRootTraitAddFlow(app: ReturnType<typeof render>): Promise<void> {
   app.stdin.write("\r");
   await waitForFrameToContain(app, "Add Clause");
 
@@ -1454,11 +1437,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen
-            entry="results"
-            initialSession={createSearchSession()}
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -1475,11 +1454,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen
-            entry="results"
-            initialSession={createSearchSession()}
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -1580,11 +1555,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen
-            entry="results"
-            initialSession={createSearchSession()}
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -1629,11 +1600,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen
-            entry="results"
-            initialSession={createSearchSession()}
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -1692,31 +1659,29 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onActivatePageTarget).toHaveBeenCalledWith(
-      {
-        kind: "searchPivot",
-        label: "Trait: Fire",
-        request: {
-          mode: "browse",
-          filter: {
-            kind: "allOf",
-            children: [
-              {
-                kind: "scope",
-                category: "spell",
-                subcategory: { kind: "any" },
-              },
-              {
-                kind: "metadataPredicate",
-                predicate: { field: "traits", op: "includes", value: "fire" },
-              },
-            ],
-          },
-          sort: { kind: "alphabetical" },
-          limit: 50,
+    expect(onActivatePageTarget).toHaveBeenCalledWith({
+      kind: "searchPivot",
+      label: "Trait: Fire",
+      request: {
+        mode: "browse",
+        filter: {
+          kind: "allOf",
+          children: [
+            {
+              kind: "scope",
+              category: "spell",
+              subcategory: { kind: "any" },
+            },
+            {
+              kind: "metadataPredicate",
+              predicate: { field: "traits", op: "includes", value: "fire" },
+            },
+          ],
         },
+        sort: { kind: "alphabetical" },
+        limit: 50,
       },
-    );
+    });
   });
 
   it("activates Classification row pivots from the result preview", async () => {
@@ -1763,11 +1728,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
-          <SearchScreen
-            entry="results"
-            initialSession={createSearchSession()}
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={createSearchSession()} onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -2075,15 +2036,17 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                levelFilter({ kind: "between", min: 1, max: 1 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  levelFilter({ kind: "between", min: 1, max: 1 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -2914,13 +2877,15 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices()}>
           <SearchScreen
-            initialRequest={browseQuery("Browse illusion spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse illusion spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             origin="ontology"
             onBack={vi.fn()}
           />
@@ -2943,13 +2908,15 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
           <SearchScreen
-            initialRequest={browseQuery("Browse illusion spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse illusion spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -2972,12 +2939,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow })}>
-          <SearchScreen
-            entry="results"
-            initialSession={initialSession}
-            origin="ontology"
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={initialSession} origin="ontology" onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -2998,12 +2960,7 @@ describe("search screen", () => {
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={createServices({ openSearchWindow, search })}>
-          <SearchScreen
-            entry="results"
-            initialSession={initialSession}
-            origin="ontology"
-            onBack={vi.fn()}
-          />
+          <SearchScreen entry="results" initialSession={initialSession} origin="ontology" onBack={vi.fn()} />
         </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
@@ -3022,7 +2979,7 @@ describe("search screen", () => {
   it("translates policy-based query filters into metadata clauses", async () => {
     const search = vi.fn((request: SearchRequest) =>
       Promise.resolve({
-        searchProfile: request.mode === "search" ? request.search.profile ?? "balanced" : null,
+        searchProfile: request.mode === "search" ? (request.search.profile ?? "balanced") : null,
         mode: "hybrid" as const,
         sort: "ranked" as const,
         total: 1,
@@ -3172,15 +3129,17 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                levelFilter({ kind: "between", min: 1, max: 1 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  levelFilter({ kind: "between", min: 1, max: 1 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3288,23 +3247,25 @@ describe("search screen", () => {
 
   it("uses the shared rarity explorer for live query-tree rows and returns to the structured editor", async () => {
     const services = createServices();
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
-      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createFacetPickerOntologyDomainWithDiscreteFields(),
     );
 
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                levelFilter({ kind: "between", min: 1, max: 1 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  levelFilter({ kind: "between", min: 1, max: 1 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3346,22 +3307,24 @@ describe("search screen", () => {
 
   it("returns from a live rarity explorer edit after clearing the focused clause", async () => {
     const services = createServices();
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
-      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createFacetPickerOntologyDomainWithDiscreteFields(),
     );
 
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3411,22 +3374,24 @@ describe("search screen", () => {
 
   it("applies the latest live rarity explorer state when returning immediately to the structured editor", async () => {
     const services = createServices();
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(
-      async () => createFacetPickerOntologyDomainWithDiscreteFields(),
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createFacetPickerOntologyDomainWithDiscreteFields(),
     );
 
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3463,10 +3428,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3539,15 +3506,17 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                levelFilter({ kind: "between", min: 1, max: 1 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  levelFilter({ kind: "between", min: 1, max: 1 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3646,15 +3615,17 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                actionCostFilter({ kind: "eq", value: 2 }),
-                levelFilter({ kind: "between", min: 1, max: 1 }),
-                rarityFilter({ kind: "eq", value: "common" }),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  actionCostFilter({ kind: "eq", value: 2 }),
+                  levelFilter({ kind: "between", min: 1, max: 1 }),
+                  rarityFilter({ kind: "eq", value: "common" }),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3742,10 +3713,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: scopeFilter("spell"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: scopeFilter("spell"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3785,10 +3758,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: scopeFilter("spell"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: scopeFilter("spell"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3803,7 +3778,11 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    for (let attempt = 0; attempt < 4 && !app.lastFrame().includes("Choose the metadata field for the next clause"); attempt += 1) {
+    for (
+      let attempt = 0;
+      attempt < 4 && !app.lastFrame().includes("Choose the metadata field for the next clause");
+      attempt += 1
+    ) {
       if (app.lastFrame().includes("Choose the clause kind to insert into the current group")) {
         pressDown(app);
         await flushInk();
@@ -3855,10 +3834,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: scopeFilter("spell"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: scopeFilter("spell"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3899,10 +3880,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: scopeFilter("spell"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: scopeFilter("spell"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -3948,19 +3931,21 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                allOfFilter([
-                  anyOfFilter([
-                    metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-                    metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  allOfFilter([
+                    anyOfFilter([
+                      metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                      metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+                    ]),
+                    notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
                   ]),
-                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
                 ]),
-              ]),
-              limit: 20,
-            }).request}
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4022,14 +4007,16 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse feats", {
-              filter: allOfFilter([
-                scopeFilter("feat"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse feats", {
+                filter: allOfFilter([
+                  scopeFilter("feat"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4085,14 +4072,16 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse feats", {
-              filter: allOfFilter([
-                scopeFilter("feat"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse feats", {
+                filter: allOfFilter([
+                  scopeFilter("feat"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4144,14 +4133,16 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse creatures", {
-              filter: allOfFilter([
-                scopeFilter("creature"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
-                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: allOfFilter([
+                  scopeFilter("creature"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4209,14 +4200,16 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse creatures", {
-              filter: allOfFilter([
-                scopeFilter("creature"),
-                metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
-                notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
-              ]),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: allOfFilter([
+                  scopeFilter("creature"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+                ]),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4262,16 +4255,18 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse spells", {
-              filter: allOfFilter([
-                scopeFilter("spell"),
-                allOfFilter([
-                  metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
-                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" })),
+            initialRequest={
+              browseQuery("Browse spells", {
+                filter: allOfFilter([
+                  scopeFilter("spell"),
+                  allOfFilter([
+                    metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+                    notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" })),
+                  ]),
                 ]),
-              ]),
-              limit: 20,
-            }).request}
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4356,7 +4351,9 @@ describe("search screen", () => {
           ]
         : [],
     );
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createCreatureDerivedTagsOntologyDomain());
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createCreatureDerivedTagsOntologyDomain(),
+    );
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -4455,13 +4452,15 @@ describe("search screen", () => {
             {
               value: "hp.value",
               label: "hp.value",
-              description: discoveryMode === "matching" ? "2 matching canonical records." : "4 applicable canonical records.",
+              description:
+                discoveryMode === "matching" ? "2 matching canonical records." : "4 applicable canonical records.",
               count: 2,
             },
             {
               value: "ac.value",
               label: "ac.value",
-              description: discoveryMode === "matching" ? "1 matching canonical record." : "3 applicable canonical records.",
+              description:
+                discoveryMode === "matching" ? "1 matching canonical record." : "3 applicable canonical records.",
               count: 1,
             },
           ]
@@ -4475,10 +4474,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse creatures", {
-              filter: scopeFilter("creature"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: scopeFilter("creature"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4618,7 +4619,9 @@ describe("search screen", () => {
       }).request,
       fieldOptions: [metricFieldOption],
       onQueryChange: vi.fn(),
-      resolveSelectionTarget: buildMetricSelectionTargetResolver("actorMetric", "Creature Statistics", { numericOnly: true }),
+      resolveSelectionTarget: buildMetricSelectionTargetResolver("actorMetric", "Creature Statistics", {
+        numericOnly: true,
+      }),
       onSelectTarget,
     };
 
@@ -4677,10 +4680,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse creatures", {
-              filter: scopeFilter("creature"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: scopeFilter("creature"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -4965,7 +4970,9 @@ describe("search screen", () => {
     const searchFilterExplorerElement = React.createElement(SearchFilterExplorer, { session });
     const app = render(
       <DerivedTagTerminalProvider>
-        <Pf2eTerminalAppServicesProvider services={services}>{searchFilterExplorerElement}</Pf2eTerminalAppServicesProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          {searchFilterExplorerElement}
+        </Pf2eTerminalAppServicesProvider>
       </DerivedTagTerminalProvider>,
     );
 
@@ -5081,18 +5088,22 @@ describe("search screen", () => {
 
   it("shows the add-clause picker before pack and metric discovery checks resolve", async () => {
     const services = createServices();
-    const metricOptionsDeferred = createDeferred<{
-      value: string;
-      label: string;
-      description: string;
-      count: number;
-    }[]>();
-    const packOptionsDeferred = createDeferred<{
-      value: string;
-      label: string;
-      description: string;
-      count: number;
-    }[]>();
+    const metricOptionsDeferred = createDeferred<
+      {
+        value: string;
+        label: string;
+        description: string;
+        count: number;
+      }[]
+    >();
+    const packOptionsDeferred = createDeferred<
+      {
+        value: string;
+        label: string;
+        description: string;
+        count: number;
+      }[]
+    >();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
         value: "actorMetric",
@@ -5109,10 +5120,12 @@ describe("search screen", () => {
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
-            initialRequest={browseQuery("Browse creatures", {
-              filter: scopeFilter("creature"),
-              limit: 20,
-            }).request}
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: scopeFilter("creature"),
+                limit: 20,
+              }).request
+            }
             onBack={vi.fn()}
           />
         </Pf2eTerminalAppServicesProvider>
@@ -5518,7 +5531,9 @@ describe("search screen", () => {
 
       const loadModelForDiscoveryMode = React.useCallback(async () => {
         const filter = JSON.stringify(queryRef.current.filter);
-        return filter.includes("\"notIn\"") ? createRarityExplorerDomain(["common"]) : createRarityExplorerDomain(["common", "rare"]);
+        return filter.includes('"notIn"')
+          ? createRarityExplorerDomain(["common"])
+          : createRarityExplorerDomain(["common", "rare"]);
       }, []);
 
       const session = React.useMemo<SearchFilterExplorerSession>(

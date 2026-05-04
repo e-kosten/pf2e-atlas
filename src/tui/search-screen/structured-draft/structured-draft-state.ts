@@ -1,8 +1,5 @@
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
-import {
-  getSearchFilterNodeAtPath,
-  isSearchFilterBooleanGroup,
-} from "../../search/query-core.js";
+import { getSearchFilterNodeAtPath, isSearchFilterBooleanGroup } from "../../search/query-core.js";
 import {
   clampStructuredDraftSelection,
   type SearchStructuredDraftAnchor,
@@ -26,9 +23,7 @@ export function createStructuredDraftRootResumeTarget(): StructuredDraftResumeTa
   return { kind: "root" };
 }
 
-export function createStructuredDraftGroupResumeTarget(
-  groupPath: number[],
-): StructuredDraftResumeTarget {
+export function createStructuredDraftGroupResumeTarget(groupPath: number[]): StructuredDraftResumeTarget {
   return { kind: "group", groupPath: [...groupPath] };
 }
 
@@ -63,9 +58,7 @@ export function createStructuredDraftResumeTargetForContainingGroup(
   return createStructuredDraftRootResumeTarget();
 }
 
-export function getStructuredDraftResumeFocusPath(
-  target: StructuredDraftResumeTarget | null,
-): number[] | null {
+export function getStructuredDraftResumeFocusPath(target: StructuredDraftResumeTarget | null): number[] | null {
   if (!target) {
     return null;
   }
@@ -84,9 +77,7 @@ function pathsMatch(path: number[] | undefined, targetPath: number[]): boolean {
   return Boolean(path) && JSON.stringify(path) === JSON.stringify(targetPath);
 }
 
-function getStructuredDraftAnchorKind(
-  anchor: SearchStructuredDraftAnchor,
-): SearchStructuredDraftEntryKind {
+function getStructuredDraftAnchorKind(anchor: SearchStructuredDraftAnchor): SearchStructuredDraftEntryKind {
   if (anchor.kind === "addQueryPart") {
     return "queryInsertionSlot";
   }

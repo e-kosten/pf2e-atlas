@@ -10,10 +10,7 @@ import {
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { getSearchQueryCategory, getSearchQueryRootOperator } from "../../search/query-state.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
-import {
-  projectSearchQueryFilter,
-  type Pf2eTerminalSearchQueryBase,
-} from "../../search/query-projection.js";
+import { projectSearchQueryFilter, type Pf2eTerminalSearchQueryBase } from "../../search/query-projection.js";
 import {
   createStructuredDraftNodeResumeTarget,
   getStructuredDraftResumeFocusPath,
@@ -241,10 +238,7 @@ function buildActiveGroupFieldBuckets(
   return { buckets, groupedChildIndexes };
 }
 
-function resolveActiveGroupPath(
-  filter: SearchFilterNode | undefined,
-  focusPath: number[] | null,
-): number[] | null {
+function resolveActiveGroupPath(filter: SearchFilterNode | undefined, focusPath: number[] | null): number[] | null {
   if (!focusPath) {
     return null;
   }
@@ -288,7 +282,8 @@ function buildFilterTreeEntries(
       kind: "queryTreeRoot",
       key: "queryTree:root",
       label: "Filter Tree",
-      description: "The dedicated filter builder always presents a visible root boolean group for top-level query clauses.",
+      description:
+        "The dedicated filter builder always presents a visible root boolean group for top-level query clauses.",
       treePath: options.activeGroupPath ?? [],
       menuLabel: formatSearchFilterNodePresentationAlias(
         options.rootOperator === "anyOf" ? { kind: "anyOf", children: [] } : { kind: "allOf", children: [] },
@@ -309,12 +304,16 @@ function buildFilterTreeEntries(
     ancestorContinuations: boolean[],
     isLast: boolean,
   ): void => {
-    const isGroup = isSearchFilterBooleanGroup(current) || (current.kind === "not" && isSearchFilterBooleanGroup(current.child));
-    const menuLabel = `${formatTreePrefix(ancestorContinuations, isLast)}${formatSearchFilterNodePresentationAlias(current, {
-      category: options.category,
-      packLabelResolver: options.packLabelResolver,
-      style: "tree",
-    })}`;
+    const isGroup =
+      isSearchFilterBooleanGroup(current) || (current.kind === "not" && isSearchFilterBooleanGroup(current.child));
+    const menuLabel = `${formatTreePrefix(ancestorContinuations, isLast)}${formatSearchFilterNodePresentationAlias(
+      current,
+      {
+        category: options.category,
+        packLabelResolver: options.packLabelResolver,
+        style: "tree",
+      },
+    )}`;
 
     entries.push({
       kind: "queryNode",
@@ -342,9 +341,7 @@ function buildFilterTreeEntries(
       isSearchFilterBooleanGroup(current) &&
       (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path));
     const useActiveGroupProjection =
-      current.kind === "allOf" &&
-      options.activeGroupPath !== null &&
-      pathsEqual(path, options.activeGroupPath);
+      current.kind === "allOf" && options.activeGroupPath !== null && pathsEqual(path, options.activeGroupPath);
     const { buckets, groupedChildIndexes } = useActiveGroupProjection
       ? buildActiveGroupFieldBuckets(children, path, options.groupedFieldValues)
       : { buckets: [], groupedChildIndexes: new Set<number>() };
@@ -383,21 +380,22 @@ function buildFilterTreeEntries(
     });
 
     if (showInsertionSlot) {
-        entries.push({
-          kind: "queryInsertionSlot",
-          key: `querySlot:${path.join(".")}`,
-          label: moveSourcePath ? "[move here]" : "[+ add here]",
-          description: moveSourcePath
-            ? "Confirm the move and append the anchored node at the bottom of this group."
-            : "Add a new clause at the bottom of this group. Use the action rail for group or NOT variants.",
-          insertionPath: path,
-          indent: depth + 1,
-          menuLabel: `${formatTreePrefix(childAncestorContinuations, true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,
-        });
+      entries.push({
+        kind: "queryInsertionSlot",
+        key: `querySlot:${path.join(".")}`,
+        label: moveSourcePath ? "[move here]" : "[+ add here]",
+        description: moveSourcePath
+          ? "Confirm the move and append the anchored node at the bottom of this group."
+          : "Add a new clause at the bottom of this group. Use the action rail for group or NOT variants.",
+        insertionPath: path,
+        indent: depth + 1,
+        menuLabel: `${formatTreePrefix(childAncestorContinuations, true)}${moveSourcePath ? "[move here]" : "[+ add here]"}`,
+      });
     }
   };
 
-  const showRootInsertionSlot = moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, []);
+  const showRootInsertionSlot =
+    moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, []);
   const useRootActiveGroupProjection =
     options.activeGroupPath !== null &&
     options.activeGroupPath.length === 0 &&
@@ -477,9 +475,7 @@ export function buildStructuredDraftEntries(
   const draftCategory = getSearchQueryCategory(draftQuery);
   const focusPath = getStructuredDraftResumeFocusPath(resumeTarget);
   const activeGroupPath =
-    resumeTarget?.kind === "group"
-      ? resumeTarget.groupPath
-      : resolveActiveGroupPath(draftQuery.filter, focusPath);
+    resumeTarget?.kind === "group" ? resumeTarget.groupPath : resolveActiveGroupPath(draftQuery.filter, focusPath);
   const entries: SearchStructuredDraftEntry[] = [
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,
@@ -509,10 +505,14 @@ export function findStructuredDraftGroupedFieldBucketForPath(
   for (let depth = focusPath.length; depth >= 0; depth -= 1) {
     const scopedFocusPath = focusPath.slice(0, depth);
     const bucket =
-      buildStructuredDraftEntries(draftQuery, createStructuredDraftNodeResumeTarget(scopedFocusPath), { groupedFieldValues }).find(
+      buildStructuredDraftEntries(draftQuery, createStructuredDraftNodeResumeTarget(scopedFocusPath), {
+        groupedFieldValues,
+      }).find(
         (entry) =>
           entry.kind === "queryFieldBucket" &&
-          [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathContains(focusPath, path)),
+          [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) =>
+            pathContains(focusPath, path),
+          ),
       ) ?? null;
     if (bucket) {
       return bucket;

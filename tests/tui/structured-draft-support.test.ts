@@ -109,8 +109,12 @@ describe("structured draft support", () => {
     expect(bucketEntries[0]?.label).toBe("Traits: Include auditory, illusion");
     expect(bucketEntries[0]?.fieldMemberPaths).toEqual([[1], [2], [3]]);
     expect(bucketEntries[1]?.label).toBe("Traits: !emotion");
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(false);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(false);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
+      false,
+    );
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
+      false,
+    );
   });
 
   it("orders grouped field buckets by field and then polarity instead of child encounter order", () => {
@@ -189,8 +193,12 @@ describe("structured draft support", () => {
     });
 
     expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(true);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(true);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
+      true,
+    );
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
+      true,
+    );
   });
 
   it("keeps a root any-of structural instead of projecting shared-explorer buckets", () => {
@@ -210,8 +218,12 @@ describe("structured draft support", () => {
     });
 
     expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(true);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(true);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
+      true,
+    );
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
+      true,
+    );
   });
 
   it("flattens simple negated nodes into a single inline tree row", () => {
@@ -235,6 +247,8 @@ describe("structured draft support", () => {
     expect(menuLabels).toContain("├─ Pack: abomination-vaults");
     expect(menuLabels).toContain("├─ ! Pack: monster-core");
     expect(menuLabels.some((label) => label.includes("Exclude"))).toBe(false);
-    expect(entries.filter((entry) => entry.kind === "queryNode" && entry.label === "Pack: monster-core")).toHaveLength(0);
+    expect(entries.filter((entry) => entry.kind === "queryNode" && entry.label === "Pack: monster-core")).toHaveLength(
+      0,
+    );
   });
 });

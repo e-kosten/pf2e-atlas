@@ -39,9 +39,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
-- Move bottom aligned "modals" into the floating modal model. Catalog the current uses, and decide wether things should stay as they are (ex. the action palette is a good candidate to stay where it is) where as other stuff like level pickers and the exemplar filter menus should be floating. The action menu though is a good candidate to stay in the footer. 
+- Move bottom aligned "modals" into the floating modal model. Catalog the current uses, and decide wether things should stay as they are (ex. the action palette is a good candidate to stay where it is) where as other stuff like level pickers and the exemplar filter menus should be floating. The action menu though is a good candidate to stay in the footer.
 
-- Extend the action palette with "quick select". Basically once in the action menu vim motion shoudl still navigate, but each option should get a home-row friendly key binding option for select. It should be consistent per page. Need to think how this maps into our shared key binding rules. Could be that `: + <keys>` is considered special and allowed to use a predefined set of options that are fine to use at the same time as `:`. Ex. h/j/k/l, q, and esc shouldn't be allowed, but many other are find in this specific context. But the "fine" list should still be shared. 
+- Extend the action palette with "quick select". Basically once in the action menu vim motion shoudl still navigate, but each option should get a home-row friendly key binding option for select. It should be consistent per page. Need to think how this maps into our shared key binding rules. Could be that `: + <keys>` is considered special and allowed to use a predefined set of options that are fine to use at the same time as `:`. Ex. h/j/k/l, q, and esc shouldn't be allowed, but many other are find in this specific context. But the "fine" list should still be shared.
 
 ## Later
 

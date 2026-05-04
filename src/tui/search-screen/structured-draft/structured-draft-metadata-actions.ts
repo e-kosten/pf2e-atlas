@@ -79,12 +79,7 @@ type MetricKeySelection = { value: string; discoveryMode: SearchFilterDiscoveryM
 const CLAUSE_BACK = Symbol("search-structured-query-clause-back");
 type ClausePromptBackResult = typeof CLAUSE_BACK;
 type PromptStepResult<T> = T | ClausePromptBackResult | undefined;
-type SearchFilterNodeEditorResult =
-  | SearchFilterNode
-  | SearchFilterNode[]
-  | ClausePromptBackResult
-  | null
-  | undefined;
+type SearchFilterNodeEditorResult = SearchFilterNode | SearchFilterNode[] | ClausePromptBackResult | null | undefined;
 type ClausePromptResult = ClauseKind | ClausePromptBackResult | null;
 type ClauseApplyResult = "applied" | "back" | "cancelled";
 type StructuredDraftEntryActionId =
@@ -142,14 +137,13 @@ function searchFilterExplorerFieldStatesEqual(
     return left === right;
   }
 
-  return JSON.stringify(buildSearchFilterExplorerComposeDraft(left)) === JSON.stringify(buildSearchFilterExplorerComposeDraft(right));
+  return (
+    JSON.stringify(buildSearchFilterExplorerComposeDraft(left)) ===
+    JSON.stringify(buildSearchFilterExplorerComposeDraft(right))
+  );
 }
 
-function getFirstGroupedFieldMemberPath(
-  node: SearchFilterNode,
-  path: number[],
-  field: string,
-): number[] | null {
+function getFirstGroupedFieldMemberPath(node: SearchFilterNode, path: number[], field: string): number[] | null {
   if (field === "rarity" || field === "actionCost") {
     if (node.kind === field && node.match.kind === "eq") {
       return path;
@@ -186,10 +180,7 @@ function getFirstGroupedFieldMemberPath(
   return null;
 }
 
-function getContainingBooleanGroupPath(
-  filter: SearchFilterNode | undefined,
-  path: number[],
-): number[] {
+function getContainingBooleanGroupPath(filter: SearchFilterNode | undefined, path: number[]): number[] {
   for (let depth = path.length - 1; depth >= 0; depth -= 1) {
     const candidatePath = path.slice(0, depth);
     const candidateNode = getSearchFilterNodeAtPath(filter, candidatePath);
@@ -331,18 +322,18 @@ function buildGroupedFieldReplacementNodes(
   if (field === "actionCost") {
     const replacementNodes: SearchFilterNode[] = [];
     for (const clause of discreteClauses) {
-        const numericValue = Number.parseInt(clause.value, 10);
-        if (!Number.isFinite(numericValue)) {
-          continue;
-        }
-        replacementNodes.push(
-          clause.operator === "include"
-            ? ({ kind: "actionCost", match: { kind: "eq", value: numericValue } } satisfies SearchFilterNode)
-            : ({
-                kind: "not",
-                child: { kind: "actionCost", match: { kind: "eq", value: numericValue } },
-              } satisfies SearchFilterNode),
-        );
+      const numericValue = Number.parseInt(clause.value, 10);
+      if (!Number.isFinite(numericValue)) {
+        continue;
+      }
+      replacementNodes.push(
+        clause.operator === "include"
+          ? ({ kind: "actionCost", match: { kind: "eq", value: numericValue } } satisfies SearchFilterNode)
+          : ({
+              kind: "not",
+              child: { kind: "actionCost", match: { kind: "eq", value: numericValue } },
+            } satisfies SearchFilterNode),
+      );
     }
     return replacementNodes;
   }
@@ -391,7 +382,8 @@ export function buildGroupedFieldSeedState(
   initialFieldState: SearchFilterExplorerFieldState;
   preservedMetadata: MetadataFilterNode | null;
 } {
-  const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+  const groupNode =
+    groupPath.length === 0 ? query.filter : (getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined);
   if (!groupNode) {
     return {
       seedGroupPath: [],
@@ -445,20 +437,27 @@ export function applyGroupedFieldReplacementToQuery(
   fieldMemberPaths: readonly number[][],
   replacementNodes: readonly SearchFilterNode[],
 ): { nextQuery: Pf2eTerminalSearchQuery; nextFocusPath: number[] | null } {
-  const groupNode = groupPath.length === 0 ? query.filter : getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined;
+  const groupNode =
+    groupPath.length === 0 ? query.filter : (getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined);
   const flattenedRootReplacementNodes = flattenReplacementNodesForGroup(
     getSearchQueryRootOperator(query),
     replacementNodes,
   );
   if (groupPath.length === 0 && replacementNodes.length > 0 && (!groupNode || !isSearchFilterBooleanGroup(groupNode))) {
-    const nextFilter = flattenedRootReplacementNodes.length > 1
-      ? appendSearchFilterNodesAtPath(query.filter, [], flattenedRootReplacementNodes, getSearchQueryRootOperator(query))
-      : appendSearchFilterNodeAtPath(
-          query.filter,
-          [],
-          flattenedRootReplacementNodes[0]!,
-          getSearchQueryRootOperator(query),
-        );
+    const nextFilter =
+      flattenedRootReplacementNodes.length > 1
+        ? appendSearchFilterNodesAtPath(
+            query.filter,
+            [],
+            flattenedRootReplacementNodes,
+            getSearchQueryRootOperator(query),
+          )
+        : appendSearchFilterNodeAtPath(
+            query.filter,
+            [],
+            flattenedRootReplacementNodes[0]!,
+            getSearchQueryRootOperator(query),
+          );
     const nextFocusPath = nextFilter ? getFirstGroupedFieldMemberPath(nextFilter, [], field) : null;
     return {
       nextQuery: {
@@ -496,11 +495,13 @@ export function applyGroupedFieldReplacementToQuery(
             kind: groupNode.kind,
             children: nextChildren,
           };
-  const nextFilter = groupPath.length === 0 ? nextGroupNode : updateSearchFilterNodeAtPath(query.filter, groupPath, () => nextGroupNode);
+  const nextFilter =
+    groupPath.length === 0 ? nextGroupNode : updateSearchFilterNodeAtPath(query.filter, groupPath, () => nextGroupNode);
   const nextGroupNodeInQuery =
-    groupPath.length === 0 ? nextGroupNode ?? null : getSearchFilterNodeAtPath(nextFilter, groupPath);
+    groupPath.length === 0 ? (nextGroupNode ?? null) : getSearchFilterNodeAtPath(nextFilter, groupPath);
   const nextFocusPath = nextGroupNodeInQuery
-    ? getFirstGroupedFieldMemberPath(nextGroupNodeInQuery, groupPath, field) ?? (groupPath.length > 0 ? groupPath : null)
+    ? (getFirstGroupedFieldMemberPath(nextGroupNodeInQuery, groupPath, field) ??
+      (groupPath.length > 0 ? groupPath : null))
     : groupPath.length > 0
       ? groupPath
       : null;
@@ -620,7 +621,10 @@ function getMetadataFilterNodeFieldValue(
   return node.field;
 }
 
-function inferMetricFieldFamily(metric: string, category: ReturnType<typeof getSearchQueryCategory> = null): MetricFieldFamily {
+function inferMetricFieldFamily(
+  metric: string,
+  category: ReturnType<typeof getSearchQueryCategory> = null,
+): MetricFieldFamily {
   const actorValueType = inferActorMetricValueType(metric);
   const itemValueType = inferItemMetricValueType(metric);
 
@@ -664,7 +668,9 @@ export function buildMetricSelectionTargetResolver(
   family: MetricFieldFamily,
   fieldLabel: string,
   options: { numericOnly?: boolean } = {},
-): (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined {
+): (
+  node: import("../../../domain/ontology-types.js").OntologyNode | undefined,
+) => FilterExplorerComposeTarget | undefined {
   return (node) => {
     if (node?.kind !== "metric") {
       return undefined;
@@ -675,7 +681,8 @@ export function buildMetricSelectionTargetResolver(
       return undefined;
     }
 
-    const valueType = family === "actorMetric" ? inferActorMetricValueType(metricKey) : inferItemMetricValueType(metricKey);
+    const valueType =
+      family === "actorMetric" ? inferActorMetricValueType(metricKey) : inferItemMetricValueType(metricKey);
     if (!valueType) {
       return undefined;
     }
@@ -834,10 +841,7 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const openLiveExplorerGroupedField = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      entry: SearchStructuredDraftEntry,
-    ) => {
+    async (query: Pf2eTerminalSearchQuery, entry: SearchStructuredDraftEntry) => {
       const groupPath = entry.groupPath ?? [];
       const fieldMemberPaths = entry.fieldMemberPaths ?? entry.memberPaths ?? [];
       const field = entry.field;
@@ -860,7 +864,7 @@ export function useSearchStructuredDraftMetadataActions({
                 "Browse live action costs for the current group and stage canonical action-cost clauses.",
                 "number",
               )
-            : getScopedFieldOptions(query).find((candidate) => candidate.value === field) ?? null;
+            : (getScopedFieldOptions(query).find((candidate) => candidate.value === field) ?? null);
       if (!fieldOption || fieldOption.editor !== "sharedExplorer") {
         await terminal.pauseForAnyKey("That grouped row cannot be edited through the shared explorer.");
         return;
@@ -914,23 +918,15 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const openLiveExplorerGroupFieldByName = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      groupPath: number[],
-      fieldOption: Pf2eTerminalQueryFieldOption,
-    ) => {
+    async (query: Pf2eTerminalSearchQuery, groupPath: number[], fieldOption: Pf2eTerminalQueryFieldOption) => {
       const groupedFieldValues = new Set(
         getScopedFieldOptions(query)
           .filter((candidate) => candidate.editor === "sharedExplorer")
           .map((candidate) => candidate.value),
       );
-      const existingBucket = buildStructuredDraftEntries(
-        query,
-        createStructuredDraftGroupResumeTarget(groupPath),
-        {
-          groupedFieldValues,
-        },
-      ).find(
+      const existingBucket = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget(groupPath), {
+        groupedFieldValues,
+      }).find(
         (entry) =>
           entry.kind === "queryFieldBucket" &&
           groupPathsEqual(entry.groupPath, groupPath) &&
@@ -955,11 +951,7 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const openLiveExplorerCanonicalFieldMember = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      path: number[],
-      fieldOption: Pf2eTerminalQueryFieldOption,
-    ) => {
+    async (query: Pf2eTerminalSearchQuery, path: number[], fieldOption: Pf2eTerminalQueryFieldOption) => {
       if (path.length === 0) {
         const initialFieldState = buildSearchFilterExplorerFieldState({
           discreteClauses: buildGroupedFieldSeedDiscreteClauses(query.filter, fieldOption.value),
@@ -1034,7 +1026,9 @@ export function useSearchStructuredDraftMetadataActions({
       currentNode: MetadataFilterNode | null = null,
     ): Promise<SearchFilterNodeEditorResult> => {
       const fieldOptions = getScopedFieldOptions(query).filter((fieldOption) =>
-        family === "metric" ? isMetricFieldOptionValue(fieldOption.value) : !isMetricFieldOptionValue(fieldOption.value),
+        family === "metric"
+          ? isMetricFieldOptionValue(fieldOption.value)
+          : !isMetricFieldOptionValue(fieldOption.value),
       );
       if (fieldOptions.length === 0) {
         await terminal.pauseForAnyKey(
@@ -1049,16 +1043,18 @@ export function useSearchStructuredDraftMetadataActions({
       for (;;) {
         const selection = await promptSession.promptSelectOption({
           title: family === "metric" ? "Metric" : "Metadata",
-          prompt: family === "metric" ? "Choose the metric family for the next clause" : "Choose the metadata field for the next clause",
+          prompt:
+            family === "metric"
+              ? "Choose the metric family for the next clause"
+              : "Choose the metadata field for the next clause",
           entries: fieldOptions.map((fieldOption) => ({
             value: fieldOption.value,
             label: fieldOption.label,
             description: fieldOption.description,
           })),
-          selectedValue:
-            fieldOptions.some((fieldOption) => fieldOption.value === preferredFieldValue)
-              ? preferredFieldValue
-              : fieldOptions[0]!.value,
+          selectedValue: fieldOptions.some((fieldOption) => fieldOption.value === preferredFieldValue)
+            ? preferredFieldValue
+            : fieldOptions[0]!.value,
         });
         if (selection.kind === "back") {
           return CLAUSE_BACK;
@@ -1090,7 +1086,11 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         const nextNode = await editFieldClause(query, fieldOption, currentNode);
-        return nextNode === undefined ? undefined : nextNode ? metadataFilterNodeToCanonicalFilter(nextNode) ?? null : null;
+        return nextNode === undefined
+          ? undefined
+          : nextNode
+            ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null)
+            : null;
       }
     },
     [editFieldClause, getScopedFieldOptions, openStructuredDraftExplorerContinuation, prompts, terminal],
@@ -1123,7 +1123,9 @@ export function useSearchStructuredDraftMetadataActions({
       title: string,
       prompt: string,
     ): Promise<PromptStepResult<MetricFieldFamily>> => {
-      const metricFieldOptions = getScopedFieldOptions(query).filter((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
+      const metricFieldOptions = getScopedFieldOptions(query).filter((fieldOption) =>
+        isMetricFieldOptionValue(fieldOption.value),
+      );
       const entries = availableFamilies
         .map((family) => metricFieldOptions.find((fieldOption) => fieldOption.value === family))
         .filter((fieldOption): fieldOption is Pf2eTerminalQueryFieldOption => Boolean(fieldOption))
@@ -1167,46 +1169,36 @@ export function useSearchStructuredDraftMetadataActions({
         return undefined;
       }
 
-      return new Promise<PromptStepResult<MetricKeySelection>>((resolve) => {
-        let settled = false;
-        const finish = (result: PromptStepResult<MetricKeySelection>) => {
-          if (!settled) {
-            settled = true;
-            resolve(result);
-          }
-        };
-
-        void openFilterExplorer({
-          title,
-          queryOverride: query,
-          initialDiscoveryMode,
-          fieldOptions: [fieldOption],
-          resolveSelectionTarget: buildMetricSelectionTargetResolver(family, fieldOption.label, options),
-          onBack: () => {
-            finish(CLAUSE_BACK);
-          },
-          onCancel: () => {
-            finish(undefined);
-          },
-          onSelectTarget: (outcome, _nextQuery, _nextFieldState, discoveryMode) => {
-            const metricKey = extractMetricKeyFromSelectTargetOutcome(outcome, family);
-            finish(
-              metricKey
-                ? {
-                    value: metricKey,
-                    discoveryMode,
-                  }
-                : undefined,
-            );
-          },
-        }).then((opened) => {
-          if (!opened) {
-            finish(undefined);
-          }
-        });
+      const continuation = await runStructuredDraftExplorerContinuation({
+        currentNode: null,
+        fieldOption,
+        initialDiscoveryMode,
+        openFilterExplorer,
+        query,
+        resolveSelectionTarget: buildMetricSelectionTargetResolver(family, fieldOption.label, options),
+        singleFieldBehavior: "list",
+        title,
+        user,
       });
+
+      switch (continuation.kind) {
+        case "selectTarget": {
+          const metricKey = extractMetricKeyFromSelectTargetOutcome(continuation.outcome, family);
+          return metricKey
+            ? {
+                value: metricKey,
+                discoveryMode: continuation.discoveryMode,
+              }
+            : undefined;
+        }
+        case "resumeHost":
+          return CLAUSE_BACK;
+        case "cancel":
+        case "notOpened":
+          return undefined;
+      }
     },
-    [getScopedFieldOptions, openFilterExplorer],
+    [getScopedFieldOptions, openFilterExplorer, user],
   );
 
   const promptForMetricCompareClause = React.useCallback(
@@ -1271,7 +1263,11 @@ export function useSearchStructuredDraftMetadataActions({
                 { value: "eq", label: "Equals", description: "Require both metrics to be equal." },
                 { value: "notEq", label: "Does Not Equal", description: "Require both metrics to differ." },
                 { value: "gt", label: "Greater Than", description: "Require the left metric to be greater." },
-                { value: "gte", label: "Greater Or Equal", description: "Require the left metric to be greater or equal." },
+                {
+                  value: "gte",
+                  label: "Greater Or Equal",
+                  description: "Require the left metric to be greater or equal.",
+                },
                 { value: "lt", label: "Less Than", description: "Require the left metric to be less." },
                 { value: "lte", label: "Less Or Equal", description: "Require the left metric to be less or equal." },
               ],
@@ -1329,62 +1325,35 @@ export function useSearchStructuredDraftMetadataActions({
         user.search.prepareFilterExplorerDraft(seededQuery, ["pack"]).draft,
       );
 
-      return new Promise<SearchFilterNodeEditorResult>((resolve) => {
-        let settled = false;
-        let latestQuery: Pf2eTerminalSearchQuery | undefined;
-        let latestFieldState: SearchFilterExplorerFieldState | undefined;
-        const finish = (result: SearchFilterNodeEditorResult) => {
-          if (!settled) {
-            settled = true;
-            resolve(result);
-          }
-        };
-
-        const finishFromQuery = (
-          nextQuery?: Pf2eTerminalSearchQuery,
-          nextFieldState?: SearchFilterExplorerFieldState,
-        ) => {
-          const resolvedFieldState = latestFieldState ?? nextFieldState;
-          const selection = resolvedFieldState?.discreteSelections.pack
-            ? {
-                include: [...resolvedFieldState.discreteSelections.pack.include],
-                exclude: [...resolvedFieldState.discreteSelections.pack.exclude],
-              }
-            : getSearchQueryPackSelection(latestQuery ?? nextQuery ?? baseQuery);
-          const hasSelection = selection.include.length > 0 || selection.exclude.length > 0;
-          if (!hasSelection) {
-            finish(currentNode ? null : CLAUSE_BACK);
-            return;
-          }
-
-          finish(buildSearchFilterPackSelectionNode(selection));
-        };
-
-        void openFilterExplorer({
-          title: "Pack",
-          queryOverride: baseQuery,
-          initialFieldState,
-          fieldOptions: [buildPackClauseFieldOption()],
-          onQueryChange: (nextQuery, nextFieldState) => {
-            latestQuery = nextQuery;
-            latestFieldState = nextFieldState;
-          },
-          onBack: (nextQuery, nextFieldState) => {
-            finishFromQuery(nextQuery, nextFieldState);
-          },
-          onExitRoot: (nextQuery, nextFieldState) => {
-            finishFromQuery(nextQuery, nextFieldState);
-          },
-          onCancel: () => {
-            finish(undefined);
-          },
-          singleFieldBehavior: "directValues",
-        }).then((opened) => {
-          if (!opened) {
-            finish(undefined);
-          }
-        });
+      const continuation = await runStructuredDraftExplorerContinuation({
+        currentNode: null,
+        fieldOption: buildPackClauseFieldOption(),
+        initialFieldState,
+        openFilterExplorer,
+        query: baseQuery,
+        title: "Pack",
+        user,
       });
+
+      if (continuation.kind === "cancel" || continuation.kind === "notOpened") {
+        return undefined;
+      }
+      if (continuation.kind !== "resumeHost") {
+        return undefined;
+      }
+
+      const selection = continuation.change?.fieldState.discreteSelections.pack
+        ? {
+            include: [...continuation.change.fieldState.discreteSelections.pack.include],
+            exclude: [...continuation.change.fieldState.discreteSelections.pack.exclude],
+          }
+        : getSearchQueryPackSelection(baseQuery);
+      const hasSelection = selection.include.length > 0 || selection.exclude.length > 0;
+      if (!hasSelection) {
+        return currentNode ? null : CLAUSE_BACK;
+      }
+
+      return buildSearchFilterPackSelectionNode(selection);
     },
     [openFilterExplorer, user.search],
   );
@@ -1395,9 +1364,11 @@ export function useSearchStructuredDraftMetadataActions({
       query: Pf2eTerminalSearchQuery,
       currentNode?: Extract<SearchFilterNode, { kind: "scope" }>,
     ): Promise<Extract<SearchFilterNode, { kind: "scope" }> | ClausePromptBackResult | undefined> => {
-      const categoryOptions = user.search.getCategoryOptions().filter(
-        (option): option is { value: SearchCategory; label: string; description: string } => option.value !== null,
-      );
+      const categoryOptions = user.search
+        .getCategoryOptions()
+        .filter(
+          (option): option is { value: SearchCategory; label: string; description: string } => option.value !== null,
+        );
       if (categoryOptions.length === 0) {
         await terminal.pauseForAnyKey("No categories are available for the current query.");
         return undefined;
@@ -1426,7 +1397,9 @@ export function useSearchStructuredDraftMetadataActions({
           return undefined;
         }
 
-        const subcategoryOptions = user.search.getSubcategoryOptions(category).filter((option) => option.value !== null);
+        const subcategoryOptions = user.search
+          .getSubcategoryOptions(category)
+          .filter((option) => option.value !== null);
         const matchingCurrentNode = currentNode && currentNode.category === category ? currentNode : null;
         const currentMode =
           matchingCurrentNode?.subcategory.kind === "eq"
@@ -1470,9 +1443,7 @@ export function useSearchStructuredDraftMetadataActions({
               return undefined;
             }
             const currentSubcategoryValue =
-              matchingCurrentNode?.subcategory.kind === "eq"
-                ? matchingCurrentNode.subcategory.value
-                : null;
+              matchingCurrentNode?.subcategory.kind === "eq" ? matchingCurrentNode.subcategory.value : null;
             const subcategorySelection = await promptSession.promptSelectOption({
               title: "Specific Subcategory",
               prompt: "Choose the exact subcategory for this scope clause",
@@ -1518,14 +1489,13 @@ export function useSearchStructuredDraftMetadataActions({
         | Extract<SearchFilterNode, { kind: "level" }>
         | Extract<SearchFilterNode, { kind: "price" }>
         | Extract<SearchFilterNode, { kind: "actionCost" }>,
-    ):
-      Promise<
-        | Extract<SearchFilterNode, { kind: "level" }>
-        | Extract<SearchFilterNode, { kind: "price" }>
-        | Extract<SearchFilterNode, { kind: "actionCost" }>
-        | null
-        | undefined
-      > => {
+    ): Promise<
+      | Extract<SearchFilterNode, { kind: "level" }>
+      | Extract<SearchFilterNode, { kind: "price" }>
+      | Extract<SearchFilterNode, { kind: "actionCost" }>
+      | null
+      | undefined
+    > => {
       if (node?.kind === "actionCost" && (node.match.kind === "isNull" || node.match.kind === "isNotNull")) {
         await terminal.pauseForAnyKey("Null action-cost clauses cannot be edited through the numeric matcher.");
         return undefined;
@@ -1592,7 +1562,9 @@ export function useSearchStructuredDraftMetadataActions({
         return null;
       }
       if (parsed.op === "neq") {
-        await terminal.pauseForAnyKey("`!=` is not supported for this matcher. Use an exact, minimum, maximum, or range value.");
+        await terminal.pauseForAnyKey(
+          "`!=` is not supported for this matcher. Use an exact, minimum, maximum, or range value.",
+        );
         return undefined;
       }
 
@@ -1653,23 +1625,49 @@ export function useSearchStructuredDraftMetadataActions({
     ): Promise<SearchFilterNodeEditorResult> => {
       switch (clauseKind) {
         case "field":
-          return promptForFieldClause(promptSession, query, "field", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
+          return promptForFieldClause(
+            promptSession,
+            query,
+            "field",
+            currentNode ? canonicalFilterToMetadataNode(currentNode) : null,
+          );
         case "metric":
-          return promptForFieldClause(promptSession, query, "metric", currentNode ? canonicalFilterToMetadataNode(currentNode) : null);
+          return promptForFieldClause(
+            promptSession,
+            query,
+            "metric",
+            currentNode ? canonicalFilterToMetadataNode(currentNode) : null,
+          );
         case "metricCompare":
-          return promptForMetricCompareClause(promptSession, query, currentNode?.kind === "metricCompare" ? currentNode : undefined);
+          return promptForMetricCompareClause(
+            promptSession,
+            query,
+            currentNode?.kind === "metricCompare" ? currentNode : undefined,
+          );
         case "pack":
           return promptForPackClause(promptSession, query, currentNode?.kind === "pack" ? currentNode : undefined);
         case "scope":
           return promptForScopeClause(promptSession, query, currentNode?.kind === "scope" ? currentNode : undefined);
         case "level":
-          return promptForNumericMatchClause(promptSession, "level", currentNode?.kind === "level" ? currentNode : undefined);
+          return promptForNumericMatchClause(
+            promptSession,
+            "level",
+            currentNode?.kind === "level" ? currentNode : undefined,
+          );
         case "price":
-          return promptForNumericMatchClause(promptSession, "price", currentNode?.kind === "price" ? currentNode : undefined);
+          return promptForNumericMatchClause(
+            promptSession,
+            "price",
+            currentNode?.kind === "price" ? currentNode : undefined,
+          );
         case "rarity":
           return promptForRarityClause(query, currentNode?.kind === "rarity" ? currentNode : undefined);
         case "actionCost":
-          return promptForNumericMatchClause(promptSession, "actionCost", currentNode?.kind === "actionCost" ? currentNode : undefined);
+          return promptForNumericMatchClause(
+            promptSession,
+            "actionCost",
+            currentNode?.kind === "actionCost" ? currentNode : undefined,
+          );
       }
     },
     [
@@ -1683,13 +1681,17 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const promptForClauseKind = React.useCallback(
-    async (promptSession: SearchWorkspacePromptAdapters, query: Pf2eTerminalSearchQuery): Promise<ClausePromptResult> => {
+    async (
+      promptSession: SearchWorkspacePromptAdapters,
+      query: Pf2eTerminalSearchQuery,
+    ): Promise<ClausePromptResult> => {
       const fieldOptions = getScopedFieldOptions(query);
       const hasFieldClauses = fieldOptions.some((fieldOption) => !isMetricFieldOptionValue(fieldOption.value));
       const hasMetricClauses = fieldOptions.some((fieldOption) => isMetricFieldOptionValue(fieldOption.value));
       const hasMetricCompareClauses = hasMetricClauses;
       const hasPrice = fieldOptions.some((fieldOption) => fieldOption.value === "priceCp");
-      const hasActionCost = user.search.getActionCostOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
+      const hasActionCost =
+        user.search.getActionCostOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)).length > 0;
       const entryByValue = new Map<ClauseKind, { value: ClauseKind; label: string; description: string }>();
       entryByValue.set("scope", {
         value: "scope",
@@ -1766,7 +1768,11 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const addQueryClauseAtPath = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, path: number[] = [], wrapper?: "allOf" | "anyOf" | "not"): Promise<ClauseApplyResult> => {
+    async (
+      query: Pf2eTerminalSearchQuery,
+      path: number[] = [],
+      wrapper?: "allOf" | "anyOf" | "not",
+    ): Promise<ClauseApplyResult> => {
       return terminal.runPromptSession(async (session) => {
         const workingQuery = query;
         for (;;) {
@@ -1829,33 +1835,41 @@ export function useSearchStructuredDraftMetadataActions({
                   } as SearchFilterNode)
                 : nextNode;
           const nextFilter = Array.isArray(wrappedNode)
-            ? appendSearchFilterNodesAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery))
-            : appendSearchFilterNodeAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery));
+            ? appendSearchFilterNodesAtPath(
+                workingQuery.filter,
+                path,
+                wrappedNode,
+                getSearchQueryRootOperator(workingQuery),
+              )
+            : appendSearchFilterNodeAtPath(
+                workingQuery.filter,
+                path,
+                wrappedNode,
+                getSearchQueryRootOperator(workingQuery),
+              );
           applyNextTree(nextFilter);
           return "applied";
         }
       });
     },
-    [applyNextTree, getScopedFieldOptions, openLiveExplorerGroupFieldByName, promptForClauseKind, promptForClauseNode, terminal],
+    [
+      applyNextTree,
+      getScopedFieldOptions,
+      openLiveExplorerGroupFieldByName,
+      promptForClauseKind,
+      promptForClauseNode,
+      terminal,
+    ],
   );
 
   const runInsertionAction = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      path: number[],
-      actionId: StructuredDraftEntryActionId,
-    ) => {
+    async (query: Pf2eTerminalSearchQuery, path: number[], actionId: StructuredDraftEntryActionId) => {
       if (actionId === "moveHere") {
         if (!moveSourcePath) {
           return;
         }
         applyNextTree(
-          moveSearchFilterNodeToGroupPath(
-            query.filter,
-            moveSourcePath,
-            path,
-            getSearchQueryRootOperator(query),
-          ),
+          moveSearchFilterNodeToGroupPath(query.filter, moveSourcePath, path, getSearchQueryRootOperator(query)),
         );
         clearStructuredDraftMoveSource();
         return;
@@ -1883,7 +1897,9 @@ export function useSearchStructuredDraftMetadataActions({
         const entries = buildInsertionActionEntries(Boolean(moveSourcePath));
         const result = await prompts.promptSelectOption({
           title: "Insertion Slot",
-          prompt: moveSourcePath ? "Choose where to move the selected node" : "Choose what to add at this insertion slot",
+          prompt: moveSourcePath
+            ? "Choose where to move the selected node"
+            : "Choose what to add at this insertion slot",
           entries: entries.map((entry) => ({
             value: entry.id,
             label: entry.label,
@@ -1904,10 +1920,7 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const runRootAction = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      actionId: StructuredDraftEntryActionId,
-    ) => {
+    async (query: Pf2eTerminalSearchQuery, actionId: StructuredDraftEntryActionId) => {
       if (actionId === "toggleRoot") {
         applyNextTree(toggleSearchFilterRootGroupOperator(query.filter));
         return;
@@ -1940,11 +1953,15 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const getLeafActionEntries = React.useCallback(
-    (query: Pf2eTerminalSearchQuery, path: number[], node: SearchFilterNode): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
+    (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+      node: SearchFilterNode,
+    ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
       const fieldOptions = getScopedFieldOptions(query);
       const fieldOptionValue = getQueryFieldValueForNode(node);
       const fieldOption = fieldOptionValue
-        ? fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null
+        ? (fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null)
         : null;
       const editableMetadataNode = canonicalFilterToMetadataNode(node);
       const editableClauseKind: ClauseKind | null =
@@ -1971,7 +1988,13 @@ export function useSearchStructuredDraftMetadataActions({
 
       return [
         ...(editableClauseKind
-          ? [{ id: "edit" as const, label: "Edit Clause", description: "Change this canonical clause without leaving the tree editor." }]
+          ? [
+              {
+                id: "edit" as const,
+                label: "Edit Clause",
+                description: "Change this canonical clause without leaving the tree editor.",
+              },
+            ]
           : []),
         {
           id: "wrapNot",
@@ -1989,7 +2012,15 @@ export function useSearchStructuredDraftMetadataActions({
           description: "Place this clause inside a new group where any child may match.",
         },
         { id: "move", label: "Move Node", description: "Move this clause to another visible insertion slot." },
-        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this clause out of its current boolean group." }] : []),
+        ...(canLift
+          ? [
+              {
+                id: "lift" as const,
+                label: "Lift Node",
+                description: "Lift this clause out of its current boolean group.",
+              },
+            ]
+          : []),
         { id: "remove", label: "Remove Clause", description: "Delete this clause from the live query tree." },
       ];
     },
@@ -2006,7 +2037,7 @@ export function useSearchStructuredDraftMetadataActions({
       const fieldOptions = getScopedFieldOptions(query);
       const fieldOptionValue = getQueryFieldValueForNode(node);
       const fieldOption = fieldOptionValue
-        ? fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null
+        ? (fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null)
         : null;
       const editableMetadataNode = canonicalFilterToMetadataNode(node);
       const editableClauseKind: ClauseKind | null =
@@ -2061,7 +2092,11 @@ export function useSearchStructuredDraftMetadataActions({
           );
           return;
         }
-        if ((editableClauseKind === "field" || editableClauseKind === "metric") && fieldOption && editableMetadataNode) {
+        if (
+          (editableClauseKind === "field" || editableClauseKind === "metric") &&
+          fieldOption &&
+          editableMetadataNode
+        ) {
           if (fieldOption.editor === "sharedExplorer") {
             const groupedFieldValues = new Set(
               fieldOptions
@@ -2116,7 +2151,9 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
       if (actionId === "remove") {
-        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+        applyNextTree(
+          path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined),
+        );
       }
     },
     [
@@ -2155,7 +2192,10 @@ export function useSearchStructuredDraftMetadataActions({
   );
 
   const getNotActionEntries = React.useCallback(
-    (query: Pf2eTerminalSearchQuery, path: number[]): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
+    (
+      query: Pf2eTerminalSearchQuery,
+      path: number[],
+    ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
       const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
       return [
         {
@@ -2169,7 +2209,13 @@ export function useSearchStructuredDraftMetadataActions({
           description: "Move this excluded group to another visible insertion slot.",
         },
         ...(canLift
-          ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this excluded group out of its current parent group." }]
+          ? [
+              {
+                id: "lift" as const,
+                label: "Lift Node",
+                description: "Lift this excluded group out of its current parent group.",
+              },
+            ]
           : []),
         { id: "remove", label: "Remove Group", description: "Delete the negated clause entirely." },
       ];
@@ -2185,7 +2231,9 @@ export function useSearchStructuredDraftMetadataActions({
       actionId: StructuredDraftEntryActionId,
     ) => {
       if (actionId === "unwrap") {
-        applyNextTree(path.length === 0 ? node.child : updateSearchFilterNodeAtPath(query.filter, path, () => node.child));
+        applyNextTree(
+          path.length === 0 ? node.child : updateSearchFilterNodeAtPath(query.filter, path, () => node.child),
+        );
         return;
       }
       if (actionId === "move") {
@@ -2197,7 +2245,9 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
       if (actionId === "remove") {
-        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+        applyNextTree(
+          path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined),
+        );
       }
     },
     [applyNextTree, enterStructuredDraftMoveMode],
@@ -2228,7 +2278,10 @@ export function useSearchStructuredDraftMetadataActions({
     (
       query: Pf2eTerminalSearchQuery,
       path: number[],
-      node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
+      node: Extract<
+        SearchFilterNode,
+        { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }
+      >,
     ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] => {
       const canUnwrap = canUnwrapSearchFilterNodeAtPath(query.filter, path);
       const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
@@ -2263,8 +2316,24 @@ export function useSearchStructuredDraftMetadataActions({
           description: "Wrap this group in an excluded group.",
         },
         { id: "move", label: "Move Node", description: "Move this group to another visible insertion slot." },
-        ...(canUnwrap ? [{ id: "unwrap" as const, label: "Unwrap Group", description: "Replace this group with its current children." }] : []),
-        ...(canLift ? [{ id: "lift" as const, label: "Lift Node", description: "Lift this group out of its current parent group." }] : []),
+        ...(canUnwrap
+          ? [
+              {
+                id: "unwrap" as const,
+                label: "Unwrap Group",
+                description: "Replace this group with its current children.",
+              },
+            ]
+          : []),
+        ...(canLift
+          ? [
+              {
+                id: "lift" as const,
+                label: "Lift Node",
+                description: "Lift this group out of its current parent group.",
+              },
+            ]
+          : []),
         { id: "remove", label: "Remove Group", description: "Delete this group and all of its children." },
       ];
     },
@@ -2275,10 +2344,18 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       path: number[],
-      node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
+      node: Extract<
+        SearchFilterNode,
+        { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }
+      >,
       actionId: StructuredDraftEntryActionId,
     ) => {
-      if (actionId === "addClause" || actionId === "addAndGroup" || actionId === "addOrGroup" || actionId === "addNotGroup") {
+      if (
+        actionId === "addClause" ||
+        actionId === "addAndGroup" ||
+        actionId === "addOrGroup" ||
+        actionId === "addNotGroup"
+      ) {
         await runInsertionAction(query, path, actionId);
         return;
       }
@@ -2305,7 +2382,9 @@ export function useSearchStructuredDraftMetadataActions({
         return;
       }
       if (actionId === "remove") {
-        applyNextTree(path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+        applyNextTree(
+          path.length === 0 ? undefined : updateSearchFilterNodeAtPath(query.filter, path, () => undefined),
+        );
       }
     },
     [applyNextTree, enterStructuredDraftMoveMode, runInsertionAction],
@@ -2315,7 +2394,10 @@ export function useSearchStructuredDraftMetadataActions({
     async (
       query: Pf2eTerminalSearchQuery,
       path: number[],
-      node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
+      node: Extract<
+        SearchFilterNode,
+        { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }
+      >,
     ) => {
       const entries = getGroupActionEntries(query, path, node);
       const result = await prompts.promptSelectOption({
@@ -2424,7 +2506,13 @@ export function useSearchStructuredDraftMetadataActions({
         return buildInsertionActionEntries(Boolean(moveSourcePath));
       }
       if (entry.kind === "queryFieldBucket") {
-        return [{ id: "edit", label: "Edit Clause", description: "Edit this current-group field bucket through the shared explorer." }];
+        return [
+          {
+            id: "edit",
+            label: "Edit Clause",
+            description: "Edit this current-group field bucket through the shared explorer.",
+          },
+        ];
       }
 
       const node = getSearchFilterNodeAtPath(draftQuery.filter, entry.treePath ?? []);
@@ -2439,20 +2527,11 @@ export function useSearchStructuredDraftMetadataActions({
       }
       return getLeafActionEntries(draftQuery, entry.treePath ?? [], node);
     },
-    [
-      getGroupActionEntries,
-      getLeafActionEntries,
-      getNotActionEntries,
-      moveSourcePath,
-      structuredDraftQuery,
-    ],
+    [getGroupActionEntries, getLeafActionEntries, getNotActionEntries, moveSourcePath, structuredDraftQuery],
   );
 
   const runStructuredDraftEntryAction = React.useCallback(
-    async (
-      entry: SearchStructuredDraftEntry | null | undefined,
-      actionId: StructuredDraftEntryActionId,
-    ) => {
+    async (entry: SearchStructuredDraftEntry | null | undefined, actionId: StructuredDraftEntryActionId) => {
       const draftQuery = structuredDraftQuery;
       if (!draftQuery || !entry) {
         return;

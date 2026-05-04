@@ -1,8 +1,8 @@
 # Structured Editor Continuation Model Convergence
 
-Status: done  
-Priority: soon  
-Owner: unassigned  
+Status: done
+Priority: soon
+Owner: unassigned
 Last reviewed: 2026-05-04
 
 ## Problem

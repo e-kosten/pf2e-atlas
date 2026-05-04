@@ -3,16 +3,10 @@ import React from "react";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
-import type {
-  Pf2eTerminalQueryFieldOption,
-  Pf2eTerminalSearchQuery,
-} from "../../search/service.js";
+import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
 import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
-import type {
-  SearchStructuredDraftState,
-  StructuredDraftResumeTarget,
-} from "./structured-draft-state.js";
+import type { SearchStructuredDraftState, StructuredDraftResumeTarget } from "./structured-draft-state.js";
 import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
 import { buildSearchQuerySummary } from "../workspace/query-summary.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
@@ -72,26 +66,23 @@ export function useSearchStructuredDraftEditing({
   ) => void;
   user: SearchWorkspaceUser;
 }): SearchStructuredEditorSession | null {
-  const {
-    editStructuredDraftMetadata,
-    getStructuredDraftEntryActions,
-    runStructuredDraftEntryAction,
-  } = useSearchStructuredDraftMetadataActions({
-    appendStructuredDraftMetadataNode,
-    clearStructuredDraftMoveSource,
-    editFieldClause,
-    enterStructuredDraftMoveMode,
-    getScopedFieldOptions,
-    moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
-    openFilterExplorer,
-    prompts,
-    replaceStructuredDraftProjection,
-    setStructuredDraftResumeTarget,
-    structuredDraftQuery,
-    terminal,
-    updateStructuredDraftMetadataNode,
-    user,
-  });
+  const { editStructuredDraftMetadata, getStructuredDraftEntryActions, runStructuredDraftEntryAction } =
+    useSearchStructuredDraftMetadataActions({
+      appendStructuredDraftMetadataNode,
+      clearStructuredDraftMoveSource,
+      editFieldClause,
+      enterStructuredDraftMoveMode,
+      getScopedFieldOptions,
+      moveSourcePath: structuredDraftState?.moveSourcePath ?? null,
+      openFilterExplorer,
+      prompts,
+      replaceStructuredDraftProjection,
+      setStructuredDraftResumeTarget,
+      structuredDraftQuery,
+      terminal,
+      updateStructuredDraftMetadataNode,
+      user,
+    });
 
   const selectCurrentStructuredDraftEntry = React.useCallback(() => {
     if (!structuredDraftState) {
@@ -141,7 +132,9 @@ export function useSearchStructuredDraftEditing({
       statusText: structuredDraftState.moveSourcePath
         ? "Move mode: select a visible destination slot, Enter confirms, Left/Esc cancels the move."
         : "Left/Esc returns to the main editor. Query-tree changes apply immediately.",
-      activePartCount: structuredDraftQuery ? buildSearchQuerySummary(structuredDraftQuery).activeStructuredPartCount : 0,
+      activePartCount: structuredDraftQuery
+        ? buildSearchQuerySummary(structuredDraftQuery).activeStructuredPartCount
+        : 0,
       summaryLines: structuredDraftQuery
         ? buildStructuredQuerySummaryLines(structuredDraftQuery, {
             packLabelResolver: user.search.getPackLabel,

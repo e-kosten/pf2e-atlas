@@ -26,16 +26,10 @@ export function useSearchStructuredEditorActions({
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
 }): {
-  openStructuredDraftSession: (
-    anchor: SearchStructuredDraftState["anchor"],
-    query?: Pf2eTerminalSearchQuery,
-  ) => void;
+  openStructuredDraftSession: (anchor: SearchStructuredDraftState["anchor"], query?: Pf2eTerminalSearchQuery) => void;
   structuredEditorSession: SearchStructuredEditorSession | null;
 } {
-  const {
-    editFieldClause,
-    getScopedFieldOptions,
-  } = useSearchQueryFieldEditing({
+  const { editFieldClause, getScopedFieldOptions } = useSearchQueryFieldEditing({
     openFilterExplorer,
     prompts,
     terminal,
