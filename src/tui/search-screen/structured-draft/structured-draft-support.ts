@@ -12,8 +12,7 @@ import { getSearchQueryCategory, getSearchQueryRootOperator } from "../../search
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import { projectSearchQueryFilter, type Pf2eTerminalSearchQueryBase } from "../../search/query-projection.js";
 import {
-  createStructuredDraftNodeResumeTarget,
-  getStructuredDraftResumeFocusPath,
+  createStructuredDraftGroupResumeTarget,
   type StructuredDraftResumeTarget,
 } from "./structured-draft-state.js";
 
@@ -238,32 +237,8 @@ function buildActiveGroupFieldBuckets(
   return { buckets, groupedChildIndexes };
 }
 
-function resolveActiveGroupPath(filter: SearchFilterNode | undefined, focusPath: number[] | null): number[] | null {
-  if (!focusPath) {
-    return null;
-  }
-
-  for (let depth = focusPath.length; depth >= 0; depth -= 1) {
-    const candidatePath = focusPath.slice(0, depth);
-    const candidateNode = getSearchFilterNodeAtPath(filter, candidatePath);
-    if (candidateNode && isSearchFilterBooleanGroup(candidateNode)) {
-      return candidatePath;
-    }
-  }
-
-  return null;
-}
-
 function pathsEqual(left: number[] | undefined, right: number[]): boolean {
   return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
-}
-
-function pathContains(descendant: number[], ancestor: number[] | undefined): boolean {
-  if (!ancestor || ancestor.length > descendant.length) {
-    return false;
-  }
-
-  return ancestor.every((segment, index) => descendant[index] === segment);
 }
 
 function buildFilterTreeEntries(
@@ -340,8 +315,7 @@ function buildFilterTreeEntries(
     const showInsertionSlot =
       isSearchFilterBooleanGroup(current) &&
       (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path));
-    const useActiveGroupProjection =
-      current.kind === "allOf" && options.activeGroupPath !== null && pathsEqual(path, options.activeGroupPath);
+    const useActiveGroupProjection = current.kind === "allOf" || current.kind === "anyOf";
     const { buckets, groupedChildIndexes } = useActiveGroupProjection
       ? buildActiveGroupFieldBuckets(children, path, options.groupedFieldValues)
       : { buckets: [], groupedChildIndexes: new Set<number>() };
@@ -473,9 +447,8 @@ export function buildStructuredDraftEntries(
   },
 ): SearchStructuredDraftEntry[] {
   const draftCategory = getSearchQueryCategory(draftQuery);
-  const focusPath = getStructuredDraftResumeFocusPath(resumeTarget);
-  const activeGroupPath =
-    resumeTarget?.kind === "group" ? resumeTarget.groupPath : resolveActiveGroupPath(draftQuery.filter, focusPath);
+  const activeGroupPath = resumeTarget?.kind === "group" ? resumeTarget.groupPath : null;
+  const nodeFocusPath = resumeTarget?.kind === "node" ? resumeTarget.path : null;
   const entries: SearchStructuredDraftEntry[] = [
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,
@@ -487,8 +460,8 @@ export function buildStructuredDraftEntries(
     }),
   ];
 
-  if (focusPath && resumeTarget?.kind === "node") {
-    const focusedNode = getSearchFilterNodeAtPath(draftQuery.filter, focusPath);
+  if (nodeFocusPath) {
+    const focusedNode = getSearchFilterNodeAtPath(draftQuery.filter, nodeFocusPath);
     if (!focusedNode) {
       return entries;
     }
@@ -499,25 +472,14 @@ export function buildStructuredDraftEntries(
 
 export function findStructuredDraftGroupedFieldBucketForPath(
   draftQuery: Pf2eTerminalSearchQuery,
-  focusPath: number[],
+  groupPath: number[],
+  field: string,
   groupedFieldValues: ReadonlySet<string>,
 ): SearchStructuredDraftEntry | null {
-  for (let depth = focusPath.length; depth >= 0; depth -= 1) {
-    const scopedFocusPath = focusPath.slice(0, depth);
-    const bucket =
-      buildStructuredDraftEntries(draftQuery, createStructuredDraftNodeResumeTarget(scopedFocusPath), {
-        groupedFieldValues,
-      }).find(
-        (entry) =>
-          entry.kind === "queryFieldBucket" &&
-          [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) =>
-            pathContains(focusPath, path),
-          ),
-      ) ?? null;
-    if (bucket) {
-      return bucket;
-    }
-  }
-
-  return null;
+  return (
+    buildStructuredDraftEntries(draftQuery, createStructuredDraftGroupResumeTarget(groupPath), {
+      groupedFieldValues,
+    }).find((entry) => entry.kind === "queryFieldBucket" && entry.field === field && pathsEqual(entry.groupPath, groupPath)) ??
+    null
+  );
 }

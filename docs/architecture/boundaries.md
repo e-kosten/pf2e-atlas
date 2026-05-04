@@ -190,7 +190,7 @@ Second, TUI feature code should use shared framework primitives instead of rebui
 
 Those rules are not cosmetic. They encode a deliberate push toward reusable controllers, interaction routers, and screen-model helpers.
 
-Structured search-editor continuation is a TUI-internal workflow boundary. Child prompts and shared-explorer sessions may collect local values or generic explorer drafts, but the structured search host owns how child-flow outcomes become canonical query mutations and resume targets. New structured-editor continuation paths should route through the owners documented in `docs/architecture/tui.md`: the continuation coordinator, the resume-target state owner, structured-draft support projection, and metadata-action mutation helpers.
+Structured search-editor continuation is a TUI-internal workflow boundary. Child prompts and shared-explorer sessions may collect local values or generic explorer drafts, but the structured search host owns how child-flow outcomes become canonical query mutations and resume targets. New structured-editor continuation paths should route through the owners documented in `docs/architecture/tui.md`: the continuation and bounded host-mutation vocabulary, the resume-target state owner, structured-draft support projection, and metadata-action mutation helpers.
 
 The stable rule is:
 

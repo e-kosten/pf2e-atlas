@@ -3988,9 +3988,9 @@ describe("search screen", () => {
     }
     expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("Traits: Include archetype, de");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
     expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
-    expect(app.lastFrame()).toContain("Traits: !concentrate");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();
   });
@@ -4039,14 +4039,14 @@ describe("search screen", () => {
 
     expect(app.lastFrame()).toContain("Top-level filters: 3");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("Traits: Include archetype, de");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
     expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
-    expect(app.lastFrame()).toContain("Traits: !concentrate");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();
   });
 
-  it("rehydrates the original multi-trait explorer state when editing an existing clause", async () => {
+  it("renders existing mixed multi-trait buckets without changing canonical shape", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
       {
@@ -4090,33 +4090,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Top-level filters: 2");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
     expect(app.lastFrame()).toContain("├─ All of");
-    expect(app.lastFrame()).toContain("│  ├─ Any of");
-    expect(app.lastFrame()).toContain("Traits: includes Dedica");
-    expect(app.lastFrame().match(/^│ {2}├─ ! Traits: includes Concent/m)).not.toBeNull();
-
-    for (let step = 0; step < 4; step += 1) {
-      pressUp(app);
-      await flushInk();
-    }
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
-
-    app.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    await waitForFrameToContain(app, "Traits Explorer", 60);
-    await waitForFrameToContain(app, "archetype", 120);
-    expect(app.lastFrame()).toContain("dedication");
-    expect(app.lastFrame()).toContain("concentrate");
-
-    await returnFromExplorerToStructuredEditor(app);
-    expect(app.lastFrame()).toContain("Top-level filters: 2");
-    expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("├─ All of");
-    expect(app.lastFrame()).toContain("│  ├─ Any of");
-    expect(app.lastFrame()).toContain("Traits: includes Dedica");
-    expect(app.lastFrame().match(/^│ {2}├─ ! Traits: includes Concent/m)).not.toBeNull();
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: !concentrate");
   });
 
   it("keeps feat trait edit-clause additions flat instead of wrapping them in a nested group", async () => {
@@ -4608,8 +4583,8 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Traits: includes Illusion");
-    expect(app.lastFrame()).toContain("! Traits: includes Emotion");
+    expect(app.lastFrame()).toContain("Traits: Include illusion");
+    expect(app.lastFrame()).toContain("Traits: !emotion");
     expect(app.lastFrame()).not.toContain("├─ Exclude");
     expect(app.lastFrame()).not.toContain("└─ Exclude");
   });

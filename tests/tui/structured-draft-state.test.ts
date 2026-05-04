@@ -142,7 +142,7 @@ describe("structured draft resume target state", () => {
     });
   });
 
-  it("selects grouped buckets from canonical member paths when leaf rows are projected away", () => {
+  it("keeps node resume targets exact instead of promoting member paths to grouped buckets", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: allOfFilter([
@@ -156,12 +156,40 @@ describe("structured draft resume target state", () => {
     const selected = selectedEntry(buildEntries(query, target), target);
 
     expect(selected).toMatchObject({
-      kind: "queryFieldBucket",
-      groupPath: [],
-      field: "traits",
-      memberPaths: [[2], [3]],
-      label: "Traits: Include illusion, visual",
+      kind: "queryNode",
+      treePath: [3],
+      label: "Traits: includes Visual",
     });
+  });
+
+  it("derives grouped buckets from an explicit canonical groupPath target", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: allOfFilter([
+        scopeFilter("spell"),
+        metadataPredicateFilter({ field: "families", op: "includes", value: "focus" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "visual" }),
+      ]),
+    };
+    const entries = buildEntries(query, createStructuredDraftGroupResumeTarget([]));
+
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [],
+        field: "traits",
+        memberPaths: [[2], [3]],
+        label: "Traits: Include illusion, visual",
+      }),
+    );
+    expect(entries).not.toContainEqual(
+      expect.objectContaining({
+        kind: "queryNode",
+        treePath: [3],
+        label: "Traits: includes Visual",
+      }),
+    );
   });
 
   it("derives a group resume target from boolean groups without encoding projected bucket identity", () => {

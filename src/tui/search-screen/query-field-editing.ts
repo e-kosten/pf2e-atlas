@@ -9,112 +9,32 @@ import type {
 } from "../search/service.js";
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import { promptNumericScalarClause } from "../filter-explorer/scalar-editor.js";
-import {
-  buildSearchFilterExplorerComposeDraft,
-  type SearchFilterExplorerFieldState,
-} from "./filter-explorer-field-state.js";
 import type {
-  OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
   SearchWorkspaceUser,
 } from "./workspace/workspace-action-types.js";
 
 export function useSearchQueryFieldEditing({
-  openFilterExplorer,
   prompts,
   terminal,
   user,
 }: {
-  openFilterExplorer: OpenSearchFilterExplorer;
   prompts: SearchWorkspacePromptAdapters;
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
 }): {
-  chooseQueryField: (query: Pf2eTerminalSearchQuery) => Promise<Pf2eTerminalQueryFieldOption | null>;
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode?: MetadataFilterNode | null,
   ) => Promise<MetadataFilterNode | null | undefined>;
-  getExplorerBackedFieldOptions: (fieldOptions: Pf2eTerminalQueryFieldOption[]) => Pf2eTerminalQueryFieldOption[];
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
-  openOntologyFieldExplorer: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOptions: Pf2eTerminalQueryFieldOption[],
-    onApply: (nextNode: MetadataFilterNode | null) => void,
-  ) => Promise<boolean>;
 } {
   const getScopedFieldOptions = React.useCallback(
     (query: Pf2eTerminalSearchQuery): Pf2eTerminalQueryFieldOption[] =>
       user.search.getQueryFieldOptions(getSearchQueryCategory(query), getSearchQuerySubcategory(query)),
     [user.search],
-  );
-
-  const chooseQueryField = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery): Promise<Pf2eTerminalQueryFieldOption | null> => {
-      const fieldOptions = getScopedFieldOptions(query);
-      if (fieldOptions.length === 0) {
-        await terminal.pauseForAnyKey("No scoped metadata fields are available for the current query.");
-        return null;
-      }
-
-      const result = await prompts.promptSelectOption({
-        title: "Query Field",
-        prompt: "Choose the field for the next metadata clause",
-        entries: fieldOptions.map((fieldOption) => ({
-          value: fieldOption.value,
-          label: fieldOption.label,
-          description: fieldOption.description,
-        })),
-        selectedValue: fieldOptions[0]!.value,
-      });
-
-      if (result.kind !== "selected") {
-        return null;
-      }
-
-      return fieldOptions.find((fieldOption) => fieldOption.value === result.value) ?? null;
-    },
-    [getScopedFieldOptions, prompts, terminal],
-  );
-
-  const getExplorerBackedFieldOptions = React.useCallback(
-    (fieldOptions: Pf2eTerminalQueryFieldOption[]) =>
-      fieldOptions.filter((fieldOption) => fieldOption.editor === "sharedExplorer"),
-    [],
-  );
-
-  const openOntologyFieldExplorer = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      fieldOptions: Pf2eTerminalQueryFieldOption[],
-      onApply: (nextNode: MetadataFilterNode | null) => void,
-    ): Promise<boolean> => {
-      if (fieldOptions.length === 0 || fieldOptions.some((fieldOption) => fieldOption.editor !== "sharedExplorer")) {
-        return false;
-      }
-
-      const scopedFields = fieldOptions.map((fieldOption) => fieldOption.value);
-      const preservedMetadata = user.search.prepareFilterExplorerDraft(query, scopedFields).preservedMetadata;
-      const buildNodeForFieldState = (fieldState: SearchFilterExplorerFieldState): MetadataFilterNode | null =>
-        user.search.buildFilterExplorerMetadataNode(buildSearchFilterExplorerComposeDraft(fieldState), {
-          preservedMetadata,
-        });
-
-      return openFilterExplorer({
-        queryOverride: query,
-        fieldOptions,
-        singleFieldBehavior: fieldOptions.length === 1 ? "directValues" : "list",
-        onBack: (_nextQuery, nextFieldState) => {
-          onApply(buildNodeForFieldState(nextFieldState));
-        },
-        onExitRoot: (_nextQuery, nextFieldState) => {
-          onApply(buildNodeForFieldState(nextFieldState));
-        },
-      });
-    },
-    [openFilterExplorer, user.search],
   );
 
   const editFieldClause = React.useCallback(
@@ -243,10 +163,7 @@ export function useSearchQueryFieldEditing({
   );
 
   return {
-    chooseQueryField,
     editFieldClause,
-    getExplorerBackedFieldOptions,
     getScopedFieldOptions,
-    openOntologyFieldExplorer,
   };
 }

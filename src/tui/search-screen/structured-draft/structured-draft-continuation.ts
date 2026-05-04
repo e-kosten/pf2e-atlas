@@ -1,10 +1,8 @@
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
-import type {
-  Pf2eTerminalFilterExplorerInsertionResult,
-  Pf2eTerminalQueryFieldOption,
-  Pf2eTerminalSearchQuery,
-} from "../../search/service.js";
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
+import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
+import { metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/types.js";
 import {
   buildSearchFilterExplorerComposeDraft,
@@ -12,28 +10,93 @@ import {
 } from "../filter-explorer-field-state.js";
 import type { OpenSearchFilterExplorer, SearchWorkspaceUser } from "../workspace/workspace-action-types.js";
 
-export type StructuredDraftExplorerContinuationChange = {
-  result: Pf2eTerminalFilterExplorerInsertionResult;
+type GenericExplorerInsertionResult =
+  | { kind: "insert"; nodes: MetadataFilterNode[] }
+  | { kind: "replace"; node: MetadataFilterNode | null };
+
+export type StructuredDraftHostMutation =
+  | { kind: "replaceNode"; node: SearchFilterNode | null }
+  | { kind: "appendNodes"; nodes: SearchFilterNode[] }
+  | {
+      kind: "replaceGroupedField";
+      field: Pf2eTerminalQueryFieldOption["value"];
+      fieldOption: Pf2eTerminalQueryFieldOption;
+      fieldState: SearchFilterExplorerFieldState;
+    };
+
+export type StructuredDraftPromptFlowResult<T> =
+  | { kind: "apply"; value: T }
+  | { kind: "back" }
+  | { kind: "cancel" };
+
+export function structuredDraftPromptApply<T>(value: T): StructuredDraftPromptFlowResult<T> {
+  return { kind: "apply", value };
+}
+
+export function structuredDraftPromptBack<T = never>(): StructuredDraftPromptFlowResult<T> {
+  return { kind: "back" };
+}
+
+export function structuredDraftPromptCancel<T = never>(): StructuredDraftPromptFlowResult<T> {
+  return { kind: "cancel" };
+}
+
+export function translateExplorerInsertionToStructuredDraftMutation(
+  result: GenericExplorerInsertionResult,
+): StructuredDraftHostMutation {
+  if (result.kind === "insert") {
+    return {
+      kind: "appendNodes",
+      nodes: result.nodes
+        .map((node) => metadataFilterNodeToCanonicalFilter(node))
+        .filter((node): node is SearchFilterNode => Boolean(node)),
+    };
+  }
+
+  return {
+    kind: "replaceNode",
+    node: result.node ? (metadataFilterNodeToCanonicalFilter(result.node) ?? null) : null,
+  };
+}
+
+export function buildStructuredDraftGroupedFieldMutation({
+  fieldOption,
+  fieldState,
+}: {
+  fieldOption: Pf2eTerminalQueryFieldOption;
+  fieldState: SearchFilterExplorerFieldState;
+}): StructuredDraftHostMutation {
+  return {
+    kind: "replaceGroupedField",
+    field: fieldOption.value,
+    fieldOption,
+    fieldState,
+  };
+}
+
+export type StructuredDraftContinuationChange = {
+  mutation: StructuredDraftHostMutation;
   query: Pf2eTerminalSearchQuery;
   fieldState: SearchFilterExplorerFieldState;
 };
 
 export type StructuredDraftExplorerContinuationResult =
-  | { kind: "resumeHost"; change?: StructuredDraftExplorerContinuationChange }
+  | { kind: "resumeHost"; change?: StructuredDraftContinuationChange }
   | {
       kind: "selectTarget";
       outcome: FilterExplorerSelectTargetOutcome;
       query: Pf2eTerminalSearchQuery;
       fieldState: SearchFilterExplorerFieldState;
       discoveryMode: SearchFilterDiscoveryMode;
-      change: StructuredDraftExplorerContinuationChange;
+      change: StructuredDraftContinuationChange;
     }
-  | { kind: "cancel"; change?: StructuredDraftExplorerContinuationChange }
+  | { kind: "cancel"; change?: StructuredDraftContinuationChange }
   | { kind: "notOpened" };
 
 export async function runStructuredDraftExplorerContinuation({
   currentNode,
   fieldOption,
+  buildHostMutation,
   initialDiscoveryMode,
   initialFieldState,
   onHostChange,
@@ -47,9 +110,10 @@ export async function runStructuredDraftExplorerContinuation({
 }: {
   currentNode: MetadataFilterNode | null;
   fieldOption: Pf2eTerminalQueryFieldOption;
+  buildHostMutation?: (fieldState: SearchFilterExplorerFieldState) => StructuredDraftHostMutation;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   initialFieldState?: SearchFilterExplorerFieldState;
-  onHostChange?: (change: StructuredDraftExplorerContinuationChange) => void;
+  onHostChange?: (change: StructuredDraftContinuationChange) => void;
   openFilterExplorer: OpenSearchFilterExplorer;
   preservedMetadata?: MetadataFilterNode | null;
   query: Pf2eTerminalSearchQuery;
@@ -66,21 +130,24 @@ export async function runStructuredDraftExplorerContinuation({
 
   return new Promise<StructuredDraftExplorerContinuationResult>((resolve, reject) => {
     let settled = false;
-    let currentChange: StructuredDraftExplorerContinuationChange | undefined;
+    let currentChange: StructuredDraftContinuationChange | undefined;
     const resolvedPreservedMetadata =
       preservedMetadata ?? user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata;
 
     const buildChange = (
       nextQuery: Pf2eTerminalSearchQuery,
       nextFieldState: SearchFilterExplorerFieldState,
-    ): StructuredDraftExplorerContinuationChange => ({
-      result: user.search.buildFilterExplorerInsertionResult(buildSearchFilterExplorerComposeDraft(nextFieldState), {
+    ): StructuredDraftContinuationChange => {
+      const result = user.search.buildFilterExplorerInsertionResult(buildSearchFilterExplorerComposeDraft(nextFieldState), {
         preservedMetadata: resolvedPreservedMetadata,
         preferReplace: currentNode !== null,
-      }),
-      query: nextQuery,
-      fieldState: nextFieldState,
-    });
+      });
+      return {
+        mutation: buildHostMutation?.(nextFieldState) ?? translateExplorerInsertionToStructuredDraftMutation(result),
+        query: nextQuery,
+        fieldState: nextFieldState,
+      };
+    };
 
     const finish = (result: StructuredDraftExplorerContinuationResult): void => {
       if (settled) {

@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
-import type {
-  Pf2eTerminalFilterExplorerInsertionResult,
-  Pf2eTerminalQueryFieldOption,
-} from "../../src/tui/search/service.js";
+import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.js";
 import type { FilterExplorerSelectTargetOutcome } from "../../src/tui/filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
-import { runStructuredDraftExplorerContinuation } from "../../src/tui/search-screen/structured-draft/structured-draft-continuation.js";
+import {
+  runStructuredDraftExplorerContinuation,
+  structuredDraftPromptApply,
+  structuredDraftPromptBack,
+  structuredDraftPromptCancel,
+} from "../../src/tui/search-screen/structured-draft/structured-draft-continuation.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspaceUser,
@@ -47,7 +49,7 @@ function fieldState(include: string[]): SearchFilterExplorerFieldState {
 }
 
 function createUser(
-  searchResult: Pf2eTerminalFilterExplorerInsertionResult,
+  searchResult: { kind: "insert"; nodes: MetadataFilterNode[] } | { kind: "replace"; node: MetadataFilterNode },
   preservedMetadata: MetadataFilterNode | null,
 ) {
   return {
@@ -84,11 +86,12 @@ describe("structured editor continuation coordinator", () => {
   });
 
   it("turns shared explorer live changes and back into one host resume result", async () => {
+    const nextMetadataNode = { field: "traits", op: "includes", value: "amphibious" } satisfies MetadataFilterNode;
     const nextNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" });
-    const insertionResult: Pf2eTerminalFilterExplorerInsertionResult = {
+    const insertionResult = {
       kind: "insert",
-      nodes: [nextNode],
-    };
+      nodes: [nextMetadataNode],
+    } as const;
     const user = createUser(insertionResult, null);
     const onHostChange = vi.fn();
     let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
@@ -120,13 +123,19 @@ describe("structured editor continuation coordinator", () => {
     await expect(continuation).resolves.toEqual({
       kind: "resumeHost",
       change: {
-        result: insertionResult,
+        mutation: {
+          kind: "appendNodes",
+          nodes: [nextNode],
+        },
         query,
         fieldState: nextState,
       },
     });
     expect(onHostChange).toHaveBeenCalledWith({
-      result: insertionResult,
+      mutation: {
+        kind: "appendNodes",
+        nodes: [nextNode],
+      },
       query,
       fieldState: nextState,
     });
@@ -145,10 +154,10 @@ describe("structured editor continuation coordinator", () => {
   it("preserves the latest live explorer change when canceling a node edit", async () => {
     const currentNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "aquatic" });
     const preservedMetadata = metadataPredicateFilter({ field: "rarity", op: "is", value: "common" });
-    const replacementResult: Pf2eTerminalFilterExplorerInsertionResult = {
+    const replacementResult = {
       kind: "replace",
-      node: metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" }),
-    };
+      node: { field: "traits", op: "includes", value: "amphibious" },
+    } as const;
     const user = createUser(replacementResult, preservedMetadata);
     let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
     const openFilterExplorer: OpenSearchFilterExplorer = vi.fn(async (options) => {
@@ -171,7 +180,10 @@ describe("structured editor continuation coordinator", () => {
     await expect(continuation).resolves.toEqual({
       kind: "cancel",
       change: {
-        result: replacementResult,
+        mutation: {
+          kind: "replaceNode",
+          node: metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" }),
+        },
         query,
         fieldState: latestState,
       },
@@ -184,10 +196,10 @@ describe("structured editor continuation coordinator", () => {
   });
 
   it("only resolves select-target outcomes for coordinator callers that request target selection", async () => {
-    const insertionResult: Pf2eTerminalFilterExplorerInsertionResult = {
+    const insertionResult = {
       kind: "insert",
       nodes: [],
-    };
+    } as const;
     const user = createUser(insertionResult, null);
     let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
     const openFilterExplorer: OpenSearchFilterExplorer = vi.fn(async (options) => {
@@ -230,5 +242,51 @@ describe("structured editor continuation coordinator", () => {
         resolveSelectionTarget: expect.any(Function),
       }),
     );
+  });
+
+  it("lets the host translate shared explorer field changes into grouped-field mutations", async () => {
+    const insertionResult = {
+      kind: "insert",
+      nodes: [],
+    } as const;
+    const user = createUser(insertionResult, null);
+    let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
+    const openFilterExplorer: OpenSearchFilterExplorer = vi.fn(async (options) => {
+      explorerOptions = options;
+      return true;
+    });
+    const nextState = fieldState(["amphibious"]);
+    const continuation = runStructuredDraftExplorerContinuation({
+      currentNode: null,
+      fieldOption: sharedExplorerField,
+      buildHostMutation: (fieldStateValue) => ({
+        kind: "replaceGroupedField",
+        field: sharedExplorerField.value,
+        fieldOption: sharedExplorerField,
+        fieldState: fieldStateValue,
+      }),
+      openFilterExplorer,
+      query,
+      user,
+    });
+
+    explorerOptions?.onBack?.(query, nextState);
+
+    await expect(continuation).resolves.toMatchObject({
+      kind: "resumeHost",
+      change: {
+        mutation: {
+          kind: "replaceGroupedField",
+          field: "traits",
+          fieldState: nextState,
+        },
+      },
+    });
+  });
+
+  it("exposes prompt child outcomes as explicit coordinator-consumable results", () => {
+    expect(structuredDraftPromptApply("field")).toEqual({ kind: "apply", value: "field" });
+    expect(structuredDraftPromptBack()).toEqual({ kind: "back" });
+    expect(structuredDraftPromptCancel()).toEqual({ kind: "cancel" });
   });
 });

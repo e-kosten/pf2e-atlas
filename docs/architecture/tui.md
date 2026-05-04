@@ -222,16 +222,16 @@ The structured search editor owns continuation semantics for child prompt and ex
 
 The durable owners are:
 
-- `src/tui/search-screen/structured-draft/structured-draft-continuation.ts` for shared-explorer child-flow continuation inside the structured editor
+- `src/tui/search-screen/structured-draft/structured-draft-continuation.ts` for structured-editor child-flow result and bounded host-mutation vocabulary across prompt and shared-explorer flows
 - `src/tui/search-screen/structured-draft/structured-draft-state.ts` for resume targets over canonical search state
 - `src/tui/search-screen/structured-draft/structured-draft-support.ts` for deriving visible rows and selection from the current query plus resume target
 - `src/tui/search-screen/structured-draft/structured-draft-metadata-actions.ts` for translating child-flow results into bounded structured-editor mutations
 
 Resume targets are host state, not canonical search data. The allowed durable targets are root resume, group-local resume by canonical `groupPath`, and exact-node resume by canonical node path when the operation is genuinely node-scoped. Group-local continuation is the default for live prompt and explorer flows. Projected field buckets are presentation-derived from canonical members, and unary `not` remains a wrapper over one child node rather than a peer group-editing anchor.
 
-Structured-editor child flows should emit or be translated into bounded mutation families such as replace node, append nodes, and replace grouped field. Query-global replacement belongs only to explicitly query-global search flows. Generic helpers in `src/tui/filter-explorer/search-draft-query.ts` and `src/tui/search/service.ts` may keep preparing explorer drafts and generic insertion results, but they do not own structured-editor mutation or resume semantics.
+Structured-editor child flows emit or are translated into bounded mutation families such as replace node, append nodes, and replace grouped field before final writeback. Query-global replacement belongs only to explicitly query-global search flows. Generic helpers in `src/tui/filter-explorer/search-draft-query.ts` and `src/tui/search/service.ts` may keep preparing explorer drafts and generic insertion results, but they do not own structured-editor mutation or resume semantics.
 
-Prompt-local builders may keep incomplete value-entry state while collecting valid scalar, metric, pack, scope, level, price, or action-cost input. Once a valid canonical node or node set exists, the host resumes through the same structured-editor state and focus rules used by explorer-backed flows.
+Prompt-local builders may keep incomplete value-entry state while collecting valid scalar, metric, pack, scope, level, price, or action-cost input. Their completed, back, and cancel outcomes are normalized into the structured-editor continuation vocabulary so the host resumes through the same state and focus rules used by explorer-backed flows.
 
 Pack and rarity are query-global filter fields. Their shared-explorer child flows may open before a category scope exists; the search-hosted explorer model presents unscoped pack or rarity value roots by aggregating the search-semantics domain instead of requiring a scoped category. Scope-dependent metadata and metric explorer flows still require a category before opening.
 

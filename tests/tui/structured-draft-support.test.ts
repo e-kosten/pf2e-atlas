@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildStructuredDraftEntries } from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
 import {
+  createStructuredDraftGroupResumeTarget,
   createStructuredDraftNodeResumeTarget,
   getStructuredDraftSelectionIndexForResumeTarget,
 } from "../../src/tui/search-screen/structured-draft/structured-draft-state.js";
@@ -100,7 +101,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1]), {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
     });
     const bucketEntries = entries.filter((entry) => entry.kind === "queryFieldBucket");
@@ -134,7 +135,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1]), {
+    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
     }).filter((entry) => entry.kind === "queryFieldBucket");
 
@@ -144,7 +145,7 @@ describe("structured draft support", () => {
     ]);
   });
 
-  it("selects the grouped field bucket when the focused member path is projected away", () => {
+  it("keeps focused member paths as exact node targets instead of grouped bucket continuation owners", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: {
@@ -166,11 +167,11 @@ describe("structured draft support", () => {
       0,
     );
 
-    expect(entries[selectedIndex]?.kind).toBe("queryFieldBucket");
-    expect(entries[selectedIndex]?.label).toBe("Traits: Include auditory, illusion");
+    expect(entries[selectedIndex]?.kind).toBe("queryNode");
+    expect(entries[selectedIndex]?.label).toBe("Traits: includes Auditory");
   });
 
-  it("keeps any-of active groups structural instead of projecting shared-explorer buckets", () => {
+  it("projects any-of active groups through shared-explorer buckets", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: {
@@ -188,16 +189,23 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1, 0]), {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([1]), {
       groupedFieldValues: new Set(["traits"]),
     });
 
-    expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
-      true,
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [1],
+        field: "traits",
+        memberPaths: [
+          [1, 0],
+          [1, 1],
+        ],
+      }),
     );
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
-      true,
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
+      false,
     );
   });
 
@@ -213,7 +221,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([0]), {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
     });
 

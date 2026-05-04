@@ -58,6 +58,26 @@ export function createStructuredDraftResumeTargetForContainingGroup(
   return createStructuredDraftRootResumeTarget();
 }
 
+export function createStructuredDraftResumeTargetForEntryContext(
+  filter: SearchFilterNode | undefined,
+  entry: SearchStructuredDraftEntry | null | undefined,
+): StructuredDraftResumeTarget {
+  if (!entry) {
+    return createStructuredDraftRootResumeTarget();
+  }
+
+  switch (entry.kind) {
+    case "queryFieldBucket":
+      return createStructuredDraftGroupResumeTarget(entry.groupPath ?? []);
+    case "queryInsertionSlot":
+      return createStructuredDraftGroupResumeTarget(entry.insertionPath ?? []);
+    case "queryTreeRoot":
+      return createStructuredDraftGroupResumeTarget(entry.treePath ?? []);
+    case "queryNode":
+      return createStructuredDraftResumeTargetForContainingGroup(filter, entry.treePath ?? []);
+  }
+}
+
 export function getStructuredDraftResumeFocusPath(target: StructuredDraftResumeTarget | null): number[] | null {
   if (!target) {
     return null;
@@ -135,15 +155,6 @@ export function getStructuredDraftSelectionIndexForResumeTarget(
   );
   if (rootGroupIndex >= 0) {
     return clampStructuredDraftSelection(rootGroupIndex, entries.length);
-  }
-
-  const groupedBucketIndex = entries.findIndex(
-    (entry) =>
-      entry.kind === "queryFieldBucket" &&
-      [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathsMatch(path, focusPath)),
-  );
-  if (groupedBucketIndex >= 0) {
-    return clampStructuredDraftSelection(groupedBucketIndex, entries.length);
   }
 
   for (let depth = focusPath.length - 1; depth >= 0; depth -= 1) {

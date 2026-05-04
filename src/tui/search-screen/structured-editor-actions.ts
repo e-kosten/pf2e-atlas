@@ -30,7 +30,6 @@ export function useSearchStructuredEditorActions({
   structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const { editFieldClause, getScopedFieldOptions } = useSearchQueryFieldEditing({
-    openFilterExplorer,
     prompts,
     terminal,
     user,

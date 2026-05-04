@@ -18,6 +18,7 @@ import { buildStructuredDraftEntries } from "./structured-draft-support.js";
 import {
   createStructuredDraftGroupResumeTarget,
   createStructuredDraftNodeResumeTarget,
+  createStructuredDraftResumeTargetForEntryContext,
   createStructuredDraftResumeTargetForContainingGroup,
   createStructuredDraftResumeTargetForNodePath,
   createStructuredDraftRootResumeTarget,
@@ -99,6 +100,7 @@ export function useSearchStructuredDraftActions({
       options?: StructuredDraftProjectionOptions,
     ) => {
       let appliedQuery = currentQueryRef.current;
+      const previousQuery = currentQueryRef.current;
       applyQueryUpdate((query) => {
         appliedQuery = user.search.normalizeQuery(update(query));
         return appliedQuery;
@@ -110,7 +112,15 @@ export function useSearchStructuredDraftActions({
           return current;
         }
 
-        const resumeTarget = options?.resumeTarget ?? current.resumeTarget;
+        const previousEntries = buildEntriesForQuery(previousQuery, {
+          resumeTarget: current.resumeTarget,
+          moveSourcePath: current.moveSourcePath,
+        });
+        const selectedEntry =
+          previousEntries[clampStructuredDraftSelection(current.selectedIndex, previousEntries.length)] ?? null;
+        const resumeTarget =
+          options?.resumeTarget ??
+          createStructuredDraftResumeTargetForEntryContext(previousQuery.filter, selectedEntry);
         const entries = buildEntriesForQuery(appliedQuery, {
           resumeTarget,
           moveSourcePath: current.moveSourcePath,
@@ -160,15 +170,20 @@ export function useSearchStructuredDraftActions({
         return;
       }
 
-      replaceStructuredDraftProjection((draftQuery) => ({
-        ...draftQuery,
-        filter: appendSearchFilterNodeAtPath(
-          draftQuery.filter,
-          path,
-          nextFilterNode,
-          getSearchQueryRootOperator(draftQuery),
-        ),
-      }));
+      replaceStructuredDraftProjection(
+        (draftQuery) => ({
+          ...draftQuery,
+          filter: appendSearchFilterNodeAtPath(
+            draftQuery.filter,
+            path,
+            nextFilterNode,
+            getSearchQueryRootOperator(draftQuery),
+          ),
+        }),
+        {
+          resumeTarget: createStructuredDraftGroupResumeTarget(path),
+        },
+      );
     },
     [replaceStructuredDraftProjection],
   );

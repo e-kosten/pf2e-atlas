@@ -79,7 +79,7 @@ describe("structured draft grouped explorer helpers", () => {
         ]),
       ]),
     );
-    expect(nextFocusPath).toEqual([1]);
+    expect(nextFocusPath).toEqual([1, 0]);
   });
 
   it("keeps non-field siblings in the grouped seed while lifting the target field into the explorer draft", () => {
@@ -232,5 +232,32 @@ describe("structured draft grouped explorer helpers", () => {
       op: "includes",
       value: "coastal_setting",
     });
+  });
+
+  it("replaces direct action-cost shared-explorer leaf edits through grouped field mutation semantics", () => {
+    const query = browseQuery("Browse actions", {
+      filter: allOfFilter([scopeFilter("rule", "action"), { kind: "actionCost", match: { kind: "eq", value: 1 } }]),
+      limit: 20,
+    }).request;
+
+    const { initialFieldState, seedQuery } = buildGroupedFieldSeedState(query, [], {
+      field: "actionCost",
+      fieldMemberPaths: [[1]],
+    });
+    expect(seedQuery.filter).toEqual(scopeFilter("rule", "action"));
+    expect(initialFieldState.discreteSelections).toEqual({
+      actionCost: {
+        include: ["1"],
+        exclude: [],
+      },
+    });
+
+    const { nextQuery } = applyGroupedFieldReplacementToQuery(query, [], "actionCost", [[1]], [
+      { kind: "actionCost", match: { kind: "eq", value: 2 } },
+    ]);
+
+    expect(nextQuery.filter).toEqual(
+      allOfFilter([scopeFilter("rule", "action"), { kind: "actionCost", match: { kind: "eq", value: 2 } }]),
+    );
   });
 });
