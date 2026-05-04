@@ -66,6 +66,7 @@ function compileFilterNode(node: SearchFilterNode): SearchExecutionFilterNode {
   switch (node.kind) {
     case "pack":
     case "linksTo":
+    case "linkedFrom":
     case "metric":
     case "metricCompare":
       return node;

@@ -92,6 +92,15 @@ describe("search query-core metric labels", () => {
     ).toBe("Pack: Pathfinder NPC Core");
   });
 
+  it("renders linkedFrom clauses with a stable canonical label", () => {
+    expect(
+      formatSearchFilterNodePresentationAlias({
+        kind: "linkedFrom",
+        source: "actions:action-refocus-1",
+      }),
+    ).toBe("Linked From: actions:action-refocus-1");
+  });
+
   it("infers creature-statistics labels from real metric keys instead of naive prefixes", () => {
     expect(
       formatSearchFilterNodePresentationAlias(

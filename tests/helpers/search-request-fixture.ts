@@ -36,6 +36,10 @@ export function linksToFilter(target: string): SearchFilterNode {
   return { kind: "linksTo", target };
 }
 
+export function linkedFromFilter(source: string): SearchFilterNode {
+  return { kind: "linkedFrom", source };
+}
+
 export function levelFilter(match: SearchNumericMatch): SearchFilterNode {
   return { kind: "level", match };
 }

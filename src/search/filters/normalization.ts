@@ -19,10 +19,10 @@ import { normalizeMetadataAtomicPredicate, normalizeSearchMetricKey } from "./me
 
 export type SearchFilterContext = "list" | "search";
 
-function normalizeRecordKey(value: string): string {
+function normalizeRecordKey(value: string, context: "linksTo" | "linkedFrom"): string {
   const normalized = value.trim();
   if (!normalized) {
-    throw new Error("linksTo target must not be empty.");
+    throw new Error(`${context} ${context === "linksTo" ? "target" : "source"} must not be empty.`);
   }
   return normalized;
 }
@@ -118,7 +118,12 @@ function normalizeFilterNode(
     case "linksTo":
       return {
         kind: "linksTo",
-        target: normalizeRecordKey(node.target),
+        target: normalizeRecordKey(node.target, "linksTo"),
+      };
+    case "linkedFrom":
+      return {
+        kind: "linkedFrom",
+        source: normalizeRecordKey(node.source, "linkedFrom"),
       };
     case "metadataPredicate":
       return {

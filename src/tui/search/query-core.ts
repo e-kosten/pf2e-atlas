@@ -1092,6 +1092,8 @@ export function formatSearchFilterNodePresentationAlias(
       return `Pack: ${formatPackPresentationValue(node.value, options.packLabelResolver)}`;
     case "linksTo":
       return `Links To: ${node.target}`;
+    case "linkedFrom":
+      return `Linked From: ${node.source}`;
     case "metadataPredicate": {
       const predicateValue = formatCanonicalMetadataPredicateValue(node.predicate);
       return `${formatMetadataFieldLabel(node.predicate.field)}: ${predicateValue}`;

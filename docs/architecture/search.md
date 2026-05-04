@@ -211,10 +211,20 @@ That shared semantic contract includes metadata field names, field kinds, and at
 
 Top-level numeric matcher leaves preserve exact, strict, inclusive, and bounded-range semantics as distinct canonical variants. The shared contract treats `eq`, `gt`, `gte`, `lt`, `lte`, and `between` as different matcher kinds rather than editor sugar over a smaller inclusive-only model.
 
+The canonical filter tree also owns symmetric exact record-link leaves over the shared `reference_edges` surface:
+
+- `linksTo`
+  candidate record links to the given target record key
+- `linkedFrom`
+  candidate record is linked from the given source record key
+
+Programmatic seeded browse/query pathways, such as page and drill surfaces, should emit those canonical leaves directly instead of inventing feature-local record-key-set escape hatches.
+
 `compileSearchRequest(...)` in `src/search/request-compilation.ts` lowers semantic query intent into search-execution filters by:
 
 - reading the canonical `mode` branch and its mode-specific fields
 - lowering the root `filter` tree into execution-facing constraints such as scope, ranges, links, metadata predicates, and metric predicates
+- preserving symmetric exact record-link leaves such as `linksTo` and `linkedFrom`
 - mapping `search.query`, `search.exclude`, and `search.profile` onto the appropriate ranked-search execution inputs
 - preserving shared pagination, explain, pack-label resolution, and browse or lookup sort settings where that mode allows them
 
@@ -284,7 +294,7 @@ The SQL filter stage is shared across browse, lexical retrieval, semantic retrie
 - scope-derived category/subcategory pairs
 - level, rarity, price, and action-cost constraints lowered from canonical filter leaves
 - metadata and metric predicates lowered from the canonical filter tree
-- exact link inclusion and negated-link constraints against `reference_edges`
+- exact `reference_edges` constraints for both `linksTo` and `linkedFrom`, including their negated forms
 
 This stage feeds several query builders:
 

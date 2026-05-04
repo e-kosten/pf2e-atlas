@@ -10,9 +10,18 @@ describe("search request adapter", () => {
     const request = buildSearchRequestFromTransportInput({
       mode: "browse",
       filter: {
-        kind: "scope",
-        category: "creature",
-        subcategory: { kind: "any" },
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "creature",
+            subcategory: { kind: "any" },
+          },
+          {
+            kind: "linkedFrom",
+            source: "actions:action-refocus-1",
+          },
+        ],
       },
       sort: { kind: "alphabetical" },
       limit: 20,
@@ -22,9 +31,18 @@ describe("search request adapter", () => {
     expect(request).toEqual({
       mode: "browse",
       filter: {
-        kind: "scope",
-        category: "creature",
-        subcategory: { kind: "any" },
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "creature",
+            subcategory: { kind: "any" },
+          },
+          {
+            kind: "linkedFrom",
+            source: "actions:action-refocus-1",
+          },
+        ],
       },
       sort: { kind: "alphabetical" },
       limit: 20,
@@ -42,6 +60,10 @@ describe("search request adapter", () => {
         exclude: "harbor",
         profile: "concept",
       },
+      filter: {
+        kind: "linkedFrom",
+        source: "actionspf2e:action-track-1",
+      },
       explain: true,
       limit: 10,
       offset: 2,
@@ -55,7 +77,10 @@ describe("search request adapter", () => {
         profile: "concept",
       },
       explain: true,
-      filter: undefined,
+      filter: {
+        kind: "linkedFrom",
+        source: "actionspf2e:action-track-1",
+      },
       limit: 10,
       offset: 2,
     });

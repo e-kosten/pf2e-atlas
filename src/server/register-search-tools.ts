@@ -129,6 +129,12 @@ export function registerSearchTools(
               description: "Use to require indexed UUID-derived links to a canonical record key; negate it through filter.not when needed.",
             },
             {
+              name: "filter.linkedFrom",
+              strength: "inverse exact reference leaf",
+              description:
+                "Use to require indexed UUID-derived links from one canonical source record key into the candidate record; negate it through filter.not when needed.",
+            },
+            {
               name: "search.query",
               strength: "required ranked-search text",
               description:

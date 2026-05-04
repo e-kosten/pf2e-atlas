@@ -139,6 +139,15 @@ export type Pf2eTerminalSearchSession = {
 export type Pf2eTerminalSearchService = {
   createDefaultQuery: (mode?: Pf2eTerminalSearchMode) => Pf2eTerminalSearchQuery;
   createQueryFromOntologyQuery: (query: OntologyNodeQuery) => Pf2eTerminalSearchQuery;
+  buildLinkedFromBrowseRequest: (
+    sourceRecordKey: string,
+    options?: {
+      category?: SearchCategory | null;
+      subcategory?: SearchSubcategory | null;
+      limit?: number;
+      sort?: Pf2eTerminalBrowseSort;
+    },
+  ) => Pf2eTerminalSearchQuery;
   countQuery: (query: Pf2eTerminalSearchQuery) => Promise<SearchCountResult>;
   disposeSession: (session: Pf2eTerminalSearchSession) => void;
   executeQuery: (

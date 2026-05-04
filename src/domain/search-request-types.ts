@@ -47,6 +47,7 @@ export type SearchFilterNode =
       match: SearchNullableNumericMatch;
     }
   | { kind: "linksTo"; target: string }
+  | { kind: "linkedFrom"; source: string }
   | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
   | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
   | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }

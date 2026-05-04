@@ -12,6 +12,7 @@ import {
   anyOfFilter,
   browseRequest,
   levelFilter,
+  linkedFromFilter,
   linksToFilter,
   lookupRequest,
   metadataPredicateFilter,
@@ -151,6 +152,16 @@ function browseByLinks(
       ? notFilter(anyOfFilter(options.exclude.map((target) => linksToFilter(target)))!)
       : undefined;
   return browseByPredicates(category, [linkFilter, excludeFilter], options.subcategory);
+}
+
+function browseLinkedFrom(
+  source: string,
+  options: Omit<Parameters<typeof browseRequest>[0], "filter"> = {},
+) {
+  return browseRequest({
+    ...options,
+    filter: linkedFromFilter(source),
+  });
 }
 
 describe("Pf2eDataService / Search and Lookup", () => {
@@ -1451,6 +1462,41 @@ describe("Pf2eDataService / Search and Lookup", () => {
     );
     expect(searched.records[0]?.name).toBe("Tracker's Goggles");
 
+  });
+
+  it("supports linkedFrom as the inverse of linksTo in deterministic listing and ranked search", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const track = service.lookup("Track").match;
+    const coverTracks = service.lookup("Cover Tracks").match;
+    const trackersStew = service.lookup("Tracker's Stew").match;
+
+    expect(track).toBeTruthy();
+    expect(coverTracks).toBeTruthy();
+    expect(trackersStew).toBeTruthy();
+
+    const listed = service.listRecords(browseLinkedFrom(trackersStew!.recordKey)).records.map((record) => record.name);
+    expect(listed).toEqual(expect.arrayContaining(["Track", "Cover Tracks"]));
+    expect(listed).not.toContain("Tracker's Stew");
+
+    const excluded = service
+      .listRecords(
+        browseRequest({
+          filter: notFilter(linkedFromFilter(trackersStew!.recordKey)),
+        }),
+      )
+      .records.map((record) => record.name);
+    expect(excluded).not.toEqual(expect.arrayContaining(["Track", "Cover Tracks"]));
+
+    const searched = await service.search(
+      lookupRequest({
+        search: { query: "track" },
+        filter: linkedFromFilter(trackersStew!.recordKey),
+      }),
+    );
+    expect(searched.records.map((record) => record.name)).toEqual(expect.arrayContaining(["Track", "Cover Tracks"]));
   });
 
   it("normalizes legacy plural aliases and supports scoped mixed-family filters", async () => {

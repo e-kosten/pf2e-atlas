@@ -3,6 +3,7 @@ import { createScopedSearchDiscoveryApplicability } from "../../app/search-disco
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { createSearchFilterDiscoveryContext } from "../../domain/search-field-domains.js";
+import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import {
@@ -147,6 +148,17 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     createDefaultQuery: (mode) => createDefaultQuery(mode),
     createQueryFromOntologyQuery: (query) =>
       createSearchQueryFromOntologyQuery(query, dependencies, fieldSemanticsByName),
+    buildLinkedFromBrowseRequest: (sourceRecordKey, options = {}) => ({
+      mode: "browse",
+      filter: buildAllOfFilter([
+        options.category ? buildScopeFilter(options.category, options.subcategory ?? null) : undefined,
+        { kind: "linkedFrom", source: sourceRecordKey },
+      ]),
+      sort: {
+        kind: options.sort ?? "alphabetical",
+      },
+      limit: options.limit ?? DEFAULT_QUERY_LIMIT,
+    }),
     prepareFilterExplorerDraft: (query, scopedFields) =>
       prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
     prepareFilterExplorerDraftFromMetadataNode: (node, scopedFields) =>

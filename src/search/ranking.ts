@@ -246,6 +246,7 @@ export function hasStructuredFilterSignal(filters: SearchExecutionFilters): bool
       case "rarity":
       case "actionCost":
       case "linksTo":
+      case "linkedFrom":
       case "metadataPredicate":
       case "metric":
       case "metricCompare":

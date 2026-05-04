@@ -129,6 +129,7 @@ function recordMatchesFilterNode(record: NormalizedRecord, filter: SearchExecuti
     case "actionCost":
       return recordMatchesNullableNumericMatch(record.actionCost, filter.match);
     case "linksTo":
+    case "linkedFrom":
       return true;
     case "metadataPredicate":
       return recordMatchesMetadataAtomicPredicate(record, filter.predicate);

@@ -317,6 +317,10 @@ export const searchFilterSchema: z.ZodType<SearchFilterNode> = z.lazy(
         target: z.string().trim().min(1),
       }),
       buildStrictObjectSchema({
+        kind: z.literal("linkedFrom"),
+        source: z.string().trim().min(1),
+      }),
+      buildStrictObjectSchema({
         kind: z.literal("metadataPredicate"),
         predicate: metadataAtomicPredicateSchema,
       }),

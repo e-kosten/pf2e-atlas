@@ -109,6 +109,13 @@ describe("tool schemas", () => {
 
     expect(
       searchFilterSchema.safeParse({
+        kind: "linkedFrom",
+        source: "actions:action-refocus-1",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      searchFilterSchema.safeParse({
         field: "traits",
         op: "includesAny",
         values: ["undead"],

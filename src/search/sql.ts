@@ -58,6 +58,18 @@ function buildLinksToClause(target: string, recordKeyExpr: string): { clause: st
   };
 }
 
+function buildLinkedFromClause(source: string, recordKeyExpr: string): { clause: string; params: SqlValue[] } {
+  return {
+    clause: `EXISTS (
+      SELECT 1
+      FROM reference_edges re_link
+      WHERE re_link.from_record_key = ?
+        AND re_link.to_record_key = ${recordKeyExpr}
+    )`,
+    params: [source],
+  };
+}
+
 function buildSearchFilterClause(
   filter: SearchExecutionFilterNode,
   context: SearchSqlFilterContext,
@@ -176,6 +188,8 @@ function buildSearchFilterClause(
       };
     case "linksTo":
       return buildLinksToClause(filter.target, context.recordKeyExpr);
+    case "linkedFrom":
+      return buildLinkedFromClause(filter.source, context.recordKeyExpr);
     case "metadataPredicate":
       return buildMetadataAtomicPredicateClause(filter.predicate, context.metadata);
     case "metric":

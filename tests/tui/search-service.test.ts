@@ -167,6 +167,36 @@ describe("createPf2eTerminalSearchService", () => {
     ]);
   });
 
+  it("builds canonical linkedFrom browse requests for seeded backlink drills", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+
+    expect(
+      service.buildLinkedFromBrowseRequest("actions:action-refocus-1", {
+        category: "rule",
+        subcategory: "action",
+        limit: 25,
+      }),
+    ).toEqual({
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "rule",
+            subcategory: { kind: "eq", value: "action" },
+          },
+          {
+            kind: "linkedFrom",
+            source: "actions:action-refocus-1",
+          },
+        ],
+      },
+      sort: { kind: "alphabetical" },
+      limit: 25,
+    });
+  });
+
   it("builds lookup search-window requests with explicit tiered or global sort policy", async () => {
     const openSearchWindow = vi.fn(async () => ({
       id: "window-1",
