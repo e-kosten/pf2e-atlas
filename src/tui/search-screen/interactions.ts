@@ -47,7 +47,8 @@ export type SearchScreenIntent =
   | { type: "enter_detail_targets" }
   | { type: "leave_detail_targets" }
   | { type: "move_detail_target"; delta: number }
-  | { type: "detail_target_boundary"; boundary: "start" | "end" };
+  | { type: "detail_target_boundary"; boundary: "start" | "end" }
+  | { type: "open_detail_target" };
 
 export type SearchDetailPageInteractionState =
   | { kind: "none" }
@@ -127,6 +128,7 @@ export function buildSearchFooterText(
   options: {
     actionTargetState?: DerivedTagTerminalActionTargetState;
     detailInteractionState?: SearchDetailPageInteractionState;
+    detailTargetActionId?: "open" | "preview" | null;
   } = {},
 ): string {
   const context = getSearchInteractionContext(state);
@@ -172,6 +174,9 @@ export function buildSearchFooterText(
       ...(options.detailInteractionState.kind === "section" && options.detailInteractionState.canEnterTargets
         ? [{ id: "select", label: "targets" } as const]
         : []),
+      ...(options.detailInteractionState.kind === "target" && options.detailTargetActionId
+        ? [{ id: options.detailTargetActionId } as const]
+        : []),
       ...getSearchInteractionActions(state, origin, options.detailInteractionState),
     ]);
   }
@@ -191,6 +196,7 @@ export function buildSearchHelpLines(
   origin: SearchScreenOrigin = "app",
   actionEntries: readonly DerivedTagTerminalActionTargetOption[] = [],
   detailInteractionState: SearchDetailPageInteractionState = { kind: "none" },
+  detailTargetActionId: "open" | "preview" | null = null,
 ): DerivedTagTerminalLine[] {
   const context = getSearchInteractionContext(state);
 
@@ -277,6 +283,17 @@ export function buildSearchHelpLines(
     ...(detailInteractionState.kind === "section" && detailInteractionState.canEnterTargets
       ? [{ id: "select", label: "targets", helpText: "enter link targets inside the active section" } as const]
       : []),
+    ...(detailInteractionState.kind === "target" && detailTargetActionId
+      ? [
+          {
+            id: detailTargetActionId,
+            helpText:
+              detailTargetActionId === "preview"
+                ? "preview the focused page target"
+                : "open the focused page target",
+          } as const,
+        ]
+      : []),
     ...getSearchInteractionActions(state, origin, detailInteractionState).map((action) => ({
       ...action,
       helpText:
@@ -354,6 +371,7 @@ export function useSearchScreenInteractionRouter(options: {
   maxDetailScroll: number;
   hasSelectedResult: boolean;
   detailInteractionState?: SearchDetailPageInteractionState;
+  detailTargetActionId?: "open" | "preview" | null;
   showNotification: (options: {
     message: string;
     tone?: TerminalListDetailNotificationTone;
@@ -386,8 +404,10 @@ export function useSearchScreenInteractionRouter(options: {
       jumpSize: options.selectionJumpSize,
       mode:
         options.detailInteractionState && options.detailInteractionState.kind !== "none" ? "hybrid" : "viewport",
-      includeConfirmKeys: options.detailInteractionState?.kind === "section",
-      includeHorizontalConfirmKeys: options.detailInteractionState?.kind === "section",
+      includeConfirmKeys:
+        options.detailInteractionState?.kind === "section" || options.detailInteractionState?.kind === "target",
+      includeHorizontalConfirmKeys:
+        options.detailInteractionState?.kind === "section" || options.detailInteractionState?.kind === "target",
     },
     actionTarget: options.actionTarget
       ? {
@@ -536,6 +556,10 @@ export function useSearchScreenInteractionRouter(options: {
       }
       if (detail.navigationAction?.kind === "confirm" && options.detailInteractionState?.kind === "section") {
         options.onIntent({ type: "enter_detail_targets" });
+        return;
+      }
+      if (detail.navigationAction?.kind === "confirm" && options.detailInteractionState?.kind === "target") {
+        options.onIntent({ type: "open_detail_target" });
         return;
       }
       if (detail.navigationAction?.kind === "cursorMove") {

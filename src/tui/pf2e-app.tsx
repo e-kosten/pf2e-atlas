@@ -165,6 +165,13 @@ export function Pf2eTerminalApp({
           initialSession={route.initialSession}
           transitionStatus={transitionStatus}
           origin={origin}
+          onActivatePageTarget={(target) => {
+            if (target.kind !== "searchPivot") {
+              return false;
+            }
+            navigation.openSearchResults(target.request);
+            return true;
+          }}
           onBack={() => navigation.returnFromSearch(route)}
         />
       ) : (
@@ -174,6 +181,13 @@ export function Pf2eTerminalApp({
           promptForInitialMode={!route.initialQuery && !route.origin}
           transitionStatus={transitionStatus}
           origin={origin}
+          onActivatePageTarget={(target) => {
+            if (target.kind !== "searchPivot") {
+              return false;
+            }
+            navigation.openSearchResults(target.request);
+            return true;
+          }}
           onBack={() => navigation.returnFromSearch(route)}
         />
       );

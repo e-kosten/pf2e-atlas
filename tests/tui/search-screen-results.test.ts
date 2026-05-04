@@ -331,6 +331,7 @@ describe("search result detail lines", () => {
     ).map((line) => line.text);
     const targetFooter = buildSearchFooterText(state, false, "app", {
       detailInteractionState: { kind: "target" },
+      detailTargetActionId: "open",
     });
 
     expect(sectionFooter).toContain("↑/↓ section");
@@ -339,6 +340,7 @@ describe("search result detail lines", () => {
       sectionHelpLines.some((line) => line.includes("Enter / → or l: enter link targets inside the active section")),
     ).toBe(true);
     expect(targetFooter).toContain("↑/↓ target");
+    expect(targetFooter).toContain("Enter/→ open");
     expect(targetFooter).toContain("←/Esc section");
   });
 });

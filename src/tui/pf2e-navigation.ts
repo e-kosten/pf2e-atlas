@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { OntologyNodeQuery } from "../domain/ontology-types.js";
+import type { SearchRequest } from "../domain/search-request-types.js";
 import {
   type DerivedTagWorkbenchMode,
   type DerivedTagReviewSession,
@@ -80,8 +81,10 @@ export const PF2E_ONTOLOGY_SEARCH_INTENT_KIND = {
 
 export const PF2E_NAVIGATION_MESSAGE = {
   OPENING_SEARCH_SEMANTICS: "Opening Search Semantics...",
+  OPENING_SEARCH_RESULTS: "Opening Search Results...",
   ONTOLOGY_OPEN_FAILED: "Could not open Search Semantics.",
   ONTOLOGY_QUERY_FAILED: "Query execution failed.",
+  SEARCH_QUERY_FAILED: "Could not open search results.",
   ONTOLOGY_RESULTS_FALLBACK: "Loading results for the selected ontology entry...",
 } as const;
 
@@ -218,6 +221,7 @@ export function usePf2eNavigation({
   openOntologySearch: (intent: Pf2eOntologySearchNavigationIntent) => void;
   openOntologySearchEditor: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
   openOntologySearchResults: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  openSearchResults: (query: SearchRequest) => void;
   openReviewSession: (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => void;
   promptForReviewSession: (mode: DerivedTagWorkbenchMode) => void;
   returnFromSearch: (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => void;
@@ -442,6 +446,28 @@ export function usePf2eNavigation({
     [openOntologySearch],
   );
 
+  const openSearchResults = React.useCallback(
+    (query: SearchRequest) => {
+      const currentRoute = getCurrentPf2eAppRoute(state);
+      const origin = currentRoute.kind === PF2E_APP_ROUTE_KIND.SEARCH ? currentRoute.origin : undefined;
+
+      void runRouteTransition({
+        message: PF2E_NAVIGATION_MESSAGE.OPENING_SEARCH_RESULTS,
+        prepare: async () => ({
+          kind: "push",
+          route: createPf2eSearchResultsRoute({
+            initialSession: await services.user.search.executeQuery(query),
+            ...(origin ? { origin } : {}),
+          }),
+        }),
+        onError: async (error) => {
+          await terminal.pauseForAnyKey(`${PF2E_NAVIGATION_MESSAGE.SEARCH_QUERY_FAILED}\n\n${(error as Error).message}`);
+        },
+      });
+    },
+    [runRouteTransition, services.user.search, state, terminal],
+  );
+
   const openReviewSession = React.useCallback(
     (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => {
       void runRouteTransition({
@@ -510,6 +536,7 @@ export function usePf2eNavigation({
     openOntologySearch,
     openOntologySearchEditor,
     openOntologySearchResults,
+    openSearchResults,
     openReviewSession,
     promptForReviewSession,
     returnFromSearch,

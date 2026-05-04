@@ -1,3 +1,4 @@
+import type { EntityPageTarget } from "../../app/ontology/entity-page.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
@@ -8,6 +9,7 @@ type SearchScreenCommonProps = {
   origin?: SearchScreenOrigin;
   promptForInitialMode?: boolean;
   onBack: () => void;
+  onActivatePageTarget?: (target: EntityPageTarget) => boolean | void;
 };
 
 export type SearchScreenEditorEntryProps = SearchScreenCommonProps & {

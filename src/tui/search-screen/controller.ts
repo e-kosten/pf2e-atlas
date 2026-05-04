@@ -82,6 +82,7 @@ export function useSearchScreenController({
   origin = "app",
   promptForInitialMode = false,
   onBack,
+  onActivatePageTarget,
   ...routeEntry
 }: SearchScreenProps): SearchScreenControllerResult {
   const initialRequest = entry === "results" ? undefined : ("initialRequest" in routeEntry ? routeEntry.initialRequest : undefined);
@@ -292,6 +293,12 @@ export function useSearchScreenController({
             canEnterTargets: Boolean(focusedResultPageSection?.targetNodeIds.length),
           }
       : { kind: "none" };
+  const detailTargetActionId =
+    pageInteractionState.mode.kind === "target" && selectedPageTargetNode
+      ? selectedPageTargetNode.target.kind === "record" && selectedPageTargetNode.target.action === "preview"
+        ? "preview"
+        : "open"
+      : null;
   const previewTitleSuffix = focusedResultPageSection?.title ? ` | ${focusedResultPageSection.title}` : "";
   const selectedResultDetailLines = React.useMemo(
     () =>
@@ -371,9 +378,16 @@ export function useSearchScreenController({
     void showTerminalReturnDialog(
       prompts,
       state.layout === "editor" ? "Search Editor Help" : "Search Results Help",
-      buildSearchHelpLines(state, workspaceEntries, origin, activeActionEntries, detailInteractionState),
+      buildSearchHelpLines(
+        state,
+        workspaceEntries,
+        origin,
+        activeActionEntries,
+        detailInteractionState,
+        detailTargetActionId,
+      ),
     );
-  }, [activeActionEntries, detailInteractionState, origin, prompts, state, workspaceEntries]);
+  }, [activeActionEntries, detailInteractionState, detailTargetActionId, origin, prompts, state, workspaceEntries]);
 
   const { handleIntent, runWorkspaceAction, structuredEditorSession } = useSearchWorkspaceActions({
     applyQueryUpdate,
@@ -538,6 +552,29 @@ export function useSearchScreenController({
           scrollTo(moved.scroll);
           return;
         }
+        case "open_detail_target": {
+          const target = selectedPageTargetNode?.target;
+          if (!target) {
+            return;
+          }
+
+          const handled = onActivatePageTarget?.(target);
+          if (handled) {
+            setPageInteractionState(createPageDocumentInteractionState());
+            return;
+          }
+
+          showNotification({
+            message:
+              target.kind === "searchPivot"
+                ? "Page pivots are unavailable in this host."
+                : target.kind === "record"
+                  ? "Record targets are not wired yet."
+                  : "This target opens outside the current page flow.",
+            tone: "warning",
+          });
+          return;
+        }
         default:
           handleIntent(intent);
       }
@@ -547,8 +584,10 @@ export function useSearchScreenController({
       dispatch,
       handleIntent,
       maxDetailScroll,
+      onActivatePageTarget,
       pageInteractionState,
       presentationMetrics.bodyHeight,
+      selectedPageTargetNode?.target,
       selectedResultPageModel,
       showNotification,
       state.detailScroll,
@@ -566,6 +605,7 @@ export function useSearchScreenController({
     maxDetailScroll,
     hasSelectedResult: Boolean(selectedResult),
     detailInteractionState,
+    detailTargetActionId,
     showNotification,
     onIntent: handleScreenIntent,
     actionTarget: {
@@ -625,6 +665,7 @@ export function useSearchScreenController({
         text: buildSearchFooterText(state, loadingMore, origin, {
           actionTargetState,
           detailInteractionState,
+          detailTargetActionId,
         }),
         tone: "dim",
       },

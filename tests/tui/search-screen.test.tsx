@@ -1453,6 +1453,67 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
   });
 
+  it("emits search-pivot page target activation through the shared callback seam", async () => {
+    const services = createServices();
+    const onActivatePageTarget = vi.fn(() => true);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onActivatePageTarget={onActivatePageTarget}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    app.stdin.write("G");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "searchPivot",
+        label: "Pack: spell",
+      }),
+    );
+  });
+
+  it("warns when a page pivot is activated without a host navigation callback", async () => {
+    const services = createServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    app.stdin.write("G");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Page pivots are unavailable in this host.");
+  });
+
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
     const search = vi.fn((request: SearchRequest) =>
       Promise.resolve({

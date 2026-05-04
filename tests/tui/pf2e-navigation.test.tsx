@@ -236,6 +236,78 @@ describe("pf2e navigation", () => {
     expect(capture.current!.navigation.transitionStatus).toBeNull();
   });
 
+  it("opens generic search results through the shared navigation owner", async () => {
+    const terminal = {
+      pauseForAnyKey: vi.fn(),
+    };
+    const session = createSearchSession();
+    const executeQuery = vi.fn(() => Promise.resolve(session));
+    const { services } = createNavigationTestServices({ executeQuery });
+    const { capture, renderer } = await renderNavigationHarness({ services, terminal });
+    renderers.push(renderer);
+    const query = browseQuery("Open page pivot", {
+      filter: scopeFilter("spell"),
+      limit: 20,
+    });
+
+    await act(async () => {
+      capture.current!.navigation.openSearchResults(query);
+      await flushReact();
+    });
+
+    expect(executeQuery).toHaveBeenCalledWith(query);
+    expect(capture.current!.state.routeStack).toHaveLength(2);
+    expect(capture.current!.state.routeStack[1]).toEqual(
+      expect.objectContaining({
+        kind: PF2E_APP_ROUTE_KIND.SEARCH,
+        entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+        initialSession: session,
+      }),
+    );
+  });
+
+  it("preserves search-route origin when opening generic search results from ontology search", async () => {
+    const terminal = {
+      pauseForAnyKey: vi.fn(),
+    };
+    const session = createSearchSession();
+    const executeQuery = vi.fn(() => Promise.resolve(session));
+    const { services } = createNavigationTestServices({ executeQuery });
+    const ontologyRoute = createPf2eOntologyRoute({ model: createOntologyModel(), snapshot: createSnapshot() });
+    const initialRoute: Pf2eAppRoute = {
+      kind: PF2E_APP_ROUTE_KIND.SEARCH,
+      entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+      initialSession: createSearchSession(),
+      origin: {
+        kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
+        route: ontologyRoute,
+      },
+    };
+    const { capture, renderer } = await renderNavigationHarness({ initialRoute, services, terminal });
+    renderers.push(renderer);
+    const query = browseQuery("Open page pivot", {
+      filter: scopeFilter("spell"),
+      limit: 20,
+    });
+
+    await act(async () => {
+      capture.current!.navigation.openSearchResults(query);
+      await flushReact();
+    });
+
+    expect(capture.current!.state.routeStack).toHaveLength(2);
+    expect(capture.current!.state.routeStack[1]).toEqual(
+      expect.objectContaining({
+        kind: PF2E_APP_ROUTE_KIND.SEARCH,
+        entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+        origin: {
+          kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
+          route: ontologyRoute,
+        },
+      }),
+    );
+  });
+
   it("keeps the current route mounted while ontology browser preparation is pending", async () => {
     const terminal = {
       pauseForAnyKey: vi.fn(),
