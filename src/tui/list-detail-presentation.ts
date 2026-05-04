@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   getRenderedTerminalLineCount,
+  getRenderedTerminalLineStartRows,
   sliceRenderedTerminalLines,
 } from "./framework/line-rendering.js";
 import { getTerminalPaneBodyHeight, getTerminalTwoPaneDetailWidth } from "./framework/screen-layout.js";
@@ -245,6 +246,22 @@ export function measureTerminalListDetailPresentation(
       hyperlinkSupport: options.hyperlinkSupport,
     }),
   };
+}
+
+export function getTerminalListDetailRenderedLineCount(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+  options: { hyperlinkSupport?: DerivedTagTerminalHyperlinkSupport } = {},
+): number {
+  return getRenderedTerminalLineCount(lines, width, options);
+}
+
+export function getTerminalListDetailRenderedLineStartRows(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+  options: { hyperlinkSupport?: DerivedTagTerminalHyperlinkSupport } = {},
+): number[] {
+  return getRenderedTerminalLineStartRows(lines, width, options);
 }
 
 export function buildTerminalListDetailScreenModel(options: {

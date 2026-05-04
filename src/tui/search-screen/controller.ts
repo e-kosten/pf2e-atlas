@@ -42,6 +42,8 @@ import { useSearchSessionWorkflow } from "./session-workflow.js";
 import { useSearchWorkspaceActions } from "./workspace/workspace-actions.js";
 import {
   buildTerminalListDetailScreenModel,
+  getTerminalListDetailRenderedLineCount,
+  getTerminalListDetailRenderedLineStartRows,
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
 } from "../list-detail-presentation.js";
@@ -66,7 +68,6 @@ import {
   type DerivedTagTerminalActionTargetOption,
 } from "../action-target.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
-import { getRenderedTerminalLineCount, getRenderedTerminalLineStartRows } from "../framework/line-rendering.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import type { DerivedTagTerminalActionTargetState } from "../action-target.js";
@@ -306,12 +307,12 @@ export function useSearchScreenController({
     const renderOptions = {
       hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
     };
-    const detailHeaderRowCount = getRenderedTerminalLineCount(
+    const detailHeaderRowCount = getTerminalListDetailRenderedLineCount(
       selectedResultDetailHeaderLines,
       presentationMetrics.detailWidth,
       renderOptions,
     );
-    return getRenderedTerminalLineStartRows(
+    return getTerminalListDetailRenderedLineStartRows(
       selectedResultPreviewLines,
       presentationMetrics.detailWidth,
       renderOptions,
@@ -458,39 +459,38 @@ export function useSearchScreenController({
   });
   const runEditorAction = React.useCallback(
     (actionId: SearchEditorActionId) => {
-      if (actionId === "openSelected") {
-        if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
+      switch (actionId) {
+        case "openSelected":
+          if (!selectedWorkspaceEntry || selectedWorkspaceEntry.disabled) {
+            return;
+          }
+          runWorkspaceAction(selectedWorkspaceEntry.action);
           return;
-        }
-        runWorkspaceAction(selectedWorkspaceEntry.action);
-        return;
-      }
-      if (actionId === "executeQuery") {
-        runWorkspaceAction("execute");
-        return;
-      }
-      if (actionId === "resetQuery") {
-        runWorkspaceAction("reset");
-        return;
-      }
-      if (actionId === "discardResults" && state.session) {
-        runWorkspaceAction("clearResults");
+        case "executeQuery":
+          runWorkspaceAction("execute");
+          return;
+        case "resetQuery":
+          runWorkspaceAction("reset");
+          return;
+        case "discardResults":
+          if (state.session) {
+            runWorkspaceAction("clearResults");
+          }
       }
     },
     [runWorkspaceAction, selectedWorkspaceEntry, state.session],
   );
   const runResultAction = React.useCallback(
     (actionId: SearchResultActionId) => {
-      if (actionId === "jumpToResult") {
-        void jumpToResultPosition();
-        return;
-      }
-      if (actionId === "sortResults") {
-        void chooseResultSort();
-        return;
-      }
-      if (actionId === "openEditor") {
-        dispatch({ type: "set_layout", layout: "editor", pane: "list" });
+      switch (actionId) {
+        case "jumpToResult":
+          void jumpToResultPosition();
+          return;
+        case "sortResults":
+          void chooseResultSort();
+          return;
+        case "openEditor":
+          dispatch({ type: "set_layout", layout: "editor", pane: "list" });
       }
     },
     [chooseResultSort, dispatch, jumpToResultPosition],
@@ -655,7 +655,19 @@ export function useSearchScreenController({
           });
           return;
         }
-        default:
+        case "show_help":
+        case "quit":
+        case "edit_query":
+        case "execute":
+        case "back_to_app":
+        case "move_workspace_selection":
+        case "workspace_selection_boundary":
+        case "edit_selected_workspace":
+        case "toggle_pane":
+        case "return_to_editor":
+        case "move_result_selection":
+        case "result_selection_boundary":
+        case "return_to_result_list":
           handleIntent(intent);
       }
     },
@@ -766,31 +778,29 @@ export function useSearchScreenController({
     pointerRegions: {
       list: {
         onPointerEvent: (event) => {
-          if (state.layout === "results") {
-            if (event.kind === "click") {
+          if (event.kind === "click") {
+            if (state.layout === "results") {
               dispatch({ type: "set_active_pane", pane: "list" });
-              return true;
-            }
-            if (event.kind === "wheel") {
-              dispatch({
-                type: "move_result_selection",
-                delta: event.deltaY,
-                itemCount: resultCount,
-              });
               return true;
             }
             return false;
           }
 
-          if (event.kind === "wheel") {
+          if (state.layout === "results") {
             dispatch({
-              type: "move_workspace_selection",
+              type: "move_result_selection",
               delta: event.deltaY,
-              itemCount: workspaceEntries.length,
+              itemCount: resultCount,
             });
             return true;
           }
-          return false;
+
+          dispatch({
+            type: "move_workspace_selection",
+            delta: event.deltaY,
+            itemCount: workspaceEntries.length,
+          });
+          return true;
         },
       },
       detail:
@@ -801,11 +811,8 @@ export function useSearchScreenController({
                   dispatch({ type: "set_active_pane", pane: "detail" });
                   return true;
                 }
-                if (event.kind === "wheel") {
-                  handleScreenIntent({ type: "move_detail", delta: event.deltaY });
-                  return true;
-                }
-                return false;
+                handleScreenIntent({ type: "move_detail", delta: event.deltaY });
+                return true;
               },
             }
           : undefined,

@@ -4,6 +4,8 @@ import {
   buildEntityPageDocument,
   buildOntologyExplorerEntityDetailLines,
   renderEntityPageDocument,
+  type EntityPageFact,
+  type EntityPageTarget,
 } from "../../src/app/ontology/entity-page.js";
 import type { OntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 import type { PageRelationsResult } from "../../src/domain/page-relations-types.js";
@@ -208,6 +210,16 @@ function createRelations(): PageRelationsResult {
   };
 }
 
+function expectFactsContaining(facts: EntityPageFact[]): unknown {
+  const matcher: unknown = expect.arrayContaining(facts);
+  return matcher;
+}
+
+function expectTargetsContaining(targets: EntityPageTarget[]): unknown {
+  const matcher: unknown = expect.arrayContaining(targets);
+  return matcher;
+}
+
 describe("entity page document", () => {
   it("builds a shared header with identity line, AoN link, and traits", () => {
     const document = buildEntityPageDocument(createRecord());
@@ -246,7 +258,7 @@ describe("entity page document", () => {
         { kind: "text", text: "A compact burst spell." },
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Traditions", value: "Arcane, Primal" },
             { label: "Cast", value: "2 actions" },
             { label: "Range", value: "500 feet" },
@@ -309,7 +321,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Perception", value: "+26" },
             { label: "Skills", value: "Acrobatics +24, Arcana +25" },
             { label: "Abilities", value: "Str +8, Dex +4, Con +7, Int +3, Wis +5, Cha +6" },
@@ -320,7 +332,7 @@ describe("entity page document", () => {
     expect(document.sections.find((section) => section.title === "Defense")?.blocks).toEqual([
       {
         kind: "factList",
-        facts: expect.arrayContaining([
+        facts: expectFactsContaining([
           { label: "AC", value: "36" },
           { label: "HP", value: "275" },
           { label: "Saves", value: "Fort +27, Ref +24, Will +25" },
@@ -412,7 +424,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Price", value: "100 gp" },
             { label: "Bulk", value: "1" },
             { label: "Activation", value: "1 action" },
@@ -475,7 +487,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Range Increment", value: "100 feet" },
             { label: "Reload", value: "0" },
             { label: "Weapon Damage Dice", value: "1d8" },
@@ -487,7 +499,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Armor AC Bonus", value: "+4" },
             { label: "Dex Cap", value: "+1" },
             { label: "Strength", value: "3" },
@@ -501,7 +513,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Shield AC Bonus", value: "+2" },
             { label: "Shield Hardness", value: "10" },
             { label: "Shield HP", value: "40" },
@@ -558,7 +570,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Action Cost", value: "1 action" },
             { label: "Trigger", value: "An ally within range casts a fire spell" },
             { label: "Requirements", value: "You are wielding a torch" },
@@ -582,7 +594,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Action Cost", value: "1 action" },
             { label: "Duration", value: "until the start of your next turn" },
           ]),
@@ -630,7 +642,7 @@ describe("entity page document", () => {
       expect.arrayContaining([
         {
           kind: "factList",
-          facts: expect.arrayContaining([
+          facts: expectFactsContaining([
             { label: "Stealth", value: "+12 (DC 22)" },
             { label: "Disable", value: "Thievery DC 22 to jam the nozzle" },
             { label: "Disable Skills", value: "Thievery" },
@@ -641,7 +653,7 @@ describe("entity page document", () => {
     expect(document.sections.find((section) => section.title === "Defense")?.blocks).toEqual([
       {
         kind: "factList",
-        facts: expect.arrayContaining([
+        facts: expectFactsContaining([
           { label: "AC", value: "24" },
           { label: "HP", value: "64" },
           { label: "Hardness", value: "12" },
@@ -658,7 +670,7 @@ describe("entity page document", () => {
     expect(details?.blocks).toEqual([
       {
         kind: "factList",
-        facts: expect.arrayContaining([
+        facts: expectFactsContaining([
           { label: "Spell Kinds", value: "Spell" },
           { label: "Source Category", value: "Core" },
           { label: "Document Type", value: "Item" },
@@ -677,7 +689,7 @@ describe("entity page document", () => {
     expect(descriptionIndex).toBeGreaterThanOrEqual(0);
     expect(detailsIndex).toBeGreaterThan(descriptionIndex);
     expect(detailFacts).toEqual(
-      expect.arrayContaining([
+      expect.arrayContaining<EntityPageFact>([
         { label: "Spell Kinds", value: "Spell" },
         { label: "Source Category", value: "Core" },
         { label: "Document Type", value: "Item" },
@@ -685,7 +697,7 @@ describe("entity page document", () => {
       ]),
     );
     expect(detailFacts).not.toEqual(
-      expect.arrayContaining([
+      expect.arrayContaining<EntityPageFact>([
         { label: "Cast", value: "2 actions" },
         { label: "Range", value: "500 feet" },
         { label: "Damage", value: "Fire" },
@@ -709,7 +721,7 @@ describe("entity page document", () => {
     const detailFacts = details?.blocks[0]?.kind === "factList" ? details.blocks[0].facts : [];
 
     expect(offenseFacts).toContainEqual({ label: "Spell Kinds", value: "Innate" });
-    expect(detailFacts).not.toEqual(expect.arrayContaining([{ label: "Spell Kinds", value: "Innate" }]));
+    expect(detailFacts).not.toEqual(expect.arrayContaining<EntityPageFact>([{ label: "Spell Kinds", value: "Innate" }]));
   });
 
   it("emits classification pivots as seeded search targets", () => {
@@ -719,7 +731,7 @@ describe("entity page document", () => {
     expect(classification?.blocks).toEqual([
       {
         kind: "targetList",
-        targets: expect.arrayContaining([
+        targets: expectTargetsContaining([
           {
             kind: "searchPivot",
             label: "Pack: spells",
@@ -864,11 +876,12 @@ describe("entity page document", () => {
   it("compiles resolved UUID prose links into readable inline record target spans", () => {
     const referenceText = "@UUID[Compendium.pf2e.spells.Item.fireball-effect]{Fireball Effect}";
     const relations = createRelations();
-    relations.outgoing.edges[0] = {
+    const resolvedEdge = {
       ...relations.outgoing.edges[0]!,
       referenceText,
     };
-    relations.edges = [relations.outgoing.edges[0]!];
+    relations.outgoing.edges[0] = resolvedEdge;
+    relations.edges = [resolvedEdge];
     const document = buildEntityPageDocument(
       createRecord({
         descriptionText: `Cast ${referenceText} before the flames spread.`,

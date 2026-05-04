@@ -6,8 +6,8 @@ import {
   reduceDerivedTagTerminalActionTargetState,
 } from "../action-target.js";
 import type { DerivedTagTerminalPointerEvent } from "../framework/types.js";
-import { getRenderedTerminalLineStartRows } from "../framework/line-rendering.js";
 import {
+  getTerminalListDetailRenderedLineStartRows,
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
   useTerminalListDetailInteractionRouter,
@@ -198,7 +198,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         state: pageInteractionState,
         scroll: normalizedBrowserState.detailScroll,
         bodyHeight: presentationMetrics.bodyHeight,
-        nodeStartRows: getRenderedTerminalLineStartRows(
+        nodeStartRows: getTerminalListDetailRenderedLineStartRows(
           initialPageDetailLines ?? [],
           presentationMetrics.detailWidth,
           { hyperlinkSupport: terminal.capabilities.hyperlinkSupport },
@@ -258,7 +258,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const pageDocumentNodeStartRows = React.useMemo(
     () =>
       pageDetailLines
-        ? getRenderedTerminalLineStartRows(pageDetailLines, screenPresentationMetrics.detailWidth, {
+        ? getTerminalListDetailRenderedLineStartRows(pageDetailLines, screenPresentationMetrics.detailWidth, {
             hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
           })
         : undefined,
@@ -306,11 +306,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         dispatch({ type: "set_focus", pane: "detail" });
         return true;
       }
-      if (event.kind === "wheel") {
-        dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
-        return true;
-      }
-      return false;
+      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
+      return true;
     },
     [browserContext.maxDetailScroll, dispatch],
   );
@@ -320,11 +317,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         dispatch({ type: "set_focus", pane: "list" });
         return true;
       }
-      if (event.kind === "wheel") {
-        dispatch({ type: "move_selection", delta: event.deltaY });
-        return true;
-      }
-      return false;
+      dispatch({ type: "move_selection", delta: event.deltaY });
+      return true;
     },
     [dispatch],
   );
