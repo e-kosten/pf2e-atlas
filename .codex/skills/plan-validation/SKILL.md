@@ -52,6 +52,8 @@ Do not create a vague "general review" area unless it is only an extra final swe
 
 Use read-only subagents for validation unless the user explicitly asks for remediation. The top-level agent using this skill should own the focus-area split and spawn the validators directly when subagent tools are available. Validators should inspect files, run read-only searches, and run permitted validation commands when useful, but they should not patch code.
 
+Seed every delegated validator with `$delegated-agent-contract`. Validation agents must receive a complete assignment contract, not a vague request to "look deeply". If the focus area cannot be described with enough plan scope, implementation state, architecture context, ownership, forbidden shortcuts, and validation evidence expectations, tighten the focus area before spawning the validator.
+
 For each focus area, provide:
 
 - the plan file path
@@ -60,6 +62,8 @@ For each focus area, provide:
 - the implementation state to inspect, such as current worktree, branch, commit, or diff range
 - likely files, modules, docs, or commands to check
 - a reminder to validate against the plan, not against the previous completion claim
+- relevant architecture docs, ADRs, lint rules, ownership boundaries, and explicit no-go shortcuts for the focus area
+- a reminder to return `contract incomplete` instead of guessing when the caller did not provide enough context to validate safely
 - the required report format below
 
 When the focus areas are independent, spawn validators in parallel. Use two validators for high-risk or cross-cutting areas such as architecture boundary changes, refactors, and final whole-plan verdicts.
@@ -76,6 +80,11 @@ Ask every validator to return:
 - `gaps`: missing, partial, contradicted, or unproven items
 - `risk`: anything that could make the plan unsafe to call complete
 - `recommended follow-up`: the smallest remediation or extra validation needed
+
+Also require the delegated-agent contract fields:
+
+- `architecture concerns`: shortcut-looking implementations, owner drift, shims, boundary bypasses, duplicated shared logic, or `none found`
+- `contract issues`: missing assignment inputs that limited confidence, or `none`
 
 Require validators to distinguish:
 
