@@ -125,6 +125,57 @@ function createRecordPageDocument(): EntityPageDocument {
   };
 }
 
+function createClassificationRecordPageDocument(): EntityPageDocument {
+  const categoryTarget = {
+    kind: "searchPivot" as const,
+    label: "Category: Spell",
+    request: browseQuery("Browse spell records", {
+      filter: scopeFilter("spell"),
+      limit: 50,
+    }).request,
+  };
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: [],
+    sections: [
+      {
+        id: "classification",
+        kind: "classification",
+        title: "Classification",
+        blocks: [{ kind: "targetList", targets: [categoryTarget] }],
+        targets: [categoryTarget],
+      },
+    ],
+  };
+}
+
+function createAonRecordPageDocument(): EntityPageDocument {
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    aonLink: {
+      kind: "external",
+      label: "Open in Archives of Nethys",
+      href: "https://2e.aonprd.com/Spells.aspx?ID=1530",
+      plainTextFallback: "Open in Archives of Nethys",
+    },
+    traits: [],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused page summary." }],
+        targets: [],
+      },
+    ],
+  };
+}
+
 function createPreviewTargetRecordPageDocument(): EntityPageDocument {
   return {
     recordKey: "spell:test-fireball",
@@ -421,6 +472,66 @@ describe("OntologyInspectScreen", () => {
     await flushInk();
 
     expect(onActivatePageTarget).toHaveBeenCalledWith(sourceDocument.traitTargets?.[0]);
+  });
+
+  it("activates Classification row pivots through the ontology inspect host", async () => {
+    const onActivatePageTarget = vi.fn(() => true);
+    const sourceDocument = createClassificationRecordPageDocument();
+    const services = createServices(sourceDocument);
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onActivatePageTarget={onActivatePageTarget}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Classification");
+    expect(app.lastFrame()).toContain("Category: Spell");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "searchPivot",
+        label: "Category: Spell",
+      }),
+    );
+  });
+
+  it("activates external Archives of Nethys targets through the ontology inspect host", async () => {
+    const onActivatePageTarget = vi.fn(() => true);
+    const sourceDocument = createAonRecordPageDocument();
+    const services = createServices(sourceDocument);
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onActivatePageTarget={onActivatePageTarget}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Open in Archives of Nethys");
+
+    app.stdin.write("\r");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(sourceDocument.aonLink);
   });
 
   it("previews inline UUID record targets through the ontology inspect host", async () => {

@@ -400,6 +400,54 @@ function createReferencedByPageDocument(
   };
 }
 
+function createClassificationPageDocument(request: SearchRequest): EntityPageDocument {
+  const target = {
+    kind: "searchPivot" as const,
+    label: "Category: Spell",
+    request,
+  };
+
+  return {
+    recordKey: "spell:test-alarm",
+    title: "Alarm Ward",
+    identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+    traits: [],
+    sections: [
+      {
+        id: "classification",
+        kind: "classification",
+        title: "Classification",
+        blocks: [{ kind: "targetList", targets: [target] }],
+        targets: [target],
+      },
+    ],
+  };
+}
+
+function createAonPageDocument(): EntityPageDocument {
+  return {
+    recordKey: "spell:test-alarm",
+    title: "Alarm Ward",
+    identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+    aonLink: {
+      kind: "external",
+      label: "Open in Archives of Nethys",
+      href: "https://2e.aonprd.com/Spells.aspx?ID=1530",
+      plainTextFallback: "Open in Archives of Nethys",
+    },
+    traits: [],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused ward that rings when trespassers approach." }],
+        targets: [],
+      },
+    ],
+  };
+}
+
 function createOpenTargetPageDocument(): {
   source: ReturnType<typeof createScrollablePageDocument>;
   target: ReturnType<typeof createScrollablePageDocument>;
@@ -1352,6 +1400,35 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).not.toContain("Reference 01");
   });
 
+  it("keeps offscreen selected targets visible on dedicated entity-page routes", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(createScrollablePageDocument())}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).not.toContain("Reference 18");
+
+    app.stdin.write("G");
+    await flushFrames();
+    expect(app.lastFrame()).toContain("References");
+
+    app.stdin.write("\r");
+    await flushFrames();
+    app.stdin.write("G");
+    await flushFrames(2);
+
+    expect(app.lastFrame()).toContain("Reference 18");
+    expect(app.lastFrame()).toContain("↑/↓ target");
+  });
+
   it("opens grouped backlink page targets through the shared app search-navigation seam", async () => {
     const services = createFakeServices();
     const sourceRecord = createRecord();
@@ -1556,6 +1633,82 @@ describe("pf2e terminal app", () => {
     expect(services.user.search.executeQuery).toHaveBeenCalledWith(request);
     expect(app.lastFrame()).toContain("Browse | Feat |");
     expect(app.lastFrame()).toContain("Dedicated Page Backlink");
+  });
+
+  it("opens Classification row pivots from dedicated entity-page routes", async () => {
+    const services = createFakeServices();
+    const request = browseQuery("Browse spell records", {
+      filter: scopeFilter("spell"),
+      limit: 50,
+    }).request;
+    const result = createRecord({
+      recordKey: "spell:classification-result",
+      id: "classification-result",
+      name: "Classification Result",
+      normalizedName: "classification result",
+    });
+    services.user.search.executeQuery = vi.fn(async () => ({
+      windowId: "window-classification-pivot",
+      query: request,
+      results: [result],
+      windowOffset: 0,
+      resultMode: "browse",
+      total: 1,
+      loadedCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      searchProfile: null,
+      sort: "alphabetical",
+      sortSeed: null,
+    })) as typeof services.user.search.executeQuery;
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(createClassificationPageDocument(request))}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Classification");
+    expect(app.lastFrame()).toContain("Category: Spell");
+
+    app.stdin.write("\r");
+    await flushFrames(2);
+    app.stdin.write("\r");
+    await flushFrames(10);
+
+    expect(services.user.search.executeQuery).toHaveBeenCalledWith(request);
+    expect(app.lastFrame()).toContain("Browse | Spell |");
+    expect(app.lastFrame()).toContain("Classification Result");
+  });
+
+  it("reports external Archives of Nethys targets from dedicated entity-page routes", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(createAonPageDocument())}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Open in Archives of Nethys");
+
+    app.stdin.write("\r");
+    await flushFrames();
+    app.stdin.write("\r");
+    await flushFrames(2);
+
+    expect(app.lastFrame()).toContain("This target opens outside the current page flow.");
   });
 
   it("opens referenced-by page targets from ontology inspect routes", async () => {

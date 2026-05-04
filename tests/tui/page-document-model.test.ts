@@ -209,7 +209,7 @@ describe("page document model", () => {
       "classification",
     ]);
     expect(model.targetNodes.map((node) => node.target.label)).toEqual([
-      "Open in Archives of Nethys",
+      "AoN: Open in Archives of Nethys",
       "Trait: Concentrate",
       "Trait: Fire",
       "Trait: Manipulate",
@@ -264,7 +264,18 @@ describe("page document model", () => {
       selectedTargetId: "section:references:target:0:0",
     });
 
-    expect(rendered.find((line) => line.text === "Open in Archives of Nethys")?.tone).toBe("accent");
+    expect(rendered.find((line) => line.text === "AoN: Open in Archives of Nethys")?.tone).toBe("accent");
+    expect(rendered.find((line) => line.text === "Spell Effect: Fireball")?.tone).toBe("selected");
+  });
+
+  it("renders focused section headings distinctly from focused targets", () => {
+    const model = buildPageDocumentModel(buildEntityPageDocument(createRecord(), createRelations()));
+    const rendered = renderPageDocumentModel(model, {
+      activeSectionId: "references",
+      selectedTargetId: "section:references:target:0:0",
+    });
+
+    expect(rendered.find((line) => line.text === "References")?.tone).toBe("accent");
     expect(rendered.find((line) => line.text === "Spell Effect: Fireball")?.tone).toBe("selected");
   });
 

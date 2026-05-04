@@ -411,7 +411,7 @@ export function renderPageDocumentModel(
     if (options.activeSectionId && node.kind === "sectionHeading" && node.sectionId === options.activeSectionId) {
       return {
         ...node.line,
-        tone: "selected",
+        tone: "accent",
       };
     }
 

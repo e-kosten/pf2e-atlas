@@ -1497,7 +1497,7 @@ describe("search screen", () => {
     expect(onActivatePageTarget).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "external",
-        label: "Open in Archives of Nethys",
+        label: "AoN: Open in Archives of Nethys",
       }),
     );
   });
@@ -1623,6 +1623,45 @@ describe("search screen", () => {
           limit: 50,
         },
       },
+    );
+  });
+
+  it("activates Classification row pivots from the result preview", async () => {
+    const services = createServices();
+    const onActivatePageTarget = vi.fn(() => true);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onActivatePageTarget={onActivatePageTarget}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    app.stdin.write("G");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
+    expect(app.lastFrame()).toContain("Category: Spell");
+
+    app.stdin.write("\r");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "searchPivot",
+        label: "Category: Spell",
+      }),
     );
   });
 
