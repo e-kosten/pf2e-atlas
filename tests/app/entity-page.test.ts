@@ -305,6 +305,73 @@ describe("entity page document", () => {
     ]);
   });
 
+  it("uses a dedicated feat/action recipe family instead of the generic fallback", () => {
+    const featDocument = buildEntityPageDocument(
+      createRecord({
+        recordKey: "feat:blazing-conduit",
+        name: "Blazing Conduit",
+        type: "feat",
+        category: "feat",
+        level: 4,
+        actionCost: 1,
+        rangeText: "60 feet",
+        targetText: "1 ally",
+        durationText: "1 minute",
+        damageTypes: ["fire"],
+      }),
+    );
+    const actionDocument = buildEntityPageDocument(
+      createRecord({
+        recordKey: "rule:raise-a-shield",
+        name: "Raise a Shield",
+        type: "action",
+        category: "rule",
+        subcategory: "action",
+        level: null,
+        actionCost: 1,
+        durationText: "until the start of your next turn",
+      }),
+    );
+
+    expect(featDocument.sections.map((section) => section.title)).toEqual([
+      "Summary",
+      "Description",
+      "Details",
+      "Classification",
+    ]);
+    expect(featDocument.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Action Cost", value: "1 action" },
+            { label: "Range", value: "60 feet" },
+            { label: "Targets", value: "1 ally" },
+            { label: "Duration", value: "1 minute" },
+            { label: "Damage", value: "Fire" },
+          ]),
+        },
+      ]),
+    );
+    expect(actionDocument.sections.map((section) => section.title)).toEqual([
+      "Summary",
+      "Description",
+      "Details",
+      "Classification",
+    ]);
+    expect(actionDocument.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Action Cost", value: "1 action" },
+            { label: "Duration", value: "until the start of your next turn" },
+          ]),
+        },
+      ]),
+    );
+  });
+
   it("uses hazard recipe sections when hazard-specific fields are available", () => {
     const document = buildEntityPageDocument(
       createRecord({

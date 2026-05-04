@@ -67,6 +67,15 @@ type PreparedEntityPageInput = {
   referencedBy: EntityPageTarget[];
 };
 
+type EntityPageRecipeKind = "spell" | "creature" | "equipment" | "featAction" | "hazard" | "fallback";
+
+type EntityPageRecipeBuildContext = {
+  input: PreparedEntityPageInput;
+  detailFacts: EntityPageFact[];
+  seenFacts: Set<string>;
+  push: (section: EntityPageSection | null) => void;
+};
+
 function humanize(value: string | null | undefined): string {
   if (!value) {
     return "";
@@ -198,7 +207,10 @@ function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): Enti
     asFact("Action Cost", formatActionCost(record.actionCost)),
     asFact("Range", record.rangeText),
     asFact("Area", formatArea(record)),
+    asFact("Save", formatSave(record)),
+    asFact("Duration", record.durationText),
     asFact("Targets", record.targetText),
+    asFact("Damage", formatList(record.damageTypes)),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
@@ -480,6 +492,65 @@ function createTargetSection(
   };
 }
 
+function isFeatActionRecord(record: OntologyExplorerEntityRecord): boolean {
+  return record.category === "feat" || (record.category === "rule" && record.subcategory === "action");
+}
+
+function selectEntityPageRecipe(record: OntologyExplorerEntityRecord): EntityPageRecipeKind {
+  switch (record.category) {
+    case "spell":
+      return "spell";
+    case "creature":
+      return "creature";
+    case "equipment":
+      return "equipment";
+    case "hazard":
+      return "hazard";
+    default:
+      return isFeatActionRecord(record) ? "featAction" : "fallback";
+  }
+}
+
+function buildSpellRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildSpellSummaryFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
+function buildCreatureRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildCreatureSummaryFacts(input.record), seenFacts));
+  push(createFactSection("defense", "defense", "Defense", buildCreatureDefenseFacts(input.record), seenFacts));
+  push(createFactSection("movement", "movement", "Movement", buildCreatureMovementFacts(input.record), seenFacts));
+  push(createFactSection("offense", "offense", "Offense", buildCreatureOffenseFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
+function buildEquipmentRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildEquipmentSummaryFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
+function buildFeatActionRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildFeatActionSummaryFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
+function buildHazardRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildHazardSummaryFacts(input.record), seenFacts));
+  push(createFactSection("routine", "routine", "Routine", buildHazardRoutineFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
+function buildFallbackRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
+  push(createSummarySection(input.blurb, buildFallbackSummaryFacts(input.record), seenFacts));
+  push(createTextSection("description", "description", "Description", input.description));
+  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+}
+
 function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<string>): EntityPageSection[] {
   const sections: EntityPageSection[] = [];
   const detailFacts = buildDetailFacts(input.record);
@@ -488,44 +559,31 @@ function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<stri
       sections.push(section);
     }
   };
+  const context: EntityPageRecipeBuildContext = {
+    input,
+    detailFacts,
+    seenFacts,
+    push,
+  };
 
-  switch (input.record.category) {
+  switch (selectEntityPageRecipe(input.record)) {
     case "spell":
-      push(createSummarySection(input.blurb, buildSpellSummaryFacts(input.record), seenFacts));
-      push(createTextSection("description", "description", "Description", input.description));
-      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      buildSpellRecipeSections(context);
       break;
     case "creature":
-      push(createSummarySection(input.blurb, buildCreatureSummaryFacts(input.record), seenFacts));
-      push(createFactSection("defense", "defense", "Defense", buildCreatureDefenseFacts(input.record), seenFacts));
-      push(createFactSection("movement", "movement", "Movement", buildCreatureMovementFacts(input.record), seenFacts));
-      push(createFactSection("offense", "offense", "Offense", buildCreatureOffenseFacts(input.record), seenFacts));
-      push(createTextSection("description", "description", "Description", input.description));
-      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      buildCreatureRecipeSections(context);
       break;
     case "equipment":
-      push(createSummarySection(input.blurb, buildEquipmentSummaryFacts(input.record), seenFacts));
-      push(createTextSection("description", "description", "Description", input.description));
-      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      buildEquipmentRecipeSections(context);
+      break;
+    case "featAction":
+      buildFeatActionRecipeSections(context);
       break;
     case "hazard":
-      push(createSummarySection(input.blurb, buildHazardSummaryFacts(input.record), seenFacts));
-      push(createFactSection("routine", "routine", "Routine", buildHazardRoutineFacts(input.record), seenFacts));
-      push(createTextSection("description", "description", "Description", input.description));
-      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      buildHazardRecipeSections(context);
       break;
-    default:
-      push(
-        createSummarySection(
-          input.blurb,
-          input.record.category === "feat" || (input.record.category === "rule" && input.record.subcategory === "action")
-            ? buildFeatActionSummaryFacts(input.record)
-            : buildFallbackSummaryFacts(input.record),
-          seenFacts,
-        ),
-      );
-      push(createTextSection("description", "description", "Description", input.description));
-      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+    case "fallback":
+      buildFallbackRecipeSections(context);
       break;
   }
 

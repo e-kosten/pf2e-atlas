@@ -4,7 +4,7 @@ import { humanizeOntologySearchIdentifier } from "../../domain/presentation-voca
 import { buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
-import { buildOntologyExplorerEntityDetailLines, buildOntologyExplorerEntitySummary } from "./presenter.js";
+import { buildOntologyExplorerEntitySummary } from "./presenter.js";
 
 const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
 
@@ -91,8 +91,7 @@ export function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNod
       record.blurbText ?? "",
     ),
     listLabel: buildOntologyExplorerEntitySummary(entityRecord),
-    detailTitle: "Record Details",
-    detailLines: buildOntologyExplorerEntityDetailLines(entityRecord),
+    detailLines: [],
     query: {
       label: "Open exact record lookup",
       request: {
