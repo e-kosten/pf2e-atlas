@@ -214,6 +214,9 @@ describe("page document model", () => {
       "Feat (2)",
       "Pack: spells",
       "Category: Spell",
+      "Trait: Concentrate",
+      "Trait: Fire",
+      "Trait: Manipulate",
       "Derived Tags: Explosive Magic",
       "Families: Damage Burst",
     ]);

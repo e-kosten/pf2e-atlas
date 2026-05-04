@@ -1,5 +1,6 @@
 import type { OntologyTextLine } from "../../domain/ontology-types.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
+import type { MetadataSetField } from "../../domain/metadata-field-types.js";
 import type { PageRelationsResult } from "../../domain/page-relations-types.js";
 import type { RecordKey } from "../../domain/record-types.js";
 import { buildAllOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
@@ -292,25 +293,54 @@ function buildSubcategoryTarget(record: OntologyExplorerEntityRecord): EntityPag
   };
 }
 
-function buildMetadataTargets(
+type EntityPageMetadataPivotSpec = {
+  field: MetadataSetField;
+  label: string;
+  getValues: (record: OntologyExplorerEntityRecord) => string[];
+};
+
+const ENTITY_PAGE_METADATA_PIVOTS: readonly EntityPageMetadataPivotSpec[] = [
+  {
+    field: "traits",
+    label: "Trait",
+    getValues: (record) => record.traits,
+  },
+  {
+    field: "derivedTags",
+    label: "Derived Tags",
+    getValues: (record) => record.derivedTags,
+  },
+  {
+    field: "families",
+    label: "Families",
+    getValues: (record) => record.families,
+  },
+];
+
+function buildMetadataPivotTarget(
   record: OntologyExplorerEntityRecord,
-  field: "derivedTags" | "families",
-  label: "Derived Tags" | "Families",
-  values: string[],
-): EntityPageTarget[] {
-  return values.map((value) => ({
+  spec: EntityPageMetadataPivotSpec,
+  value: string,
+): EntityPageTarget {
+  return {
     kind: "searchPivot" as const,
-    label: `${label}: ${humanize(value)}`,
+    label: `${spec.label}: ${humanize(value)}`,
     request: buildBrowseRequest(
       buildAllOfFilter([
         buildScopeFilter(record.category),
         {
           kind: "metadataPredicate",
-          predicate: { field, op: "includes", value },
+          predicate: { field: spec.field, op: "includes", value },
         },
       ]),
     ),
-  }));
+  };
+}
+
+function buildMetadataPivotTargets(record: OntologyExplorerEntityRecord): EntityPageTarget[] {
+  return ENTITY_PAGE_METADATA_PIVOTS.flatMap((spec) =>
+    spec.getValues(record).map((value) => buildMetadataPivotTarget(record, spec, value)),
+  );
 }
 
 function buildClassificationTargets(record: OntologyExplorerEntityRecord): EntityPageTarget[] {
@@ -318,8 +348,7 @@ function buildClassificationTargets(record: OntologyExplorerEntityRecord): Entit
     buildPackTarget(record),
     buildCategoryTarget(record),
     buildSubcategoryTarget(record),
-    ...buildMetadataTargets(record, "derivedTags", "Derived Tags", record.derivedTags),
-    ...buildMetadataTargets(record, "families", "Families", record.families),
+    ...buildMetadataPivotTargets(record),
   ].filter((target): target is EntityPageTarget => Boolean(target));
 }
 

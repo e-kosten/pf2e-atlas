@@ -449,6 +449,29 @@ describe("entity page document", () => {
           },
           {
             kind: "searchPivot",
+            label: "Trait: Fire",
+            request: {
+              mode: "browse",
+              filter: {
+                kind: "allOf",
+                children: [
+                  {
+                    kind: "scope",
+                    category: "spell",
+                    subcategory: { kind: "any" },
+                  },
+                  {
+                    kind: "metadataPredicate",
+                    predicate: { field: "traits", op: "includes", value: "fire" },
+                  },
+                ],
+              },
+              sort: { kind: "alphabetical" },
+              limit: 50,
+            },
+          },
+          {
+            kind: "searchPivot",
             label: "Derived Tags: Explosive Magic",
             request: {
               mode: "browse",

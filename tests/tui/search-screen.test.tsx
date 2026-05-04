@@ -1572,12 +1572,13 @@ describe("search screen", () => {
   it("emits search-pivot page target activation through the shared callback seam", async () => {
     const services = createServices();
     const onActivatePageTarget = vi.fn(() => true);
+    const record = createRecord({ traits: ["fire"] });
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalAppServicesProvider services={services}>
           <SearchScreen
             entry="results"
-            initialSession={createSearchSession()}
+            initialSession={createSearchSession({ results: [record] })}
             onActivatePageTarget={onActivatePageTarget}
             onBack={vi.fn()}
           />
@@ -1592,14 +1593,37 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
 
     expect(onActivatePageTarget).toHaveBeenCalledWith(
-      expect.objectContaining({
+      {
         kind: "searchPivot",
-        label: "Pack: spell",
-      }),
+        label: "Trait: Fire",
+        request: {
+          mode: "browse",
+          filter: {
+            kind: "allOf",
+            children: [
+              {
+                kind: "scope",
+                category: "spell",
+                subcategory: { kind: "any" },
+              },
+              {
+                kind: "metadataPredicate",
+                predicate: { field: "traits", op: "includes", value: "fire" },
+              },
+            ],
+          },
+          sort: { kind: "alphabetical" },
+          limit: 50,
+        },
+      },
     );
   });
 
