@@ -84,6 +84,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Shared TUI interaction family contracts](./items/shared-tui-interaction-family-contracts.md)
   Capture the intended higher-level interaction families and the split between shared behavior contracts and feature-local workflow ownership across list/detail, menu/editor/workspace, and command/action-target surfaces. Status: proposed.
 
+- [Search result list viewport behavior](./items/search-result-list-viewport-behavior.md)
+  Revisit whether the left search result pane should stay cursor-driven or gain an independently scrollable viewport. Status: proposed.
+
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed. Deferred for now, don't prioritize.
 
