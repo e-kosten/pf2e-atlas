@@ -42,6 +42,7 @@ import {
   useTerminalListDetailNotification,
 } from "../list-detail-presentation.js";
 import { buildPageDocumentModel, renderPageDocumentModel } from "../page-document/model.js";
+import { getActivePageDocumentSection } from "../page-document/interaction.js";
 import {
   buildDerivedTagTerminalActionTargetLine,
   createDerivedTagTerminalActionTargetState,
@@ -210,14 +211,18 @@ export function useSearchScreenController({
   );
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
-  const selectedResultDetailLines = React.useMemo(() => {
+  const selectedResultPageModel = React.useMemo(() => {
     if (!selectedResult) {
       return null;
     }
 
     const document = user.entityPages.buildDocument(selectedResult);
-    return renderPageDocumentModel(buildPageDocumentModel(document));
+    return buildPageDocumentModel(document);
   }, [selectedResult, user.entityPages]);
+  const selectedResultDetailLines = React.useMemo(
+    () => (selectedResultPageModel ? renderPageDocumentModel(selectedResultPageModel) : null),
+    [selectedResultPageModel],
+  );
 
   const detailLines =
     state.layout === "results" && state.session
@@ -242,6 +247,15 @@ export function useSearchScreenController({
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
   const maxDetailScroll = presentationMetrics.maxDetailScroll;
+  const activePreviewSection =
+    state.layout === "results" && selectedResultPageModel
+      ? getActivePageDocumentSection({
+          document: selectedResultPageModel,
+          scroll: state.detailScroll,
+          bodyHeight: presentationMetrics.bodyHeight,
+        })
+      : null;
+  const previewTitleSuffix = activePreviewSection?.title ? ` | ${activePreviewSection.title}` : "";
 
   const { filterExplorerSession, openFilterExplorer } = useSearchFilterExplorerWorkflow({
     query: state.query,
@@ -410,8 +424,8 @@ export function useSearchScreenController({
       title:
         state.layout === "results"
           ? state.activePane === "detail"
-            ? `[PREVIEW] ${selectedResult?.name ?? "Results"}`
-            : `Preview | ${selectedResult?.name ?? "Results"}`
+            ? `[PREVIEW] ${selectedResult?.name ?? "Results"}${previewTitleSuffix}`
+            : `Preview | ${selectedResult?.name ?? "Results"}${previewTitleSuffix}`
           : "Query Status",
     },
     metrics: presentationMetrics,

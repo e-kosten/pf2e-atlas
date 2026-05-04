@@ -1410,6 +1410,7 @@ describe("search screen", () => {
 
     expect(services.user.pageRelations.loadPageRelations).toHaveBeenCalledWith("spell:test-alarm");
     expect(app.lastFrame()).toContain("Alarm Ward");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Summary");
   });
 
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
