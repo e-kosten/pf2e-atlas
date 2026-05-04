@@ -132,6 +132,14 @@ function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
 }
 
+function pressCtrlE(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u0005");
+}
+
+function pressCtrlY(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u0019");
+}
+
 function createTestConfig(): AppConfig {
   return {
     dataPath: "vendor/pf2e",
@@ -1451,6 +1459,73 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
+  });
+
+  it("uses Ctrl-Y and Ctrl-E to smooth-scroll preview content without leaving section mode", async () => {
+    const services = createServices();
+    const referenceRecords = Array.from({ length: 18 }, (_, index) =>
+      createRecord({
+        recordKey: `spell:reference-${index + 1}`,
+        id: `reference-${index + 1}`,
+        name: `Reference ${String(index + 1).padStart(2, "0")}`,
+      }),
+    );
+    vi.mocked(services.user.pageRelations.loadPageRelations).mockReturnValue({
+      recordKey: "spell:test-alarm",
+      outgoing: {
+        records: referenceRecords,
+        edges: referenceRecords.map((record, index) => ({
+          fromRecordKey: "spell:test-alarm",
+          toRecordKey: record.recordKey,
+          displayText: `Reference ${String(index + 1).padStart(2, "0")}`,
+          referenceText: `Reference ${String(index + 1).padStart(2, "0")}`,
+          sourceCategory: "core",
+        })),
+      },
+      incoming: { records: [], edges: [] },
+      edges: [],
+      incomingGroups: [],
+    });
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("↑/↓ section");
+    expect(app.lastFrame()).toContain("Archives of Nethys");
+    expect(app.lastFrame()).not.toContain("Reference 01");
+
+    for (let step = 0; step < 12; step += 1) {
+      pressCtrlE(app);
+      await flushInk();
+    }
+
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | References");
+    expect(app.lastFrame()).toContain("↑/↓ section");
+    expect(app.lastFrame()).not.toContain("Archives of Nethys");
+    expect(app.lastFrame()).toContain("Reference 01");
+
+    for (let step = 0; step < 12; step += 1) {
+      pressCtrlY(app);
+      await flushInk();
+    }
+
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("↑/↓ section");
+    expect(app.lastFrame()).toContain("Archives of Nethys");
+    expect(app.lastFrame()).not.toContain("Reference 01");
   });
 
   it("emits search-pivot page target activation through the shared callback seam", async () => {

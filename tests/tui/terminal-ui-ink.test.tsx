@@ -487,6 +487,28 @@ function LongDialogHarness(): React.JSX.Element {
   return <TerminalTextScreen title="Harness" body={[{ text: "page=home" }]} />;
 }
 
+function ViewportScrollKeyHarness(): React.JSX.Element {
+  const [backwardCount, setBackwardCount] = React.useState(0);
+  const [forwardCount, setForwardCount] = React.useState(0);
+
+  useDerivedTagTerminalInput((event) => {
+    if (event.isTerminalViewportScrollBackwardKey()) {
+      setBackwardCount((count) => count + 1);
+      return;
+    }
+    if (event.isTerminalViewportScrollForwardKey()) {
+      setForwardCount((count) => count + 1);
+    }
+  });
+
+  return (
+    <TerminalTextScreen
+      title="Harness"
+      body={[{ text: `backward=${backwardCount}` }, { text: `forward=${forwardCount}` }]}
+    />
+  );
+}
+
 function MultiSelectPromptHarness(): React.JSX.Element {
   const terminal = useDerivedTagTerminalApp();
   const [result, setResult] = React.useState("pending");
@@ -1832,6 +1854,23 @@ describe("derived tag terminal ink runtime", () => {
     expect(
       getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[F", {} as never), options),
     ).toEqual({ kind: "viewportEdge", boundary: "end" });
+  });
+
+  it("delivers Ctrl-Y and Ctrl-E through the live terminal input hook", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <ViewportScrollKeyHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\u0019");
+    await flushInk();
+    app.stdin.write("\u0005");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("backward=1");
+    expect(app.lastFrame()).toContain("forward=1");
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {

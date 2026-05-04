@@ -9,7 +9,7 @@ import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import { createPf2eApplicationEntityPageService } from "../../src/app/ontology/entity-page-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
-import { createPf2eSearchResultsRoute, type Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
+import { createPf2ePageRoute, createPf2eSearchResultsRoute, type Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -49,6 +49,14 @@ function pressLeft(app: ReturnType<typeof render>): void {
 
 function pressDown(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[B");
+}
+
+function pressCtrlE(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u0005");
+}
+
+function pressCtrlY(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u0019");
 }
 
 async function openOntologyBrowser(app: ReturnType<typeof render>): Promise<void> {
@@ -259,6 +267,56 @@ function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "c
           },
         ],
         children,
+      },
+    ],
+  };
+}
+
+function createScrollablePageDocument() {
+  const references = Array.from({ length: 18 }, (_, index) => ({
+    kind: "record" as const,
+    label: `Reference ${String(index + 1).padStart(2, "0")}`,
+    recordKey: `spell:reference-${index + 1}`,
+    action: "open" as const,
+  }));
+
+  return {
+    recordKey: "spell:test-alarm",
+    title: "Alarm Ward",
+    identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+    traits: ["Arcane", "Alarm"],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary" as const,
+        title: "Summary",
+        blocks: [{ kind: "text" as const, text: "A focused ward that rings when trespassers approach." }],
+        targets: [],
+      },
+      {
+        id: "details",
+        kind: "details" as const,
+        title: "Details",
+        blocks: [
+          {
+            kind: "factList" as const,
+            facts: [
+              { label: "Traditions", value: "Arcane" },
+              { label: "Cast", value: "2 actions" },
+              { label: "Range", value: "30 feet" },
+              { label: "Duration", value: "1 minute" },
+              { label: "Targets", value: "creature" },
+            ],
+          },
+        ],
+        targets: [],
+      },
+      {
+        id: "references",
+        kind: "references" as const,
+        title: "References",
+        blocks: [{ kind: "targetList" as const, targets: references }],
+        targets: references,
       },
     ],
   };
@@ -1035,6 +1093,40 @@ describe("pf2e terminal app", () => {
     expect(recoveredFrame).toContain("Search Semantics");
     expect(recoveredFrame).toContain("Pathfinder Monster Core | 320");
     expect(recoveredFrame).not.toContain("Loading next view |");
+  });
+
+  it("supports Ctrl-Y and Ctrl-E smooth scrolling on dedicated entity-page routes", async () => {
+    const services = createFakeServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp
+          rootPath={process.cwd()}
+          onExit={vi.fn()}
+          services={services}
+          initialRoute={createPf2ePageRoute(createScrollablePageDocument())}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushFrames(2);
+    expect(app.lastFrame()).toContain("Alarm Ward");
+    expect(app.lastFrame()).toContain("Summary");
+    expect(app.lastFrame()).not.toContain("Reference 01");
+
+    for (let step = 0; step < 10; step += 1) {
+      pressCtrlE(app);
+      await flushFrames();
+    }
+
+    expect(app.lastFrame()).toContain("Reference 01");
+
+    for (let step = 0; step < 10; step += 1) {
+      pressCtrlY(app);
+      await flushFrames();
+    }
+
+    expect(app.lastFrame()).toContain("Summary");
+    expect(app.lastFrame()).not.toContain("Reference 01");
   });
 
   it("opens grouped backlink page targets through the shared app search-navigation seam", async () => {
