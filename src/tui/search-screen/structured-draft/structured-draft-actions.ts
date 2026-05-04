@@ -15,11 +15,23 @@ import {
 } from "../../search/query-parts.js";
 import {
   buildStructuredDraftEntries,
-  getStructuredDraftSelectionIndex,
-  getStructuredDraftSelectionIndexForPath,
-  type SearchStructuredDraftState,
 } from "./structured-draft-support.js";
+import {
+  createStructuredDraftGroupResumeTarget,
+  createStructuredDraftNodeResumeTarget,
+  createStructuredDraftResumeTargetForContainingGroup,
+  createStructuredDraftResumeTargetForNodePath,
+  createStructuredDraftRootResumeTarget,
+  getStructuredDraftSelectionIndex,
+  getStructuredDraftSelectionIndexForResumeTarget,
+  type SearchStructuredDraftState,
+  type StructuredDraftResumeTarget,
+} from "./structured-draft-state.js";
 import type { SearchWorkspaceUser } from "../workspace/workspace-action-types.js";
+
+type StructuredDraftProjectionOptions = {
+  resumeTarget?: StructuredDraftResumeTarget | null;
+};
 
 export function useSearchStructuredDraftActions({
   applyQueryUpdate,
@@ -42,16 +54,16 @@ export function useSearchStructuredDraftActions({
   ) => void;
   replaceStructuredDraftProjection: (
     update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
-    options?: { metadataFocusPath?: number[] | null },
+    options?: StructuredDraftProjectionOptions,
   ) => void;
-  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
+  setStructuredDraftResumeTarget: (target: StructuredDraftResumeTarget | null) => void;
   structuredDraftEntries: ReturnType<typeof buildStructuredDraftEntries>;
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-    options?: { metadataFocusPath?: number[] | null },
+    options?: StructuredDraftProjectionOptions,
   ) => void;
 } {
   const [structuredDraftState, setStructuredDraftState] = React.useState<SearchStructuredDraftState | null>(null);
@@ -73,8 +85,8 @@ export function useSearchStructuredDraftActions({
   );
 
   const buildEntriesForQuery = React.useCallback(
-    (query: Pf2eTerminalSearchQuery, options?: { metadataFocusPath?: number[] | null; moveSourcePath?: number[] | null }) =>
-      buildStructuredDraftEntries(query, options?.metadataFocusPath ?? null, {
+    (query: Pf2eTerminalSearchQuery, options?: { resumeTarget?: StructuredDraftResumeTarget | null; moveSourcePath?: number[] | null }) =>
+      buildStructuredDraftEntries(query, options?.resumeTarget ?? null, {
         groupedFieldValues: getGroupedFieldValuesForQuery(query),
         packLabelResolver: user.search.getPackLabel,
         moveSourcePath: options?.moveSourcePath ?? null,
@@ -85,7 +97,7 @@ export function useSearchStructuredDraftActions({
   const replaceStructuredDraftProjection = React.useCallback(
     (
       update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
-      options?: { metadataFocusPath?: number[] | null },
+      options?: StructuredDraftProjectionOptions,
     ) => {
       let appliedQuery = currentQueryRef.current;
       applyQueryUpdate((query) => {
@@ -99,16 +111,16 @@ export function useSearchStructuredDraftActions({
           return current;
         }
 
-        const metadataFocusPath = options?.metadataFocusPath ?? current.metadataFocusPath;
+        const resumeTarget = options?.resumeTarget ?? current.resumeTarget;
         const entries = buildEntriesForQuery(appliedQuery, {
-          metadataFocusPath,
+          resumeTarget,
           moveSourcePath: current.moveSourcePath,
         });
 
         return {
           ...current,
-          metadataFocusPath,
-          selectedIndex: getStructuredDraftSelectionIndexForPath(entries, metadataFocusPath, current.selectedIndex),
+          resumeTarget,
+          selectedIndex: getStructuredDraftSelectionIndexForResumeTarget(entries, resumeTarget, current.selectedIndex),
         };
       });
     },
@@ -124,12 +136,17 @@ export function useSearchStructuredDraftActions({
         applyQueryUpdate(() => liveQuery);
       }
 
-      const metadataFocusPath = anchor.kind === "queryNode" ? [...anchor.path] : null;
-      const entries = buildEntriesForQuery(liveQuery, { metadataFocusPath });
+      const resumeTarget =
+        anchor.kind === "queryNode"
+          ? createStructuredDraftResumeTargetForNodePath(liveQuery.filter, anchor.path)
+          : anchor.kind === "addQueryPart"
+            ? createStructuredDraftGroupResumeTarget([])
+            : createStructuredDraftRootResumeTarget();
+      const entries = buildEntriesForQuery(liveQuery, { resumeTarget });
 
       setStructuredDraftState({
         anchor,
-        metadataFocusPath,
+        resumeTarget,
         moveSourcePath: null,
         selectedIndex: getStructuredDraftSelectionIndex(anchor, entries),
       });
@@ -161,7 +178,7 @@ export function useSearchStructuredDraftActions({
     (
       path: number[],
       update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-      options?: { metadataFocusPath?: number[] | null },
+      options?: StructuredDraftProjectionOptions,
     ) => {
       const liveQuery = currentQueryRef.current;
       const currentNode = getSearchFilterNodeAtPath(liveQuery.filter, path);
@@ -178,16 +195,19 @@ export function useSearchStructuredDraftActions({
           filter: updateSearchFilterNodeAtPath(draftQuery.filter, path, () => nextCanonicalNode),
         }),
         {
-          metadataFocusPath:
-            options?.metadataFocusPath ?? (nextCanonicalNode ? path : path.length > 0 ? path.slice(0, -1) : null),
+          resumeTarget:
+            options?.resumeTarget ??
+            (nextCanonicalNode
+              ? createStructuredDraftNodeResumeTarget(path)
+              : createStructuredDraftResumeTargetForContainingGroup(liveQuery.filter, path)),
         },
       );
     },
     [replaceStructuredDraftProjection],
   );
 
-  const setStructuredDraftMetadataFocusPath = React.useCallback(
-    (path: number[] | null) => {
+  const setStructuredDraftResumeTarget = React.useCallback(
+    (target: StructuredDraftResumeTarget | null) => {
       setStructuredDraftState((current) => {
         if (!current) {
           return current;
@@ -195,14 +215,14 @@ export function useSearchStructuredDraftActions({
 
         const currentQueryState = currentQueryRef.current;
         const entries = buildEntriesForQuery(currentQueryState, {
-          metadataFocusPath: path,
+          resumeTarget: target,
           moveSourcePath: current.moveSourcePath,
         });
 
         return {
           ...current,
-          metadataFocusPath: path,
-          selectedIndex: getStructuredDraftSelectionIndexForPath(entries, path, current.selectedIndex),
+          resumeTarget: target ?? createStructuredDraftRootResumeTarget(),
+          selectedIndex: getStructuredDraftSelectionIndexForResumeTarget(entries, target, current.selectedIndex),
         };
       });
     },
@@ -225,7 +245,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQueryState = currentQueryRef.current;
       const entries = buildEntriesForQuery(currentQueryState, {
-        metadataFocusPath: current.metadataFocusPath,
+        resumeTarget: current.resumeTarget,
       });
       const selectionIndex = entries.findIndex(
         (entry) =>
@@ -249,7 +269,7 @@ export function useSearchStructuredDraftActions({
 
       const currentQueryState = currentQueryRef.current;
       const entries = buildEntriesForQuery(currentQueryState, {
-        metadataFocusPath: current.metadataFocusPath,
+        resumeTarget: current.resumeTarget,
       });
       return {
         ...current,
@@ -268,7 +288,7 @@ export function useSearchStructuredDraftActions({
 
         const currentQueryState = currentQueryRef.current;
         const entries = buildEntriesForQuery(currentQueryState, {
-          metadataFocusPath: current.metadataFocusPath,
+          resumeTarget: current.resumeTarget,
           moveSourcePath: path,
         });
         const firstSlotIndex = entries.findIndex((entry) => entry.kind === "queryInsertionSlot");
@@ -292,7 +312,7 @@ export function useSearchStructuredDraftActions({
 
         const currentQueryState = currentQueryRef.current;
         const entries = buildEntriesForQuery(currentQueryState, {
-          metadataFocusPath: current.metadataFocusPath,
+          resumeTarget: current.resumeTarget,
           moveSourcePath: current.moveSourcePath,
         });
         const selectableIndexes = entries.flatMap((entry, index) =>
@@ -323,7 +343,7 @@ export function useSearchStructuredDraftActions({
     () =>
       structuredDraftState
         ? buildEntriesForQuery(currentQuery, {
-            metadataFocusPath: structuredDraftState.metadataFocusPath,
+            resumeTarget: structuredDraftState.resumeTarget,
             moveSourcePath: structuredDraftState.moveSourcePath,
           })
         : [],
@@ -344,7 +364,7 @@ export function useSearchStructuredDraftActions({
     moveStructuredDraftSelection,
     openStructuredDraftSession,
     replaceStructuredDraftProjection,
-    setStructuredDraftMetadataFocusPath,
+    setStructuredDraftResumeTarget,
     structuredDraftEntries,
     structuredDraftQuery,
     structuredDraftState,

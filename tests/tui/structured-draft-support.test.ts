@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { buildStructuredDraftEntries } from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
 import {
-  buildStructuredDraftEntries,
-  getStructuredDraftSelectionIndexForPath,
-} from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
+  createStructuredDraftNodeResumeTarget,
+  getStructuredDraftSelectionIndexForResumeTarget,
+} from "../../src/tui/search-screen/structured-draft/structured-draft-state.js";
 import type { Pf2eTerminalSearchQuery } from "../../src/tui/search/service.js";
 
 describe("structured draft support", () => {
@@ -67,10 +68,14 @@ describe("structured draft support", () => {
           ],
         },
       },
-      [0, 1],
+      createStructuredDraftNodeResumeTarget([0, 1]),
       {},
     );
-    const selectedIndex = getStructuredDraftSelectionIndexForPath(entries, [0, 1], 0);
+    const selectedIndex = getStructuredDraftSelectionIndexForResumeTarget(
+      entries,
+      createStructuredDraftNodeResumeTarget([0, 1]),
+      0,
+    );
     const selectedEntry = entries[selectedIndex];
 
     expect(selectedEntry?.kind).toBe("queryInsertionSlot");
@@ -95,7 +100,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, [1], {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1]), {
       groupedFieldValues: new Set(["traits"]),
     });
     const bucketEntries = entries.filter((entry) => entry.kind === "queryFieldBucket");
@@ -125,7 +130,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const bucketEntries = buildStructuredDraftEntries(query, [1], {
+    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1]), {
       groupedFieldValues: new Set(["traits"]),
     }).filter((entry) => entry.kind === "queryFieldBucket");
 
@@ -148,10 +153,14 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, [2], {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([2]), {
       groupedFieldValues: new Set(["traits"]),
     });
-    const selectedIndex = getStructuredDraftSelectionIndexForPath(entries, [2], 0);
+    const selectedIndex = getStructuredDraftSelectionIndexForResumeTarget(
+      entries,
+      createStructuredDraftNodeResumeTarget([2]),
+      0,
+    );
 
     expect(entries[selectedIndex]?.kind).toBe("queryFieldBucket");
     expect(entries[selectedIndex]?.label).toBe("Traits: Include auditory, illusion");
@@ -175,7 +184,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, [1, 0], {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([1, 0]), {
       groupedFieldValues: new Set(["traits"]),
     });
 
@@ -196,7 +205,7 @@ describe("structured draft support", () => {
       },
     };
 
-    const entries = buildStructuredDraftEntries(query, [0], {
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftNodeResumeTarget([0]), {
       groupedFieldValues: new Set(["traits"]),
     });
 

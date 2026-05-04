@@ -7,25 +7,18 @@ import {
   isSearchFilterBooleanGroup,
   isValidSearchFilterMoveTargetGroupPath,
 } from "../../search/query-core.js";
-import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
-import type {
-  SearchStructuredDraftAnchor,
-  SearchStructuredDraftEntry,
-  SearchStructuredDraftEntryKind,
-} from "../../search/structured-draft-session.js";
+import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { getSearchQueryCategory, getSearchQueryRootOperator } from "../../search/query-state.js";
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import {
   projectSearchQueryFilter,
   type Pf2eTerminalSearchQueryBase,
 } from "../../search/query-projection.js";
-
-export type SearchStructuredDraftState = {
-  anchor: SearchStructuredDraftAnchor;
-  metadataFocusPath: number[] | null;
-  moveSourcePath: number[] | null;
-  selectedIndex: number;
-};
+import {
+  createStructuredDraftNodeResumeTarget,
+  getStructuredDraftResumeFocusPath,
+  type StructuredDraftResumeTarget,
+} from "./structured-draft-state.js";
 
 export function buildStructuredDraftQuery(state: {
   baseQuery: Pf2eTerminalSearchQueryBase;
@@ -474,7 +467,7 @@ function buildFilterTreeEntries(
 
 export function buildStructuredDraftEntries(
   draftQuery: Pf2eTerminalSearchQuery,
-  metadataFocusPath: number[] | null,
+  resumeTarget: StructuredDraftResumeTarget | null,
   options: {
     groupedFieldValues?: ReadonlySet<string>;
     packLabelResolver?: (packValue: string) => string | null | undefined;
@@ -482,7 +475,11 @@ export function buildStructuredDraftEntries(
   },
 ): SearchStructuredDraftEntry[] {
   const draftCategory = getSearchQueryCategory(draftQuery);
-  const activeGroupPath = resolveActiveGroupPath(draftQuery.filter, metadataFocusPath);
+  const focusPath = getStructuredDraftResumeFocusPath(resumeTarget);
+  const activeGroupPath =
+    resumeTarget?.kind === "group"
+      ? resumeTarget.groupPath
+      : resolveActiveGroupPath(draftQuery.filter, focusPath);
   const entries: SearchStructuredDraftEntry[] = [
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,
@@ -494,18 +491,14 @@ export function buildStructuredDraftEntries(
     }),
   ];
 
-  if (metadataFocusPath) {
-    const focusedNode = getSearchFilterNodeAtPath(draftQuery.filter, metadataFocusPath);
+  if (focusPath && resumeTarget?.kind === "node") {
+    const focusedNode = getSearchFilterNodeAtPath(draftQuery.filter, focusPath);
     if (!focusedNode) {
       return entries;
     }
   }
 
   return entries;
-}
-
-function pathsMatch(path: number[] | undefined, targetPath: number[]): boolean {
-  return Boolean(path) && JSON.stringify(path) === JSON.stringify(targetPath);
 }
 
 export function findStructuredDraftGroupedFieldBucketForPath(
@@ -516,7 +509,7 @@ export function findStructuredDraftGroupedFieldBucketForPath(
   for (let depth = focusPath.length; depth >= 0; depth -= 1) {
     const scopedFocusPath = focusPath.slice(0, depth);
     const bucket =
-      buildStructuredDraftEntries(draftQuery, scopedFocusPath, { groupedFieldValues }).find(
+      buildStructuredDraftEntries(draftQuery, createStructuredDraftNodeResumeTarget(scopedFocusPath), { groupedFieldValues }).find(
         (entry) =>
           entry.kind === "queryFieldBucket" &&
           [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathContains(focusPath, path)),
@@ -527,107 +520,4 @@ export function findStructuredDraftGroupedFieldBucketForPath(
   }
 
   return null;
-}
-
-export function getStructuredDraftSelectionIndexForPath(
-  entries: SearchStructuredDraftEntry[],
-  focusPath: number[] | null,
-  fallbackIndex = 0,
-): number {
-  if (!focusPath) {
-    return clampStructuredDraftSelection(fallbackIndex, entries.length);
-  }
-
-  const exactNodeIndex = entries.findIndex(
-    (entry) => entry.kind === "queryNode" && pathsMatch(entry.treePath, focusPath),
-  );
-  if (exactNodeIndex >= 0) {
-    return clampStructuredDraftSelection(exactNodeIndex, entries.length);
-  }
-
-  const rootGroupIndex = entries.findIndex(
-    (entry) => entry.kind === "queryTreeRoot" && pathsMatch(entry.treePath, focusPath),
-  );
-  if (rootGroupIndex >= 0) {
-    return clampStructuredDraftSelection(rootGroupIndex, entries.length);
-  }
-
-  const groupedBucketIndex = entries.findIndex(
-    (entry) =>
-      entry.kind === "queryFieldBucket" &&
-      [...(entry.memberPaths ?? []), ...(entry.fieldMemberPaths ?? [])].some((path) => pathsMatch(path, focusPath)),
-  );
-  if (groupedBucketIndex >= 0) {
-    return clampStructuredDraftSelection(groupedBucketIndex, entries.length);
-  }
-
-  for (let depth = focusPath.length - 1; depth >= 0; depth -= 1) {
-    const parentPath = focusPath.slice(0, depth);
-    const insertionIndex = entries.findIndex(
-      (entry) => entry.kind === "queryInsertionSlot" && pathsMatch(entry.insertionPath, parentPath),
-    );
-    if (insertionIndex >= 0) {
-      return clampStructuredDraftSelection(insertionIndex, entries.length);
-    }
-
-    const ancestorNodeIndex = entries.findIndex(
-      (entry) => entry.kind === "queryNode" && pathsMatch(entry.treePath, parentPath),
-    );
-    if (ancestorNodeIndex >= 0) {
-      return clampStructuredDraftSelection(ancestorNodeIndex, entries.length);
-    }
-
-    const ancestorRootIndex = entries.findIndex(
-      (entry) => entry.kind === "queryTreeRoot" && pathsMatch(entry.treePath, parentPath),
-    );
-    if (ancestorRootIndex >= 0) {
-      return clampStructuredDraftSelection(ancestorRootIndex, entries.length);
-    }
-  }
-
-  const rootInsertionIndex = entries.findIndex(
-    (entry) => entry.kind === "queryInsertionSlot" && (entry.insertionPath?.length ?? -1) === 0,
-  );
-  return clampStructuredDraftSelection(rootInsertionIndex >= 0 ? rootInsertionIndex : fallbackIndex, entries.length);
-}
-
-function getStructuredDraftAnchorKind(
-  anchor: SearchStructuredDraftAnchor,
-): SearchStructuredDraftEntryKind {
-  if (anchor.kind === "addQueryPart") {
-    return "queryInsertionSlot";
-  }
-
-  if (anchor.kind === "queryTreeRoot") {
-    return "queryTreeRoot";
-  }
-
-  return "queryNode";
-}
-
-export function getStructuredDraftSelectionIndex(
-  anchor: SearchStructuredDraftAnchor,
-  entries: SearchStructuredDraftEntry[],
-): number {
-  const preferredKind = getStructuredDraftAnchorKind(anchor);
-
-  if (anchor.kind === "queryNode") {
-    const matchIndex = entries.findIndex(
-      (entry) => entry.kind === "queryNode" && JSON.stringify(entry.treePath ?? []) === JSON.stringify(anchor.path),
-    );
-    return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
-  }
-
-  if (anchor.kind === "addQueryPart") {
-    const matchIndex = entries.findIndex(
-      (entry) => entry.kind === "queryInsertionSlot" && (entry.insertionPath?.length ?? 0) === 0,
-    );
-    return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
-  }
-
-  const matchIndex = entries.findIndex((entry) => entry.kind === "queryTreeRoot");
-  return clampStructuredDraftSelection(matchIndex >= 0 ? matchIndex : 0, entries.length);
-
-  const entryIndex = entries.findIndex((entry) => entry.kind === preferredKind);
-  return clampStructuredDraftSelection(entryIndex >= 0 ? entryIndex : 0, entries.length);
 }

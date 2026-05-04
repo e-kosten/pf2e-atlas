@@ -9,8 +9,11 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
 import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
-import type { SearchStructuredDraftState } from "./structured-draft-support.js";
 import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
+import type {
+  SearchStructuredDraftState,
+  StructuredDraftResumeTarget,
+} from "./structured-draft-state.js";
 import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
 import { buildSearchQuerySummary } from "../workspace/query-summary.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
@@ -33,7 +36,7 @@ export function useSearchStructuredDraftEditing({
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
-  setStructuredDraftMetadataFocusPath,
+  setStructuredDraftResumeTarget,
   structuredDraftEntries,
   structuredDraftQuery,
   structuredDraftState,
@@ -74,8 +77,11 @@ export function useSearchStructuredDraftEditing({
     },
   ) => Promise<boolean>;
   prompts: SearchWorkspacePromptAdapters;
-  replaceStructuredDraftProjection: (update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery) => void;
-  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
+  replaceStructuredDraftProjection: (
+    update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
+    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
+  ) => void;
+  setStructuredDraftResumeTarget: (target: StructuredDraftResumeTarget | null) => void;
   structuredDraftEntries: SearchStructuredDraftEntry[];
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
@@ -83,7 +89,7 @@ export function useSearchStructuredDraftEditing({
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-    options?: { metadataFocusPath?: number[] | null },
+    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
   ) => void;
   user: SearchWorkspaceUser;
 }): SearchStructuredEditorSession | null {
@@ -102,7 +108,7 @@ export function useSearchStructuredDraftEditing({
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection,
-    setStructuredDraftMetadataFocusPath,
+    setStructuredDraftResumeTarget,
     structuredDraftQuery,
     terminal,
     updateStructuredDraftMetadataNode,

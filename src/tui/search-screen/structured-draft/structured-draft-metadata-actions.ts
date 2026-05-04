@@ -48,6 +48,11 @@ import {
   buildStructuredDraftEntries,
   findStructuredDraftGroupedFieldBucketForPath,
 } from "./structured-draft-support.js";
+import {
+  createStructuredDraftGroupResumeTarget,
+  createStructuredDraftNodeResumeTarget,
+  type StructuredDraftResumeTarget,
+} from "./structured-draft-state.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/types.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
@@ -713,7 +718,7 @@ export function useSearchStructuredDraftMetadataActions({
   openOntologyFieldEditor,
   prompts,
   replaceStructuredDraftProjection,
-  setStructuredDraftMetadataFocusPath,
+  setStructuredDraftResumeTarget,
   structuredDraftQuery,
   terminal,
   updateStructuredDraftMetadataNode,
@@ -757,15 +762,15 @@ export function useSearchStructuredDraftMetadataActions({
   prompts: SearchWorkspacePromptAdapters;
   replaceStructuredDraftProjection: (
     update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
-    options?: { metadataFocusPath?: number[] | null },
+    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
   ) => void;
-  setStructuredDraftMetadataFocusPath: (path: number[] | null) => void;
+  setStructuredDraftResumeTarget: (target: StructuredDraftResumeTarget | null) => void;
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   terminal: SearchWorkspaceTerminal;
   updateStructuredDraftMetadataNode: (
     path: number[],
     update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-    options?: { metadataFocusPath?: number[] | null },
+    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
   ) => void;
   user: SearchWorkspaceUser;
 }): {
@@ -895,11 +900,9 @@ export function useSearchStructuredDraftMetadataActions({
         }
         liveSnapshotState.saw = true;
 
-        updateStructuredDraftMetadataNode(path, () => result.node, {
-          metadataFocusPath: result.node ? path : path.length > 0 ? path.slice(0, -1) : null,
-        });
+        updateStructuredDraftMetadataNode(path, () => result.node);
       };
-      setStructuredDraftMetadataFocusPath(path);
+      setStructuredDraftResumeTarget(createStructuredDraftNodeResumeTarget(path));
       const sessionResult = await openStructuredDraftSharedExplorerSession({
         query,
         fieldOption,
@@ -916,7 +919,7 @@ export function useSearchStructuredDraftMetadataActions({
         applySnapshot(sessionResult.snapshot);
       }
     },
-    [openStructuredDraftSharedExplorerSession, setStructuredDraftMetadataFocusPath, updateStructuredDraftMetadataNode],
+    [openStructuredDraftSharedExplorerSession, setStructuredDraftResumeTarget, updateStructuredDraftMetadataNode],
   );
 
   const openLiveExplorerGroupedField = React.useCallback(
@@ -972,7 +975,9 @@ export function useSearchStructuredDraftMetadataActions({
           fieldMemberPaths,
           replacementNodes,
         );
-        replaceStructuredDraftProjection(() => nextQuery, { metadataFocusPath: nextFocusPath });
+        replaceStructuredDraftProjection(() => nextQuery, {
+          resumeTarget: createStructuredDraftGroupResumeTarget(nextFocusPath ?? groupPath),
+        });
       };
       const sessionResult = await openStructuredDraftSharedExplorerSession({
         query: seedQuery,
@@ -1011,9 +1016,13 @@ export function useSearchStructuredDraftMetadataActions({
           .filter((candidate) => candidate.editor === "sharedExplorer")
           .map((candidate) => candidate.value),
       );
-      const existingBucket = buildStructuredDraftEntries(query, groupPath, {
-        groupedFieldValues,
-      }).find(
+      const existingBucket = buildStructuredDraftEntries(
+        query,
+        createStructuredDraftGroupResumeTarget(groupPath),
+        {
+          groupedFieldValues,
+        },
+      ).find(
         (entry) =>
           entry.kind === "queryFieldBucket" &&
           groupPathsEqual(entry.groupPath, groupPath) &&

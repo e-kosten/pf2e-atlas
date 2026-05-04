@@ -3,7 +3,7 @@ import { useSearchQueryFieldEditing } from "./query-field-editing.js";
 import type { SearchStructuredEditorSession } from "./query-field-builder/query-field-builder-session.js";
 import { useSearchStructuredDraftActions } from "./structured-draft/structured-draft-actions.js";
 import { useSearchStructuredDraftEditing } from "./structured-draft/structured-draft-editing.js";
-import type { SearchStructuredDraftState } from "./structured-draft/structured-draft-support.js";
+import type { SearchStructuredDraftState } from "./structured-draft/structured-draft-state.js";
 import type {
   OpenSearchFilterExplorer,
   SearchWorkspacePromptAdapters,
@@ -62,7 +62,7 @@ export function useSearchStructuredEditorActions({
     openOntologyFieldEditor,
     prompts,
     replaceStructuredDraftProjection: structuredDraftActions.replaceStructuredDraftProjection,
-    setStructuredDraftMetadataFocusPath: structuredDraftActions.setStructuredDraftMetadataFocusPath,
+    setStructuredDraftResumeTarget: structuredDraftActions.setStructuredDraftResumeTarget,
     structuredDraftEntries: structuredDraftActions.structuredDraftEntries,
     structuredDraftQuery: structuredDraftActions.structuredDraftQuery,
     structuredDraftState: structuredDraftActions.structuredDraftState,
