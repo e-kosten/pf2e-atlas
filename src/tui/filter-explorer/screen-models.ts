@@ -57,6 +57,18 @@ function shouldShowActionRail(hasActionEntries: boolean): boolean {
   return hasActionEntries;
 }
 
+const FILTER_EXPLORER_NAVIGATION_ACTION_IDS = new Set([
+  "move",
+  "viewportScrollSmall",
+  "viewportScrollLarge",
+  "viewportPage",
+  "viewportEdge",
+  "scroll",
+  "jump",
+  "page",
+  "edge",
+]);
+
 function isSelectionExplorer(controller: FilterExplorerControllerContext): boolean {
   return controller.mode.kind === "compose" || Boolean(controller.host.selectionPresentation);
 }
@@ -80,10 +92,10 @@ export function getFilterExplorerInteractionActions(
 
     if (browser.layoutMode === "detail-only") {
       return [
-        { id: "scroll" },
-        { id: "jump" },
-        { id: "page" },
-        { id: "edge" },
+        { id: "viewportScrollSmall" },
+        { id: "viewportScrollLarge" },
+        { id: "viewportPage" },
+        { id: "viewportEdge" },
         { id: "cycle", label: composeActionLabel },
         { id: "layout", label: "split-view" },
         { id: "back" },
@@ -113,10 +125,10 @@ export function getFilterExplorerInteractionActions(
     }
 
     return [
-      { id: "scroll" },
-      { id: "jump" },
-      { id: "page" },
-      { id: "edge" },
+      { id: "viewportScrollSmall" },
+      { id: "viewportScrollLarge" },
+      { id: "viewportPage" },
+      { id: "viewportEdge" },
       { id: "focus", label: "pane" },
       { id: "layout", label: "detail-only" },
       { id: "back" },
@@ -131,10 +143,10 @@ export function getFilterExplorerInteractionActions(
 
   if (browser.layoutMode === "detail-only") {
     return [
-      { id: "scroll" },
-      { id: "jump" },
-      { id: "page" },
-      { id: "edge" },
+      { id: "viewportScrollSmall" },
+      { id: "viewportScrollLarge" },
+      { id: "viewportPage" },
+      { id: "viewportEdge" },
       { id: "layout", label: "split-view" },
       { id: "back" },
       { id: "search" },
@@ -163,10 +175,10 @@ export function getFilterExplorerInteractionActions(
   }
 
   return [
-    { id: "scroll" },
-    { id: "jump" },
-    { id: "page" },
-    { id: "edge" },
+    { id: "viewportScrollSmall" },
+    { id: "viewportScrollLarge" },
+    { id: "viewportPage" },
+    { id: "viewportEdge" },
     { id: "focus", label: "pane" },
     { id: "layout", label: "detail-only" },
     { id: "back" },
@@ -512,7 +524,7 @@ export function buildFilterExplorerActionEntries(
 export function buildFilterExplorerHelpLines(controller: FilterExplorerControllerContext): DerivedTagTerminalLine[] {
   const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
   const actionActions = interactionActions
-    .filter((action) => !["move", "scroll", "jump", "page", "edge"].includes(action.id))
+    .filter((action) => !FILTER_EXPLORER_NAVIGATION_ACTION_IDS.has(action.id))
     .map((action) => ({
       ...action,
       helpText:
@@ -548,12 +560,33 @@ export function buildFilterExplorerHelpLines(controller: FilterExplorerControlle
           id:
             controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
               ? "move"
-              : "scroll",
-          helpText: "move through the active pane",
+              : "viewportScrollSmall",
+          helpText:
+            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+              ? "move through the active pane"
+              : "scroll the active pane",
         },
-        { id: "jump", helpText: "jump through the active pane" },
-        { id: "page", helpText: "page through the active pane" },
-        { id: "edge", helpText: "jump to the start or end of the active pane" },
+        {
+          id:
+            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+              ? "jump"
+              : "viewportScrollLarge",
+          helpText: "jump through the active pane",
+        },
+        {
+          id:
+            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+              ? "page"
+              : "viewportPage",
+          helpText: "page through the active pane",
+        },
+        {
+          id:
+            controller.browser.state.activePane === "list" && controller.browser.layoutMode !== "detail-only"
+              ? "edge"
+              : "viewportEdge",
+          helpText: "jump to the start or end of the active pane",
+        },
       ],
     },
     {
