@@ -195,7 +195,6 @@ function wrapSegments(segments: DerivedTagTerminalSegment[], width: number): Der
 
     if (current.length > 0) {
       rows.push(current);
-      current = [];
     }
 
     if (word.length <= width) {
