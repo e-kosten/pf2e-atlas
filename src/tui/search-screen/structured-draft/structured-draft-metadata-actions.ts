@@ -77,18 +77,12 @@ type MetricFieldFamily = "actorMetric" | "itemMetric";
 type MetricCompareOperator = Extract<Extract<SearchFilterNode, { kind: "metricCompare" }>["op"], string>;
 type MetricKeySelection = { value: string; discoveryMode: SearchFilterDiscoveryMode };
 const CLAUSE_BACK = Symbol("search-structured-query-clause-back");
-const CLAUSE_CONTINUE = Symbol("search-structured-query-clause-continue");
 type ClausePromptBackResult = typeof CLAUSE_BACK;
-type ClausePromptContinueResult = {
-  kind: typeof CLAUSE_CONTINUE;
-  node: SearchFilterNode | SearchFilterNode[];
-};
 type PromptStepResult<T> = T | ClausePromptBackResult | undefined;
 type SearchFilterNodeEditorResult =
   | SearchFilterNode
   | SearchFilterNode[]
   | ClausePromptBackResult
-  | ClausePromptContinueResult
   | null
   | undefined;
 type ClausePromptResult = ClauseKind | ClausePromptBackResult | null;
@@ -109,10 +103,6 @@ type StructuredDraftEntryActionId =
   | "remove"
   | "unwrap"
   | "toggleGroup";
-
-function isClausePromptContinueResult(result: SearchFilterNodeEditorResult): result is ClausePromptContinueResult {
-  return Boolean(result && typeof result === "object" && !Array.isArray(result) && "kind" in result && result.kind === CLAUSE_CONTINUE);
-}
 
 function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
   switch (kind) {
@@ -1824,22 +1814,20 @@ export function useSearchStructuredDraftMetadataActions({
           if (!nextNode) {
             return "cancelled";
           }
-          const shouldContinue = isClausePromptContinueResult(nextNode);
-          const appliedNode = shouldContinue ? nextNode.node : nextNode;
           const wrappedNode =
             wrapper === "allOf" || wrapper === "anyOf"
               ? ({
                   kind: wrapper,
-                  children: Array.isArray(appliedNode) ? appliedNode : [appliedNode],
+                  children: Array.isArray(nextNode) ? nextNode : [nextNode],
                 } as SearchFilterNode)
               : wrapper === "not"
                 ? ({
                     kind: "not",
-                    child: Array.isArray(appliedNode)
-                      ? ({ kind: "allOf", children: appliedNode } as SearchFilterNode)
-                      : appliedNode,
+                    child: Array.isArray(nextNode)
+                      ? ({ kind: "allOf", children: nextNode } as SearchFilterNode)
+                      : nextNode,
                   } as SearchFilterNode)
-                : appliedNode;
+                : nextNode;
           const nextFilter = Array.isArray(wrappedNode)
             ? appendSearchFilterNodesAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery))
             : appendSearchFilterNodeAtPath(workingQuery.filter, path, wrappedNode, getSearchQueryRootOperator(workingQuery));
@@ -1850,9 +1838,6 @@ export function useSearchStructuredDraftMetadataActions({
           applyNextTree(
             nextFilter,
         );
-        if (shouldContinue) {
-          continue;
-        }
           return "applied";
         }
       });
@@ -2107,8 +2092,7 @@ export function useSearchStructuredDraftMetadataActions({
         const nextNode = await terminal.runPromptSession((session) =>
           promptForClauseNode(session, query, editableClauseKind, node),
         );
-        const shouldContinue = isClausePromptContinueResult(nextNode);
-        if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode) || shouldContinue) {
+        if (nextNode === CLAUSE_BACK || nextNode === undefined || Array.isArray(nextNode)) {
           return;
         }
         if (nextNode === null) {
