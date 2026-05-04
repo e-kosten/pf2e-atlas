@@ -181,6 +181,7 @@ Owns application-level composition and facades:
 - runtime assembly in `runtime.ts`
 - storage boundary in `storage-service.ts`
 - ontology assembly in `ontology-service.ts` and `ontology/`
+- shared entity-page document and page-text presentation ownership in `ontology/entity-page.ts`, with `ontology/presenter.ts` as the consumer-facing seam
 - page-relation grouping and seeded drill preparation in `page-relations-service.ts`
 
 This layer exists so product surfaces do not have to know how to construct storage, vocabulary, or shared models themselves.

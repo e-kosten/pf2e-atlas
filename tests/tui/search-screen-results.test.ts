@@ -137,7 +137,6 @@ describe("search result detail lines", () => {
     expect(lines[1]?.text).toBe("Showing: result 1/1");
     expect(lines[2]?.text).toBe("Sort: Ranked");
     expect(lines[3]?.text).toBe("Source: Spells");
-    expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
     expect(linkLine).toBeDefined();
     expect(linkLine?.text).toBe("Open in Archives of Nethys");
     expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");

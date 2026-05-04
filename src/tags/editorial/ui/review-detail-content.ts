@@ -1,5 +1,5 @@
 import type { OntologyTextLine } from "../../../domain/derived-tag-types.js";
-import { buildOntologyExplorerEntityDetailLines } from "../../../app/ontology/entity-record.js";
+import { buildOntologyExplorerEntityDetailLines } from "../../../app/ontology/presenter.js";
 import type { DerivedTagReviewSessionRecord } from "../types.js";
 
 function renderPlainTextLine(line: OntologyTextLine): string {

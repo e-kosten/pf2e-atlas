@@ -599,12 +599,11 @@ describe("derived tag migration tooling", () => {
       rendered.indexOf(
         'Rationale: Review whether this creature remains a strong positive exemplar for "urban_setting".',
       ),
-    ).toBeLessThan(rendered.indexOf("Identity"));
-    expect(rendered).toContain("Identity");
-    expect(rendered).toContain("Retrieval");
+    ).toBeLessThan(rendered.indexOf("Open in Archives of Nethys"));
+    expect(rendered).toContain("Open in Archives of Nethys");
     expect(rendered).toContain("Traits: Incorporeal, Undead");
-    expect(rendered).toContain("Derived tags: Urban Setting");
-    expect(rendered).toContain("Blurb");
+    expect(rendered).toContain("Summary");
+    expect(rendered).toContain("Derived Tags: Urban Setting");
     expect(rendered).toContain("An undead sentinel bound to a haunted district.");
     expect(rendered).toContain("Description");
     expect(rendered).toContain(

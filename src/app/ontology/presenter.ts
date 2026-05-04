@@ -1,4 +1,6 @@
 export {
+  buildEntityPageDocument,
   buildOntologyExplorerEntityDetailLines,
   buildOntologyExplorerEntitySummary,
-} from "./entity-record.js";
+  renderEntityPageDocument,
+} from "./entity-page.js";

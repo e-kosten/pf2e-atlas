@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { buildAonSearchLink, type AonSearchRecordLike } from "../../src/app/external-links/aon-search.js";
-import {
-  buildOntologyExplorerEntityDetailLines,
-  type OntologyExplorerEntityRecord,
-} from "../../src/app/ontology/entity-record.js";
-import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 
 function createAonSearchRecord(overrides: Partial<AonSearchRecordLike> = {}): AonSearchRecordLike {
   return {
@@ -16,59 +11,6 @@ function createAonSearchRecord(overrides: Partial<AonSearchRecordLike> = {}): Ao
     traits: ["Mental", "auditory", "fortune", "mental"],
     traditions: ["Occult", "arcane", "occult"],
     actionCost: 2,
-    ...overrides,
-  };
-}
-
-function createOntologyEntityRecord(overrides: Partial<OntologyExplorerEntityRecord> = {}): OntologyExplorerEntityRecord {
-  return {
-    recordKey: "spell:test-alarm-ward",
-    packName: "pathfinder-player-core",
-    name: "Alarm Ward",
-    type: "spell",
-    category: "spell",
-    subcategory: null,
-    documentType: "Item",
-    level: 1,
-    rarity: "rare",
-    traits: ["Mental", "auditory", "fortune", "mental"],
-    derivedTags: ["alarm"],
-    families: ["security"],
-    descriptionText: "Warns against intruders.",
-    blurbText: "A warning ward.",
-    sourceCategory: "core",
-    publicationTitle: "Player Core",
-    publicationRemaster: true,
-    isUnique: false,
-    size: null,
-    languages: [],
-    speedTypes: [],
-    senses: [],
-    immunities: [],
-    resistances: [],
-    weaknesses: [],
-    itemCategory: null,
-    baseItem: null,
-    priceCp: null,
-    actionCost: 2,
-    usage: null,
-    hands: null,
-    damageTypes: [],
-    weaponGroup: null,
-    armorGroup: null,
-    traditions: ["Occult", "arcane", "occult"],
-    spellKinds: ["spell"],
-    saveType: null,
-    areaType: null,
-    rangeText: "30 feet",
-    durationText: "1 minute",
-    targetText: null,
-    areaValue: null,
-    sustained: false,
-    basicSave: false,
-    disableText: null,
-    disableSkills: [],
-    isComplex: false,
     ...overrides,
   };
 }
@@ -141,20 +83,5 @@ describe("AoN search links", () => {
         }),
       ),
     ).toBeNull();
-  });
-
-  it("adds the AoN section to shared ontology detail lines", () => {
-    const lines = buildOntologyExplorerEntityDetailLines(createOntologyEntityRecord());
-    const linkLine = lines.find(
-      (line): line is OntologyTextLine & { href: string; plainTextFallback: string } =>
-        typeof line.href === "string" && typeof line.plainTextFallback === "string",
-    );
-
-    expect(lines.some((line) => line.text === "Archives of Nethys" && line.tone === "section")).toBe(true);
-    expect(linkLine).toBeDefined();
-    expect(linkLine?.text).toBe("Open in Archives of Nethys");
-    expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
-    expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
-    expect(linkLine?.href).toContain("include-traits=auditory+fortune+mental");
   });
 });
