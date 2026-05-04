@@ -36,6 +36,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Search semantics surface convergence](./items/search-semantics-surface-convergence.md)
   Preserve the architectural opportunity to converge ontology/search semantics internals and mode contracts without collapsing the distinct broad-browse and prepared-query surfaces. Status: proposed.
 
+- [Structured editor continuation model convergence](./items/structured-editor-continuation-model-convergence.md)
+  Make the structured search editor use one explicit search-host-owned continuation model for child editing flows while keeping canonical query state live in `SearchRequest`. Status: proposed.
+
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
@@ -86,6 +89,12 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Search result list viewport behavior](./items/search-result-list-viewport-behavior.md)
   Revisit whether the left search result pane should stay cursor-driven or gain an independently scrollable viewport. Status: proposed.
+
+- [Pointer target hit testing](./items/pointer-target-hit-testing.md)
+  Add shared pointer target hit testing for list rows, page sections, and section-local targets after pane-level pointer routing lands. Status: proposed.
+
+- [Structured draft shared explorer session cleanup](./items/structured-draft-shared-explorer-session-cleanup.md)
+  Centralize duplicated structured-draft shared explorer session lifecycle handling while preserving distinct grouped and single-clause writeback behavior. Status: proposed.
 
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed. Deferred for now, don't prioritize.
