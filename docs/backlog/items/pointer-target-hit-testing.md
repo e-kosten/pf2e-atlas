@@ -25,6 +25,7 @@ That follow-up should cover:
 
 - shared hit-target modeling for list rows, page sections, and section-local targets where feasible
 - click behavior that can both focus the pane and select or activate the clicked target
+- rendered-row measurement for wrapped inline spans so pointer targeting and future exact-focus behavior can resolve the concrete terminal row occupied by a selectable span
 - shared routing rules so pointer targeting does not become a feature-local screen hack
 - compatibility with the broader shared cursor-vs-viewport interaction model
 

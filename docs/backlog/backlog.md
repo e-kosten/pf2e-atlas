@@ -54,6 +54,12 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Query editor shortcuts and simplification](./items/query-editor-shortcuts-and-simplification.md)
   Track follow-up shortcut and simplification affordances after the verbose canonical query-tree editor lands and real friction points are visible. Status: proposed.
 
+- [Reference page navigation history](./items/reference-page-navigation-history.md)
+  Make concrete record-reference navigation open full-screen entity pages with a usable back stack instead of incidental one-result search tabs. Status: proposed.
+
+- [Search page navigation shaping](./items/search-page-navigation-shaping.md)
+  Shape the intended search-page navigation model before making deeper changes to an interaction flow that works but does not yet feel right. Status: proposed.
+
 - [LinkedFrom query editor follow-through](./items/linked-from-query-editor-follow-through.md)
   Preserve the optional query-editor and TUI presentation follow-through for `linkedFrom` after the canonical contract work lands for entity-page backlinks. Status: proposed.
 
