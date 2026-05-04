@@ -667,6 +667,51 @@ describe("entity page document", () => {
     ]);
   });
 
+  it("excludes named-section facts from Details while preserving unconsumed structured facts", () => {
+    const document = buildEntityPageDocument(createRecord({ sustained: true }));
+    const detailsIndex = document.sections.findIndex((section) => section.title === "Details");
+    const descriptionIndex = document.sections.findIndex((section) => section.title === "Description");
+    const details = document.sections[detailsIndex];
+    const detailFacts = details?.blocks[0]?.kind === "factList" ? details.blocks[0].facts : [];
+
+    expect(descriptionIndex).toBeGreaterThanOrEqual(0);
+    expect(detailsIndex).toBeGreaterThan(descriptionIndex);
+    expect(detailFacts).toEqual(
+      expect.arrayContaining([
+        { label: "Spell Kinds", value: "Spell" },
+        { label: "Source Category", value: "Core" },
+        { label: "Document Type", value: "Item" },
+        { label: "Sustained", value: "Yes" },
+      ]),
+    );
+    expect(detailFacts).not.toEqual(
+      expect.arrayContaining([
+        { label: "Cast", value: "2 actions" },
+        { label: "Range", value: "500 feet" },
+        { label: "Damage", value: "Fire" },
+      ]),
+    );
+  });
+
+  it("does not repeat creature spell-kind facts in Details after Offense consumes them", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        recordKey: "creature:spell-drake",
+        name: "Spell Drake",
+        type: "creature",
+        category: "creature",
+        spellKinds: ["innate"],
+      }),
+    );
+    const offense = document.sections.find((section) => section.title === "Offense");
+    const details = document.sections.find((section) => section.title === "Details");
+    const offenseFacts = offense?.blocks[0]?.kind === "factList" ? offense.blocks[0].facts : [];
+    const detailFacts = details?.blocks[0]?.kind === "factList" ? details.blocks[0].facts : [];
+
+    expect(offenseFacts).toContainEqual({ label: "Spell Kinds", value: "Innate" });
+    expect(detailFacts).not.toEqual(expect.arrayContaining([{ label: "Spell Kinds", value: "Innate" }]));
+  });
+
   it("emits classification pivots as seeded search targets", () => {
     const document = buildEntityPageDocument(createRecord());
     const classification = document.sections.find((section) => section.title === "Classification");

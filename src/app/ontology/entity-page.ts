@@ -64,12 +64,13 @@ export type EntityPageDocument = {
 };
 
 type PreparedEntityPageInput = {
-  record: OntologyExplorerEntityRecord;
+  recipe: EntityPageRecipeKind;
   identityLine: string;
   traits: string[];
   aonLink?: Extract<EntityPageTarget, { kind: "external" }>;
   blurb?: EntityPageTextContent;
   description?: EntityPageTextContent;
+  facts: EntityPageFactInventory;
   traitTargets: EntityPageTarget[];
   classificationTargets: EntityPageTarget[];
   references: EntityPageTarget[];
@@ -83,9 +84,28 @@ type EntityPageTextContent = {
 
 type EntityPageRecipeKind = "spell" | "creature" | "equipment" | "featAction" | "hazard" | "fallback";
 
+type ProjectedEntityPageFact = EntityPageFact & {
+  key: string;
+};
+
+type EntityPageFactInventory = {
+  allFacts: ProjectedEntityPageFact[];
+  spellSummary: ProjectedEntityPageFact[];
+  creatureSummary: ProjectedEntityPageFact[];
+  creatureDefense: ProjectedEntityPageFact[];
+  creatureMovement: ProjectedEntityPageFact[];
+  creatureOffense: ProjectedEntityPageFact[];
+  equipmentSummary: ProjectedEntityPageFact[];
+  featActionSummary: ProjectedEntityPageFact[];
+  hazardSummary: ProjectedEntityPageFact[];
+  hazardDefense: ProjectedEntityPageFact[];
+  hazardRoutine: ProjectedEntityPageFact[];
+  fallbackSummary: ProjectedEntityPageFact[];
+};
+
 type EntityPageRecipeBuildContext = {
   input: PreparedEntityPageInput;
-  detailFacts: EntityPageFact[];
+  consumedFactKeys: Set<string>;
   seenFacts: Set<string>;
   push: (section: EntityPageSection | null) => void;
 };
@@ -102,6 +122,11 @@ function humanize(value: string | null | undefined): string {
 function asFact(label: string, value: string | null | undefined): EntityPageFact | null {
   const normalized = value?.trim();
   return normalized ? { label, value: normalized } : null;
+}
+
+function asProjectedFact(key: string, label: string, value: string | null | undefined): ProjectedEntityPageFact | null {
+  const fact = asFact(label, value);
+  return fact ? { ...fact, key } : null;
 }
 
 function formatActionCost(value: number | null): string | null {
@@ -329,22 +354,22 @@ function formatWeaponDamageDice(record: OntologyExplorerEntityRecord): string | 
   return String(dice);
 }
 
-function buildEquipmentItemMetricFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildEquipmentItemMetricFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   const itemMetrics = record.itemMetrics ?? {};
   return [
-    asFact("Range Increment", formatFeet(getMetricNumber(itemMetrics, "weapon.range_increment"))),
-    asFact("Reload", formatNumber(getMetricNumber(itemMetrics, "weapon.reload"))),
-    asFact("Weapon Damage Dice", formatWeaponDamageDice(record)),
-    asFact("Armor AC Bonus", formatModifier(getMetricNumber(itemMetrics, "armor.ac_bonus"))),
-    asFact("Dex Cap", formatModifier(getMetricNumber(itemMetrics, "armor.dex_cap"))),
-    asFact("Strength", formatNumber(getMetricNumber(itemMetrics, "armor.strength"))),
-    asFact("Check Penalty", formatModifier(getMetricNumber(itemMetrics, "armor.check_penalty"))),
-    asFact("Speed Penalty", formatFeet(getMetricNumber(itemMetrics, "armor.speed_penalty"))),
-    asFact("Shield AC Bonus", formatModifier(getMetricNumber(itemMetrics, "shield.ac_bonus"))),
-    asFact("Shield Hardness", formatNumber(getMetricNumber(itemMetrics, "shield.hardness"))),
-    asFact("Shield HP", formatNumber(getMetricNumber(itemMetrics, "shield.hp"))),
-    asFact("Shield BT", formatNumber(getMetricNumber(itemMetrics, "shield.bt"))),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("weapon.rangeIncrement", "Range Increment", formatFeet(getMetricNumber(itemMetrics, "weapon.range_increment"))),
+    asProjectedFact("weapon.reload", "Reload", formatNumber(getMetricNumber(itemMetrics, "weapon.reload"))),
+    asProjectedFact("weapon.damageDice", "Weapon Damage Dice", formatWeaponDamageDice(record)),
+    asProjectedFact("armor.acBonus", "Armor AC Bonus", formatModifier(getMetricNumber(itemMetrics, "armor.ac_bonus"))),
+    asProjectedFact("armor.dexCap", "Dex Cap", formatModifier(getMetricNumber(itemMetrics, "armor.dex_cap"))),
+    asProjectedFact("armor.strength", "Strength", formatNumber(getMetricNumber(itemMetrics, "armor.strength"))),
+    asProjectedFact("armor.checkPenalty", "Check Penalty", formatModifier(getMetricNumber(itemMetrics, "armor.check_penalty"))),
+    asProjectedFact("armor.speedPenalty", "Speed Penalty", formatFeet(getMetricNumber(itemMetrics, "armor.speed_penalty"))),
+    asProjectedFact("shield.acBonus", "Shield AC Bonus", formatModifier(getMetricNumber(itemMetrics, "shield.ac_bonus"))),
+    asProjectedFact("shield.hardness", "Shield Hardness", formatNumber(getMetricNumber(itemMetrics, "shield.hardness"))),
+    asProjectedFact("shield.hp", "Shield HP", formatNumber(getMetricNumber(itemMetrics, "shield.hp"))),
+    asProjectedFact("shield.bt", "Shield BT", formatNumber(getMetricNumber(itemMetrics, "shield.bt"))),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
 function formatCreatureAttackDamage(attack: Record<string, unknown>): string | null {
@@ -408,159 +433,225 @@ function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
   return [typeLabel, levelLabel, humanize(record.rarity), record.publicationTitle].filter(Boolean).join(" | ");
 }
 
-function buildSpellSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildSpellSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Traditions", formatList(record.traditions)),
-    asFact("Cast", formatActionCost(record.actionCost)),
-    asFact("Range", record.rangeText),
-    asFact("Area", formatArea(record)),
-    asFact("Save", formatSave(record)),
-    asFact("Duration", record.durationText),
-    asFact("Targets", record.targetText),
-    asFact("Damage", formatList(record.damageTypes)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("traditions", "Traditions", formatList(record.traditions)),
+    asProjectedFact("actionCost", "Cast", formatActionCost(record.actionCost)),
+    asProjectedFact("range", "Range", record.rangeText),
+    asProjectedFact("area", "Area", formatArea(record)),
+    asProjectedFact("save", "Save", formatSave(record)),
+    asProjectedFact("duration", "Duration", record.durationText),
+    asProjectedFact("targets", "Targets", record.targetText),
+    asProjectedFact("damage", "Damage", formatList(record.damageTypes)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildCreatureSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildCreatureSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Size", humanize(record.size)),
-    asFact("Perception", formatModifier(getMetricNumber(record.actorMetrics ?? {}, "perception.mod"))),
-    asFact("Languages", formatList(record.languages)),
-    asFact("Senses", formatList(record.senses)),
-    asFact("Skills", formatCreatureSkills(record)),
-    asFact("Abilities", formatCreatureAbilities(record)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("size", "Size", humanize(record.size)),
+    asProjectedFact("perception", "Perception", formatModifier(getMetricNumber(record.actorMetrics ?? {}, "perception.mod"))),
+    asProjectedFact("languages", "Languages", formatList(record.languages)),
+    asProjectedFact("senses", "Senses", formatList(record.senses)),
+    asProjectedFact("skills", "Skills", formatCreatureSkills(record)),
+    asProjectedFact("abilities", "Abilities", formatCreatureAbilities(record)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildCreatureDefenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildCreatureDefenseFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
-    asFact("HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
-    asFact("Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
-    asFact("Saves", formatCreatureSaves(record)),
-    asFact("Immunities", formatList(record.immunities)),
-    asFact("Resistances", formatList(record.resistances)),
-    asFact("Weaknesses", formatList(record.weaknesses)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("ac", "AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
+    asProjectedFact("hp", "HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
+    asProjectedFact("hardness", "Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
+    asProjectedFact("saves", "Saves", formatCreatureSaves(record)),
+    asProjectedFact("immunities", "Immunities", formatList(record.immunities)),
+    asProjectedFact("resistances", "Resistances", formatList(record.resistances)),
+    asProjectedFact("weaknesses", "Weaknesses", formatList(record.weaknesses)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildCreatureMovementFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
-  return [asFact("Speed", formatSpeed(record))].filter((fact): fact is EntityPageFact => Boolean(fact));
+function buildCreatureMovementFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
+  return [asProjectedFact("speed", "Speed", formatSpeed(record))].filter(
+    (fact): fact is ProjectedEntityPageFact => Boolean(fact),
+  );
 }
 
-function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Attacks", formatCreatureAttacks(record)),
-    asFact("Damage", formatList(record.damageTypes)),
-    asFact("Spell Kinds", formatList(record.spellKinds)),
-    asFact("Save", formatSave(record)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("attacks", "Attacks", formatCreatureAttacks(record)),
+    asProjectedFact("damage", "Damage", formatList(record.damageTypes)),
+    asProjectedFact("spellKinds", "Spell Kinds", formatList(record.spellKinds)),
+    asProjectedFact("save", "Save", formatSave(record)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Price", formatPriceCp(record.priceCp)),
-    asFact("Bulk", formatBulkValue(record.bulkValue ?? null)),
-    asFact("Activation", formatActionCost(record.actionCost)),
-    asFact("Usage", humanize(record.usage)),
-    asFact("Hands", record.hands == null ? null : String(record.hands)),
-    asFact("Base Item", humanize(record.baseItem)),
-    asFact("Category", humanize(record.itemCategory)),
-    asFact("Group", humanize(record.weaponGroup ?? record.armorGroup)),
-    asFact("Damage", formatList(record.damageTypes)),
+    asProjectedFact("price", "Price", formatPriceCp(record.priceCp)),
+    asProjectedFact("bulk", "Bulk", formatBulkValue(record.bulkValue ?? null)),
+    asProjectedFact("activation", "Activation", formatActionCost(record.actionCost)),
+    asProjectedFact("usage", "Usage", humanize(record.usage)),
+    asProjectedFact("hands", "Hands", record.hands == null ? null : String(record.hands)),
+    asProjectedFact("baseItem", "Base Item", humanize(record.baseItem)),
+    asProjectedFact("itemCategory", "Category", humanize(record.itemCategory)),
+    asProjectedFact("itemGroup", "Group", humanize(record.weaponGroup ?? record.armorGroup)),
+    asProjectedFact("damage", "Damage", formatList(record.damageTypes)),
     ...buildEquipmentItemMetricFacts(record),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Action Cost", formatActionCost(record.actionCost)),
-    asFact(
+    asProjectedFact("actionCost", "Action Cost", formatActionCost(record.actionCost)),
+    asProjectedFact(
+      "trigger",
       "Trigger",
       formatRawField(record, [
         ["system", "trigger", "value"],
         ["system", "trigger"],
       ]),
     ),
-    asFact(
+    asProjectedFact(
+      "requirements",
       "Requirements",
       formatRawField(record, [
         ["system", "requirements", "value"],
         ["system", "requirements"],
       ]),
     ),
-    asFact(
+    asProjectedFact(
+      "frequency",
       "Frequency",
       formatRawField(record, [
         ["system", "frequency", "value"],
         ["system", "frequency"],
       ]),
     ),
-    asFact(
+    asProjectedFact(
+      "prerequisites",
       "Prerequisites",
       formatRawField(record, [
         ["system", "prerequisites", "value"],
         ["system", "prerequisites"],
       ]),
     ),
-    asFact("Range", record.rangeText),
-    asFact("Area", formatArea(record)),
-    asFact("Save", formatSave(record)),
-    asFact("Duration", record.durationText),
-    asFact("Targets", record.targetText),
-    asFact("Damage", formatList(record.damageTypes)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("range", "Range", record.rangeText),
+    asProjectedFact("area", "Area", formatArea(record)),
+    asProjectedFact("save", "Save", formatSave(record)),
+    asProjectedFact("duration", "Duration", record.durationText),
+    asProjectedFact("targets", "Targets", record.targetText),
+    asProjectedFact("damage", "Damage", formatList(record.damageTypes)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildHazardSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildHazardSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Complexity", formatBoolean(record.isComplex, "Complex")),
-    asFact("Stealth", formatHazardStealth(record)),
-    asFact("Disable", record.disableText),
-    asFact("Disable Skills", formatList(record.disableSkills)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("complexity", "Complexity", formatBoolean(record.isComplex, "Complex")),
+    asProjectedFact("stealth", "Stealth", formatHazardStealth(record)),
+    asProjectedFact("disable", "Disable", record.disableText),
+    asProjectedFact("disableSkills", "Disable Skills", formatList(record.disableSkills)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildHazardDefenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildHazardDefenseFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
-    asFact("HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
-    asFact("Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
-    asFact("Saves", formatCreatureSaves(record)),
-    asFact("Immunities", formatList(record.immunities)),
-    asFact("Resistances", formatList(record.resistances)),
-    asFact("Weaknesses", formatList(record.weaknesses)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("ac", "AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
+    asProjectedFact("hp", "HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
+    asProjectedFact("hardness", "Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
+    asProjectedFact("saves", "Saves", formatCreatureSaves(record)),
+    asProjectedFact("immunities", "Immunities", formatList(record.immunities)),
+    asProjectedFact("resistances", "Resistances", formatList(record.resistances)),
+    asProjectedFact("weaknesses", "Weaknesses", formatList(record.weaknesses)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildHazardRoutineFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildHazardRoutineFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Range", record.rangeText),
-    asFact("Area", formatArea(record)),
-    asFact("Save", formatSave(record)),
-    asFact("Damage", formatList(record.damageTypes)),
-    asFact("Targets", record.targetText),
-    asFact("Duration", record.durationText),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("range", "Range", record.rangeText),
+    asProjectedFact("area", "Area", formatArea(record)),
+    asProjectedFact("save", "Save", formatSave(record)),
+    asProjectedFact("damage", "Damage", formatList(record.damageTypes)),
+    asProjectedFact("targets", "Targets", record.targetText),
+    asProjectedFact("duration", "Duration", record.durationText),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildFallbackSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildFallbackSummaryFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Action Cost", formatActionCost(record.actionCost)),
-    asFact("Range", record.rangeText),
-    asFact("Area", formatArea(record)),
-    asFact("Save", formatSave(record)),
-    asFact("Targets", record.targetText),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("actionCost", "Action Cost", formatActionCost(record.actionCost)),
+    asProjectedFact("range", "Range", record.rangeText),
+    asProjectedFact("area", "Area", formatArea(record)),
+    asProjectedFact("save", "Save", formatSave(record)),
+    asProjectedFact("targets", "Targets", record.targetText),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
 }
 
-function buildDetailFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildGenericDetailFacts(record: OntologyExplorerEntityRecord): ProjectedEntityPageFact[] {
   return [
-    asFact("Spell Kinds", formatList(record.spellKinds)),
-    asFact("Source Category", humanize(record.sourceCategory)),
-    asFact("Document Type", record.documentType),
-    asFact("Sustained", formatBoolean(record.sustained)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    asProjectedFact("spellKinds", "Spell Kinds", formatList(record.spellKinds)),
+    asProjectedFact("sourceCategory", "Source Category", humanize(record.sourceCategory)),
+    asProjectedFact("documentType", "Document Type", record.documentType),
+    asProjectedFact("sustained", "Sustained", formatBoolean(record.sustained)),
+  ].filter((fact): fact is ProjectedEntityPageFact => Boolean(fact));
+}
+
+function collectUniqueFacts(facts: ProjectedEntityPageFact[]): ProjectedEntityPageFact[] {
+  const seenKeys = new Set<string>();
+  const uniqueFacts: ProjectedEntityPageFact[] = [];
+  for (const fact of facts) {
+    if (seenKeys.has(fact.key)) {
+      continue;
+    }
+    seenKeys.add(fact.key);
+    uniqueFacts.push(fact);
+  }
+  return uniqueFacts;
+}
+
+function buildEntityPageFactInventory(
+  record: OntologyExplorerEntityRecord,
+  recipe: EntityPageRecipeKind,
+): EntityPageFactInventory {
+  const empty: ProjectedEntityPageFact[] = [];
+  const spellSummary = recipe === "spell" ? buildSpellSummaryFacts(record) : empty;
+  const creatureSummary = recipe === "creature" ? buildCreatureSummaryFacts(record) : empty;
+  const creatureDefense = recipe === "creature" ? buildCreatureDefenseFacts(record) : empty;
+  const creatureMovement = recipe === "creature" ? buildCreatureMovementFacts(record) : empty;
+  const creatureOffense = recipe === "creature" ? buildCreatureOffenseFacts(record) : empty;
+  const equipmentSummary = recipe === "equipment" ? buildEquipmentSummaryFacts(record) : empty;
+  const featActionSummary = recipe === "featAction" ? buildFeatActionSummaryFacts(record) : empty;
+  const hazardSummary = recipe === "hazard" ? buildHazardSummaryFacts(record) : empty;
+  const hazardDefense = recipe === "hazard" ? buildHazardDefenseFacts(record) : empty;
+  const hazardRoutine = recipe === "hazard" ? buildHazardRoutineFacts(record) : empty;
+  const fallbackSummary = recipe === "fallback" ? buildFallbackSummaryFacts(record) : empty;
+  const genericDetails = buildGenericDetailFacts(record);
+
+  return {
+    allFacts: collectUniqueFacts([
+      ...spellSummary,
+      ...creatureSummary,
+      ...creatureDefense,
+      ...creatureMovement,
+      ...creatureOffense,
+      ...equipmentSummary,
+      ...featActionSummary,
+      ...hazardSummary,
+      ...hazardDefense,
+      ...hazardRoutine,
+      ...fallbackSummary,
+      ...genericDetails,
+    ]),
+    spellSummary,
+    creatureSummary,
+    creatureDefense,
+    creatureMovement,
+    creatureOffense,
+    equipmentSummary,
+    featActionSummary,
+    hazardSummary,
+    hazardDefense,
+    hazardRoutine,
+    fallbackSummary,
+  };
 }
 
 function buildBrowseRequest(filter: SearchRequest["filter"]): SearchRequest {
@@ -745,7 +836,7 @@ function compileProseReferenceSegments(
 
   for (const match of text.matchAll(UUID_REFERENCE_MARKUP_PATTERN)) {
     const referenceText = match[0];
-    const startIndex = match.index ?? 0;
+    const startIndex = match.index;
     if (startIndex > lastIndex) {
       segments.push({ text: text.slice(lastIndex, startIndex) });
     }
@@ -784,9 +875,10 @@ function buildEntityPageInput(
   const aonLink = buildAonSearchLink(record);
   const recordTargetAction = options.recordTargetAction ?? "open";
   const referenceTargetData = buildReferenceTargetData(relations, recordTargetAction);
+  const recipe = selectEntityPageRecipe(record);
 
   return {
-    record,
+    recipe,
     identityLine: buildIdentityLine(record),
     traits: record.traits,
     aonLink: aonLink
@@ -799,6 +891,7 @@ function buildEntityPageInput(
       : undefined,
     blurb: compileProseReferenceSegments(record.blurbText, referenceTargetData.targetsByReferenceText),
     description: compileProseReferenceSegments(record.descriptionText, referenceTargetData.targetsByReferenceText),
+    facts: buildEntityPageFactInventory(record, recipe),
     traitTargets: buildMetadataPivotTargets(record, "header"),
     classificationTargets: buildClassificationTargets(record),
     references: referenceTargetData.targets,
@@ -806,8 +899,8 @@ function buildEntityPageInput(
   };
 }
 
-function dedupeFacts(facts: EntityPageFact[], seenValues: Set<string>): EntityPageFact[] {
-  const deduped: EntityPageFact[] = [];
+function dedupeFacts<T extends EntityPageFact>(facts: T[], seenValues: Set<string>): T[] {
+  const deduped: T[] = [];
   for (const fact of facts) {
     const key = `${fact.label}:${fact.value}`.toLowerCase();
     if (seenValues.has(key)) {
@@ -819,13 +912,21 @@ function dedupeFacts(facts: EntityPageFact[], seenValues: Set<string>): EntityPa
   return deduped;
 }
 
+function stripFactKeys(facts: readonly ProjectedEntityPageFact[]): EntityPageFact[] {
+  return facts.map(({ label, value }) => ({ label, value }));
+}
+
 function createFactSection(
   id: string,
   kind: EntityPageSection["kind"],
   title: string,
-  facts: EntityPageFact[],
+  facts: ProjectedEntityPageFact[],
+  consumedFactKeys: Set<string>,
   seenFacts: Set<string>,
 ): EntityPageSection | null {
+  for (const fact of facts) {
+    consumedFactKeys.add(fact.key);
+  }
   const dedupedFacts = dedupeFacts(facts, seenFacts);
   if (dedupedFacts.length === 0) {
     return null;
@@ -835,16 +936,20 @@ function createFactSection(
     id,
     kind,
     title,
-    blocks: [{ kind: "factList", facts: dedupedFacts }],
+    blocks: [{ kind: "factList", facts: stripFactKeys(dedupedFacts) }],
     targets: [],
   };
 }
 
 function createSummarySection(
   blurb: EntityPageTextContent | undefined,
-  facts: EntityPageFact[],
+  facts: ProjectedEntityPageFact[],
+  consumedFactKeys: Set<string>,
   seenFacts: Set<string>,
 ): EntityPageSection | null {
+  for (const fact of facts) {
+    consumedFactKeys.add(fact.key);
+  }
   const dedupedFacts = dedupeFacts(facts, seenFacts);
   if (!blurb && dedupedFacts.length === 0) {
     return null;
@@ -856,7 +961,7 @@ function createSummarySection(
     title: "Summary",
     blocks: [
       ...(blurb ? [{ kind: "text" as const, text: blurb.text, segments: blurb.segments }] : []),
-      ...(dedupedFacts.length > 0 ? [{ kind: "factList" as const, facts: dedupedFacts }] : []),
+      ...(dedupedFacts.length > 0 ? [{ kind: "factList" as const, facts: stripFactKeys(dedupedFacts) }] : []),
     ],
     targets: [],
   };
@@ -900,69 +1005,92 @@ function createTargetSection(
   };
 }
 
+function createDetailsSection({
+  input,
+  consumedFactKeys,
+  seenFacts,
+}: Pick<EntityPageRecipeBuildContext, "input" | "consumedFactKeys" | "seenFacts">): EntityPageSection | null {
+  const remainingFacts = input.facts.allFacts.filter((fact) => !consumedFactKeys.has(fact.key));
+  return createFactSection("details", "details", "Details", remainingFacts, consumedFactKeys, seenFacts);
+}
+
 function isFeatActionRecord(record: OntologyExplorerEntityRecord): boolean {
   return record.category === "feat" || (record.category === "rule" && record.subcategory === "action");
 }
 
 function selectEntityPageRecipe(record: OntologyExplorerEntityRecord): EntityPageRecipeKind {
   switch (record.category) {
-    case "spell":
-      return "spell";
-    case "creature":
-      return "creature";
     case "equipment":
       return "equipment";
+    case "feat":
+      return "featAction";
+    case "creature":
+      return "creature";
     case "hazard":
       return "hazard";
-    default:
+    case "affliction":
+      return "fallback";
+    case "rule":
       return isFeatActionRecord(record) ? "featAction" : "fallback";
+    case "spell":
+      return "spell";
+    case "characterCreation":
+      return "fallback";
+    case "lore":
+      return "fallback";
   }
 }
 
-function buildSpellRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildSpellSummaryFacts(input.record), seenFacts));
+function buildSpellRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.spellSummary, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
-function buildCreatureRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildCreatureSummaryFacts(input.record), seenFacts));
-  push(createFactSection("defense", "defense", "Defense", buildCreatureDefenseFacts(input.record), seenFacts));
-  push(createFactSection("movement", "movement", "Movement", buildCreatureMovementFacts(input.record), seenFacts));
-  push(createFactSection("offense", "offense", "Offense", buildCreatureOffenseFacts(input.record), seenFacts));
+function buildCreatureRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.creatureSummary, consumedFactKeys, seenFacts));
+  push(createFactSection("defense", "defense", "Defense", input.facts.creatureDefense, consumedFactKeys, seenFacts));
+  push(createFactSection("movement", "movement", "Movement", input.facts.creatureMovement, consumedFactKeys, seenFacts));
+  push(createFactSection("offense", "offense", "Offense", input.facts.creatureOffense, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
-function buildEquipmentRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildEquipmentSummaryFacts(input.record), seenFacts));
+function buildEquipmentRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.equipmentSummary, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
-function buildFeatActionRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildFeatActionSummaryFacts(input.record), seenFacts));
+function buildFeatActionRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.featActionSummary, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
-function buildHazardRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildHazardSummaryFacts(input.record), seenFacts));
-  push(createFactSection("defense", "defense", "Defense", buildHazardDefenseFacts(input.record), seenFacts));
-  push(createFactSection("routine", "routine", "Routine", buildHazardRoutineFacts(input.record), seenFacts));
+function buildHazardRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.hazardSummary, consumedFactKeys, seenFacts));
+  push(createFactSection("defense", "defense", "Defense", input.facts.hazardDefense, consumedFactKeys, seenFacts));
+  push(createFactSection("routine", "routine", "Routine", input.facts.hazardRoutine, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
-function buildFallbackRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
-  push(createSummarySection(input.blurb, buildFallbackSummaryFacts(input.record), seenFacts));
+function buildFallbackRecipeSections(context: EntityPageRecipeBuildContext): void {
+  const { input, consumedFactKeys, seenFacts, push } = context;
+  push(createSummarySection(input.blurb, input.facts.fallbackSummary, consumedFactKeys, seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
-  push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+  push(createDetailsSection(context));
 }
 
 function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<string>): EntityPageSection[] {
   const sections: EntityPageSection[] = [];
-  const detailFacts = buildDetailFacts(input.record);
+  const consumedFactKeys = new Set<string>();
   const push = (section: EntityPageSection | null) => {
     if (section) {
       sections.push(section);
@@ -970,12 +1098,12 @@ function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<stri
   };
   const context: EntityPageRecipeBuildContext = {
     input,
-    detailFacts,
+    consumedFactKeys,
     seenFacts,
     push,
   };
 
-  switch (selectEntityPageRecipe(input.record)) {
+  switch (input.recipe) {
     case "spell":
       buildSpellRecipeSections(context);
       break;
