@@ -168,6 +168,8 @@ Page/document navigation must operate against rendered terminal rows when a host
 
 `Referenced By` page sections render grouped backlink rows as section-local search-pivot targets. Activating one of those targets opens a prepared search-results route through the shared app navigation seam using the target's canonical `SearchRequest`, with the rendered result-reader surface as the user-visible outcome.
 
+The `Referenced By` grouped drill request is a `linksTo(targetRecordKey)` browse request for the selected page record. `linkedFrom` remains the canonical inverse-link filter in the shared search contract and may still be exposed by query-editor follow-through, but it is not the entity-page grouped drill shape.
+
 Entity-page metadata pivots are generated from the page model rather than from host-local affordances. Visible traits stay inline on the identity line as `Traits: ...`; each trait value is a selectable `searchPivot` span in the identity section. Classification metadata such as derived tags, families, pack, category, and subcategory appears as section-local search-pivot row targets in the page's classification section. Selectable inline spans use the `accent` tone, and the focused inline span uses the `selected` tone. Row targets use the same selectable/focused tone convention at line level.
 
 Inline record references in prose are compiled from existing outgoing page relation edges. Resolved UUID markup renders as readable selectable record spans, while unresolved UUID markup renders as short readable fallback text instead of exposing raw vendor UUID syntax. Pointer hit-testing is a separate follow-up and should build on the page-document span target model rather than adding another target representation.
@@ -224,6 +226,9 @@ In the current split:
 - `src/tui/ontology-explorer/inspect-screen.tsx` is a thin host for a prepared ontology route payload; entering the ontology area now lands directly in that shared inspect session and routes selected leaves into search
 - ontology record mapping, relation-aware page composition, and explorer-cache writeback live under `src/app/ontology/`, not TUI-local wrapper files
 - `src/tui/ontology-explorer/` legacy browse-only pieces remain isolated and should not become the primary path for new ontology/search exploration work
+- `src/app/ontology/presenter.ts` remains a quarantined line-detail compatibility path for non-qualifying ontology/editorial consumers only; qualifying record-page TUI consumers must use `services.user.entityPages` and compile through `src/tui/page-document/*`
+
+The remaining line-detail presenter callers are `src/app/ontology/derived-tags-domain.ts`, `src/app/ontology/node-helpers.ts`, and `src/tags/editorial/ui/review-detail-content.ts`. Those callers produce readonly ontology labels or editorial text-line previews, not structured entity-page routes, inline page targets, or relation-aware page navigation.
 
 The ontology host still adds:
 

@@ -25,6 +25,8 @@ export type Pf2eApplicationEntityPageService = {
     recordKey: RecordKey,
     options?: EntityPageDocumentBuildOptions,
   ) => EntityPageDocument | null;
+  // Compatibility output for non-qualifying plain-text/detail consumers only.
+  // Structured TUI page hosts should consume buildDocument* and page-document.
   buildDetailLines: (
     record: EntityPageSourceRecord,
     options?: { includeHeader?: boolean; recordTargetAction?: EntityPageDocumentBuildOptions["recordTargetAction"] },

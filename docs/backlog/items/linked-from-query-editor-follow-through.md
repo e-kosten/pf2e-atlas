@@ -7,7 +7,7 @@ Last reviewed: 2026-05-03
 
 ## Problem
 
-The shared search contract needs `linkedFrom` support so entity-page `Referenced By` drills can compile to ordinary canonical browse requests. However, the current entity-page work does not require full user-facing query-editor or general TUI authoring support for `linkedFrom`.
+The shared search contract includes `linkedFrom` as the canonical inverse record-link filter. Entity-page `Referenced By` grouped drills, however, are seeded from page-relation grouping and compile to ordinary canonical browse requests using `linksTo(targetRecordKey)`. The current entity-page work does not require full user-facing query-editor or general TUI authoring support for authoring `linkedFrom` directly.
 
 If that follow-through is left implicit, future implementation work can quietly expand the entity-page slice into broader query-editor, formatting, and explorer UI work that is not required to make page references and backlinks function.
 
@@ -31,7 +31,7 @@ That later pass can include:
 
 ## Notes
 
-This item exists because the entity-page plan only needs seeded `linkedFrom` requests to power grouped `Referenced By` surfaces. General query-editor support is useful, but it is separate scope.
+This item exists because canonical inverse-link filtering is useful outside the entity-page grouped drill path. General query-editor support for `linkedFrom` is useful, but it is separate scope from the `Referenced By` page surface, whose grouped drills use `linksTo(targetRecordKey)`.
 
 ## Related
 
