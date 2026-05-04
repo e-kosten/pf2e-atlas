@@ -91,6 +91,7 @@ export function filterExplorerReducer(
 ): FilterExplorerBrowserUiState {
   switch (action.type) {
     case "toggle_focus":
+    case "set_focus":
     case "toggle_layout":
     case "leave_detail":
       return {

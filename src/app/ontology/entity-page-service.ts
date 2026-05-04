@@ -1,10 +1,10 @@
 import type { OntologyTextLine } from "../../domain/ontology-types.js";
 import type { NormalizedRecord, RecordKey } from "../../domain/record-types.js";
 import type { PageRelationsResult } from "../../domain/page-relations-types.js";
-import { buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import {
   buildEntityPageDocument,
   renderEntityPageDocument,
+  type EntityPageDocumentBuildOptions,
   type EntityPageDocument,
 } from "./entity-page.js";
 import {
@@ -20,12 +20,14 @@ type EntityPageRelationsService = {
 };
 
 export type Pf2eApplicationEntityPageService = {
-  buildDocument: (record: EntityPageSourceRecord) => EntityPageDocument;
-  buildDocumentByRecordKey: (recordKey: RecordKey) => EntityPageDocument | null;
-  buildLookupRequestByRecordKey: (recordKey: RecordKey) => SearchRequest | null;
+  buildDocument: (record: EntityPageSourceRecord, options?: EntityPageDocumentBuildOptions) => EntityPageDocument;
+  buildDocumentByRecordKey: (
+    recordKey: RecordKey,
+    options?: EntityPageDocumentBuildOptions,
+  ) => EntityPageDocument | null;
   buildDetailLines: (
     record: EntityPageSourceRecord,
-    options?: { includeHeader?: boolean },
+    options?: { includeHeader?: boolean; recordTargetAction?: EntityPageDocumentBuildOptions["recordTargetAction"] },
   ) => OntologyTextLine[];
 };
 
@@ -40,35 +42,26 @@ function toEntityRecord(record: EntityPageSourceRecord): OntologyExplorerEntityR
 export function createPf2eApplicationEntityPageService(
   relationsService: EntityPageRelationsService,
 ): Pf2eApplicationEntityPageService {
-  const buildDocument = (record: EntityPageSourceRecord): EntityPageDocument => {
+  const buildDocument = (
+    record: EntityPageSourceRecord,
+    options: EntityPageDocumentBuildOptions = {},
+  ): EntityPageDocument => {
     const entityRecord = toEntityRecord(record);
     const relations = relationsService.loadPageRelations(entityRecord.recordKey);
-    return buildEntityPageDocument(entityRecord, relations);
+    return buildEntityPageDocument(entityRecord, relations, options);
   };
-  const buildDocumentByRecordKey = (recordKey: RecordKey): EntityPageDocument | null => {
+  const buildDocumentByRecordKey = (
+    recordKey: RecordKey,
+    options: EntityPageDocumentBuildOptions = {},
+  ): EntityPageDocument | null => {
     const record = relationsService.getRecord?.(recordKey);
-    return record ? buildDocument(record) : null;
-  };
-  const buildLookupRequestByRecordKey = (recordKey: RecordKey): SearchRequest | null => {
-    const record = relationsService.getRecord?.(recordKey);
-    if (!record) {
-      return null;
-    }
-
-    return {
-      mode: "lookup",
-      search: {
-        query: record.name,
-      },
-      filter: buildScopeFilter(record.category, record.subcategory),
-      limit: 5,
-    };
+    return record ? buildDocument(record, options) : null;
   };
 
   return {
     buildDocument,
     buildDocumentByRecordKey,
-    buildLookupRequestByRecordKey,
-    buildDetailLines: (record, options) => renderEntityPageDocument(buildDocument(record), options),
+    buildDetailLines: (record, options) =>
+      renderEntityPageDocument(buildDocument(record, options), { includeHeader: options?.includeHeader }),
   };
 }

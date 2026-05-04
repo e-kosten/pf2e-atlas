@@ -5299,4 +5299,46 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Current clauses");
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
   });
+
+  it("supports pane clicks and hovered-pane wheel routing in the live search host", async () => {
+    const services = createServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession({
+              results: [
+                createRecord(),
+                createRecord({
+                  recordKey: "spell:test-barrier",
+                  id: "test-barrier",
+                  name: "Barrier Ward",
+                  normalizedName: "barrier ward",
+                  descriptionText: "Shields a threshold against passage.",
+                  descriptionSnippet: "Shields a threshold against passage.",
+                  sourcePath: "packs/spells/barrier-ward.json",
+                }),
+              ],
+            })}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\u001b[<0;70;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+
+    app.stdin.write("\u001b[<0;10;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Summary");
+
+    app.stdin.write("\u001b[<65;10;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Preview | Barrier Ward | Summary");
+  });
 });

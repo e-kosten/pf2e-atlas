@@ -2,6 +2,8 @@ import type { OntologyDomainModel } from "../domain/ontology-types.js";
 import type { OntologyNodeQuery } from "../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../domain/search-field-domains.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
+import type { RecordKey } from "../domain/record-types.js";
+import type { EntityPageDocument } from "../app/ontology/entity-page.js";
 import type {
   DerivedTagWorkbenchMode,
   DerivedTagReviewDecisionKind,
@@ -16,6 +18,7 @@ export const PF2E_APP_ROUTE_KIND = {
   TAG_REFINEMENT: "tag_refinement",
   SEARCH: "search",
   ONTOLOGY: "ontology",
+  PAGE: "page",
   REVIEW: "review",
 } as const;
 
@@ -67,11 +70,18 @@ export type Pf2eSearchResultsRoute = {
 
 export type Pf2eSearchRoute = Pf2eSearchEditorRoute | Pf2eSearchResultsRoute;
 
+export type Pf2ePageRoute = {
+  kind: (typeof PF2E_APP_ROUTE_KIND)["PAGE"];
+  recordKey: RecordKey;
+  document: EntityPageDocument;
+};
+
 export type Pf2eAppRoute =
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["AREAS"] }
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["TAG_REFINEMENT"] }
   | Pf2eSearchRoute
   | Pf2eOntologyRoute
+  | Pf2ePageRoute
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["REVIEW"]; session: DerivedTagReviewSession };
 
 export type CreatePf2eDerivedTagSessionOptions = {
@@ -147,6 +157,14 @@ export function createPf2eSearchResultsRoute({
     entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
     initialSession,
     ...(origin ? { origin } : {}),
+  };
+}
+
+export function createPf2ePageRoute(document: EntityPageDocument): Pf2ePageRoute {
+  return {
+    kind: PF2E_APP_ROUTE_KIND.PAGE,
+    recordKey: document.recordKey,
+    document,
   };
 }
 

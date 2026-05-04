@@ -11,6 +11,12 @@ export type EntityPageTarget =
   | { kind: "searchPivot"; label: string; request: SearchRequest }
   | { kind: "external"; label: string; href: string; plainTextFallback?: string };
 
+export type EntityPageRecordTargetAction = Extract<EntityPageTarget, { kind: "record" }>["action"];
+
+export type EntityPageDocumentBuildOptions = {
+  recordTargetAction?: EntityPageRecordTargetAction;
+};
+
 export type EntityPageFact = {
   label: string;
   value: string;
@@ -27,6 +33,10 @@ export type EntityPageSection = {
     | "identity"
     | "summary"
     | "description"
+    | "defense"
+    | "movement"
+    | "offense"
+    | "routine"
     | "details"
     | "references"
     | "backlinks"
@@ -52,8 +62,6 @@ type PreparedEntityPageInput = {
   aonLink?: Extract<EntityPageTarget, { kind: "external" }>;
   blurb?: string;
   description?: string;
-  summaryFacts: EntityPageFact[];
-  detailFacts: EntityPageFact[];
   classificationTargets: EntityPageTarget[];
   references: EntityPageTarget[];
   referencedBy: EntityPageTarget[];
@@ -116,6 +124,10 @@ function formatSave(record: OntologyExplorerEntityRecord): string | null {
   return record.basicSave ? `basic ${save}` : save;
 }
 
+function formatSpeedTypes(speedTypes: string[]): string | null {
+  return speedTypes.length > 0 ? speedTypes.map(humanize).join(", ") : null;
+}
+
 function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
   const typeLabel =
     record.category === "spell"
@@ -128,47 +140,94 @@ function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
   return [typeLabel, levelLabel, humanize(record.rarity), record.publicationTitle].filter(Boolean).join(" | ");
 }
 
-function buildSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
-  if (record.category === "spell") {
-    return [
-      asFact("Traditions", formatList(record.traditions)),
-      asFact("Cast", formatActionCost(record.actionCost)),
-      asFact("Range", record.rangeText),
-      asFact("Area", formatArea(record)),
-      asFact("Save", formatSave(record)),
-      asFact("Duration", record.durationText),
-      asFact("Targets", record.targetText),
-    ].filter((fact): fact is EntityPageFact => Boolean(fact));
-  }
+function buildSpellSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Traditions", formatList(record.traditions)),
+    asFact("Cast", formatActionCost(record.actionCost)),
+    asFact("Range", record.rangeText),
+    asFact("Area", formatArea(record)),
+    asFact("Save", formatSave(record)),
+    asFact("Duration", record.durationText),
+    asFact("Targets", record.targetText),
+    asFact("Damage", formatList(record.damageTypes)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
 
-  if (record.category === "creature") {
-    return [
-      asFact("Size", humanize(record.size)),
-      asFact("Languages", formatList(record.languages)),
-      asFact("Senses", formatList(record.senses)),
-      asFact("Immunities", formatList(record.immunities)),
-      asFact("Resistances", formatList(record.resistances)),
-      asFact("Weaknesses", formatList(record.weaknesses)),
-    ].filter((fact): fact is EntityPageFact => Boolean(fact));
-  }
+function buildCreatureSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Size", humanize(record.size)),
+    asFact("Languages", formatList(record.languages)),
+    asFact("Senses", formatList(record.senses)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
 
-  if (record.category === "equipment") {
-    return [
-      asFact("Price", formatPriceCp(record.priceCp)),
-      asFact("Usage", humanize(record.usage)),
-      asFact("Hands", record.hands == null ? null : String(record.hands)),
-      asFact("Base Item", humanize(record.baseItem)),
-      asFact("Category", humanize(record.itemCategory)),
-      asFact("Group", humanize(record.weaponGroup ?? record.armorGroup)),
-      asFact("Damage", formatList(record.damageTypes)),
-    ].filter((fact): fact is EntityPageFact => Boolean(fact));
-  }
+function buildCreatureDefenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Immunities", formatList(record.immunities)),
+    asFact("Resistances", formatList(record.resistances)),
+    asFact("Weaknesses", formatList(record.weaknesses)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
 
+function buildCreatureMovementFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [asFact("Speed", formatSpeedTypes(record.speedTypes))].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Damage", formatList(record.damageTypes)),
+    asFact("Spell Kinds", formatList(record.spellKinds)),
+    asFact("Save", formatSave(record)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Price", formatPriceCp(record.priceCp)),
+    asFact("Usage", humanize(record.usage)),
+    asFact("Hands", record.hands == null ? null : String(record.hands)),
+    asFact("Base Item", humanize(record.baseItem)),
+    asFact("Category", humanize(record.itemCategory)),
+    asFact("Group", humanize(record.weaponGroup ?? record.armorGroup)),
+    asFact("Damage", formatList(record.damageTypes)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
     asFact("Action Cost", formatActionCost(record.actionCost)),
+    asFact("Range", record.rangeText),
+    asFact("Area", formatArea(record)),
+    asFact("Targets", record.targetText),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildHazardSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Complexity", formatBoolean(record.isComplex, "Complex")),
     asFact("Disable", record.disableText),
     asFact("Disable Skills", formatList(record.disableSkills)),
-    asFact("Complexity", formatBoolean(record.isComplex, "Complex")),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildHazardRoutineFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Range", record.rangeText),
+    asFact("Area", formatArea(record)),
+    asFact("Save", formatSave(record)),
+    asFact("Damage", formatList(record.damageTypes)),
+    asFact("Targets", record.targetText),
+    asFact("Duration", record.durationText),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildFallbackSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("Action Cost", formatActionCost(record.actionCost)),
+    asFact("Range", record.rangeText),
+    asFact("Area", formatArea(record)),
+    asFact("Save", formatSave(record)),
+    asFact("Targets", record.targetText),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
@@ -177,6 +236,7 @@ function buildDetailFacts(record: OntologyExplorerEntityRecord): EntityPageFact[
     asFact("Spell Kinds", formatList(record.spellKinds)),
     asFact("Source Category", humanize(record.sourceCategory)),
     asFact("Document Type", record.documentType),
+    asFact("Sustained", formatBoolean(record.sustained)),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
@@ -251,7 +311,10 @@ function buildClassificationTargets(record: OntologyExplorerEntityRecord): Entit
   ].filter((target): target is EntityPageTarget => Boolean(target));
 }
 
-function buildReferenceTargets(relations?: PageRelationsResult): EntityPageTarget[] {
+function buildReferenceTargets(
+  relations: PageRelationsResult | undefined,
+  recordTargetAction: EntityPageRecordTargetAction,
+): EntityPageTarget[] {
   if (!relations) {
     return [];
   }
@@ -277,7 +340,7 @@ function buildReferenceTargets(relations?: PageRelationsResult): EntityPageTarge
         kind: "record" as const,
         label,
         recordKey: record.recordKey,
-        action: "open" as const,
+        action: recordTargetAction,
       },
     ];
   });
@@ -298,8 +361,10 @@ function buildBacklinkTargets(relations?: PageRelationsResult): EntityPageTarget
 function buildEntityPageInput(
   record: OntologyExplorerEntityRecord,
   relations?: PageRelationsResult,
+  options: EntityPageDocumentBuildOptions = {},
 ): PreparedEntityPageInput {
   const aonLink = buildAonSearchLink(record);
+  const recordTargetAction = options.recordTargetAction ?? "open";
 
   return {
     record,
@@ -315,18 +380,13 @@ function buildEntityPageInput(
       : undefined,
     blurb: record.blurbText ?? undefined,
     description: record.descriptionText ?? undefined,
-    summaryFacts: buildSummaryFacts(record),
-    detailFacts: buildDetailFacts(record),
     classificationTargets: buildClassificationTargets(record),
-    references: buildReferenceTargets(relations),
+    references: buildReferenceTargets(relations, recordTargetAction),
     referencedBy: buildBacklinkTargets(relations),
   };
 }
 
-function dedupeFacts(
-  facts: EntityPageFact[],
-  seenValues: Set<string>,
-): EntityPageFact[] {
+function dedupeFacts(facts: EntityPageFact[], seenValues: Set<string>): EntityPageFact[] {
   const deduped: EntityPageFact[] = [];
   for (const fact of facts) {
     const key = `${fact.label}:${fact.value}`.toLowerCase();
@@ -339,78 +399,150 @@ function dedupeFacts(
   return deduped;
 }
 
+function createFactSection(
+  id: string,
+  kind: EntityPageSection["kind"],
+  title: string,
+  facts: EntityPageFact[],
+  seenFacts: Set<string>,
+): EntityPageSection | null {
+  const dedupedFacts = dedupeFacts(facts, seenFacts);
+  if (dedupedFacts.length === 0) {
+    return null;
+  }
+
+  return {
+    id,
+    kind,
+    title,
+    blocks: [{ kind: "factList", facts: dedupedFacts }],
+    targets: [],
+  };
+}
+
+function createSummarySection(
+  blurb: string | undefined,
+  facts: EntityPageFact[],
+  seenFacts: Set<string>,
+): EntityPageSection | null {
+  const dedupedFacts = dedupeFacts(facts, seenFacts);
+  if (!blurb && dedupedFacts.length === 0) {
+    return null;
+  }
+
+  return {
+    id: "summary",
+    kind: "summary",
+    title: "Summary",
+    blocks: [
+      ...(blurb ? [{ kind: "text" as const, text: blurb }] : []),
+      ...(dedupedFacts.length > 0 ? [{ kind: "factList" as const, facts: dedupedFacts }] : []),
+    ],
+    targets: [],
+  };
+}
+
+function createTextSection(
+  id: string,
+  kind: EntityPageSection["kind"],
+  title: string,
+  text: string | undefined,
+): EntityPageSection | null {
+  if (!text) {
+    return null;
+  }
+
+  return {
+    id,
+    kind,
+    title,
+    blocks: [{ kind: "text", text }],
+    targets: [],
+  };
+}
+
+function createTargetSection(
+  id: string,
+  kind: EntityPageSection["kind"],
+  title: string,
+  targets: EntityPageTarget[],
+): EntityPageSection | null {
+  if (targets.length === 0) {
+    return null;
+  }
+
+  return {
+    id,
+    kind,
+    title,
+    blocks: [{ kind: "targetList", targets }],
+    targets,
+  };
+}
+
+function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<string>): EntityPageSection[] {
+  const sections: EntityPageSection[] = [];
+  const detailFacts = buildDetailFacts(input.record);
+  const push = (section: EntityPageSection | null) => {
+    if (section) {
+      sections.push(section);
+    }
+  };
+
+  switch (input.record.category) {
+    case "spell":
+      push(createSummarySection(input.blurb, buildSpellSummaryFacts(input.record), seenFacts));
+      push(createTextSection("description", "description", "Description", input.description));
+      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      break;
+    case "creature":
+      push(createSummarySection(input.blurb, buildCreatureSummaryFacts(input.record), seenFacts));
+      push(createFactSection("defense", "defense", "Defense", buildCreatureDefenseFacts(input.record), seenFacts));
+      push(createFactSection("movement", "movement", "Movement", buildCreatureMovementFacts(input.record), seenFacts));
+      push(createFactSection("offense", "offense", "Offense", buildCreatureOffenseFacts(input.record), seenFacts));
+      push(createTextSection("description", "description", "Description", input.description));
+      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      break;
+    case "equipment":
+      push(createSummarySection(input.blurb, buildEquipmentSummaryFacts(input.record), seenFacts));
+      push(createTextSection("description", "description", "Description", input.description));
+      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      break;
+    case "hazard":
+      push(createSummarySection(input.blurb, buildHazardSummaryFacts(input.record), seenFacts));
+      push(createFactSection("routine", "routine", "Routine", buildHazardRoutineFacts(input.record), seenFacts));
+      push(createTextSection("description", "description", "Description", input.description));
+      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      break;
+    default:
+      push(
+        createSummarySection(
+          input.blurb,
+          input.record.category === "feat" || (input.record.category === "rule" && input.record.subcategory === "action")
+            ? buildFeatActionSummaryFacts(input.record)
+            : buildFallbackSummaryFacts(input.record),
+          seenFacts,
+        ),
+      );
+      push(createTextSection("description", "description", "Description", input.description));
+      push(createFactSection("details", "details", "Details", detailFacts, seenFacts));
+      break;
+  }
+
+  push(createTargetSection("references", "references", "References", input.references));
+  push(createTargetSection("backlinks", "backlinks", "Referenced By", input.referencedBy));
+  push(createTargetSection("classification", "classification", "Classification", input.classificationTargets));
+
+  return sections;
+}
+
 export function buildEntityPageDocument(
   record: OntologyExplorerEntityRecord,
   relations?: PageRelationsResult,
+  options: EntityPageDocumentBuildOptions = {},
 ): EntityPageDocument {
-  const input = buildEntityPageInput(record, relations);
+  const input = buildEntityPageInput(record, relations, options);
   const seenFacts = new Set<string>();
-  const summaryFacts = dedupeFacts(input.summaryFacts, seenFacts);
-  const detailFacts = dedupeFacts(input.detailFacts, seenFacts);
-  const sections: EntityPageSection[] = [];
-
-  if (input.blurb || summaryFacts.length > 0) {
-    sections.push({
-      id: "summary",
-      kind: "summary",
-      title: "Summary",
-      blocks: [
-        ...(input.blurb ? [{ kind: "text" as const, text: input.blurb }] : []),
-        ...(summaryFacts.length > 0 ? [{ kind: "factList" as const, facts: summaryFacts }] : []),
-      ],
-      targets: [],
-    });
-  }
-
-  if (input.description) {
-    sections.push({
-      id: "description",
-      kind: "description",
-      title: "Description",
-      blocks: [{ kind: "text", text: input.description }],
-      targets: [],
-    });
-  }
-
-  if (detailFacts.length > 0) {
-    sections.push({
-      id: "details",
-      kind: "details",
-      title: "Details",
-      blocks: [{ kind: "factList", facts: detailFacts }],
-      targets: [],
-    });
-  }
-
-  if (input.references.length > 0) {
-    sections.push({
-      id: "references",
-      kind: "references",
-      title: "References",
-      blocks: [{ kind: "targetList", targets: input.references }],
-      targets: input.references,
-    });
-  }
-
-  if (input.referencedBy.length > 0) {
-    sections.push({
-      id: "backlinks",
-      kind: "backlinks",
-      title: "Referenced By",
-      blocks: [{ kind: "targetList", targets: input.referencedBy }],
-      targets: input.referencedBy,
-    });
-  }
-
-  if (input.classificationTargets.length > 0) {
-    sections.push({
-      id: "classification",
-      kind: "classification",
-      title: "Classification",
-      blocks: [{ kind: "targetList", targets: input.classificationTargets }],
-      targets: input.classificationTargets,
-    });
-  }
 
   return {
     recordKey: record.recordKey,
@@ -418,7 +550,7 @@ export function buildEntityPageDocument(
     identityLine: input.identityLine,
     aonLink: input.aonLink,
     traits: input.traits,
-    sections,
+    sections: buildRecipeSections(input, seenFacts),
   };
 }
 

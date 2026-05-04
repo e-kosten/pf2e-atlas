@@ -13,6 +13,7 @@ export type DerivedTagTerminalTwoPaneState = {
 
 export type DerivedTagTerminalTwoPaneAction =
   | { type: "toggle_focus" }
+  | { type: "set_focus"; pane: DerivedTagTerminalTwoPaneFocus }
   | { type: "toggle_layout" }
   | { type: "leave_detail" }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
@@ -39,6 +40,12 @@ export function reduceDerivedTagTerminalTwoPaneState<TState extends DerivedTagTe
         layoutMode: normalizeTerminalTwoPaneLayoutMode(state.layoutMode, activePane),
       };
     }
+    case "set_focus":
+      return {
+        ...state,
+        activePane: action.pane,
+        layoutMode: normalizeTerminalTwoPaneLayoutMode(state.layoutMode, action.pane),
+      };
     case "toggle_layout":
       return {
         ...state,

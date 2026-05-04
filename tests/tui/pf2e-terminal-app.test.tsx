@@ -1051,8 +1051,8 @@ describe("pf2e terminal app", () => {
             subcategory: { kind: "any" as const },
           },
           {
-            kind: "linkedFrom" as const,
-            source: sourceRecord.recordKey,
+            kind: "linksTo" as const,
+            target: sourceRecord.recordKey,
           },
         ],
       },
@@ -1135,8 +1135,9 @@ describe("pf2e terminal app", () => {
     expect(services.user.search.executeQuery).toHaveBeenCalledWith(backlinkRequest);
   });
 
-  it("opens record page targets through lookup requests on the shared app search-navigation seam", async () => {
+  it("previews record page targets in place from the shared search preview host", async () => {
     const services = createFakeServices();
+    services.user.search.executeQuery = vi.fn(services.user.search.executeQuery) as typeof services.user.search.executeQuery;
     const sourceRecord = createRecord();
     const targetRecord = createRecord({
       recordKey: "spell:test-fireball",
@@ -1195,21 +1196,6 @@ describe("pf2e terminal app", () => {
         return undefined;
       }),
     });
-    services.user.search.executeQuery = vi.fn(async () => ({
-      windowId: "window-3",
-      query: services.user.search.createDefaultQuery("lookup"),
-      results: [targetRecord],
-      windowOffset: 0,
-      resultMode: "lookup",
-      total: 1,
-      loadedCount: 1,
-      hasMore: false,
-      nextOffset: null,
-      searchProfile: null,
-      sort: "alphabetical",
-      sortSeed: null,
-    })) as typeof services.user.search.executeQuery;
-
     const app = render(
       <DerivedTagTerminalProvider>
         <Pf2eTerminalApp
@@ -1250,20 +1236,10 @@ describe("pf2e terminal app", () => {
     app.stdin.write("\r");
     await flushInk();
     app.stdin.write("\r");
-    await flushFrames(2);
+    await flushInk();
 
-    expect(services.user.search.executeQuery).toHaveBeenCalledWith({
-      mode: "lookup",
-      search: {
-        query: "Fireball",
-      },
-      filter: {
-        kind: "scope",
-        category: "spell",
-        subcategory: { kind: "any" },
-      },
-      limit: 5,
-    });
+    expect(services.user.search.executeQuery).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Summary");
   });
 
   it("closes loaded services when the bootstrap unmounts", async () => {

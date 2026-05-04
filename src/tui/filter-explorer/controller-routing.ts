@@ -49,6 +49,7 @@ export function buildFilterExplorerControllerContext(args: {
   draft: FilterExplorerComposeDraft;
   actionEntries: FilterExplorerControllerContext["actionEntries"];
   actionTargetState: FilterExplorerControllerContext["actionTargetState"];
+  onListPointerEvent?: FilterExplorerControllerContext["onListPointerEvent"];
   onDetailPointerEvent?: FilterExplorerControllerContext["onDetailPointerEvent"];
   notification?: FilterExplorerControllerContext["notification"];
 }): FilterExplorerControllerContext {
@@ -74,6 +75,7 @@ export function buildFilterExplorerControllerContext(args: {
     discovery: args.options.discovery,
     actionEntries: args.actionEntries,
     actionTargetState: args.actionTargetState,
+    onListPointerEvent: args.onListPointerEvent,
     onDetailPointerEvent: args.onDetailPointerEvent,
     notification: args.notification,
     transitionStatus: args.options.transitionStatus,

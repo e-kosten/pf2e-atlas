@@ -148,4 +148,58 @@ describe("filter explorer launch intent", () => {
     expect(app.lastFrame()).toContain("No rightward action is available for the focused entry.");
     expect(app.lastFrame()).not.toContain("[DETAIL] Leaf Entry");
   });
+
+  it("supports pane clicks and hovered-pane wheel routing in the live filter explorer host", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <FilterExplorerScreen
+          title="Search Semantics"
+          model={{
+            id: "search-semantics",
+            label: "Search Semantics",
+            description: "Search semantics ontology",
+            rootNodes: [
+              {
+                id: "spell:trait:illusion",
+                kind: "value",
+                label: "Illusion",
+                filterText: "illusion",
+                listLabel: "Illusion | 12",
+                detailTitle: "Filter Value",
+                detailLines: [{ text: "Illusion", tone: "section" }],
+              },
+              {
+                id: "spell:trait:evocation",
+                kind: "value",
+                label: "Evocation",
+                filterText: "evocation",
+                listLabel: "Evocation | 8",
+                detailTitle: "Filter Value",
+                detailLines: [{ text: "Evocation", tone: "section" }],
+              },
+            ],
+          }}
+          host={createInspectFilterExplorerHostAdapter({})}
+          onOutcome={vi.fn()}
+          mode={{
+            kind: "inspect-and-open",
+          }}
+        />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("\u001b[<0;70;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[DETAIL] Filter Value");
+
+    app.stdin.write("\u001b[<0;10;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("[LIST] Explorer Entries");
+
+    app.stdin.write("\u001b[<65;10;6M");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Evocation");
+  });
 });

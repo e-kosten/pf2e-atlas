@@ -266,6 +266,53 @@ describe("pf2e navigation", () => {
     );
   });
 
+  it("opens entity pages through dedicated page routes and preserves the back stack", async () => {
+    const terminal = {
+      pauseForAnyKey: vi.fn(),
+    };
+    const { services } = createNavigationTestServices();
+    services.user.entityPages = {
+      buildDocumentByRecordKey: vi.fn(() => ({
+        recordKey: "spell:test-alarm",
+        title: "Alarm Ward",
+        traits: [],
+        sections: [],
+      })),
+    } as never;
+    const initialRoute: Pf2eAppRoute = {
+      kind: PF2E_APP_ROUTE_KIND.SEARCH,
+      entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+      initialSession: createSearchSession(),
+    };
+    const { capture, renderer } = await renderNavigationHarness({ initialRoute, services, terminal });
+    renderers.push(renderer);
+
+    await act(async () => {
+      capture.current!.navigation.openEntityPage("spell:test-alarm");
+      await flushReact();
+    });
+
+    expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-alarm");
+    expect(capture.current!.state.routeStack).toEqual([
+      initialRoute,
+      expect.objectContaining({
+        kind: PF2E_APP_ROUTE_KIND.PAGE,
+        recordKey: "spell:test-alarm",
+        document: expect.objectContaining({
+          recordKey: "spell:test-alarm",
+          title: "Alarm Ward",
+        }),
+      }),
+    ]);
+
+    await act(async () => {
+      capture.current!.navigation.backOrExit();
+      await flushReact();
+    });
+
+    expect(capture.current!.state.routeStack).toEqual([initialRoute]);
+  });
+
   it("preserves search-route origin when opening generic search results from ontology search", async () => {
     const terminal = {
       pauseForAnyKey: vi.fn(),

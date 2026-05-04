@@ -1,6 +1,7 @@
 import React from "react";
 
 import { usePf2eTerminalAppServices } from "../app-service-context.js";
+import type { RecordKey } from "../../domain/record-types.js";
 import { showTerminalReturnDialog, useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
 import {
   SEARCH_LEFT_WIDTH,
@@ -115,6 +116,7 @@ export function useSearchScreenController({
     () => createDerivedTagTerminalActionTargetState(),
   );
   const [pageInteractionState, setPageInteractionState] = React.useState(createPageDocumentInteractionState);
+  const [previewRecordKey, setPreviewRecordKey] = React.useState<RecordKey | null>(null);
   const queryRef = React.useRef(initialQueryState);
   const promptedForInitialModeRef = React.useRef(false);
 
@@ -226,13 +228,23 @@ export function useSearchScreenController({
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
   const selectedResultPageModel = React.useMemo(() => {
-    if (!selectedResult) {
+    if (!selectedResult && !previewRecordKey) {
       return null;
     }
 
-    const document = user.entityPages.buildDocument(selectedResult);
+    const document = previewRecordKey
+      ? user.entityPages.buildDocumentByRecordKey(previewRecordKey, { recordTargetAction: "preview" })
+      : selectedResult
+        ? user.entityPages.buildDocument(selectedResult, { recordTargetAction: "preview" })
+        : null;
+    if (!document) {
+      return null;
+    }
     return buildPageDocumentModel(document);
-  }, [selectedResult, user.entityPages]);
+  }, [previewRecordKey, selectedResult, user.entityPages]);
+  React.useEffect(() => {
+    setPreviewRecordKey(null);
+  }, [selectedResult?.recordKey]);
   React.useEffect(() => {
     setPageInteractionState(createPageDocumentInteractionState());
   }, [selectedResultPageModel?.recordKey]);
@@ -558,6 +570,25 @@ export function useSearchScreenController({
             return;
           }
 
+          if (target.kind === "record" && target.action === "preview") {
+            if (
+              !user.entityPages.buildDocumentByRecordKey(target.recordKey, {
+                recordTargetAction: "preview",
+              })
+            ) {
+              showNotification({
+                message: "Could not load the focused page target.",
+                tone: "warning",
+              });
+              return;
+            }
+
+            setPreviewRecordKey(target.recordKey);
+            setPageInteractionState(createPageDocumentInteractionState());
+            scrollTo(0);
+            return;
+          }
+
           const handled = onActivatePageTarget?.(target);
           if (handled) {
             setPageInteractionState(createPageDocumentInteractionState());
@@ -587,6 +618,7 @@ export function useSearchScreenController({
       onActivatePageTarget,
       pageInteractionState,
       presentationMetrics.bodyHeight,
+      user.entityPages,
       selectedPageTargetNode?.target,
       selectedResultPageModel,
       showNotification,
@@ -655,8 +687,8 @@ export function useSearchScreenController({
       title:
         state.layout === "results"
           ? state.activePane === "detail"
-            ? `[PREVIEW] ${selectedResult?.name ?? "Results"}${previewTitleSuffix}`
-            : `Preview | ${selectedResult?.name ?? "Results"}${previewTitleSuffix}`
+            ? `[PREVIEW] ${selectedResultPageModel?.title ?? selectedResult?.name ?? "Results"}${previewTitleSuffix}`
+            : `Preview | ${selectedResultPageModel?.title ?? selectedResult?.name ?? "Results"}${previewTitleSuffix}`
           : "Query Status",
     },
     metrics: screenPresentationMetrics,
@@ -682,15 +714,48 @@ export function useSearchScreenController({
     notification,
     transitionStatus,
     pointerRegions: {
+      list: {
+        onPointerEvent: (event) => {
+          if (state.layout === "results") {
+            if (event.kind === "click") {
+              dispatch({ type: "set_active_pane", pane: "list" });
+              return true;
+            }
+            if (event.kind === "wheel") {
+              dispatch({
+                type: "move_result_selection",
+                delta: event.deltaY,
+                itemCount: resultCount,
+              });
+              return true;
+            }
+            return false;
+          }
+
+          if (event.kind === "wheel") {
+            dispatch({
+              type: "move_workspace_selection",
+              delta: event.deltaY,
+              itemCount: workspaceEntries.length,
+            });
+            return true;
+          }
+          return false;
+        },
+      },
       detail:
         state.layout === "results"
           ? {
               onPointerEvent: (event) => {
-                if (event.kind !== "wheel") {
-                  return false;
+                if (event.kind === "click") {
+                  dispatch({ type: "set_active_pane", pane: "detail" });
+                  return true;
                 }
-                handleScreenIntent({ type: "move_detail", delta: event.deltaY });
-                return true;
+                if (event.kind === "wheel") {
+                  handleScreenIntent({ type: "move_detail", delta: event.deltaY });
+                  return true;
+                }
+                return false;
               },
             }
           : undefined,

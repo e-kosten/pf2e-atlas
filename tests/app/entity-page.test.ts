@@ -191,8 +191,8 @@ function createRelations(): PageRelationsResult {
                 subcategory: { kind: "any" },
               },
               {
-                kind: "linkedFrom",
-                source: "spell:test-fireball",
+                kind: "linksTo",
+                target: "spell:test-fireball",
               },
             ],
           },
@@ -243,10 +243,93 @@ describe("entity page document", () => {
             { label: "Range", value: "500 feet" },
             { label: "Area", value: "20 Burst" },
             { label: "Save", value: "basic Reflex" },
+            { label: "Damage", value: "Fire" },
           ]),
         },
       ]),
     );
+  });
+
+  it("uses creature recipe sections when creature fields are available", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        recordKey: "creature:adult-red-dragon",
+        name: "Adult Red Dragon",
+        type: "creature",
+        category: "creature",
+        level: 14,
+        size: "huge",
+        languages: ["common", "draconic"],
+        senses: ["darkvision"],
+        speedTypes: ["fly", "climb"],
+        immunities: ["fire"],
+        resistances: ["physical"],
+        weaknesses: ["cold"],
+        damageTypes: ["fire"],
+      }),
+    );
+
+    expect(document.sections.map((section) => section.title)).toEqual([
+      "Summary",
+      "Defense",
+      "Movement",
+      "Offense",
+      "Description",
+      "Details",
+      "Classification",
+    ]);
+  });
+
+  it("uses equipment recipe sections for item-oriented facts", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        recordKey: "equipment:striking-longsword",
+        name: "+1 Striking Longsword",
+        type: "equipment",
+        category: "equipment",
+        level: 4,
+        priceCp: 10_000,
+        usage: "held-in-one-hand",
+        hands: 1,
+        baseItem: "longsword",
+        itemCategory: "weapon",
+        weaponGroup: "sword",
+      }),
+    );
+
+    expect(document.sections.map((section) => section.title)).toEqual([
+      "Summary",
+      "Description",
+      "Details",
+      "Classification",
+    ]);
+  });
+
+  it("uses hazard recipe sections when hazard-specific fields are available", () => {
+    const document = buildEntityPageDocument(
+      createRecord({
+        recordKey: "hazard:flame-jet",
+        name: "Flame Jet",
+        type: "hazard",
+        category: "hazard",
+        level: 5,
+        disableText: "Thievery DC 22 to jam the nozzle",
+        disableSkills: ["thievery"],
+        isComplex: false,
+        rangeText: "30 feet",
+        areaType: "line",
+        areaValue: 30,
+        damageTypes: ["fire"],
+      }),
+    );
+
+    expect(document.sections.map((section) => section.title)).toEqual([
+      "Summary",
+      "Routine",
+      "Description",
+      "Details",
+      "Classification",
+    ]);
   });
 
   it("emits a fallback details section for leftover structured facts", () => {
@@ -384,8 +467,8 @@ describe("entity page document", () => {
                     subcategory: { kind: "any" },
                   },
                   {
-                    kind: "linkedFrom",
-                    source: "spell:test-fireball",
+                    kind: "linksTo",
+                    target: "spell:test-fireball",
                   },
                 ],
               },
@@ -394,6 +477,22 @@ describe("entity page document", () => {
             },
           },
         ],
+      },
+    ]);
+  });
+
+  it("can emit preview-intent record references for embedded preview hosts", () => {
+    const document = buildEntityPageDocument(createRecord(), createRelations(), {
+      recordTargetAction: "preview",
+    });
+    const references = document.sections.find((section) => section.title === "References");
+
+    expect(references?.targets).toEqual([
+      {
+        kind: "record",
+        label: "Spell Effect: Fireball",
+        recordKey: "spells:fireball-effect",
+        action: "preview",
       },
     ]);
   });

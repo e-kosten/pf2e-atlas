@@ -266,6 +266,10 @@ export function buildTerminalListDetailScreenModel(options: {
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
   pointerRegions?: {
+    list?: {
+      onPointerEvent: (event: DerivedTagTerminalPointerEvent) => boolean | void;
+      priority?: number;
+    };
     detail?: {
       onPointerEvent: (event: DerivedTagTerminalPointerEvent) => boolean | void;
       priority?: number;
@@ -304,6 +308,7 @@ export function buildTerminalListDetailScreenModel(options: {
         title: options.leftPane.title,
         lines: options.leftPane.lines,
         active: options.activePane === "list",
+        pointerRegion: options.pointerRegions?.list,
       },
       right: {
         title: options.rightPane.title,

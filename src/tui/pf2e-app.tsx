@@ -14,6 +14,7 @@ import {
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
+import { EntityPageScreen } from "./entity-page-screen.js";
 import {
   OntologyInspectScreen,
 } from "./ontology-explorer/inspect-screen.js";
@@ -140,16 +141,12 @@ export function Pf2eTerminalApp({
         return true;
       }
       if (target.kind === "record") {
-        const request = services.user.entityPages.buildLookupRequestByRecordKey(target.recordKey);
-        if (!request) {
-          return false;
-        }
-        navigation.openSearchResults(request);
+        navigation.openEntityPage(target.recordKey);
         return true;
       }
       return false;
     },
-    [navigation, services.user.entityPages],
+    [navigation],
   );
 
   let screen: React.JSX.Element;
@@ -174,6 +171,15 @@ export function Pf2eTerminalApp({
         rootPath={rootPath}
         initialSession={route.session}
         onComplete={navigation.backOrExit}
+      />
+    );
+  } else if (route.kind === PF2E_APP_ROUTE_KIND.PAGE) {
+    screen = (
+      <EntityPageScreen
+        document={route.document}
+        onActivatePageTarget={activatePageTarget}
+        onBack={navigation.backOrExit}
+        transitionStatus={transitionStatus}
       />
     );
   } else if (route.kind === PF2E_APP_ROUTE_KIND.SEARCH) {

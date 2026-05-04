@@ -325,6 +325,7 @@ export type FilterExplorerControllerContext = {
   discovery?: FilterExplorerDiscoveryState;
   actionEntries: readonly FilterExplorerActionEntry[];
   actionTargetState: DerivedTagTerminalActionTargetState;
+  onListPointerEvent?: (event: DerivedTagTerminalPointerEvent) => boolean | void;
   onDetailPointerEvent?: (event: DerivedTagTerminalPointerEvent) => boolean | void;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;

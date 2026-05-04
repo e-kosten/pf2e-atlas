@@ -24,7 +24,7 @@ function buildIncomingGroupRequest(
     mode: "browse",
     filter: buildAllOfFilter([
       buildScopeFilter(group.category, group.subcategory),
-      { kind: "linkedFrom", source: recordKey },
+      { kind: "linksTo", target: recordKey },
     ]),
     sort: { kind: "alphabetical" },
     limit: 50,

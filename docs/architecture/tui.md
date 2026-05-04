@@ -132,6 +132,12 @@ Route readiness is part of that same boundary:
 - route screens should mount from render-ready payloads, not kick off route-entry bootstrap work after navigation
 - the currently mounted screen hosts the shared transition-status affordance while navigation prepares the next route
 
+The current prepared-route set includes:
+
+- prepared ontology inspect routes
+- prepared search result routes
+- prepared entity-page routes, which now carry a ready `EntityPageDocument` payload instead of reopening page composition on mount
+
 ### Shared List/Detail Presentation And Behavior Layer
 
 `src/tui/list-detail-presentation.ts`, `src/tui/list-detail-behavior.ts`, and `src/tui/list-detail-formatting.ts` sit above the lower-level interaction/router primitives and below feature controllers.
@@ -154,11 +160,13 @@ It does not own feature-domain workflows. Search, filter explorer, and review st
 - how successful rightward intents map to local reducer actions or async workflow steps
 - which non-contract workflow outcomes still warrant local notification or prompt handling
 
-Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition. The current qualifying consumers are the search result-reader preview and ontology record detail inside the shared filter explorer host.
+Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition. The current qualifying consumers are the search result-reader preview, ontology record detail inside the shared filter explorer host, and the dedicated entity-page route screen.
 
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 
 The current qualifying callers are the search result reader and the filter explorer in both inspect and compose modes. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
+
+Shared pointer routing also lives at this layer boundary. Pane-level list/detail hosts should expose pointer regions for both panes so wheel or trackpad input follows the hovered pane, pane clicks can set focus explicitly, and overlays capture pointer input before background panes. Fine-grained in-pane target activation remains a separate concern from pane routing.
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 

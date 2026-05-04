@@ -176,24 +176,24 @@ describe("entity page service", () => {
     expect(document?.title).toBe("Fireball");
   });
 
-  it("builds a lookup request directly from a record key when a record lookup is available", () => {
+  it("can build preview-intent documents from a record key when a record lookup is available", () => {
     const record = createRecord();
     const service = createPf2eApplicationEntityPageService({
       loadPageRelations: vi.fn(() => createRelations()),
       getRecord: vi.fn((recordKey) => (recordKey === record.recordKey ? record : undefined)),
     });
 
-    expect(service.buildLookupRequestByRecordKey(record.recordKey)).toEqual({
-      mode: "lookup",
-      search: {
-        query: "Fireball",
-      },
-      filter: {
-        kind: "scope",
-        category: "spell",
-        subcategory: { kind: "any" },
-      },
-      limit: 5,
+    const document = service.buildDocumentByRecordKey(record.recordKey, {
+      recordTargetAction: "preview",
     });
+
+    expect(document?.sections.find((section) => section.title === "References")?.targets).toEqual([
+      {
+        kind: "record",
+        label: "Spell Effect: Fireball",
+        recordKey: "spells:fireball-effect",
+        action: "preview",
+      },
+    ]);
   });
 });

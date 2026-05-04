@@ -58,6 +58,12 @@ export type DerivedTagTerminalPointerEvent =
       x: number;
       y: number;
       deltaY: -1 | 1;
+    }
+  | {
+      kind: "click";
+      x: number;
+      y: number;
+      button: "left";
     };
 export type DerivedTagTerminalPointerRect = {
   x: number;

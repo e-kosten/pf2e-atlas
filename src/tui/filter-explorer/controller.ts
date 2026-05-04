@@ -284,13 +284,31 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   };
   const handleDetailPointerEvent = React.useCallback(
     (event: DerivedTagTerminalPointerEvent) => {
-      if (event.kind !== "wheel") {
-        return false;
+      if (event.kind === "click") {
+        dispatch({ type: "set_focus", pane: "detail" });
+        return true;
       }
-      dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
-      return true;
+      if (event.kind === "wheel") {
+        dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
+        return true;
+      }
+      return false;
     },
     [browserContext.maxDetailScroll, dispatch],
+  );
+  const handleListPointerEvent = React.useCallback(
+    (event: DerivedTagTerminalPointerEvent) => {
+      if (event.kind === "click") {
+        dispatch({ type: "set_focus", pane: "list" });
+        return true;
+      }
+      if (event.kind === "wheel") {
+        dispatch({ type: "move_selection", delta: event.deltaY });
+        return true;
+      }
+      return false;
+    },
+    [dispatch],
   );
 
   const baseContext = buildFilterExplorerControllerContext({
@@ -299,6 +317,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     draft,
     actionEntries: [],
     actionTargetState,
+    onListPointerEvent: handleListPointerEvent,
     onDetailPointerEvent: handleDetailPointerEvent,
     notification,
   });
@@ -311,10 +330,20 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         draft,
         actionEntries,
         actionTargetState,
+        onListPointerEvent: handleListPointerEvent,
         onDetailPointerEvent: handleDetailPointerEvent,
         notification,
       }),
-    [actionEntries, actionTargetState, browserContext, draft, handleDetailPointerEvent, notification, options],
+    [
+      actionEntries,
+      actionTargetState,
+      browserContext,
+      draft,
+      handleDetailPointerEvent,
+      handleListPointerEvent,
+      notification,
+      options,
+    ],
   );
   const interactionActions = getFilterExplorerInteractionActions(baseContext, actionEntries.length > 0);
 

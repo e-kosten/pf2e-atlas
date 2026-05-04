@@ -822,6 +822,11 @@ export function buildFilterExplorerScreenModel(
       statusLine,
     ],
     pointerRegions: {
+      list: controller.onListPointerEvent
+        ? {
+            onPointerEvent: controller.onListPointerEvent,
+          }
+        : undefined,
       detail: controller.onDetailPointerEvent
         ? {
             onPointerEvent: controller.onDetailPointerEvent,

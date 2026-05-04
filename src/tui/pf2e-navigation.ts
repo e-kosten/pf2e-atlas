@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { OntologyNodeQuery } from "../domain/ontology-types.js";
+import type { RecordKey } from "../domain/record-types.js";
 import type { SearchRequest } from "../domain/search-request-types.js";
 import {
   type DerivedTagWorkbenchMode,
@@ -20,6 +21,7 @@ import {
   canPopPf2eAppRoute,
   createPf2eAppState,
   createPf2eOntologyRoute,
+  createPf2ePageRoute,
   createPf2eSearchEditorRoute,
   createPf2eSearchResultsRoute,
   getCurrentPf2eAppRoute,
@@ -221,6 +223,7 @@ export function usePf2eNavigation({
   openOntologySearch: (intent: Pf2eOntologySearchNavigationIntent) => void;
   openOntologySearchEditor: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
   openOntologySearchResults: (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => void;
+  openEntityPage: (recordKey: RecordKey) => void;
   openSearchResults: (query: SearchRequest) => void;
   openReviewSession: (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => void;
   promptForReviewSession: (mode: DerivedTagWorkbenchMode) => void;
@@ -468,6 +471,29 @@ export function usePf2eNavigation({
     [runRouteTransition, services.user.search, state, terminal],
   );
 
+  const openEntityPage = React.useCallback(
+    (recordKey: RecordKey) => {
+      void runRouteTransition({
+        message: "Opening Entity Page...",
+        prepare: async () => {
+          const document = services.user.entityPages.buildDocumentByRecordKey(recordKey);
+          if (!document) {
+            throw new Error(`Could not load entity page for "${recordKey}".`);
+          }
+
+          return {
+            kind: "push",
+            route: createPf2ePageRoute(document),
+          };
+        },
+        onError: async (error) => {
+          await terminal.pauseForAnyKey(`Could not open entity page.\n\n${(error as Error).message}`);
+        },
+      });
+    },
+    [runRouteTransition, services.user.entityPages, terminal],
+  );
+
   const openReviewSession = React.useCallback(
     (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => {
       void runRouteTransition({
@@ -536,6 +562,7 @@ export function usePf2eNavigation({
     openOntologySearch,
     openOntologySearchEditor,
     openOntologySearchResults,
+    openEntityPage,
     openSearchResults,
     openReviewSession,
     promptForReviewSession,
