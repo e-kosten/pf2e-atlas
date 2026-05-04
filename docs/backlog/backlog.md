@@ -51,6 +51,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Query editor shortcuts and simplification](./items/query-editor-shortcuts-and-simplification.md)
   Track follow-up shortcut and simplification affordances after the verbose canonical query-tree editor lands and real friction points are visible. Status: proposed.
 
+- [LinkedFrom query editor follow-through](./items/linked-from-query-editor-follow-through.md)
+  Preserve the optional query-editor and TUI presentation follow-through for `linkedFrom` after the canonical contract work lands for entity-page backlinks. Status: proposed.
+
 - [Reference edge extraction expansion](./items/reference-edge-extraction-expansion.md)
   Preserve the follow-up to widen `reference_edges` beyond the current UUID-centered extraction path without blocking the active entity-page work. Status: proposed.
 
