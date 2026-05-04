@@ -51,6 +51,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Query editor shortcuts and simplification](./items/query-editor-shortcuts-and-simplification.md)
   Track follow-up shortcut and simplification affordances after the verbose canonical query-tree editor lands and real friction points are visible. Status: proposed.
 
+- [Reference edge extraction expansion](./items/reference-edge-extraction-expansion.md)
+  Preserve the follow-up to widen `reference_edges` beyond the current UUID-centered extraction path without blocking the active entity-page work. Status: proposed.
+
 - [Shared result grouping and presentation modes](./items/shared-result-grouping-and-presentation-modes.md)
   Explore shared grouping keys and user-cyclable presentation modes for list/detail search and explorer surfaces without regressing back into per-screen experiments. Status: deferred.
 
