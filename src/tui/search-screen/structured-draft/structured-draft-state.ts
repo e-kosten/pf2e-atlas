@@ -47,15 +47,45 @@ export function createStructuredDraftResumeTargetForContainingGroup(
   filter: SearchFilterNode | undefined,
   path: number[],
 ): StructuredDraftResumeTarget {
+  const groupPath = findStructuredDraftCanonicalGroupPath(filter, path);
+  if (groupPath) {
+    return createStructuredDraftGroupResumeTarget(groupPath);
+  }
+
+  return createStructuredDraftRootResumeTarget();
+}
+
+export function findStructuredDraftCanonicalGroupPath(
+  filter: SearchFilterNode | undefined,
+  path: readonly number[],
+): number[] | null {
   for (let depth = path.length; depth >= 0; depth -= 1) {
     const candidatePath = path.slice(0, depth);
     const node = getSearchFilterNodeAtPath(filter, candidatePath);
     if (node && isSearchFilterBooleanGroup(node)) {
-      return createStructuredDraftGroupResumeTarget(candidatePath);
+      return candidatePath;
     }
   }
 
-  return createStructuredDraftRootResumeTarget();
+  return null;
+}
+
+export function canonicalizeStructuredDraftResumeTarget(
+  filter: SearchFilterNode | undefined,
+  target: StructuredDraftResumeTarget | null | undefined,
+): StructuredDraftResumeTarget {
+  if (!target || target.kind === "root") {
+    return createStructuredDraftRootResumeTarget();
+  }
+
+  if (target.kind === "node") {
+    return getSearchFilterNodeAtPath(filter, target.path)
+      ? createStructuredDraftNodeResumeTarget(target.path)
+      : createStructuredDraftResumeTargetForContainingGroup(filter, target.path);
+  }
+
+  const groupPath = findStructuredDraftCanonicalGroupPath(filter, target.groupPath);
+  return groupPath ? createStructuredDraftGroupResumeTarget(groupPath) : createStructuredDraftRootResumeTarget();
 }
 
 export function createStructuredDraftResumeTargetForEntryContext(
@@ -159,6 +189,13 @@ export function getStructuredDraftSelectionIndexForResumeTarget(
 
   for (let depth = focusPath.length - 1; depth >= 0; depth -= 1) {
     const parentPath = focusPath.slice(0, depth);
+    const ancestorRootIndex = entries.findIndex(
+      (entry) => entry.kind === "queryTreeRoot" && pathsMatch(entry.treePath, parentPath),
+    );
+    if (ancestorRootIndex >= 0 && target?.kind === "group") {
+      return clampStructuredDraftSelection(ancestorRootIndex, entries.length);
+    }
+
     const insertionIndex = entries.findIndex(
       (entry) => entry.kind === "queryInsertionSlot" && pathsMatch(entry.insertionPath, parentPath),
     );
@@ -173,9 +210,6 @@ export function getStructuredDraftSelectionIndexForResumeTarget(
       return clampStructuredDraftSelection(ancestorNodeIndex, entries.length);
     }
 
-    const ancestorRootIndex = entries.findIndex(
-      (entry) => entry.kind === "queryTreeRoot" && pathsMatch(entry.treePath, parentPath),
-    );
     if (ancestorRootIndex >= 0) {
       return clampStructuredDraftSelection(ancestorRootIndex, entries.length);
     }

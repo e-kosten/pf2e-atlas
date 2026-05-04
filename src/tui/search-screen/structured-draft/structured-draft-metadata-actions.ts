@@ -212,16 +212,98 @@ function getSearchFilterNodeEditorValue(mutation: StructuredDraftHostMutation): 
   return null;
 }
 
-function maybeApplyReplacementNodeMutation(
-  mutation: StructuredDraftHostMutation,
-  apply: (node: MetadataFilterNode | null) => void,
+function searchFilterNodeContainsFieldValue(
+  node: SearchFilterNode | null | undefined,
+  field: Pf2eTerminalQueryFieldOption["value"],
 ): boolean {
-  if (mutation.kind !== "replaceNode") {
+  if (!node) {
     return false;
   }
-  const nextMetadataNode = mutation.node ? canonicalFilterToMetadataNode(mutation.node) : null;
-  apply(nextMetadataNode);
-  return true;
+
+  if (node.kind === "metadataPredicate") {
+    return node.predicate.field === field;
+  }
+
+  if (node.kind === "rarity" || node.kind === "actionCost" || node.kind === "pack") {
+    return node.kind === field;
+  }
+
+  if (node.kind === "metric") {
+    return inferMetricFieldFamily(node.metric) === field;
+  }
+
+  if (node.kind === "allOf" || node.kind === "anyOf") {
+    return node.children.some((child) => searchFilterNodeContainsFieldValue(child, field));
+  }
+
+  if (node.kind === "not") {
+    return searchFilterNodeContainsFieldValue(node.child, field);
+  }
+
+  return false;
+}
+
+function collectSearchFilterNodesForFieldValue(
+  node: SearchFilterNode | null | undefined,
+  field: Pf2eTerminalQueryFieldOption["value"],
+): SearchFilterNode[] {
+  if (!node) {
+    return [];
+  }
+
+  if (searchFilterNodeContainsFieldValue(node, field)) {
+    if (node.kind === "allOf" || node.kind === "anyOf") {
+      return node.children.flatMap((child) => collectSearchFilterNodesForFieldValue(child, field));
+    }
+    if (node.kind === "not") {
+      return collectSearchFilterNodesForFieldValue(node.child, field).map(
+        (child) => ({ kind: "not", child }) satisfies SearchFilterNode,
+      );
+    }
+    return [node];
+  }
+
+  return [];
+}
+
+function getAddedSearchFilterNodesForFieldValue(
+  previousFilter: SearchFilterNode | undefined,
+  nextFilter: SearchFilterNode | undefined,
+  field: Pf2eTerminalQueryFieldOption["value"],
+): SearchFilterNode[] {
+  const previousCounts = new Map<string, number>();
+  for (const node of collectSearchFilterNodesForFieldValue(previousFilter, field)) {
+    const key = JSON.stringify(node);
+    previousCounts.set(key, (previousCounts.get(key) ?? 0) + 1);
+  }
+
+  const addedNodes: SearchFilterNode[] = [];
+  for (const node of collectSearchFilterNodesForFieldValue(nextFilter, field)) {
+    const key = JSON.stringify(node);
+    const previousCount = previousCounts.get(key) ?? 0;
+    if (previousCount > 0) {
+      previousCounts.set(key, previousCount - 1);
+    } else {
+      addedNodes.push(node);
+    }
+  }
+
+  return addedNodes;
+}
+
+function structuredDraftHostMutationContainsFieldValue(
+  mutation: StructuredDraftHostMutation,
+  field: Pf2eTerminalQueryFieldOption["value"],
+): boolean {
+  if (mutation.kind === "replaceGroupedField") {
+    return mutation.field === field;
+  }
+
+  if (mutation.kind === "replaceNode") {
+    return searchFilterNodeContainsFieldValue(mutation.node, field);
+  }
+
+  return mutation.nodes.some((node) => searchFilterNodeContainsFieldValue(node, field));
 }
 
 function buildGroupedFieldSeedDiscreteClauses(
@@ -535,6 +617,105 @@ export function applyGroupedFieldReplacementToQuery(
   };
 }
 
+type StructuredDraftHostMutationTarget =
+  | { kind: "appendNodes"; groupPath: number[] }
+  | { kind: "replaceNode"; path: number[] }
+  | {
+      kind: "replaceGroupedField";
+      groupPath: number[];
+      field: string;
+      fieldMemberPaths: readonly number[][];
+      replacementNodes: readonly SearchFilterNode[];
+      replaceRoot?: boolean;
+    };
+
+type StructuredDraftHostMutationApplication = {
+  nextQuery: Pf2eTerminalSearchQuery;
+  resumeTarget: StructuredDraftResumeTarget | null;
+};
+
+export function applyStructuredDraftHostMutationToQuery(
+  query: Pf2eTerminalSearchQuery,
+  mutation: StructuredDraftHostMutation,
+  target: StructuredDraftHostMutationTarget,
+): StructuredDraftHostMutationApplication | null {
+  if (mutation.kind !== target.kind) {
+    return null;
+  }
+
+  if (mutation.kind === "appendNodes" && target.kind === "appendNodes") {
+    const nextFilter = appendSearchFilterNodesAtPath(
+      query.filter,
+      target.groupPath,
+      mutation.nodes,
+      getSearchQueryRootOperator(query),
+    );
+    return {
+      nextQuery: {
+        ...query,
+        filter: nextFilter,
+      },
+      resumeTarget: createStructuredDraftGroupResumeTarget(target.groupPath),
+    };
+  }
+
+  if (mutation.kind === "replaceNode" && target.kind === "replaceNode") {
+    const nextFilter = updateSearchFilterNodeAtPath(query.filter, target.path, () => mutation.node ?? undefined);
+    const nextQuery = {
+      ...query,
+      filter: nextFilter,
+    };
+    return {
+      nextQuery,
+      resumeTarget: mutation.node
+        ? createStructuredDraftResumeTargetForContainingGroup(nextFilter, target.path)
+        : createStructuredDraftGroupResumeTarget(getContainingBooleanGroupPath(query.filter, target.path)),
+    };
+  }
+
+  if (mutation.kind === "replaceGroupedField" && target.kind === "replaceGroupedField") {
+    if (target.replaceRoot) {
+      const nextFilter =
+        target.replacementNodes.length === 0
+          ? undefined
+          : target.replacementNodes.length === 1
+            ? target.replacementNodes[0]
+            : ({
+                kind: getSearchQueryRootOperator(query),
+                children: [...target.replacementNodes],
+              } satisfies SearchFilterNode);
+      return {
+        nextQuery: {
+          ...query,
+          filter: nextFilter,
+        },
+        resumeTarget:
+          nextFilter && target.replacementNodes.length > 0
+            ? createStructuredDraftResumeTargetForContainingGroup(
+                nextFilter,
+                getFirstGroupedFieldMemberPath(nextFilter, [], target.field) ?? [],
+              )
+            : createStructuredDraftGroupResumeTarget([]),
+      };
+    }
+    const { nextFocusPath, nextQuery } = applyGroupedFieldReplacementToQuery(
+      query,
+      target.groupPath,
+      target.field,
+      target.fieldMemberPaths,
+      target.replacementNodes,
+    );
+    return {
+      nextQuery,
+      resumeTarget: nextFocusPath
+        ? createStructuredDraftResumeTargetForContainingGroup(nextQuery.filter, nextFocusPath)
+        : createStructuredDraftGroupResumeTarget(target.groupPath),
+    };
+  }
+
+  return null;
+}
+
 function buildInsertionActionEntries(
   moveMode: boolean,
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
@@ -747,7 +928,7 @@ export function useSearchStructuredDraftMetadataActions({
   setStructuredDraftResumeTarget,
   structuredDraftQuery,
   terminal,
-  updateStructuredDraftMetadataNode,
+  updateStructuredDraftMetadataNode: _updateStructuredDraftMetadataNode,
   user,
 }: {
   appendStructuredDraftMetadataNode: (path: number[], nextNode: MetadataFilterNode) => void;
@@ -836,13 +1017,17 @@ export function useSearchStructuredDraftMetadataActions({
     ) => {
       const liveChangeState = { saw: false };
       const applyChange = ({ mutation }: StructuredDraftContinuationChange) => {
-        const applied = maybeApplyReplacementNodeMutation(mutation, (nextNode) => {
-          updateStructuredDraftMetadataNode(path, () => nextNode);
+        const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
+          kind: "replaceNode",
+          path,
         });
-        if (!applied) {
+        if (!application) {
           return;
         }
         liveChangeState.saw = true;
+        replaceStructuredDraftProjection(() => application.nextQuery, {
+          resumeTarget: application.resumeTarget,
+        });
       };
       setStructuredDraftResumeTarget(createStructuredDraftNodeResumeTarget(path));
       const continuation = await openStructuredDraftExplorerContinuation({
@@ -862,7 +1047,7 @@ export function useSearchStructuredDraftMetadataActions({
         applyChange(continuation.change);
       }
     },
-    [openStructuredDraftExplorerContinuation, setStructuredDraftResumeTarget, updateStructuredDraftMetadataNode],
+    [openStructuredDraftExplorerContinuation, replaceStructuredDraftProjection, setStructuredDraftResumeTarget],
   );
 
   const openLiveExplorerGroupedField = React.useCallback(
@@ -910,17 +1095,18 @@ export function useSearchStructuredDraftMetadataActions({
         const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, mutation.fieldState, fieldOption, {
           preserveFlatSetClauses: fieldMemberPaths.length > 0,
         });
-        const { nextFocusPath, nextQuery } = applyGroupedFieldReplacementToQuery(
-          query,
+        const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
+          kind: "replaceGroupedField",
           groupPath,
           field,
           fieldMemberPaths,
           replacementNodes,
-        );
-        replaceStructuredDraftProjection(() => nextQuery, {
-          resumeTarget: nextFocusPath
-            ? createStructuredDraftResumeTargetForContainingGroup(nextQuery.filter, nextFocusPath)
-            : createStructuredDraftGroupResumeTarget(groupPath),
+        });
+        if (!application) {
+          return;
+        }
+        replaceStructuredDraftProjection(() => application.nextQuery, {
+          resumeTarget: application.resumeTarget,
         });
       };
       const continuation = await openStructuredDraftExplorerContinuation({
@@ -1000,27 +1186,20 @@ export function useSearchStructuredDraftMetadataActions({
           }
           liveChangeState.saw = true;
           const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, mutation.fieldState, fieldOption);
-          const nextFilter =
-            replacementNodes.length === 0
-              ? undefined
-              : replacementNodes.length === 1
-                ? replacementNodes[0]
-                : ({ kind: getSearchQueryRootOperator(query), children: replacementNodes } satisfies SearchFilterNode);
-          replaceStructuredDraftProjection(
-            () => ({
-              ...query,
-              filter: nextFilter,
-            }),
-            {
-              resumeTarget:
-                nextFilter && replacementNodes.length > 0
-                  ? createStructuredDraftResumeTargetForContainingGroup(
-                      nextFilter,
-                      getFirstGroupedFieldMemberPath(nextFilter, [], fieldOption.value) ?? [],
-                    )
-                  : createStructuredDraftGroupResumeTarget([]),
-            },
-          );
+          const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
+            kind: "replaceGroupedField",
+            groupPath: [],
+            field: fieldOption.value,
+            fieldMemberPaths: [],
+            replacementNodes,
+            replaceRoot: true,
+          });
+          if (!application) {
+            return;
+          }
+          replaceStructuredDraftProjection(() => application.nextQuery, {
+            resumeTarget: application.resumeTarget,
+          });
         };
         const continuation = await openStructuredDraftExplorerContinuation({
           query: seedQuery,
@@ -1117,15 +1296,35 @@ export function useSearchStructuredDraftMetadataActions({
         }
 
         if (fieldOption.editor === "sharedExplorer") {
+          const initialFieldState = buildSearchFilterExplorerFieldState(
+            user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).draft,
+          );
           const continuation = await openStructuredDraftExplorerContinuation({
             query,
             fieldOption,
             currentNode,
+            initialFieldState,
           });
           if (continuation.kind === "cancel" || continuation.kind === "notOpened") {
             return structuredDraftPromptCancel();
           }
-          if (!continuation.change) {
+          const addedQueryFieldNodes = continuation.change
+            ? getAddedSearchFilterNodesForFieldValue(query.filter, continuation.change.query.filter, fieldOption.value)
+            : [];
+          if (
+            continuation.change &&
+            !structuredDraftHostMutationContainsFieldValue(continuation.change.mutation, fieldOption.value) &&
+            addedQueryFieldNodes.length > 0
+          ) {
+            return structuredDraftPromptApply(
+              addedQueryFieldNodes.length === 1 ? addedQueryFieldNodes[0]! : addedQueryFieldNodes,
+            );
+          }
+          if (
+            !continuation.change ||
+            (searchFilterExplorerFieldStatesEqual(continuation.change.fieldState, initialFieldState) &&
+              !structuredDraftHostMutationContainsFieldValue(continuation.change.mutation, fieldOption.value))
+          ) {
             return structuredDraftPromptBack();
           }
 
@@ -1912,30 +2111,32 @@ export function useSearchStructuredDraftMetadataActions({
                       : nextNodeValue,
                   } as SearchFilterNode)
                 : nextNodeValue;
-          const nextFilter = Array.isArray(wrappedNode)
-            ? appendSearchFilterNodesAtPath(
-                workingQuery.filter,
-                path,
-                wrappedNode,
-                getSearchQueryRootOperator(workingQuery),
-              )
-            : appendSearchFilterNodeAtPath(
-                workingQuery.filter,
-                path,
-                wrappedNode,
-                getSearchQueryRootOperator(workingQuery),
-              );
-          applyNextTree(nextFilter);
+          const application = applyStructuredDraftHostMutationToQuery(
+            workingQuery,
+            {
+              kind: "appendNodes",
+              nodes: Array.isArray(wrappedNode) ? wrappedNode : [wrappedNode],
+            },
+            {
+              kind: "appendNodes",
+              groupPath: path,
+            },
+          );
+          if (application) {
+            replaceStructuredDraftProjection(() => application.nextQuery, {
+              resumeTarget: application.resumeTarget,
+            });
+          }
           return "applied";
         }
       });
     },
     [
-      applyNextTree,
       getScopedFieldOptions,
       openLiveExplorerGroupFieldByName,
       promptForClauseKind,
       promptForClauseNode,
+      replaceStructuredDraftProjection,
       terminal,
     ],
   );
@@ -1986,15 +2187,17 @@ export function useSearchStructuredDraftMetadataActions({
           selectedValue: entries[0]?.id ?? "addClause",
         });
         if (result.kind !== "selected") {
+          setStructuredDraftResumeTarget(createStructuredDraftGroupResumeTarget(path));
           return;
         }
         const insertionResult = await runInsertionAction(query, path, result.value);
         if (insertionResult !== "back") {
           return;
         }
+        setStructuredDraftResumeTarget(createStructuredDraftGroupResumeTarget(path));
       }
     },
-    [moveSourcePath, runInsertionAction],
+    [moveSourcePath, runInsertionAction, setStructuredDraftResumeTarget],
   );
 
   const runRootAction = React.useCallback(
@@ -2197,7 +2400,22 @@ export function useSearchStructuredDraftMetadataActions({
           }
           const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
           if (nextNode !== undefined) {
-            updateStructuredDraftMetadataNode(path, () => nextNode);
+            const application = applyStructuredDraftHostMutationToQuery(
+              query,
+              {
+                kind: "replaceNode",
+                node: nextNode ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null) : null,
+              },
+              {
+                kind: "replaceNode",
+                path,
+              },
+            );
+            if (application) {
+              replaceStructuredDraftProjection(() => application.nextQuery, {
+                resumeTarget: application.resumeTarget,
+              });
+            }
           }
           return;
         }
@@ -2208,12 +2426,23 @@ export function useSearchStructuredDraftMetadataActions({
         if (nextNode.kind !== "apply" || Array.isArray(nextNode.value)) {
           return;
         }
-        if (nextNode.value === null) {
-          applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => undefined));
+        const application = applyStructuredDraftHostMutationToQuery(
+          query,
+          {
+            kind: "replaceNode",
+            node: nextNode.value,
+          },
+          {
+            kind: "replaceNode",
+            path,
+          },
+        );
+        if (!application) {
           return;
         }
-        const nextNodeValue = nextNode.value;
-        applyNextTree(updateSearchFilterNodeAtPath(query.filter, path, () => nextNodeValue));
+        replaceStructuredDraftProjection(() => application.nextQuery, {
+          resumeTarget: application.resumeTarget,
+        });
         return;
       }
 
@@ -2250,8 +2479,8 @@ export function useSearchStructuredDraftMetadataActions({
       openLiveExplorerCanonicalFieldMember,
       openLiveExplorerFieldClause,
       promptForClauseNode,
+      replaceStructuredDraftProjection,
       terminal,
-      updateStructuredDraftMetadataNode,
     ],
   );
 

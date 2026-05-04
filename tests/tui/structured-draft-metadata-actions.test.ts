@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getSearchQueryCategory } from "../../src/tui/search/query-state.js";
 import {
+  applyStructuredDraftHostMutationToQuery,
   applyGroupedFieldReplacementToQuery,
   buildGroupedFieldSeedState,
 } from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
@@ -259,5 +260,68 @@ describe("structured draft grouped explorer helpers", () => {
     expect(nextQuery.filter).toEqual(
       allOfFilter([scopeFilter("rule", "action"), { kind: "actionCost", match: { kind: "eq", value: 2 } }]),
     );
+  });
+
+  it("applies prompt-built additions through the bounded host mutation applier", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })]),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "appendNodes",
+        nodes: [{ kind: "level", match: { kind: "gte", value: 5 } }],
+      },
+      {
+        kind: "appendNodes",
+        groupPath: [1],
+      },
+    );
+
+    expect(application?.nextQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+          { kind: "level", match: { kind: "gte", value: 5 } },
+        ]),
+      ]),
+    );
+    expect(application?.resumeTarget).toEqual({ kind: "group", groupPath: [1] });
+  });
+
+  it("applies exact leaf edits through the same bounded host mutation applier", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "replaceNode",
+        node: metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+      },
+      {
+        kind: "replaceNode",
+        path: [1],
+      },
+    );
+
+    expect(application?.nextQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+      ]),
+    );
+    expect(application?.resumeTarget).toEqual({ kind: "group", groupPath: [] });
   });
 });

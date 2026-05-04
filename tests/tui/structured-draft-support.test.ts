@@ -259,4 +259,49 @@ describe("structured draft support", () => {
       0,
     );
   });
+
+  it("does not project a stale not-wrapped group target as the active group", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "creature", subcategory: { kind: "any" } },
+          {
+            kind: "not",
+            child: {
+              kind: "allOf",
+              children: [
+                { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "aquatic" } },
+                { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "amphibious" } },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([1]), {
+      groupedFieldValues: new Set(["traits"]),
+    });
+
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryTreeRoot",
+        treePath: [],
+      }),
+    );
+    expect(entries).not.toContainEqual(
+      expect.objectContaining({
+        kind: "queryTreeRoot",
+        treePath: [1],
+      }),
+    );
+    expect(entries).not.toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [1],
+      }),
+    );
+  });
 });

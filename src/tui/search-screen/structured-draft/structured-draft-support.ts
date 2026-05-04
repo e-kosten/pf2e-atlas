@@ -12,6 +12,7 @@ import { getSearchQueryCategory, getSearchQueryRootOperator } from "../../search
 import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import { projectSearchQueryFilter, type Pf2eTerminalSearchQueryBase } from "../../search/query-projection.js";
 import {
+  canonicalizeStructuredDraftResumeTarget,
   createStructuredDraftGroupResumeTarget,
   type StructuredDraftResumeTarget,
 } from "./structured-draft-state.js";
@@ -447,8 +448,11 @@ export function buildStructuredDraftEntries(
   },
 ): SearchStructuredDraftEntry[] {
   const draftCategory = getSearchQueryCategory(draftQuery);
-  const activeGroupPath = resumeTarget?.kind === "group" ? resumeTarget.groupPath : null;
-  const nodeFocusPath = resumeTarget?.kind === "node" ? resumeTarget.path : null;
+  const canonicalResumeTarget = resumeTarget
+    ? canonicalizeStructuredDraftResumeTarget(draftQuery.filter, resumeTarget)
+    : null;
+  const activeGroupPath = canonicalResumeTarget?.kind === "group" ? canonicalResumeTarget.groupPath : null;
+  const nodeFocusPath = canonicalResumeTarget?.kind === "node" ? canonicalResumeTarget.path : null;
   const entries: SearchStructuredDraftEntry[] = [
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,

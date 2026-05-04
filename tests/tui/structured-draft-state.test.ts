@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildStructuredDraftEntries } from "../../src/tui/search-screen/structured-draft/structured-draft-support.js";
 import {
+  canonicalizeStructuredDraftResumeTarget,
   createStructuredDraftGroupResumeTarget,
   createStructuredDraftNodeResumeTarget,
   createStructuredDraftResumeTargetForContainingGroup,
@@ -205,6 +206,63 @@ describe("structured draft resume target state", () => {
     };
 
     expect(createStructuredDraftResumeTargetForNodePath(query.filter, [1])).toEqual({
+      kind: "group",
+      groupPath: [1],
+    });
+  });
+
+  it("canonicalizes stale group targets to the containing valid group after a unary not wrap", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        notFilter(
+          allOfFilter([
+            metadataPredicateFilter({ field: "traits", op: "includes", value: "aquatic" }),
+            packFilter("monster-core"),
+          ]),
+        ),
+      ]),
+    };
+    const staleTarget = createStructuredDraftGroupResumeTarget([1]);
+    const entries = buildEntries(query, staleTarget);
+
+    expect(canonicalizeStructuredDraftResumeTarget(query.filter, staleTarget)).toEqual({
+      kind: "group",
+      groupPath: [],
+    });
+    expect(selectedEntry(entries, staleTarget)).toMatchObject({
+      kind: "queryTreeRoot",
+      treePath: [],
+    });
+    expect(entries).not.toContainEqual(
+      expect.objectContaining({
+        kind: "queryTreeRoot",
+        treePath: [1],
+      }),
+    );
+  });
+
+  it("canonicalizes stale nested group targets to the nearest containing valid group", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        anyOfFilter([
+          notFilter(
+            allOfFilter([
+              metadataPredicateFilter({ field: "traits", op: "includes", value: "aquatic" }),
+              packFilter("monster-core"),
+            ]),
+          ),
+          packFilter("pathfinder-npc-core"),
+        ]),
+      ]),
+    };
+
+    expect(
+      canonicalizeStructuredDraftResumeTarget(query.filter, createStructuredDraftGroupResumeTarget([1, 0])),
+    ).toEqual({
       kind: "group",
       groupPath: [1],
     });

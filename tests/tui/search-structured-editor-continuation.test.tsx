@@ -35,8 +35,10 @@ import {
   allOfFilter,
   anyOfFilter,
   browseQuery,
+  levelFilter,
   metadataPredicateFilter,
   metricCompareFilter,
+  packFilter,
   notFilter,
   rarityFilter,
   scopeFilter,
@@ -60,8 +62,11 @@ Structured editor continuation host-flow coverage matrix.
 | mixed field-family continuation | keeps trait and family continuations flat in one group-local host flow |
 | reopen after continuation | keeps grouped add-here trait continuations canonical and stable across reopen |
 | move/lift/unwrap/remove/toggle-root after prior grouped edits | keeps structural follow-through actions stable after grouped edits |
+| host-level root toggle after grouped edits | keeps host structural root toggles and unwrap flat after grouped edits and reopen |
+| host-level nested unwrap after grouped edits | keeps host structural root toggles and unwrap flat after grouped edits and reopen |
 | focus restoration after structural reshapes | keeps structural follow-through actions stable after grouped edits |
 | scalar/metric follow-through range entry | recovers from invalid scalar input and then commits an action-cost range |
+| scalar/metric cancel/back follow-through | keeps metric q and repeated-back cancellation from mutating grouped trees |
 | invalid input recovery | recovers from invalid scalar input and then commits an action-cost range |
 | action-cost shared-explorer leaf edit | edits action-cost leaves through the shared explorer without query-global replacement |
 | canonical and visible-tree expectations | every host-flow test pairs visible frame assertions with canonical filter assertions where practical |
@@ -94,6 +99,10 @@ function pressUp(app: ReturnType<typeof render>): void {
 
 function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
+}
+
+function pressEnter(app: ReturnType<typeof render>): void {
+  app.stdin.write("\r");
 }
 
 function createTestConfig(): AppConfig {
@@ -529,6 +538,106 @@ function createCreatureStructuredExplorerDomain(): OntologyDomainModel {
   };
 }
 
+function createEquipmentStructuredExplorerDomain(): OntologyDomainModel {
+  return {
+    id: "searchSemantics",
+    label: "Equipment",
+    description: "Equipment structured explorer test domain",
+    rootNodes: [
+      {
+        id: "searchSemantics:equipment",
+        kind: "category",
+        label: "Equipment",
+        shortLabel: "equipment",
+        filterText: "equipment",
+        detailTitle: "Equipment",
+        detailLines: [{ text: "Equipment", tone: "section" }],
+        children: [
+          {
+            id: "equipment:metadataFields",
+            kind: "group",
+            label: "Metadata Fields",
+            filterText: "metadata fields",
+            detailTitle: "Metadata Fields",
+            detailLines: [{ text: "Metadata Fields", tone: "section" }],
+            children: [
+              {
+                id: "equipment:field:traits",
+                kind: "field",
+                label: "Traits",
+                filterText: "traits",
+                listLabel: "Traits",
+                detailTitle: "Metadata Field Details",
+                detailLines: [{ text: "Traits", tone: "section" }],
+                childPresentation: { mode: "grouped", groupBy: "family", render: "inline" },
+                children: ["magical", "consumable", "cursed"].map((value) => ({
+                  id: `equipment:traits:${value}`,
+                  kind: "trait",
+                  label: value,
+                  filterText: value,
+                  listLabel: value,
+                  detailTitle: "Trait Details",
+                  detailLines: [{ text: value, tone: "section" }],
+                  groupValues: { family: "traits" },
+                  selection: {
+                    field: "traits",
+                    fieldLabel: "Traits",
+                    value,
+                    allowedStates: ["any", "all", "exclude"],
+                  },
+                })),
+              },
+            ],
+          },
+          {
+            id: "equipment:itemMetrics:discovery",
+            kind: "group",
+            label: "Equipment Statistics",
+            filterText: "equipment statistics metrics",
+            listLabel: "Equipment Statistics",
+            detailTitle: "Equipment Statistics",
+            detailLines: [{ text: "Equipment Statistics", tone: "section" }],
+            children: [
+              {
+                id: "equipment:itemMetrics:bulk.",
+                kind: "metricNamespace",
+                label: "bulk.",
+                filterText: "bulk carried item bulk",
+                listLabel: "bulk. | 1 metric",
+                detailTitle: "Metric Namespace",
+                detailLines: [{ text: "bulk.", tone: "section" }],
+                children: [
+                  {
+                    id: "equipment:itemMetrics:bulk.value",
+                    kind: "metric",
+                    label: "Bulk Value",
+                    filterText: "bulk value",
+                    listLabel: "Bulk Value | 3",
+                    detailTitle: "Metric Details",
+                    detailLines: [{ text: "Bulk Value", tone: "section" }],
+                    query: browseQuery("Browse equipment by bulk", {
+                      filter: allOfFilter([
+                        scopeFilter("equipment"),
+                        {
+                          kind: "metric",
+                          metric: "bulk.value",
+                          op: "gte",
+                          value: 1,
+                        },
+                      ]),
+                      limit: 20,
+                    }),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainModel {
   const domain = createFacetPickerOntologyDomain();
   const metadataFields = domain.rootNodes[0]?.children?.[0];
@@ -645,6 +754,24 @@ async function openTraitsExplorerFromAddHere(app: ReturnType<typeof render>): Pr
   await waitForFrameToContain(app, "Traits Explorer", 60);
 }
 
+async function openMetricExplorerFromAddHere(app: ReturnType<typeof render>, title: string): Promise<void> {
+  pressEnter(app);
+  await waitForFrameToContain(app, "Add Clause", 60);
+  pressDown(app);
+  await flushInk();
+  pressDown(app);
+  await flushInk();
+  pressEnter(app);
+  await flushInk();
+  await flushInk();
+  expect(app.lastFrame()).toContain("Metric");
+  expect(app.lastFrame()).toContain(title);
+  pressEnter(app);
+  await flushInk();
+  await flushInk();
+  await waitForFrameToContain(app, `${title} Explorer`, 60);
+}
+
 async function addRootTraitGroup(app: ReturnType<typeof render>): Promise<void> {
   await openTraitsExplorerFromAddHere(app);
   await waitForFrameToContain(app, "archetype", 120);
@@ -685,6 +812,36 @@ function lastListRequest(listRecords: ListRecordsFn): SearchRequest {
   return request;
 }
 
+async function openStructuredActionMenuMatching(
+  app: ReturnType<typeof render>,
+  matches: (frame: string) => boolean,
+  attempts = 10,
+): Promise<string> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    pressEnter(app);
+    await flushInk();
+    await flushInk();
+    const actionFrame = app.lastFrame();
+    if (matches(actionFrame)) {
+      return actionFrame;
+    }
+    pressLeft(app);
+    await waitForFrameToContain(app, "Structured Query Editor", 60);
+    pressDown(app);
+    await flushInk();
+  }
+  throw new Error(`Could not find matching structured action menu.\n\n${app.lastFrame()}`);
+}
+
+async function runCurrentActionByOffset(app: ReturnType<typeof render>, offset: number): Promise<void> {
+  for (let step = 0; step < offset; step += 1) {
+    pressDown(app);
+    await flushInk();
+  }
+  pressEnter(app);
+  await waitForFrameToContain(app, "Structured Query Editor", 60);
+}
+
 function structuredEntriesFor(
   filter: SearchFilterNode | undefined,
   resumeTarget: StructuredDraftResumeTarget,
@@ -710,6 +867,68 @@ function expectProjectedTraitBucket(filter: SearchFilterNode | undefined): void 
       field: "traits",
     }),
   );
+}
+
+function expectNoDuplicateGroupedTraitProjection(frame: string, expectedTraitRows: number): void {
+  const visibleTraitRows = frame
+    .split("\n")
+    .map((line) => line.slice(0, 32))
+    .filter((line) => /^[│ ]*[├└]─/.test(line) && line.includes("Traits:"));
+  expect(visibleTraitRows).toHaveLength(expectedTraitRows);
+  expect(frame.match(/^├─ All of$/m)).toBeNull();
+  expect(frame.match(/^├─ Any of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ All of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ Any of$/m)).toBeNull();
+}
+
+function createMetricRegressionFilter(): SearchFilterNode {
+  return allOfFilter([
+    packFilter("pathfinder-equipment-core"),
+    scopeFilter("equipment"),
+    levelFilter({ kind: "gt", value: 3 }),
+    anyOfFilter([
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "magical" }),
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "consumable" }),
+    ]),
+    notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "cursed" })),
+  ])!;
+}
+
+function createMetricRegressionServices(listRecords: ListRecordsFn): Pf2eTerminalAppServices {
+  const services = createServices({ listRecords });
+  services.user.search.getQueryFieldOptions = vi.fn(() => [
+    {
+      value: "traits",
+      label: "Traits",
+      description: "Trait query field for the current browse scope.",
+      fieldType: "set",
+      editor: "sharedExplorer",
+    },
+    {
+      value: "itemMetric",
+      label: "Equipment Statistics",
+      description: "Browse live equipment metrics.",
+      fieldType: "enumString",
+      editor: "sharedExplorer",
+    },
+  ]);
+  services.user.search.getPackLabel = vi.fn((packValue: string) =>
+    packValue === "pathfinder-equipment-core" ? "Pathfinder Equipment Core" : packValue,
+  );
+  services.user.search.loadMetricKeyOptions = vi.fn(async (_query, field) =>
+    field === "itemMetric"
+      ? [
+          {
+            value: "bulk.value",
+            label: "bulk.value",
+            description: "3 matching canonical records.",
+            count: 3,
+          },
+        ]
+      : [],
+  );
+  services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createEquipmentStructuredExplorerDomain());
+  return services;
 }
 
 describe("search structured editor continuation", () => {
@@ -929,6 +1148,75 @@ describe("search structured editor continuation", () => {
     );
   });
 
+  it("keeps metric q and repeated-back cancellation from mutating grouped trees", async () => {
+    const expectedFilter = createMetricRegressionFilter();
+    const createListRecords = () =>
+      vi.fn((request: SearchRequest) => ({
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: request.sort ?? "alphabetical",
+        total: 1,
+        offset: request.offset ?? 0,
+        limit: request.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [createRecord({ category: "equipment", type: "equipment", packName: "equipment" })],
+      })) satisfies ListRecordsFn;
+
+    const qListRecords = createListRecords();
+    const qServices = createMetricRegressionServices(qListRecords);
+    const qApp = renderSearch(
+      qServices,
+      browseQuery("Browse reported equipment", { filter: expectedFilter, limit: 20 }).request,
+    );
+
+    await openStructuredQueryEditor(qApp);
+    expect(qApp.lastFrame()).toContain("Pack: Pathfinder Equipment Core");
+    expect(qApp.lastFrame()).toContain("Scope: Equipment");
+    expect(qApp.lastFrame()).toContain("Level: > 3");
+    expect(qApp.lastFrame()).toContain("Traits: Include consumable,");
+    expect(qApp.lastFrame()).toContain("Traits: !cursed");
+    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 2);
+
+    await openMetricExplorerFromAddHere(qApp, "Equipment Statistics");
+    await waitForFrameToContain(qApp, "bulk.", 120);
+    qApp.stdin.write("q");
+    await waitForFrameToContain(qApp, "Structured Query Editor", 60);
+
+    expect(qApp.lastFrame()).toContain("Traits: Include consumable,");
+    expect(qApp.lastFrame()).toContain("Traits: !cursed");
+    expect(qApp.lastFrame()).not.toContain("Equipment Statistics: bulk");
+    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 2);
+    await executeCurrentBrowseQuery(qApp);
+    expect(lastListRequest(qListRecords).filter).toEqual(expectedFilter);
+
+    cleanup();
+
+    const backListRecords = createListRecords();
+    const backServices = createMetricRegressionServices(backListRecords);
+    const backApp = renderSearch(
+      backServices,
+      browseQuery("Browse reported equipment", { filter: expectedFilter, limit: 20 }).request,
+    );
+
+    await openStructuredQueryEditor(backApp);
+    await openMetricExplorerFromAddHere(backApp, "Equipment Statistics");
+    await waitForFrameToContain(backApp, "bulk.", 120);
+    for (let step = 0; step < 4 && !backApp.lastFrame().includes("Structured Query Editor"); step += 1) {
+      pressLeft(backApp);
+      await flushInk();
+    }
+    await waitForFrameToContain(backApp, "Structured Query Editor", 60);
+
+    expect(backApp.lastFrame()).toContain("Pack: Pathfinder Equipment Core");
+    expect(backApp.lastFrame()).toContain("Traits: Include consumable,");
+    expect(backApp.lastFrame()).toContain("Traits: !cursed");
+    expect(backApp.lastFrame()).not.toContain("Equipment Statistics: bulk");
+    expectNoDuplicateGroupedTraitProjection(backApp.lastFrame(), 2);
+    await executeCurrentBrowseQuery(backApp);
+    expect(lastListRequest(backListRecords).filter).toEqual(expectedFilter);
+  });
+
   it("edits action-cost leaves through the shared explorer without query-global replacement", async () => {
     const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
       searchProfile: null,
@@ -1078,6 +1366,85 @@ describe("search structured editor continuation", () => {
       kind: "queryTreeRoot",
       treePath: [1],
     });
+  });
+
+  it("keeps host structural root toggles and unwrap flat after grouped edits and reopen", async () => {
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord()],
+    }));
+    const services = createServices({ listRecords });
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createStructuredTraitsExplorerDomain(["archetype", "dedication", "concentrate"]),
+    );
+
+    const app = renderSearch(
+      services,
+      browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    await addRootTraitGroup(app);
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    app.stdin.write("g");
+    await flushInk();
+    app.stdin.write("g");
+    await flushInk();
+
+    await openStructuredActionMenuMatching(
+      app,
+      (frame) => frame.includes("Root Group") && frame.includes("Change Root To Any of"),
+    );
+    await runCurrentActionByOffset(app, 4);
+    expect(app.lastFrame()).toContain("Query Logic: Any of (3 filters)");
+
+    await openStructuredActionMenuMatching(
+      app,
+      (frame) => frame.includes("Boolean Group") && frame.includes("Unwrap Group"),
+    );
+    await runCurrentActionByOffset(app, 7);
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(
+      anyOfFilter([
+        scopeFilter("spell"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+        notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+      ]),
+    );
   });
 
   it("recovers from invalid scalar input and then commits an action-cost range", async () => {
