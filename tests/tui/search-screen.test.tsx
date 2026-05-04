@@ -4420,9 +4420,12 @@ describe("search screen", () => {
   it("adds rarity before selecting a scope", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => []);
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(async () =>
       createStructuredCreatureTraitsRarityExplorerDomain(),
     );
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => {
+      throw new Error("unscoped rarity should not use category-scoped filter explorer loading");
+    });
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -4446,6 +4449,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Top-level filters: 1");
     expect(app.lastFrame()).not.toContain("Scope:");
+    expect(services.user.ontology.loadSearchSemanticsDomain).toHaveBeenCalled();
+    expect(services.user.ontology.loadSearchFilterExplorerDomain).not.toHaveBeenCalled();
   });
 
   it("adds pack before selecting a scope", async () => {
@@ -4455,9 +4460,12 @@ describe("search screen", () => {
     services.user.search.getPackLabel = vi.fn((packValue: string) =>
       packValue === "pathfinder-npc-core" ? "Pathfinder NPC Core" : packValue,
     );
-    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+    services.user.ontology.loadSearchSemanticsDomain = vi.fn(async () =>
       createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(),
     );
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => {
+      throw new Error("unscoped pack should not use category-scoped filter explorer loading");
+    });
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -4481,6 +4489,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
     expect(app.lastFrame()).toContain("Top-level filters: 1");
     expect(app.lastFrame()).not.toContain("Scope:");
+    expect(services.user.ontology.loadSearchSemanticsDomain).toHaveBeenCalled();
+    expect(services.user.ontology.loadSearchFilterExplorerDomain).not.toHaveBeenCalled();
   });
 
   it("keeps the tree flat after reopening a mixed trait and family query", async () => {

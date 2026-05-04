@@ -116,10 +116,12 @@ export function useSearchFilterExplorerWorkflow({
         const request = services.search.normalizeQuery(currentQueryRef.current);
         const requestCategory = getSearchQueryCategory(request);
         const requestSubcategory = getSearchQuerySubcategory(request);
-        const preparedDomain = await services.ontology.loadSearchFilterExplorerDomain({
-          request,
-          discoveryMode,
-        });
+        const preparedDomain = requestCategory
+          ? await services.ontology.loadSearchFilterExplorerDomain({
+              request,
+              discoveryMode,
+            })
+          : await services.ontology.loadSearchSemanticsDomain({ discoveryMode });
         return buildSearchFilterExplorerModel(preparedDomain, {
           category: requestCategory ?? scopeCategory,
           subcategory: requestSubcategory ?? scopeSubcategory,
