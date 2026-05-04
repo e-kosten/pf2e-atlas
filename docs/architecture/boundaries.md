@@ -173,6 +173,7 @@ First, TUI feature code should consume explicit facades such as:
 - `src/tui/app-services.ts`
 - `src/tui/search/service.ts`
 - `src/app/ontology-service.ts`
+- `src/app/page-relations-service.ts`
 - `src/app/search-discovery-service.ts` through the app-services wiring for shared discovery behavior
 - tag workbench services routed through `app-services`
 

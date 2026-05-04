@@ -1,6 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
+import type { PageReferenceEdge } from "../domain/page-relations-types.js";
+import type { RecordKey } from "../domain/record-types.js";
 import {
   buildCandidateCountQuery,
   buildCandidateKeyQuery,
@@ -186,6 +188,37 @@ export function fetchReferenceEdgeRows(
         WHERE ${keyColumn} IN (${placeholders})
         ${targetFilter}
         ${backlinkFilter}
+      `,
+    )
+    .all(...recordKeys) as ReferenceEdgeRow[];
+}
+
+export function fetchPageReferenceEdgeRows(
+  db: DatabaseSync,
+  direction: PageReferenceEdge["direction"],
+  recordKeys: readonly RecordKey[],
+): ReferenceEdgeRow[] {
+  if (recordKeys.length === 0) {
+    return [];
+  }
+
+  const placeholders = buildPlaceholders(recordKeys);
+  const keyColumn = direction === "outgoing" ? "re.from_record_key" : "re.to_record_key";
+
+  return db
+    .prepare(
+      `
+        SELECT
+          re.from_record_key AS fromRecordKey,
+          re.to_record_key AS toRecordKey,
+          re.display_text AS displayText,
+          re.reference_text AS referenceText,
+          re.from_pack_name AS fromPackName,
+          re.from_record_type AS fromRecordType,
+          re.from_document_type AS fromDocumentType,
+          re.from_source_category AS fromSourceCategory
+        FROM reference_edges re
+        WHERE ${keyColumn} IN (${placeholders})
       `,
     )
     .all(...recordKeys) as ReferenceEdgeRow[];

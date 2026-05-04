@@ -2,6 +2,8 @@ import type { SearchCategory, SearchSubcategory } from "./search-types.js";
 import type { ActorMetricMap } from "./actor-metrics.js";
 import type { ItemMetricMap } from "./item-metrics.js";
 
+export type RecordKey = string;
+
 export interface PackManifestEntry {
   name: string;
   label: string;
@@ -19,7 +21,7 @@ export interface PackInfo {
 }
 
 export interface LinkedRecordSummary {
-  recordKey: string;
+  recordKey: RecordKey;
   name: string;
 }
 
@@ -29,12 +31,12 @@ export interface DerivedTagSeedRecordReference {
 }
 
 export interface DerivedTagSeedRecordResolution extends DerivedTagSeedRecordReference {
-  recordKey: string;
+  recordKey: RecordKey;
 }
 
 export interface DerivedTagExemplarRecord {
   name: string;
-  recordKey: string;
+  recordKey: RecordKey;
 }
 
 export interface DerivedTagExemplarSet {
@@ -59,7 +61,7 @@ export type DerivedTagExemplarReviewSource = "human" | "llm";
 
 export interface DerivedTagExemplarReviewDecision {
   name: string;
-  recordKey: string;
+  recordKey: RecordKey;
   tag: string;
   proposedPolarity: DerivedTagExemplarPolarity | "drop";
   currentPolarity?: DerivedTagExemplarPolarity | "none";
@@ -175,7 +177,7 @@ export interface DerivedTagCatalogEntry {
 }
 
 export interface NormalizedRecord {
-  recordKey: string;
+  recordKey: RecordKey;
   id: string;
   name: string;
   normalizedName: string;

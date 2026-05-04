@@ -154,7 +154,7 @@ Owns a tiny set of true cross-layer primitives.
 Owns index-backed retrieval and normalized record access:
 
 - `Pf2eDataService` as the main backend facade
-- backend catalog, search, and rule-graph services in `src/data/backend/`
+- backend catalog, search, rule-graph, and generic reference-edge services in `src/data/backend/`
 - normalization, row decoding, indexing, and schema helpers
 
 This layer also owns its record/raw-value helper pathways such as normalization, nested-value extraction, and formatting helpers that were previously reachable through broader shared modules.
@@ -181,6 +181,7 @@ Owns application-level composition and facades:
 - runtime assembly in `runtime.ts`
 - storage boundary in `storage-service.ts`
 - ontology assembly in `ontology-service.ts` and `ontology/`
+- page-relation grouping and seeded drill preparation in `page-relations-service.ts`
 
 This layer exists so product surfaces do not have to know how to construct storage, vocabulary, or shared models themselves.
 

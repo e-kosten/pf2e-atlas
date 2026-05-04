@@ -80,6 +80,34 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(emptyGraph.edges).toHaveLength(0);
   });
 
+  it("exposes generic incoming reference edges without the curated rule-graph backlink allowlist", async () => {
+    const fixture = await createFixture();
+    createdRoots.push(fixture.root);
+
+    const service = await loadTestService(fixture);
+    const refocus = service.lookup("Refocus").match;
+
+    expect(refocus).toBeTruthy();
+
+    const relations = service.getReferenceEdges([refocus!.recordKey], {
+      includeOutgoing: false,
+      includeIncoming: true,
+    });
+
+    expect(relations.outgoing.records).toHaveLength(0);
+    expect(relations.incoming.records.map((record) => record.name)).toEqual(
+      expect.arrayContaining(["Deep Focus", "Meditative Well", "Focus Burst"]),
+    );
+    expect(relations.incoming.records.some((record) => record.category === "spell")).toBe(true);
+
+    const curatedBacklinks = service.getRuleGraph([refocus!.recordKey], {
+      includeOutgoing: false,
+      includeBacklinks: true,
+      maxBacklinksPerPrimary: 10,
+    });
+    expect(curatedBacklinks.backlinks.records.map((record) => record.name)).not.toContain("Focus Burst");
+  });
+
   it("exposes indexed search vocabulary for agent planning", async () => {
     const fixture = await createFixture();
     createdRoots.push(fixture.root);

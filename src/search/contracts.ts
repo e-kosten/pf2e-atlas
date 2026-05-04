@@ -7,6 +7,7 @@ import type {
   SearchSubcategory,
 } from "../domain/search-types.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
+import type { RecordKey } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
@@ -44,8 +45,8 @@ export type SearchExecutionFilterNode =
   | { kind: "price"; match: SearchExecutionNumericMatch }
   | { kind: "rarity"; match: SearchExecutionNullableStringMatch }
   | { kind: "actionCost"; match: SearchExecutionNullableNumericMatch }
-  | { kind: "linksTo"; target: string }
-  | { kind: "linkedFrom"; source: string }
+  | { kind: "linksTo"; target: RecordKey }
+  | { kind: "linkedFrom"; source: RecordKey }
   | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
   | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
   | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }

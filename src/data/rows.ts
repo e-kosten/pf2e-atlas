@@ -1,10 +1,12 @@
 import type {
   NormalizedRecord,
+  RecordKey,
   SourceCategory,
   VariantSource,
 } from "../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import { getLookupMatchType } from "../domain/lookup-match-type.js";
+import type { PageReferenceEdge } from "../domain/page-relations-types.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { ActorMetricMap } from "../domain/actor-metrics.js";
 import type { ItemMetricMap } from "../domain/item-metrics.js";
@@ -90,8 +92,8 @@ export type CandidateRow = {
 };
 
 export type ReferenceEdgeRow = {
-  fromRecordKey: string;
-  toRecordKey: string;
+  fromRecordKey: RecordKey;
+  toRecordKey: RecordKey;
   displayText: string | null;
   referenceText: string;
   fromPackName: string;
@@ -362,6 +364,24 @@ export function edgeRowToReferenceEdge(
   row: ReferenceEdgeRow,
   direction: RuleReferenceEdge["direction"],
 ): RuleReferenceEdge {
+  return {
+    fromRecordKey: row.fromRecordKey,
+    toRecordKey: row.toRecordKey,
+    displayText: row.displayText,
+    referenceText: row.referenceText,
+    direction,
+    relationshipType: direction === "outgoing" ? "references" : "referenced_by",
+    sourcePackName: row.fromPackName,
+    sourceRecordType: row.fromRecordType,
+    sourceDocumentType: row.fromDocumentType,
+    sourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
+  };
+}
+
+export function edgeRowToPageReferenceEdge(
+  row: ReferenceEdgeRow,
+  direction: PageReferenceEdge["direction"],
+): PageReferenceEdge {
   return {
     fromRecordKey: row.fromRecordKey,
     toRecordKey: row.toRecordKey,

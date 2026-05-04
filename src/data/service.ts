@@ -6,7 +6,9 @@ import type {
   CollectRuleQuestionContextResult,
   RuleGraphCollectionResult,
 } from "../domain/rule-types.js";
+import type { PageReferenceCollectionResult } from "../domain/page-relations-types.js";
 import type { NormalizedRecord, PackInfo } from "../domain/record-types.js";
+import type { RecordKey } from "../domain/record-types.js";
 import type { SearchRequest } from "../domain/search-request-types.js";
 import type {
   FilterValueQuery,
@@ -19,6 +21,7 @@ import type {
   SearchWindowPage,
 } from "../domain/search-types.js";
 import { Pf2eRecordCatalog } from "./backend/record-catalog.js";
+import { Pf2ePageRelationsBackendService } from "./backend/page-relations-service.js";
 import { Pf2eRuleGraphBackendService } from "./backend/rule-graph-service.js";
 import { loadPf2eDataRuntime, rebuildPf2eDataRuntime } from "./backend/load-runtime.js";
 import { Pf2eSearchBackendService } from "./backend/search-service.js";
@@ -38,6 +41,7 @@ export class Pf2eDataService {
   private readonly catalog: Pf2eRecordCatalog;
   private readonly searchService: Pf2eSearchBackendService;
   private readonly ruleGraphService: Pf2eRuleGraphBackendService;
+  private readonly pageRelationsService: Pf2ePageRelationsBackendService;
 
   private constructor({
     db,
@@ -55,6 +59,7 @@ export class Pf2eDataService {
     this.catalog = new Pf2eRecordCatalog(db, packs, rankingConfigStore);
     this.searchService = new Pf2eSearchBackendService(db, this.catalog, embeddingProvider, rankingConfigStore);
     this.ruleGraphService = new Pf2eRuleGraphBackendService(db, this.catalog, this.searchService);
+    this.pageRelationsService = new Pf2ePageRelationsBackendService(db, this.catalog);
   }
 
   static async load(rootPath: string, manifestPath: string, options: LoadOptions = {}): Promise<Pf2eDataService> {
@@ -142,6 +147,16 @@ export class Pf2eDataService {
 
   collectRuleQuestionContext(input: CollectRuleQuestionContextInput): CollectRuleQuestionContextResult {
     return this.ruleGraphService.collectRuleQuestionContext(input);
+  }
+
+  getReferenceEdges(
+    recordKeys: readonly RecordKey[],
+    options: {
+      includeOutgoing?: boolean;
+      includeIncoming?: boolean;
+    } = {},
+  ): PageReferenceCollectionResult {
+    return this.pageRelationsService.getReferenceEdges(recordKeys, options);
   }
 
   listRecords(request: SearchRequest): SearchResult {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { edgeRowToReferenceEdge, type CandidateRow, rowToRecord } from "../../src/data/rows.js";
+import { edgeRowToPageReferenceEdge, edgeRowToReferenceEdge, type CandidateRow, rowToRecord } from "../../src/data/rows.js";
 
 function buildCandidateRow(overrides: Partial<CandidateRow> = {}): CandidateRow {
   return {
@@ -144,6 +144,30 @@ describe("edgeRowToReferenceEdge", () => {
     ).toMatchObject({
       sourceCategory: "rules",
       relationshipType: "references",
+    });
+  });
+});
+
+describe("edgeRowToPageReferenceEdge", () => {
+  it("maps raw incoming edges without the rule-graph-specific direction enum", () => {
+    expect(
+      edgeRowToPageReferenceEdge(
+        {
+          fromRecordKey: "spell:test-record",
+          toRecordKey: "action:raise-shield",
+          displayText: null,
+          referenceText: "ref",
+          fromPackName: "spells-srd",
+          fromRecordType: "spell",
+          fromDocumentType: "Item",
+          fromSourceCategory: "rules",
+        },
+        "incoming",
+      ),
+    ).toMatchObject({
+      direction: "incoming",
+      relationshipType: "referenced_by",
+      sourceCategory: "rules",
     });
   });
 });

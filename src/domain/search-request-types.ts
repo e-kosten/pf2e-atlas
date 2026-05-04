@@ -1,6 +1,7 @@
 import type { SearchProfile, SearchCategoryInput, SearchSubcategoryInput } from "./search-types.js";
 import type { MetadataAtomicPredicate } from "./search-filter-metadata.js";
 import type { MetricOperator, NullOperator, NumericMetricOperator, NumericOperator } from "./search-filter-operators.js";
+import type { RecordKey } from "./record-types.js";
 
 export type SearchRequestMode = "browse" | "search" | "lookup";
 
@@ -46,8 +47,8 @@ export type SearchFilterNode =
       kind: "actionCost";
       match: SearchNullableNumericMatch;
     }
-  | { kind: "linksTo"; target: string }
-  | { kind: "linkedFrom"; source: string }
+  | { kind: "linksTo"; target: RecordKey }
+  | { kind: "linkedFrom"; source: RecordKey }
   | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
   | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
   | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }

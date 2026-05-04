@@ -1,3 +1,4 @@
+import { createPf2eApplicationPageRelationsService, type Pf2eApplicationPageRelationsService } from "../app/page-relations-service.js";
 import { createPf2eApplicationOntologyService, type Pf2eApplicationOntologyService } from "../app/ontology-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../app/search-discovery-service.js";
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
@@ -43,6 +44,7 @@ export type Pf2eTerminalTagWorkbenchService = {
 
 export type Pf2eTerminalUserServices = {
   ontology: Pf2eApplicationOntologyService;
+  pageRelations: Pf2eApplicationPageRelationsService;
   search: Pf2eTerminalSearchService;
 };
 
@@ -98,6 +100,7 @@ export function createPf2eTerminalAppServices(
     config,
     user: {
       ontology: createPf2eApplicationOntologyService(config, dataService, discovery),
+      pageRelations: createPf2eApplicationPageRelationsService(dataService),
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),
         countRecords: (request, options) => dataService.countRecords(request, options),
