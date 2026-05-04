@@ -41,6 +41,7 @@ import {
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
 } from "../list-detail-presentation.js";
+import { buildPageDocumentModel, renderPageDocumentModel } from "../page-document/model.js";
 import {
   buildDerivedTagTerminalActionTargetLine,
   createDerivedTagTerminalActionTargetState,
@@ -209,16 +210,20 @@ export function useSearchScreenController({
   );
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
-  const selectedResultDetailLines = React.useMemo(
-    () => (selectedResult ? user.entityPages.buildDetailLines(selectedResult) : null),
-    [selectedResult, user.entityPages],
-  );
+  const selectedResultDetailLines = React.useMemo(() => {
+    if (!selectedResult) {
+      return null;
+    }
+
+    const document = user.entityPages.buildDocument(selectedResult);
+    return renderPageDocumentModel(buildPageDocumentModel(document));
+  }, [selectedResult, user.entityPages]);
 
   const detailLines =
     state.layout === "results" && state.session
       ? selectedResult
         ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex, {
-            detailLines: selectedResultDetailLines ?? user.entityPages.buildDetailLines(selectedResult),
+            detailLines: selectedResultDetailLines ?? [],
           })
         : buildPendingResultDetailLines(state.session, resultSelectedIndex)
       : selectedWorkspaceEntry

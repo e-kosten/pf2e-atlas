@@ -154,6 +154,8 @@ It does not own feature-domain workflows. Search, filter explorer, and review st
 - how successful rightward intents map to local reducer actions or async workflow steps
 - which non-contract workflow outcomes still warrant local notification or prompt handling
 
+Structured page/document surfaces sit adjacent to this layer rather than inside it. `src/tui/page-document/` owns compilation of `EntityPageDocument` into a TUI-facing page model with stable section anchors and target nodes, and qualifying screens may then render that page model through the shared list/detail shell without collapsing page semantics back into ad hoc feature-local detail composition.
+
 Pane-focus changes remain explicit actions. For qualifying list/detail callers, rightward dead ends must not move focus, and `preview` means "keep the selected row visible in the detail pane without moving focus." If that preview is already satisfied, the shared behavior layer treats the input as a dead end.
 
 The current qualifying callers are the search result reader and the filter explorer in both inspect and compose modes. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
@@ -579,7 +581,7 @@ The search flow shows the intended layering most clearly.
 
 - pulls `user.search` from the app-service context
 - creates the reducer-backed screen state
-- derives pane sizes and detail lines from terminal dimensions
+- derives pane sizes, result-reader detail output, and page-document presentation state from terminal dimensions
 - coordinates result sessions, structured editor sessions, and shared filter-explorer sessions
 - installs the search interaction router
 
