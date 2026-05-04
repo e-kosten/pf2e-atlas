@@ -291,13 +291,19 @@ describe("search result detail lines", () => {
       searchProfile: null,
       sort: "alphabetical",
     });
-    const state = createResultState(session);
+    const state = {
+      ...createResultState(session),
+      activePane: "detail" as const,
+    };
     const footer = buildSearchFooterText(state, false, "app");
     const helpLines = buildSearchHelpLines(state, [], "app", buildResultActionEntries(state, "app")).map((line) => line.text);
 
     expect(footer).toContain("actions");
     expect(footer).not.toContain("commands");
+    expect(footer).toContain("Ctrl-Y/E scroll");
+    expect(footer).toContain("Home/End edge");
     expect(helpLines.some((line) => line.toLowerCase().includes("focus the result action rail"))).toBe(true);
+    expect(helpLines.some((line) => line.includes("Ctrl-Y / Ctrl-E"))).toBe(true);
     expect(helpLines.some((line) => line.toLowerCase().includes("jump to result"))).toBe(true);
   });
 });

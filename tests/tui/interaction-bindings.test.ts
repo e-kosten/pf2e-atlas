@@ -85,4 +85,31 @@ describe("terminal interaction bindings", () => {
   it("renders select empty footers with separate cancel and back actions", () => {
     expect(TERMINAL_SELECT_EMPTY_FOOTER).toBe("Esc cancel  ← back");
   });
+
+  it("renders explicit viewport footer and help bindings", () => {
+    expect(
+      formatTerminalInteractionFooter([
+        { id: "viewportScrollSmall" },
+        { id: "viewportScrollLarge" },
+        { id: "viewportPage" },
+        { id: "viewportEdge" },
+      ]),
+    ).toBe("Ctrl-Y/E scroll  Ctrl-U/D jump  b/f page  Home/End edge");
+
+    expect(
+      buildTerminalInteractionHelpLines([
+        {
+          title: "Viewport",
+          actions: [
+            { id: "viewportScrollSmall", helpText: "scroll the active viewport" },
+            { id: "viewportScrollLarge", helpText: "jump the active viewport" },
+          ],
+        },
+      ]),
+    ).toEqual([
+      { text: "Viewport", tone: "section" },
+      { text: "Ctrl-Y / Ctrl-E: scroll the active viewport" },
+      { text: "Ctrl-U / Ctrl-D: jump the active viewport" },
+    ]);
+  });
 });

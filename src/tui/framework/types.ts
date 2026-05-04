@@ -78,6 +78,8 @@ export type DerivedTagTerminalInputEvent = {
   isTerminalBoundaryStartKey: () => boolean;
   isTerminalJumpBackwardKey: () => boolean;
   isTerminalJumpForwardKey: () => boolean;
+  isTerminalViewportScrollBackwardKey: () => boolean;
+  isTerminalViewportScrollForwardKey: () => boolean;
   isTerminalQuitKey: () => boolean;
   getCycleDirection: () => 1 | -1 | undefined;
 };

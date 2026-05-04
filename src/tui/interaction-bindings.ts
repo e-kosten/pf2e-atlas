@@ -10,6 +10,10 @@ export type TerminalInteractionLine = {
 
 export type TerminalInteractionActionId =
   | "move"
+  | "viewportScrollSmall"
+  | "viewportScrollLarge"
+  | "viewportPage"
+  | "viewportEdge"
   | "moveHorizontal"
   | "scroll"
   | "jump"
@@ -94,6 +98,26 @@ const TERMINAL_INTERACTION_DEFINITIONS: Record<TerminalInteractionActionId, Term
     footerKeys: "↑/↓",
     helpKeys: "↑ / ↓ or j / k",
     defaultLabel: "move",
+  },
+  viewportScrollSmall: {
+    footerKeys: "Ctrl-Y/E",
+    helpKeys: "Ctrl-Y / Ctrl-E",
+    defaultLabel: "scroll",
+  },
+  viewportScrollLarge: {
+    footerKeys: "Ctrl-U/D",
+    helpKeys: "Ctrl-U / Ctrl-D",
+    defaultLabel: "jump",
+  },
+  viewportPage: {
+    footerKeys: "b/f",
+    helpKeys: "b / f or PageUp / PageDown",
+    defaultLabel: "page",
+  },
+  viewportEdge: {
+    footerKeys: "Home/End",
+    helpKeys: "Home / End",
+    defaultLabel: "edge",
   },
   moveHorizontal: {
     footerKeys: "←/→",
@@ -418,6 +442,10 @@ function matchesTerminalInteractionAction(
 ): boolean {
   switch (actionId) {
     case "move":
+    case "viewportScrollSmall":
+    case "viewportScrollLarge":
+    case "viewportPage":
+    case "viewportEdge":
     case "scroll":
     case "jump":
     case "page":

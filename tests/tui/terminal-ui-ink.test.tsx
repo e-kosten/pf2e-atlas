@@ -1706,6 +1706,8 @@ describe("derived tag terminal ink runtime", () => {
     expect(createDerivedTagTerminalInputEvent("\r", {} as never).textInputAction).toBe("submit");
     expect(createDerivedTagTerminalInputEvent("\u001b", {} as never).textInputAction).toBe("cancel");
     expect(createDerivedTagTerminalInputEvent("\u0015", {} as never).isTerminalJumpBackwardKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u0019", {} as never).isTerminalViewportScrollBackwardKey()).toBe(true);
+    expect(createDerivedTagTerminalInputEvent("\u0005", {} as never).isTerminalViewportScrollForwardKey()).toBe(true);
     expect(createDerivedTagTerminalInputEvent("d", { ctrl: true } as never).printable).toBeUndefined();
   });
 
@@ -1803,6 +1805,33 @@ describe("derived tag terminal ink runtime", () => {
         pageSize: 10,
       }),
     ).toEqual({ kind: "move", delta: 10 });
+  });
+
+  it("keeps shared jump/page/edge behavior while adding viewport-only smooth scroll keys", () => {
+    const options = {
+      mode: "viewport" as const,
+      pageSize: 10,
+      jumpSize: 5,
+    };
+
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0019", {} as never), options),
+    ).toEqual({ kind: "move", delta: -1 });
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0005", {} as never), options),
+    ).toEqual({ kind: "move", delta: 1 });
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u0015", {} as never), options),
+    ).toEqual({ kind: "move", delta: -5 });
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[6~", {} as never), options),
+    ).toEqual({ kind: "move", delta: 10 });
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[H", {} as never), options),
+    ).toEqual({ kind: "boundary", boundary: "start" });
+    expect(
+      getDerivedTagTerminalListNavigationAction(createDerivedTagTerminalInputEvent("\u001b[F", {} as never), options),
+    ).toEqual({ kind: "boundary", boundary: "end" });
   });
 
   it("resolves shared gg and G list-boundary navigation", () => {

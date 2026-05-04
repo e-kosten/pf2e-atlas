@@ -61,6 +61,7 @@ export type DerivedTagTerminalListNavigationState = {
 };
 
 export type DerivedTagTerminalListNavigationOptions = {
+  mode?: "cursor" | "viewport";
   pageSize: number;
   jumpSize?: number;
   includeConfirmKeys?: boolean;
@@ -79,12 +80,19 @@ export function getDerivedTagTerminalListNavigationAction(
   event: DerivedTagTerminalInputEvent,
   options: DerivedTagTerminalListNavigationOptions,
 ): DerivedTagTerminalListNavigationAction | undefined {
+  const mode = options.mode ?? "cursor";
   const jumpSize = options.jumpSize ?? options.pageSize;
 
   if (event.isMoveUpKey()) {
     return { kind: "move", delta: -1 };
   }
   if (event.isMoveDownKey()) {
+    return { kind: "move", delta: 1 };
+  }
+  if (mode === "viewport" && event.isTerminalViewportScrollBackwardKey()) {
+    return { kind: "move", delta: -1 };
+  }
+  if (mode === "viewport" && event.isTerminalViewportScrollForwardKey()) {
     return { kind: "move", delta: 1 };
   }
   if (event.isTerminalJumpBackwardKey()) {
@@ -305,6 +313,8 @@ export function createDerivedTagTerminalInputEvent(input: string, key: Key): Der
     isTerminalBoundaryStartKey: () => normalized === "home",
     isTerminalJumpBackwardKey: () => normalized === "ctrl_u",
     isTerminalJumpForwardKey: () => normalized === "ctrl_d",
+    isTerminalViewportScrollBackwardKey: () => normalized === "ctrl_y",
+    isTerminalViewportScrollForwardKey: () => normalized === "ctrl_e",
     isTerminalQuitKey: () => normalized === "q",
     getCycleDirection: () => (normalized === "enter" || normalized === "space" ? 1 : undefined),
   };

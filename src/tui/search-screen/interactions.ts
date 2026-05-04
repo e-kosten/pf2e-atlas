@@ -141,10 +141,10 @@ export function buildSearchFooterText(
   }
 
   return formatTerminalInteractionFooter([
-    { id: "scroll" },
-    { id: "jump" },
-    { id: "page" },
-    { id: "edge" },
+    { id: "viewportScrollSmall" },
+    { id: "viewportScrollLarge" },
+    { id: "viewportPage" },
+    { id: "viewportEdge" },
     ...getSearchInteractionActions(state, origin),
   ]);
 }
@@ -211,18 +211,21 @@ export function buildSearchHelpLines(
 
   const navigationActions: TerminalInteractionAction[] = [
     {
-      id: context === "result-list" ? "move" : "scroll",
+      id: context === "result-list" ? "move" : "viewportScrollSmall",
       label: context === "result-list" ? "move through results" : "scroll the preview",
     },
     {
-      id: "jump",
+      id: context === "result-list" ? "jump" : "viewportScrollLarge",
       helpText: context === "result-list" ? "jump through the active result pane" : "jump through the preview pane",
     },
     {
-      id: "page",
+      id: context === "result-list" ? "page" : "viewportPage",
       helpText: context === "result-list" ? "page through the active result pane" : "page through the preview pane",
     },
-    { id: "edge", helpText: "jump to the start or end of the active pane" },
+    {
+      id: context === "result-list" ? "edge" : "viewportEdge",
+      helpText: "jump to the start or end of the active pane",
+    },
   ];
   const resultActions: TerminalInteractionAction[] = getSearchInteractionActions(state, origin).map((action) => ({
     ...action,

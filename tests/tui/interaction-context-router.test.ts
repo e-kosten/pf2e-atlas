@@ -4,6 +4,7 @@ import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-
 import { createDerivedTagTerminalInputEvent } from "../../src/tui/terminal-ui.js";
 import {
   createTerminalActionTargetInteractionContext,
+  createTerminalDetailInteractionContext,
   createTerminalInteractionContextRouterState,
   createTerminalListInteractionContext,
   createTerminalSelectPromptInteractionContext,
@@ -114,6 +115,29 @@ describe("interaction context router", () => {
     );
 
     expect(routed.routes.filterExplorer.interactionAction?.id).toBe("back");
+  });
+
+  it("treats Ctrl-Y and Ctrl-E as shared viewport scroll keys for detail contexts only", () => {
+    const detailBackward = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u0019", {} as never),
+      [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5 })],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(detailBackward.routes.detail.navigationAction).toEqual({ kind: "move", delta: -1 });
+
+    const detailForward = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u0005", {} as never),
+      [createTerminalDetailInteractionContext("detail", { pageSize: 10, jumpSize: 5 })],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(detailForward.routes.detail.navigationAction).toEqual({ kind: "move", delta: 1 });
+
+    const list = routeTerminalInteractionContexts(
+      createDerivedTagTerminalInputEvent("\u0019", {} as never),
+      [createTerminalListInteractionContext("list", { pageSize: 10, jumpSize: 5 })],
+      createTerminalInteractionContextRouterState(),
+    );
+    expect(list.routes.list.navigationAction).toBeUndefined();
   });
 
   it("resolves action-target intents as part of the shared routing result", () => {
