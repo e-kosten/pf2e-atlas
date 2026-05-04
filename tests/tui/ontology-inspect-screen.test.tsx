@@ -17,6 +17,10 @@ function flushInk(): Promise<void> {
   });
 }
 
+function pressDown(app: ReturnType<typeof render>): void {
+  app.stdin.write("\u001b[B");
+}
+
 function createOntologyModel(): OntologyDomainModel {
   return {
     id: "search-semantics",
@@ -219,6 +223,55 @@ function createPreviewTargetRecordPageDocument(): EntityPageDocument {
         title: "Summary",
         blocks: [{ kind: "text", text: "A focused page summary." }],
         targets: [],
+      },
+    ],
+  };
+}
+
+function createScrollableTargetRecordPageDocument(): EntityPageDocument {
+  const references = Array.from({ length: 18 }, (_, index) => ({
+    kind: "record" as const,
+    label: `Reference ${String(index + 1).padStart(2, "0")}`,
+    recordKey: `spell:reference-${index + 1}`,
+    action: "preview" as const,
+  }));
+
+  return {
+    recordKey: "spell:test-fireball",
+    title: "Fireball",
+    identityLine: "Spell | Rank 3 | Common | Pathfinder Player Core",
+    traits: [],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused page summary." }],
+        targets: [],
+      },
+      {
+        id: "details",
+        kind: "details",
+        title: "Details",
+        blocks: [
+          {
+            kind: "factList",
+            facts: [
+              { label: "Traditions", value: "Arcane" },
+              { label: "Cast", value: "2 actions" },
+              { label: "Range", value: "500 feet" },
+              { label: "Area", value: "20-foot burst" },
+            ],
+          },
+        ],
+        targets: [],
+      },
+      {
+        id: "references",
+        kind: "references",
+        title: "References",
+        blocks: [{ kind: "targetList", targets: references }],
+        targets: references,
       },
     ],
   };
@@ -445,6 +498,41 @@ describe("OntologyInspectScreen", () => {
     expect(services.user.entityPages.buildDocumentByRecordKey).toHaveBeenCalledWith("spell:test-chain-lightning", {
       recordTargetAction: "preview",
     });
+  });
+
+  it("keeps offscreen selected targets visible in the ontology inspect host", async () => {
+    const services = createServices(createScrollableTargetRecordPageDocument());
+    const app = renderInspectScreen(
+      <OntologyInspectScreen
+        routeData={{ model: createRecordOntologyModel() }}
+        onExit={vi.fn()}
+      />,
+      services,
+    );
+
+    await flushInk();
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("Fireball | References");
+    expect(app.lastFrame()).toContain("Reference 01");
+    expect(app.lastFrame()).not.toContain("Reference 18");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("↑/↓ target");
+
+    app.stdin.write("G");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("↑/↓ target");
+    expect(app.lastFrame()).toContain("Reference 18");
   });
 
   it("activates inline trait targets through the ontology inspect host", async () => {

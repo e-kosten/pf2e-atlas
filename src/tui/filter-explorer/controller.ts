@@ -179,10 +179,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       : initialPageDetailLines
         ? initialPageDetailLines
       : buildFilterExplorerDetailLines(options.model, normalizedBrowserState);
+  const detailFooterLineCount = pageInteractionState.mode.kind === "target" ? 3 : 2;
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
-    footerLineCount: 2,
+    footerLineCount: detailFooterLineCount,
     notification,
     transitionStatus: options.transitionStatus,
     detailLines,
@@ -244,7 +245,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const screenPresentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
-    footerLineCount: 2,
+    footerLineCount: detailFooterLineCount,
     notification,
     transitionStatus: options.transitionStatus,
     detailLines: detailLinesWithFocus,

@@ -3,6 +3,7 @@ import React from "react";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EntityPageDocument } from "../../src/app/ontology/entity-page.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
 import type { SearchCountResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
@@ -253,6 +254,55 @@ function createSearchSession(
     sort: "alphabetical",
     sortSeed: null,
     ...overrides,
+  };
+}
+
+function createScrollablePreviewPageDocument(): EntityPageDocument {
+  const references = Array.from({ length: 18 }, (_, index) => ({
+    kind: "record" as const,
+    label: `Reference ${String(index + 1).padStart(2, "0")}`,
+    recordKey: `spell:reference-${index + 1}`,
+    action: "preview" as const,
+  }));
+
+  return {
+    recordKey: "spell:test-alarm",
+    title: "Alarm Ward",
+    identityLine: "Spell | Rank 1 | Common | Pathfinder Player Core",
+    traits: [],
+    sections: [
+      {
+        id: "summary",
+        kind: "summary",
+        title: "Summary",
+        blocks: [{ kind: "text", text: "A focused ward that rings when trespassers approach." }],
+        targets: [],
+      },
+      {
+        id: "details",
+        kind: "details",
+        title: "Details",
+        blocks: [
+          {
+            kind: "factList",
+            facts: [
+              { label: "Traditions", value: "Arcane" },
+              { label: "Cast", value: "2 actions" },
+              { label: "Range", value: "30 feet" },
+              { label: "Duration", value: "1 minute" },
+            ],
+          },
+        ],
+        targets: [],
+      },
+      {
+        id: "references",
+        kind: "references",
+        title: "References",
+        blocks: [{ kind: "targetList", targets: references }],
+        targets: references,
+      },
+    ],
   };
 }
 
@@ -1567,6 +1617,50 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("Archives of Nethys");
     expect(app.lastFrame()).not.toContain("Reference 01");
+  });
+
+  it("keeps offscreen selected targets visible in the result preview host", async () => {
+    const services = createServices();
+    const previewDocument = createScrollablePreviewPageDocument();
+    services.user.entityPages = {
+      ...services.user.entityPages,
+      buildDocument: vi.fn(() => previewDocument),
+      buildDocumentByRecordKey: vi.fn(() => null),
+    };
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | References");
+    expect(app.lastFrame()).toContain("Reference 01");
+    expect(app.lastFrame()).not.toContain("Reference 18");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("↑/↓ target");
+
+    app.stdin.write("G");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("↑/↓ target");
+    expect(app.lastFrame()).toContain("Reference 18");
   });
 
   it("emits search-pivot page target activation through the shared callback seam", async () => {

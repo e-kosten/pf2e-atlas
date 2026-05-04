@@ -284,10 +284,11 @@ export function useSearchScreenController({
       : selectedWorkspaceEntry
         ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState, renderOptions)
         : buildQuerySummaryLines(state, countState, renderOptions);
+  const detailFooterLineCount = pageInteractionState.mode.kind === "target" ? 3 : 2;
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
-    footerLineCount: 2,
+    footerLineCount: detailFooterLineCount,
     notification,
     transitionStatus,
     detailLines,
@@ -370,7 +371,7 @@ export function useSearchScreenController({
   const screenPresentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
-    footerLineCount: 2,
+    footerLineCount: detailFooterLineCount,
     notification,
     transitionStatus,
     detailLines: detailLinesWithFocus,

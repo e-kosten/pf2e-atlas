@@ -1687,7 +1687,7 @@ describe("pf2e terminal app", () => {
     expect(app.lastFrame()).toContain("Classification Result");
   });
 
-  it("reports external Archives of Nethys targets from dedicated entity-page routes", async () => {
+  it("warns for external Archives of Nethys targets from dedicated entity-page routes", async () => {
     const services = createFakeServices();
     const app = render(
       <DerivedTagTerminalProvider>
@@ -1709,6 +1709,7 @@ describe("pf2e terminal app", () => {
     await flushFrames(2);
 
     expect(app.lastFrame()).toContain("This target opens outside the current page flow.");
+    expect(app.lastFrame()).toContain("Open in Archives of Nethys");
   });
 
   it("opens referenced-by page targets from ontology inspect routes", async () => {
