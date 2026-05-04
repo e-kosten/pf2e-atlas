@@ -3331,9 +3331,6 @@ describe("search screen", () => {
 
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
-    app.stdin.write("\r");
-    await flushInk();
     await flushInk();
     await waitForFrameToContain(app, "common", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
@@ -3384,9 +3381,6 @@ describe("search screen", () => {
 
     pressUp(app);
     await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -3451,9 +3445,6 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
-    app.stdin.write("\r");
-    await flushInk();
     await flushInk();
     await waitForFrameToContain(app, "[✓] common", 60);
 
@@ -3495,6 +3486,8 @@ describe("search screen", () => {
 
     pressUp(app);
     await flushInk();
+    pressUp(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Query Clause");
@@ -3509,8 +3502,12 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
-    expect(app.lastFrame()).toContain("! Rarity: Common");
+    expect(app.lastFrame()).toContain("! Scope: Spell");
 
+    app.stdin.write("\u001b");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Exclude Group");
@@ -3569,9 +3566,6 @@ describe("search screen", () => {
     pressUp(app);
     await flushInk();
 
-    app.stdin.write("\r");
-    await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -4055,9 +4049,7 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    expect(app.lastFrame()).toContain("Query Clause");
 
-    app.stdin.write("\r");
     await flushInk();
     await flushInk();
     await addSkillToCurrentTraitSelectionFromExplorer(app);
@@ -4416,6 +4408,8 @@ describe("search screen", () => {
 
     pressDown(app);
     await flushInk();
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Add Clause");
@@ -4585,6 +4579,10 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Creature Statistics: hp.value >= ac.value");
 
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Query Clause");
@@ -4722,6 +4720,10 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
 
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Query Clause");
