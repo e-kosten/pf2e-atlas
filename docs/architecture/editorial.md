@@ -26,36 +26,20 @@ When evaluating the long-term shape of `src/tags/`, treat `legacy-rules/` and `l
 
 ```mermaid
 flowchart LR
-  authored["`ontology/`, `rules/`, `assignments/`, `exemplars/`
-  authored derived-tag source"]
-  reviews["`reviews/`
-  assignment reviews, memory, exemplar reviews,
-  reviewed discovery negatives"]
-  runtimePub["`runtime/publication/`
-  publish ontology, exemplars, legacy seed indexes"]
-  runtimeDerive["`runtime/derivation/`
-  explicit assignments and final derivation API"]
-  runtimeMatch["`runtime/matcher/`
-  rule matcher and normalization"]
-  runtimeCompat["`runtime/compat/`
-  compatibility helpers only"]
-  discovery["`discovery/`
-  candidate mining and cohort discovery"]
-  evaluation["`evaluation/`
-  evidence, gaps, movement"]
-  editorialState["`editorial/state/`
-  mutable authored working state"]
-  editorialSessions["`editorial/sessions/`
-  session construction, record loading, persistence"]
-  editorialWriteback["`editorial/writeback/`
-  lint and authored-file import"]
-  editorialUi["`editorial/ui/`
-  workbench and review controllers"]
-  cli["`cli/discovery/`, `cli/evaluation/`,
-  `cli/editorial/`, `cli/shared/`
-  grouped offline entrypoints"]
-  app["`src/app/` + `src/tui/app-services.ts`
-  shared runtime, storage, workbench composition"]
+  authored["ontology/, rules/, assignments/, exemplars/<br/>authored derived-tag source"]
+  reviews["reviews/<br/>assignment reviews, memory, exemplar reviews,<br/>reviewed discovery negatives"]
+  runtimePub["runtime/publication/<br/>publish ontology, exemplars, legacy seed indexes"]
+  runtimeDerive["runtime/derivation/<br/>explicit assignments and final derivation API"]
+  runtimeMatch["runtime/matcher/<br/>rule matcher and normalization"]
+  runtimeCompat["runtime/compat/<br/>compatibility helpers only"]
+  discovery["discovery/<br/>candidate mining and cohort discovery"]
+  evaluation["evaluation/<br/>evidence, gaps, movement"]
+  editorialState["editorial/state/<br/>mutable authored working state"]
+  editorialSessions["editorial/sessions/<br/>session construction, record loading, persistence"]
+  editorialWriteback["editorial/writeback/<br/>lint and authored-file import"]
+  editorialUi["editorial/ui/<br/>workbench and review controllers"]
+  cli["cli/discovery/, cli/evaluation/,<br/>cli/editorial/, cli/shared/<br/>grouped offline entrypoints"]
+  app["src/app/ + src/tui/app-services.ts<br/>shared runtime, storage, workbench composition"]
   index["SQLite index + embeddings"]
 
   authored --> runtimePub
@@ -99,6 +83,87 @@ The important split is:
 - `runtime/` publishes authored truth into a derivation-ready model
 - `editorial/` owns mutable session state, review sessions, writeback, and review UI
 - `cli/` provides grouped offline entrypoints over those services
+
+## Canonical Shapes
+
+These are the smallest real shapes that express the editorial architecture's durable state boundaries.
+
+```ts
+type DerivedTagAuthoredState = {
+  assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
+  assignmentReviews: Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;
+  assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
+  exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;
+  exemplarReviews: Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;
+  authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;
+};
+
+type DerivedTagReviewSession = {
+  manifest: {
+    id: string;
+    mode: DerivedTagWorkbenchMode;
+    category?: SearchCategory;
+    subcategory?: SearchSubcategory;
+    family?: string;
+    tag?: string;
+    createdAt: string;
+    recordCount: number;
+  };
+  records: DerivedTagReviewSessionRecord[];
+  decisions: DerivedTagReviewRecordDecision[];
+  reviewState: {
+    currentIndex: number;
+    unresolvedOnly: boolean;
+    updatedAt: string;
+  };
+};
+
+type DerivedTagReviewSessionRecord = {
+  entityRecord: OntologyExplorerEntityRecord;
+  currentSources: Record<string, DerivedTagSource>;
+  selectionReasons: DerivedTagReviewSelectionReason[];
+};
+
+type DerivedTagReviewRecordDecision = {
+  recordKey: string;
+  name: string;
+  category: SearchCategory;
+  resolutionStatus: "complete" | "needs_review";
+  ontologyNotes?: string[];
+  decisions: DerivedTagReviewDecision[];
+};
+
+type DerivedTagReviewDecision =
+  | {
+      kind: "assignment";
+      family: string;
+      tag: string;
+      mode: "include" | "exclude";
+      status: DerivedTagReviewStatus;
+      rationale: string;
+    }
+  | {
+      kind: "exemplar";
+      tag: string;
+      polarity: DerivedTagExemplarPolarity;
+      action: "keep" | "drop";
+      status: DerivedTagReviewStatus;
+      rationale: string;
+    }
+  | {
+      kind: "rule";
+      tag: string;
+      decision: "recreate_authored" | "assignment_takeover" | "retain_legacy";
+      status: DerivedTagReviewStatus;
+      rationale: string;
+    };
+```
+
+The important split is:
+
+- `DerivedTagAuthoredState` is the mutable in-memory authored/review working set
+- `DerivedTagReviewSession` is the persisted human-review artifact
+- `DerivedTagReviewDecision` is the writeback-ready decision boundary carried through review and import
 
 ## Major Subareas
 

@@ -91,6 +91,79 @@ The backend deliberately routes similar requests through different runtime modes
 
 So lookup is not a separate search engine. It is a constrained structured search path optimized for exact-name matching and small alternative sets.
 
+### Canonical Shapes
+
+The architecture hinges on one shared semantic request shape and one search-owned compiled shape. The fields below are the architecture-significant parts of the real contracts.
+
+```ts
+type SearchRequest =
+  | {
+      mode: "browse";
+      filter?: SearchFilterNode;
+      sort?: BrowseSortSpec;
+      offset?: number;
+      limit?: number;
+    }
+  | {
+      mode: "search";
+      search: {
+        query: string;
+        exclude?: string;
+        profile?: SearchProfile;
+      };
+      filter?: SearchFilterNode;
+      explain?: boolean;
+      offset?: number;
+      limit?: number;
+    }
+  | {
+      mode: "lookup";
+      search: {
+        query: string;
+      };
+      filter?: SearchFilterNode;
+      sort?: LookupSortSpec;
+      offset?: number;
+      limit?: number;
+    };
+
+type SearchFilterNode =
+  | { kind: "pack"; value: string }
+  | {
+      kind: "scope";
+      category: SearchCategoryInput;
+      subcategory:
+        | { kind: "any" }
+        | { kind: "eq"; value: SearchSubcategoryInput }
+        | { kind: "isNull" }
+        | { kind: "isNotNull" };
+    }
+  | { kind: "level" | "price"; match: SearchNumericMatch }
+  | { kind: "rarity"; match: SearchNullableStringMatch }
+  | { kind: "actionCost"; match: SearchNullableNumericMatch }
+  | { kind: "linksTo"; target: string }
+  | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
+  | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
+  | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
+  | { kind: "anyOf" | "allOf"; children: SearchFilterNode[] }
+  | { kind: "not"; child: SearchFilterNode };
+
+interface SearchExecutionFilters {
+  searchProfile?: SearchProfile;
+  sort?: SearchSort;
+  sortSeed?: number;
+  explain?: boolean;
+  nameQuery?: string;
+  query?: string;
+  excludeQuery?: string;
+  filter?: SearchExecutionFilterNode;
+  offset?: number;
+  limit?: number;
+}
+```
+
+`SearchRequest` is the cross-surface contract carried by MCP, TUI, and ontology-origin flows. `SearchExecutionFilters` is the compiled search-owned runtime input after mode resolution, request lowering, and filter normalization.
+
 ## Search Pipeline
 
 ```mermaid
