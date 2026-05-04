@@ -147,9 +147,9 @@ describe("search result detail lines", () => {
     expect(lines[2]?.text).toBe("Sort: Ranked");
     expect(lines[3]?.text).toBe("Source: Spells");
     expect(linkLine).toBeDefined();
-    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.text).toBe("AoN: Open in Archives of Nethys");
     expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
-    expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
+    expect(linkLine?.plainTextFallback).toContain("AoN: Open in Archives of Nethys: https://2e.aonprd.com");
     expect(linkLine?.href).toContain("include-traits=fortune+mental");
   });
 

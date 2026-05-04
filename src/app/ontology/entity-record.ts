@@ -1,3 +1,5 @@
+import type { ActorMetricMap } from "../../domain/actor-metrics.js";
+import type { ItemMetricMap } from "../../domain/item-metrics.js";
 import type { NormalizedRecord, SourceCategory } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
@@ -37,6 +39,7 @@ export type OntologyExplorerEntityRecord = {
   itemCategory: string | null;
   baseItem: string | null;
   priceCp: number | null;
+  bulkValue?: number | null;
   actionCost: number | null;
   usage: string | null;
   hands: number | null;
@@ -56,6 +59,9 @@ export type OntologyExplorerEntityRecord = {
   disableText: string | null;
   disableSkills: string[];
   isComplex: boolean;
+  actorMetrics?: ActorMetricMap;
+  itemMetrics?: ItemMetricMap;
+  raw?: Record<string, unknown>;
 };
 
 export type OntologyExplorerEntityRecordRow = {
@@ -87,6 +93,7 @@ export type OntologyExplorerEntityRecordRow = {
   itemCategory: string | null;
   baseItem: string | null;
   priceCp: number | bigint | null;
+  bulkValue: number | bigint | null;
   actionCost: number | bigint | null;
   usage: string | null;
   hands: number | bigint | null;
@@ -165,6 +172,7 @@ export function buildOntologyExplorerEntityRecordSelectColumns(
     optionalColumn(includeItem, `${itemAlias}.item_category`, "itemCategory"),
     optionalColumn(includeItem, `${itemAlias}.base_item`, "baseItem"),
     optionalColumn(includeItem, `${itemAlias}.price_cp`, "priceCp"),
+    optionalColumn(includeItem, `${itemAlias}.bulk_value`, "bulkValue"),
     `COALESCE(${includeSpell ? `${spellAlias}.action_cost` : "NULL"}, ${includeItem ? `${itemAlias}.action_cost` : "NULL"}) AS actionCost`,
     optionalColumn(includeItem, `${itemAlias}.usage_text`, "usage"),
     optionalColumn(includeItem, `${itemAlias}.hands`, "hands"),
@@ -239,6 +247,7 @@ export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRe
     itemCategory: row.itemCategory,
     baseItem: row.baseItem,
     priceCp: toNullableNumber(row.priceCp, `ontology explorer price for "${row.recordKey}"`),
+    bulkValue: toNullableNumber(row.bulkValue, `ontology explorer bulk for "${row.recordKey}"`),
     actionCost: toNullableNumber(row.actionCost, `ontology explorer action cost for "${row.recordKey}"`),
     usage: row.usage,
     hands: toNullableNumber(row.hands, `ontology explorer hands for "${row.recordKey}"`),
@@ -274,6 +283,9 @@ export function mapOntologyExplorerEntityRecordRow(row: OntologyExplorerEntityRe
       `ontology explorer record "${row.recordKey}"`,
     ),
     isComplex: Boolean(row.isComplex),
+    actorMetrics: {},
+    itemMetrics: {},
+    raw: {},
   };
 }
 
@@ -309,6 +321,7 @@ export function mapNormalizedRecordToOntologyExplorerEntityRecord(
     itemCategory: record.itemCategory,
     baseItem: record.baseItem,
     priceCp: record.priceCp,
+    bulkValue: record.bulkValue,
     actionCost: record.actionCost,
     usage: record.usage,
     hands: record.hands,
@@ -328,5 +341,8 @@ export function mapNormalizedRecordToOntologyExplorerEntityRecord(
     disableText: record.disableText,
     disableSkills: record.disableSkills,
     isComplex: record.isComplex,
+    actorMetrics: record.actorMetrics,
+    itemMetrics: record.itemMetrics,
+    raw: record.raw,
   };
 }

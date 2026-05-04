@@ -38,7 +38,6 @@ export type EntityPageSection = {
   id: string;
   kind:
     | "identity"
-    | "traits"
     | "summary"
     | "description"
     | "defense"
@@ -112,6 +111,34 @@ function formatActionCost(value: number | null): string | null {
   return value === 1 ? "1 action" : `${value} actions`;
 }
 
+function formatModifier(value: number | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+  return value >= 0 ? `+${value}` : String(value);
+}
+
+function formatNumber(value: number | null | undefined): string | null {
+  return value == null ? null : String(value);
+}
+
+function formatFeet(value: number | null | undefined): string | null {
+  return value == null ? null : `${value} feet`;
+}
+
+function formatBulkValue(value: number | null): string | null {
+  if (value == null) {
+    return null;
+  }
+  if (value === 0) {
+    return "-";
+  }
+  if (value === 0.1) {
+    return "L";
+  }
+  return Number.isInteger(value) ? String(value) : String(value);
+}
+
 function formatPriceCp(priceCp: number | null): string | null {
   if (priceCp == null) {
     return null;
@@ -154,6 +181,118 @@ function formatSpeedTypes(speedTypes: string[]): string | null {
   return speedTypes.length > 0 ? speedTypes.map(humanize).join(", ") : null;
 }
 
+function getMetricNumber(metrics: Record<string, unknown>, key: string): number | null {
+  const value = metrics[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getRawPath(value: unknown, path: readonly string[]): unknown {
+  let current = value;
+  for (const segment of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function formatRawValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((entry) =>
+        typeof entry === "object" && entry !== null && !Array.isArray(entry)
+          ? formatRawValue(
+              (entry as Record<string, unknown>).value ??
+                (entry as Record<string, unknown>).label ??
+                (entry as Record<string, unknown>).name,
+            )
+          : formatRawValue(entry),
+      )
+      .filter((entry): entry is string => Boolean(entry));
+    return parts.length > 0 ? parts.join(", ") : null;
+  }
+  if (value && typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+    return formatRawValue(objectValue.value ?? objectValue.label ?? objectValue.name);
+  }
+  return null;
+}
+
+function formatRawField(record: OntologyExplorerEntityRecord, paths: readonly (readonly string[])[]): string | null {
+  for (const path of paths) {
+    const formatted = formatRawValue(getRawPath(record.raw ?? {}, path));
+    if (formatted) {
+      return formatted;
+    }
+  }
+  return null;
+}
+
+function formatCreatureAbilities(record: OntologyExplorerEntityRecord): string | null {
+  const abilities = [
+    ["str", "Str"],
+    ["dex", "Dex"],
+    ["con", "Con"],
+    ["int", "Int"],
+    ["wis", "Wis"],
+    ["cha", "Cha"],
+  ] as const;
+  const parts = abilities
+    .map(([key, label]) => {
+      const modifier = formatModifier(getMetricNumber(record.actorMetrics ?? {}, `ability.${key}.mod`));
+      return modifier ? `${label} ${modifier}` : null;
+    })
+    .filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function formatCreatureSaves(record: OntologyExplorerEntityRecord): string | null {
+  const saves = [
+    ["fort", "Fort"],
+    ["ref", "Ref"],
+    ["will", "Will"],
+  ] as const;
+  const parts = saves
+    .map(([key, label]) => {
+      const modifier = formatModifier(getMetricNumber(record.actorMetrics ?? {}, `save.${key}.mod`));
+      return modifier ? `${label} ${modifier}` : null;
+    })
+    .filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function formatCreatureSkills(record: OntologyExplorerEntityRecord): string | null {
+  const parts = Object.entries(record.actorMetrics ?? {})
+    .filter(([key, value]) => key.startsWith("skill.") && key.endsWith(".mod") && typeof value === "number")
+    .map(([key, value]) => {
+      const skill = key.slice("skill.".length, -".mod".length);
+      return `${humanize(skill)} ${formatModifier(value as number)}`;
+    })
+    .sort((left, right) => left.localeCompare(right));
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function formatSpeed(record: OntologyExplorerEntityRecord): string | null {
+  const metricSpeeds = Object.entries(record.actorMetrics ?? {})
+    .filter(([key, value]) => key.startsWith("speed.") && key.endsWith(".value") && typeof value === "number")
+    .map(([key, value]) => {
+      const speedType = key.slice("speed.".length, -".value".length);
+      const speed = formatFeet(value as number);
+      return speed ? `${humanize(speedType)} ${speed}` : null;
+    })
+    .filter((part): part is string => Boolean(part))
+    .sort((left, right) => left.localeCompare(right));
+  return metricSpeeds.length > 0 ? metricSpeeds.join(", ") : formatSpeedTypes(record.speedTypes);
+}
+
 function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
   const typeLabel =
     record.category === "spell"
@@ -182,13 +321,20 @@ function buildSpellSummaryFacts(record: OntologyExplorerEntityRecord): EntityPag
 function buildCreatureSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
     asFact("Size", humanize(record.size)),
+    asFact("Perception", formatModifier(getMetricNumber(record.actorMetrics ?? {}, "perception.mod"))),
     asFact("Languages", formatList(record.languages)),
     asFact("Senses", formatList(record.senses)),
+    asFact("Skills", formatCreatureSkills(record)),
+    asFact("Abilities", formatCreatureAbilities(record)),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
 function buildCreatureDefenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
+    asFact("AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
+    asFact("HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
+    asFact("Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
+    asFact("Saves", formatCreatureSaves(record)),
     asFact("Immunities", formatList(record.immunities)),
     asFact("Resistances", formatList(record.resistances)),
     asFact("Weaknesses", formatList(record.weaknesses)),
@@ -196,7 +342,7 @@ function buildCreatureDefenseFacts(record: OntologyExplorerEntityRecord): Entity
 }
 
 function buildCreatureMovementFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
-  return [asFact("Speed", formatSpeedTypes(record.speedTypes))].filter((fact): fact is EntityPageFact => Boolean(fact));
+  return [asFact("Speed", formatSpeed(record))].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
 function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
@@ -210,6 +356,8 @@ function buildCreatureOffenseFacts(record: OntologyExplorerEntityRecord): Entity
 function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
     asFact("Price", formatPriceCp(record.priceCp)),
+    asFact("Bulk", formatBulkValue(record.bulkValue ?? null)),
+    asFact("Activation", formatActionCost(record.actionCost)),
     asFact("Usage", humanize(record.usage)),
     asFact("Hands", record.hands == null ? null : String(record.hands)),
     asFact("Base Item", humanize(record.baseItem)),
@@ -222,6 +370,34 @@ function buildEquipmentSummaryFacts(record: OntologyExplorerEntityRecord): Entit
 function buildFeatActionSummaryFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
   return [
     asFact("Action Cost", formatActionCost(record.actionCost)),
+    asFact(
+      "Trigger",
+      formatRawField(record, [
+        ["system", "trigger", "value"],
+        ["system", "trigger"],
+      ]),
+    ),
+    asFact(
+      "Requirements",
+      formatRawField(record, [
+        ["system", "requirements", "value"],
+        ["system", "requirements"],
+      ]),
+    ),
+    asFact(
+      "Frequency",
+      formatRawField(record, [
+        ["system", "frequency", "value"],
+        ["system", "frequency"],
+      ]),
+    ),
+    asFact(
+      "Prerequisites",
+      formatRawField(record, [
+        ["system", "prerequisites", "value"],
+        ["system", "prerequisites"],
+      ]),
+    ),
     asFact("Range", record.rangeText),
     asFact("Area", formatArea(record)),
     asFact("Save", formatSave(record)),
@@ -236,6 +412,18 @@ function buildHazardSummaryFacts(record: OntologyExplorerEntityRecord): EntityPa
     asFact("Complexity", formatBoolean(record.isComplex, "Complex")),
     asFact("Disable", record.disableText),
     asFact("Disable Skills", formatList(record.disableSkills)),
+  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+}
+
+function buildHazardDefenseFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+  return [
+    asFact("AC", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "ac.value"))),
+    asFact("HP", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hp.value"))),
+    asFact("Hardness", formatNumber(getMetricNumber(record.actorMetrics ?? {}, "hardness.value"))),
+    asFact("Saves", formatCreatureSaves(record)),
+    asFact("Immunities", formatList(record.immunities)),
+    asFact("Resistances", formatList(record.resistances)),
+    asFact("Weaknesses", formatList(record.weaknesses)),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
@@ -498,9 +686,9 @@ function buildEntityPageInput(
     aonLink: aonLink
       ? {
           kind: "external",
-          label: aonLink.label,
+          label: `AoN: ${aonLink.label}`,
           href: aonLink.url,
-          plainTextFallback: aonLink.plainTextFallback,
+          plainTextFallback: `AoN: ${aonLink.plainTextFallback}`,
         }
       : undefined,
     blurb: compileProseReferenceSegments(record.blurbText, referenceTargetData.targetsByReferenceText),
@@ -654,6 +842,7 @@ function buildFeatActionRecipeSections({ input, detailFacts, seenFacts, push }: 
 
 function buildHazardRecipeSections({ input, detailFacts, seenFacts, push }: EntityPageRecipeBuildContext): void {
   push(createSummarySection(input.blurb, buildHazardSummaryFacts(input.record), seenFacts));
+  push(createFactSection("defense", "defense", "Defense", buildHazardDefenseFacts(input.record), seenFacts));
   push(createFactSection("routine", "routine", "Routine", buildHazardRoutineFacts(input.record), seenFacts));
   push(createTextSection("description", "description", "Description", input.description));
   push(createFactSection("details", "details", "Details", detailFacts, seenFacts));

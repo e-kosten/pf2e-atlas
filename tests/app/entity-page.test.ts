@@ -40,6 +40,7 @@ function createRecord(overrides: Partial<OntologyExplorerEntityRecord> = {}): On
     itemCategory: null,
     baseItem: null,
     priceCp: null,
+    bulkValue: null,
     actionCost: 2,
     usage: null,
     hands: null,
@@ -59,6 +60,9 @@ function createRecord(overrides: Partial<OntologyExplorerEntityRecord> = {}): On
     disableText: null,
     disableSkills: [],
     isComplex: false,
+    actorMetrics: {},
+    itemMetrics: {},
+    raw: {},
     ...overrides,
   };
 }
@@ -213,7 +217,7 @@ describe("entity page document", () => {
     expect(document.identityLine).toBe("Spell | Rank 3 | Common | Pathfinder Player Core");
     expect(lines[0]).toMatchObject({ text: "Fireball", tone: "section" });
     expect(lines[1]).toMatchObject({ text: "Spell | Rank 3 | Common | Pathfinder Player Core", indent: 2 });
-    expect(lines[2]).toMatchObject({ text: "Open in Archives of Nethys", indent: 2 });
+    expect(lines[2]).toMatchObject({ text: "AoN: Open in Archives of Nethys", indent: 2 });
     expect(lines[3]).toMatchObject({ text: "Traits: Concentrate, Fire, Manipulate", indent: 2 });
     expect(document.traitTargets?.map((target) => target.label)).toEqual([
       "Trait: Concentrate",
@@ -271,6 +275,24 @@ describe("entity page document", () => {
         resistances: ["physical"],
         weaknesses: ["cold"],
         damageTypes: ["fire"],
+        actorMetrics: {
+          "ability.str.mod": 8,
+          "ability.dex.mod": 4,
+          "ability.con.mod": 7,
+          "ability.int.mod": 3,
+          "ability.wis.mod": 5,
+          "ability.cha.mod": 6,
+          "ac.value": 36,
+          "hp.value": 275,
+          "perception.mod": 26,
+          "save.fort.mod": 27,
+          "save.ref.mod": 24,
+          "save.will.mod": 25,
+          "skill.acrobatics.mod": 24,
+          "skill.arcana.mod": 25,
+          "speed.climb.value": 30,
+          "speed.fly.value": 180,
+        },
       }),
     );
 
@@ -283,6 +305,37 @@ describe("entity page document", () => {
       "Details",
       "Classification",
     ]);
+    expect(document.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Perception", value: "+26" },
+            { label: "Skills", value: "Acrobatics +24, Arcana +25" },
+            { label: "Abilities", value: "Str +8, Dex +4, Con +7, Int +3, Wis +5, Cha +6" },
+          ]),
+        },
+      ]),
+    );
+    expect(document.sections.find((section) => section.title === "Defense")?.blocks).toEqual([
+      {
+        kind: "factList",
+        facts: expect.arrayContaining([
+          { label: "AC", value: "36" },
+          { label: "HP", value: "275" },
+          { label: "Saves", value: "Fort +27, Ref +24, Will +25" },
+          { label: "Immunities", value: "Fire" },
+          { label: "Resistances", value: "Physical" },
+          { label: "Weaknesses", value: "Cold" },
+        ]),
+      },
+    ]);
+    expect(document.sections.find((section) => section.title === "Movement")?.blocks).toEqual([
+      {
+        kind: "factList",
+        facts: [{ label: "Speed", value: "Climb 30 feet, Fly 180 feet" }],
+      },
+    ]);
   });
 
   it("uses equipment recipe sections for item-oriented facts", () => {
@@ -294,11 +347,13 @@ describe("entity page document", () => {
         category: "equipment",
         level: 4,
         priceCp: 10_000,
+        bulkValue: 1,
         usage: "held-in-one-hand",
         hands: 1,
         baseItem: "longsword",
         itemCategory: "weapon",
         weaponGroup: "sword",
+        actionCost: 1,
       }),
     );
 
@@ -308,6 +363,19 @@ describe("entity page document", () => {
       "Details",
       "Classification",
     ]);
+    expect(document.sections.find((section) => section.title === "Summary")?.blocks).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "factList",
+          facts: expect.arrayContaining([
+            { label: "Price", value: "100 gp" },
+            { label: "Bulk", value: "1" },
+            { label: "Activation", value: "1 action" },
+            { label: "Usage", value: "Held In One Hand" },
+          ]),
+        },
+      ]),
+    );
   });
 
   it("uses a dedicated feat/action recipe family instead of the generic fallback", () => {
@@ -323,6 +391,14 @@ describe("entity page document", () => {
         targetText: "1 ally",
         durationText: "1 minute",
         damageTypes: ["fire"],
+        raw: {
+          system: {
+            frequency: { value: "once per day" },
+            prerequisites: { value: [{ value: "expert in Arcana" }] },
+            requirements: { value: "You are wielding a torch" },
+            trigger: { value: "An ally within range casts a fire spell" },
+          },
+        },
       }),
     );
     const actionDocument = buildEntityPageDocument(
@@ -350,6 +426,10 @@ describe("entity page document", () => {
           kind: "factList",
           facts: expect.arrayContaining([
             { label: "Action Cost", value: "1 action" },
+            { label: "Trigger", value: "An ally within range casts a fire spell" },
+            { label: "Requirements", value: "You are wielding a torch" },
+            { label: "Frequency", value: "once per day" },
+            { label: "Prerequisites", value: "expert in Arcana" },
             { label: "Range", value: "60 feet" },
             { label: "Targets", value: "1 ally" },
             { label: "Duration", value: "1 minute" },
@@ -392,15 +472,34 @@ describe("entity page document", () => {
         areaType: "line",
         areaValue: 30,
         damageTypes: ["fire"],
+        actorMetrics: {
+          "ac.value": 24,
+          "hp.value": 64,
+          "hardness.value": 12,
+          "save.fort.mod": 15,
+          "save.ref.mod": 12,
+        },
       }),
     );
 
     expect(document.sections.map((section) => section.title)).toEqual([
       "Summary",
+      "Defense",
       "Routine",
       "Description",
       "Details",
       "Classification",
+    ]);
+    expect(document.sections.find((section) => section.title === "Defense")?.blocks).toEqual([
+      {
+        kind: "factList",
+        facts: expect.arrayContaining([
+          { label: "AC", value: "24" },
+          { label: "HP", value: "64" },
+          { label: "Hardness", value: "12" },
+          { label: "Saves", value: "Fort +15, Ref +12" },
+        ]),
+      },
     ]);
   });
 
@@ -629,9 +728,9 @@ describe("entity page document", () => {
 
     expect(lines[0]?.text).toBe("Alarm Ward");
     expect(linkLine).toBeDefined();
-    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.text).toBe("AoN: Open in Archives of Nethys");
     expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
-    expect(linkLine?.plainTextFallback).toContain("Open in Archives of Nethys: https://2e.aonprd.com");
+    expect(linkLine?.plainTextFallback).toContain("AoN: Open in Archives of Nethys: https://2e.aonprd.com");
     expect(linkLine?.href).toContain("include-traits=concentrate+fire+manipulate");
   });
 });

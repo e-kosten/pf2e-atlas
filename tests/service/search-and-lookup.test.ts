@@ -1481,6 +1481,17 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(listed).toEqual(expect.arrayContaining(["Track", "Cover Tracks"]));
     expect(listed).not.toContain("Tracker's Stew");
 
+    expect(
+      service
+        .listRecords(browseRequest({ filter: linksToFilter(track!.recordKey) }))
+        .records.map((record) => record.recordKey),
+    ).toContain(trackersStew!.recordKey);
+    expect(
+      service
+        .listRecords(browseRequest({ filter: linkedFromFilter(trackersStew!.recordKey) }))
+        .records.map((record) => record.recordKey),
+    ).toContain(track!.recordKey);
+
     const excluded = service
       .listRecords(
         browseRequest({

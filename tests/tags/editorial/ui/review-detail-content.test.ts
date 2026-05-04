@@ -77,11 +77,11 @@ describe("review detail content", () => {
     const linkLine = lines.find((line): line is OntologyTextLine & { href: string } => typeof line.href === "string");
 
     expect(linkLine).toBeDefined();
-    expect(linkLine?.text).toBe("Open in Archives of Nethys");
+    expect(linkLine?.text).toBe("AoN: Open in Archives of Nethys");
     expect(linkLine?.href).toContain("https://2e.aonprd.com/Search.aspx?display=short&type=eqs");
     expect(
       textLines.some((line) =>
-        line.includes("Open in Archives of Nethys: https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
+        line.includes("AoN: Open in Archives of Nethys: https://2e.aonprd.com/Search.aspx?display=short&type=eqs"),
       ),
     ).toBe(true);
   });
