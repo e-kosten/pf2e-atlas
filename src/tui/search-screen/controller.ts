@@ -209,11 +209,17 @@ export function useSearchScreenController({
   );
   const selectedWorkspaceEntry = workspaceEntries[workspaceSelectedIndex] ?? workspaceEntries[0];
   const resultSelectedIndex = clampAbsoluteSelection(state.resultSelectedIndex, resultCount);
+  const selectedResultDetailLines = React.useMemo(
+    () => (selectedResult ? user.entityPages.buildDetailLines(selectedResult) : null),
+    [selectedResult, user.entityPages],
+  );
 
   const detailLines =
     state.layout === "results" && state.session
       ? selectedResult
-        ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex)
+        ? buildResultDetailLines(selectedResult, state.session, resultSelectedIndex, {
+            detailLines: selectedResultDetailLines ?? user.entityPages.buildDetailLines(selectedResult),
+          })
         : buildPendingResultDetailLines(state.session, resultSelectedIndex)
       : selectedWorkspaceEntry
         ? buildWorkspaceEntryDetailLines(selectedWorkspaceEntry, state, countState, renderOptions)

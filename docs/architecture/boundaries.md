@@ -159,7 +159,7 @@ Important expectations:
 - route cross-surface search discovery semantics through `src/app/search-discovery-service.ts` rather than rebuilding applicability, ordering, or pack-resolution logic from raw `listFilterValues(...)` calls
 - treat ontology nodes as readonly browse models
 - keep helper caches alongside ontology helpers rather than mutating shared nodes from UI code
-- keep shared entity-page document and page-text rendering in `src/app/ontology/entity-page.ts`, and route non-loader consumers through `src/app/ontology/presenter.ts` instead of rebuilding record-to-lines formatting in feature code
+- keep shared entity-page document and page-text rendering in `src/app/ontology/entity-page.ts`, route relation-aware page composition through `src/app/ontology/entity-page-service.ts`, and route non-loader consumers through `src/app/ontology/presenter.ts` instead of rebuilding record-to-lines formatting in feature code
 - move shared vocabulary into `src/domain/` when the concept is no longer ontology-specific
 - route shared ontology/search labels and friendly fallback humanization through `src/domain/presentation-vocabulary.ts` instead of screen-local humanization or raw ids
 

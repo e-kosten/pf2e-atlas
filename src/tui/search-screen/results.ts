@@ -13,8 +13,6 @@ import {
   formatLookupMatchTypeLabel,
 } from "../list-detail-formatting.js";
 import { buildTerminalGroupedListLines } from "../list-detail-presentation.js";
-import { buildOntologyExplorerEntityDetailLines } from "../../app/ontology/presenter.js";
-import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
 
@@ -133,6 +131,9 @@ export function buildResultDetailLines(
   record: Pf2eTerminalSearchSession["results"][number],
   session: Pf2eTerminalSearchSession,
   resultIndex: number,
+  options: {
+    detailLines: DerivedTagTerminalLine[];
+  },
 ): DerivedTagTerminalLine[] {
   const lookupPresentation = getLookupPresentation(session);
   const lookupMatchType = getResultLookupMatchType(record, lookupPresentation);
@@ -151,7 +152,7 @@ export function buildResultDetailLines(
       { label: "Source", value: record.packLabel },
     ]),
     { text: "" },
-    ...buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record)),
+    ...options.detailLines,
   ];
 }
 

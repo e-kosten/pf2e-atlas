@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { buildOntologyExplorerEntityDetailLines } from "../../src/app/ontology/entity-page.js";
+import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "../../src/app/ontology/entity-record.js";
 import type { OntologyTextLine } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { Pf2eTerminalSearchQuery, Pf2eTerminalSearchSession } from "../../src/tui/search/service-types.js";
@@ -125,9 +127,16 @@ function createResultState(session: Pf2eTerminalSearchSession) {
   });
 }
 
+function createDetailLines(record: NormalizedRecord) {
+  return buildOntologyExplorerEntityDetailLines(mapNormalizedRecordToOntologyExplorerEntityRecord(record));
+}
+
 describe("search result detail lines", () => {
   it("reuses the shared ontology detail presenter so result previews include the AoN link metadata", () => {
-    const lines = buildResultDetailLines(createRecord(), createSession(createRecord()), 0);
+    const record = createRecord();
+    const lines = buildResultDetailLines(record, createSession(record), 0, {
+      detailLines: createDetailLines(record),
+    });
     const linkLine = lines.find(
       (line): line is OntologyTextLine & { href: string; plainTextFallback: string } =>
         typeof line.href === "string" && typeof line.plainTextFallback === "string",
@@ -145,8 +154,9 @@ describe("search result detail lines", () => {
   });
 
   it("adds a light match-type metadata line for lookup previews", () => {
+    const record = { ...createRecord({ name: "Fire Ball" }), matchType: "exact" as const };
     const lines = buildResultDetailLines(
-      { ...createRecord({ name: "Fire Ball" }), matchType: "exact" as const },
+      record,
       createSession(createRecord({ name: "Fire Ball" }), {
         query: {
           mode: "lookup",
@@ -160,12 +170,31 @@ describe("search result detail lines", () => {
         sort: "alphabeticalTiered",
       }),
       0,
+      {
+        detailLines: createDetailLines(record),
+      },
     );
 
     expect(lines[1]?.text).toBe("Showing: result 1/1");
     expect(lines[2]?.text).toBe("Sort: Alphabetical (tiered)");
     expect(lines[3]?.text).toBe("Match: Exact");
     expect(lines[4]?.text).toBe("Source: Spells");
+  });
+
+  it("uses injected relation-aware preview lines when provided by the caller", () => {
+    const lines = buildResultDetailLines(createRecord(), createSession(createRecord()), 0, {
+      detailLines: [
+        { text: "Fireball", tone: "section" },
+        { text: "References", tone: "section" },
+        { text: "Spell Effect: Fireball", indent: 2 },
+      ],
+    });
+
+    expect(lines[0]?.text).toBe("Result Preview");
+    expect(lines[4]?.text).toBe("");
+    expect(lines[5]?.text).toBe("Fireball");
+    expect(lines.some((line) => line.text === "References")).toBe(true);
+    expect(lines.some((line) => line.text === "Spell Effect: Fireball")).toBe(true);
   });
 
   it("renders lookup tiered sections without per-row badges and global lookup badges without sections", () => {

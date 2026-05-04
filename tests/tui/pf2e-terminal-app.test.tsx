@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
+import { createPf2eApplicationEntityPageService } from "../../src/app/ontology/entity-page-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { Pf2eTerminalApp, Pf2eTerminalBootstrap } from "../../src/tui/pf2e-app.js";
 import type { Pf2eAppRoute } from "../../src/tui/pf2e-app-state.js";
@@ -349,6 +350,16 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       records: [record],
     }),
   );
+  const pageRelations = {
+    loadPageRelations: vi.fn(() => ({
+      recordKey: record.recordKey,
+      outgoing: { records: [], edges: [] },
+      incoming: { records: [], edges: [] },
+      edges: [],
+      incomingGroups: [],
+    })),
+  };
+  const entityPages = createPf2eApplicationEntityPageService(pageRelations);
   const searchService = createPf2eTerminalSearchService({
     closeSearchWindow,
     countRecords,
@@ -377,11 +388,13 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
   return {
     config: createTestConfig(),
     user: {
+      entityPages,
       search: searchService,
       ontology: {
         loadSearchSemanticsDomain: vi.fn(async () => createSearchSemanticsModel()),
         loadSearchFilterExplorerDomain: vi.fn(async () => createSearchSemanticsModel()),
       },
+      pageRelations,
     },
     dev: {
       tagRefinement: {

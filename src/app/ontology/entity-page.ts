@@ -2,7 +2,7 @@ import type { OntologyTextLine } from "../../domain/ontology-types.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { PageRelationsResult } from "../../domain/page-relations-types.js";
 import type { RecordKey } from "../../domain/record-types.js";
-import type { SearchRequest } from "../../domain/search-request-types.js";
+import { buildAllOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { buildAonSearchLink } from "../external-links/aon-search.js";
 import type { OntologyExplorerEntityRecord } from "./entity-record.js";
 
@@ -54,7 +54,7 @@ type PreparedEntityPageInput = {
   description?: string;
   summaryFacts: EntityPageFact[];
   detailFacts: EntityPageFact[];
-  classificationFacts: EntityPageFact[];
+  classificationTargets: EntityPageTarget[];
   references: EntityPageTarget[];
   referencedBy: EntityPageTarget[];
 };
@@ -177,17 +177,78 @@ function buildDetailFacts(record: OntologyExplorerEntityRecord): EntityPageFact[
     asFact("Spell Kinds", formatList(record.spellKinds)),
     asFact("Source Category", humanize(record.sourceCategory)),
     asFact("Document Type", record.documentType),
-    asFact("Publication", record.publicationTitle),
-    asFact("Pack", record.packName),
   ].filter((fact): fact is EntityPageFact => Boolean(fact));
 }
 
-function buildClassificationFacts(record: OntologyExplorerEntityRecord): EntityPageFact[] {
+function buildBrowseRequest(filter: SearchRequest["filter"]): SearchRequest {
+  return {
+    mode: "browse",
+    filter,
+    sort: { kind: "alphabetical" },
+    limit: 50,
+  };
+}
+
+function buildPackTarget(record: OntologyExplorerEntityRecord): EntityPageTarget | null {
+  const packName = record.packName.trim();
+  if (!packName) {
+    return null;
+  }
+  return {
+    kind: "searchPivot",
+    label: `Pack: ${packName}`,
+    request: buildBrowseRequest({ kind: "pack", value: packName }),
+  };
+}
+
+function buildCategoryTarget(record: OntologyExplorerEntityRecord): EntityPageTarget {
+  return {
+    kind: "searchPivot",
+    label: `Category: ${humanize(record.category)}`,
+    request: buildBrowseRequest(buildScopeFilter(record.category)),
+  };
+}
+
+function buildSubcategoryTarget(record: OntologyExplorerEntityRecord): EntityPageTarget | null {
+  if (!record.subcategory) {
+    return null;
+  }
+  return {
+    kind: "searchPivot",
+    label: `Subcategory: ${humanize(record.subcategory)}`,
+    request: buildBrowseRequest(buildScopeFilter(record.category, record.subcategory)),
+  };
+}
+
+function buildMetadataTargets(
+  record: OntologyExplorerEntityRecord,
+  field: "derivedTags" | "families",
+  label: "Derived Tags" | "Families",
+  values: string[],
+): EntityPageTarget[] {
+  return values.map((value) => ({
+    kind: "searchPivot" as const,
+    label: `${label}: ${humanize(value)}`,
+    request: buildBrowseRequest(
+      buildAllOfFilter([
+        buildScopeFilter(record.category),
+        {
+          kind: "metadataPredicate",
+          predicate: { field, op: "includes", value },
+        },
+      ]),
+    ),
+  }));
+}
+
+function buildClassificationTargets(record: OntologyExplorerEntityRecord): EntityPageTarget[] {
   return [
-    asFact("Pack", record.packName),
-    asFact("Derived Tags", formatList(record.derivedTags)),
-    asFact("Families", formatList(record.families)),
-  ].filter((fact): fact is EntityPageFact => Boolean(fact));
+    buildPackTarget(record),
+    buildCategoryTarget(record),
+    buildSubcategoryTarget(record),
+    ...buildMetadataTargets(record, "derivedTags", "Derived Tags", record.derivedTags),
+    ...buildMetadataTargets(record, "families", "Families", record.families),
+  ].filter((target): target is EntityPageTarget => Boolean(target));
 }
 
 function buildReferenceTargets(relations?: PageRelationsResult): EntityPageTarget[] {
@@ -195,12 +256,31 @@ function buildReferenceTargets(relations?: PageRelationsResult): EntityPageTarge
     return [];
   }
 
-  return relations.outgoing.records.map((record) => ({
-    kind: "record" as const,
-    label: record.name,
-    recordKey: record.recordKey,
-    action: "open" as const,
-  }));
+  const recordsByKey = new Map(relations.outgoing.records.map((record) => [record.recordKey, record]));
+  const seen = new Set<string>();
+
+  return relations.outgoing.edges.flatMap((edge) => {
+    const record = recordsByKey.get(edge.toRecordKey);
+    if (!record) {
+      return [];
+    }
+
+    const label = edge.displayText?.trim() || record.name || edge.referenceText;
+    const dedupeKey = `${record.recordKey}|${label}`;
+    if (seen.has(dedupeKey)) {
+      return [];
+    }
+    seen.add(dedupeKey);
+
+    return [
+      {
+        kind: "record" as const,
+        label,
+        recordKey: record.recordKey,
+        action: "open" as const,
+      },
+    ];
+  });
 }
 
 function buildBacklinkTargets(relations?: PageRelationsResult): EntityPageTarget[] {
@@ -237,7 +317,7 @@ function buildEntityPageInput(
     description: record.descriptionText ?? undefined,
     summaryFacts: buildSummaryFacts(record),
     detailFacts: buildDetailFacts(record),
-    classificationFacts: buildClassificationFacts(record),
+    classificationTargets: buildClassificationTargets(record),
     references: buildReferenceTargets(relations),
     referencedBy: buildBacklinkTargets(relations),
   };
@@ -267,7 +347,6 @@ export function buildEntityPageDocument(
   const seenFacts = new Set<string>();
   const summaryFacts = dedupeFacts(input.summaryFacts, seenFacts);
   const detailFacts = dedupeFacts(input.detailFacts, seenFacts);
-  const classificationFacts = dedupeFacts(input.classificationFacts, seenFacts);
   const sections: EntityPageSection[] = [];
 
   if (input.blurb || summaryFacts.length > 0) {
@@ -323,13 +402,13 @@ export function buildEntityPageDocument(
     });
   }
 
-  if (classificationFacts.length > 0) {
+  if (input.classificationTargets.length > 0) {
     sections.push({
       id: "classification",
       kind: "classification",
       title: "Classification",
-      blocks: [{ kind: "factList", facts: classificationFacts }],
-      targets: [],
+      blocks: [{ kind: "targetList", targets: input.classificationTargets }],
+      targets: input.classificationTargets,
     });
   }
 

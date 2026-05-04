@@ -8,6 +8,7 @@ import type { SearchCountResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
+import { createPf2eApplicationEntityPageService } from "../../src/app/ontology/entity-page-service.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import {
   buildSearchFilterExplorerModel,
@@ -362,6 +363,16 @@ function createServices(
       records: [record],
     }));
   const closeSearchWindow: CloseSearchWindowFn = overrides.closeSearchWindow ?? vi.fn();
+  const pageRelations = {
+    loadPageRelations: vi.fn(() => ({
+      recordKey: record.recordKey,
+      outgoing: { records: [], edges: [] },
+      incoming: { records: [], edges: [] },
+      edges: [],
+      incomingGroups: [],
+    })),
+  };
+  const entityPages = createPf2eApplicationEntityPageService(pageRelations);
 
   const searchService = createPf2eTerminalSearchService({
     closeSearchWindow,
@@ -391,11 +402,13 @@ function createServices(
   return {
     config: createTestConfig(),
     user: {
+      entityPages,
       search: searchService,
       ontology: {
         loadSearchSemanticsDomain: vi.fn(() => createFacetPickerOntologyDomain()),
         loadSearchFilterExplorerDomain: vi.fn(async () => createFacetPickerOntologyDomain()),
       },
+      pageRelations,
     },
     dev: {
       tagRefinement: {
@@ -1377,6 +1390,26 @@ describe("search screen", () => {
 
     const matches = app.lastFrame().match(/Loading next view \|/g) ?? [];
     expect(matches).toHaveLength(1);
+  });
+
+  it("loads page relations through the shared entity-page facade for result previews", async () => {
+    const services = createServices();
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    expect(services.user.pageRelations.loadPageRelations).toHaveBeenCalledWith("spell:test-alarm");
+    expect(app.lastFrame()).toContain("Alarm Ward");
   });
 
   it("supports arrow-driven navigation for editing and executing the query workspace", async () => {
