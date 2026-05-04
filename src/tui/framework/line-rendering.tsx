@@ -399,6 +399,22 @@ export function getRenderedTerminalLineCount(
   return buildRenderedTerminalLines(lines, width, options).length;
 }
 
+export function getRenderedTerminalLineStartRows(
+  lines: DerivedTagTerminalLine[],
+  width: number,
+  options: RenderTerminalLineOptions = {},
+): number[] {
+  const startRows: number[] = [];
+  let rowIndex = 0;
+
+  for (const line of lines) {
+    startRows.push(rowIndex);
+    rowIndex += buildRenderedTerminalLines([line], width, options).length;
+  }
+
+  return startRows;
+}
+
 export function sliceRenderedTerminalLines(
   lines: DerivedTagTerminalLine[],
   width: number,

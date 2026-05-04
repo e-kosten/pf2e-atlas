@@ -1418,7 +1418,7 @@ describe("search screen", () => {
 
     expect(services.user.pageRelations.loadPageRelations).toHaveBeenCalledWith("spell:test-alarm");
     expect(app.lastFrame()).toContain("Alarm Ward");
-    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Actions");
   });
 
   it("routes hybrid page-preview navigation through shared section and target interactions", async () => {
@@ -1438,8 +1438,12 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
     expect(app.lastFrame()).toContain("↑/↓ section");
+
+    pressDown(app);
+    await flushInk();
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
 
     pressDown(app);
     await flushInk();
@@ -1459,6 +1463,43 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Classification");
+  });
+
+  it("allows visible header actions to be selected from the result preview", async () => {
+    const services = createServices();
+    const onActivatePageTarget = vi.fn(() => true);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            entry="results"
+            initialSession={createSearchSession()}
+            onActivatePageTarget={onActivatePageTarget}
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\t");
+    await flushInk();
+    expect(app.lastFrame()).toContain("Open in Archives of Nethys");
+    expect(app.lastFrame()).toContain("Enter/→ targets");
+
+    app.stdin.write("\r");
+    await flushInk();
+    expect(app.lastFrame()).toContain("↑/↓ target");
+
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(onActivatePageTarget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "external",
+        label: "Open in Archives of Nethys",
+      }),
+    );
   });
 
   it("uses Ctrl-Y and Ctrl-E to smooth-scroll preview content without leaving section mode", async () => {
@@ -1502,12 +1543,12 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\t");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("Archives of Nethys");
     expect(app.lastFrame()).not.toContain("Reference 01");
 
-    for (let step = 0; step < 12; step += 1) {
+    for (let step = 0; step < 20; step += 1) {
       pressCtrlE(app);
       await flushInk();
     }
@@ -1517,12 +1558,12 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("Archives of Nethys");
     expect(app.lastFrame()).toContain("Reference 01");
 
-    for (let step = 0; step < 12; step += 1) {
+    for (let step = 0; step < 20; step += 1) {
       pressCtrlY(app);
       await flushInk();
     }
 
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
     expect(app.lastFrame()).toContain("↑/↓ section");
     expect(app.lastFrame()).toContain("Archives of Nethys");
     expect(app.lastFrame()).not.toContain("Reference 01");
@@ -5406,14 +5447,14 @@ describe("search screen", () => {
 
     app.stdin.write("\u001b[<0;70;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Actions");
 
     app.stdin.write("\u001b[<0;10;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Summary");
+    expect(app.lastFrame()).toContain("Preview | Alarm Ward | Actions");
 
     app.stdin.write("\u001b[<65;10;6M");
     await flushInk();
-    expect(app.lastFrame()).toContain("Preview | Barrier Ward | Summary");
+    expect(app.lastFrame()).toContain("Preview | Barrier Ward | Actions");
   });
 });

@@ -191,6 +191,7 @@ describe("page document model", () => {
     const model = buildPageDocumentModel(buildEntityPageDocument(createRecord(), createRelations()));
 
     expect(model.sections.map((section) => section.id)).toEqual([
+      "header",
       "summary",
       "description",
       "details",
@@ -199,6 +200,7 @@ describe("page document model", () => {
       "classification",
     ]);
     expect(model.sectionAnchors.map((anchor) => anchor.sectionId)).toEqual([
+      "header",
       "summary",
       "description",
       "details",
@@ -207,6 +209,7 @@ describe("page document model", () => {
       "classification",
     ]);
     expect(model.targetNodes.map((node) => node.target.label)).toEqual([
+      "Open in Archives of Nethys",
       "Spell Effect: Fireball",
       "Feat (2)",
       "Pack: spells",

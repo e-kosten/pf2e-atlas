@@ -6,6 +6,7 @@ import {
   reduceDerivedTagTerminalActionTargetState,
 } from "../action-target.js";
 import type { DerivedTagTerminalPointerEvent } from "../framework/types.js";
+import { getRenderedTerminalLineStartRows } from "../framework/line-rendering.js";
 import {
   measureTerminalListDetailPresentation,
   useTerminalListDetailNotification,
@@ -15,6 +16,7 @@ import { renderPageDocumentModel } from "../page-document/model.js";
 import {
   createPageDocumentInteractionState,
   enterPageDocumentTargetMode,
+  focusPageDocumentSection,
   getFocusedPageDocumentSection,
   getSelectedPageDocumentTarget,
   leavePageDocumentTargetMode,
@@ -195,6 +197,12 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         state: pageInteractionState,
         scroll: normalizedBrowserState.detailScroll,
         bodyHeight: presentationMetrics.bodyHeight,
+        nodeStartRows: getRenderedTerminalLineStartRows(
+          initialPageDetailLines ?? [],
+          presentationMetrics.detailWidth,
+          { hyperlinkSupport: terminal.capabilities.hyperlinkSupport },
+        ),
+        maxScroll: presentationMetrics.maxDetailScroll,
       })
     : null;
   const detailInteractionState =
@@ -246,6 +254,15 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
   const maxDetailScroll = screenPresentationMetrics.maxDetailScroll;
+  const pageDocumentNodeStartRows = React.useMemo(
+    () =>
+      pageDetailLines
+        ? getRenderedTerminalLineStartRows(pageDetailLines, screenPresentationMetrics.detailWidth, {
+            hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+          })
+        : undefined,
+    [pageDetailLines, screenPresentationMetrics.detailWidth, terminal.capabilities.hyperlinkSupport],
+  );
   const effectiveState =
     normalizedBrowserState.detailScroll > maxDetailScroll
       ? { ...normalizedBrowserState, detailScroll: maxDetailScroll }
@@ -366,7 +383,11 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           (route.interactionAction?.id === "back" || route.interactionAction?.id === "return") &&
           detailInteractionState.kind === "target"
         ) {
-          setPageInteractionState(leavePageDocumentTargetMode());
+          setPageInteractionState(
+            pageInteractionState.mode.kind === "target"
+              ? focusPageDocumentSection(pageInteractionState.mode.sectionId)
+              : leavePageDocumentTargetMode(),
+          );
           return;
         }
 
@@ -376,6 +397,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
             scroll: browserContext.effectiveState.detailScroll,
             bodyHeight: browserContext.bodyHeight,
             maxScroll: browserContext.maxDetailScroll,
+            nodeStartRows: pageDocumentNodeStartRows,
+            sectionId: browserContext.focusedPageSection?.id,
           });
           if (entered.state.mode.kind === "section") {
             showNotification({
@@ -427,12 +450,30 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
               bodyHeight: browserContext.bodyHeight,
               maxScroll: browserContext.maxDetailScroll,
               delta: detailNavigationAction.delta,
+              nodeStartRows: pageDocumentNodeStartRows,
             });
             setPageInteractionState(moved.state);
             scrollTo(moved.scroll);
             return;
           }
 
+          {
+            const currentSection = browserContext.focusedPageSection;
+            const currentIndex = currentSection
+              ? pageDocument.sections.findIndex((section) => section.id === currentSection.id)
+              : 0;
+            const nextIndex = Math.max(
+              0,
+              Math.min(
+                currentIndex + detailNavigationAction.delta,
+                Math.max(0, pageDocument.sections.length - 1),
+              ),
+            );
+            const nextSection = pageDocument.sections[nextIndex];
+            if (nextSection) {
+              setPageInteractionState(focusPageDocumentSection(nextSection.id));
+            }
+          }
           scrollTo(
             movePageDocumentSection({
               document: pageDocument,
@@ -440,6 +481,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
               bodyHeight: browserContext.bodyHeight,
               maxScroll: browserContext.maxDetailScroll,
               delta: detailNavigationAction.delta,
+              nodeStartRows: pageDocumentNodeStartRows,
+              state: pageInteractionState,
             }),
           );
           return;
@@ -453,18 +496,29 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
               bodyHeight: browserContext.bodyHeight,
               maxScroll: browserContext.maxDetailScroll,
               boundary: detailNavigationAction.boundary,
+              nodeStartRows: pageDocumentNodeStartRows,
             });
             setPageInteractionState(moved.state);
             scrollTo(moved.scroll);
             return;
           }
 
+          {
+            const targetSection =
+              detailNavigationAction.boundary === "start"
+                ? pageDocument.sections[0]
+                : pageDocument.sections.at(-1);
+            if (targetSection) {
+              setPageInteractionState(focusPageDocumentSection(targetSection.id));
+            }
+          }
           scrollTo(
             movePageDocumentSectionBoundary({
               document: pageDocument,
               boundary: detailNavigationAction.boundary,
               bodyHeight: browserContext.bodyHeight,
               maxScroll: browserContext.maxDetailScroll,
+              nodeStartRows: pageDocumentNodeStartRows,
             }),
           );
           return;
@@ -475,9 +529,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           detailNavigationAction?.kind === "viewportScrollLarge" ||
           detailNavigationAction?.kind === "viewportPage"
         ) {
-          if (pageInteractionState.mode.kind === "target") {
-            setPageInteractionState(leavePageDocumentTargetMode());
-          }
+          setPageInteractionState(createPageDocumentInteractionState());
           dispatch({
             type: "move_detail",
             delta: detailNavigationAction.delta,
@@ -487,9 +539,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         }
 
         if (detailNavigationAction?.kind === "viewportEdge") {
-          if (pageInteractionState.mode.kind === "target") {
-            setPageInteractionState(leavePageDocumentTargetMode());
-          }
+          setPageInteractionState(createPageDocumentInteractionState());
           dispatch({
             type: "detail_boundary",
             boundary: detailNavigationAction.boundary,
@@ -525,6 +575,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       options,
       pageDocument,
       pageInteractionState,
+      pageDocumentNodeStartRows,
       selectedPageTarget?.target,
       showNotification,
       updateDraft,

@@ -11,6 +11,24 @@ function getSectionAnchorNodeIndex(
   return document.sectionAnchors.find((anchor) => anchor.sectionId === sectionId)?.nodeIndex ?? null;
 }
 
+function getNodeScrollPosition(nodeIndex: number, nodeStartRows: readonly number[] | undefined): number {
+  return nodeStartRows?.[nodeIndex] ?? nodeIndex;
+}
+
+function getNodeIndexAtScrollPosition(document: PageDocumentModel, rowIndex: number, nodeStartRows: readonly number[]): number {
+  let activeNodeIndex = 0;
+
+  for (let nodeIndex = 0; nodeIndex < document.nodes.length; nodeIndex += 1) {
+    const nodeRow = nodeStartRows[nodeIndex] ?? nodeIndex;
+    if (nodeRow > rowIndex) {
+      break;
+    }
+    activeNodeIndex = nodeIndex;
+  }
+
+  return activeNodeIndex;
+}
+
 export function getPageDocumentReadingAnchorOffset(bodyHeight: number): number {
   return Math.max(0, Math.floor(Math.max(1, bodyHeight) / 3));
 }
@@ -19,16 +37,30 @@ export function getPageDocumentReadingAnchorNodeIndex(options: {
   document: PageDocumentModel;
   scroll: number;
   bodyHeight: number;
+  nodeStartRows?: readonly number[];
 }): number {
   const anchorOffset = getPageDocumentReadingAnchorOffset(options.bodyHeight);
-  return clamp(options.scroll + anchorOffset, 0, Math.max(0, options.document.nodes.length - 1));
+  const anchorRow = options.scroll + anchorOffset;
+  if (options.nodeStartRows) {
+    return getNodeIndexAtScrollPosition(options.document, anchorRow, options.nodeStartRows);
+  }
+  return clamp(anchorRow, 0, Math.max(0, options.document.nodes.length - 1));
 }
 
 export function getActivePageDocumentSection(options: {
   document: PageDocumentModel;
   scroll: number;
   bodyHeight: number;
+  nodeStartRows?: readonly number[];
+  maxScroll?: number;
 }): PageDocumentSectionModel | null {
+  if (options.scroll === 0) {
+    return options.document.sections[0] ?? null;
+  }
+  if (options.maxScroll != null && options.maxScroll > 0 && options.scroll >= options.maxScroll) {
+    return options.document.sections.at(-1) ?? null;
+  }
+
   const anchorNodeIndex = getPageDocumentReadingAnchorNodeIndex(options);
   let activeSection: PageDocumentSectionModel | null = null;
 
@@ -55,8 +87,13 @@ export function getFocusedPageDocumentSection(options: {
   state: PageDocumentInteractionState;
   scroll: number;
   bodyHeight: number;
+  nodeStartRows?: readonly number[];
+  maxScroll?: number;
 }): PageDocumentSectionModel | null {
   if (options.state.mode.kind === "target") {
+    return getPageDocumentSectionById(options.document, options.state.mode.sectionId);
+  }
+  if (options.state.mode.sectionId) {
     return getPageDocumentSectionById(options.document, options.state.mode.sectionId);
   }
 
@@ -68,6 +105,7 @@ export function getPageDocumentSectionScrollTarget(options: {
   sectionId: string;
   bodyHeight: number;
   maxScroll: number;
+  nodeStartRows?: readonly number[];
 }): number {
   const sectionAnchorNodeIndex = getSectionAnchorNodeIndex(options.document, options.sectionId);
   if (sectionAnchorNodeIndex == null) {
@@ -75,11 +113,12 @@ export function getPageDocumentSectionScrollTarget(options: {
   }
 
   const anchorOffset = getPageDocumentReadingAnchorOffset(options.bodyHeight);
-  return clamp(sectionAnchorNodeIndex - anchorOffset, 0, Math.max(0, options.maxScroll));
+  const sectionAnchorScrollPosition = getNodeScrollPosition(sectionAnchorNodeIndex, options.nodeStartRows);
+  return clamp(sectionAnchorScrollPosition - anchorOffset, 0, Math.max(0, options.maxScroll));
 }
 
 export type PageDocumentInteractionMode =
-  | { kind: "section" }
+  | { kind: "section"; sectionId?: string }
   | {
       kind: "target";
       sectionId: string;
@@ -96,6 +135,15 @@ export function createPageDocumentInteractionState(): PageDocumentInteractionSta
   };
 }
 
+export function focusPageDocumentSection(sectionId: string): PageDocumentInteractionState {
+  return {
+    mode: {
+      kind: "section",
+      sectionId,
+    },
+  };
+}
+
 function getTargetNodesForSection(
   document: PageDocumentModel,
   sectionId: string,
@@ -108,6 +156,7 @@ function getPageDocumentNodeScrollTarget(options: {
   nodeId: string;
   bodyHeight: number;
   maxScroll: number;
+  nodeStartRows?: readonly number[];
 }): number {
   const nodeIndex = options.document.nodes.findIndex((node) => node.id === options.nodeId);
   if (nodeIndex < 0) {
@@ -115,7 +164,8 @@ function getPageDocumentNodeScrollTarget(options: {
   }
 
   const anchorOffset = getPageDocumentReadingAnchorOffset(options.bodyHeight);
-  return clamp(nodeIndex - anchorOffset, 0, Math.max(0, options.maxScroll));
+  const nodeScrollPosition = getNodeScrollPosition(nodeIndex, options.nodeStartRows);
+  return clamp(nodeScrollPosition - anchorOffset, 0, Math.max(0, options.maxScroll));
 }
 
 export function movePageDocumentSection(options: {
@@ -124,8 +174,13 @@ export function movePageDocumentSection(options: {
   bodyHeight: number;
   maxScroll: number;
   delta: number;
+  nodeStartRows?: readonly number[];
+  state?: PageDocumentInteractionState;
 }): number {
-  const activeSection = getActivePageDocumentSection(options);
+  const activeSection =
+    options.state?.mode.kind === "section" && options.state.mode.sectionId
+      ? getPageDocumentSectionById(options.document, options.state.mode.sectionId)
+      : getActivePageDocumentSection({ ...options, maxScroll: options.maxScroll });
   if (!activeSection) {
     return 0;
   }
@@ -140,6 +195,7 @@ export function movePageDocumentSection(options: {
         sectionId: nextSection.id,
         bodyHeight: options.bodyHeight,
         maxScroll: options.maxScroll,
+        nodeStartRows: options.nodeStartRows,
       })
     : options.scroll;
 }
@@ -149,6 +205,7 @@ export function movePageDocumentSectionBoundary(options: {
   boundary: "start" | "end";
   bodyHeight: number;
   maxScroll: number;
+  nodeStartRows?: readonly number[];
 }): number {
   const targetSection =
     options.boundary === "start" ? options.document.sections[0] : options.document.sections.at(-1);
@@ -159,6 +216,7 @@ export function movePageDocumentSectionBoundary(options: {
         sectionId: targetSection.id,
         bodyHeight: options.bodyHeight,
         maxScroll: options.maxScroll,
+        nodeStartRows: options.nodeStartRows,
       })
     : 0;
 }
@@ -168,11 +226,15 @@ export function enterPageDocumentTargetMode(options: {
   scroll: number;
   bodyHeight: number;
   maxScroll: number;
+  nodeStartRows?: readonly number[];
+  sectionId?: string;
 }): {
   state: PageDocumentInteractionState;
   scroll: number;
 } {
-  const activeSection = getActivePageDocumentSection(options);
+  const activeSection = options.sectionId
+    ? getPageDocumentSectionById(options.document, options.sectionId)
+    : getActivePageDocumentSection(options);
   if (!activeSection) {
     return {
       state: createPageDocumentInteractionState(),
@@ -202,6 +264,7 @@ export function enterPageDocumentTargetMode(options: {
       nodeId: firstTarget.nodeId,
       bodyHeight: options.bodyHeight,
       maxScroll: options.maxScroll,
+      nodeStartRows: options.nodeStartRows,
     }),
   };
 }
@@ -227,6 +290,7 @@ export function movePageDocumentTarget(options: {
   bodyHeight: number;
   maxScroll: number;
   delta: number;
+  nodeStartRows?: readonly number[];
 }): {
   state: PageDocumentInteractionState;
   scroll: number;
@@ -261,6 +325,7 @@ export function movePageDocumentTarget(options: {
       nodeId: nextTarget.nodeId,
       bodyHeight: options.bodyHeight,
       maxScroll: options.maxScroll,
+      nodeStartRows: options.nodeStartRows,
     }),
   };
 }
@@ -271,6 +336,7 @@ export function movePageDocumentTargetBoundary(options: {
   bodyHeight: number;
   maxScroll: number;
   boundary: "start" | "end";
+  nodeStartRows?: readonly number[];
 }): {
   state: PageDocumentInteractionState;
   scroll: number;
@@ -305,6 +371,7 @@ export function movePageDocumentTargetBoundary(options: {
       nodeId: target.nodeId,
       bodyHeight: options.bodyHeight,
       maxScroll: options.maxScroll,
+      nodeStartRows: options.nodeStartRows,
     }),
   };
 }

@@ -103,12 +103,30 @@ export function buildPageDocumentModel(
   }
 
   if (document.aonLink) {
-    pushNode({
+    const nodeId = "header:external:aon";
+    const nodeIndex = pushNode({
       id: "header:external:aon",
       kind: "external",
       line: toTargetLine(document.aonLink),
       target: document.aonLink,
       anchorRole: "target",
+    });
+    sections.push({
+      id: "header",
+      kind: "identity",
+      title: "Actions",
+      startNodeIndex: nodeIndex,
+      endNodeIndex: nodeIndex,
+      targetNodeIds: [nodeId],
+    });
+    sectionAnchors.push({
+      sectionId: "header",
+      nodeIndex,
+    });
+    targetNodes.push({
+      nodeId,
+      sectionId: "header",
+      target: document.aonLink,
     });
   }
 

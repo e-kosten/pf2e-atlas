@@ -247,6 +247,46 @@ describe("search result detail lines", () => {
     expect(globalLines.some((line) => line.text.includes("[fuzzy]"))).toBe(true);
   });
 
+  it("keeps the selected tiered lookup result visible after inserting group headers", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "lookup",
+      limit: 20,
+      search: {
+        query: "Fire Ball",
+      },
+    };
+    const records = [
+      ...Array.from({ length: 4 }, (_, index) => ({
+        ...createRecord({ name: `Exact ${index + 1}`, recordKey: `spell:exact-${index + 1}` }),
+        matchType: "exact" as const,
+      })),
+      ...Array.from({ length: 4 }, (_, index) => ({
+        ...createRecord({ name: `Normalized ${index + 1}`, recordKey: `spell:normalized-${index + 1}` }),
+        matchType: "normalized_exact" as const,
+      })),
+      ...Array.from({ length: 4 }, (_, index) => ({
+        ...createRecord({ name: `Fuzzy ${index + 1}`, recordKey: `spell:fuzzy-${index + 1}` }),
+        matchType: "fuzzy" as const,
+      })),
+    ];
+
+    const lines = buildResultLines(
+      createSession(records[0]!, {
+        query,
+        results: records,
+        total: records.length,
+        loadedCount: records.length,
+        sort: "alphabeticalTiered",
+      }),
+      8,
+      4,
+      false,
+    );
+
+    expect(lines).toHaveLength(4);
+    expect(lines.some((line) => line.tone === "selected" && line.text.includes("Fuzzy 1"))).toBe(true);
+  });
+
   it("only exposes sort actions for browse and lookup result readers", () => {
     const record = createRecord();
     const browseSession = createSession(record, {

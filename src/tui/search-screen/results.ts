@@ -78,13 +78,12 @@ export function buildResultLines(
   const resultWindowCount = Math.max(1, visibleCount - statusRows);
   const localSelectedIndex = selectedIndex - session.windowOffset;
   const safeIndex = Math.max(0, Math.min(localSelectedIndex, session.results.length - 1));
-  const windowStart = clampWindowStart(safeIndex, session.results.length, resultWindowCount);
-  const visibleRecords = session.results.slice(windowStart, windowStart + resultWindowCount);
+  const effectiveSelectedIndex =
+    localSelectedIndex >= 0 && localSelectedIndex < session.results.length ? localSelectedIndex : safeIndex;
   const lookupPresentation = getLookupPresentation(session);
-  const lines: DerivedTagTerminalLine[] = buildTerminalGroupedListLines({
-    items: visibleRecords,
-    selectedIndex:
-      localSelectedIndex >= 0 && localSelectedIndex < session.results.length ? localSelectedIndex - windowStart : 0,
+  const resultLines: DerivedTagTerminalLine[] = buildTerminalGroupedListLines({
+    items: session.results,
+    selectedIndex: effectiveSelectedIndex,
     getGroup:
       lookupPresentation?.policy === "tiered"
         ? (record) => {
@@ -103,6 +102,12 @@ export function buildResultLines(
       });
     },
   });
+  const selectedLineIndex = Math.max(
+    0,
+    resultLines.findIndex((line) => line.tone === "selected"),
+  );
+  const windowStart = clampWindowStart(selectedLineIndex, resultLines.length, resultWindowCount);
+  const lines = resultLines.slice(windowStart, windowStart + resultWindowCount);
 
   if (loadingMore) {
     lines.push({ text: `Loading around ${formatResultPosition(selectedIndex, session.total)}...`, tone: "accent" });
@@ -127,13 +132,10 @@ export function buildPendingResultDetailLines(
   ];
 }
 
-export function buildResultDetailLines(
+export function buildResultDetailHeaderLines(
   record: Pf2eTerminalSearchSession["results"][number],
   session: Pf2eTerminalSearchSession,
   resultIndex: number,
-  options: {
-    detailLines: DerivedTagTerminalLine[];
-  },
 ): DerivedTagTerminalLine[] {
   const lookupPresentation = getLookupPresentation(session);
   const lookupMatchType = getResultLookupMatchType(record, lookupPresentation);
@@ -152,6 +154,19 @@ export function buildResultDetailLines(
       { label: "Source", value: record.packLabel },
     ]),
     { text: "" },
+  ];
+}
+
+export function buildResultDetailLines(
+  record: Pf2eTerminalSearchSession["results"][number],
+  session: Pf2eTerminalSearchSession,
+  resultIndex: number,
+  options: {
+    detailLines: DerivedTagTerminalLine[];
+  },
+): DerivedTagTerminalLine[] {
+  return [
+    ...buildResultDetailHeaderLines(record, session, resultIndex),
     ...options.detailLines,
   ];
 }

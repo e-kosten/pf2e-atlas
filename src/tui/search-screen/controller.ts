@@ -7,6 +7,7 @@ import {
   SEARCH_LEFT_WIDTH,
   buildQuerySummaryLines,
   buildPendingResultDetailLines,
+  buildResultDetailHeaderLines,
   buildResultActionEntries,
   buildResultDetailLines,
   buildResultLines,
@@ -48,6 +49,7 @@ import { buildPageDocumentModel, renderPageDocumentModel } from "../page-documen
 import {
   createPageDocumentInteractionState,
   enterPageDocumentTargetMode,
+  focusPageDocumentSection,
   getFocusedPageDocumentSection,
   getSelectedPageDocumentTarget,
   leavePageDocumentTargetMode,
@@ -64,6 +66,7 @@ import {
   type DerivedTagTerminalActionTargetOption,
 } from "../action-target.js";
 import { useDerivedTagTerminalApp, useDerivedTagTerminalSize } from "../framework/context.js";
+import { getRenderedTerminalLineCount, getRenderedTerminalLineStartRows } from "../framework/line-rendering.js";
 import type { DerivedTagTerminalTwoPaneScreenProps } from "../framework/types.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import type { DerivedTagTerminalActionTargetState } from "../action-target.js";
@@ -263,6 +266,13 @@ export function useSearchScreenController({
         : null,
     [selectedPageTargetNode?.nodeId, selectedResultPageModel],
   );
+  const selectedResultDetailHeaderLines = React.useMemo(
+    () =>
+      state.layout === "results" && state.session && selectedResult
+        ? buildResultDetailHeaderLines(selectedResult, state.session, resultSelectedIndex)
+        : [],
+    [resultSelectedIndex, selectedResult, state.layout, state.session],
+  );
 
   const detailLines =
     state.layout === "results" && state.session
@@ -287,6 +297,31 @@ export function useSearchScreenController({
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
   const maxDetailScroll = presentationMetrics.maxDetailScroll;
+  const pageDocumentNodeStartRows = React.useMemo(() => {
+    if (!selectedResultPageModel || !selectedResultPreviewLines) {
+      return undefined;
+    }
+
+    const renderOptions = {
+      hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
+    };
+    const detailHeaderRowCount = getRenderedTerminalLineCount(
+      selectedResultDetailHeaderLines,
+      presentationMetrics.detailWidth,
+      renderOptions,
+    );
+    return getRenderedTerminalLineStartRows(
+      selectedResultPreviewLines,
+      presentationMetrics.detailWidth,
+      renderOptions,
+    ).map((rowIndex) => rowIndex + detailHeaderRowCount);
+  }, [
+    presentationMetrics.detailWidth,
+    selectedResultDetailHeaderLines,
+    selectedResultPageModel,
+    selectedResultPreviewLines,
+    terminal.capabilities.hyperlinkSupport,
+  ]);
   const focusedResultPageSection =
     state.layout === "results" && selectedResultPageModel
       ? getFocusedPageDocumentSection({
@@ -294,6 +329,8 @@ export function useSearchScreenController({
           state: pageInteractionState,
           scroll: state.detailScroll,
           bodyHeight: presentationMetrics.bodyHeight,
+          nodeStartRows: pageDocumentNodeStartRows,
+          maxScroll: maxDetailScroll,
         })
       : null;
   const detailInteractionState: SearchDetailPageInteractionState =
@@ -476,14 +513,24 @@ export function useSearchScreenController({
       switch (intent.type) {
         case "move_detail":
         case "detail_boundary":
-          if (pageInteractionState.mode.kind === "target") {
-            setPageInteractionState(leavePageDocumentTargetMode());
-          }
+          setPageInteractionState(createPageDocumentInteractionState());
           handleIntent(intent);
           return;
         case "move_detail_section": {
           if (pageInteractionState.mode.kind !== "section") {
             return;
+          }
+          const currentSection = focusedResultPageSection;
+          const currentIndex = currentSection
+            ? selectedResultPageModel.sections.findIndex((section) => section.id === currentSection.id)
+            : 0;
+          const nextIndex = Math.max(
+            0,
+            Math.min(currentIndex + intent.delta, Math.max(0, selectedResultPageModel.sections.length - 1)),
+          );
+          const nextSection = selectedResultPageModel.sections[nextIndex];
+          if (nextSection) {
+            setPageInteractionState(focusPageDocumentSection(nextSection.id));
           }
           scrollTo(
             movePageDocumentSection({
@@ -492,6 +539,8 @@ export function useSearchScreenController({
               bodyHeight: presentationMetrics.bodyHeight,
               maxScroll: maxDetailScroll,
               delta: intent.delta,
+              nodeStartRows: pageDocumentNodeStartRows,
+              state: pageInteractionState,
             }),
           );
           return;
@@ -500,12 +549,20 @@ export function useSearchScreenController({
           if (pageInteractionState.mode.kind !== "section") {
             return;
           }
+          const targetSection =
+            intent.boundary === "start"
+              ? selectedResultPageModel.sections[0]
+              : selectedResultPageModel.sections.at(-1);
+          if (targetSection) {
+            setPageInteractionState(focusPageDocumentSection(targetSection.id));
+          }
           scrollTo(
             movePageDocumentSectionBoundary({
               document: selectedResultPageModel,
               boundary: intent.boundary,
               bodyHeight: presentationMetrics.bodyHeight,
               maxScroll: maxDetailScroll,
+              nodeStartRows: pageDocumentNodeStartRows,
             }),
           );
           return;
@@ -519,6 +576,8 @@ export function useSearchScreenController({
             scroll: state.detailScroll,
             bodyHeight: presentationMetrics.bodyHeight,
             maxScroll: maxDetailScroll,
+            nodeStartRows: pageDocumentNodeStartRows,
+            sectionId: focusedResultPageSection?.id,
           });
           if (entered.state.mode.kind === "section") {
             showNotification({
@@ -532,7 +591,11 @@ export function useSearchScreenController({
           return;
         }
         case "leave_detail_targets":
-          setPageInteractionState(leavePageDocumentTargetMode());
+          setPageInteractionState(
+            pageInteractionState.mode.kind === "target"
+              ? focusPageDocumentSection(pageInteractionState.mode.sectionId)
+              : leavePageDocumentTargetMode(),
+          );
           return;
         case "move_detail_target": {
           if (pageInteractionState.mode.kind !== "target") {
@@ -544,6 +607,7 @@ export function useSearchScreenController({
             bodyHeight: presentationMetrics.bodyHeight,
             maxScroll: maxDetailScroll,
             delta: intent.delta,
+            nodeStartRows: pageDocumentNodeStartRows,
           });
           setPageInteractionState(moved.state);
           scrollTo(moved.scroll);
@@ -559,6 +623,7 @@ export function useSearchScreenController({
             bodyHeight: presentationMetrics.bodyHeight,
             maxScroll: maxDetailScroll,
             boundary: intent.boundary,
+            nodeStartRows: pageDocumentNodeStartRows,
           });
           setPageInteractionState(moved.state);
           scrollTo(moved.scroll);
@@ -617,6 +682,7 @@ export function useSearchScreenController({
       maxDetailScroll,
       onActivatePageTarget,
       pageInteractionState,
+      pageDocumentNodeStartRows,
       presentationMetrics.bodyHeight,
       user.entityPages,
       selectedPageTargetNode?.target,

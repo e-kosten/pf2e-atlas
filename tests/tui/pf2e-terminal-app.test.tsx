@@ -1282,6 +1282,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     pressDown(app);
     await flushInk();
+    pressDown(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | Referenced By");
 
     app.stdin.write("\r");
@@ -1388,6 +1390,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     pressDown(app);
     await flushInk();
+    pressDown(app);
+    await flushInk();
     expect(app.lastFrame()).toContain("[PREVIEW] Alarm Ward | References");
 
     app.stdin.write("\r");
@@ -1396,7 +1400,7 @@ describe("pf2e terminal app", () => {
     await flushInk();
 
     expect(services.user.search.executeQuery).not.toHaveBeenCalled();
-    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Summary");
+    expect(app.lastFrame()).toContain("[PREVIEW] Fireball | Actions");
   });
 
   it("opens record page targets through dedicated page routes and returns to the previous page", async () => {

@@ -118,6 +118,40 @@ describe("page document interaction", () => {
     ).toBe(3);
   });
 
+  it("can compute section and target scroll targets in rendered row coordinates", () => {
+    const document = createDocument();
+    const nodeStartRows = [5, 6, 7, 8, 9, 10, 14, 18];
+
+    expect(
+      getPageDocumentSectionScrollTarget({
+        document,
+        sectionId: "references",
+        bodyHeight: 6,
+        maxScroll: 30,
+        nodeStartRows,
+      }),
+    ).toBe(8);
+
+    const entered = enterPageDocumentTargetMode({
+      document,
+      scroll: 8,
+      bodyHeight: 6,
+      maxScroll: 30,
+      nodeStartRows,
+    });
+    const moved = movePageDocumentTarget({
+      document,
+      state: entered.state,
+      bodyHeight: 6,
+      maxScroll: 30,
+      delta: 1,
+      nodeStartRows,
+    });
+
+    expect(getSelectedPageDocumentTarget({ document, state: entered.state })?.target.label).toBe("Spell Effect: Fireball");
+    expect(moved.scroll).toBe(16);
+  });
+
   it("moves section focus by scrolling to the next section anchor", () => {
     const document = createDocument();
 
