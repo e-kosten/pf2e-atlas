@@ -165,35 +165,34 @@ export async function runStructuredDraftExplorerContinuation({
       preservedMetadata: resolvedPreservedMetadata,
       fieldOptions: [fieldOption],
       resolveSelectionTarget,
-      onQueryChange: (nextQuery, nextFieldState) => {
-        currentChange = buildChange(nextQuery, nextFieldState);
-        onHostChange?.(currentChange);
+      onEvent: (event) => {
+        if (event.kind === "change") {
+          currentChange = buildChange(event.query, event.fieldState);
+          onHostChange?.(currentChange);
+          return;
+        }
+        if (event.kind === "back" || event.kind === "exitRoot") {
+          currentChange = buildChange(event.query, event.fieldState);
+          finish({ kind: "resumeHost", change: currentChange });
+          return;
+        }
+        if (event.kind === "cancel") {
+          const change = currentChange ?? buildChange(event.query, event.fieldState);
+          finish({ kind: "cancel", change });
+          return;
+        }
+        currentChange = buildChange(event.query, event.fieldState);
+        if (resolveSelectionTarget) {
+          finish({
+            kind: "selectTarget",
+            outcome: event.outcome,
+            query: event.query,
+            fieldState: event.fieldState,
+            discoveryMode: event.discoveryMode,
+            change: currentChange,
+          });
+        }
       },
-      onBack: (nextQuery, nextFieldState) => {
-        currentChange = buildChange(nextQuery, nextFieldState);
-        finish({ kind: "resumeHost", change: currentChange });
-      },
-      onExitRoot: (nextQuery, nextFieldState) => {
-        currentChange = buildChange(nextQuery, nextFieldState);
-        finish({ kind: "resumeHost", change: currentChange });
-      },
-      onCancel: (nextQuery, nextFieldState) => {
-        const change = currentChange ?? buildChange(nextQuery, nextFieldState);
-        finish({ kind: "cancel", change });
-      },
-      onSelectTarget: resolveSelectionTarget
-        ? (outcome, nextQuery, nextFieldState, discoveryMode) => {
-            currentChange = buildChange(nextQuery, nextFieldState);
-            finish({
-              kind: "selectTarget",
-              outcome,
-              query: nextQuery,
-              fieldState: nextFieldState,
-              discoveryMode,
-              change: currentChange,
-            });
-          }
-        : undefined,
       singleFieldBehavior,
     })
       .then((opened) => {

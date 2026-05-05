@@ -89,6 +89,17 @@ function normalizeFilterNode(
       return { kind: "price", match: normalizeNumericMatch(node.match) };
     case "rarity":
       if (node.match.kind !== "eq") {
+        if (node.match.kind === "in" || node.match.kind === "notIn") {
+          return {
+            kind: "rarity",
+            match: {
+              kind: node.match.kind,
+              values: node.match.values.map(
+                (value) => normalizeSearchPromotedStringValue("rarity", value) ?? value,
+              ),
+            },
+          };
+        }
         return node;
       }
       return {

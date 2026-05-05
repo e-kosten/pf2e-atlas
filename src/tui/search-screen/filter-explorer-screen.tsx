@@ -113,7 +113,7 @@ export function SearchFilterExplorerScreen({
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
   const loadModelForDiscoveryMode = session.loadModelForDiscoveryMode;
-  const selectTargetMode = Boolean(session.onSelectTarget);
+  const selectTargetMode = Boolean(session.selectTargetMode);
   const scopedFields = React.useMemo(() => session.fieldOptions.map((fieldOption) => fieldOption.value), [session.fieldOptions]);
   const prepareDraft = React.useCallback(
     (query: typeof session.query) => user.search.prepareFilterExplorerDraft(query, scopedFields),
@@ -299,19 +299,25 @@ export function SearchFilterExplorerScreen({
     () =>
       createFilterExplorerOutcomeHandler({
         onBack: () => {
-          session.onBack?.(queryRef.current, fieldStateRef.current);
+          session.onEvent({ kind: "back", query: queryRef.current, fieldState: fieldStateRef.current });
         },
         onExitRoot: () => {
-          session.onExitRoot?.(queryRef.current, fieldStateRef.current);
+          session.onEvent({ kind: "exitRoot", query: queryRef.current, fieldState: fieldStateRef.current });
         },
         onCancel: () => {
-          session.onCancel?.(queryRef.current, fieldStateRef.current);
+          session.onEvent({ kind: "cancel", query: queryRef.current, fieldState: fieldStateRef.current });
         },
         onSelectTarget: (outcome) => {
           if (!outcome.result.target) {
             return;
           }
-          session.onSelectTarget?.(outcome, queryRef.current, fieldStateRef.current, discoveryModeRef.current);
+          session.onEvent({
+            kind: "selectTarget",
+            outcome,
+            query: queryRef.current,
+            fieldState: fieldStateRef.current,
+            discoveryMode: discoveryModeRef.current,
+          });
         },
       }),
     [session],
@@ -335,7 +341,7 @@ export function SearchFilterExplorerScreen({
         },
       );
       queryRef.current = nextQuery;
-      session.onQueryChange(nextQuery, nextFieldState);
+      session.onEvent({ kind: "change", query: nextQuery, fieldState: nextFieldState });
       if (session.refreshOnQueryChange && session.loadModelForDiscoveryMode) {
         runModelRefresh(discoveryModeRef.current, { force: true });
       }

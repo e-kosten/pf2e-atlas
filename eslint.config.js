@@ -547,6 +547,19 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/search-screen/structured-draft/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+      ],
+    },
+  },
+  {
     files: ["src/tui/pf2e-app.tsx"],
     rules: {
       "no-restricted-imports": mergeNonTagRestrictedImports(NON_FRAMEWORK_TUI_IMPORT_RESTRICTIONS, {

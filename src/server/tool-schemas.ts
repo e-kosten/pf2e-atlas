@@ -185,6 +185,8 @@ const searchNullableNumericMatchSchema = z.union([
 
 const searchNullableStringMatchSchema = z.union([
   buildStrictObjectSchema({ kind: z.literal("eq"), value: z.string() }),
+  buildStrictObjectSchema({ kind: z.literal("in"), values: z.array(z.string()).min(1) }),
+  buildStrictObjectSchema({ kind: z.literal("notIn"), values: z.array(z.string()).min(1) }),
   buildStrictObjectSchema({ kind: z.literal("isNull") }),
   buildStrictObjectSchema({ kind: z.literal("isNotNull") }),
 ]);

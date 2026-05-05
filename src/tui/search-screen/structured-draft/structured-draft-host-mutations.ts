@@ -171,7 +171,7 @@ export function applyGroupedFieldReplacementToQuery(
 
 export type StructuredDraftHostMutationTarget =
   | { kind: "appendNodes"; groupPath: number[]; flattenMatchingBooleanGroup?: boolean }
-  | { kind: "replaceNode"; path: number[] }
+  | { kind: "replaceNode"; path: number[]; splitAllOfReplacementIntoContainingGroup?: boolean }
   | {
       kind: "replaceGroupedField";
       groupPath: number[];
@@ -224,6 +224,29 @@ export function applyStructuredDraftHostMutationToQuery(
   }
 
   if (mutation.kind === "replaceNode" && target.kind === "replaceNode") {
+    if (
+      target.splitAllOfReplacementIntoContainingGroup &&
+      mutation.node?.kind === "allOf" &&
+      target.path.length > 0 &&
+      mutation.node.children.length > 1
+    ) {
+      const [firstNode, ...additionalNodes] = mutation.node.children;
+      const groupPath = target.path.slice(0, -1);
+      const replacedFilter = updateSearchFilterNodeAtPath(query.filter, target.path, () => firstNode);
+      const nextFilter = appendSearchFilterNodesAtPath(
+        replacedFilter,
+        groupPath,
+        additionalNodes,
+        getSearchQueryRootOperator(query),
+      );
+      return {
+        nextQuery: {
+          ...query,
+          filter: nextFilter,
+        },
+        resumeTarget: createStructuredDraftGroupResumeTarget(groupPath),
+      };
+    }
     const nextFilter = updateSearchFilterNodeAtPath(query.filter, target.path, () => mutation.node ?? undefined);
     const nextQuery = {
       ...query,

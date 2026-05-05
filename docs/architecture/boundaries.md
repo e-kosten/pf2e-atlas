@@ -200,8 +200,10 @@ The stable rule is:
 - projected field buckets are derived presentation rows, not durable continuation owners
 - unary `not` is a node wrapper, not a peer live group context
 - generic filter-explorer draft helpers stay below the host seam and do not own structured-editor writeback semantics
+- lower search-hosted explorer sessions report generic session events to the structured-editor continuation owner instead of exposing separate structured-editor continuation callbacks
+- structured-draft code must not call the generic `applyFilterExplorerDraft` helper for final writeback
 
-The continuation seam is not lint-enforced yet. The boundary is currently guarded by owner-specific tests, architecture documentation, and grep/code-audit checks for retired callback vocabulary and query-global writeback shortcuts. Add lint when the next bypass pattern is concrete enough to block narrowly without banning legitimate prompt-local builders or generic explorer internals.
+The continuation seam is partly lint-enforced: structured-draft code cannot call the generic `applyFilterExplorerDraft` helper directly, and search-screen workflow code cannot import the generic filter-explorer draft-query owner directly. The remaining boundary is guarded by owner-specific tests, architecture documentation, and grep/code-audit checks for retired callback vocabulary and query-global writeback shortcuts. Add lint when another bypass pattern is concrete enough to block narrowly without banning legitimate prompt-local builders or generic explorer internals.
 
 Menu-style TUI editors should also derive footer and help bindings from one shared action table. If a screen has to keep footer text, help copy, and active bindings aligned manually, that is a sign the interaction model still needs a helper owner.
 

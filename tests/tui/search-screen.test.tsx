@@ -3189,11 +3189,8 @@ describe("search screen", () => {
                 match: { kind: "eq", value: "common" },
               },
               {
-                kind: "not",
-                child: {
-                  kind: "rarity",
-                  match: { kind: "eq", value: "rare" },
-                },
+                kind: "rarity",
+                match: { kind: "notIn", values: ["rare"] },
               },
             ],
           },
@@ -4987,11 +4984,15 @@ describe("search screen", () => {
         limit: 20,
       }).request,
       fieldOptions: [metricFieldOption],
-      onQueryChange: vi.fn(),
+      onEvent: (event) => {
+        if (event.kind === "selectTarget") {
+          onSelectTarget(event.outcome);
+        }
+      },
       resolveSelectionTarget: buildMetricSelectionTargetResolver("actorMetric", "Creature Statistics", {
         numericOnly: true,
       }),
-      onSelectTarget,
+      selectTargetMode: true,
     };
 
     const app = render(
@@ -5144,9 +5145,9 @@ describe("search screen", () => {
       initialDiscoveryMode: "matching",
       loadModelForDiscoveryMode,
       fieldOptions: [metricFieldOption],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([metricFieldOption]),
-      onSelectTarget: vi.fn(),
+      selectTargetMode: true,
     };
 
     const app = render(
@@ -5202,7 +5203,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
         {
           value: "pack",
@@ -5267,7 +5268,11 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange,
+      onEvent: (event) => {
+        if (event.kind === "change") {
+          onQueryChange(event.query, event.fieldState);
+        }
+      },
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
         {
           value: "pack",
@@ -5323,7 +5328,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: (node: OntologyNode | undefined): FilterExplorerComposeTarget | undefined =>
         node?.kind === "metric"
           ? {
@@ -5421,7 +5426,11 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange,
+      onEvent: (event) => {
+        if (event.kind === "change") {
+          onQueryChange(event.query, event.fieldState);
+        }
+      },
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
         {
           value: "rarity",
@@ -5536,7 +5545,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: () => undefined,
     };
 
@@ -5580,7 +5589,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: () => undefined,
     };
     const secondSession: SearchFilterExplorerSession = {
@@ -5598,7 +5607,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: () => undefined,
     };
 
@@ -5655,7 +5664,7 @@ describe("search screen", () => {
           editor: "sharedExplorer",
         },
       ],
-      onQueryChange: vi.fn(),
+      onEvent: vi.fn(),
       resolveSelectionTarget: () => undefined,
     };
     const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
@@ -5747,8 +5756,10 @@ describe("search screen", () => {
           model,
           query,
           fieldOptions,
-          onQueryChange: (nextQuery) => {
-            setQuery(setSearchQueryRaritySelection(nextQuery, { include: [], exclude: [] }));
+          onEvent: (event) => {
+            if (event.kind === "change") {
+              setQuery(setSearchQueryRaritySelection(event.query, { include: [], exclude: [] }));
+            }
           },
           resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         }),
@@ -5829,9 +5840,11 @@ describe("search screen", () => {
           initialFieldState: seededState.initialFieldState,
           preservedMetadata: seededState.preservedMetadata,
           fieldOptions,
-          onQueryChange: (nextQuery) => {
-            latestQueryRef.current = nextQuery;
-            setQuery(nextQuery);
+          onEvent: (event) => {
+            if (event.kind === "change") {
+              latestQueryRef.current = event.query;
+              setQuery(event.query);
+            }
           },
           resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
         }),
@@ -5911,9 +5924,11 @@ describe("search screen", () => {
           model: createRarityExplorerDomain(["common", "rare"]),
           query,
           fieldOptions,
-          onQueryChange: (nextQuery) => {
-            queryRef.current = nextQuery;
-            setQuery(nextQuery);
+          onEvent: (event) => {
+            if (event.kind === "change") {
+              queryRef.current = event.query;
+              setQuery(event.query);
+            }
           },
           resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
           refreshOnQueryChange: true,

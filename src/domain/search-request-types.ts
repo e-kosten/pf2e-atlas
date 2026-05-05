@@ -22,6 +22,8 @@ export type SearchNumericMatch =
 export type SearchNullableNumericMatch = SearchNumericMatch | { kind: NullOperator };
 export type SearchNullableStringMatch =
   | { kind: "eq"; value: string }
+  | { kind: "in"; values: string[] }
+  | { kind: "notIn"; values: string[] }
   | { kind: NullOperator };
 
 export type SearchFilterNode =

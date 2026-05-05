@@ -15,7 +15,8 @@ import type { Pf2eTerminalAppServices } from "../app-services.js";
 import { createSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
 import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-state.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
-import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../filter-explorer/types.js";
+import type { FilterExplorerComposeTarget } from "../filter-explorer/types.js";
+import type { SearchFilterExplorerSessionEvent } from "./filter-explorer-session-events.js";
 
 function isUnscopedFilterExplorerField(fieldOption: Pf2eTerminalQueryFieldOption): boolean {
   return fieldOption.value === "rarity" || fieldOption.value === "pack";
@@ -39,17 +40,7 @@ export function useSearchFilterExplorerWorkflow({
     preservedMetadata?: MetadataFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-    onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-    onReturn?: () => void;
-    onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-    onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-    onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-    onSelectTarget?: (
-      outcome: FilterExplorerSelectTargetOutcome,
-      query: Pf2eTerminalSearchQuery,
-      fieldState: SearchFilterExplorerFieldState,
-      discoveryMode: SearchFilterDiscoveryMode,
-    ) => void;
+    onEvent?: (event: SearchFilterExplorerSessionEvent) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
   closeFilterExplorer: () => void;
@@ -65,13 +56,8 @@ export function useSearchFilterExplorerWorkflow({
       preservedMetadata,
       fieldOptions,
       resolveSelectionTarget,
-      onQueryChange,
-      onReturn,
-      onCancel,
-      onBack,
-      onExitRoot,
-      onSelectTarget,
-      singleFieldBehavior = onReturn ? "directValues" : "list",
+      onEvent,
+      singleFieldBehavior = "list",
     }: {
       title?: string;
       queryOverride?: Pf2eTerminalSearchQuery;
@@ -80,17 +66,7 @@ export function useSearchFilterExplorerWorkflow({
       preservedMetadata?: MetadataFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-      onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-      onReturn?: () => void;
-      onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-      onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-      onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-      onSelectTarget?: (
-        outcome: FilterExplorerSelectTargetOutcome,
-        query: Pf2eTerminalSearchQuery,
-        fieldState: SearchFilterExplorerFieldState,
-        discoveryMode: SearchFilterDiscoveryMode,
-      ) => void;
+      onEvent?: (event: SearchFilterExplorerSessionEvent) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
@@ -139,39 +115,25 @@ export function useSearchFilterExplorerWorkflow({
         initialFieldState,
         preservedMetadata,
         fieldOptions,
-        refreshOnQueryChange: Boolean(onQueryChange),
-        onQueryChange: (nextQuery, nextFieldState) => {
-          currentQueryRef.current = nextQuery;
-          setFilterExplorerSession((currentSession) =>
-            currentSession
-              ? {
-                  ...currentSession,
-                  query: nextQuery,
-                }
-              : currentSession,
-          );
-          onQueryChange?.(nextQuery, nextFieldState);
-        },
+        refreshOnQueryChange: Boolean(onEvent),
         resolveSelectionTarget: resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(fieldOptions),
-        onBack: (nextQuery, nextFieldState) => {
-          onBack?.(nextQuery, nextFieldState);
-          setFilterExplorerSession(null);
-          onReturn?.();
+        selectTargetMode: Boolean(resolveSelectionTarget),
+        onEvent: (event) => {
+          if (event.kind === "change") {
+            currentQueryRef.current = event.query;
+            setFilterExplorerSession((currentSession) =>
+              currentSession
+                ? {
+                    ...currentSession,
+                    query: event.query,
+                  }
+                : currentSession,
+            );
+          } else {
+            setFilterExplorerSession(null);
+          }
+          onEvent?.(event);
         },
-        onExitRoot: (nextQuery, nextFieldState) => {
-          onExitRoot?.(nextQuery, nextFieldState);
-          setFilterExplorerSession(null);
-        },
-        onCancel: (nextQuery, nextFieldState) => {
-          onCancel?.(nextQuery, nextFieldState);
-          setFilterExplorerSession(null);
-        },
-        onSelectTarget: onSelectTarget
-          ? (outcome, nextQuery, nextFieldState, discoveryMode) => {
-              onSelectTarget(outcome, nextQuery, nextFieldState, discoveryMode);
-              setFilterExplorerSession(null);
-            }
-          : undefined,
       });
       return true;
     },

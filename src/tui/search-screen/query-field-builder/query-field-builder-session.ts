@@ -1,6 +1,6 @@
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
-import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/index.js";
+import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
@@ -23,6 +23,7 @@ import {
 } from "../../shell-navigation-copy.js";
 import type { TerminalMenuScreenInteractions } from "../../shared-screens.js";
 import type { SearchFilterExplorerFieldState } from "../filter-explorer-field-state.js";
+import type { SearchFilterExplorerSessionEvent } from "../filter-explorer-session-events.js";
 
 export type SearchFilterExplorerSession = {
   title?: string;
@@ -35,16 +36,8 @@ export type SearchFilterExplorerSession = {
   preservedMetadata?: MetadataFilterNode | null;
   fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-  onQueryChange: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onSelectTarget?: (
-    outcome: FilterExplorerSelectTargetOutcome,
-    query: Pf2eTerminalSearchQuery,
-    fieldState: SearchFilterExplorerFieldState,
-    discoveryMode: SearchFilterDiscoveryMode,
-  ) => void;
+  selectTargetMode?: boolean;
+  onEvent: (event: SearchFilterExplorerSessionEvent) => void;
 };
 
 export type SearchStructuredEditorItem =

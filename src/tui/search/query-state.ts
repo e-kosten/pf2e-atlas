@@ -86,6 +86,26 @@ function buildSelectionFilter(
   kind: "rarity" | "actionCost",
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
+  if (kind === "rarity") {
+    const includeValues = (selection.include as string[]).filter((value) => value.length > 0);
+    const excludeValues = (selection.exclude as string[]).filter((value) => value.length > 0);
+    const children: SearchFilterNode[] = [];
+    if (includeValues.length === 1) {
+      children.push({ kind: "rarity", match: { kind: "eq", value: includeValues[0]! } });
+    } else if (includeValues.length > 1) {
+      children.push({ kind: "rarity", match: { kind: "in", values: includeValues } });
+    }
+    if (excludeValues.length === 1) {
+      children.push({ kind: "rarity", match: { kind: "notIn", values: [excludeValues[0]!] } });
+    } else if (excludeValues.length > 1) {
+      children.push({ kind: "rarity", match: { kind: "notIn", values: excludeValues } });
+    }
+    if (children.length === 0) {
+      return null;
+    }
+    return children.length === 1 ? children[0]! : { kind: "allOf", children };
+  }
+
   const includeChildren = selection.include.map((value) => buildSelectionLeaf(kind, value));
   const excludeChildren = selection.exclude.map((value) => buildSelectionLeaf(kind, value));
   const children: SearchFilterNode[] = [];
@@ -150,6 +170,9 @@ function collectSelectionEqValues<K extends "rarity" | "actionCost">(
   if (filter.kind === kind && filter.match.kind === "eq") {
     return [filter.match.value] as Array<K extends "rarity" ? string : number>;
   }
+  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "in") {
+    return [...filter.match.values] as Array<K extends "rarity" ? string : number>;
+  }
 
   if (filter.kind === "anyOf" || filter.kind === "allOf") {
     const values: Array<K extends "rarity" ? string : number> = [];
@@ -176,6 +199,18 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
       exclude: [],
     };
   }
+  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "in") {
+    return {
+      include: [...filter.match.values] as Array<K extends "rarity" ? string : number>,
+      exclude: [],
+    };
+  }
+  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "notIn") {
+    return {
+      include: [],
+      exclude: [...filter.match.values] as Array<K extends "rarity" ? string : number>,
+    };
+  }
 
   if (filter.kind === "anyOf") {
     const values = collectSelectionEqValues(filter, kind);
@@ -194,6 +229,10 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
     };
 
     for (const child of filter.children) {
+      if (kind === "rarity" && child.kind === "rarity" && child.match.kind === "notIn") {
+        selection.exclude.push(...child.match.values as Array<K extends "rarity" ? string : number>);
+        continue;
+      }
       if (child.kind === "not") {
         const excludedValues = collectSelectionEqValues(child.child, kind);
         if (!excludedValues) {

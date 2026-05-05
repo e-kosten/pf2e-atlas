@@ -43,6 +43,12 @@ export function buildGroupedFieldSeedDiscreteClauses(
     if (node.kind === field && node.match.kind === "eq") {
       return [{ field, value: String(node.match.value), operator }];
     }
+    if (field === "rarity" && node.kind === "rarity" && node.match.kind === "in") {
+      return node.match.values.map((value) => ({ field, value, operator }));
+    }
+    if (field === "rarity" && node.kind === "rarity" && node.match.kind === "notIn") {
+      return node.match.values.map((value) => ({ field, value, operator: "exclude" }));
+    }
     if (node.kind === "anyOf") {
       return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
     }

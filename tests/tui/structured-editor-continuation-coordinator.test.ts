@@ -117,8 +117,8 @@ describe("structured editor continuation coordinator", () => {
       }),
     );
 
-    explorerOptions?.onQueryChange?.(query, nextState);
-    explorerOptions?.onBack?.(query, nextState);
+    explorerOptions?.onEvent?.({ kind: "change", query, fieldState: nextState });
+    explorerOptions?.onEvent?.({ kind: "back", query, fieldState: nextState });
 
     await expect(continuation).resolves.toEqual({
       kind: "resumeHost",
@@ -174,8 +174,8 @@ describe("structured editor continuation coordinator", () => {
       user,
     });
 
-    explorerOptions?.onQueryChange?.(query, latestState);
-    explorerOptions?.onCancel?.(query, cancelState);
+    explorerOptions?.onEvent?.({ kind: "change", query, fieldState: latestState });
+    explorerOptions?.onEvent?.({ kind: "cancel", query, fieldState: cancelState });
 
     await expect(continuation).resolves.toEqual({
       kind: "cancel",
@@ -229,7 +229,13 @@ describe("structured editor continuation coordinator", () => {
       user,
     });
 
-    explorerOptions?.onSelectTarget?.(targetOutcome, query, latestState, "catalog");
+    explorerOptions?.onEvent?.({
+      kind: "selectTarget",
+      outcome: targetOutcome,
+      query,
+      fieldState: latestState,
+      discoveryMode: "catalog",
+    });
 
     await expect(continuation).resolves.toMatchObject({
       kind: "selectTarget",
@@ -270,7 +276,7 @@ describe("structured editor continuation coordinator", () => {
       user,
     });
 
-    explorerOptions?.onBack?.(query, nextState);
+    explorerOptions?.onEvent?.({ kind: "back", query, fieldState: nextState });
 
     await expect(continuation).resolves.toMatchObject({
       kind: "resumeHost",

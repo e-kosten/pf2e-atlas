@@ -253,4 +253,39 @@ describe("structured draft host mutations", () => {
 
     expect(application).toBeNull();
   });
+
+  it("splits exact-node all-of replacements into the containing group when requested", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "replaceNode",
+        node: allOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" }),
+        ])!,
+      },
+      {
+        kind: "replaceNode",
+        path: [1],
+        splitAllOfReplacementIntoContainingGroup: true,
+      },
+    );
+
+    expect(application?.nextQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" }),
+      ]),
+    );
+    expect(application?.resumeTarget).toEqual({ kind: "group", groupPath: [] });
+  });
 });

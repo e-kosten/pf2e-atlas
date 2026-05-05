@@ -1008,6 +1008,10 @@ function formatSearchNullableMatch(match: Extract<SearchFilterNode, { kind: "rar
   switch (match.kind) {
     case "eq":
       return humanizeOntologySearchIdentifier(String(match.value));
+    case "in":
+      return match.values.map((value) => humanizeOntologySearchIdentifier(value)).join(", ");
+    case "notIn":
+      return `not ${match.values.map((value) => humanizeOntologySearchIdentifier(value)).join(", ")}`;
     case "gt":
       return `> ${match.value}`;
     case "gte":

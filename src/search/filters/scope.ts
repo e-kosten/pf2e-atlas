@@ -109,6 +109,12 @@ function recordMatchesNullableStringMatch(
   if (match.kind === "isNotNull") {
     return normalizedValue !== null && normalizedValue !== "";
   }
+  if (match.kind === "in") {
+    return match.values.map((value) => normalizeText(value)).includes(normalizedValue ?? "");
+  }
+  if (match.kind === "notIn") {
+    return !match.values.map((value) => normalizeText(value)).includes(normalizedValue ?? "");
+  }
   return normalizedValue === normalizeText((match as Extract<typeof match, { kind: "eq" }>).value);
 }
 

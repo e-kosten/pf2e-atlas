@@ -218,7 +218,7 @@ Structured editing keeps canonical `SearchRequest` state live plus local cursor 
 
 ### Structured Editor Continuation
 
-The structured search editor owns continuation semantics for child prompt and explorer flows. The shared explorer remains generic: it reports explorer outcomes and draft/query translations, while the search host decides how those outcomes mutate canonical `SearchRequest` state and where the editor resumes.
+The structured search editor owns continuation semantics for child prompt and explorer flows. The shared explorer remains generic: it reports session events and draft/query translations, while the search host decides how those events mutate canonical `SearchRequest` state and where the editor resumes.
 
 The durable owners are:
 
@@ -235,13 +235,13 @@ The durable owners are:
 
 Resume targets are host state, not canonical search data. The allowed durable targets are root resume, group-local resume by canonical `groupPath`, and exact-node resume by canonical node path when the operation is genuinely node-scoped. Group-local continuation is the default for live prompt and explorer flows. Projected field buckets are presentation-derived from canonical members, and unary `not` remains a wrapper over one child node rather than a peer group-editing anchor.
 
-Structured-editor child flows emit or are translated into bounded mutation families such as replace node, append nodes, and replace grouped field before final writeback. Query-global replacement belongs only to explicitly query-global search flows. Generic helpers in `src/tui/filter-explorer/search-draft-query.ts` and `src/tui/search/service.ts` may keep preparing explorer drafts and generic insertion results, but they do not own structured-editor mutation or resume semantics.
+Structured-editor child flows emit or are translated into bounded mutation families such as replace node, append nodes, and replace grouped field before final writeback. Query-global replacement belongs only to explicitly query-global search flows. Generic helpers in `src/tui/filter-explorer/search-draft-query.ts` and `src/tui/search/service.ts` may keep preparing explorer drafts and generic insertion results, but they do not own structured-editor mutation or resume semantics. The lower search-hosted explorer API reports one generic session event stream to the structured-editor continuation owner instead of exposing separate search-editor continuation callbacks for back, cancel, exit, live change, and select-target handling.
 
 Prompt-local builders may keep incomplete value-entry state while collecting valid scalar, metric, pack, scope, level, price, or action-cost input. Their completed, back, and cancel outcomes are normalized into the structured-editor continuation vocabulary so the host resumes through the same state and focus rules used by explorer-backed flows.
 
 Pack and rarity are query-global filter fields. Their shared-explorer child flows may open before a category scope exists; the search-hosted explorer model presents unscoped pack or rarity value roots by aggregating the search-semantics domain instead of requiring a scoped category. Scope-dependent metadata and metric explorer flows still require a category before opening.
 
-This seam is enforced by named owner tests for the continuation coordinator, resume-target state, grouped-field helpers, and broad search-screen interaction flows. Lint is intentionally deferred for this seam because the risk is callback and workflow ownership rather than an import boundary that can be banned without false positives. Future work should add lint only if a stable syntactic bypass appears, such as direct structured-editor use of a generic whole-query draft writeback helper where a bounded host mutation is required.
+This seam is enforced by named owner tests for the continuation coordinator, resume-target state, grouped-field helpers, and broad search-screen interaction flows. Lint also blocks structured-draft code from calling the generic `applyFilterExplorerDraft` writeback helper directly; structured-draft final writeback must route through bounded host mutations. Broader callback and workflow ownership remains guarded by owner tests and grep/code-audit checks because those risks are not yet narrow import boundaries.
 
 ### Ontology Explorer Layer
 

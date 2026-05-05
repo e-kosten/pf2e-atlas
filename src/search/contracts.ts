@@ -32,6 +32,8 @@ export type SearchExecutionNumericMatch =
 export type SearchExecutionNullableNumericMatch = SearchExecutionNumericMatch | { kind: "isNull" | "isNotNull" };
 export type SearchExecutionNullableStringMatch =
   | { kind: "eq"; value: string }
+  | { kind: "in"; values: string[] }
+  | { kind: "notIn"; values: string[] }
   | { kind: "isNull" | "isNotNull" };
 
 export type SearchExecutionFilterNode =

@@ -6,9 +6,10 @@ import type {
 } from "../../search/service.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { DerivedTagTerminalApp } from "../../framework/types.js";
-import type { FilterExplorerComposeTarget, FilterExplorerSelectTargetOutcome } from "../../filter-explorer/types.js";
+import type { FilterExplorerComposeTarget } from "../../filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../filter-explorer-field-state.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
+import type { SearchFilterExplorerSessionEvent } from "../filter-explorer-session-events.js";
 
 export type SearchWorkspacePromptAdapters = Pick<
   SearchTerminalPromptAdapters,
@@ -30,16 +31,6 @@ export type OpenSearchFilterExplorer = (options: {
   preservedMetadata?: MetadataFilterNode | null;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
-  onQueryChange?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onReturn?: () => void;
-  onCancel?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onBack?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onExitRoot?: (query: Pf2eTerminalSearchQuery, fieldState: SearchFilterExplorerFieldState) => void;
-  onSelectTarget?: (
-    outcome: FilterExplorerSelectTargetOutcome,
-    query: Pf2eTerminalSearchQuery,
-    fieldState: SearchFilterExplorerFieldState,
-    discoveryMode: SearchFilterDiscoveryMode,
-  ) => void;
+  onEvent?: (event: SearchFilterExplorerSessionEvent) => void;
   singleFieldBehavior?: "list" | "directValues";
 }) => Promise<boolean>;

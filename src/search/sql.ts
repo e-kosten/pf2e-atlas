@@ -152,6 +152,17 @@ function buildSearchFilterClause(
       if (filter.match.kind === "isNotNull") {
         return { clause: `${context.rarityExpr} IS NOT NULL AND TRIM(${context.rarityExpr}) <> ''`, params: [] };
       }
+      if (filter.match.kind === "in" || filter.match.kind === "notIn") {
+        const values = filter.match.values.filter((value) => value.length > 0);
+        if (values.length === 0) {
+          return filter.match.kind === "in" ? { clause: "0 = 1", params: [] } : { clause: "1 = 1", params: [] };
+        }
+        const placeholders = values.map(() => "?").join(", ");
+        return {
+          clause: `LOWER(COALESCE(${context.rarityExpr}, '')) ${filter.match.kind === "in" ? "IN" : "NOT IN"} (${placeholders})`,
+          params: values.map((value) => value.toLowerCase()),
+        };
+      }
       return {
         clause: `LOWER(COALESCE(${context.rarityExpr}, '')) = LOWER(?)`,
         params: [(filter.match as Extract<typeof filter.match, { kind: "eq" }>).value],
