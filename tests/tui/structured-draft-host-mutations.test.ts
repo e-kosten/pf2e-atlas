@@ -5,9 +5,11 @@ import { applyStructuredDraftHostMutationToQuery } from "../../src/tui/search-sc
 import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.js";
 import {
   allOfFilter,
+  actionCostFilter,
   browseQuery,
   metadataPredicateFilter,
   notFilter,
+  packFilter,
   scopeFilter,
 } from "../helpers/search-request-fixture.js";
 
@@ -228,6 +230,92 @@ describe("structured draft host mutations", () => {
       allOfFilter([scopeFilter("rule", "action"), { kind: "actionCost", match: { kind: "eq", value: 2 } }]),
     );
     expect(application?.resumeTarget).toEqual({ kind: "group", groupPath: [] });
+  });
+
+  it("replaces repeated action-cost grouped edits without stale duplicate peers", () => {
+    const query = browseQuery("Browse actions", {
+      filter: allOfFilter([
+        scopeFilter("rule", "action"),
+        actionCostFilter({ kind: "eq", value: 1 }),
+        actionCostFilter({ kind: "eq", value: 2 }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "replaceGroupedField",
+        field: "actionCost",
+        fieldOption: {
+          value: "actionCost",
+          label: "Action Cost",
+          description: "Browse action costs.",
+          fieldType: "number",
+          editor: "sharedExplorer",
+        },
+        fieldState: buildSearchFilterExplorerFieldState({ discreteClauses: [], scalarClauses: {} }),
+      },
+      {
+        kind: "replaceGroupedField",
+        groupPath: [],
+        field: "actionCost",
+        fieldMemberPaths: [[1], [2]],
+        replacementNodes: [actionCostFilter({ kind: "eq", value: 3 })],
+      },
+    );
+
+    expect(application?.nextQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("rule", "action"),
+        actionCostFilter({ kind: "eq", value: 3 }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" }),
+      ]),
+    );
+  });
+
+  it("replaces repeated pack grouped edits without stale duplicate peers", () => {
+    const query = browseQuery("Browse equipment", {
+      filter: allOfFilter([
+        scopeFilter("equipment"),
+        packFilter("equipment"),
+        notFilter(packFilter("vehicles")),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "consumable" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "replaceGroupedField",
+        field: "pack",
+        fieldOption: {
+          value: "pack",
+          label: "Pack",
+          description: "Browse packs.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+        fieldState: buildSearchFilterExplorerFieldState({ discreteClauses: [], scalarClauses: {} }),
+      },
+      {
+        kind: "replaceGroupedField",
+        groupPath: [],
+        field: "pack",
+        fieldMemberPaths: [[1], [2]],
+        replacementNodes: [packFilter("feats")],
+      },
+    );
+
+    expect(application?.nextQuery.filter).toEqual(
+      allOfFilter([
+        scopeFilter("equipment"),
+        packFilter("feats"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "consumable" }),
+      ]),
+    );
   });
 
   it("does not apply non-replace mutations through an exact-node fallback target", () => {

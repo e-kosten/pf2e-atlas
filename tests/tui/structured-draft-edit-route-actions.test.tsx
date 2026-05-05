@@ -12,6 +12,7 @@ import {
   linksToFilter,
   metadataPredicateFilter,
   metricFilter,
+  metricCompareFilter,
   scopeFilter,
 } from "../helpers/search-request-fixture.js";
 
@@ -136,6 +137,7 @@ describe("structured draft edit route actions", () => {
       kind: "leaf",
       leafKind: "scope",
       path: [1],
+      groupPath: null,
       placement: "rootSingleton",
     });
 
@@ -157,6 +159,7 @@ describe("structured draft edit route actions", () => {
       kind: "leaf",
       leafKind: "linksTo",
       path: [1],
+      groupPath: null,
       placement: "inGroup",
     });
 
@@ -174,6 +177,7 @@ describe("structured draft edit route actions", () => {
       kind: "leaf",
       leafKind: "linkedFrom",
       path: [2],
+      groupPath: null,
       placement: "inGroup",
     });
 
@@ -204,6 +208,7 @@ describe("structured draft edit route actions", () => {
       kind: "leaf",
       leafKind: "metric",
       path: [1],
+      groupPath: null,
       placement: "inGroup",
       fieldOption: {
         value: "actorMetric",
@@ -217,6 +222,71 @@ describe("structured draft edit route actions", () => {
     expect(promptForClauseNode).toHaveBeenCalledWith(expect.anything(), query, "metric", metricFilter("hp.value", "gte", 20));
     expect(replacements.at(-1)?.filter).toEqual(
       allOfFilter([scopeFilter("creature"), metricFilter("hp.value", "gte", 40)]),
+    );
+    renderer.unmount();
+  });
+
+  it("replaces metricCompare leaf routes while preserving sibling grouped fields", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+        metricCompareFilter("ac.value", "gt", "ability.cha.mod"),
+      ]),
+      limit: 20,
+    }).request;
+    const promptForClauseNode = vi.fn(async () => ({
+      kind: "apply",
+      value: metricCompareFilter("hp.value", "gt", "save.fort.mod"),
+    }));
+    const { getActions, replacements, renderer } = renderRouteActions({ promptForClauseNode });
+
+    await getActions().executeStructuredDraftEditRoute(query, {
+      kind: "leaf",
+      leafKind: "metricCompare",
+      path: [2],
+      groupPath: null,
+      placement: "inGroup",
+    });
+
+    expect(promptForClauseNode).toHaveBeenCalledWith(
+      expect.anything(),
+      query,
+      "metricCompare",
+      metricCompareFilter("ac.value", "gt", "ability.cha.mod"),
+    );
+    expect(replacements.at(-1)?.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+        metricCompareFilter("hp.value", "gt", "save.fort.mod"),
+      ]),
+    );
+    renderer.unmount();
+  });
+
+  it("executes add-time leaf routes as group-local appends", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+    const promptForClauseNode = vi.fn(async () => ({
+      kind: "apply",
+      value: metricCompareFilter("ac.value", "gt", "ability.cha.mod"),
+    }));
+    const { getActions, replacements, renderer } = renderRouteActions({ promptForClauseNode });
+
+    await getActions().executeStructuredDraftEditRoute(query, {
+      kind: "leaf",
+      leafKind: "metricCompare",
+      path: null,
+      groupPath: [],
+      placement: "inGroup",
+    });
+
+    expect(promptForClauseNode).toHaveBeenCalledWith(expect.anything(), query, "metricCompare", undefined);
+    expect(replacements.at(-1)?.filter).toEqual(
+      allOfFilter([scopeFilter("creature"), metricCompareFilter("ac.value", "gt", "ability.cha.mod")]),
     );
     renderer.unmount();
   });

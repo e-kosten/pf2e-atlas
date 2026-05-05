@@ -34,6 +34,7 @@ import {
   getStructuredDraftSyntheticFieldOption,
   resolveStructuredDraftFieldOption,
   type StructuredDraftEditRoute,
+  type StructuredDraftLeafKind,
 } from "./structured-draft-edit-routes.js";
 import {
   isMetricFieldOptionValue,
@@ -70,6 +71,57 @@ type BooleanGroupNode = Extract<
   SearchFilterNode,
   { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }
 >;
+
+function getLeafKindForAddClause(clauseKind: ClauseKind): StructuredDraftLeafKind | null {
+  switch (clauseKind) {
+    case "scope":
+      return "scope";
+    case "level":
+      return "level";
+    case "price":
+      return "price";
+    case "metric":
+      return "metric";
+    case "metricCompare":
+      return "metricCompare";
+    case "field":
+    case "pack":
+    case "rarity":
+    case "actionCost":
+      return null;
+  }
+}
+
+function classifyStructuredDraftPromptLeafAddRoute(
+  clauseKind: ClauseKind,
+  groupPath: number[],
+): StructuredDraftEditRoute {
+  const leafKind = getLeafKindForAddClause(clauseKind);
+  if (!leafKind) {
+    return { kind: "unsupported", reason: "That clause must be routed through its field-specific editor." };
+  }
+  return {
+    kind: "leaf",
+    leafKind,
+    path: null,
+    groupPath,
+    placement: leafKind === "scope" ? "rootSingleton" : "inGroup",
+  };
+}
+
+function promptForWrappedStructuralClauseNode(
+  promptForClauseNode: (
+    promptSession: SearchWorkspacePromptAdapters,
+    query: Pf2eTerminalSearchQuery,
+    clauseKind: ClauseKind,
+    currentNode?: SearchFilterNode,
+  ) => Promise<SearchFilterNodeEditorResult>,
+  session: SearchWorkspacePromptAdapters,
+  query: Pf2eTerminalSearchQuery,
+  clauseKind: ClauseKind,
+): Promise<SearchFilterNodeEditorResult> {
+  return promptForClauseNode(session, query, clauseKind);
+}
 
 export function formatFriendlyGroupLabel(kind: "allOf" | "anyOf" | "not"): string {
   switch (kind) {
@@ -347,6 +399,7 @@ export function useStructuredDraftStructuralActions({
   executeStructuredDraftEditRoute: (
     query: Pf2eTerminalSearchQuery,
     route: StructuredDraftEditRoute,
+    options?: { promptSession?: SearchWorkspacePromptAdapters },
   ) => Promise<ClauseApplyResult>;
   promptForClauseKind: (
     promptSession: SearchWorkspacePromptAdapters,
@@ -434,7 +487,23 @@ export function useStructuredDraftStructuralActions({
             );
             return "cancelled";
           }
-          const nextNode = await promptForClauseNode(session, workingQuery, clauseKind.value);
+          if (wrapper === undefined) {
+            const result = await executeStructuredDraftEditRoute(
+              workingQuery,
+              classifyStructuredDraftPromptLeafAddRoute(clauseKind.value, path),
+              { promptSession: session },
+            );
+            if (result === "back") {
+              continue;
+            }
+            return result;
+          }
+          const nextNode = await promptForWrappedStructuralClauseNode(
+            promptForClauseNode,
+            session,
+            workingQuery,
+            clauseKind.value,
+          );
           if (nextNode.kind === "back") {
             continue;
           }
@@ -459,14 +528,12 @@ export function useStructuredDraftStructuralActions({
                   kind: wrapper,
                   children: wrappedGroupChildren,
                 } as SearchFilterNode)
-              : wrapper === "not"
-                ? ({
-                    kind: "not",
-                    child: Array.isArray(nextNodeValue)
-                      ? ({ kind: "allOf", children: nextNodeValue } as SearchFilterNode)
-                      : nextNodeValue,
-                  } as SearchFilterNode)
-                : nextNodeValue;
+              : ({
+                  kind: "not",
+                  child: Array.isArray(nextNodeValue)
+                    ? ({ kind: "allOf", children: nextNodeValue } as SearchFilterNode)
+                    : nextNodeValue,
+                } as SearchFilterNode);
           const application = applyStructuredDraftHostMutationToQuery(
             workingQuery,
             {
@@ -476,7 +543,6 @@ export function useStructuredDraftStructuralActions({
             {
               kind: "appendNodes",
               groupPath: path,
-              flattenMatchingBooleanGroup: wrapper === undefined,
             },
           );
           if (application) {

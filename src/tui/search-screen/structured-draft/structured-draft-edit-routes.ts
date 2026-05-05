@@ -39,6 +39,7 @@ export type StructuredDraftEditRoute =
       kind: "leaf";
       leafKind: StructuredDraftLeafKind;
       path: number[] | null;
+      groupPath: number[] | null;
       placement: "inGroup" | "rootSingleton";
       fieldOption?: Pf2eTerminalQueryFieldOption;
     }
@@ -280,6 +281,7 @@ export function classifyStructuredDraftAddFieldRoute({
     kind: "leaf",
     leafKind: getLeafKindForFieldOption(fieldOption),
     path: null,
+    groupPath,
     placement: "inGroup",
     fieldOption,
   };
@@ -363,6 +365,7 @@ export function classifyStructuredDraftNodeEditRoute({
     kind: "leaf",
     leafKind,
     path,
+    groupPath: null,
     placement: leafKind === "scope" ? "rootSingleton" : "inGroup",
     fieldOption: fieldOption ?? undefined,
   };

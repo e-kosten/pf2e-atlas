@@ -249,6 +249,80 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks structured-draft add-clause leaf prompts from bypassing edit routes", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      "async function run() { await promptForClauseNode(session, query, clauseKind.value); }\nexport { run };\n",
+      "add-clause leaves must classify and execute a structured edit route before prompting",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      "async function run() { await executeStructuredDraftEditRoute(query, route); }\nexport { run };\n",
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks structured-draft generic explorer writeback and continuation owner bypasses", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      "async function run() { await helper.applyFilterExplorerDraft(session); }\nexport { run };\n",
+      "bounded structured-editor host mutations",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      'import { runStructuredDraftExplorerContinuation } from "./structured-draft-continuation.js";\nexport const value = runStructuredDraftExplorerContinuation;\n',
+      "explorer continuation may only be opened by the explorer action owner",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+      'import { runStructuredDraftExplorerContinuation } from "./structured-draft-continuation.js";\nexport const value = runStructuredDraftExplorerContinuation;\n',
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks structured-draft grouped query-state setter bypasses outside the grouped-field owner", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+      'import { setSearchQueryPackSelection } from "../../search/query-state.js";\nexport const value = setSearchQueryPackSelection;\n',
+      "grouped query-field writeback must route through grouped-field helpers and edit routes",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+      'import { setSearchQueryRaritySelection, setSearchQueryActionCostSelection } from "../../search/query-state.js";\nexport const value = [setSearchQueryRaritySelection, setSearchQueryActionCostSelection];\n',
+      "grouped query-field writeback must route through grouped-field helpers and edit routes",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts",
+      'import { setSearchQueryPackSelection, setSearchQueryRaritySelection, setSearchQueryActionCostSelection } from "../../search/query-state.js";\nexport const value = [setSearchQueryPackSelection, setSearchQueryRaritySelection, setSearchQueryActionCostSelection];\n',
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks retired structured-draft pack rarity and exact-node fallback names", async () => {
+    for (const retiredName of [
+      "openPromptPackClause",
+      "openPromptRarityClause",
+      "openLiveExplorerExactNodeFieldClauseFallback",
+    ]) {
+      await expectRuleMessage(
+        "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+        `const value = ${retiredName};\nexport { value };\n`,
+        "Retired structured-draft prompt wrappers, exact-node fallback routes, and generic serializer fallbacks",
+        "no-restricted-syntax",
+      );
+    }
+  });
+
   it("blocks internal src/tags modules from importing the public top-level tag facades", async () => {
     await expectRuleMessage(
       "src/tags/runtime/derivation/api.ts",

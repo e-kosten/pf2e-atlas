@@ -123,6 +123,43 @@ function applyRootScopeReplacement({
   });
 }
 
+function applyLeafAppend({
+  nextNode,
+  query,
+  groupPath,
+  replaceStructuredDraftProjection,
+}: {
+  nextNode: SearchFilterNode | null;
+  query: Pf2eTerminalSearchQuery;
+  groupPath: number[];
+  replaceStructuredDraftProjection: (
+    update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
+    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
+  ) => void;
+}): void {
+  if (!nextNode) {
+    return;
+  }
+  const application = applyStructuredDraftHostMutationToQuery(
+    query,
+    {
+      kind: "appendNodes",
+      nodes: [nextNode],
+    } satisfies StructuredDraftHostMutation,
+    {
+      kind: "appendNodes",
+      groupPath,
+      flattenMatchingBooleanGroup: true,
+    },
+  );
+  if (!application) {
+    return;
+  }
+  replaceStructuredDraftProjection(() => application.nextQuery, {
+    resumeTarget: application.resumeTarget,
+  });
+}
+
 async function promptForRecordLinkLeaf({
   prompts,
   route,
@@ -193,6 +230,7 @@ export function useStructuredDraftEditRouteActions({
     async (
       query: Pf2eTerminalSearchQuery,
       route: StructuredDraftEditRoute,
+      options: { promptSession?: SearchWorkspacePromptAdapters } = {},
     ): Promise<ClauseApplyResult> => {
       if (route.kind === "unsupported") {
         await terminal.pauseForAnyKey(route.reason);
@@ -239,9 +277,9 @@ export function useStructuredDraftEditRouteActions({
         return "applied";
       }
 
-      const nextNode = await terminal.runPromptSession((session) =>
-        promptForClauseNode(session, query, clauseKind, currentNode),
-      );
+      const nextNode = options.promptSession
+        ? await promptForClauseNode(options.promptSession, query, clauseKind, currentNode)
+        : await terminal.runPromptSession((session) => promptForClauseNode(session, query, clauseKind, currentNode));
       if (nextNode.kind === "back") {
         return "back";
       }
@@ -250,6 +288,10 @@ export function useStructuredDraftEditRouteActions({
       }
       if (route.placement === "rootSingleton" && route.leafKind === "scope") {
         applyRootScopeReplacement({ nextNode: nextNode.value, query, replaceStructuredDraftProjection });
+        return "applied";
+      }
+      if (!route.path && route.groupPath) {
+        applyLeafAppend({ nextNode: nextNode.value, query, groupPath: route.groupPath, replaceStructuredDraftProjection });
         return "applied";
       }
       if (!route.path) {

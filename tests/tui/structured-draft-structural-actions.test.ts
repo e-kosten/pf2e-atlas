@@ -219,22 +219,34 @@ describe("structured draft structural actions", () => {
     renderer.unmount();
   });
 
-  it("appends prompt-built clauses through bounded host mutation application", async () => {
+  it("routes prompt-built leaf additions through the edit-route executor before prompting", async () => {
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([scopeFilter("creature")]),
       limit: 20,
     }).request;
     const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "level" }));
-    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: { kind: "level", match: { kind: "gte", value: 5 } } }));
-    const { getActions, replacements, renderer } = renderStructuralActions({
+    const promptForClauseNode = vi.fn(async () => ({
+      kind: "apply",
+      value: { kind: "level", match: { kind: "gte", value: 5 } },
+    }));
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
       promptForClauseKind,
       promptForClauseNode,
     });
 
     await getActions().addQueryClauseAtPath(query, []);
 
-    expect(replacements.at(-1)?.query.filter).toEqual(
-      allOfFilter([scopeFilter("creature"), { kind: "level", match: { kind: "gte", value: 5 } }]),
+    expect(promptForClauseNode).not.toHaveBeenCalled();
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "leaf",
+        leafKind: "level",
+        path: null,
+        groupPath: [],
+        placement: "inGroup",
+      }),
+      expect.objectContaining({ promptSession: expect.anything() }),
     );
     renderer.unmount();
   });

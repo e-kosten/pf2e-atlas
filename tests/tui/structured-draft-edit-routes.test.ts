@@ -93,6 +93,8 @@ describe("structured draft edit routes", () => {
     ).toMatchObject({
       kind: "leaf",
       leafKind: "metadataBoolean",
+      groupPath: [],
+      path: null,
       placement: "inGroup",
     });
   });
