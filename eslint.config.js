@@ -547,7 +547,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["src/tui/search-screen/structured-draft/**/*.{ts,tsx}"],
+    files: ["src/tui/search-screen/structured-draft/**/*.ts", "src/tui/search-screen/structured-draft/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -555,6 +555,65 @@ export default defineConfig(
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
           message:
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen/structured-draft/**/*.ts", "src/tui/search-screen/structured-draft/**/*.tsx"],
+    ignores: [
+      "src/tui/search-screen/structured-draft/structured-draft-continuation.ts",
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./structured-draft-continuation.js",
+              importNames: ["runStructuredDraftExplorerContinuation"],
+              message:
+                "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/tui/search-screen/structured-draft/**/*.ts", "src/tui/search-screen/structured-draft/**/*.tsx"],
+    ignores: ["src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "../../search/query-state.js",
+              importNames: [
+                "setSearchQueryPackSelection",
+                "setSearchQueryRaritySelection",
+                "setSearchQueryActionCostSelection",
+              ],
+              message:
+                "Structured-draft grouped query-field writeback must route through grouped-field helpers and edit routes.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector:
+            'Identifier[name=/^(openPromptPackClause|openPromptRarityClause|openLiveExplorerExactNodeFieldClauseFallback|translateExplorerInsertionToStructuredDraftMutation)$/]',
+          message:
+            "Retired structured-draft prompt wrappers, exact-node fallback routes, and generic serializer fallbacks must not be reintroduced.",
         },
       ],
     },
@@ -824,6 +883,27 @@ export default defineConfig(
     files: ["src/app/**/*.{ts,tsx}", "src/domain/**/*.{ts,tsx}", "src/server/**/*.{ts,tsx}", "src/tui/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": ["error", ...SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS],
+    },
+  },
+  {
+    files: ["src/tui/search-screen/structured-draft/**/*.ts", "src/tui/search-screen/structured-draft/**/*.tsx"],
+    ignores: ["src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS,
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector:
+            'Identifier[name=/^(openPromptPackClause|openPromptRarityClause|openLiveExplorerExactNodeFieldClauseFallback|translateExplorerInsertionToStructuredDraftMutation)$/]',
+          message:
+            "Retired structured-draft prompt wrappers, exact-node fallback routes, and generic serializer fallbacks must not be reintroduced.",
+        },
+      ],
     },
   },
   {

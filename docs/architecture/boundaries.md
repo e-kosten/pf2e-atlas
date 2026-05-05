@@ -199,11 +199,16 @@ The stable rule is:
 - group-local live continuation uses canonical `groupPath` as its anchor
 - projected field buckets are derived presentation rows, not durable continuation owners
 - unary `not` is a node wrapper, not a peer live group context
+- structured-draft field edits enter exactly one of two semantic routes before prompt, explorer, or writeback: grouped-field routes for same-field cohorts in a canonical boolean group, or leaf routes for one semantic clause
+- scope is a root-singleton leaf; route logic owns placement only, while query-state normalization deterministically removes scope-dependent metadata, metric, and action-cost clauses when the category changes
+- metric key discovery may use the shared explorer as a child surface, but metric edits remain ordinary leaf routes rather than exact-node fallback routes
+- `linksTo` and `linkedFrom` are executable structured-editor leaf routes over canonical record-key clauses
 - generic filter-explorer draft helpers stay below the host seam and do not own structured-editor writeback semantics
+- structured-draft shared-explorer writeback must provide an explicit host mutation builder; prompt/select-target child surfaces are named non-writeback paths
 - lower search-hosted explorer sessions report generic session events to the structured-editor continuation owner instead of exposing separate structured-editor continuation callbacks
 - structured-draft code must not call the generic `applyFilterExplorerDraft` helper for final writeback
 
-The continuation seam is partly lint-enforced: structured-draft code cannot call the generic `applyFilterExplorerDraft` helper directly, and search-screen workflow code cannot import the generic filter-explorer draft-query owner directly. The remaining boundary is guarded by owner-specific tests, architecture documentation, and grep/code-audit checks for retired callback vocabulary and query-global writeback shortcuts. Add lint when another bypass pattern is concrete enough to block narrowly without banning legitimate prompt-local builders or generic explorer internals.
+The continuation seam is partly lint-enforced: structured-draft code cannot call the generic `applyFilterExplorerDraft` helper directly, open explorer continuation outside the explorer owner, use retired pack/rarity prompt wrappers, reintroduce the retired exact-node shared-explorer fallback, or reintroduce generic structured-draft serializer fallback symbols. Search-screen workflow code cannot import the generic filter-explorer draft-query owner directly. The remaining boundary is guarded by owner-specific tests, architecture documentation, and grep/code-audit checks for route bypasses and query-global writeback shortcuts. Add lint when another bypass pattern is concrete enough to block narrowly without banning legitimate prompt-local builders or generic explorer internals.
 
 Menu-style TUI editors should also derive footer and help bindings from one shared action table. If a screen has to keep footer text, help copy, and active bindings aligned manually, that is a sign the interaction model still needs a helper owner.
 

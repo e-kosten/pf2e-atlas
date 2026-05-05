@@ -1857,7 +1857,7 @@ describe("search structured editor continuation", () => {
     );
   });
 
-  it("recovers from invalid scalar input and then commits an action-cost range", async () => {
+  it("opens action-cost additions through the grouped shared explorer route", async () => {
     const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
       searchProfile: null,
       mode: "structured" as const,
@@ -1889,52 +1889,6 @@ describe("search structured editor continuation", () => {
     pressDown(app);
     await flushInk();
     app.stdin.write("\r");
-    expect(await waitForFrameToContain(app, "Action Cost Matcher", 60)).toContain(
-      "Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.",
-    );
-    for (const character of "oops") {
-      app.stdin.write(character);
-      await flushInk();
-    }
-    app.stdin.write("\r");
-    await waitForFrameToContain(app, "Use `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.", 60);
-    cleanup();
-
-    const rangeApp = renderSearch(
-      services,
-      browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
-    );
-    await openStructuredQueryEditor(rangeApp);
-    rangeApp.stdin.write("\r");
-    await waitForFrameToContain(rangeApp, "Add Clause", 60);
-    pressDown(rangeApp);
-    await flushInk();
-    pressDown(rangeApp);
-    await flushInk();
-    pressDown(rangeApp);
-    await flushInk();
-    pressDown(rangeApp);
-    await flushInk();
-    rangeApp.stdin.write("\r");
-    expect(await waitForFrameToContain(rangeApp, "Action Cost Matcher", 60)).toContain(
-      "Enter `5`, `!=5`, `>5`, `>=5`, `<5`, `<=5`, or `3-8`.",
-    );
-    for (const character of "3-8") {
-      rangeApp.stdin.write(character);
-      await flushInk();
-    }
-    rangeApp.stdin.write("\r");
-    await flushInk();
-    await flushInk();
-    await waitForFrameToContain(rangeApp, "Structured Query Editor", 60);
-
-    expect(rangeApp.lastFrame()).toContain("Action Cost: 3-8");
-    await executeCurrentBrowseQuery(rangeApp);
-    expect(lastListRequest(listRecords).filter).toEqual(
-      allOfFilter([
-        scopeFilter("spell"),
-        actionCostFilter({ kind: "between", min: 3, max: 8 }),
-      ]),
-    );
+    expect(await waitForFrameToContain(app, "Action Cost Explorer", 60)).toContain("matching counts");
   });
 });

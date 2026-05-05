@@ -38,6 +38,7 @@ import {
   type StructuredDraftExplorerMetricKeySelection,
   type StructuredDraftExplorerPromptNodeResult,
 } from "./structured-draft-explorer-actions.js";
+import { isStructuredDraftGroupFieldOption } from "./structured-draft-edit-routes.js";
 
 export type ClauseKind =
   | "field"
@@ -84,8 +85,6 @@ export function useStructuredDraftPromptActions({
   editFieldClause,
   getScopedFieldOptions,
   openPromptFieldClause,
-  openPromptPackClause,
-  openPromptRarityClause,
   selectPromptMetricKey,
   terminal,
   user,
@@ -100,14 +99,6 @@ export function useStructuredDraftPromptActions({
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode: MetadataFilterNode | null,
-  ) => Promise<StructuredDraftExplorerPromptNodeResult>;
-  openPromptPackClause: (
-    query: Pf2eTerminalSearchQuery,
-    currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-  ) => Promise<StructuredDraftExplorerPromptNodeResult>;
-  openPromptRarityClause: (
-    query: Pf2eTerminalSearchQuery,
-    node?: Extract<SearchFilterNode, { kind: "rarity" }>,
   ) => Promise<StructuredDraftExplorerPromptNodeResult>;
   selectPromptMetricKey: (
     query: Pf2eTerminalSearchQuery,
@@ -130,7 +121,7 @@ export function useStructuredDraftPromptActions({
       const fieldOptions = getScopedFieldOptions(query).filter((fieldOption) =>
         family === "metric"
           ? isMetricFieldOptionValue(fieldOption.value)
-          : !isMetricFieldOptionValue(fieldOption.value),
+          : !isMetricFieldOptionValue(fieldOption.value) && !isStructuredDraftGroupFieldOption(fieldOption),
       );
       if (fieldOptions.length === 0) {
         await terminal.pauseForAnyKey(
@@ -374,17 +365,6 @@ export function useStructuredDraftPromptActions({
     [getAvailableMetricFamilies, promptForMetricFamily, promptForMetricKey, terminal],
   );
 
-  const promptForPackClause = React.useCallback(
-    async (
-      _promptSession: SearchWorkspacePromptAdapters,
-      query: Pf2eTerminalSearchQuery,
-      currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-    ): Promise<SearchFilterNodeEditorResult> => {
-      return openPromptPackClause(query, currentNode);
-    },
-    [openPromptPackClause],
-  );
-
   const promptForScopeClause = React.useCallback(
     async (
       promptSession: SearchWorkspacePromptAdapters,
@@ -614,16 +594,6 @@ export function useStructuredDraftPromptActions({
     [terminal],
   );
 
-  const promptForRarityClause = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      node?: Extract<SearchFilterNode, { kind: "rarity" }>,
-    ): Promise<SearchFilterNodeEditorResult> => {
-      return openPromptRarityClause(query, node);
-    },
-    [openPromptRarityClause],
-  );
-
   const promptForClauseNode = React.useCallback(
     async (
       promptSession: SearchWorkspacePromptAdapters,
@@ -653,7 +623,7 @@ export function useStructuredDraftPromptActions({
             currentNode?.kind === "metricCompare" ? currentNode : undefined,
           );
         case "pack":
-          return promptForPackClause(promptSession, query, currentNode?.kind === "pack" ? currentNode : undefined);
+          return structuredDraftPromptCancel();
         case "scope":
           return promptForScopeClause(promptSession, query, currentNode?.kind === "scope" ? currentNode : undefined);
         case "level":
@@ -669,7 +639,7 @@ export function useStructuredDraftPromptActions({
             currentNode?.kind === "price" ? currentNode : undefined,
           );
         case "rarity":
-          return promptForRarityClause(query, currentNode?.kind === "rarity" ? currentNode : undefined);
+          return structuredDraftPromptCancel();
         case "actionCost":
           return promptForNumericMatchClause(
             promptSession,
@@ -682,8 +652,6 @@ export function useStructuredDraftPromptActions({
       promptForFieldClause,
       promptForMetricCompareClause,
       promptForNumericMatchClause,
-      promptForPackClause,
-      promptForRarityClause,
       promptForScopeClause,
     ],
   );
@@ -783,7 +751,7 @@ export function useStructuredDraftPromptActions({
       query: Pf2eTerminalSearchQuery,
     ): Promise<SharedExplorerFieldOptionPromptResult> => {
       const fieldOptions = getScopedFieldOptions(query).filter(
-        (fieldOption) => !isMetricFieldOptionValue(fieldOption.value) && fieldOption.editor === "sharedExplorer",
+        (fieldOption) => !isMetricFieldOptionValue(fieldOption.value) && isStructuredDraftGroupFieldOption(fieldOption),
       );
       if (fieldOptions.length === 0) {
         return structuredDraftPromptApply(null);

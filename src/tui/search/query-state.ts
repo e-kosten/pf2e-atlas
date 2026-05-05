@@ -68,6 +68,35 @@ function isCanonicalMetadataFilterCandidate(filter: SearchFilterNode): boolean {
   );
 }
 
+function isScopeDependentFilterNode(filter: SearchFilterNode): boolean {
+  return (
+    filter.kind === "metadataPredicate" ||
+    filter.kind === "metric" ||
+    filter.kind === "metricCompare" ||
+    filter.kind === "actionCost"
+  );
+}
+
+function pruneScopeDependentFilterNode(filter: SearchFilterNode): SearchFilterNode | null {
+  if (isScopeDependentFilterNode(filter)) {
+    return null;
+  }
+  if (filter.kind === "not") {
+    const child = pruneScopeDependentFilterNode(filter.child);
+    return child ? { kind: "not", child } : null;
+  }
+  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+    const children = filter.children
+      .map((child) => pruneScopeDependentFilterNode(child))
+      .filter((child): child is SearchFilterNode => Boolean(child));
+    if (children.length === 0) {
+      return null;
+    }
+    return children.length === 1 ? children[0]! : { kind: filter.kind, children };
+  }
+  return filter;
+}
+
 function buildSelectionLeaf(
   kind: "rarity" | "actionCost",
   value: string | number,
@@ -780,6 +809,23 @@ export function setSearchQuerySubcategory(
     },
     ...children,
   ]);
+}
+
+export function replaceSearchQueryRootScope(
+  query: Pf2eTerminalSearchQuery,
+  scope: Extract<SearchFilterNode, { kind: "scope" }> | null,
+): Pf2eTerminalSearchQuery {
+  const rootOperator = getQueryRootOperator(query.filter);
+  const currentCategory = getSearchQueryCategory(query);
+  const nextCategory = normalizeSearchCategory(scope?.category ?? null) ?? null;
+  const shouldPruneScopeDependentClauses = currentCategory !== nextCategory;
+  const children = removeAllMatchingTopLevelChildren(
+    getTopLevelQueryChildren(query.filter),
+    (child) => child.kind === "scope",
+  )
+    .map((child) => (shouldPruneScopeDependentClauses ? pruneScopeDependentFilterNode(child) : child))
+    .filter((child): child is SearchFilterNode => Boolean(child));
+  return buildQueryFromTopLevelChildren(query, rootOperator, scope ? [scope, ...children] : children);
 }
 
 export function setSearchQueryLevelRange(

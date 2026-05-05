@@ -5,19 +5,11 @@ import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
 import type { OntologyNode } from "../../../domain/ontology-types.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
-import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import {
-  buildSearchFilterPackSelectionNode,
-  buildSearchFilterValueSelectionNode,
   getSearchQueryCategory,
   getSearchQueryMetadataTree,
-  getSearchQueryPackSelection,
-  getSearchQueryRaritySelection,
-  setSearchQueryPackSelection,
-  setSearchQueryRaritySelection,
 } from "../../search/query-state.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
-import { getSearchFilterNodeAtPath } from "../../search/query-core.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -36,6 +28,7 @@ import {
 } from "../filter-explorer-field-state.js";
 import {
   buildStructuredDraftGroupedFieldMutation,
+  runStructuredDraftExplorerChildSurface,
   runStructuredDraftExplorerContinuation,
   structuredDraftPromptApply,
   structuredDraftPromptBack,
@@ -49,16 +42,19 @@ import {
   buildGroupedFieldSeedDiscreteClauses,
   buildGroupedFieldSeedState,
 } from "./structured-draft-grouped-field.js";
-import {
-  applyStructuredDraftHostMutationToQuery,
-  getContainingBooleanGroupPath,
-} from "./structured-draft-host-mutations.js";
+import { applyStructuredDraftHostMutationToQuery, getContainingBooleanGroupPath } from "./structured-draft-host-mutations.js";
 import {
   createStructuredDraftGroupResumeTarget,
-  createStructuredDraftNodeResumeTarget,
   type StructuredDraftResumeTarget,
 } from "./structured-draft-state.js";
 import { buildStructuredDraftEntries } from "./structured-draft-support.js";
+import {
+  getStructuredDraftSyntheticFieldOption,
+  inferStructuredDraftMetricFieldFamily,
+  isStructuredDraftGroupFieldOption,
+  structuredDraftSearchFilterNodeContainsFieldValue,
+} from "./structured-draft-edit-routes.js";
+import { metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 
 export type MetricFieldFamily = "actorMetric" | "itemMetric";
 export type StructuredDraftExplorerMetricKeySelection = {
@@ -73,21 +69,6 @@ export type StructuredDraftExplorerMetricKeyResult =
 
 function groupPathsEqual(left: number[] | undefined, right: number[]): boolean {
   return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
-}
-
-export function buildExplorerOnlyFieldOption(
-  field: Pf2eTerminalQueryFieldOption["value"],
-  label: string,
-  description: string,
-  fieldType: Pf2eTerminalQueryFieldOption["fieldType"],
-): Pf2eTerminalQueryFieldOption {
-  return {
-    value: field,
-    label,
-    description,
-    fieldType,
-    editor: "sharedExplorer",
-  };
 }
 
 export function searchFilterExplorerFieldStatesEqual(
@@ -112,27 +93,7 @@ export function searchFilterNodeContainsFieldValue(
     return false;
   }
 
-  if (node.kind === "metadataPredicate") {
-    return node.predicate.field === field;
-  }
-
-  if (node.kind === "rarity" || node.kind === "actionCost" || node.kind === "pack") {
-    return node.kind === field;
-  }
-
-  if (node.kind === "metric") {
-    return inferMetricFieldFamily(node.metric) === field;
-  }
-
-  if (node.kind === "allOf" || node.kind === "anyOf") {
-    return node.children.some((child) => searchFilterNodeContainsFieldValue(child, field));
-  }
-
-  if (node.kind === "not") {
-    return searchFilterNodeContainsFieldValue(node.child, field);
-  }
-
-  return false;
+  return structuredDraftSearchFilterNodeContainsFieldValue(node, field);
 }
 
 function collectSearchFilterNodesForFieldValue(
@@ -210,28 +171,6 @@ function getSearchFilterNodeEditorValue(mutation: StructuredDraftHostMutation): 
   return null;
 }
 
-export function getQueryFieldValueForNode(node: SearchFilterNode): Pf2eTerminalQueryFieldOption["value"] | null {
-  switch (node.kind) {
-    case "metadataPredicate":
-      return node.predicate.field;
-    case "metric":
-      return inferMetricFieldFamily(node.metric);
-    case "pack":
-    case "scope":
-    case "level":
-    case "price":
-    case "rarity":
-    case "actionCost":
-    case "linksTo":
-    case "linkedFrom":
-    case "metricCompare":
-    case "anyOf":
-    case "allOf":
-    case "not":
-      return null;
-  }
-}
-
 export function getMetadataFilterNodeFieldValue(
   node: MetadataFilterNode | null,
 ): Pf2eTerminalQueryFieldOption["value"] | null {
@@ -244,44 +183,11 @@ export function getMetadataFilterNodeFieldValue(
   return node.field;
 }
 
-export function canOpenStructuredDraftExactNodeFieldFallback({
-  currentNode,
-  fieldOption,
-  path,
-  query,
-}: {
-  currentNode: MetadataFilterNode | null;
-  fieldOption: Pf2eTerminalQueryFieldOption;
-  path: number[];
-  query: Pf2eTerminalSearchQuery;
-}): boolean {
-  if (fieldOption.editor !== "sharedExplorer" || path.length === 0 || !currentNode) {
-    return false;
-  }
-
-  const canonicalNode = getSearchFilterNodeAtPath(query.filter, path);
-  if (!canonicalNode || getQueryFieldValueForNode(canonicalNode) !== fieldOption.value) {
-    return false;
-  }
-
-  return JSON.stringify(canonicalFilterToMetadataNode(canonicalNode)) === JSON.stringify(currentNode);
-}
-
 export function inferMetricFieldFamily(
   metric: string,
   category: ReturnType<typeof getSearchQueryCategory> = null,
 ): MetricFieldFamily {
-  const actorValueType = inferActorMetricValueType(metric);
-  const itemValueType = inferItemMetricValueType(metric);
-
-  if (actorValueType && !itemValueType) {
-    return "actorMetric";
-  }
-  if (itemValueType && !actorValueType) {
-    return "itemMetric";
-  }
-
-  return category === "equipment" ? "itemMetric" : "actorMetric";
+  return inferStructuredDraftMetricFieldFamily(metric, category);
 }
 
 export function buildMetricSelectionTargetResolver(
@@ -336,7 +242,6 @@ export function useStructuredDraftExplorerActions({
   getScopedFieldOptions,
   openFilterExplorer,
   replaceStructuredDraftProjection,
-  setStructuredDraftResumeTarget,
   terminal,
   user,
 }: {
@@ -346,13 +251,11 @@ export function useStructuredDraftExplorerActions({
     update: (draftQuery: Pf2eTerminalSearchQuery) => Pf2eTerminalSearchQuery,
     options?: { resumeTarget?: StructuredDraftResumeTarget | null },
   ) => void;
-  setStructuredDraftResumeTarget: (target: StructuredDraftResumeTarget | null) => void;
   terminal: SearchWorkspaceTerminal;
   user: SearchWorkspaceUser;
 }) {
   const openStructuredDraftExplorerContinuation = React.useCallback(
     async ({
-      currentNode,
       fieldOption,
       buildHostMutation,
       initialDiscoveryMode,
@@ -364,9 +267,8 @@ export function useStructuredDraftExplorerActions({
       singleFieldBehavior,
       title,
     }: {
-      currentNode: MetadataFilterNode | null;
       fieldOption: Pf2eTerminalQueryFieldOption;
-      buildHostMutation?: (fieldState: SearchFilterExplorerFieldState) => StructuredDraftHostMutation;
+      buildHostMutation: (fieldState: SearchFilterExplorerFieldState) => StructuredDraftHostMutation;
       initialDiscoveryMode?: SearchFilterDiscoveryMode;
       initialFieldState?: SearchFilterExplorerFieldState;
       onHostChange?: (change: StructuredDraftContinuationChange) => void;
@@ -377,7 +279,6 @@ export function useStructuredDraftExplorerActions({
       title?: string;
     }) =>
       runStructuredDraftExplorerContinuation({
-        currentNode,
         fieldOption,
         buildHostMutation,
         initialDiscoveryMode,
@@ -394,64 +295,39 @@ export function useStructuredDraftExplorerActions({
     [openFilterExplorer, user],
   );
 
-  const openLiveExplorerExactNodeFieldClauseFallback = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      path: number[],
-      fieldOption: Pf2eTerminalQueryFieldOption,
-      currentNode: MetadataFilterNode | null,
-    ) => {
-      if (
-        !canOpenStructuredDraftExactNodeFieldFallback({
-          currentNode,
-          fieldOption,
-          path,
-          query,
-        })
-      ) {
-        return;
-      }
-
-      const liveChangeState = { saw: false };
-      const applyChange = ({ mutation }: StructuredDraftContinuationChange) => {
-        if (mutation.kind !== "replaceNode") {
-          return;
-        }
-        const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
-          kind: "replaceNode",
-          path,
-          splitAllOfReplacementIntoContainingGroup: true,
-        });
-        if (!application) {
-          return;
-        }
-        liveChangeState.saw = true;
-        replaceStructuredDraftProjection(() => application.nextQuery, {
-          resumeTarget: application.resumeTarget,
-        });
-      };
-      setStructuredDraftResumeTarget(createStructuredDraftNodeResumeTarget(path));
-      const preparedDraft = user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]);
-      const continuation = await openStructuredDraftExplorerContinuation({
-        query,
+  const openStructuredDraftExplorerChildSurface = React.useCallback(
+    async ({
+      fieldOption,
+      initialDiscoveryMode,
+      initialFieldState,
+      preservedMetadata,
+      query,
+      resolveSelectionTarget,
+      singleFieldBehavior,
+      title,
+    }: {
+      fieldOption: Pf2eTerminalQueryFieldOption;
+      initialDiscoveryMode?: SearchFilterDiscoveryMode;
+      initialFieldState?: SearchFilterExplorerFieldState;
+      preservedMetadata?: MetadataFilterNode | null;
+      query: Pf2eTerminalSearchQuery;
+      resolveSelectionTarget?: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+      singleFieldBehavior?: "list" | "directValues";
+      title?: string;
+    }) =>
+      runStructuredDraftExplorerChildSurface({
         fieldOption,
-        currentNode,
-        initialFieldState: buildSearchFilterExplorerFieldState(preparedDraft.draft),
-        preservedMetadata: preparedDraft.preservedMetadata,
-        onHostChange: applyChange,
-      });
-      if (
-        continuation.kind !== "notOpened" &&
-        continuation.change &&
-        !liveChangeState.saw &&
-        continuation.change.mutation.kind === "replaceNode" &&
-        JSON.stringify(canonicalFilterToMetadataNode(continuation.change.mutation.node ?? undefined)) !==
-          JSON.stringify(currentNode)
-      ) {
-        applyChange(continuation.change);
-      }
-    },
-    [openStructuredDraftExplorerContinuation, replaceStructuredDraftProjection, setStructuredDraftResumeTarget, user.search],
+        initialDiscoveryMode,
+        initialFieldState,
+        openFilterExplorer,
+        preservedMetadata,
+        query,
+        resolveSelectionTarget,
+        singleFieldBehavior,
+        title,
+        user,
+      }),
+    [openFilterExplorer, user],
   );
 
   const openPromptFieldClause = React.useCallback(
@@ -460,24 +336,47 @@ export function useStructuredDraftExplorerActions({
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
     ): Promise<StructuredDraftExplorerPromptNodeResult> => {
+      if (isStructuredDraftGroupFieldOption(fieldOption)) {
+        await terminal.pauseForAnyKey("That grouped field must be edited through the structured field route.");
+        return structuredDraftPromptCancel();
+      }
       const initialFieldState = buildSearchFilterExplorerFieldState(
         user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).draft,
       );
-      const continuation = await openStructuredDraftExplorerContinuation({
+      const continuation = await openStructuredDraftExplorerChildSurface({
         query,
         fieldOption,
-        currentNode,
         initialFieldState,
       });
       if (continuation.kind === "cancel" || continuation.kind === "notOpened") {
         return structuredDraftPromptCancel();
       }
-      const addedQueryFieldNodes = continuation.change
-        ? getAddedSearchFilterNodesForFieldValue(query.filter, continuation.change.query.filter, fieldOption.value)
-        : [];
+      const insertionResult = user.search.buildFilterExplorerInsertionResult(
+        buildSearchFilterExplorerComposeDraft(continuation.fieldState),
+        {
+          preservedMetadata: user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata,
+          preferReplace: currentNode !== null,
+        },
+      );
+      const mutation =
+        insertionResult.kind === "insert"
+          ? ({
+              kind: "appendNodes",
+              nodes: insertionResult.nodes
+                .map((node) => metadataFilterNodeToCanonicalFilter(node))
+                .filter((node): node is SearchFilterNode => Boolean(node)),
+            } satisfies StructuredDraftHostMutation)
+          : ({
+              kind: "replaceNode",
+              node: insertionResult.node ? (metadataFilterNodeToCanonicalFilter(insertionResult.node) ?? null) : null,
+            } satisfies StructuredDraftHostMutation);
+      const addedQueryFieldNodes = getAddedSearchFilterNodesForFieldValue(
+        query.filter,
+        continuation.query.filter,
+        fieldOption.value,
+      );
       if (
-        continuation.change &&
-        !structuredDraftHostMutationContainsFieldValue(continuation.change.mutation, fieldOption.value) &&
+        !structuredDraftHostMutationContainsFieldValue(mutation, fieldOption.value) &&
         addedQueryFieldNodes.length > 0
       ) {
         return structuredDraftPromptApply(
@@ -485,16 +384,15 @@ export function useStructuredDraftExplorerActions({
         );
       }
       if (
-        !continuation.change ||
-        (searchFilterExplorerFieldStatesEqual(continuation.change.fieldState, initialFieldState) &&
-          !structuredDraftHostMutationContainsFieldValue(continuation.change.mutation, fieldOption.value))
+        searchFilterExplorerFieldStatesEqual(continuation.fieldState, initialFieldState) &&
+        !structuredDraftHostMutationContainsFieldValue(mutation, fieldOption.value)
       ) {
         return structuredDraftPromptBack();
       }
 
-      return structuredDraftPromptApply(getSearchFilterNodeEditorValue(continuation.change.mutation));
+      return structuredDraftPromptApply(getSearchFilterNodeEditorValue(mutation));
     },
-    [openStructuredDraftExplorerContinuation, user.search],
+    [openStructuredDraftExplorerChildSurface, terminal, user.search],
   );
 
   const selectPromptMetricKey = React.useCallback(
@@ -506,8 +404,7 @@ export function useStructuredDraftExplorerActions({
       options: { numericOnly?: boolean } = {},
       initialDiscoveryMode: SearchFilterDiscoveryMode = "matching",
     ): Promise<StructuredDraftExplorerMetricKeyResult> => {
-      const continuation = await openStructuredDraftExplorerContinuation({
-        currentNode: null,
+      const continuation = await openStructuredDraftExplorerChildSurface({
         fieldOption,
         initialDiscoveryMode,
         query,
@@ -533,151 +430,22 @@ export function useStructuredDraftExplorerActions({
           return structuredDraftPromptCancel();
       }
     },
-    [openStructuredDraftExplorerContinuation],
-  );
-
-  const openPromptPackClause = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
-    ): Promise<StructuredDraftExplorerPromptNodeResult> => {
-      const baseQuery = setSearchQueryPackSelection(query, { include: [], exclude: [] });
-      const currentSelection = getSearchQueryPackSelection(query);
-      const fallbackSelection = currentNode ? { include: [currentNode.value], exclude: [] } : currentSelection;
-      const seededQuery =
-        fallbackSelection.include.length > 0 || fallbackSelection.exclude.length > 0
-          ? setSearchQueryPackSelection(baseQuery, fallbackSelection)
-          : baseQuery;
-      const initialFieldState = buildSearchFilterExplorerFieldState(
-        user.search.prepareFilterExplorerDraft(seededQuery, ["pack"]).draft,
-      );
-
-      const continuation = await openStructuredDraftExplorerContinuation({
-        currentNode: null,
-        fieldOption: buildExplorerOnlyFieldOption(
-          "pack",
-          "Pack",
-          "Browse live packs for the current scope and stage canonical pack clauses.",
-          "enumString",
-        ),
-        initialFieldState,
-        query: baseQuery,
-        title: "Pack",
-      });
-
-      if (continuation.kind === "notOpened") {
-        return structuredDraftPromptCancel();
-      }
-      if (continuation.kind !== "resumeHost" && continuation.kind !== "cancel") {
-        return structuredDraftPromptCancel();
-      }
-      if (!continuation.change) {
-        return currentNode ? structuredDraftPromptApply(null) : structuredDraftPromptBack();
-      }
-
-      const selection = continuation.change.fieldState.discreteSelections.pack
-        ? {
-            include: [...continuation.change.fieldState.discreteSelections.pack.include],
-            exclude: [...continuation.change.fieldState.discreteSelections.pack.exclude],
-          }
-        : getSearchQueryPackSelection(baseQuery);
-      const hasSelection = selection.include.length > 0 || selection.exclude.length > 0;
-      if (!hasSelection) {
-        return currentNode ? structuredDraftPromptApply(null) : structuredDraftPromptBack();
-      }
-
-      return structuredDraftPromptApply(buildSearchFilterPackSelectionNode(selection));
-    },
-    [openStructuredDraftExplorerContinuation, user.search],
-  );
-
-  const openPromptRarityClause = React.useCallback(
-    async (
-      query: Pf2eTerminalSearchQuery,
-      node?: Extract<SearchFilterNode, { kind: "rarity" }>,
-    ): Promise<StructuredDraftExplorerPromptNodeResult> => {
-      const baseQuery = setSearchQueryRaritySelection(query, { include: [], exclude: [] });
-      const currentValue = node?.match.kind === "eq" ? node.match.value : null;
-      const seededQuery = currentValue
-        ? setSearchQueryRaritySelection(baseQuery, { include: [currentValue], exclude: [] })
-        : baseQuery;
-      const initialFieldState = buildSearchFilterExplorerFieldState(
-        user.search.prepareFilterExplorerDraft(seededQuery, ["rarity"]).draft,
-      );
-      const continuation = await openStructuredDraftExplorerContinuation({
-        currentNode: null,
-        fieldOption: buildExplorerOnlyFieldOption(
-          "rarity",
-          "Rarity",
-          "Browse live rarities for the current scope and stage canonical rarity clauses.",
-          "enumString",
-        ),
-        initialFieldState,
-        query: baseQuery,
-      });
-      if (continuation.kind === "notOpened") {
-        return structuredDraftPromptCancel();
-      }
-      if (continuation.kind !== "resumeHost" && continuation.kind !== "cancel") {
-        return structuredDraftPromptCancel();
-      }
-      if (!continuation.change) {
-        return node ? structuredDraftPromptApply(null) : structuredDraftPromptBack();
-      }
-
-      const nextSelection = continuation.change.fieldState.discreteSelections.rarity
-        ? {
-            include: [...continuation.change.fieldState.discreteSelections.rarity.include],
-            exclude: [...continuation.change.fieldState.discreteSelections.rarity.exclude],
-          }
-        : getSearchQueryRaritySelection(baseQuery);
-      const hasSelection = nextSelection.include.length > 0 || nextSelection.exclude.length > 0;
-      if (!hasSelection) {
-        return node ? structuredDraftPromptApply(null) : structuredDraftPromptBack();
-      }
-
-      const nextNode = buildSearchFilterValueSelectionNode("rarity", nextSelection);
-      return nextNode
-        ? structuredDraftPromptApply(nextNode)
-        : node
-          ? structuredDraftPromptApply(null)
-          : structuredDraftPromptBack();
-    },
-    [openStructuredDraftExplorerContinuation, user.search],
+    [openStructuredDraftExplorerChildSurface],
   );
 
   const openLiveExplorerGroupedField = React.useCallback(
     async (query: Pf2eTerminalSearchQuery, entry: SearchStructuredDraftEntry) => {
       const groupPath = entry.groupPath ?? [];
       const fieldMemberPaths = entry.fieldMemberPaths ?? entry.memberPaths ?? [];
-      const field = entry.field;
+      const field = entry.field as Pf2eTerminalQueryFieldOption["value"] | undefined;
       if (!field) {
         return;
       }
 
       const fieldOption =
-        field === "pack"
-          ? buildExplorerOnlyFieldOption(
-              "pack",
-              "Pack",
-              "Browse live packs for the current group and stage canonical pack clauses.",
-              "enumString",
-            )
-          : field === "rarity"
-            ? buildExplorerOnlyFieldOption(
-                "rarity",
-                "Rarity",
-              "Browse live rarities for the current group and stage canonical rarity clauses.",
-              "enumString",
-            )
-          : field === "actionCost"
-            ? buildExplorerOnlyFieldOption(
-                "actionCost",
-                "Action Cost",
-                "Browse live action costs for the current group and stage canonical action-cost clauses.",
-                "number",
-              )
-            : (getScopedFieldOptions(query).find((candidate) => candidate.value === field) ?? null);
+        getStructuredDraftSyntheticFieldOption(field) ??
+        getScopedFieldOptions(query).find((candidate) => candidate.value === field) ??
+        null;
       if (!fieldOption || fieldOption.editor !== "sharedExplorer") {
         await terminal.pauseForAnyKey("That grouped row cannot be edited through the shared explorer.");
         return;
@@ -713,7 +481,6 @@ export function useStructuredDraftExplorerActions({
       const continuation = await openStructuredDraftExplorerContinuation({
         query: seedQuery,
         fieldOption,
-        currentNode: null,
         buildHostMutation,
         initialFieldState,
         preservedMetadata,
@@ -805,7 +572,6 @@ export function useStructuredDraftExplorerActions({
         const continuation = await openStructuredDraftExplorerContinuation({
           query: seedQuery,
           fieldOption,
-          currentNode: null,
           buildHostMutation,
           initialFieldState,
           preservedMetadata: getSearchQueryMetadataTree(seedQuery),
@@ -847,12 +613,9 @@ export function useStructuredDraftExplorerActions({
 
   return {
     openLiveExplorerCanonicalFieldMember,
-    openLiveExplorerExactNodeFieldClauseFallback,
     openLiveExplorerGroupedField,
     openLiveExplorerGroupFieldByName,
     openPromptFieldClause,
-    openPromptPackClause,
-    openPromptRarityClause,
     openStructuredDraftExplorerContinuation,
     selectPromptMetricKey,
   };

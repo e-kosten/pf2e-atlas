@@ -15,6 +15,7 @@ import type {
 } from "../workspace/workspace-action-types.js";
 import { useStructuredDraftExplorerActions } from "./structured-draft-explorer-actions.js";
 import { useStructuredDraftPromptActions } from "./structured-draft-prompt-actions.js";
+import { useStructuredDraftEditRouteActions } from "./structured-draft-edit-route-actions.js";
 import {
   useStructuredDraftStructuralActions,
   type StructuredDraftEntryActionId,
@@ -65,19 +66,13 @@ export function useSearchStructuredDraftEntryActions({
   ) => Promise<void>;
 } {
   const {
-    openLiveExplorerCanonicalFieldMember,
-    openLiveExplorerExactNodeFieldClauseFallback,
     openLiveExplorerGroupedField,
-    openLiveExplorerGroupFieldByName,
     openPromptFieldClause,
-    openPromptPackClause,
-    openPromptRarityClause,
     selectPromptMetricKey,
   } = useStructuredDraftExplorerActions({
     getScopedFieldOptions,
     openFilterExplorer,
     replaceStructuredDraftProjection,
-    setStructuredDraftResumeTarget,
     terminal,
     user,
   });
@@ -87,11 +82,18 @@ export function useSearchStructuredDraftEntryActions({
     editFieldClause,
     getScopedFieldOptions,
     openPromptFieldClause,
-    openPromptPackClause,
-    openPromptRarityClause,
     selectPromptMetricKey,
     terminal,
     user,
+  });
+
+  const { executeStructuredDraftEditRoute } = useStructuredDraftEditRouteActions({
+    editFieldClause,
+    openLiveExplorerGroupedField,
+    promptForClauseNode,
+    prompts,
+    replaceStructuredDraftProjection,
+    terminal,
   });
 
   const {
@@ -100,13 +102,10 @@ export function useSearchStructuredDraftEntryActions({
     runStructuredDraftStructuralEntryAction,
   } = useStructuredDraftStructuralActions({
     clearStructuredDraftMoveSource,
-    editFieldClause,
     enterStructuredDraftMoveMode,
     getScopedFieldOptions,
     moveSourcePath,
-    openLiveExplorerCanonicalFieldMember,
-    openLiveExplorerExactNodeFieldClauseFallback,
-    openLiveExplorerGroupFieldByName,
+    executeStructuredDraftEditRoute,
     promptForClauseKind,
     promptForClauseNode,
     promptForSharedExplorerFieldOption,

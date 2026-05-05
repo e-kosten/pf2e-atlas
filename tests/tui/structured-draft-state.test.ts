@@ -28,9 +28,9 @@ Path matrix for the structured-editor continuation model.
 | --- | --- | --- | --- | --- |
 | Reopen/root continuation | host tree | structured draft session open | none | root resume selects visible root group |
 | Group-local add clause | prompt builder | addQueryClauseAtPath | appendNodes | containing groupPath, then derive visible row |
-| Group-local explorer field | shared explorer | runStructuredDraftExplorerContinuation | replaceGroupedField or appendNodes | groupPath; buckets derive from canonical members |
+| Group-local explorer field | shared explorer | runStructuredDraftExplorerContinuation | replaceGroupedField | groupPath; buckets derive from canonical members |
 | Exact structural edit | host tree | runNodeAction/runInsertionAction | replaceNode/remove/wrap/move/lift/unwrap | node path only while semantically present |
-| Metric-key or pack discovery | shared explorer | runStructuredDraftExplorerContinuation | bounded node result consumed by prompt flow | prompt resumes through host state, not explorer-local state |
+| Metric-key or prompt child discovery | shared explorer | runStructuredDraftExplorerChildSurface | child result consumed by prompt flow | prompt resumes through host state, not explorer-local state |
 | Unary not wrapper | host tree | wrapNot/addNotGroup | replaceNode or appendNodes | node/containing group; never a peer group anchor |
 
 This file pins the resume-target and projection rows. Coordinator lifecycle coverage

@@ -225,6 +225,15 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks structured-draft generic serializer fallback symbols outside the continuation owner", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-prompt-actions.ts",
+      "const fallback = translateExplorerInsertionToStructuredDraftMutation;\nexport { fallback };\n",
+      "generic serializer fallbacks must not be reintroduced",
+      "no-restricted-syntax",
+    );
+  });
+
   it("blocks internal src/tags modules from importing the public top-level tag facades", async () => {
     await expectRuleMessage(
       "src/tags/runtime/derivation/api.ts",

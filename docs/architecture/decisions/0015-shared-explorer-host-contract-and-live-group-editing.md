@@ -41,7 +41,11 @@ In practice this means:
 - structured search editing owns a host-level continuation coordinator above prompt and explorer child flows; the coordinator interprets shared explorer outcomes into search-owned resume and mutation semantics
 - group-local structured-editor continuation should use canonical `groupPath` as the normal resume anchor, while exact node paths remain reserved for genuinely node-scoped operations
 - shared-explorer-backed leaf edits and grouped field edits should converge on the same host-owned continuation path while preserving distinct bounded mutation kinds
-- generic draft/query helpers below the explorer seam may emit generic replace or insert outputs, but the structured search host translates those into structured-editor mutation intent instead of treating generic whole-query replacement as the default
+- structured search editing classifies field-edit intent before opening child flows; the durable semantic edit routes are grouped-field cohort editing and single-clause leaf editing
+- scope is a root-singleton leaf route, and query-state normalization prunes scope-dependent metadata, metric, and action-cost clauses when the category changes
+- metric key discovery is an ordinary leaf child surface rather than a fallback edit route
+- `linksTo` and `linkedFrom` remain canonical record-link leaves and are edited as executable leaf routes when surfaced by the structured editor
+- generic draft/query helpers below the explorer seam may emit generic replace or insert outputs for prompt-local or select-target child surfaces, but structured-editor shared-explorer writeback requires an explicit host mutation builder instead of treating generic serialization as the default
 - a dedicated search-specific tree editor may remain above the shared explorer layer when it acts as a live host surface over canonical query state rather than reviving a separate staged query model
 - broad group-level staged draft editing should not be the primary model for search-group refinement
 - prompt-local drafts remain appropriate for incomplete value-entry flows such as numeric scalar input, but those small drafts should not expand into a second long-lived query model

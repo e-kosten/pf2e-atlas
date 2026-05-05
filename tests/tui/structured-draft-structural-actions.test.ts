@@ -48,13 +48,9 @@ describe("structured draft structural actions", () => {
     promptForSharedExplorerFieldOption?: ReturnType<typeof vi.fn>;
   } = {}): {
     clearStructuredDraftMoveSource: ReturnType<typeof vi.fn>;
-    editFieldClause: ReturnType<typeof vi.fn>;
     enterStructuredDraftMoveMode: ReturnType<typeof vi.fn>;
+    executeStructuredDraftEditRoute: ReturnType<typeof vi.fn>;
     getActions: () => StructuralActions;
-    openLiveExplorerCanonicalFieldMember: ReturnType<typeof vi.fn>;
-    openLiveExplorerExactNodeFieldClauseFallback: ReturnType<typeof vi.fn>;
-    openLiveExplorerGroupedField: ReturnType<typeof vi.fn>;
-    openLiveExplorerGroupFieldByName: ReturnType<typeof vi.fn>;
     renderer: ReactTestRenderer;
     replacements: { query: Pf2eTerminalSearchQuery; options?: unknown }[];
     setStructuredDraftResumeTarget: ReturnType<typeof vi.fn>;
@@ -62,12 +58,8 @@ describe("structured draft structural actions", () => {
     let actions: StructuralActions | null = null;
     const replacements: { query: Pf2eTerminalSearchQuery; options?: unknown }[] = [];
     const clearStructuredDraftMoveSource = vi.fn();
-    const editFieldClause = vi.fn();
     const enterStructuredDraftMoveMode = vi.fn();
-    const openLiveExplorerCanonicalFieldMember = vi.fn();
-    const openLiveExplorerExactNodeFieldClauseFallback = vi.fn();
-    const openLiveExplorerGroupedField = vi.fn();
-    const openLiveExplorerGroupFieldByName = vi.fn();
+    const executeStructuredDraftEditRoute = vi.fn(async () => "applied");
     const setStructuredDraftResumeTarget = vi.fn();
     const terminal = {
       pauseForAnyKey: vi.fn(),
@@ -84,14 +76,10 @@ describe("structured draft structural actions", () => {
     function Harness(): null {
       actions = useStructuredDraftStructuralActions({
         clearStructuredDraftMoveSource,
-        editFieldClause,
         enterStructuredDraftMoveMode,
         getScopedFieldOptions,
         moveSourcePath,
-        openLiveExplorerCanonicalFieldMember,
-        openLiveExplorerExactNodeFieldClauseFallback,
-        openLiveExplorerGroupedField,
-        openLiveExplorerGroupFieldByName,
+        executeStructuredDraftEditRoute,
         promptForClauseKind,
         promptForClauseNode,
         promptForSharedExplorerFieldOption,
@@ -120,18 +108,14 @@ describe("structured draft structural actions", () => {
 
     return {
       clearStructuredDraftMoveSource,
-      editFieldClause,
       enterStructuredDraftMoveMode,
+      executeStructuredDraftEditRoute,
       getActions: () => {
         if (!actions) {
           throw new Error("Structural actions did not render.");
         }
         return actions;
       },
-      openLiveExplorerCanonicalFieldMember,
-      openLiveExplorerExactNodeFieldClauseFallback,
-      openLiveExplorerGroupedField,
-      openLiveExplorerGroupFieldByName,
       renderer: renderer!,
       replacements,
       setStructuredDraftResumeTarget,
@@ -215,7 +199,7 @@ describe("structured draft structural actions", () => {
     }).request;
     const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "field" }));
     const promptForSharedExplorerFieldOption = vi.fn(async () => ({ kind: "apply", value: traitsFieldOption }));
-    const { getActions, openLiveExplorerGroupFieldByName, renderer } = renderStructuralActions({
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
       promptForClauseKind,
       promptForSharedExplorerFieldOption,
     });
@@ -223,7 +207,15 @@ describe("structured draft structural actions", () => {
     await getActions().addQueryClauseAtPath(query, []);
 
     expect(promptForSharedExplorerFieldOption).toHaveBeenCalled();
-    expect(openLiveExplorerGroupFieldByName).toHaveBeenCalledWith(query, [], traitsFieldOption);
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "groupField",
+        field: "traits",
+        groupPath: [],
+        source: "add",
+      }),
+    );
     renderer.unmount();
   });
 
@@ -247,7 +239,7 @@ describe("structured draft structural actions", () => {
     renderer.unmount();
   });
 
-  it("flattens prompt-built rarity selection groups when adding a plain clause", async () => {
+  it("routes plain rarity additions through the grouped field route executor", async () => {
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([
         scopeFilter("creature"),
@@ -256,30 +248,49 @@ describe("structured draft structural actions", () => {
       limit: 20,
     }).request;
     const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "rarity" }));
-    const raritySelection = allOfFilter([
-      { kind: "rarity", match: { kind: "eq", value: "common" } },
-      notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
-    ]);
-    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: raritySelection }));
-    const { getActions, replacements, renderer } = renderStructuralActions({
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
       promptForClauseKind,
-      promptForClauseNode,
     });
 
     await getActions().addQueryClauseAtPath(query, []);
 
-    expect(replacements.at(-1)?.query.filter).toEqual(
-      allOfFilter([
-        scopeFilter("creature"),
-        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
-        { kind: "rarity", match: { kind: "eq", value: "common" } },
-        notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
-      ]),
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "groupField",
+        field: "rarity",
+        groupPath: [],
+        source: "add",
+      }),
     );
     renderer.unmount();
   });
 
-  it("keeps multi-value rarity selections as rarity leaves instead of boolean branches", async () => {
+  it("routes plain pack additions through the grouped field route executor", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "pack" }));
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
+      promptForClauseKind,
+    });
+
+    await getActions().addQueryClauseAtPath(query, []);
+
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "groupField",
+        field: "pack",
+        groupPath: [],
+        source: "add",
+      }),
+    );
+    renderer.unmount();
+  });
+
+  it("routes plain action-cost additions through the grouped field route executor", async () => {
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([
         scopeFilter("creature"),
@@ -287,26 +298,21 @@ describe("structured draft structural actions", () => {
       ]),
       limit: 20,
     }).request;
-    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "rarity" }));
-    const raritySelection = allOfFilter([
-      { kind: "rarity", match: { kind: "in", values: ["common", "uncommon"] } },
-      { kind: "rarity", match: { kind: "notIn", values: ["rare", "unique"] } },
-    ]);
-    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: raritySelection }));
-    const { getActions, replacements, renderer } = renderStructuralActions({
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "actionCost" }));
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
       promptForClauseKind,
-      promptForClauseNode,
     });
 
     await getActions().addQueryClauseAtPath(query, []);
 
-    expect(replacements.at(-1)?.query.filter).toEqual(
-      allOfFilter([
-        scopeFilter("creature"),
-        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
-        { kind: "rarity", match: { kind: "in", values: ["common", "uncommon"] } },
-        { kind: "rarity", match: { kind: "notIn", values: ["rare", "unique"] } },
-      ]),
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "groupField",
+        field: "actionCost",
+        groupPath: [],
+        source: "add",
+      }),
     );
     renderer.unmount();
   });
@@ -316,12 +322,12 @@ describe("structured draft structural actions", () => {
       filter: allOfFilter([scopeFilter("creature")]),
       limit: 20,
     }).request;
-    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "rarity" }));
-    const raritySelection = allOfFilter([
-      { kind: "rarity", match: { kind: "eq", value: "common" } },
-      notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "level" }));
+    const levelSelection = allOfFilter([
+      { kind: "level", match: { kind: "gte", value: 3 } },
+      { kind: "level", match: { kind: "lte", value: 8 } },
     ]);
-    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: raritySelection }));
+    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: levelSelection }));
     const { getActions, replacements, renderer } = renderStructuralActions({
       promptForClauseKind,
       promptForClauseNode,
@@ -333,59 +339,97 @@ describe("structured draft structural actions", () => {
       allOfFilter([
         scopeFilter("creature"),
         allOfFilter([
-          { kind: "rarity", match: { kind: "eq", value: "common" } },
-          notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+          { kind: "level", match: { kind: "gte", value: 3 } },
+          { kind: "level", match: { kind: "lte", value: 8 } },
         ]),
       ]),
     );
     renderer.unmount();
   });
 
-  it("routes leaf shared-explorer edits through injected explorer callbacks", async () => {
+  it("blocks wrapped pack, rarity, and action-cost add flows from bypassing grouped routes", async () => {
+    for (const clauseKind of ["pack", "rarity", "actionCost"] as const) {
+      const query = browseQuery("Browse creatures", {
+        filter: allOfFilter([scopeFilter("creature")]),
+        limit: 20,
+      }).request;
+      const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: clauseKind }));
+      const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: packFilter("equipment") }));
+      const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
+        promptForClauseKind,
+        promptForClauseNode,
+      });
+
+      await getActions().addQueryClauseAtPath(query, [], "allOf");
+
+      expect(executeStructuredDraftEditRoute).not.toHaveBeenCalled();
+      expect(promptForClauseNode).not.toHaveBeenCalled();
+      renderer.unmount();
+    }
+  });
+
+  it("removes grouped metadata fields from wrapped add prompts", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "field" }));
+    const promptForClauseNode = vi.fn(async () => ({ kind: "cancel" }));
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions({
+      promptForClauseKind,
+      promptForClauseNode,
+    });
+
+    await getActions().addQueryClauseAtPath(query, [], "anyOf");
+
+    expect(executeStructuredDraftEditRoute).not.toHaveBeenCalled();
+    expect(promptForClauseNode).toHaveBeenCalled();
+    renderer.unmount();
+  });
+
+  it("routes leaf shared-explorer edits through the edit-route executor", async () => {
     const traitsNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" });
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([scopeFilter("creature"), traitsNode]),
       limit: 20,
     }).request;
-    const {
-      getActions,
-      openLiveExplorerCanonicalFieldMember,
-      openLiveExplorerExactNodeFieldClauseFallback,
-      openLiveExplorerGroupedField,
-      renderer,
-    } = renderStructuralActions();
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions();
 
     await getActions().runLeafAction(query, [1], traitsNode, "edit");
 
-    expect(openLiveExplorerCanonicalFieldMember).toHaveBeenCalledWith(query, [1], traitsFieldOption);
-    expect(openLiveExplorerGroupedField).not.toHaveBeenCalled();
-    expect(openLiveExplorerExactNodeFieldClauseFallback).not.toHaveBeenCalled();
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
+      query,
+      expect.objectContaining({
+        kind: "groupField",
+        field: "traits",
+        groupPath: [],
+        memberPaths: [[1]],
+        source: "member",
+      }),
+    );
     renderer.unmount();
   });
 
-  it("routes pack edits through canonical field-member explorer callbacks", async () => {
+  it("routes pack edits through grouped field-member routes", async () => {
     const packNode = packFilter("equipment");
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([scopeFilter("creature"), packNode]),
       limit: 20,
     }).request;
-    const {
-      getActions,
-      openLiveExplorerCanonicalFieldMember,
-      openLiveExplorerExactNodeFieldClauseFallback,
-      openLiveExplorerGroupedField,
-      renderer,
-    } = renderStructuralActions();
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions();
 
     await getActions().runLeafAction(query, [1], packNode, "edit");
 
-    expect(openLiveExplorerCanonicalFieldMember).toHaveBeenCalledWith(
+    expect(executeStructuredDraftEditRoute).toHaveBeenCalledWith(
       query,
-      [1],
-      expect.objectContaining({ value: "pack" }),
+      expect.objectContaining({
+        kind: "groupField",
+        field: "pack",
+        groupPath: [],
+        memberPaths: [[1]],
+        source: "member",
+      }),
     );
-    expect(openLiveExplorerGroupedField).not.toHaveBeenCalled();
-    expect(openLiveExplorerExactNodeFieldClauseFallback).not.toHaveBeenCalled();
     renderer.unmount();
   });
 

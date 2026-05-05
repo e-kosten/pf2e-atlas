@@ -18,16 +18,12 @@ const baseQuery: Pf2eTerminalSearchQuery = browseQuery("Browse").request;
 function renderPromptActions({
   fieldOptions = [],
   openPromptFieldClause = vi.fn(),
-  openPromptPackClause = vi.fn(async () => ({ kind: "cancel" })),
-  openPromptRarityClause = vi.fn(async () => ({ kind: "cancel" })),
   promptSelectOption = vi.fn(),
   promptTextInput = vi.fn(),
   selectPromptMetricKey = vi.fn(async () => ({ kind: "cancel" })),
 }: {
   fieldOptions?: Pf2eTerminalQueryFieldOption[];
   openPromptFieldClause?: ReturnType<typeof vi.fn>;
-  openPromptPackClause?: ReturnType<typeof vi.fn>;
-  openPromptRarityClause?: ReturnType<typeof vi.fn>;
   promptSelectOption?: ReturnType<typeof vi.fn>;
   promptTextInput?: ReturnType<typeof vi.fn>;
   selectPromptMetricKey?: ReturnType<typeof vi.fn>;
@@ -65,8 +61,6 @@ function renderPromptActions({
       editFieldClause: vi.fn(),
       getScopedFieldOptions: () => fieldOptions,
       openPromptFieldClause,
-      openPromptPackClause,
-      openPromptRarityClause,
       selectPromptMetricKey,
       terminal,
       user,
@@ -159,28 +153,25 @@ describe("structured draft prompt actions", () => {
     renderer.unmount();
   });
 
-  it("gets pack and rarity nodes through injected high-level explorer actions", async () => {
-    const openPromptPackClause = vi.fn(async () => ({ kind: "apply", value: { kind: "pack", value: "equipment" } }));
-    const openPromptRarityClause = vi.fn(async () => ({
-      kind: "apply",
-      value: { kind: "rarity", match: { kind: "eq", value: "common" } },
-    }));
-    const { getActions, promptSession, renderer } = renderPromptActions({
-      openPromptPackClause,
-      openPromptRarityClause,
+  it("keeps grouped metadata fields out of prompt-local field-node construction", async () => {
+    const openPromptFieldClause = vi.fn();
+    const traitsField = {
+      value: "traits",
+      label: "Traits",
+      description: "Browse traits.",
+      fieldType: "set",
+      editor: "sharedExplorer",
+    } satisfies Pf2eTerminalQueryFieldOption;
+    const { getActions, promptSession, renderer, terminal } = renderPromptActions({
+      fieldOptions: [traitsField],
+      openPromptFieldClause,
     });
 
-    const packResult = await getActions().promptForClauseNode(promptSession, baseQuery, "pack");
-    const rarityResult = await getActions().promptForClauseNode(promptSession, baseQuery, "rarity");
+    const result = await getActions().promptForClauseNode(promptSession, baseQuery, "field");
 
-    expect(packResult).toEqual({ kind: "apply", value: { kind: "pack", value: "equipment" } });
-    expect(rarityResult).toEqual({
-      kind: "apply",
-      value: { kind: "rarity", match: { kind: "eq", value: "common" } },
-    });
-    expect(openPromptPackClause).toHaveBeenCalledWith(baseQuery, undefined);
-    expect(openPromptRarityClause).toHaveBeenCalledWith(baseQuery, undefined);
-
+    expect(result).toEqual({ kind: "cancel" });
+    expect(openPromptFieldClause).not.toHaveBeenCalled();
+    expect(terminal.pauseForAnyKey).toHaveBeenCalledWith("No scoped field filters are available for the current query.");
     renderer.unmount();
   });
 

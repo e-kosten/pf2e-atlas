@@ -2,7 +2,6 @@ import React from "react";
 
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { DerivedTagTerminalActionTargetOption } from "../../action-target.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import {
   canLiftSearchFilterNodeAtPath,
   canUnwrapSearchFilterNodeAtPath,
@@ -16,7 +15,7 @@ import {
   updateSearchFilterNodeAtPath,
   wrapSearchFilterNodeAtPath,
 } from "../../search/query-core.js";
-import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
+import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchQueryRootOperator } from "../../search/query-state.js";
 import type {
   Pf2eTerminalQueryFieldOption,
@@ -27,11 +26,15 @@ import type {
   SearchWorkspacePromptAdapters,
   SearchWorkspaceTerminal,
 } from "../workspace/workspace-action-types.js";
-import {
-  buildExplorerOnlyFieldOption,
-  getQueryFieldValueForNode,
-} from "./structured-draft-explorer-actions.js";
 import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host-mutations.js";
+import {
+  classifyStructuredDraftAddFieldRoute,
+  classifyStructuredDraftNodeEditRoute,
+  getStructuredDraftQueryFieldValueForNode,
+  getStructuredDraftSyntheticFieldOption,
+  resolveStructuredDraftFieldOption,
+  type StructuredDraftEditRoute,
+} from "./structured-draft-edit-routes.js";
 import {
   isMetricFieldOptionValue,
   type ClauseKind,
@@ -153,7 +156,7 @@ export function getStructuredDraftLeafActionEntries(
   node: SearchFilterNode,
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[],
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
-  const editableClauseKind = getEditableClauseKind(query, node, getScopedFieldOptions);
+  const editableClauseKind = getEditableClauseKind(query, path, node, getScopedFieldOptions);
   const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
 
   return [
@@ -286,45 +289,49 @@ export function getStructuredDraftGroupActionEntries(
 
 function getEditableClauseKind(
   query: Pf2eTerminalSearchQuery,
+  path: number[],
   node: SearchFilterNode,
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[],
 ): ClauseKind | null {
   const fieldOptions = getScopedFieldOptions(query);
-  const fieldOptionValue = getQueryFieldValueForNode(node);
+  const fieldOptionValue = getStructuredDraftQueryFieldValueForNode(node);
   const fieldOption = fieldOptionValue
-    ? (fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null)
+    ? resolveStructuredDraftFieldOption(fieldOptionValue, fieldOptions)
     : null;
   const editableMetadataNode = canonicalFilterToMetadataNode(node);
-  return node.kind === "scope"
-    ? "scope"
-    : node.kind === "level"
-      ? "level"
-      : node.kind === "price"
-        ? "price"
-        : node.kind === "pack"
-          ? "pack"
-          : node.kind === "metricCompare"
-            ? "metricCompare"
-            : node.kind === "rarity"
-              ? "rarity"
-              : node.kind === "actionCost"
-                ? "actionCost"
-                : fieldOption && editableMetadataNode
-                  ? isMetricFieldOptionValue(fieldOption.value)
-                    ? "metric"
-                    : "field"
-                  : null;
+  const route = classifyStructuredDraftNodeEditRoute({ query, path, fieldOptions });
+  if (route.kind === "unsupported") {
+    return null;
+  }
+  return route.kind === "groupField"
+    ? "field"
+    : node.kind === "scope"
+      ? "scope"
+      : node.kind === "level"
+        ? "level"
+        : node.kind === "price"
+          ? "price"
+          : node.kind === "pack"
+            ? "pack"
+            : node.kind === "metricCompare"
+              ? "metricCompare"
+              : node.kind === "rarity"
+                ? "rarity"
+                : node.kind === "actionCost"
+                  ? "actionCost"
+                  : fieldOption && editableMetadataNode
+                    ? isMetricFieldOptionValue(fieldOption.value)
+                      ? "metric"
+                      : "field"
+                    : null;
 }
 
 export function useStructuredDraftStructuralActions({
   clearStructuredDraftMoveSource,
-  editFieldClause,
   enterStructuredDraftMoveMode,
   getScopedFieldOptions,
   moveSourcePath,
-  openLiveExplorerCanonicalFieldMember,
-  openLiveExplorerExactNodeFieldClauseFallback,
-  openLiveExplorerGroupFieldByName,
+  executeStructuredDraftEditRoute,
   promptForClauseKind,
   promptForClauseNode,
   promptForSharedExplorerFieldOption,
@@ -334,30 +341,13 @@ export function useStructuredDraftStructuralActions({
   terminal,
 }: {
   clearStructuredDraftMoveSource: () => void;
-  editFieldClause: (
-    query: Pf2eTerminalSearchQuery,
-    fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
   enterStructuredDraftMoveMode: (path: number[]) => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   moveSourcePath: number[] | null;
-  openLiveExplorerCanonicalFieldMember: (
+  executeStructuredDraftEditRoute: (
     query: Pf2eTerminalSearchQuery,
-    path: number[],
-    fieldOption: Pf2eTerminalQueryFieldOption,
-  ) => Promise<void>;
-  openLiveExplorerExactNodeFieldClauseFallback: (
-    query: Pf2eTerminalSearchQuery,
-    path: number[],
-    fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode: MetadataFilterNode | null,
-  ) => Promise<void>;
-  openLiveExplorerGroupFieldByName: (
-    query: Pf2eTerminalSearchQuery,
-    groupPath: number[],
-    fieldOption: Pf2eTerminalQueryFieldOption,
-  ) => Promise<void>;
+    route: StructuredDraftEditRoute,
+  ) => Promise<ClauseApplyResult>;
   promptForClauseKind: (
     promptSession: SearchWorkspacePromptAdapters,
     query: Pf2eTerminalSearchQuery,
@@ -411,8 +401,10 @@ export function useStructuredDraftStructuralActions({
             switch (fieldOption.kind) {
               case "apply":
                 if (fieldOption.value) {
-                  await openLiveExplorerGroupFieldByName(workingQuery, path, fieldOption.value);
-                  return "applied";
+                  return executeStructuredDraftEditRoute(
+                    workingQuery,
+                    classifyStructuredDraftAddFieldRoute({ fieldOption: fieldOption.value, groupPath: path }),
+                  );
                 }
                 break;
               case "back":
@@ -420,6 +412,27 @@ export function useStructuredDraftStructuralActions({
               case "cancel":
                 return "cancelled";
             }
+          }
+          if (
+            wrapper === undefined &&
+            (clauseKind.value === "pack" || clauseKind.value === "rarity" || clauseKind.value === "actionCost")
+          ) {
+            const fieldOption = getStructuredDraftSyntheticFieldOption(clauseKind.value);
+            if (fieldOption) {
+              return executeStructuredDraftEditRoute(
+                workingQuery,
+                classifyStructuredDraftAddFieldRoute({ fieldOption, groupPath: path }),
+              );
+            }
+          }
+          if (
+            wrapper !== undefined &&
+            (clauseKind.value === "pack" || clauseKind.value === "rarity" || clauseKind.value === "actionCost")
+          ) {
+            await terminal.pauseForAnyKey(
+              "Grouped query fields must be added directly to an existing group before structural wrapping.",
+            );
+            return "cancelled";
           }
           const nextNode = await promptForClauseNode(session, workingQuery, clauseKind.value);
           if (nextNode.kind === "back") {
@@ -476,7 +489,7 @@ export function useStructuredDraftStructuralActions({
       });
     },
     [
-      openLiveExplorerGroupFieldByName,
+      executeStructuredDraftEditRoute,
       promptForClauseKind,
       promptForClauseNode,
       promptForSharedExplorerFieldOption,
@@ -590,134 +603,21 @@ export function useStructuredDraftStructuralActions({
       node: SearchFilterNode,
       actionId: StructuredDraftEntryActionId,
     ) => {
-      const fieldOptions = getScopedFieldOptions(query);
-      const fieldOptionValue = getQueryFieldValueForNode(node);
-      const fieldOption = fieldOptionValue
-        ? (fieldOptions.find((candidate) => candidate.value === fieldOptionValue) ?? null)
-        : null;
-      const editableMetadataNode = canonicalFilterToMetadataNode(node);
-      const editableClauseKind = getEditableClauseKind(query, node, getScopedFieldOptions);
+      const editableClauseKind = getEditableClauseKind(query, path, node, getScopedFieldOptions);
 
       if (actionId === "edit") {
         if (!editableClauseKind) {
           await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
           return;
         }
-        if (editableClauseKind === "pack") {
-          await openLiveExplorerCanonicalFieldMember(
-            query,
-            path,
-            buildExplorerOnlyFieldOption(
-              "pack",
-              "Pack",
-              "Browse live packs for the current scope and stage canonical pack clauses.",
-              "enumString",
-            ),
-          );
-          return;
-        }
-        if (editableClauseKind === "rarity") {
-          await openLiveExplorerCanonicalFieldMember(
-            query,
-            path,
-            buildExplorerOnlyFieldOption(
-              "rarity",
-              "Rarity",
-              "Browse live rarities for the current scope and stage canonical rarity clauses.",
-              "enumString",
-            ),
-          );
-          return;
-        }
-        if (editableClauseKind === "actionCost") {
-          await openLiveExplorerCanonicalFieldMember(
-            query,
-            path,
-            buildExplorerOnlyFieldOption(
-              "actionCost",
-              "Action Cost",
-              "Browse live action costs for the current scope and stage canonical action-cost clauses.",
-              "number",
-            ),
-          );
-          return;
-        }
-        if (editableClauseKind === "field" && fieldOption && editableMetadataNode) {
-          if (fieldOption.editor === "sharedExplorer") {
-            await openLiveExplorerCanonicalFieldMember(query, path, fieldOption);
-            return;
-          }
-          const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
-          if (nextNode !== undefined) {
-            const application = applyStructuredDraftHostMutationToQuery(
-              query,
-              {
-                kind: "replaceNode",
-                node: nextNode ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null) : null,
-              },
-              {
-                kind: "replaceNode",
-                path,
-              },
-            );
-            if (application) {
-              replaceStructuredDraftProjection(() => application.nextQuery, {
-                resumeTarget: application.resumeTarget,
-              });
-            }
-          }
-          return;
-        }
-        if (editableClauseKind === "metric" && fieldOption && editableMetadataNode) {
-          if (fieldOption.editor === "sharedExplorer") {
-            await openLiveExplorerExactNodeFieldClauseFallback(query, path, fieldOption, editableMetadataNode);
-            return;
-          }
-          const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
-          if (nextNode !== undefined) {
-            const application = applyStructuredDraftHostMutationToQuery(
-              query,
-              {
-                kind: "replaceNode",
-                node: nextNode ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null) : null,
-              },
-              {
-                kind: "replaceNode",
-                path,
-              },
-            );
-            if (application) {
-              replaceStructuredDraftProjection(() => application.nextQuery, {
-                resumeTarget: application.resumeTarget,
-              });
-            }
-          }
-          return;
-        }
-
-        const nextNode = await terminal.runPromptSession((session) =>
-          promptForClauseNode(session, query, editableClauseKind, node),
-        );
-        if (nextNode.kind !== "apply" || Array.isArray(nextNode.value)) {
-          return;
-        }
-        const application = applyStructuredDraftHostMutationToQuery(
+        await executeStructuredDraftEditRoute(
           query,
-          {
-            kind: "replaceNode",
-            node: nextNode.value,
-          },
-          {
-            kind: "replaceNode",
+          classifyStructuredDraftNodeEditRoute({
+            fieldOptions: getScopedFieldOptions(query),
             path,
-          },
+            query,
+          }),
         );
-        if (!application) {
-          return;
-        }
-        replaceStructuredDraftProjection(() => application.nextQuery, {
-          resumeTarget: application.resumeTarget,
-        });
         return;
       }
 
@@ -747,13 +647,9 @@ export function useStructuredDraftStructuralActions({
     },
     [
       applyNextTree,
-      editFieldClause,
+      executeStructuredDraftEditRoute,
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
-      openLiveExplorerCanonicalFieldMember,
-      openLiveExplorerExactNodeFieldClauseFallback,
-      promptForClauseNode,
-      replaceStructuredDraftProjection,
       terminal,
     ],
   );

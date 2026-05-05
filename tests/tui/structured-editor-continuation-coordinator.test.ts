@@ -5,6 +5,7 @@ import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.
 import type { FilterExplorerSelectTargetOutcome } from "../../src/tui/filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
 import {
+  runStructuredDraftExplorerChildSurface,
   runStructuredDraftExplorerContinuation,
   structuredDraftPromptApply,
   structuredDraftPromptBack,
@@ -74,8 +75,8 @@ describe("structured editor continuation coordinator", () => {
 
     await expect(
       runStructuredDraftExplorerContinuation({
-        currentNode: null,
         fieldOption: promptField,
+        buildHostMutation: () => ({ kind: "appendNodes", nodes: [] }),
         openFilterExplorer,
         query,
         user,
@@ -86,11 +87,9 @@ describe("structured editor continuation coordinator", () => {
   });
 
   it("turns shared explorer live changes and back into one host resume result", async () => {
-    const nextMetadataNode = { field: "traits", op: "includes", value: "amphibious" } satisfies MetadataFilterNode;
-    const nextNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" });
     const insertionResult = {
       kind: "insert",
-      nodes: [nextMetadataNode],
+      nodes: [],
     } as const;
     const user = createUser(insertionResult, null);
     const onHostChange = vi.fn();
@@ -101,8 +100,13 @@ describe("structured editor continuation coordinator", () => {
     });
     const nextState = fieldState(["amphibious"]);
     const continuation = runStructuredDraftExplorerContinuation({
-      currentNode: null,
       fieldOption: sharedExplorerField,
+      buildHostMutation: (fieldStateValue) => ({
+        kind: "replaceGroupedField",
+        field: sharedExplorerField.value,
+        fieldOption: sharedExplorerField,
+        fieldState: fieldStateValue,
+      }),
       onHostChange,
       openFilterExplorer,
       query,
@@ -124,8 +128,10 @@ describe("structured editor continuation coordinator", () => {
       kind: "resumeHost",
       change: {
         mutation: {
-          kind: "appendNodes",
-          nodes: [nextNode],
+          kind: "replaceGroupedField",
+          field: "traits",
+          fieldOption: sharedExplorerField,
+          fieldState: nextState,
         },
         query,
         fieldState: nextState,
@@ -133,26 +139,18 @@ describe("structured editor continuation coordinator", () => {
     });
     expect(onHostChange).toHaveBeenCalledWith({
       mutation: {
-        kind: "appendNodes",
-        nodes: [nextNode],
+        kind: "replaceGroupedField",
+        field: "traits",
+        fieldOption: sharedExplorerField,
+        fieldState: nextState,
       },
       query,
       fieldState: nextState,
     });
-    expect(user.search.buildFilterExplorerInsertionResult).toHaveBeenCalledWith(
-      {
-        discreteClauses: [{ field: "traits", value: "amphibious", operator: "include" }],
-        scalarClauses: {},
-      },
-      {
-        preservedMetadata: null,
-        preferReplace: false,
-      },
-    );
+    expect(user.search.buildFilterExplorerInsertionResult).not.toHaveBeenCalled();
   });
 
   it("preserves the latest live explorer change when canceling a node edit", async () => {
-    const currentNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "aquatic" });
     const preservedMetadata = metadataPredicateFilter({ field: "rarity", op: "is", value: "common" });
     const replacementResult = {
       kind: "replace",
@@ -167,8 +165,13 @@ describe("structured editor continuation coordinator", () => {
     const latestState = fieldState(["amphibious"]);
     const cancelState = fieldState(["aquatic"]);
     const continuation = runStructuredDraftExplorerContinuation({
-      currentNode,
       fieldOption: sharedExplorerField,
+      buildHostMutation: (fieldStateValue) => ({
+        kind: "replaceGroupedField",
+        field: sharedExplorerField.value,
+        fieldOption: sharedExplorerField,
+        fieldState: fieldStateValue,
+      }),
       openFilterExplorer,
       query,
       user,
@@ -181,18 +184,17 @@ describe("structured editor continuation coordinator", () => {
       kind: "cancel",
       change: {
         mutation: {
-          kind: "replaceNode",
-          node: metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" }),
+          kind: "replaceGroupedField",
+          field: "traits",
+          fieldOption: sharedExplorerField,
+          fieldState: latestState,
         },
         query,
         fieldState: latestState,
       },
     });
     expect(user.search.prepareFilterExplorerDraft).toHaveBeenCalledWith(query, ["traits"]);
-    expect(user.search.buildFilterExplorerInsertionResult).toHaveBeenCalledWith(expect.any(Object), {
-      preservedMetadata,
-      preferReplace: true,
-    });
+    expect(user.search.buildFilterExplorerInsertionResult).not.toHaveBeenCalled();
   });
 
   it("only resolves select-target outcomes for coordinator callers that request target selection", async () => {
@@ -219,8 +221,7 @@ describe("structured editor continuation coordinator", () => {
       },
     } as FilterExplorerSelectTargetOutcome;
     const latestState = fieldState([]);
-    const continuation = runStructuredDraftExplorerContinuation({
-      currentNode: null,
+    const continuation = runStructuredDraftExplorerChildSurface({
       fieldOption: sharedExplorerField,
       openFilterExplorer,
       query,
@@ -263,7 +264,6 @@ describe("structured editor continuation coordinator", () => {
     });
     const nextState = fieldState(["amphibious"]);
     const continuation = runStructuredDraftExplorerContinuation({
-      currentNode: null,
       fieldOption: sharedExplorerField,
       buildHostMutation: (fieldStateValue) => ({
         kind: "replaceGroupedField",
