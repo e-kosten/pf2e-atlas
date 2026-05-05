@@ -17,6 +17,8 @@ import type {
 import {
   allOfFilter,
   browseQuery,
+  linkedFromFilter,
+  linksToFilter,
   metadataPredicateFilter,
   notFilter,
   packFilter,
@@ -420,6 +422,44 @@ describe("structured draft structural actions", () => {
         groupPath: [],
         memberPaths: [[1]],
         source: "member",
+      }),
+    );
+    renderer.unmount();
+  });
+
+  it("exposes and routes record-link leaf edits through the edit-route executor", async () => {
+    const linksToNode = linksToFilter("spells:fireball");
+    const linkedFromNode = linkedFromFilter("actions:activate");
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature"), linksToNode, linkedFromNode]),
+      limit: 20,
+    }).request;
+    const { executeStructuredDraftEditRoute, getActions, renderer } = renderStructuralActions();
+
+    expect(getStructuredDraftLeafActionEntries(query, [1], linksToNode, getScopedFieldOptions).map((entry) => entry.id))
+      .toContain("edit");
+    expect(getStructuredDraftLeafActionEntries(query, [2], linkedFromNode, getScopedFieldOptions).map((entry) => entry.id))
+      .toContain("edit");
+
+    await getActions().runLeafAction(query, [1], linksToNode, "edit");
+    await getActions().runLeafAction(query, [2], linkedFromNode, "edit");
+
+    expect(executeStructuredDraftEditRoute).toHaveBeenNthCalledWith(
+      1,
+      query,
+      expect.objectContaining({
+        kind: "leaf",
+        leafKind: "linksTo",
+        path: [1],
+      }),
+    );
+    expect(executeStructuredDraftEditRoute).toHaveBeenNthCalledWith(
+      2,
+      query,
+      expect.objectContaining({
+        kind: "leaf",
+        leafKind: "linkedFrom",
+        path: [2],
       }),
     );
     renderer.unmount();

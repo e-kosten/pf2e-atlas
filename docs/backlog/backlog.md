@@ -36,6 +36,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Search semantics surface convergence](./items/search-semantics-surface-convergence.md)
   Preserve the architectural opportunity to converge ontology/search semantics internals and mode contracts without collapsing the distinct broad-browse and prepared-query surfaces. Status: proposed.
 
+- [Structured editor metric availability ownership](./items/structured-editor-metric-availability-ownership.md)
+  Clarify whether metric-family availability filtering belongs in prompt-local filtering, the route catalog, or the shared metric explorer owner. Status: proposed.
+
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 

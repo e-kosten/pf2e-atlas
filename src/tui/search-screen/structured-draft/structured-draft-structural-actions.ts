@@ -31,7 +31,6 @@ import {
   classifyStructuredDraftNodeEditRoute,
   createStructuredDraftRouteCatalog,
   getStructuredDraftAddIntentForClauseKind,
-  getStructuredDraftEditableClauseKindForNode,
   getStructuredDraftFieldRefForQueryFieldValue,
   type StructuredDraftEditRoute,
 } from "./structured-draft-edit-routes.js";
@@ -169,11 +168,11 @@ export function getStructuredDraftLeafActionEntries(
   node: SearchFilterNode,
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[],
 ): DerivedTagTerminalActionTargetOption<StructuredDraftEntryActionId>[] {
-  const editableClauseKind = getEditableClauseKind(query, path, node, getScopedFieldOptions);
+  const editableRoute = getEditableRoute(query, path, node, getScopedFieldOptions);
   const canLift = canLiftSearchFilterNodeAtPath(query.filter, path);
 
   return [
-    ...(editableClauseKind
+    ...(editableRoute.kind !== "unsupported"
       ? [
           {
             id: "edit" as const,
@@ -300,13 +299,13 @@ export function getStructuredDraftGroupActionEntries(
   ];
 }
 
-function getEditableClauseKind(
+function getEditableRoute(
   query: Pf2eTerminalSearchQuery,
   path: number[],
   _node: SearchFilterNode,
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[],
-): ClauseKind | null {
-  return getStructuredDraftEditableClauseKindForNode({
+): StructuredDraftEditRoute {
+  return classifyStructuredDraftNodeEditRoute({
     catalog: createStructuredDraftRouteCatalog(getScopedFieldOptions(query).map((fieldOption) => fieldOption.value)),
     path,
     query,
@@ -612,23 +611,13 @@ export function useStructuredDraftStructuralActions({
       node: SearchFilterNode,
       actionId: StructuredDraftEntryActionId,
     ) => {
-      const editableClauseKind = getEditableClauseKind(query, path, node, getScopedFieldOptions);
-
       if (actionId === "edit") {
-        if (!editableClauseKind) {
-          await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
+        const route = getEditableRoute(query, path, node, getScopedFieldOptions);
+        if (route.kind === "unsupported") {
+          await terminal.pauseForAnyKey(route.reason);
           return;
         }
-        await executeStructuredDraftEditRoute(
-          query,
-          classifyStructuredDraftNodeEditRoute({
-            catalog: createStructuredDraftRouteCatalog(
-              getScopedFieldOptions(query).map((fieldOption) => fieldOption.value),
-            ),
-            path,
-            query,
-          }),
-        );
+        await executeStructuredDraftEditRoute(query, route);
         return;
       }
 

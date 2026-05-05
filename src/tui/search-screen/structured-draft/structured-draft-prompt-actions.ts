@@ -491,40 +491,19 @@ export function useStructuredDraftPromptActions({
   const promptForNumericMatchClause = React.useCallback(
     async (
       promptSession: SearchWorkspacePromptAdapters,
-      nodeKind: "level" | "price" | "actionCost",
+      nodeKind: "level" | "price",
       node?:
         | Extract<SearchFilterNode, { kind: "level" }>
-        | Extract<SearchFilterNode, { kind: "price" }>
-        | Extract<SearchFilterNode, { kind: "actionCost" }>,
+        | Extract<SearchFilterNode, { kind: "price" }>,
     ): Promise<
       StructuredDraftPromptFlowResult<
         | Extract<SearchFilterNode, { kind: "level" }>
         | Extract<SearchFilterNode, { kind: "price" }>
-        | Extract<SearchFilterNode, { kind: "actionCost" }>
         | null
       >
     > => {
-      if (node?.kind === "actionCost" && (node.match.kind === "isNull" || node.match.kind === "isNotNull")) {
-        await terminal.pauseForAnyKey("Null action-cost clauses cannot be edited through the numeric matcher.");
-        return structuredDraftPromptCancel();
-      }
       let currentNumericMatch: SearchNumericMatch | null = null;
-      if (node?.kind === "actionCost") {
-        switch (node.match.kind) {
-          case "eq":
-          case "gt":
-          case "gte":
-          case "lt":
-          case "lte":
-          case "between":
-            currentNumericMatch = node.match;
-            break;
-          case "isNull":
-          case "isNotNull":
-            currentNumericMatch = null;
-            break;
-        }
-      } else if (node) {
+      if (node) {
         currentNumericMatch = node.match;
       }
       if (nodeKind === "level") {
@@ -551,7 +530,7 @@ export function useStructuredDraftPromptActions({
       }
 
       const parsed = await promptNumericScalarClause(promptSession, terminal, {
-        title: nodeKind === "price" ? "Price Matcher" : "Action Cost Matcher",
+        title: "Price Matcher",
         currentClause:
           currentNumericMatch?.kind === "between"
             ? { op: "between", min: currentNumericMatch.min, max: currentNumericMatch.max }
@@ -641,11 +620,7 @@ export function useStructuredDraftPromptActions({
         case "rarity":
           return structuredDraftPromptCancel();
         case "actionCost":
-          return promptForNumericMatchClause(
-            promptSession,
-            "actionCost",
-            currentNode?.kind === "actionCost" ? currentNode : undefined,
-          );
+          return structuredDraftPromptCancel();
       }
     },
     [

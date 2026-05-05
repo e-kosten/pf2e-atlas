@@ -516,43 +516,6 @@ export function classifyStructuredDraftAddIntentRoute({
   };
 }
 
-export function getStructuredDraftEditableClauseKindForNode({
-  catalog,
-  path,
-  query,
-}: {
-  catalog: StructuredDraftRouteCatalog;
-  path: number[];
-  query: Pf2eTerminalSearchQuery;
-}): StructuredDraftPromptAddClauseKind | null {
-  const route = classifyStructuredDraftNodeEditRoute({ catalog, path, query });
-  if (route.kind === "unsupported") {
-    return null;
-  }
-  if (route.kind === "groupField") {
-    return "field";
-  }
-  switch (route.leafKind) {
-    case "scope":
-      return "scope";
-    case "level":
-      return "level";
-    case "price":
-      return "price";
-    case "metadataScalar":
-    case "metadataBoolean":
-    case "metadataText":
-      return "field";
-    case "metric":
-      return "metric";
-    case "metricCompare":
-      return "metricCompare";
-    case "linksTo":
-    case "linkedFrom":
-      return null;
-  }
-}
-
 export function classifyStructuredDraftBucketEditRoute({
   catalog,
   entry,

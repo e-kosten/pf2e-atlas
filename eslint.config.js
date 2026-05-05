@@ -1040,6 +1040,11 @@ export default defineConfig(
           message:
             "Structured-draft grouped-field mutation construction belongs to the continuation, explorer, and host-mutation owners.",
         },
+        {
+          selector: 'CallExpression[callee.name="promptForNumericMatchClause"] Literal[value="actionCost"]',
+          message:
+            "Structured-draft action-cost clauses must route through grouped-field edit routes, not prompt-local numeric node construction.",
+        },
       ],
     },
   },

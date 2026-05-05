@@ -373,6 +373,15 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks prompt-local action-cost numeric node construction", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-prompt-actions.ts",
+      'async function run() { return promptForNumericMatchClause(session, "actionCost", currentNode); }\nexport { run };\n',
+      "action-cost clauses must route through grouped-field edit routes",
+      "no-restricted-syntax",
+    );
+  });
+
   it("blocks retired structured-draft pack rarity and exact-node fallback names", async () => {
     for (const retiredName of [
       "openPromptPackClause",
