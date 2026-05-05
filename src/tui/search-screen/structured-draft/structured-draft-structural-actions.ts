@@ -30,11 +30,11 @@ import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host
 import {
   classifyStructuredDraftAddFieldRoute,
   classifyStructuredDraftNodeEditRoute,
+  classifyStructuredDraftPromptLeafAddRoute,
   getStructuredDraftQueryFieldValueForNode,
   getStructuredDraftSyntheticFieldOption,
   resolveStructuredDraftFieldOption,
   type StructuredDraftEditRoute,
-  type StructuredDraftLeafKind,
 } from "./structured-draft-edit-routes.js";
 import {
   isMetricFieldOptionValue,
@@ -71,43 +71,6 @@ type BooleanGroupNode = Extract<
   SearchFilterNode,
   { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }
 >;
-
-function getLeafKindForAddClause(clauseKind: ClauseKind): StructuredDraftLeafKind | null {
-  switch (clauseKind) {
-    case "scope":
-      return "scope";
-    case "level":
-      return "level";
-    case "price":
-      return "price";
-    case "metric":
-      return "metric";
-    case "metricCompare":
-      return "metricCompare";
-    case "field":
-    case "pack":
-    case "rarity":
-    case "actionCost":
-      return null;
-  }
-}
-
-function classifyStructuredDraftPromptLeafAddRoute(
-  clauseKind: ClauseKind,
-  groupPath: number[],
-): StructuredDraftEditRoute {
-  const leafKind = getLeafKindForAddClause(clauseKind);
-  if (!leafKind) {
-    return { kind: "unsupported", reason: "That clause must be routed through its field-specific editor." };
-  }
-  return {
-    kind: "leaf",
-    leafKind,
-    path: null,
-    groupPath,
-    placement: leafKind === "scope" ? "rootSingleton" : "inGroup",
-  };
-}
 
 function promptForWrappedStructuralClauseNode(
   promptForClauseNode: (
@@ -490,7 +453,7 @@ export function useStructuredDraftStructuralActions({
           if (wrapper === undefined) {
             const result = await executeStructuredDraftEditRoute(
               workingQuery,
-              classifyStructuredDraftPromptLeafAddRoute(clauseKind.value, path),
+              classifyStructuredDraftPromptLeafAddRoute({ clauseKind: clauseKind.value, groupPath: path }),
               { promptSession: session },
             );
             if (result === "back") {

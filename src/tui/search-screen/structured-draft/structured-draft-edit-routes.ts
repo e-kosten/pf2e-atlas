@@ -25,6 +25,17 @@ export type StructuredDraftLeafKind =
   | "linksTo"
   | "linkedFrom";
 
+export type StructuredDraftPromptAddClauseKind =
+  | "field"
+  | "metric"
+  | "metricCompare"
+  | "pack"
+  | "scope"
+  | "level"
+  | "price"
+  | "rarity"
+  | "actionCost";
+
 export type StructuredDraftEditRoute =
   | {
       kind: "groupField";
@@ -210,6 +221,26 @@ function getLeafKindForFieldOption(fieldOption: Pf2eTerminalQueryFieldOption): S
   return "metadataScalar";
 }
 
+function getLeafKindForAddClause(clauseKind: StructuredDraftPromptAddClauseKind): StructuredDraftLeafKind | null {
+  switch (clauseKind) {
+    case "scope":
+      return "scope";
+    case "level":
+      return "level";
+    case "price":
+      return "price";
+    case "metric":
+      return "metric";
+    case "metricCompare":
+      return "metricCompare";
+    case "field":
+    case "pack":
+    case "rarity":
+    case "actionCost":
+      return null;
+  }
+}
+
 function getLeafKindForNode(node: SearchFilterNode, fieldOption?: Pf2eTerminalQueryFieldOption): StructuredDraftLeafKind | null {
   switch (node.kind) {
     case "scope":
@@ -284,6 +315,26 @@ export function classifyStructuredDraftAddFieldRoute({
     groupPath,
     placement: "inGroup",
     fieldOption,
+  };
+}
+
+export function classifyStructuredDraftPromptLeafAddRoute({
+  clauseKind,
+  groupPath,
+}: {
+  clauseKind: StructuredDraftPromptAddClauseKind;
+  groupPath: number[];
+}): StructuredDraftEditRoute {
+  const leafKind = getLeafKindForAddClause(clauseKind);
+  if (!leafKind) {
+    return { kind: "unsupported", reason: "That clause must be routed through its field-specific editor." };
+  }
+  return {
+    kind: "leaf",
+    leafKind,
+    path: null,
+    groupPath,
+    placement: leafKind === "scope" ? "rootSingleton" : "inGroup",
   };
 }
 

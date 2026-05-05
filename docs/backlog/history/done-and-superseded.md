@@ -63,6 +63,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Structured editor SRP decomposition](./items/structured-editor-srp-decomposition.md)
   Structured search-editor actions now split host mutations, grouped field setup, explorer flows, prompt flows, structural routing, and React composition into separate owners instead of routing through one broad metadata-action hook. Status: done.
 
+- [Structured editor routing layer](./items/structured-editor-routing-layer.md)
+  Structured query field edits now route through explicit grouped-field and leaf owners before prompt, explorer, or writeback behavior runs. Status: done.
+
 - [Incomplete search tail in nested explorer lists](./items/incomplete-search-tail.md)
   The shared ontology leaf and result-reader path now appears to keep deep explorer counts aligned closely enough in practice that this is no longer active backlog work. Status: done.
 

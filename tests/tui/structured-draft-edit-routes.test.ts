@@ -5,6 +5,7 @@ import {
   classifyStructuredDraftAddFieldRoute,
   classifyStructuredDraftBucketEditRoute,
   classifyStructuredDraftNodeEditRoute,
+  classifyStructuredDraftPromptLeafAddRoute,
   getStructuredDraftSyntheticFieldOption,
   isStructuredDraftGroupFieldRoute,
 } from "../../src/tui/search-screen/structured-draft/structured-draft-edit-routes.js";
@@ -96,6 +97,28 @@ describe("structured draft edit routes", () => {
       groupPath: [],
       path: null,
       placement: "inGroup",
+    });
+  });
+
+  it("classifies prompt-built add clauses in the route owner", () => {
+    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "scope", groupPath: [] })).toEqual({
+      kind: "leaf",
+      leafKind: "scope",
+      path: null,
+      groupPath: [],
+      placement: "rootSingleton",
+    });
+
+    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "metricCompare", groupPath: [1] })).toEqual({
+      kind: "leaf",
+      leafKind: "metricCompare",
+      path: null,
+      groupPath: [1],
+      placement: "inGroup",
+    });
+
+    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "pack", groupPath: [] })).toMatchObject({
+      kind: "unsupported",
     });
   });
 

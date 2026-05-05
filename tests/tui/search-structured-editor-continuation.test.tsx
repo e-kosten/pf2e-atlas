@@ -71,7 +71,8 @@ Structured editor continuation host-flow coverage matrix.
 | scalar/metric follow-through range entry | recovers from invalid scalar input and then commits an action-cost range |
 | scalar/metric cancel/back follow-through | keeps metric q and repeated-back cancellation from mutating grouped trees |
 | invalid input recovery | recovers from invalid scalar input and then commits an action-cost range |
-| action-cost shared-explorer leaf edit | edits action-cost leaves through the shared explorer without query-global replacement |
+| action-cost shared-explorer grouped edit | edits action-cost fields through the shared explorer without query-global replacement |
+| pack/rarity/action-cost grouped edit flatness | grouped shared-explorer edits assert visible tree and canonical filter output have no synthetic boolean groups |
 | canonical and visible-tree expectations | every host-flow test pairs visible frame assertions with canonical filter assertions where practical |
 */
 
@@ -915,6 +916,20 @@ function expectNoDuplicateGroupedTraitProjection(frame: string, expectedTraitRow
   expect(frame.match(/^│ {2}├─ Any of$/m)).toBeNull();
 }
 
+function expectNoSyntheticGroupedFieldProjection(frame: string): void {
+  expect(frame).not.toContain("Filter: Any of (");
+  expect(frame).not.toContain("Filter: ! Any of (");
+  expect(frame).not.toContain("Filter: All of (");
+  expect(frame.match(/^├─ Any of$/m)).toBeNull();
+  expect(frame.match(/^├─ ! Any of$/m)).toBeNull();
+  expect(frame.match(/^├─ All of$/m)).toBeNull();
+  expect(frame.match(/^├─ ! All of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ Any of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ ! Any of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ All of$/m)).toBeNull();
+  expect(frame.match(/^│ {2}├─ ! All of$/m)).toBeNull();
+}
+
 function createMetricRegressionFilter(): SearchFilterNode {
   return allOfFilter([
     packFilter("pathfinder-equipment-core"),
@@ -1397,6 +1412,7 @@ describe("search structured editor continuation", () => {
 
     expect(app.lastFrame()).toContain("Action Cost: 1");
     expect(app.lastFrame()).toContain("Rarity: Common");
+    expectNoSyntheticGroupedFieldProjection(app.lastFrame());
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(
@@ -1476,12 +1492,7 @@ describe("search structured editor continuation", () => {
     expect(frame).toContain("! Rarity: Rare");
     expect(frame).toContain("! Rarity: Unique");
     expect(frame).toContain("Action Cost: 2");
-    expect(frame).not.toContain("Filter: Any of (2 filters)");
-    expect(frame).not.toContain("Filter: ! Any of (2 filters)");
-    expect(frame.match(/^├─ Any of$/m)).toBeNull();
-    expect(frame.match(/^├─ ! Any of$/m)).toBeNull();
-    expect(frame.match(/^│├─ Any of$/m)).toBeNull();
-    expect(frame.match(/^│├─ ! Any of$/m)).toBeNull();
+    expectNoSyntheticGroupedFieldProjection(frame);
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(

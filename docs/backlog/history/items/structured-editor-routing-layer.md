@@ -1,6 +1,6 @@
 # Structured Editor Routing Layer
 
-Status: in_progress  
+Status: done  
 Priority: now  
 Owner: unassigned  
 Last reviewed: 2026-05-05
@@ -31,7 +31,7 @@ Structured-draft field editing should have one classifier and one executor:
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
-- [ADR 0015](../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
-- [Search interaction cleanup](./search-interaction-cleanup.md)
+- [TUI architecture](../../../architecture/tui.md)
+- [Architectural boundaries](../../../architecture/boundaries.md)
+- [ADR 0015](../../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
+- [Search interaction cleanup](../../items/search-interaction-cleanup.md)

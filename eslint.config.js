@@ -936,6 +936,18 @@ export default defineConfig(
           message:
             "Structured-draft grouped query-field writeback must route through grouped-field helpers and edit routes.",
         },
+        {
+          selector:
+            'ImportDeclaration[source.value="../../search/query-state.js"] ImportNamespaceSpecifier',
+          message:
+            "Structured-draft grouped query-field writeback must not bypass grouped-field helpers through query-state namespace imports.",
+        },
+        {
+          selector:
+            'MemberExpression[property.name=/^(setSearchQueryPackSelection|setSearchQueryRaritySelection|setSearchQueryActionCostSelection)$/]',
+          message:
+            "Structured-draft grouped query-field writeback must route through grouped-field helpers and edit routes.",
+        },
       ],
     },
   },
@@ -945,6 +957,7 @@ export default defineConfig(
       "src/tui/search-screen/structured-draft/structured-draft-continuation.ts",
       "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
       "src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts",
+      "src/tui/search-screen/structured-draft/structured-draft-host-mutations.ts",
     ],
     rules: {
       "no-restricted-syntax": [
@@ -983,6 +996,29 @@ export default defineConfig(
             'ImportDeclaration[source.value="./structured-draft-continuation.js"] ImportSpecifier[imported.name="runStructuredDraftExplorerContinuation"]',
           message:
             "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="./structured-draft-continuation.js"] ImportNamespaceSpecifier',
+          message:
+            "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'MemberExpression[property.name="runStructuredDraftExplorerContinuation"]',
+          message:
+            "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="./structured-draft-explorer-actions.js"] ImportSpecifier[imported.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
+        },
+        {
+          selector: 'Literal[value="replaceGroupedField"]',
+          message:
+            "Structured-draft grouped-field mutation construction belongs to the continuation, explorer, and host-mutation owners.",
         },
       ],
     },

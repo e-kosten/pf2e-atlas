@@ -242,6 +242,13 @@ describe("eslint local architecture rules", () => {
       "no-restricted-syntax",
     );
 
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      'import { openLiveExplorerGroupedField as openGrouped } from "./structured-draft-explorer-actions.js";\nasync function run() { await openGrouped(query, entry); }\nexport { run };\n',
+      "projected bucket edits must classify and execute a structured edit route",
+      "no-restricted-syntax",
+    );
+
     await expectNoRuleMessages(
       "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
       "async function run() { await executeStructuredDraftEditRoute(query, route); }\nexport { run };\n",
@@ -279,6 +286,13 @@ describe("eslint local architecture rules", () => {
       "no-restricted-syntax",
     );
 
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      'import * as continuation from "./structured-draft-continuation.js";\nasync function run() { await continuation.runStructuredDraftExplorerContinuation(options); }\nexport { run };\n',
+      "explorer continuation may only be opened by the explorer action owner",
+      "no-restricted-syntax",
+    );
+
     await expectNoRuleMessages(
       "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
       'import { runStructuredDraftExplorerContinuation } from "./structured-draft-continuation.js";\nexport const value = runStructuredDraftExplorerContinuation;\n',
@@ -301,9 +315,31 @@ describe("eslint local architecture rules", () => {
       "no-restricted-syntax",
     );
 
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+      'import * as queryState from "../../search/query-state.js";\nexport const value = queryState.setSearchQueryPackSelection;\n',
+      "must not bypass grouped-field helpers through query-state namespace imports",
+      "no-restricted-syntax",
+    );
+
     await expectNoRuleMessages(
       "src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts",
       'import { setSearchQueryPackSelection, setSearchQueryRaritySelection, setSearchQueryActionCostSelection } from "../../search/query-state.js";\nexport const value = [setSearchQueryPackSelection, setSearchQueryRaritySelection, setSearchQueryActionCostSelection];\n',
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks grouped-field mutation construction outside approved structured-draft owners", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      'const mutation = { kind: "replaceGroupedField" };\nexport { mutation };\n',
+      "grouped-field mutation construction belongs to the continuation, explorer, and host-mutation owners",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
+      'const mutation = { kind: "replaceGroupedField" };\nexport { mutation };\n',
       "no-restricted-syntax",
     );
   });

@@ -17,9 +17,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Search interaction cleanup](./items/search-interaction-cleanup.md)
   Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
 
-- [Structured editor routing layer](./items/structured-editor-routing-layer.md)
-  Keep structured query field edits routed through explicit grouped-field and leaf owners before prompt, explorer, or writeback behavior runs. Status: in_progress.
-
 - [View pages and detail presentation](./items/view-pages-and-details.md)
   Make record detail views easier to scan, more dynamic by record type, and better suited for linked navigation. Status: proposed.
 

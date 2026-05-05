@@ -5084,6 +5084,8 @@ describe("search screen", () => {
     await returnFromExplorerToStructuredEditor(app);
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("Pack: Pathfinder NPC Core");
+    expect(app.lastFrame()).not.toContain("Any of");
+    expect(app.lastFrame()).not.toContain("! Any of");
 
     pressDown(app);
     await flushInk();
@@ -5103,6 +5105,8 @@ describe("search screen", () => {
     await returnFromExplorerToStructuredEditor(app);
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("! Pack: Pathfinder NPC Core");
+    expect(app.lastFrame()).not.toContain("Any of");
+    expect(app.lastFrame()).not.toContain("! Any of");
   });
 
   it("keeps discovery-mode actions available in select-target metric explorers", async () => {
