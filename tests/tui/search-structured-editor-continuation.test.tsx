@@ -664,6 +664,15 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
           detailLines: [{ text: "common", tone: "section" }],
         },
         {
+          id: "spell:field:rarity:value:uncommon",
+          kind: "value",
+          label: "uncommon",
+          filterText: "uncommon",
+          listLabel: "uncommon",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "uncommon", tone: "section" }],
+        },
+        {
           id: "spell:field:rarity:value:rare",
           kind: "value",
           label: "rare",
@@ -671,6 +680,15 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
           listLabel: "rare",
           detailTitle: "Value Details",
           detailLines: [{ text: "rare", tone: "section" }],
+        },
+        {
+          id: "spell:field:rarity:value:unique",
+          kind: "value",
+          label: "unique",
+          filterText: "unique",
+          listLabel: "unique",
+          detailTitle: "Value Details",
+          detailLines: [{ text: "unique", tone: "section" }],
         },
       ],
     },
@@ -1312,6 +1330,94 @@ describe("search structured editor continuation", () => {
         scopeFilter("spell"),
         actionCostFilter({ kind: "eq", value: 1 }),
         rarityFilter({ kind: "eq", value: "common" }),
+      ]),
+    );
+  });
+
+  it("keeps shared-explorer rarity include and exclude multi-selects flat", async () => {
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord()],
+    }));
+    const services = createServices({ listRecords });
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+      createFacetPickerOntologyDomainWithDiscreteFields(),
+    );
+
+    const app = renderSearch(
+      services,
+      browseQuery("Browse spells", {
+        filter: allOfFilter([
+          scopeFilter("spell"),
+          actionCostFilter({ kind: "eq", value: 2 }),
+          rarityFilter({ kind: "eq", value: "common" }),
+        ]),
+        limit: 20,
+      }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Action Cost: 2");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+
+    pressUp(app);
+    await flushInk();
+    pressEnter(app);
+    await waitForFrameToContain(app, "Query Clause", 60);
+    pressEnter(app);
+    await waitForFrameToContain(app, "Rarity Explorer", 60);
+    await waitForFrameToContain(app, "[✓] common", 120);
+
+    pressDown(app);
+    await waitForFrameToContain(app, "uncommon", 120);
+    app.stdin.write(" ");
+    await waitForFrameToContain(app, "[✓] uncommon", 120);
+
+    pressDown(app);
+    await waitForFrameToContain(app, "rare", 120);
+    app.stdin.write(" ");
+    await waitForFrameToContain(app, "[✓] rare", 120);
+    app.stdin.write(" ");
+    await waitForFrameToContain(app, "[x] rare", 120);
+
+    pressDown(app);
+    await waitForFrameToContain(app, "unique", 120);
+    app.stdin.write(" ");
+    await waitForFrameToContain(app, "[✓] unique", 120);
+    app.stdin.write(" ");
+    await waitForFrameToContain(app, "[x] unique", 120);
+
+    await returnFromExplorerToStructuredEditor(app);
+
+    const frame = app.lastFrame();
+    expect(frame).toContain("Rarity: Common");
+    expect(frame).toContain("Rarity: Uncommon");
+    expect(frame).toContain("! Rarity: Rare");
+    expect(frame).toContain("! Rarity: Unique");
+    expect(frame).toContain("Action Cost: 2");
+    expect(frame).not.toContain("Filter: Any of (2 filters)");
+    expect(frame).not.toContain("Filter: ! Any of (2 filters)");
+    expect(frame.match(/^├─ Any of$/m)).toBeNull();
+    expect(frame.match(/^├─ ! Any of$/m)).toBeNull();
+    expect(frame.match(/^│├─ Any of$/m)).toBeNull();
+    expect(frame.match(/^│├─ ! Any of$/m)).toBeNull();
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(
+      allOfFilter([
+        scopeFilter("spell"),
+        actionCostFilter({ kind: "eq", value: 2 }),
+        rarityFilter({ kind: "eq", value: "common" }),
+        rarityFilter({ kind: "eq", value: "uncommon" }),
+        notFilter(rarityFilter({ kind: "eq", value: "rare" })),
+        notFilter(rarityFilter({ kind: "eq", value: "unique" })),
       ]),
     );
   });
