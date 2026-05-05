@@ -1004,27 +1004,27 @@ describe("search structured editor continuation", () => {
     await openStructuredQueryEditor(app);
     await addRootTraitGroup(app);
 
-    expect(app.lastFrame()).toContain("Top-level filters: 3");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
-    expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).not.toContain("Filter: Any of (2 filters)");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(
       allOfFilter([
         scopeFilter("spell"),
-        anyOfFilter([
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
-        ]),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
       ]),
     );
@@ -1449,13 +1449,7 @@ describe("search structured editor continuation", () => {
       (frame) => frame.includes("Root Group") && frame.includes("Change Root To Any of"),
     );
     await runCurrentActionByOffset(app, 4);
-    expect(app.lastFrame()).toContain("Query Logic: Any of (3 filters)");
-
-    await openStructuredActionMenuMatching(
-      app,
-      (frame) => frame.includes("Boolean Group") && frame.includes("Unwrap Group"),
-    );
-    await runCurrentActionByOffset(app, 7);
+    expect(app.lastFrame()).toContain("Query Logic: Any of (4 filters)");
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
@@ -1504,14 +1498,15 @@ describe("search structured editor continuation", () => {
 
     await openStructuredQueryEditor(app);
     await addRootTraitGroup(app);
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
     await openStructuredActionMenuMatching(
       app,
-      (frame) => frame.includes("Boolean Group") && frame.includes("Move Node"),
+      (frame) => frame.includes("Move Node"),
       16,
     );
     await runCurrentPromptActionByLabel(app, "Move Node");
@@ -1520,8 +1515,9 @@ describe("search structured editor continuation", () => {
     pressEnter(app);
     await waitForFrameToContain(app, "Structured Query Editor", 60);
 
-    expect(app.lastFrame()).toContain("Top-level filters: 4");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame()).toContain("Rarity: Include common");
     expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
@@ -1529,21 +1525,20 @@ describe("search structured editor continuation", () => {
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame()).toContain("Rarity: Common");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(
       allOfFilter([
-        scopeFilter("spell"),
         rarityFilter({ kind: "eq", value: "common" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
-        anyOfFilter([
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
-        ]),
+        scopeFilter("spell"),
       ]),
     );
   });
@@ -1580,7 +1575,8 @@ describe("search structured editor continuation", () => {
     expect(app.lastFrame()).toContain("Rarity: Include common");
     expect(app.lastFrame()).toContain("Level: > 1");
     expect(app.lastFrame()).toContain("Action Cost: Include 2");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
@@ -1592,20 +1588,22 @@ describe("search structured editor continuation", () => {
     );
     await runCurrentPromptActionByLabel(app, "Lift Node");
 
-    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame()).toContain("Top-level filters: 6");
     expect(app.lastFrame()).toContain("Rarity: Include common");
     expect(app.lastFrame()).toContain("Level: > 1");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
     expect(app.lastFrame()).toContain("Rarity: Include common");
     expect(app.lastFrame()).toContain("Level: > 1");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(
@@ -1613,10 +1611,8 @@ describe("search structured editor continuation", () => {
         scopeFilter("spell"),
         { kind: "anyOf", children: [actionCostFilter({ kind: "eq", value: 2 })] },
         allOfFilter([rarityFilter({ kind: "eq", value: "common" }), levelFilter({ kind: "gt", value: 1 })]),
-        anyOfFilter([
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
-        ]),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
       ]),
     );
@@ -1658,26 +1654,26 @@ describe("search structured editor continuation", () => {
     );
     await runCurrentPromptActionByLabel(app, "Remove Group");
 
-    expect(app.lastFrame()).toContain("Top-level filters: 2");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Top-level filters: 3");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).not.toContain("Concentrat");
     expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 1);
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).not.toContain("Concentrat");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 1);
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
 
     await executeCurrentBrowseQuery(app);
     expect(lastListRequest(listRecords).filter).toEqual(
       allOfFilter([
         scopeFilter("spell"),
-        anyOfFilter([
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
-        ]),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
       ]),
     );
   });

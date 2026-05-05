@@ -3985,10 +3985,11 @@ describe("search screen", () => {
     if (!app.lastFrame().includes("Structured Query Editor")) {
       await openStructuredQueryEditor(app);
     }
-    expect(app.lastFrame()).toContain("Top-level filters: 3");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
-    expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).not.toContain("Filter: Any of (2 filters)");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();
@@ -4031,15 +4032,16 @@ describe("search screen", () => {
     pressLeft(app);
     await flushInk();
     expect(app.lastFrame()).toContain("[EDITOR] Query");
-    expect(app.lastFrame()).toContain("Top-level filters: 3");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
 
     await openStructuredQueryEditor(app);
 
-    expect(app.lastFrame()).toContain("Top-level filters: 3");
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
-    expect(app.lastFrame()).toContain("Filter: Any of (2 filters)");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).not.toContain("Filter: Any of (2 filters)");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│ {2}├─ Any of$/m)).toBeNull();

@@ -1,16 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import { getSearchQueryCategory } from "../../src/tui/search/query-state.js";
-import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-grouped-field.js";
+import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
+import { getSearchQueryCategory, setSearchQueryMetadataTree } from "../../src/tui/search/query-state.js";
+import { buildSearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
+import {
+  buildGroupedFieldReplacementNodes,
+  buildGroupedFieldSeedState,
+  type StructuredDraftGroupedFieldSearchAdapter,
+} from "../../src/tui/search-screen/structured-draft/structured-draft-grouped-field.js";
 import {
   allOfFilter,
   anyOfFilter,
   browseQuery,
   metadataPredicateFilter,
+  notFilter,
   scopeFilter,
 } from "../helpers/search-request-fixture.js";
 
 describe("structured draft grouped-field helpers", () => {
+  const groupedFieldSearchAdapter: StructuredDraftGroupedFieldSearchAdapter = {
+    applyDiscoverableQueryFieldSelections: (query, selections) => {
+      const selection = selections.traits ?? { include: [], exclude: [] };
+      const clauses: MetadataFilterNode[] = [
+        ...selection.include.map(
+          (value): MetadataFilterNode => ({ field: "traits", op: "includes", value }),
+        ),
+        ...selection.exclude.map(
+          (value): MetadataFilterNode => ({
+            not: { field: "traits", op: "includes", value },
+          }),
+        ),
+      ];
+      return setSearchQueryMetadataTree(query, clauses.length === 1 ? clauses[0]! : { and: clauses });
+    },
+  };
+
+  it("emits flat set-field replacement clauses when adding a new grouped field", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: scopeFilter("creature"),
+      limit: 20,
+    }).request;
+    const fieldState = buildSearchFilterExplorerFieldState({
+      discreteClauses: [
+        { field: "traits", value: "evil", operator: "include" },
+        { field: "traits", value: "humanoid", operator: "include" },
+        { field: "traits", value: "unholy", operator: "exclude" },
+      ],
+      scalarClauses: {},
+    });
+
+    expect(
+      buildGroupedFieldReplacementNodes(groupedFieldSearchAdapter, query, fieldState, {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      }),
+    ).toEqual([
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+      notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" })),
+    ]);
+  });
+
   it("preserves the query scope when seeding grouped field explorer edits", () => {
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([

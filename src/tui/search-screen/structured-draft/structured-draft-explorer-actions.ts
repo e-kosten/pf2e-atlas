@@ -681,9 +681,7 @@ export function useStructuredDraftExplorerActions({
           return;
         }
         liveChangeState.saw = true;
-        const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, mutation.fieldState, fieldOption, {
-          preserveFlatSetClauses: fieldMemberPaths.length > 0,
-        });
+        const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, mutation.fieldState, fieldOption);
         const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
           kind: "replaceGroupedField",
           groupPath,

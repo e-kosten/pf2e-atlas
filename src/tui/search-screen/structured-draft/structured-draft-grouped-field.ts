@@ -87,7 +87,6 @@ export function buildGroupedFieldReplacementNodes(
   query: Pf2eTerminalSearchQuery,
   fieldState: SearchFilterExplorerFieldState,
   fieldOption: Pf2eTerminalQueryFieldOption,
-  options?: { preserveFlatSetClauses?: boolean },
 ): SearchFilterNode[] {
   const field = fieldOption.value;
   const selection = fieldState.discreteSelections[field] ?? { include: [], exclude: [] };
@@ -124,7 +123,7 @@ export function buildGroupedFieldReplacementNodes(
     return replacementNodes;
   }
 
-  if (fieldOption.fieldType === "set" && options?.preserveFlatSetClauses) {
+  if (fieldOption.fieldType === "set") {
     return discreteClauses.flatMap((clause) => {
       const selection =
         clause.operator === "include"
