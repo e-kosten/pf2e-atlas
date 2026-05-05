@@ -99,6 +99,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Pointer target hit testing](./items/pointer-target-hit-testing.md)
   Add shared pointer target hit testing for list rows, page sections, and section-local targets after pane-level pointer routing lands. Status: proposed.
 
+- [Mouse text selection for copy/paste](./items/mouse-text-selection-copy-paste.md)
+  Add mouse-based text selection for copy/paste workflows with explicit pane, modal, footer, and structured-region boundaries. Status: proposed.
+
 - [Derived-tag assignments layout](./items/derived-tag-assignments-layout.md)
   Decide a durable on-disk structure for authored assignments before the assignment corpus grows much larger. Status: proposed. Deferred for now, don't prioritize.
 
