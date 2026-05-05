@@ -5,7 +5,9 @@ import {
   applyStructuredDraftHostMutationToQuery,
   applyGroupedFieldReplacementToQuery,
   buildGroupedFieldSeedState,
+  canOpenStructuredDraftExactNodeFieldFallback,
 } from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
+import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.js";
 import {
   allOfFilter,
   anyOfFilter,
@@ -16,6 +18,14 @@ import {
 } from "../helpers/search-request-fixture.js";
 
 describe("structured draft grouped explorer helpers", () => {
+  const traitsSharedExplorerFieldOption = {
+    value: "traits",
+    label: "Traits",
+    description: "Browse traits.",
+    fieldType: "set",
+    editor: "sharedExplorer",
+  } satisfies Pf2eTerminalQueryFieldOption;
+
   it("preserves the query scope when seeding grouped field explorer edits", () => {
     const query = browseQuery("Browse creatures", {
       filter: allOfFilter([
@@ -323,5 +333,65 @@ describe("structured draft grouped explorer helpers", () => {
       ]),
     );
     expect(application?.resumeTarget).toEqual({ kind: "group", groupPath: [] });
+  });
+
+  it("allows exact-node shared-explorer fallback only for the current canonical leaf", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    expect(
+      canOpenStructuredDraftExactNodeFieldFallback({
+        query,
+        path: [1],
+        fieldOption: traitsSharedExplorerFieldOption,
+        currentNode: { field: "traits", op: "includes", value: "evil" },
+      }),
+    ).toBe(true);
+
+    expect(
+      canOpenStructuredDraftExactNodeFieldFallback({
+        query,
+        path: [0],
+        fieldOption: traitsSharedExplorerFieldOption,
+        currentNode: { field: "traits", op: "includes", value: "evil" },
+      }),
+    ).toBe(false);
+    expect(
+      canOpenStructuredDraftExactNodeFieldFallback({
+        query,
+        path: [],
+        fieldOption: traitsSharedExplorerFieldOption,
+        currentNode: { field: "traits", op: "includes", value: "evil" },
+      }),
+    ).toBe(false);
+  });
+
+  it("does not apply non-replace mutations through an exact-node fallback target", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    const application = applyStructuredDraftHostMutationToQuery(
+      query,
+      {
+        kind: "appendNodes",
+        nodes: [metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" })],
+      },
+      {
+        kind: "replaceNode",
+        path: [1],
+      },
+    );
+
+    expect(application).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ import {
 import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import { buildStructuredDraftEntries } from "./structured-draft-support.js";
 import {
+  canonicalizeStructuredDraftResumeTarget,
   createStructuredDraftGroupResumeTarget,
   createStructuredDraftNodeResumeTarget,
   createStructuredDraftResumeTargetForEntryContext,
@@ -118,9 +119,10 @@ export function useSearchStructuredDraftActions({
         });
         const selectedEntry =
           previousEntries[clampStructuredDraftSelection(current.selectedIndex, previousEntries.length)] ?? null;
-        const resumeTarget =
+        const requestedResumeTarget =
           options?.resumeTarget ??
           createStructuredDraftResumeTargetForEntryContext(previousQuery.filter, selectedEntry);
+        const resumeTarget = canonicalizeStructuredDraftResumeTarget(appliedQuery.filter, requestedResumeTarget);
         const entries = buildEntriesForQuery(appliedQuery, {
           resumeTarget,
           moveSourcePath: current.moveSourcePath,
@@ -228,15 +230,16 @@ export function useSearchStructuredDraftActions({
         }
 
         const currentQueryState = currentQueryRef.current;
+        const resumeTarget = canonicalizeStructuredDraftResumeTarget(currentQueryState.filter, target);
         const entries = buildEntriesForQuery(currentQueryState, {
-          resumeTarget: target,
+          resumeTarget,
           moveSourcePath: current.moveSourcePath,
         });
 
         return {
           ...current,
-          resumeTarget: target ?? createStructuredDraftRootResumeTarget(),
-          selectedIndex: getStructuredDraftSelectionIndexForResumeTarget(entries, target, current.selectedIndex),
+          resumeTarget,
+          selectedIndex: getStructuredDraftSelectionIndexForResumeTarget(entries, resumeTarget, current.selectedIndex),
         };
       });
     },

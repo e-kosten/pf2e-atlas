@@ -64,6 +64,9 @@ Structured editor continuation host-flow coverage matrix.
 | move/lift/unwrap/remove/toggle-root after prior grouped edits | keeps structural follow-through actions stable after grouped edits |
 | host-level root toggle after grouped edits | keeps host structural root toggles and unwrap flat after grouped edits and reopen |
 | host-level nested unwrap after grouped edits | keeps host structural root toggles and unwrap flat after grouped edits and reopen |
+| host-level move after grouped edits | keeps host structural moves flat after grouped edits and reopen |
+| host-level lift after grouped edits | keeps host structural lifts flat after grouped edits and reopen |
+| host-level remove after grouped edits | keeps host structural removes flat after grouped edits and reopen |
 | focus restoration after structural reshapes | keeps structural follow-through actions stable after grouped edits |
 | scalar/metric follow-through range entry | recovers from invalid scalar input and then commits an action-cost range |
 | scalar/metric cancel/back follow-through | keeps metric q and repeated-back cancellation from mutating grouped trees |
@@ -842,6 +845,20 @@ async function runCurrentActionByOffset(app: ReturnType<typeof render>, offset: 
   await waitForFrameToContain(app, "Structured Query Editor", 60);
 }
 
+async function runCurrentPromptActionByLabel(app: ReturnType<typeof render>, label: string): Promise<void> {
+  await waitForFrameToContain(app, label, 60);
+  for (let step = 0; step < 12; step += 1) {
+    if (app.lastFrame().includes(`Selected: ${label}`)) {
+      pressEnter(app);
+      await waitForFrameToContain(app, "Structured Query Editor", 60);
+      return;
+    }
+    pressDown(app);
+    await flushInk();
+  }
+  throw new Error(`Could not select prompt action "${label}".\n\n${app.lastFrame()}`);
+}
+
 function structuredEntriesFor(
   filter: SearchFilterNode | undefined,
   resumeTarget: StructuredDraftResumeTarget,
@@ -928,6 +945,23 @@ function createMetricRegressionServices(listRecords: ListRecordsFn): Pf2eTermina
       : [],
   );
   services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createEquipmentStructuredExplorerDomain());
+  return services;
+}
+
+function createTraitContinuationServices(listRecords: ListRecordsFn): Pf2eTerminalAppServices {
+  const services = createServices({ listRecords });
+  services.user.search.getQueryFieldOptions = vi.fn(() => [
+    {
+      value: "traits",
+      label: "Traits",
+      description: "Trait query field for the current browse scope.",
+      fieldType: "set",
+      editor: "sharedExplorer",
+    },
+  ]);
+  services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () =>
+    createStructuredTraitsExplorerDomain(["archetype", "dedication", "concentrate"]),
+  );
   return services;
 }
 
@@ -1443,6 +1477,207 @@ describe("search structured editor continuation", () => {
         metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
         metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+      ]),
+    );
+  });
+
+  it("keeps host structural moves flat after grouped edits and reopen", async () => {
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord()],
+    }));
+    const services = createTraitContinuationServices(listRecords);
+    const app = renderSearch(
+      services,
+      browseQuery("Browse spells", {
+        filter: allOfFilter([scopeFilter("spell"), rarityFilter({ kind: "eq", value: "common" })]),
+        limit: 20,
+      }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    await addRootTraitGroup(app);
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    await openStructuredActionMenuMatching(
+      app,
+      (frame) => frame.includes("Boolean Group") && frame.includes("Move Node"),
+      16,
+    );
+    await runCurrentPromptActionByLabel(app, "Move Node");
+    app.stdin.write("G");
+    await waitForFrameToContain(app, "Move Here", 60);
+    pressEnter(app);
+    await waitForFrameToContain(app, "Structured Query Editor", 60);
+
+    expect(app.lastFrame()).toContain("Top-level filters: 4");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(
+      allOfFilter([
+        scopeFilter("spell"),
+        rarityFilter({ kind: "eq", value: "common" }),
+        notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+        anyOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+        ]),
+      ]),
+    );
+  });
+
+  it("keeps host structural lifts flat after grouped edits and reopen", async () => {
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord()],
+    }));
+    const services = createTraitContinuationServices(listRecords);
+    const app = renderSearch(
+      services,
+      browseQuery("Browse spells", {
+        filter: allOfFilter([
+          scopeFilter("spell"),
+          anyOfFilter([
+            allOfFilter([rarityFilter({ kind: "eq", value: "common" }), levelFilter({ kind: "gt", value: 1 })]),
+            actionCostFilter({ kind: "eq", value: 2 }),
+          ]),
+        ]),
+        limit: 20,
+      }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    await addRootTraitGroup(app);
+    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Level: > 1");
+    expect(app.lastFrame()).toContain("Action Cost: Include 2");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    await openStructuredActionMenuMatching(
+      app,
+      (frame) => frame.includes("Boolean Group") && frame.includes("Lift Node"),
+      18,
+    );
+    await runCurrentPromptActionByLabel(app, "Lift Node");
+
+    expect(app.lastFrame()).toContain("Top-level filters: 5");
+    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Level: > 1");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Level: > 1");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(
+      allOfFilter([
+        scopeFilter("spell"),
+        { kind: "anyOf", children: [actionCostFilter({ kind: "eq", value: 2 })] },
+        allOfFilter([rarityFilter({ kind: "eq", value: "common" }), levelFilter({ kind: "gt", value: 1 })]),
+        anyOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+        ]),
+        notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
+      ]),
+    );
+  });
+
+  it("keeps host structural removes flat after grouped edits and reopen", async () => {
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord()],
+    }));
+    const services = createTraitContinuationServices(listRecords);
+    const app = renderSearch(
+      services,
+      browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    await addRootTraitGroup(app);
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    for (let step = 0; step < 3; step += 1) {
+      pressDown(app);
+      await flushInk();
+    }
+    await openStructuredActionMenuMatching(
+      app,
+      (frame) => frame.includes("Exclude Group") && frame.includes("Remove Group"),
+      16,
+    );
+    await runCurrentPromptActionByLabel(app, "Remove Group");
+
+    expect(app.lastFrame()).toContain("Top-level filters: 2");
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).not.toContain("Concentrat");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 1);
+
+    pressLeft(app);
+    await waitForFrameToContain(app, "[EDITOR] Query", 60);
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Traits: Include archetype,");
+    expect(app.lastFrame()).not.toContain("Concentrat");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 1);
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(
+      allOfFilter([
+        scopeFilter("spell"),
+        anyOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "dedication" }),
+        ]),
       ]),
     );
   });

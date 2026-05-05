@@ -822,6 +822,29 @@ function getMetadataFilterNodeFieldValue(
   return node.field;
 }
 
+export function canOpenStructuredDraftExactNodeFieldFallback({
+  currentNode,
+  fieldOption,
+  path,
+  query,
+}: {
+  currentNode: MetadataFilterNode | null;
+  fieldOption: Pf2eTerminalQueryFieldOption;
+  path: number[];
+  query: Pf2eTerminalSearchQuery;
+}): boolean {
+  if (fieldOption.editor !== "sharedExplorer" || path.length === 0 || !currentNode) {
+    return false;
+  }
+
+  const canonicalNode = getSearchFilterNodeAtPath(query.filter, path);
+  if (!canonicalNode || getQueryFieldValueForNode(canonicalNode) !== fieldOption.value) {
+    return false;
+  }
+
+  return JSON.stringify(canonicalFilterToMetadataNode(canonicalNode)) === JSON.stringify(currentNode);
+}
+
 function inferMetricFieldFamily(
   metric: string,
   category: ReturnType<typeof getSearchQueryCategory> = null,
@@ -1008,15 +1031,29 @@ export function useSearchStructuredDraftMetadataActions({
     [openFilterExplorer, user],
   );
 
-  const openLiveExplorerFieldClause = React.useCallback(
+  const openLiveExplorerExactNodeFieldClauseFallback = React.useCallback(
     async (
       query: Pf2eTerminalSearchQuery,
       path: number[],
       fieldOption: Pf2eTerminalQueryFieldOption,
       currentNode: MetadataFilterNode | null,
     ) => {
+      if (
+        !canOpenStructuredDraftExactNodeFieldFallback({
+          currentNode,
+          fieldOption,
+          path,
+          query,
+        })
+      ) {
+        return;
+      }
+
       const liveChangeState = { saw: false };
       const applyChange = ({ mutation }: StructuredDraftContinuationChange) => {
+        if (mutation.kind !== "replaceNode") {
+          return;
+        }
         const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
           kind: "replaceNode",
           path,
@@ -2395,7 +2432,7 @@ export function useSearchStructuredDraftMetadataActions({
               await openLiveExplorerGroupedField(query, groupedFieldBucket);
               return;
             }
-            await openLiveExplorerFieldClause(query, path, fieldOption, editableMetadataNode);
+            await openLiveExplorerExactNodeFieldClauseFallback(query, path, fieldOption, editableMetadataNode);
             return;
           }
           const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
@@ -2477,7 +2514,7 @@ export function useSearchStructuredDraftMetadataActions({
       getScopedFieldOptions,
       openLiveExplorerGroupedField,
       openLiveExplorerCanonicalFieldMember,
-      openLiveExplorerFieldClause,
+      openLiveExplorerExactNodeFieldClauseFallback,
       promptForClauseNode,
       replaceStructuredDraftProjection,
       terminal,
