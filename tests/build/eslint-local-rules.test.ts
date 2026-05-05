@@ -234,6 +234,21 @@ describe("eslint local architecture rules", () => {
     );
   });
 
+  it("blocks structured-draft projected bucket edits from opening grouped explorer directly", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      "async function run() { await openLiveExplorerGroupedField(query, entry); }\nexport { run };\n",
+      "projected bucket edits must classify and execute a structured edit route",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      "async function run() { await executeStructuredDraftEditRoute(query, route); }\nexport { run };\n",
+      "no-restricted-syntax",
+    );
+  });
+
   it("blocks internal src/tags modules from importing the public top-level tag facades", async () => {
     await expectRuleMessage(
       "src/tags/runtime/derivation/api.ts",

@@ -61,7 +61,7 @@ function buildRouteBucketEntry(route: Extract<StructuredDraftEditRoute, { kind: 
     field: route.field,
     fieldOperator: "include",
     memberPaths: route.memberPaths,
-    fieldMemberPaths: route.memberPaths,
+    fieldMemberPaths: route.fieldMemberPaths,
     indent: route.groupPath.length + 1,
     menuLabel: route.fieldOption.label,
   };
@@ -161,7 +161,7 @@ async function promptForRecordLinkLeaf({
 
 export function useStructuredDraftEditRouteActions({
   editFieldClause,
-  openLiveExplorerGroupedField,
+  openLiveExplorerGroupedField: openGroupedFieldExplorer,
   promptForClauseNode,
   prompts,
   replaceStructuredDraftProjection,
@@ -200,7 +200,7 @@ export function useStructuredDraftEditRouteActions({
       }
 
       if (route.kind === "groupField") {
-        await openLiveExplorerGroupedField(query, buildRouteBucketEntry(route));
+        await openGroupedFieldExplorer(query, buildRouteBucketEntry(route));
         return "applied";
       }
 
@@ -260,7 +260,7 @@ export function useStructuredDraftEditRouteActions({
     },
     [
       editFieldClause,
-      openLiveExplorerGroupedField,
+      openGroupedFieldExplorer,
       promptForClauseNode,
       replaceStructuredDraftProjection,
       terminal,

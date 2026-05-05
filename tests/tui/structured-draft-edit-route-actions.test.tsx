@@ -100,6 +100,7 @@ describe("structured draft edit route actions", () => {
       },
       groupPath: [],
       memberPaths: [],
+      fieldMemberPaths: [],
       source: "add",
     } satisfies StructuredDraftEditRoute;
 

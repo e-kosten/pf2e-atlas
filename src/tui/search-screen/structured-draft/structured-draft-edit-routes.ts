@@ -7,6 +7,7 @@ import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
+import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { getSearchQueryCategory } from "../../search/query-state.js";
 import { getContainingBooleanGroupPath } from "./structured-draft-host-mutations.js";
 
@@ -31,6 +32,7 @@ export type StructuredDraftEditRoute =
       fieldOption: Pf2eTerminalQueryFieldOption;
       groupPath: number[];
       memberPaths: number[][];
+      fieldMemberPaths: number[][];
       source: "bucket" | "member" | "add";
     }
   | {
@@ -255,17 +257,21 @@ function collectGroupMemberPathsForField(
 export function classifyStructuredDraftAddFieldRoute({
   fieldOption,
   groupPath,
+  query,
 }: {
   fieldOption: Pf2eTerminalQueryFieldOption;
   groupPath: number[];
+  query: Pf2eTerminalSearchQuery;
 }): StructuredDraftEditRoute {
   if (isStructuredDraftGroupFieldOption(fieldOption)) {
+    const memberPaths = collectGroupMemberPathsForField(query.filter, groupPath, fieldOption.value);
     return {
       kind: "groupField",
       field: fieldOption.value,
       fieldOption,
       groupPath,
-      memberPaths: [],
+      memberPaths,
+      fieldMemberPaths: memberPaths,
       source: "add",
     };
   }
@@ -276,6 +282,41 @@ export function classifyStructuredDraftAddFieldRoute({
     path: null,
     placement: "inGroup",
     fieldOption,
+  };
+}
+
+export function classifyStructuredDraftBucketEditRoute({
+  entry,
+  fieldOptions,
+}: {
+  entry: SearchStructuredDraftEntry;
+  fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
+}): StructuredDraftEditRoute {
+  if (entry.kind !== "queryFieldBucket") {
+    return { kind: "unsupported", reason: "That row is not a grouped field bucket." };
+  }
+
+  const field = entry.field as Pf2eTerminalQueryFieldOption["value"] | undefined;
+  if (!field) {
+    return { kind: "unsupported", reason: "That grouped row is missing its query field." };
+  }
+
+  const fieldOption = resolveStructuredDraftFieldOption(field, fieldOptions);
+  if (!fieldOption || !isStructuredDraftGroupFieldOption(fieldOption)) {
+    return { kind: "unsupported", reason: "That grouped row cannot be edited through the shared explorer." };
+  }
+
+  const memberPaths = entry.memberPaths ?? [];
+  const fieldMemberPaths = entry.fieldMemberPaths ?? memberPaths;
+
+  return {
+    kind: "groupField",
+    field: fieldOption.value,
+    fieldOption,
+    groupPath: entry.groupPath ?? [],
+    memberPaths,
+    fieldMemberPaths,
+    source: "bucket",
   };
 }
 
@@ -297,12 +338,14 @@ export function classifyStructuredDraftNodeEditRoute({
   const fieldOption = fieldValue ? resolveStructuredDraftFieldOption(fieldValue, fieldOptions) : null;
   if (fieldOption && isStructuredDraftGroupFieldOption(fieldOption)) {
     const groupPath = getContainingBooleanGroupPath(query.filter, path);
+    const memberPaths = collectGroupMemberPathsForField(query.filter, groupPath, fieldOption.value);
     return {
       kind: "groupField",
       field: fieldOption.value,
       fieldOption,
       groupPath,
-      memberPaths: collectGroupMemberPathsForField(query.filter, groupPath, fieldOption.value),
+      memberPaths,
+      fieldMemberPaths: memberPaths,
       source: "member",
     };
   }

@@ -16,6 +16,7 @@ import {
   getSearchQueryText,
   getSearchQueryMetadataTree,
   getSearchQueryRaritySelection,
+  replaceSearchQueryRootScope,
   setSearchQueryActionCostSelection,
   setSearchQueryPackSelection,
   setSearchQueryMetadataTree,
@@ -23,6 +24,14 @@ import {
   setSearchQuerySearchProfile,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
+import {
+  actionCostFilter,
+  allOfFilter,
+  metadataPredicateFilter,
+  metricCompareFilter,
+  metricFilter,
+  scopeFilter,
+} from "../helpers/search-request-fixture.js";
 
 type SearchServiceDependencies = Parameters<typeof createPf2eTerminalSearchService>[0];
 
@@ -998,6 +1007,31 @@ describe("createPf2eTerminalSearchService", () => {
         { kind: "not", child: { kind: "pack", value: "vehicles" } },
       ],
     });
+  });
+
+  it("prunes scope-dependent metadata, metric, metric comparison, and action-cost clauses when replacing root scope category", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const defaultQuery = service.createDefaultQuery();
+    const query = {
+      ...defaultQuery,
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "undead" }),
+        metricFilter("hp.value", "gte", 30),
+        metricCompareFilter("ac.value", "gt", "ability.cha.mod"),
+        actionCostFilter({ kind: "eq", value: 2 }),
+        { kind: "level", match: { kind: "gt", value: 5 } },
+      ]),
+    } satisfies SearchRequest;
+
+    const updated = replaceSearchQueryRootScope(query, scopeFilter("equipment"));
+
+    expect(updated.filter).toEqual(
+      allOfFilter([
+        scopeFilter("equipment"),
+        { kind: "level", match: { kind: "gt", value: 5 } },
+      ]),
+    );
   });
 
   it("rebuilds search drafts from the shared compose draft without carrying session metadata in the draft", () => {

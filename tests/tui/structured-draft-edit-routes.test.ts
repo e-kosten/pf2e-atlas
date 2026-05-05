@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStructuredDraftExplorerOnlyFieldOption,
   classifyStructuredDraftAddFieldRoute,
+  classifyStructuredDraftBucketEditRoute,
   classifyStructuredDraftNodeEditRoute,
   getStructuredDraftSyntheticFieldOption,
   isStructuredDraftGroupFieldRoute,
@@ -62,10 +63,16 @@ describe("structured draft edit routes", () => {
   const fieldOptions = [traitsField, descriptionField, booleanField, numericField, actorMetricField];
 
   it("classifies add intents into group-field and leaf routes", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+
     expect(
       classifyStructuredDraftAddFieldRoute({
         fieldOption: traitsField,
         groupPath: [2],
+        query,
       }),
     ).toEqual({
       kind: "groupField",
@@ -73,6 +80,7 @@ describe("structured draft edit routes", () => {
       fieldOption: traitsField,
       groupPath: [2],
       memberPaths: [],
+      fieldMemberPaths: [],
       source: "add",
     });
 
@@ -80,11 +88,94 @@ describe("structured draft edit routes", () => {
       classifyStructuredDraftAddFieldRoute({
         fieldOption: booleanField,
         groupPath: [],
+        query,
       }),
     ).toMatchObject({
       kind: "leaf",
       leafKind: "metadataBoolean",
       placement: "inGroup",
+    });
+  });
+
+  it("classifies add intents with existing grouped-field cohort paths", () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "undead" }),
+      ]),
+      limit: 20,
+    }).request;
+
+    expect(
+      classifyStructuredDraftAddFieldRoute({
+        fieldOption: traitsField,
+        groupPath: [],
+        query,
+      }),
+    ).toEqual({
+      kind: "groupField",
+      field: "traits",
+      fieldOption: traitsField,
+      groupPath: [],
+      memberPaths: [[1], [2]],
+      fieldMemberPaths: [[1], [2]],
+      source: "add",
+    });
+  });
+
+  it("classifies synthetic grouped-field add intents with existing cohort paths", () => {
+    const query = browseQuery("Browse actions", {
+      filter: allOfFilter([
+        scopeFilter("rule", "action"),
+        packFilter("pathfinder-actions-core"),
+        rarityFilter({ kind: "eq", value: "common" }),
+        actionCostFilter({ kind: "eq", value: 1 }),
+        actionCostFilter({ kind: "eq", value: 2 }),
+      ]),
+      limit: 20,
+    }).request;
+
+    expect(
+      classifyStructuredDraftAddFieldRoute({
+        fieldOption: getStructuredDraftSyntheticFieldOption("pack")!,
+        groupPath: [],
+        query,
+      }),
+    ).toMatchObject({
+      kind: "groupField",
+      field: "pack",
+      memberPaths: [[1]],
+      fieldMemberPaths: [[1]],
+      source: "add",
+    });
+
+    expect(
+      classifyStructuredDraftAddFieldRoute({
+        fieldOption: getStructuredDraftSyntheticFieldOption("rarity")!,
+        groupPath: [],
+        query,
+      }),
+    ).toMatchObject({
+      kind: "groupField",
+      field: "rarity",
+      memberPaths: [[2]],
+      fieldMemberPaths: [[2]],
+      source: "add",
+    });
+
+    expect(
+      classifyStructuredDraftAddFieldRoute({
+        fieldOption: getStructuredDraftSyntheticFieldOption("actionCost")!,
+        groupPath: [],
+        query,
+      }),
+    ).toMatchObject({
+      kind: "groupField",
+      field: "actionCost",
+      memberPaths: [[3], [4]],
+      fieldMemberPaths: [[3], [4]],
+      source: "add",
     });
   });
 
@@ -115,9 +206,37 @@ describe("structured draft edit routes", () => {
         field,
         groupPath: [],
         memberPaths: [path],
+        fieldMemberPaths: [path],
         source: "member",
       });
     }
+  });
+
+  it("classifies projected query-field buckets as grouped routes with bucket source", () => {
+    expect(
+      classifyStructuredDraftBucketEditRoute({
+        entry: {
+          kind: "queryFieldBucket",
+          key: "bucket:traits",
+          label: "Traits",
+          description: "Existing trait clauses.",
+          groupPath: [1],
+          field: "traits",
+          fieldOperator: "include",
+          memberPaths: [[1, 0]],
+          fieldMemberPaths: [[1, 0]],
+        },
+        fieldOptions,
+      }),
+    ).toEqual({
+      kind: "groupField",
+      field: "traits",
+      fieldOption: traitsField,
+      groupPath: [1],
+      memberPaths: [[1, 0]],
+      fieldMemberPaths: [[1, 0]],
+      source: "bucket",
+    });
   });
 
   it("classifies representative leaf routes without inventing a metric fallback route", () => {

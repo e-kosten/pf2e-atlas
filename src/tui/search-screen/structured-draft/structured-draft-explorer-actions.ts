@@ -5,10 +5,7 @@ import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
 import type { OntologyNode } from "../../../domain/ontology-types.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
-import {
-  getSearchQueryCategory,
-  getSearchQueryMetadataTree,
-} from "../../search/query-state.js";
+import { getSearchQueryCategory } from "../../search/query-state.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type {
   Pf2eTerminalQueryFieldOption,
@@ -39,15 +36,10 @@ import {
 } from "./structured-draft-continuation.js";
 import {
   buildGroupedFieldReplacementNodes,
-  buildGroupedFieldSeedDiscreteClauses,
   buildGroupedFieldSeedState,
 } from "./structured-draft-grouped-field.js";
-import { applyStructuredDraftHostMutationToQuery, getContainingBooleanGroupPath } from "./structured-draft-host-mutations.js";
-import {
-  createStructuredDraftGroupResumeTarget,
-  type StructuredDraftResumeTarget,
-} from "./structured-draft-state.js";
-import { buildStructuredDraftEntries } from "./structured-draft-support.js";
+import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host-mutations.js";
+import type { StructuredDraftResumeTarget } from "./structured-draft-state.js";
 import {
   getStructuredDraftSyntheticFieldOption,
   inferStructuredDraftMetricFieldFamily,
@@ -66,10 +58,6 @@ export type StructuredDraftExplorerPromptNodeResult =
   StructuredDraftPromptFlowResult<StructuredDraftExplorerPromptNodeValue>;
 export type StructuredDraftExplorerMetricKeyResult =
   StructuredDraftPromptFlowResult<StructuredDraftExplorerMetricKeySelection>;
-
-function groupPathsEqual(left: number[] | undefined, right: number[]): boolean {
-  return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
-}
 
 export function searchFilterExplorerFieldStatesEqual(
   left: SearchFilterExplorerFieldState | undefined,
@@ -504,117 +492,8 @@ export function useStructuredDraftExplorerActions({
     ],
   );
 
-  const openLiveExplorerGroupFieldByName = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, groupPath: number[], fieldOption: Pf2eTerminalQueryFieldOption) => {
-      const groupedFieldValues = new Set(
-        getScopedFieldOptions(query)
-          .filter((candidate) => candidate.editor === "sharedExplorer")
-          .map((candidate) => candidate.value),
-      );
-      const existingBucket = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget(groupPath), {
-        groupedFieldValues,
-      }).find(
-        (entry) =>
-          entry.kind === "queryFieldBucket" &&
-          groupPathsEqual(entry.groupPath, groupPath) &&
-          entry.field === fieldOption.value,
-      );
-
-      await openLiveExplorerGroupedField(query, {
-        kind: "queryFieldBucket",
-        key: `synthetic:${groupPath.join(".")}:${fieldOption.value}`,
-        label: fieldOption.label,
-        description: fieldOption.description,
-        groupPath,
-        field: fieldOption.value,
-        fieldOperator: existingBucket?.fieldOperator ?? "include",
-        memberPaths: existingBucket?.memberPaths ?? [],
-        fieldMemberPaths: existingBucket?.fieldMemberPaths ?? [],
-        indent: groupPath.length + 1,
-        menuLabel: fieldOption.label,
-      });
-    },
-    [getScopedFieldOptions, openLiveExplorerGroupedField],
-  );
-
-  const openLiveExplorerCanonicalFieldMember = React.useCallback(
-    async (query: Pf2eTerminalSearchQuery, path: number[], fieldOption: Pf2eTerminalQueryFieldOption) => {
-      if (path.length === 0) {
-        const initialFieldState = buildSearchFilterExplorerFieldState({
-          discreteClauses: buildGroupedFieldSeedDiscreteClauses(query.filter, fieldOption.value),
-          scalarClauses: {},
-        });
-        const seedQuery = { ...query, filter: undefined };
-        const liveChangeState = { saw: false };
-        const buildHostMutation = (fieldState: SearchFilterExplorerFieldState) =>
-          buildStructuredDraftGroupedFieldMutation({ fieldOption, fieldState });
-        const applyChange = ({ mutation }: StructuredDraftContinuationChange) => {
-          if (mutation.kind !== "replaceGroupedField") {
-            return;
-          }
-          liveChangeState.saw = true;
-          const replacementNodes = buildGroupedFieldReplacementNodes(user.search, query, mutation.fieldState, fieldOption);
-          const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
-            kind: "replaceGroupedField",
-            groupPath: [],
-            field: fieldOption.value,
-            fieldMemberPaths: [],
-            replacementNodes,
-            replaceRoot: true,
-          });
-          if (!application) {
-            return;
-          }
-          replaceStructuredDraftProjection(() => application.nextQuery, {
-            resumeTarget: application.resumeTarget,
-          });
-        };
-        const continuation = await openStructuredDraftExplorerContinuation({
-          query: seedQuery,
-          fieldOption,
-          buildHostMutation,
-          initialFieldState,
-          preservedMetadata: getSearchQueryMetadataTree(seedQuery),
-          onHostChange: applyChange,
-        });
-        if (
-          continuation.kind !== "notOpened" &&
-          continuation.change &&
-          !liveChangeState.saw &&
-          !searchFilterExplorerFieldStatesEqual(continuation.change.fieldState, initialFieldState)
-        ) {
-          applyChange(continuation.change);
-        }
-        return;
-      }
-
-      const groupPath = getContainingBooleanGroupPath(query.filter, path);
-      await openLiveExplorerGroupedField(query, {
-        kind: "queryFieldBucket",
-        key: `synthetic:${groupPath.join(".")}:${fieldOption.value}:${path.join(".")}`,
-        label: fieldOption.label,
-        description: fieldOption.description,
-        groupPath,
-        field: fieldOption.value,
-        fieldOperator: "include",
-        memberPaths: [path],
-        fieldMemberPaths: [path],
-        indent: groupPath.length + 1,
-        menuLabel: fieldOption.label,
-      });
-    },
-    [
-      openLiveExplorerGroupedField,
-      openStructuredDraftExplorerContinuation,
-      replaceStructuredDraftProjection,
-      user.search,
-    ],
-  );
-
   return {
-    openLiveExplorerCanonicalFieldMember,
     openLiveExplorerGroupedField,
-    openLiveExplorerGroupFieldByName,
     openPromptFieldClause,
     openStructuredDraftExplorerContinuation,
     selectPromptMetricKey,

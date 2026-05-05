@@ -403,7 +403,7 @@ export function useStructuredDraftStructuralActions({
                 if (fieldOption.value) {
                   return executeStructuredDraftEditRoute(
                     workingQuery,
-                    classifyStructuredDraftAddFieldRoute({ fieldOption: fieldOption.value, groupPath: path }),
+                    classifyStructuredDraftAddFieldRoute({ fieldOption: fieldOption.value, groupPath: path, query: workingQuery }),
                   );
                 }
                 break;
@@ -421,7 +421,7 @@ export function useStructuredDraftStructuralActions({
             if (fieldOption) {
               return executeStructuredDraftEditRoute(
                 workingQuery,
-                classifyStructuredDraftAddFieldRoute({ fieldOption, groupPath: path }),
+                classifyStructuredDraftAddFieldRoute({ fieldOption, groupPath: path, query: workingQuery }),
               );
             }
           }

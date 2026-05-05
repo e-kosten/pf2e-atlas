@@ -16,6 +16,7 @@ import type {
 import { useStructuredDraftExplorerActions } from "./structured-draft-explorer-actions.js";
 import { useStructuredDraftPromptActions } from "./structured-draft-prompt-actions.js";
 import { useStructuredDraftEditRouteActions } from "./structured-draft-edit-route-actions.js";
+import { classifyStructuredDraftBucketEditRoute } from "./structured-draft-edit-routes.js";
 import {
   useStructuredDraftStructuralActions,
   type StructuredDraftEntryActionId,
@@ -122,12 +123,23 @@ export function useSearchStructuredDraftEntryActions({
         return;
       }
       if (entry.kind === "queryFieldBucket") {
-        await openLiveExplorerGroupedField(draftQuery, entry);
+        await executeStructuredDraftEditRoute(
+          draftQuery,
+          classifyStructuredDraftBucketEditRoute({
+            entry,
+            fieldOptions: getScopedFieldOptions(draftQuery),
+          }),
+        );
         return;
       }
       await editStructuredDraftStructuralEntry(draftQuery, entry);
     },
-    [editStructuredDraftStructuralEntry, openLiveExplorerGroupedField, structuredDraftQuery],
+    [
+      editStructuredDraftStructuralEntry,
+      executeStructuredDraftEditRoute,
+      getScopedFieldOptions,
+      structuredDraftQuery,
+    ],
   );
 
   const getStructuredDraftEntryActions = React.useCallback(
@@ -160,13 +172,24 @@ export function useSearchStructuredDraftEntryActions({
       }
       if (entry.kind === "queryFieldBucket") {
         if (actionId === "edit") {
-          await openLiveExplorerGroupedField(draftQuery, entry);
+          await executeStructuredDraftEditRoute(
+            draftQuery,
+            classifyStructuredDraftBucketEditRoute({
+              entry,
+              fieldOptions: getScopedFieldOptions(draftQuery),
+            }),
+          );
         }
         return;
       }
       await runStructuredDraftStructuralEntryAction(draftQuery, entry, actionId);
     },
-    [openLiveExplorerGroupedField, runStructuredDraftStructuralEntryAction, structuredDraftQuery],
+    [
+      executeStructuredDraftEditRoute,
+      getScopedFieldOptions,
+      runStructuredDraftStructuralEntryAction,
+      structuredDraftQuery,
+    ],
   );
 
   return {

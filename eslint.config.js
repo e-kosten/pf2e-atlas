@@ -556,6 +556,11 @@ export default defineConfig(
           message:
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
         },
+        {
+          selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
+        },
       ],
     },
   },
@@ -608,6 +613,11 @@ export default defineConfig(
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
           message:
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
         },
         {
           selector:
@@ -896,6 +906,11 @@ export default defineConfig(
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
           message:
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
         },
         {
           selector:
