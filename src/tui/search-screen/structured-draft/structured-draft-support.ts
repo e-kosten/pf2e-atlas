@@ -89,6 +89,14 @@ function formatStructuredDraftBucketLabel(bucket: ActiveGroupFieldBucket): strin
   return `${bucket.fieldLabel}: Include ${bucket.values.join(", ")}`;
 }
 
+function getStructuredDraftBucketKey(bucket: ActiveGroupFieldBucket): string {
+  if (bucket.operator === "include") {
+    return `${bucket.field}:${bucket.operator}`;
+  }
+
+  return `${bucket.field}:${bucket.operator}:${bucket.memberPaths[0]?.join(".") ?? "root"}:${bucket.values[0] ?? ""}`;
+}
+
 function collectTopLevelSelectionMembers(
   node: SearchFilterNode,
   path: number[],
@@ -205,7 +213,10 @@ function buildActiveGroupFieldBuckets(
       const fieldMemberPaths = fieldMemberPathsByField.get(member.field) ?? [];
       fieldMemberPaths.push(member.path);
       fieldMemberPathsByField.set(member.field, fieldMemberPaths);
-      const bucketKey = `${member.field}\u0000${member.operator}`;
+      const bucketKey =
+        member.operator === "include"
+          ? `${member.field}\u0000${member.operator}`
+          : `${member.field}\u0000${member.operator}\u0000${member.path.join(".")}\u0000${member.valueLabel}`;
       const bucket = bucketsByKey.get(bucketKey);
       if (bucket) {
         bucket.values.push(member.valueLabel);
@@ -337,7 +348,7 @@ function buildFilterTreeEntries(
       if (item.kind === "bucket") {
         entries.push({
           kind: "queryFieldBucket",
-          key: `queryFieldBucket:${path.join(".")}:${item.bucket.field}:${item.bucket.operator}`,
+          key: `queryFieldBucket:${path.join(".")}:${getStructuredDraftBucketKey(item.bucket)}`,
           label: formatStructuredDraftBucketLabel(item.bucket),
           description: `Edit the current-group ${item.bucket.fieldLabel.toLowerCase()} selections through the shared explorer.`,
           groupPath: path,
@@ -398,7 +409,7 @@ function buildFilterTreeEntries(
       if (item.kind === "bucket") {
         entries.push({
           kind: "queryFieldBucket",
-          key: `queryFieldBucket:root:${item.bucket.field}:${item.bucket.operator}`,
+          key: `queryFieldBucket:root:${getStructuredDraftBucketKey(item.bucket)}`,
           label: formatStructuredDraftBucketLabel(item.bucket),
           description: `Edit the current-group ${item.bucket.fieldLabel.toLowerCase()} selections through the shared explorer.`,
           groupPath: [],

@@ -29,7 +29,7 @@ export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
         subtitle={session.subtitle ?? "Edit the live structured query tree"}
         leftTitle={session.leftTitle ?? "[QUERY TREE]"}
         rightTitle={session.rightTitle ?? "Live Summary & Detail"}
-        leftWidth={32}
+        leftWidth={48}
         items={buildSearchStructuredEditorMenuItems(session)}
         selectedIndex={session.selectedIndex}
         interactions={createSearchStructuredEditorInteractions(session)}

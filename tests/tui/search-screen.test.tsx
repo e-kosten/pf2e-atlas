@@ -44,6 +44,7 @@ import {
   browseRequest,
   levelFilter,
   metricCompareFilter,
+  metricFilter,
   metadataPredicateFilter,
   notFilter,
   rarityFilter,
@@ -4274,6 +4275,57 @@ describe("search screen", () => {
     expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
   });
 
+  it("renders long metric filters and negated trait clauses as readable query-tree rows", async () => {
+    const services = createServices();
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+      {
+        value: "actorMetric",
+        label: "Creature Statistics",
+        description: "Browse live creature metrics.",
+        fieldType: "enumString",
+        editor: "sharedExplorer",
+      },
+    ]);
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchScreen
+            initialRequest={
+              browseQuery("Browse creatures", {
+                filter: allOfFilter([
+                  scopeFilter("creature"),
+                  metricFilter("ability.cha.mod", "gt", 5),
+                  metricCompareFilter("ac.value", "gt", "ability.cha.mod"),
+                  metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" })),
+                  notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "unholy" })),
+                ]),
+                limit: 20,
+              }).request
+            }
+            onBack={vi.fn()}
+          />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await openStructuredQueryEditor(app);
+
+    expect(app.lastFrame()).toMatch(/^├─ Creature Statistics: ability\.cha\.mod > 5\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ Traits: Include humanoid\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ Traits: !evil\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ Traits: !unholy\s*│/m);
+    expect(app.lastFrame()).not.toContain("Traits: !evil, !unholy");
+  });
+
   it("keeps mixed trait and rarity add-here additions flat", async () => {
     const services = createServices();
     services.user.search.getQueryFieldOptions = vi.fn(() => [
@@ -4329,7 +4381,8 @@ describe("search screen", () => {
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
     expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil, !unholy");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !unholy");
   });
 
   it("adds rarity via direct add-clause option when trait fields are also available", async () => {
@@ -4387,7 +4440,8 @@ describe("search screen", () => {
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
     expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil, !unholy");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !unholy");
   });
 
   it("adds rarity before selecting a scope", async () => {

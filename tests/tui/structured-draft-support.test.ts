@@ -145,6 +145,42 @@ describe("structured draft support", () => {
     ]);
   });
 
+  it("renders separate visible rows for multiple excluded grouped-field values", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "creature", subcategory: { kind: "any" } },
+          { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "humanoid" } },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "evil" } },
+          },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "unholy" } },
+          },
+        ],
+      },
+    };
+
+    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
+      groupedFieldValues: new Set(["traits"]),
+    }).filter((entry) => entry.kind === "queryFieldBucket");
+
+    expect(bucketEntries.map((entry) => entry.label)).toEqual([
+      "Traits: Include humanoid",
+      "Traits: !evil",
+      "Traits: !unholy",
+    ]);
+    expect(bucketEntries.map((entry) => entry.fieldMemberPaths)).toEqual([
+      [[1], [2], [3]],
+      [[1], [2], [3]],
+      [[1], [2], [3]],
+    ]);
+  });
+
   it("keeps focused member paths as exact node targets instead of grouped bucket continuation owners", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
