@@ -876,11 +876,11 @@ function selectedStructuredEntry(
   return entries[getStructuredDraftSelectionIndexForResumeTarget(entries, resumeTarget, 0)]!;
 }
 
-function expectProjectedTraitBucket(filter: SearchFilterNode | undefined): void {
+function expectProjectedTraitBucket(filter: SearchFilterNode | undefined, groupPath: number[] = []): void {
   expect(structuredEntriesFor(filter, createStructuredDraftGroupResumeTarget([]))).toContainEqual(
     expect.objectContaining({
       kind: "queryFieldBucket",
-      groupPath: [],
+      groupPath,
       field: "traits",
     }),
   );
@@ -1350,7 +1350,7 @@ describe("search structured editor continuation", () => {
       kind: "queryTreeRoot",
       treePath: [],
     });
-    expectProjectedTraitBucket(removedExclude);
+    expectProjectedTraitBucket(removedExclude, [1]);
 
     const nestedGroupFilter = allOfFilter([
       scopeFilter("spell"),

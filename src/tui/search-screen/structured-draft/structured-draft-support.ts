@@ -138,17 +138,7 @@ function collectTopLevelSelectionMembers(
     ];
   }
 
-  if (node.kind !== "anyOf") {
-    return null;
-  }
-
-  const members = node.children.flatMap((child) => collectTopLevelSelectionMembers(child, path, operator) ?? []);
-  if (members.length !== node.children.length) {
-    return null;
-  }
-
-  const field = members[0]?.field;
-  return field && members.every((member) => member.field === field) ? members : null;
+  return null;
 }
 
 function collectActiveGroupFieldMembers(

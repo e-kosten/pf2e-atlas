@@ -270,6 +270,66 @@ describe("structured draft support", () => {
     );
   });
 
+  it("keeps nested any-of groups visible when the root group is projected", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "creature", subcategory: { kind: "any" } },
+          {
+            kind: "anyOf",
+            children: [
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "evil" } },
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "humanoid" } },
+            ],
+          },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "chaotic" } },
+          },
+          {
+            kind: "not",
+            child: { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "unholy" } },
+          },
+          { kind: "metric", metric: "ability.cha.mod", op: ">", value: 5 },
+        ],
+      },
+    };
+
+    const rootEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
+      groupedFieldValues: new Set(["traits"]),
+    });
+    const anyOfEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([1]), {
+      groupedFieldValues: new Set(["traits"]),
+    });
+
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Any of");
+    expect(rootEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [1],
+        label: "Traits: Include evil, humanoid",
+      }),
+    );
+    expect(rootEntries).not.toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [],
+        label: "Traits: Include evil, humanoid",
+      }),
+    );
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Traits: !chaotic");
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Traits: !unholy");
+    expect(anyOfEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryFieldBucket",
+        groupPath: [1],
+        label: "Traits: Include evil, humanoid",
+      }),
+    );
+  });
+
   it("flattens simple negated nodes into a single inline tree row", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
