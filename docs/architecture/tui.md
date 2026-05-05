@@ -41,18 +41,18 @@ That gives the terminal app one explicit dependency object, `Pf2eTerminalAppServ
 
 ```mermaid
 flowchart TD
-  Entry["`runPf2eTerminalApp()`\n`src/tui/pf2e-app.tsx`"] --> Framework["Ink runtime + `DerivedTagTerminalProvider`\n`src/tui/framework/provider.tsx`"]
-  Framework --> Bootstrap["`Pf2eTerminalBootstrap`"]
-  Bootstrap --> Load["`loadPf2eTerminalAppServices(argv)`\n`src/tui/app-services.ts`"]
+  Entry["runPf2eTerminalApp()<br/>src/tui/pf2e-app.tsx"] --> Framework["Ink runtime + DerivedTagTerminalProvider<br/>src/tui/framework/provider.tsx"]
+  Framework --> Bootstrap["Pf2eTerminalBootstrap"]
+  Bootstrap --> Load["loadPf2eTerminalAppServices(argv)<br/>src/tui/app-services.ts"]
 
-  Load --> Runtime["`loadPf2eApplicationRuntime()`\n`src/app/runtime.ts`"]
+  Load --> Runtime["loadPf2eApplicationRuntime()<br/>src/app/runtime.ts"]
   Runtime --> Config["App config"]
-  Runtime --> Data["`Pf2eDataService`"]
+  Runtime --> Data["Pf2eDataService"]
 
-  Load --> Storage["`createPf2eApplicationStorageService()`"]
-  Load --> Discovery["`createPf2eApplicationSearchDiscoveryService(dataService)`"]
-  Load --> Ontology["`createPf2eApplicationOntologyService(config, dataService, discovery)`"]
-  Load --> Search["`createPf2eTerminalSearchService(...)`"]
+  Load --> Storage["createPf2eApplicationStorageService()"]
+  Load --> Discovery["createPf2eApplicationSearchDiscoveryService(dataService)"]
+  Load --> Ontology["createPf2eApplicationOntologyService(config, dataService, discovery)"]
+  Load --> Search["createPf2eTerminalSearchService(...)"]
   Load --> Dev["Derived-tag workbench services"]
 
   Data --> Discovery
@@ -61,9 +61,9 @@ flowchart TD
   Discovery --> Ontology
   Storage --> Dev
 
-  Load --> App["`Pf2eTerminalApp`"]
-  App --> Context["`Pf2eTerminalAppServicesProvider`"]
-  Context --> Screens["Area menu, Search screen,\nOntology explorer, Tag workflows"]
+  Load --> App["Pf2eTerminalApp"]
+  App --> Context["Pf2eTerminalAppServicesProvider"]
+  Context --> Screens["Area menu, Search screen,<br/>Ontology explorer, Tag workflows"]
 ```
 
 The important architectural point is that the TUI does not rebuild backend logic. It composes shared services once, then keeps terminal behavior local to the screen tree.
@@ -551,41 +551,41 @@ The TUI generally separates visible screens from stateful interaction logic and 
 ```mermaid
 flowchart TD
   subgraph Framework["Framework / Terminal Runtime"]
-    Provider["`framework/provider.tsx`"]
-    Rendering["`framework/{line-rendering,screen-layout,screen-components}.ts*`"]
+    Provider["framework/provider.tsx"]
+    Rendering["framework/{line-rendering,screen-layout,screen-components}.ts*"]
     Input["interaction adapters + input routers"]
   end
 
   subgraph Screens["Screens"]
-    App["`pf2e-app.tsx`"]
-    SearchScreen["`search-screen/screen.tsx`"]
-    OntologyScreen["`ontology-explorer/inspect-screen.tsx`"]
+    App["pf2e-app.tsx"]
+    SearchScreen["search-screen/screen.tsx"]
+    OntologyScreen["ontology-explorer/inspect-screen.tsx"]
   end
 
   subgraph Controllers["Controllers / Workflows"]
-    SearchController["`search-screen/controller.ts`"]
-    SearchWorkflow["`search-screen/session-workflow.ts`"]
-    FilterExplorerWorkflow["`search-screen/filter-explorer-workflow.ts`"]
-    FilterExplorer["`filter-explorer/{controller,screen-models}.ts`"]
-    OntologyHost["`ontology-explorer/inspect-screen.tsx`"]
+    SearchController["search-screen/controller.ts"]
+    SearchWorkflow["search-screen/session-workflow.ts"]
+    FilterExplorerWorkflow["search-screen/filter-explorer-workflow.ts"]
+    FilterExplorer["filter-explorer/{controller,screen-models}.ts"]
+    OntologyHost["ontology-explorer/inspect-screen.tsx"]
   end
 
   subgraph Services["TUI Services"]
-    AppServices["`app-services.ts`"]
-    SearchService["`search/service.ts`"]
-    OntologyService["`src/app/ontology-service.ts`"]
+    AppServices["app-services.ts"]
+    SearchService["search/service.ts"]
+    OntologyService["src/app/ontology-service.ts"]
   end
 
   subgraph Backend["Shared Backend"]
-    Runtime["`src/app/runtime.ts`"]
-    Data["`Pf2eDataService`"]
+    Runtime["src/app/runtime.ts"]
+    Data["Pf2eDataService"]
   end
 
   Provider --> App
   Rendering --> SearchScreen
   Rendering --> OntologyScreen
   Input --> SearchController
-  Input --> OntologyController
+  Input --> OntologyHost
 
   App --> SearchScreen
   App --> OntologyScreen
