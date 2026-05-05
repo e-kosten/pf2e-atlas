@@ -11,12 +11,11 @@ It provides several connected surfaces over the local Foundry PF2E data:
 
 With it, you can:
 
-- look up detailed PF2E records by name and canonical key
-- search across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
+- browse and search across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
+- use the ontology browser to explore Pathfinder-native search semantics, metadata filters, and linked-rule traversal
 - connect external clients and agents to PF2E search and rules tools over MCP
-- explore the indexed corpus interactively through the TUI
-- work with Pathfinder-native search semantics, metadata filters, and linked-rule traversal
-- run derived-tag discovery, review, migration, and evaluation workflows for corpus maintenance
+- look up detailed PF2E records by name and canonical key
+- refine derived tags through discovery, review, migration, and evaluation workflows for corpus maintenance
 
 ## Quick Start
 
