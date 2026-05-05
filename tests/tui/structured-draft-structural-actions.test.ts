@@ -244,6 +244,68 @@ describe("structured draft structural actions", () => {
     renderer.unmount();
   });
 
+  it("flattens prompt-built rarity selection groups when adding a plain clause", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+      ]),
+      limit: 20,
+    }).request;
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "rarity" }));
+    const raritySelection = allOfFilter([
+      { kind: "rarity", match: { kind: "eq", value: "common" } },
+      notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+    ]);
+    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: raritySelection }));
+    const { getActions, replacements, renderer } = renderStructuralActions({
+      promptForClauseKind,
+      promptForClauseNode,
+    });
+
+    await getActions().addQueryClauseAtPath(query, []);
+
+    expect(replacements.at(-1)?.query.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evil" }),
+        { kind: "rarity", match: { kind: "eq", value: "common" } },
+        notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+      ]),
+    );
+    renderer.unmount();
+  });
+
+  it("preserves explicit add-group wrappers around prompt-built clauses", async () => {
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+    const promptForClauseKind = vi.fn(async () => ({ kind: "apply", value: "rarity" }));
+    const raritySelection = allOfFilter([
+      { kind: "rarity", match: { kind: "eq", value: "common" } },
+      notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+    ]);
+    const promptForClauseNode = vi.fn(async () => ({ kind: "apply", value: raritySelection }));
+    const { getActions, replacements, renderer } = renderStructuralActions({
+      promptForClauseKind,
+      promptForClauseNode,
+    });
+
+    await getActions().addQueryClauseAtPath(query, [], "allOf");
+
+    expect(replacements.at(-1)?.query.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          { kind: "rarity", match: { kind: "eq", value: "common" } },
+          notFilter({ kind: "rarity", match: { kind: "eq", value: "uncommon" } }),
+        ]),
+      ]),
+    );
+    renderer.unmount();
+  });
+
   it("routes leaf shared-explorer edits through injected explorer callbacks", async () => {
     const traitsNode = metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" });
     const query = browseQuery("Browse creatures", {

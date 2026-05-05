@@ -432,11 +432,19 @@ export function useStructuredDraftStructuralActions({
           if (nextNodeValue === null) {
             return "cancelled";
           }
+          const wrappedGroupChildren =
+            wrapper === "allOf" || wrapper === "anyOf"
+              ? Array.isArray(nextNodeValue)
+                ? nextNodeValue
+                : nextNodeValue.kind === wrapper
+                  ? nextNodeValue.children
+                  : [nextNodeValue]
+              : [];
           const wrappedNode =
             wrapper === "allOf" || wrapper === "anyOf"
               ? ({
                   kind: wrapper,
-                  children: Array.isArray(nextNodeValue) ? nextNodeValue : [nextNodeValue],
+                  children: wrappedGroupChildren,
                 } as SearchFilterNode)
               : wrapper === "not"
                 ? ({
@@ -455,6 +463,7 @@ export function useStructuredDraftStructuralActions({
             {
               kind: "appendNodes",
               groupPath: path,
+              flattenMatchingBooleanGroup: wrapper === undefined,
             },
           );
           if (application) {
