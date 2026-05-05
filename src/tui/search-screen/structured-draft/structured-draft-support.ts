@@ -1,5 +1,4 @@
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
-import { formatMetadataFieldLabel } from "../../../domain/presentation-vocabulary.js";
 import {
   formatSearchFilterNodePresentationAlias,
   getSearchFilterNodeAtPath,
@@ -13,7 +12,6 @@ import type { Pf2eTerminalSearchQuery } from "../../search/service.js";
 import { projectSearchQueryFilter, type Pf2eTerminalSearchQueryBase } from "../../search/query-projection.js";
 import {
   canonicalizeStructuredDraftResumeTarget,
-  createStructuredDraftGroupResumeTarget,
   type StructuredDraftResumeTarget,
 } from "./structured-draft-state.js";
 
@@ -28,41 +26,6 @@ type FilterDisplayNode = {
   node: SearchFilterNode;
   path: number[];
 };
-
-type ActiveGroupFieldMember = {
-  field: string;
-  fieldLabel: string;
-  operator: "include" | "exclude";
-  valueLabel: string;
-  path: number[];
-};
-
-type ActiveGroupFieldBucket = {
-  field: string;
-  fieldLabel: string;
-  operator: "include" | "exclude";
-  values: string[];
-  memberPaths: number[][];
-  fieldMemberPaths: number[][];
-  firstIndex: number;
-};
-
-type ActiveGroupChildRenderItem =
-  | { kind: "bucket"; bucket: ActiveGroupFieldBucket }
-  | { kind: "node"; child: SearchFilterNode; childIndex: number };
-
-function compareActiveGroupFieldBuckets(left: ActiveGroupFieldBucket, right: ActiveGroupFieldBucket): number {
-  const fieldCompare = left.fieldLabel.localeCompare(right.fieldLabel);
-  if (fieldCompare !== 0) {
-    return fieldCompare;
-  }
-
-  if (left.operator !== right.operator) {
-    return left.operator === "include" ? -1 : 1;
-  }
-
-  return left.firstIndex - right.firstIndex;
-}
 
 function getFilterRootDisplayNodes(node: SearchFilterNode | undefined): FilterDisplayNode[] {
   if (!node) {
@@ -81,174 +44,11 @@ function formatTreePrefix(ancestorContinuations: boolean[], isLast: boolean): st
   return `${stem}${isLast ? "└─ " : "├─ "}`;
 }
 
-function formatStructuredDraftBucketLabel(bucket: ActiveGroupFieldBucket): string {
-  if (bucket.operator === "exclude") {
-    return `${bucket.fieldLabel}: ${bucket.values.map((value) => `!${value}`).join(", ")}`;
-  }
-
-  return `${bucket.fieldLabel}: Include ${bucket.values.join(", ")}`;
-}
-
-function getStructuredDraftBucketKey(bucket: ActiveGroupFieldBucket): string {
-  if (bucket.operator === "include") {
-    return `${bucket.field}:${bucket.operator}`;
-  }
-
-  return `${bucket.field}:${bucket.operator}:${bucket.memberPaths[0]?.join(".") ?? "root"}:${bucket.values[0] ?? ""}`;
-}
-
-function collectTopLevelSelectionMembers(
-  node: SearchFilterNode,
-  path: number[],
-  operator: "include" | "exclude",
-): ActiveGroupFieldMember[] | null {
-  if (node.kind === "metadataPredicate" && "value" in node.predicate) {
-    return [
-      {
-        field: node.predicate.field,
-        fieldLabel: formatMetadataFieldLabel(node.predicate.field),
-        operator,
-        valueLabel: String(node.predicate.value),
-        path,
-      },
-    ];
-  }
-
-  if (node.kind === "rarity" && node.match.kind === "eq") {
-    return [
-      {
-        field: "rarity",
-        fieldLabel: "Rarity",
-        operator,
-        valueLabel: node.match.value,
-        path,
-      },
-    ];
-  }
-
-  if (node.kind === "actionCost" && node.match.kind === "eq") {
-    return [
-      {
-        field: "actionCost",
-        fieldLabel: "Action Cost",
-        operator,
-        valueLabel: String(node.match.value),
-        path,
-      },
-    ];
-  }
-
-  return null;
-}
-
-function collectActiveGroupFieldMembers(
-  node: SearchFilterNode,
-  path: number[],
-  groupedFieldValues: ReadonlySet<string>,
-): ActiveGroupFieldMember[] | null {
-  if (node.kind === "metadataPredicate" && groupedFieldValues.has(node.predicate.field)) {
-    return [
-      {
-        field: node.predicate.field,
-        fieldLabel: formatMetadataFieldLabel(node.predicate.field),
-        operator: "include",
-        valueLabel: String(node.predicate.value),
-        path,
-      },
-    ];
-  }
-
-  const topLevelMembers = collectTopLevelSelectionMembers(node, path, "include");
-  if (topLevelMembers) {
-    return topLevelMembers;
-  }
-
-  if (node.kind !== "not") {
-    return null;
-  }
-
-  if (node.child.kind === "metadataPredicate" && groupedFieldValues.has(node.child.predicate.field)) {
-    return [
-      {
-        field: node.child.predicate.field,
-        fieldLabel: formatMetadataFieldLabel(node.child.predicate.field),
-        operator: "exclude",
-        valueLabel: String(node.child.predicate.value),
-        path,
-      },
-    ];
-  }
-
-  return collectTopLevelSelectionMembers(node.child, path, "exclude");
-}
-
-function buildActiveGroupFieldBuckets(
-  children: SearchFilterNode[],
-  path: number[],
-  groupedFieldValues: ReadonlySet<string>,
-): { buckets: ActiveGroupFieldBucket[]; groupedChildIndexes: Set<number> } {
-  const bucketsByKey = new Map<string, ActiveGroupFieldBucket>();
-  const groupedChildIndexes = new Set<number>();
-  const fieldMemberPathsByField = new Map<string, number[][]>();
-
-  children.forEach((child, childIndex) => {
-    const childPath = [...path, childIndex];
-    const members = collectActiveGroupFieldMembers(child, childPath, groupedFieldValues);
-    if (!members || members.length === 0) {
-      return;
-    }
-
-    groupedChildIndexes.add(childIndex);
-    for (const member of members) {
-      const fieldMemberPaths = fieldMemberPathsByField.get(member.field) ?? [];
-      fieldMemberPaths.push(member.path);
-      fieldMemberPathsByField.set(member.field, fieldMemberPaths);
-      const bucketKey =
-        member.operator === "include"
-          ? `${member.field}\u0000${member.operator}`
-          : `${member.field}\u0000${member.operator}\u0000${member.path.join(".")}\u0000${member.valueLabel}`;
-      const bucket = bucketsByKey.get(bucketKey);
-      if (bucket) {
-        bucket.values.push(member.valueLabel);
-        bucket.memberPaths.push(member.path);
-        continue;
-      }
-      bucketsByKey.set(bucketKey, {
-        field: member.field,
-        fieldLabel: member.fieldLabel,
-        operator: member.operator,
-        values: [member.valueLabel],
-        memberPaths: [member.path],
-        fieldMemberPaths: [],
-        firstIndex: childIndex,
-      });
-    }
-  });
-
-  const buckets = [...bucketsByKey.values()]
-    .map((bucket) => ({
-      ...bucket,
-      values: [...bucket.values].sort((left, right) => left.localeCompare(right)),
-    }))
-    .sort(compareActiveGroupFieldBuckets);
-
-  for (const bucket of buckets) {
-    bucket.fieldMemberPaths = fieldMemberPathsByField.get(bucket.field) ?? [...bucket.memberPaths];
-  }
-
-  return { buckets, groupedChildIndexes };
-}
-
-function pathsEqual(left: number[] | undefined, right: number[]): boolean {
-  return Boolean(left) && JSON.stringify(left) === JSON.stringify(right);
-}
-
 function buildFilterTreeEntries(
   node: SearchFilterNode | undefined,
   options: {
     category: ReturnType<typeof getSearchQueryCategory>;
     activeGroupPath: number[] | null;
-    groupedFieldValues: ReadonlySet<string>;
     packLabelResolver?: (packValue: string) => string | null | undefined;
     moveSourcePath: number[] | null;
     rootOperator: "allOf" | "anyOf";
@@ -317,42 +117,9 @@ function buildFilterTreeEntries(
     const showInsertionSlot =
       isSearchFilterBooleanGroup(current) &&
       (moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, path));
-    const useActiveGroupProjection = current.kind === "allOf" || current.kind === "anyOf";
-    const { buckets, groupedChildIndexes } = useActiveGroupProjection
-      ? buildActiveGroupFieldBuckets(children, path, options.groupedFieldValues)
-      : { buckets: [], groupedChildIndexes: new Set<number>() };
-
-    const childRenderItems: ActiveGroupChildRenderItem[] = [];
     children.forEach((child, childIndex) => {
-      if (groupedChildIndexes.has(childIndex)) {
-        return;
-      }
-      childRenderItems.push({ kind: "node", child, childIndex });
-    });
-    for (const bucket of buckets) {
-      childRenderItems.push({ kind: "bucket", bucket });
-    }
-
-    childRenderItems.forEach((item, renderIndex) => {
-      const childIsLast = renderIndex === childRenderItems.length - 1 && !showInsertionSlot;
-      if (item.kind === "bucket") {
-        entries.push({
-          kind: "queryFieldBucket",
-          key: `queryFieldBucket:${path.join(".")}:${getStructuredDraftBucketKey(item.bucket)}`,
-          label: formatStructuredDraftBucketLabel(item.bucket),
-          description: `Edit the current-group ${item.bucket.fieldLabel.toLowerCase()} selections through the shared explorer.`,
-          groupPath: path,
-          field: item.bucket.field,
-          fieldOperator: item.bucket.operator,
-          memberPaths: item.bucket.memberPaths,
-          fieldMemberPaths: item.bucket.fieldMemberPaths,
-          indent: depth + 1,
-          menuLabel: `${formatTreePrefix(childAncestorContinuations, childIsLast)}${formatStructuredDraftBucketLabel(item.bucket)}`,
-        });
-        return;
-      }
-
-      appendNode(item.child, [...path, item.childIndex], depth + 1, childAncestorContinuations, childIsLast);
+      const childIsLast = childIndex === children.length - 1 && !showInsertionSlot;
+      appendNode(child, [...path, childIndex], depth + 1, childAncestorContinuations, childIsLast);
     });
 
     if (showInsertionSlot) {
@@ -372,55 +139,10 @@ function buildFilterTreeEntries(
 
   const showRootInsertionSlot =
     moveSourcePath === null || isValidSearchFilterMoveTargetGroupPath(node, moveSourcePath, []);
-  const useRootActiveGroupProjection =
-    options.activeGroupPath !== null &&
-    options.activeGroupPath.length === 0 &&
-    node !== undefined &&
-    node.kind === "allOf";
-  if (useRootActiveGroupProjection) {
-    const { buckets, groupedChildIndexes } = buildActiveGroupFieldBuckets(
-      node.children,
-      [],
-      options.groupedFieldValues,
-    );
-    const rootRenderItems: ActiveGroupChildRenderItem[] = [];
-    node.children.forEach((child, childIndex) => {
-      if (groupedChildIndexes.has(childIndex)) {
-        return;
-      }
-      rootRenderItems.push({ kind: "node", child, childIndex });
-    });
-    for (const bucket of buckets) {
-      rootRenderItems.push({ kind: "bucket", bucket });
-    }
-
-    rootRenderItems.forEach((item, renderIndex) => {
-      const isLast = renderIndex === rootRenderItems.length - 1 && !showRootInsertionSlot;
-      if (item.kind === "bucket") {
-        entries.push({
-          kind: "queryFieldBucket",
-          key: `queryFieldBucket:root:${getStructuredDraftBucketKey(item.bucket)}`,
-          label: formatStructuredDraftBucketLabel(item.bucket),
-          description: `Edit the current-group ${item.bucket.fieldLabel.toLowerCase()} selections through the shared explorer.`,
-          groupPath: [],
-          field: item.bucket.field,
-          fieldOperator: item.bucket.operator,
-          memberPaths: item.bucket.memberPaths,
-          fieldMemberPaths: item.bucket.fieldMemberPaths,
-          indent: 1,
-          menuLabel: `${formatTreePrefix([], isLast)}${formatStructuredDraftBucketLabel(item.bucket)}`,
-        });
-        return;
-      }
-
-      appendNode(item.child, [item.childIndex], 1, [], isLast);
-    });
-  } else {
-    displayNodes.forEach((displayNode, displayIndex) => {
-      const isLast = displayIndex === displayNodes.length - 1 && !showRootInsertionSlot;
-      appendNode(displayNode.node, displayNode.path, 1, [], isLast);
-    });
-  }
+  displayNodes.forEach((displayNode, displayIndex) => {
+    const isLast = displayIndex === displayNodes.length - 1 && !showRootInsertionSlot;
+    appendNode(displayNode.node, displayNode.path, 1, [], isLast);
+  });
 
   if (showRootInsertionSlot) {
     entries.push({
@@ -458,7 +180,6 @@ export function buildStructuredDraftEntries(
     ...buildFilterTreeEntries(draftQuery.filter, {
       category: draftCategory,
       activeGroupPath,
-      groupedFieldValues: options.groupedFieldValues ?? new Set<string>(),
       packLabelResolver: options.packLabelResolver,
       moveSourcePath: options.moveSourcePath ?? null,
       rootOperator: getSearchQueryRootOperator(draftQuery),
@@ -473,18 +194,4 @@ export function buildStructuredDraftEntries(
   }
 
   return entries;
-}
-
-export function findStructuredDraftGroupedFieldBucketForPath(
-  draftQuery: Pf2eTerminalSearchQuery,
-  groupPath: number[],
-  field: string,
-  groupedFieldValues: ReadonlySet<string>,
-): SearchStructuredDraftEntry | null {
-  return (
-    buildStructuredDraftEntries(draftQuery, createStructuredDraftGroupResumeTarget(groupPath), {
-      groupedFieldValues,
-    }).find((entry) => entry.kind === "queryFieldBucket" && entry.field === field && pathsEqual(entry.groupPath, groupPath)) ??
-    null
-  );
 }

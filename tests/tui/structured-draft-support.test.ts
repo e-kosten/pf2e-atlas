@@ -83,7 +83,7 @@ describe("structured draft support", () => {
     expect(selectedEntry?.insertionPath).toEqual([0]);
   });
 
-  it("projects active-group shared-explorer clauses into grouped field buckets", () => {
+  it("renders active-group shared-explorer metadata clauses as canonical rows", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: {
@@ -104,21 +104,19 @@ describe("structured draft support", () => {
     const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
     });
-    const bucketEntries = entries.filter((entry) => entry.kind === "queryFieldBucket");
-
-    expect(bucketEntries).toHaveLength(2);
-    expect(bucketEntries[0]?.label).toBe("Traits: Include auditory, illusion");
-    expect(bucketEntries[0]?.fieldMemberPaths).toEqual([[1], [2], [3]]);
-    expect(bucketEntries[1]?.label).toBe("Traits: !emotion");
+    expect(entries.filter((entry) => entry.kind === "queryFieldBucket")).toHaveLength(0);
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
-      false,
+      true,
     );
     expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
-      false,
+      true,
     );
+    expect(
+      entries.some((entry) => entry.kind === "queryNode" && entry.label === "! Traits: includes Emotion"),
+    ).toBe(true);
   });
 
-  it("orders grouped field buckets by field and then polarity instead of child encounter order", () => {
+  it("keeps grouped metadata fields in encounter order instead of synthetic bucket order", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: {
@@ -135,13 +133,16 @@ describe("structured draft support", () => {
       },
     };
 
-    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
+    const traitLabels = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
-    }).filter((entry) => entry.kind === "queryFieldBucket");
+    })
+      .filter((entry) => entry.kind === "queryNode" && entry.label.includes("Traits:"))
+      .map((entry) => entry.label);
 
-    expect(bucketEntries.map((entry) => entry.label)).toEqual([
-      "Traits: Include auditory, illusion",
-      "Traits: !emotion",
+    expect(traitLabels).toEqual([
+      "! Traits: includes Emotion",
+      "Traits: includes Illusion",
+      "Traits: includes Auditory",
     ]);
   });
 
@@ -165,20 +166,48 @@ describe("structured draft support", () => {
       },
     };
 
-    const bucketEntries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
+    const traitLabels = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([]), {
       groupedFieldValues: new Set(["traits"]),
-    }).filter((entry) => entry.kind === "queryFieldBucket");
+    })
+      .filter((entry) => entry.kind === "queryNode" && entry.label.includes("Traits:"))
+      .map((entry) => entry.label);
 
-    expect(bucketEntries.map((entry) => entry.label)).toEqual([
-      "Traits: Include humanoid",
-      "Traits: !evil",
-      "Traits: !unholy",
+    expect(traitLabels).toEqual([
+      "Traits: includes Humanoid",
+      "! Traits: includes Evil",
+      "! Traits: includes Unholy",
     ]);
-    expect(bucketEntries.map((entry) => entry.fieldMemberPaths)).toEqual([
-      [[1], [2], [3]],
-      [[1], [2], [3]],
-      [[1], [2], [3]],
-    ]);
+  });
+
+  it("projects any-of active groups as canonical child rows", () => {
+    const query: Pf2eTerminalSearchQuery = {
+      mode: "browse",
+      filter: {
+        kind: "allOf",
+        children: [
+          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
+          {
+            kind: "anyOf",
+            children: [
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
+              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
+            ],
+          },
+        ],
+      },
+    };
+
+    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([1]), {
+      groupedFieldValues: new Set(["traits"]),
+    });
+
+    expect(entries.some((entry) => entry.kind === "queryFieldBucket")).toBe(false);
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
+      true,
+    );
+    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Auditory")).toBe(
+      true,
+    );
   });
 
   it("keeps focused member paths as exact node targets instead of grouped bucket continuation owners", () => {
@@ -205,44 +234,6 @@ describe("structured draft support", () => {
 
     expect(entries[selectedIndex]?.kind).toBe("queryNode");
     expect(entries[selectedIndex]?.label).toBe("Traits: includes Auditory");
-  });
-
-  it("projects any-of active groups through shared-explorer buckets", () => {
-    const query: Pf2eTerminalSearchQuery = {
-      mode: "browse",
-      filter: {
-        kind: "allOf",
-        children: [
-          { kind: "scope", category: "spell", subcategory: { kind: "any" } },
-          {
-            kind: "anyOf",
-            children: [
-              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "illusion" } },
-              { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "auditory" } },
-            ],
-          },
-        ],
-      },
-    };
-
-    const entries = buildStructuredDraftEntries(query, createStructuredDraftGroupResumeTarget([1]), {
-      groupedFieldValues: new Set(["traits"]),
-    });
-
-    expect(entries).toContainEqual(
-      expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [1],
-        field: "traits",
-        memberPaths: [
-          [1, 0],
-          [1, 1],
-        ],
-      }),
-    );
-    expect(entries.some((entry) => entry.kind === "queryNode" && entry.label === "Traits: includes Illusion")).toBe(
-      false,
-    );
   });
 
   it("keeps a root any-of structural instead of projecting shared-explorer buckets", () => {
@@ -305,27 +296,15 @@ describe("structured draft support", () => {
     });
 
     expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Any of");
-    expect(rootEntries).toContainEqual(
-      expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [1],
-        label: "Traits: Include evil, humanoid",
-      }),
-    );
-    expect(rootEntries).not.toContainEqual(
-      expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [],
-        label: "Traits: Include evil, humanoid",
-      }),
-    );
-    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Traits: !chaotic");
-    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ Traits: !unholy");
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("│  ├─ Traits: includes Evil");
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("│  ├─ Traits: includes Humanoid");
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ ! Traits: includes Chaotic");
+    expect(rootEntries.map((entry) => entry.menuLabel)).toContain("├─ ! Traits: includes Unholy");
     expect(anyOfEntries).toContainEqual(
       expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [1],
-        label: "Traits: Include evil, humanoid",
+        kind: "queryNode",
+        treePath: [1, 0],
+        label: "Traits: includes Evil",
       }),
     );
   });

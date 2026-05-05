@@ -106,7 +106,6 @@ export function useSearchStructuredDraftEntryActions({
     moveSourcePath,
     openLiveExplorerCanonicalFieldMember,
     openLiveExplorerExactNodeFieldClauseFallback,
-    openLiveExplorerGroupedField,
     openLiveExplorerGroupFieldByName,
     promptForClauseKind,
     promptForClauseNode,

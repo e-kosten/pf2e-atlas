@@ -3426,6 +3426,9 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Query Clause", 60);
+    app.stdin.write("\r");
+    await flushInk();
     await waitForFrameToContain(app, "common", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("common");
@@ -3480,7 +3483,10 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
-    expect(app.lastFrame()).toContain("Rarity Explorer");
+    await waitForFrameToContain(app, "Query Clause", 60);
+    app.stdin.write("\r");
+    await flushInk();
+    await waitForFrameToContain(app, "Rarity Explorer", 60);
 
     await waitForFrameToContain(app, "[✓] common", 60);
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -3543,6 +3549,9 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    await flushInk();
+    await waitForFrameToContain(app, "Query Clause", 60);
+    app.stdin.write("\r");
     await flushInk();
     await waitForFrameToContain(app, "[✓] common", 60);
 
@@ -3671,7 +3680,11 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
+    await waitForFrameToContain(app, "Query Clause", 60);
+    app.stdin.write("\r");
+    await flushInk();
 
+    await waitForFrameToContain(app, "Rarity Explorer", 60);
     await waitForFrameToContain(app, "matching counts", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("matching counts");
@@ -4091,8 +4104,9 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Top-level filters: 2");
     expect(app.lastFrame()).toContain("Metadata predicates: 3");
     expect(app.lastFrame()).toContain("├─ All of");
-    expect(app.lastFrame()).toContain("Traits: Include archetype,");
-    expect(app.lastFrame()).toContain("Traits: !concentrate");
+    expect(app.lastFrame()).toContain("Traits: includes Archetype");
+    expect(app.lastFrame()).toContain("Traits: includes Dedication");
+    expect(app.lastFrame()).toContain("! Traits: includes Concentrate");
   });
 
   it("keeps feat trait edit-clause additions flat instead of wrapping them in a nested group", async () => {
@@ -4322,9 +4336,9 @@ describe("search screen", () => {
     await openStructuredQueryEditor(app);
 
     expect(app.lastFrame()).toMatch(/^├─ Creature Statistics: ability\.cha\.mod > 5\s*│/m);
-    expect(app.lastFrame()).toMatch(/^├─ Traits: Include humanoid\s*│/m);
-    expect(app.lastFrame()).toMatch(/^├─ Traits: !evil\s*│/m);
-    expect(app.lastFrame()).toMatch(/^├─ Traits: !unholy\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ Traits: includes Humanoid\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ ! Traits: includes Evil\s*│/m);
+    expect(app.lastFrame()).toMatch(/^├─ ! Traits: includes Unholy\s*│/m);
     expect(app.lastFrame()).not.toContain("Traits: !evil, !unholy");
   });
 
@@ -4382,9 +4396,9 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Top-level filters: 5");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !unholy");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: includes humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ ! traits: includes evil");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ ! traits: includes unholy");
   });
 
   it("adds rarity via direct add-clause option when trait fields are also available", async () => {
@@ -4441,9 +4455,9 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Top-level filters: 5");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^│\s+├─ All of$/m)).toBeNull();
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: include humanoid");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !evil");
-    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: !unholy");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ traits: includes humanoid");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ ! traits: includes evil");
+    expect(app.lastFrame().toLowerCase()).toContain("├─ ! traits: includes unholy");
   });
 
   it("adds rarity before selecting a scope", async () => {
@@ -4637,8 +4651,8 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Structured Query Editor");
     expect(app.lastFrame()).toContain("Structured Query Editor");
-    expect(app.lastFrame()).toContain("Traits: Include illusion");
-    expect(app.lastFrame()).toContain("Traits: !emotion");
+    expect(app.lastFrame()).toContain("Traits: includes Illusion");
+    expect(app.lastFrame()).toContain("! Traits: includes Emotion");
     expect(app.lastFrame()).not.toContain("├─ Exclude");
     expect(app.lastFrame()).not.toContain("└─ Exclude");
   });

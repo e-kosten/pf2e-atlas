@@ -93,13 +93,16 @@ describe("structured draft resume target state", () => {
     });
     expect(entries).toContainEqual(
       expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [1],
-        field: "traits",
-        fieldMemberPaths: [
-          [1, 0],
-          [1, 1],
-        ],
+        kind: "queryNode",
+        treePath: [1, 0],
+        label: "Traits: includes Amphibious",
+      }),
+    );
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        kind: "queryNode",
+        treePath: [1, 1],
+        label: "Traits: includes Aquatic",
       }),
     );
   });
@@ -163,7 +166,7 @@ describe("structured draft resume target state", () => {
     });
   });
 
-  it("derives grouped buckets from an explicit canonical groupPath target", () => {
+  it("renders grouped metadata fields as exact node rows for explicit group targets", () => {
     const query: Pf2eTerminalSearchQuery = {
       mode: "browse",
       filter: allOfFilter([
@@ -177,14 +180,12 @@ describe("structured draft resume target state", () => {
 
     expect(entries).toContainEqual(
       expect.objectContaining({
-        kind: "queryFieldBucket",
-        groupPath: [],
-        field: "traits",
-        memberPaths: [[2], [3]],
-        label: "Traits: Include illusion, visual",
+        kind: "queryNode",
+        treePath: [2],
+        label: "Traits: includes Illusion",
       }),
     );
-    expect(entries).not.toContainEqual(
+    expect(entries).toContainEqual(
       expect.objectContaining({
         kind: "queryNode",
         treePath: [3],

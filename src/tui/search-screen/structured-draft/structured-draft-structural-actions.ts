@@ -31,10 +31,7 @@ import {
   buildExplorerOnlyFieldOption,
   getQueryFieldValueForNode,
 } from "./structured-draft-explorer-actions.js";
-import {
-  applyStructuredDraftHostMutationToQuery,
-  getContainingBooleanGroupPath,
-} from "./structured-draft-host-mutations.js";
+import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host-mutations.js";
 import {
   isMetricFieldOptionValue,
   type ClauseKind,
@@ -46,7 +43,6 @@ import {
   createStructuredDraftGroupResumeTarget,
   type StructuredDraftResumeTarget,
 } from "./structured-draft-state.js";
-import { findStructuredDraftGroupedFieldBucketForPath } from "./structured-draft-support.js";
 
 type ClauseApplyResult = "applied" | "back" | "cancelled";
 
@@ -328,7 +324,6 @@ export function useStructuredDraftStructuralActions({
   moveSourcePath,
   openLiveExplorerCanonicalFieldMember,
   openLiveExplorerExactNodeFieldClauseFallback,
-  openLiveExplorerGroupedField,
   openLiveExplorerGroupFieldByName,
   promptForClauseKind,
   promptForClauseNode,
@@ -358,7 +353,6 @@ export function useStructuredDraftStructuralActions({
     fieldOption: Pf2eTerminalQueryFieldOption,
     currentNode: MetadataFilterNode | null,
   ) => Promise<void>;
-  openLiveExplorerGroupedField: (query: Pf2eTerminalSearchQuery, entry: SearchStructuredDraftEntry) => Promise<void>;
   openLiveExplorerGroupFieldByName: (
     query: Pf2eTerminalSearchQuery,
     groupPath: number[],
@@ -632,22 +626,6 @@ export function useStructuredDraftStructuralActions({
           editableMetadataNode
         ) {
           if (fieldOption.editor === "sharedExplorer") {
-            const groupedFieldValues = new Set(
-              fieldOptions
-                .filter((candidate) => candidate.editor === "sharedExplorer")
-                .map((candidate) => candidate.value),
-            );
-            const groupPath = getContainingBooleanGroupPath(query.filter, path);
-            const groupedFieldBucket = findStructuredDraftGroupedFieldBucketForPath(
-              query,
-              groupPath,
-              fieldOption.value,
-              groupedFieldValues,
-            );
-            if (groupedFieldBucket) {
-              await openLiveExplorerGroupedField(query, groupedFieldBucket);
-              return;
-            }
             await openLiveExplorerExactNodeFieldClauseFallback(query, path, fieldOption, editableMetadataNode);
             return;
           }
@@ -728,7 +706,6 @@ export function useStructuredDraftStructuralActions({
       editFieldClause,
       enterStructuredDraftMoveMode,
       getScopedFieldOptions,
-      openLiveExplorerGroupedField,
       openLiveExplorerCanonicalFieldMember,
       openLiveExplorerExactNodeFieldClauseFallback,
       promptForClauseNode,

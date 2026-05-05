@@ -13,11 +13,12 @@ import {
   getSearchQueryMetadataTree,
   getSearchQueryPackSelection,
   getSearchQueryRaritySelection,
+  getSearchQueryRootOperator,
   setSearchQueryPackSelection,
   setSearchQueryRaritySelection,
 } from "../../search/query-state.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
-import { getSearchFilterNodeAtPath } from "../../search/query-core.js";
+import { appendSearchFilterNodesAtPath, getSearchFilterNodeAtPath, updateSearchFilterNodeAtPath } from "../../search/query-core.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -417,6 +418,26 @@ export function useStructuredDraftExplorerActions({
         if (mutation.kind !== "replaceNode") {
           return;
         }
+        if (mutation.node?.kind === "allOf" && path.length > 0 && mutation.node.children.length > 1) {
+          const [firstNode, ...additionalNodes] = mutation.node.children;
+          const groupPath = path.slice(0, -1);
+          const replacedFilter = updateSearchFilterNodeAtPath(query.filter, path, () => firstNode);
+          const nextFilter = appendSearchFilterNodesAtPath(
+            replacedFilter,
+            groupPath,
+            additionalNodes,
+            getSearchQueryRootOperator(query),
+          );
+          liveChangeState.saw = true;
+          replaceStructuredDraftProjection(
+            () => ({
+              ...query,
+              filter: nextFilter,
+            }),
+            { resumeTarget: createStructuredDraftGroupResumeTarget(groupPath) },
+          );
+          return;
+        }
         const application = applyStructuredDraftHostMutationToQuery(query, mutation, {
           kind: "replaceNode",
           path,
@@ -430,10 +451,13 @@ export function useStructuredDraftExplorerActions({
         });
       };
       setStructuredDraftResumeTarget(createStructuredDraftNodeResumeTarget(path));
+      const preparedDraft = user.search.prepareFilterExplorerDraftFromMetadataNode(currentNode, [fieldOption.value]);
       const continuation = await openStructuredDraftExplorerContinuation({
         query,
         fieldOption,
         currentNode,
+        initialFieldState: buildSearchFilterExplorerFieldState(preparedDraft.draft),
+        preservedMetadata: preparedDraft.preservedMetadata,
         onHostChange: applyChange,
       });
       if (
@@ -447,7 +471,7 @@ export function useStructuredDraftExplorerActions({
         applyChange(continuation.change);
       }
     },
-    [openStructuredDraftExplorerContinuation, replaceStructuredDraftProjection, setStructuredDraftResumeTarget],
+    [openStructuredDraftExplorerContinuation, replaceStructuredDraftProjection, setStructuredDraftResumeTarget, user.search],
   );
 
   const openPromptFieldClause = React.useCallback(

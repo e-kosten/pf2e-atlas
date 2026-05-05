@@ -876,12 +876,11 @@ function selectedStructuredEntry(
   return entries[getStructuredDraftSelectionIndexForResumeTarget(entries, resumeTarget, 0)]!;
 }
 
-function expectProjectedTraitBucket(filter: SearchFilterNode | undefined, groupPath: number[] = []): void {
+function expectVisibleTraitNode(filter: SearchFilterNode | undefined, label: string): void {
   expect(structuredEntriesFor(filter, createStructuredDraftGroupResumeTarget([]))).toContainEqual(
     expect.objectContaining({
-      kind: "queryFieldBucket",
-      groupPath,
-      field: "traits",
+      kind: "queryNode",
+      label,
     }),
   );
 }
@@ -1072,22 +1071,18 @@ describe("search structured editor continuation", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
 
-    pressUp(app);
+    pressDown(app);
     await flushInk();
-    pressUp(app);
+    pressDown(app);
     await flushInk();
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Query Clause", 60);
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Traits Explorer", 60);
     await waitForFrameToContain(app, "skill", 120);
-    pressDown(app);
-    await flushInk();
-    app.stdin.write(" ");
-    await flushInk();
-    await flushInk();
     await returnFromExplorerToStructuredEditor(app);
 
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
-    expect(app.lastFrame()).toContain("Traits: includes Skill");
     expect(app.lastFrame().toLowerCase()).toContain("concent");
     expect(app.lastFrame().match(/^├─ All of$/m)).toBeNull();
     expect(app.lastFrame().match(/^├─ Any of$/m)).toBeNull();
@@ -1097,7 +1092,6 @@ describe("search structured editor continuation", () => {
       allOfFilter([
         scopeFilter("spell"),
         metadataPredicateFilter({ field: "traits", op: "includes", value: "archetype" }),
-        metadataPredicateFilter({ field: "traits", op: "includes", value: "skill" }),
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
       ]),
     );
@@ -1208,19 +1202,21 @@ describe("search structured editor continuation", () => {
     expect(qApp.lastFrame()).toContain("Pack: Pathfinder Equipment Core");
     expect(qApp.lastFrame()).toContain("Scope: Equipment");
     expect(qApp.lastFrame()).toContain("Level: > 3");
-    expect(qApp.lastFrame()).toContain("Traits: Include consumable,");
-    expect(qApp.lastFrame()).toContain("Traits: !cursed");
-    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 2);
+    expect(qApp.lastFrame()).toContain("Traits: includes Consumable");
+    expect(qApp.lastFrame()).toContain("Traits: includes Magical");
+    expect(qApp.lastFrame()).toContain("! Traits: includes Cursed");
+    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 3);
 
     await openMetricExplorerFromAddHere(qApp, "Equipment Statistics");
     await waitForFrameToContain(qApp, "bulk.", 120);
     qApp.stdin.write("q");
     await waitForFrameToContain(qApp, "Structured Query Editor", 60);
 
-    expect(qApp.lastFrame()).toContain("Traits: Include consumable,");
-    expect(qApp.lastFrame()).toContain("Traits: !cursed");
+    expect(qApp.lastFrame()).toContain("Traits: includes Consumable");
+    expect(qApp.lastFrame()).toContain("Traits: includes Magical");
+    expect(qApp.lastFrame()).toContain("! Traits: includes Cursed");
     expect(qApp.lastFrame()).not.toContain("Equipment Statistics: bulk");
-    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 2);
+    expectNoDuplicateGroupedTraitProjection(qApp.lastFrame(), 3);
     await executeCurrentBrowseQuery(qApp);
     expect(lastListRequest(qListRecords).filter).toEqual(expectedFilter);
 
@@ -1243,10 +1239,11 @@ describe("search structured editor continuation", () => {
     await waitForFrameToContain(backApp, "Structured Query Editor", 60);
 
     expect(backApp.lastFrame()).toContain("Pack: Pathfinder Equipment Core");
-    expect(backApp.lastFrame()).toContain("Traits: Include consumable,");
-    expect(backApp.lastFrame()).toContain("Traits: !cursed");
+    expect(backApp.lastFrame()).toContain("Traits: includes Consumable");
+    expect(backApp.lastFrame()).toContain("Traits: includes Magical");
+    expect(backApp.lastFrame()).toContain("! Traits: includes Cursed");
     expect(backApp.lastFrame()).not.toContain("Equipment Statistics: bulk");
-    expectNoDuplicateGroupedTraitProjection(backApp.lastFrame(), 2);
+    expectNoDuplicateGroupedTraitProjection(backApp.lastFrame(), 3);
     await executeCurrentBrowseQuery(backApp);
     expect(lastListRequest(backListRecords).filter).toEqual(expectedFilter);
   });
@@ -1288,6 +1285,8 @@ describe("search structured editor continuation", () => {
     await flushInk();
     pressUp(app);
     await flushInk();
+    app.stdin.write("\r");
+    await waitForFrameToContain(app, "Query Clause", 60);
     app.stdin.write("\r");
     await waitForFrameToContain(app, "Action Cost Explorer", 60);
     await waitForFrameToContain(app, "1 action", 120);
@@ -1350,7 +1349,7 @@ describe("search structured editor continuation", () => {
       kind: "queryTreeRoot",
       treePath: [],
     });
-    expectProjectedTraitBucket(removedExclude, [1]);
+    expectVisibleTraitNode(removedExclude, "Traits: includes Archetype");
 
     const nestedGroupFilter = allOfFilter([
       scopeFilter("spell"),
@@ -1369,7 +1368,7 @@ describe("search structured editor continuation", () => {
         rarityFilter({ kind: "eq", value: "common" }),
       ]),
     );
-    expectProjectedTraitBucket(unwrappedGroup);
+    expectVisibleTraitNode(unwrappedGroup, "Traits: includes Archetype");
 
     const liftedRarity = liftSearchFilterNodeAtPath(nestedGroupFilter, [1, 1]);
     expect(liftedRarity).toEqual(
@@ -1383,7 +1382,7 @@ describe("search structured editor continuation", () => {
         rarityFilter({ kind: "eq", value: "common" }),
       ]),
     );
-    expectProjectedTraitBucket(liftedRarity);
+    expectVisibleTraitNode(liftedRarity, "Traits: includes Dedication");
 
     const movedRarityIntoGroup = moveSearchFilterNodeToGroupPath(nestedGroupFilter, [2], [1], "allOf");
     expect(movedRarityIntoGroup).toEqual(
@@ -1519,8 +1518,8 @@ describe("search structured editor continuation", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).toContain("! Traits: includes Concentrat");
-    expect(app.lastFrame()).toContain("Rarity: Include common");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
+    expect(app.lastFrame()).toContain("Rarity: Common");
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 3);
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
@@ -1572,9 +1571,9 @@ describe("search structured editor continuation", () => {
 
     await openStructuredQueryEditor(app);
     await addRootTraitGroup(app);
-    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Level: > 1");
-    expect(app.lastFrame()).toContain("Action Cost: Include 2");
+    expect(app.lastFrame()).toContain("Action Cost: 2");
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
 
@@ -1589,7 +1588,7 @@ describe("search structured editor continuation", () => {
     await runCurrentPromptActionByLabel(app, "Lift Node");
 
     expect(app.lastFrame()).toContain("Top-level filters: 6");
-    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Level: > 1");
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
@@ -1599,7 +1598,7 @@ describe("search structured editor continuation", () => {
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
     await openStructuredQueryEditor(app);
-    expect(app.lastFrame()).toContain("Rarity: Include common");
+    expect(app.lastFrame()).toContain("Rarity: Common");
     expect(app.lastFrame()).toContain("Level: > 1");
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
@@ -1658,7 +1657,7 @@ describe("search structured editor continuation", () => {
     expect(app.lastFrame()).toContain("Traits: includes Archetype");
     expect(app.lastFrame()).toContain("Traits: includes Dedication");
     expect(app.lastFrame()).not.toContain("Concentrat");
-    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 1);
+    expectNoDuplicateGroupedTraitProjection(app.lastFrame(), 2);
 
     pressLeft(app);
     await waitForFrameToContain(app, "[EDITOR] Query", 60);
