@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildStructuredDraftExplorerOnlyFieldOption,
-  classifyStructuredDraftAddFieldRoute,
+  classifyStructuredDraftAddIntentRoute,
   classifyStructuredDraftBucketEditRoute,
   classifyStructuredDraftNodeEditRoute,
-  classifyStructuredDraftPromptLeafAddRoute,
-  getStructuredDraftSyntheticFieldOption,
+  createStructuredDraftRouteCatalog,
+  getStructuredDraftAddIntentForClauseKind,
+  getStructuredDraftPromotedFieldOption,
   isStructuredDraftGroupFieldRoute,
 } from "../../src/tui/search-screen/structured-draft/structured-draft-edit-routes.js";
 import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.js";
@@ -34,9 +35,9 @@ describe("structured draft edit routes", () => {
     "set",
   );
   const descriptionField = {
-    value: "description",
-    label: "Description",
-    description: "Description text.",
+    value: "durationText",
+    label: "Duration",
+    description: "Duration text.",
     fieldType: "text",
     editor: "structuredForm",
   } satisfies Pf2eTerminalQueryFieldOption;
@@ -62,6 +63,7 @@ describe("structured draft edit routes", () => {
   );
 
   const fieldOptions = [traitsField, descriptionField, booleanField, numericField, actorMetricField];
+  const catalog = createStructuredDraftRouteCatalog(fieldOptions.map((fieldOption) => fieldOption.value));
 
   it("classifies add intents into group-field and leaf routes", () => {
     const query = browseQuery("Browse creatures", {
@@ -70,15 +72,14 @@ describe("structured draft edit routes", () => {
     }).request;
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: traitsField,
-        groupPath: [2],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "metadata", field: "traits" }, groupPath: [2] },
         query,
       }),
-    ).toEqual({
+    ).toMatchObject({
       kind: "groupField",
       field: "traits",
-      fieldOption: traitsField,
       groupPath: [2],
       memberPaths: [],
       fieldMemberPaths: [],
@@ -86,9 +87,9 @@ describe("structured draft edit routes", () => {
     });
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: booleanField,
-        groupPath: [],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "metadata", field: "publicationRemaster" }, groupPath: [] },
         query,
       }),
     ).toMatchObject({
@@ -101,7 +102,18 @@ describe("structured draft edit routes", () => {
   });
 
   it("classifies prompt-built add clauses in the route owner", () => {
-    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "scope", groupPath: [] })).toEqual({
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature")]),
+      limit: 20,
+    }).request;
+
+    expect(
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: getStructuredDraftAddIntentForClauseKind("scope", [])!,
+        query,
+      }),
+    ).toEqual({
       kind: "leaf",
       leafKind: "scope",
       path: null,
@@ -109,7 +121,13 @@ describe("structured draft edit routes", () => {
       placement: "rootSingleton",
     });
 
-    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "metricCompare", groupPath: [1] })).toEqual({
+    expect(
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: getStructuredDraftAddIntentForClauseKind("metricCompare", [1])!,
+        query,
+      }),
+    ).toEqual({
       kind: "leaf",
       leafKind: "metricCompare",
       path: null,
@@ -117,8 +135,10 @@ describe("structured draft edit routes", () => {
       placement: "inGroup",
     });
 
-    expect(classifyStructuredDraftPromptLeafAddRoute({ clauseKind: "pack", groupPath: [] })).toMatchObject({
-      kind: "unsupported",
+    expect(getStructuredDraftAddIntentForClauseKind("pack", [])).toEqual({
+      kind: "field",
+      field: { kind: "pack" },
+      groupPath: [],
     });
   });
 
@@ -133,15 +153,14 @@ describe("structured draft edit routes", () => {
     }).request;
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: traitsField,
-        groupPath: [],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "metadata", field: "traits" }, groupPath: [] },
         query,
       }),
-    ).toEqual({
+    ).toMatchObject({
       kind: "groupField",
       field: "traits",
-      fieldOption: traitsField,
       groupPath: [],
       memberPaths: [[1], [2]],
       fieldMemberPaths: [[1], [2]],
@@ -149,7 +168,7 @@ describe("structured draft edit routes", () => {
     });
   });
 
-  it("classifies synthetic grouped-field add intents with existing cohort paths", () => {
+  it("classifies promoted grouped-field add intents with existing cohort paths", () => {
     const query = browseQuery("Browse actions", {
       filter: allOfFilter([
         scopeFilter("rule", "action"),
@@ -162,9 +181,9 @@ describe("structured draft edit routes", () => {
     }).request;
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: getStructuredDraftSyntheticFieldOption("pack")!,
-        groupPath: [],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "pack" }, groupPath: [] },
         query,
       }),
     ).toMatchObject({
@@ -176,9 +195,9 @@ describe("structured draft edit routes", () => {
     });
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: getStructuredDraftSyntheticFieldOption("rarity")!,
-        groupPath: [],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "metadata", field: "rarity" }, groupPath: [] },
         query,
       }),
     ).toMatchObject({
@@ -190,9 +209,9 @@ describe("structured draft edit routes", () => {
     });
 
     expect(
-      classifyStructuredDraftAddFieldRoute({
-        fieldOption: getStructuredDraftSyntheticFieldOption("actionCost")!,
-        groupPath: [],
+      classifyStructuredDraftAddIntentRoute({
+        catalog,
+        intent: { kind: "field", field: { kind: "metadata", field: "actionCost" }, groupPath: [] },
         query,
       }),
     ).toMatchObject({
@@ -223,7 +242,7 @@ describe("structured draft edit routes", () => {
       const route = classifyStructuredDraftNodeEditRoute({
         query,
         path,
-        fieldOptions,
+        catalog,
       });
       expect(isStructuredDraftGroupFieldRoute(route)).toBe(true);
       expect(route).toMatchObject({
@@ -251,12 +270,12 @@ describe("structured draft edit routes", () => {
           memberPaths: [[1, 0]],
           fieldMemberPaths: [[1, 0]],
         },
-        fieldOptions,
+        catalog,
+        query: browseQuery("Browse creatures", { filter: allOfFilter([scopeFilter("creature")]), limit: 20 }).request,
       }),
-    ).toEqual({
+    ).toMatchObject({
       kind: "groupField",
       field: "traits",
-      fieldOption: traitsField,
       groupPath: [1],
       memberPaths: [[1, 0]],
       fieldMemberPaths: [[1, 0]],
@@ -270,7 +289,7 @@ describe("structured draft edit routes", () => {
         scopeFilter("creature"),
         levelFilter({ kind: "gte", value: 5 }),
         priceFilter({ kind: "lte", value: 100 }),
-        metadataPredicateFilter({ field: "description", op: "contains", value: "fire" }),
+        metadataPredicateFilter({ field: "durationText", op: "contains", value: "fire" }),
         metadataPredicateFilter({ field: "publicationRemaster", op: "eq", value: true }),
         metadataPredicateFilter({ field: "areaValue", op: "gte", value: 20 }),
         linksToFilter("spells:fireball"),
@@ -281,56 +300,56 @@ describe("structured draft edit routes", () => {
       limit: 20,
     }).request;
 
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [0], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [0], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "scope",
       placement: "rootSingleton",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [1], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [1], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "level",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [2], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [2], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "price",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [3], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [3], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "metadataText",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [4], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [4], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "metadataBoolean",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [5], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [5], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "metadataScalar",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [6], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [6], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "linksTo",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [7], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [7], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "linkedFrom",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [8], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [8], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "metric",
     });
-    expect(classifyStructuredDraftNodeEditRoute({ query, path: [9], fieldOptions })).toMatchObject({
+    expect(classifyStructuredDraftNodeEditRoute({ query, path: [9], catalog })).toMatchObject({
       kind: "leaf",
       leafKind: "metricCompare",
     });
   });
 
-  it("centralizes synthetic shared-explorer field options for grouped query fields", () => {
-    expect(getStructuredDraftSyntheticFieldOption("pack")).toMatchObject({ value: "pack", editor: "sharedExplorer" });
-    expect(getStructuredDraftSyntheticFieldOption("rarity")).toMatchObject({
+  it("centralizes promoted shared-explorer field options for grouped query fields", () => {
+    expect(getStructuredDraftPromotedFieldOption("pack")).toMatchObject({ value: "pack", editor: "sharedExplorer" });
+    expect(getStructuredDraftPromotedFieldOption("rarity")).toMatchObject({
       value: "rarity",
       editor: "sharedExplorer",
     });
-    expect(getStructuredDraftSyntheticFieldOption("actionCost")).toMatchObject({
+    expect(getStructuredDraftPromotedFieldOption("actionCost")).toMatchObject({
       value: "actionCost",
       editor: "sharedExplorer",
     });

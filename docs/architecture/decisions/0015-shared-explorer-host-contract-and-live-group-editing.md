@@ -42,6 +42,7 @@ In practice this means:
 - group-local structured-editor continuation should use canonical `groupPath` as the normal resume anchor, while exact node paths remain reserved for genuinely node-scoped operations
 - shared-explorer-backed leaf edits and grouped field edits should converge on the same host-owned continuation path while preserving distinct bounded mutation kinds
 - structured search editing classifies field-edit intent before opening child flows; the durable semantic edit routes are grouped-field cohort editing and single-clause leaf editing
+- field-edit classification uses semantic route intents and a shared route catalog; TUI picker rows are display/session data and do not select route behavior
 - scope is a root-singleton leaf route, and query-state normalization prunes scope-dependent metadata, metric, and action-cost clauses when the category changes
 - metric key discovery is an ordinary leaf child surface rather than a fallback edit route
 - `linksTo` and `linkedFrom` remain canonical record-link leaves and are edited as executable leaf routes when surfaced by the structured editor

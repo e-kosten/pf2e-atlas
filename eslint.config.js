@@ -557,6 +557,11 @@ export default defineConfig(
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
         },
         {
+          selector: 'CallExpression[callee.type="Identifier"][callee.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
           selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
           message:
             "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
@@ -611,6 +616,11 @@ export default defineConfig(
         "error",
         {
           selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector: 'CallExpression[callee.type="Identifier"][callee.name="applyFilterExplorerDraft"]',
           message:
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
         },
@@ -914,6 +924,11 @@ export default defineConfig(
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
         },
         {
+          selector: 'CallExpression[callee.type="Identifier"][callee.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
           selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
           message:
             "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
@@ -969,6 +984,11 @@ export default defineConfig(
             "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
         },
         {
+          selector: 'CallExpression[callee.type="Identifier"][callee.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
           selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
           message:
             "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
@@ -1019,6 +1039,85 @@ export default defineConfig(
           selector: 'Literal[value="replaceGroupedField"]',
           message:
             "Structured-draft grouped-field mutation construction belongs to the continuation, explorer, and host-mutation owners.",
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS,
+        {
+          selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector: 'CallExpression[callee.type="Identifier"][callee.name="applyFilterExplorerDraft"]',
+          message:
+            "Structured-draft final writeback must route through bounded structured-editor host mutations, not generic filter-explorer draft application.",
+        },
+        {
+          selector: 'CallExpression[callee.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
+        },
+        {
+          selector:
+            'Identifier[name=/^(openPromptPackClause|openPromptRarityClause|openLiveExplorerExactNodeFieldClauseFallback|translateExplorerInsertionToStructuredDraftMutation)$/]',
+          message:
+            "Retired structured-draft prompt wrappers, exact-node fallback routes, and generic serializer fallbacks must not be reintroduced.",
+        },
+        {
+          selector:
+            'CallExpression[callee.name="promptForClauseNode"] MemberExpression[property.name="value"]',
+          message:
+            "Structured-draft add-clause leaves must classify and execute a structured edit route before prompting; only explicit structural wrapper helpers may prompt directly.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="../../search/query-state.js"] ImportSpecifier[imported.name=/^(setSearchQueryPackSelection|setSearchQueryRaritySelection|setSearchQueryActionCostSelection)$/]',
+          message:
+            "Structured-draft grouped query-field writeback must route through grouped-field helpers and edit routes.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="./structured-draft-continuation.js"] ImportSpecifier[imported.name="runStructuredDraftExplorerContinuation"]',
+          message:
+            "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="./structured-draft-continuation.js"] ImportNamespaceSpecifier',
+          message:
+            "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'MemberExpression[property.name="runStructuredDraftExplorerContinuation"]',
+          message:
+            "Structured-draft explorer continuation may only be opened by the explorer action owner.",
+        },
+        {
+          selector:
+            'ImportDeclaration[source.value="./structured-draft-explorer-actions.js"] ImportSpecifier[imported.name="openLiveExplorerGroupedField"]',
+          message:
+            "Structured-draft projected bucket edits must classify and execute a structured edit route instead of opening the grouped explorer directly.",
+        },
+        {
+          selector: 'Literal[value="replaceGroupedField"]',
+          message:
+            "Structured-draft grouped-field mutation construction belongs to the continuation, explorer, and host-mutation owners.",
+        },
+        {
+          selector: 'Literal[value=/^(pack|rarity|actionCost)$/]',
+          message:
+            "Structured-draft action owners must route pack, rarity, and action-cost decisions through structured add intents instead of field-specific branches or direct node construction.",
         },
       ],
     },

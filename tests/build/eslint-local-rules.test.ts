@@ -280,6 +280,13 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      "async function run() { await applyFilterExplorerDraft(session); }\nexport { run };\n",
+      "bounded structured-editor host mutations",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
       "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
       'import { runStructuredDraftExplorerContinuation } from "./structured-draft-continuation.js";\nexport const value = runStructuredDraftExplorerContinuation;\n',
       "explorer continuation may only be opened by the explorer action owner",
@@ -340,6 +347,28 @@ describe("eslint local architecture rules", () => {
     await expectNoRuleMessages(
       "src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts",
       'const mutation = { kind: "replaceGroupedField" };\nexport { mutation };\n',
+      "no-restricted-syntax",
+    );
+  });
+
+  it("blocks field-specific structured-draft action owner branches and node construction", async () => {
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts",
+      'if (clauseKind.value === "pack") { routePack(); }\nexport { clauseKind };\n',
+      "route pack, rarity, and action-cost decisions through structured add intents",
+      "no-restricted-syntax",
+    );
+
+    await expectRuleMessage(
+      "src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts",
+      'const node = { kind: "rarity", match: { kind: "eq", value: "common" } };\nexport { node };\n',
+      "route pack, rarity, and action-cost decisions through structured add intents",
+      "no-restricted-syntax",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts",
+      'const node = { kind: "pack", value: "monster-core" };\nexport { node };\n',
       "no-restricted-syntax",
     );
   });

@@ -16,7 +16,10 @@ import type {
 import { useStructuredDraftExplorerActions } from "./structured-draft-explorer-actions.js";
 import { useStructuredDraftPromptActions } from "./structured-draft-prompt-actions.js";
 import { useStructuredDraftEditRouteActions } from "./structured-draft-edit-route-actions.js";
-import { classifyStructuredDraftBucketEditRoute } from "./structured-draft-edit-routes.js";
+import {
+  classifyStructuredDraftBucketEditRoute,
+  createStructuredDraftRouteCatalog,
+} from "./structured-draft-edit-routes.js";
 import {
   useStructuredDraftStructuralActions,
   type StructuredDraftEntryActionId,
@@ -126,8 +129,11 @@ export function useSearchStructuredDraftEntryActions({
         await executeStructuredDraftEditRoute(
           draftQuery,
           classifyStructuredDraftBucketEditRoute({
+            catalog: createStructuredDraftRouteCatalog(
+              getScopedFieldOptions(draftQuery).map((fieldOption) => fieldOption.value),
+            ),
             entry,
-            fieldOptions: getScopedFieldOptions(draftQuery),
+            query: draftQuery,
           }),
         );
         return;
@@ -175,8 +181,11 @@ export function useSearchStructuredDraftEntryActions({
           await executeStructuredDraftEditRoute(
             draftQuery,
             classifyStructuredDraftBucketEditRoute({
+              catalog: createStructuredDraftRouteCatalog(
+                getScopedFieldOptions(draftQuery).map((fieldOption) => fieldOption.value),
+              ),
               entry,
-              fieldOptions: getScopedFieldOptions(draftQuery),
+              query: draftQuery,
             }),
           );
         }

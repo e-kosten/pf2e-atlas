@@ -1,17 +1,58 @@
 import { inferActorMetricValueType } from "../../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
+import { getMetricDiscoveryGroupLabel } from "../../../domain/metric-discovery-group-label.js";
+import type { MetadataFieldName } from "../../../domain/metadata-field-types.js";
+import {
+  describeMetadataFieldType,
+  formatMetadataFieldLabel,
+} from "../../../domain/presentation-vocabulary.js";
+import { isSearchPromotedFieldDomainKey } from "../../../domain/search-field-domains.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
+import { isMetadataFieldName } from "../../../search/filters/registry.js";
+import {
+  getMetadataFilterSemantics,
+  type MetadataFieldSemantics,
+} from "../../../search/filters/semantics.js";
 import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchFilterNodeAtPath, isSearchFilterBooleanGroup } from "../../search/query-core.js";
 import type {
+  Pf2eTerminalQueryField,
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
+import { getQueryFieldEditor } from "../../search/discoverable-fields.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { getSearchQueryCategory } from "../../search/query-state.js";
 import { getContainingBooleanGroupPath } from "./structured-draft-host-mutations.js";
 
 export type StructuredDraftMetricFieldFamily = "actorMetric" | "itemMetric";
+
+export type StructuredDraftMetricFieldRefFamily = "actor" | "item";
+
+export type StructuredDraftFieldRef =
+  | { kind: "metadata"; field: MetadataFieldName }
+  | { kind: "metric"; family: StructuredDraftMetricFieldRefFamily }
+  | { kind: "pack" };
+
+export type StructuredDraftLeafAddKind =
+  | "scope"
+  | "level"
+  | "price"
+  | "metric"
+  | "metricCompare"
+  | "linksTo"
+  | "linkedFrom";
+
+export type StructuredDraftAddIntent =
+  | { kind: "field"; field: StructuredDraftFieldRef; groupPath: number[] }
+  | { kind: "leaf"; leaf: StructuredDraftLeafAddKind; groupPath: number[] };
+
+export type StructuredDraftRouteCatalog = {
+  getMetadataFieldSemantics: (field: MetadataFieldName) => MetadataFieldSemantics | null;
+  isMetadataFieldAvailable: (field: MetadataFieldName, query: Pf2eTerminalSearchQuery) => boolean;
+  isMetricFieldAvailable: (family: StructuredDraftMetricFieldRefFamily, query: Pf2eTerminalSearchQuery) => boolean;
+  isPromotedGroupedField: (field: MetadataFieldName) => boolean;
+};
 
 export type StructuredDraftLeafKind =
   | "scope"
@@ -59,6 +100,82 @@ export type StructuredDraftEditRoute =
       reason: string;
     };
 
+const METADATA_FIELD_SEMANTICS_BY_NAME = new Map<MetadataFieldName, MetadataFieldSemantics>(
+  getMetadataFilterSemantics().metadataFields.map((field) => [field.field, field]),
+);
+
+function metricRefFamilyToFieldValue(family: StructuredDraftMetricFieldRefFamily): StructuredDraftMetricFieldFamily {
+  return family === "actor" ? "actorMetric" : "itemMetric";
+}
+
+function metricFieldValueToRefFamily(
+  value: StructuredDraftMetricFieldFamily,
+): StructuredDraftMetricFieldRefFamily {
+  return value === "actorMetric" ? "actor" : "item";
+}
+
+export function createStructuredDraftRouteCatalog(
+  availableFields: readonly Pf2eTerminalQueryField[],
+): StructuredDraftRouteCatalog {
+  const availableMetadataFields = new Set<MetadataFieldName>();
+  const availableMetricFamilies = new Set<StructuredDraftMetricFieldRefFamily>();
+
+  for (const field of availableFields) {
+    if (field === "actorMetric" || field === "itemMetric") {
+      availableMetricFamilies.add(metricFieldValueToRefFamily(field));
+      continue;
+    }
+    if (isMetadataFieldName(field)) {
+      availableMetadataFields.add(field);
+    }
+  }
+
+  return {
+    getMetadataFieldSemantics: (field) => METADATA_FIELD_SEMANTICS_BY_NAME.get(field) ?? null,
+    isMetadataFieldAvailable: (field) =>
+      availableMetadataFields.has(field) || isSearchPromotedFieldDomainKey(field),
+    isMetricFieldAvailable: (family) => availableMetricFamilies.has(family),
+    isPromotedGroupedField: (field) => isSearchPromotedFieldDomainKey(field),
+  };
+}
+
+export function getStructuredDraftFieldRefForQueryFieldValue(
+  value: Pf2eTerminalQueryField,
+): StructuredDraftFieldRef | null {
+  if (value === "pack") {
+    return { kind: "pack" };
+  }
+  if (value === "actorMetric" || value === "itemMetric") {
+    return { kind: "metric", family: metricFieldValueToRefFamily(value) };
+  }
+  if (isMetadataFieldName(value)) {
+    return { kind: "metadata", field: value };
+  }
+  return null;
+}
+
+export function getStructuredDraftAddIntentForClauseKind(
+  clauseKind: StructuredDraftPromptAddClauseKind,
+  groupPath: number[],
+): StructuredDraftAddIntent | null {
+  switch (clauseKind) {
+    case "pack":
+      return { kind: "field", field: { kind: "pack" }, groupPath };
+    case "rarity":
+      return { kind: "field", field: { kind: "metadata", field: "rarity" }, groupPath };
+    case "actionCost":
+      return { kind: "field", field: { kind: "metadata", field: "actionCost" }, groupPath };
+    case "scope":
+    case "level":
+    case "price":
+    case "metric":
+    case "metricCompare":
+      return { kind: "leaf", leaf: clauseKind, groupPath };
+    case "field":
+      return null;
+  }
+}
+
 export function buildStructuredDraftExplorerOnlyFieldOption(
   field: Pf2eTerminalQueryFieldOption["value"],
   label: string,
@@ -74,7 +191,7 @@ export function buildStructuredDraftExplorerOnlyFieldOption(
   };
 }
 
-export function getStructuredDraftSyntheticFieldOption(
+export function getStructuredDraftPromotedFieldOption(
   field: Pf2eTerminalQueryFieldOption["value"],
 ): Pf2eTerminalQueryFieldOption | null {
   if (field === "pack") {
@@ -102,6 +219,76 @@ export function getStructuredDraftSyntheticFieldOption(
     );
   }
   return null;
+}
+
+function buildStructuredDraftMetadataFieldOption(
+  semantics: MetadataFieldSemantics,
+  options: { forceSharedExplorer?: boolean } = {},
+): Pf2eTerminalQueryFieldOption {
+  return {
+    value: semantics.field,
+    label: formatMetadataFieldLabel(semantics.field),
+    description:
+      semantics.notes ??
+      (semantics.field === "derivedTags"
+        ? "Derived-tag field with hierarchy-capable ontology browsing."
+        : `${describeMetadataFieldType(semantics.fieldType)} query field for the current browse scope.`),
+    fieldType: semantics.fieldType,
+    editor: options.forceSharedExplorer ? "sharedExplorer" : getQueryFieldEditor(semantics),
+  };
+}
+
+function buildStructuredDraftMetricFieldOption(
+  family: StructuredDraftMetricFieldRefFamily,
+  query: Pf2eTerminalSearchQuery,
+): Pf2eTerminalQueryFieldOption {
+  const category = getSearchQueryCategory(query);
+  const metricField = family === "actor" ? "actorMetrics" : "itemMetrics";
+  return {
+    value: metricRefFamilyToFieldValue(family),
+    label: category
+      ? getMetricDiscoveryGroupLabel(category, metricField)
+      : family === "actor"
+        ? "Creature Statistics"
+        : "Item Statistics",
+    description:
+      family === "actor"
+        ? "Browse live statistic keys and author exact or numeric literal filters for the current scope."
+        : "Browse live item property keys and author exact or numeric literal filters for the current scope.",
+    fieldType: "enumString",
+    editor: "sharedExplorer",
+  };
+}
+
+function resolveStructuredDraftFieldOptionForRef({
+  catalog,
+  field,
+  query,
+}: {
+  catalog: StructuredDraftRouteCatalog;
+  field: StructuredDraftFieldRef;
+  query: Pf2eTerminalSearchQuery;
+}): Pf2eTerminalQueryFieldOption | null {
+  switch (field.kind) {
+    case "pack":
+      return getStructuredDraftPromotedFieldOption("pack");
+    case "metric":
+      return catalog.isMetricFieldAvailable(field.family, query)
+        ? buildStructuredDraftMetricFieldOption(field.family, query)
+        : null;
+    case "metadata": {
+      if (!catalog.isMetadataFieldAvailable(field.field, query)) {
+        return null;
+      }
+      const semantics = catalog.getMetadataFieldSemantics(field.field);
+      if (!semantics) {
+        return null;
+      }
+      return buildStructuredDraftMetadataFieldOption(semantics, {
+        forceSharedExplorer: catalog.isPromotedGroupedField(field.field),
+      });
+    }
+  }
 }
 
 export function isStructuredDraftMetricFieldOptionValue(
@@ -185,27 +372,32 @@ export function structuredDraftSearchFilterNodeContainsFieldValue(
   return false;
 }
 
-export function isStructuredDraftGroupFieldOption(fieldOption: Pf2eTerminalQueryFieldOption): boolean {
-  if (fieldOption.value === "pack" || fieldOption.value === "rarity" || fieldOption.value === "actionCost") {
+export function isStructuredDraftGroupFieldRef(
+  field: StructuredDraftFieldRef,
+  catalog: StructuredDraftRouteCatalog,
+): boolean {
+  if (field.kind === "pack") {
     return true;
   }
-  if (isStructuredDraftMetricFieldOptionValue(fieldOption.value)) {
+  if (field.kind === "metric") {
     return false;
   }
-  return fieldOption.editor === "sharedExplorer" && (fieldOption.fieldType === "set" || fieldOption.fieldType === "enumString");
+  if (catalog.isPromotedGroupedField(field.field)) {
+    return true;
+  }
+  const semantics = catalog.getMetadataFieldSemantics(field.field);
+  return semantics?.fieldType === "set" || semantics?.fieldType === "enumString";
+}
+
+export function isStructuredDraftGroupFieldOption(fieldOption: Pf2eTerminalQueryFieldOption): boolean {
+  const fieldRef = getStructuredDraftFieldRefForQueryFieldValue(fieldOption.value);
+  return fieldRef ? isStructuredDraftGroupFieldRef(fieldRef, createStructuredDraftRouteCatalog([fieldOption.value])) : false;
 }
 
 export function isStructuredDraftGroupFieldRoute(
   route: StructuredDraftEditRoute,
 ): route is Extract<StructuredDraftEditRoute, { kind: "groupField" }> {
   return route.kind === "groupField";
-}
-
-export function resolveStructuredDraftFieldOption(
-  field: Pf2eTerminalQueryFieldOption["value"],
-  fieldOptions: readonly Pf2eTerminalQueryFieldOption[],
-): Pf2eTerminalQueryFieldOption | null {
-  return getStructuredDraftSyntheticFieldOption(field) ?? fieldOptions.find((candidate) => candidate.value === field) ?? null;
 }
 
 function getLeafKindForFieldOption(fieldOption: Pf2eTerminalQueryFieldOption): StructuredDraftLeafKind {
@@ -221,27 +413,10 @@ function getLeafKindForFieldOption(fieldOption: Pf2eTerminalQueryFieldOption): S
   return "metadataScalar";
 }
 
-function getLeafKindForAddClause(clauseKind: StructuredDraftPromptAddClauseKind): StructuredDraftLeafKind | null {
-  switch (clauseKind) {
-    case "scope":
-      return "scope";
-    case "level":
-      return "level";
-    case "price":
-      return "price";
-    case "metric":
-      return "metric";
-    case "metricCompare":
-      return "metricCompare";
-    case "field":
-    case "pack":
-    case "rarity":
-    case "actionCost":
-      return null;
-  }
-}
-
-function getLeafKindForNode(node: SearchFilterNode, fieldOption?: Pf2eTerminalQueryFieldOption): StructuredDraftLeafKind | null {
+function getLeafKindForNode(
+  node: SearchFilterNode,
+  fieldOption?: Pf2eTerminalQueryFieldOption,
+): StructuredDraftLeafKind | null {
   switch (node.kind) {
     case "scope":
       return "scope";
@@ -286,22 +461,45 @@ function collectGroupMemberPathsForField(
   );
 }
 
-export function classifyStructuredDraftAddFieldRoute({
-  fieldOption,
-  groupPath,
+export function classifyStructuredDraftAddIntentRoute({
+  catalog,
+  intent,
   query,
+  structuralWrapper,
 }: {
-  fieldOption: Pf2eTerminalQueryFieldOption;
-  groupPath: number[];
+  catalog: StructuredDraftRouteCatalog;
+  intent: StructuredDraftAddIntent;
   query: Pf2eTerminalSearchQuery;
+  structuralWrapper?: "allOf" | "anyOf" | "not";
 }): StructuredDraftEditRoute {
-  if (isStructuredDraftGroupFieldOption(fieldOption)) {
-    const memberPaths = collectGroupMemberPathsForField(query.filter, groupPath, fieldOption.value);
+  if (intent.kind === "leaf") {
+    return {
+      kind: "leaf",
+      leafKind: intent.leaf,
+      path: null,
+      groupPath: intent.groupPath,
+      placement: intent.leaf === "scope" ? "rootSingleton" : "inGroup",
+    };
+  }
+
+  const fieldOption = resolveStructuredDraftFieldOptionForRef({ catalog, field: intent.field, query });
+  if (!fieldOption) {
+    return { kind: "unsupported", reason: "That field is not available in the current query scope." };
+  }
+
+  if (isStructuredDraftGroupFieldRef(intent.field, catalog)) {
+    if (structuralWrapper !== undefined) {
+      return {
+        kind: "unsupported",
+        reason: "Grouped query fields must be added directly to an existing group before structural wrapping.",
+      };
+    }
+    const memberPaths = collectGroupMemberPathsForField(query.filter, intent.groupPath, fieldOption.value);
     return {
       kind: "groupField",
       field: fieldOption.value,
       fieldOption,
-      groupPath,
+      groupPath: intent.groupPath,
       memberPaths,
       fieldMemberPaths: memberPaths,
       source: "add",
@@ -312,38 +510,57 @@ export function classifyStructuredDraftAddFieldRoute({
     kind: "leaf",
     leafKind: getLeafKindForFieldOption(fieldOption),
     path: null,
-    groupPath,
+    groupPath: intent.groupPath,
     placement: "inGroup",
     fieldOption,
   };
 }
 
-export function classifyStructuredDraftPromptLeafAddRoute({
-  clauseKind,
-  groupPath,
+export function getStructuredDraftEditableClauseKindForNode({
+  catalog,
+  path,
+  query,
 }: {
-  clauseKind: StructuredDraftPromptAddClauseKind;
-  groupPath: number[];
-}): StructuredDraftEditRoute {
-  const leafKind = getLeafKindForAddClause(clauseKind);
-  if (!leafKind) {
-    return { kind: "unsupported", reason: "That clause must be routed through its field-specific editor." };
+  catalog: StructuredDraftRouteCatalog;
+  path: number[];
+  query: Pf2eTerminalSearchQuery;
+}): StructuredDraftPromptAddClauseKind | null {
+  const route = classifyStructuredDraftNodeEditRoute({ catalog, path, query });
+  if (route.kind === "unsupported") {
+    return null;
   }
-  return {
-    kind: "leaf",
-    leafKind,
-    path: null,
-    groupPath,
-    placement: leafKind === "scope" ? "rootSingleton" : "inGroup",
-  };
+  if (route.kind === "groupField") {
+    return "field";
+  }
+  switch (route.leafKind) {
+    case "scope":
+      return "scope";
+    case "level":
+      return "level";
+    case "price":
+      return "price";
+    case "metadataScalar":
+    case "metadataBoolean":
+    case "metadataText":
+      return "field";
+    case "metric":
+      return "metric";
+    case "metricCompare":
+      return "metricCompare";
+    case "linksTo":
+    case "linkedFrom":
+      return null;
+  }
 }
 
 export function classifyStructuredDraftBucketEditRoute({
+  catalog,
   entry,
-  fieldOptions,
+  query,
 }: {
+  catalog: StructuredDraftRouteCatalog;
   entry: SearchStructuredDraftEntry;
-  fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
+  query: Pf2eTerminalSearchQuery;
 }): StructuredDraftEditRoute {
   if (entry.kind !== "queryFieldBucket") {
     return { kind: "unsupported", reason: "That row is not a grouped field bucket." };
@@ -354,8 +571,11 @@ export function classifyStructuredDraftBucketEditRoute({
     return { kind: "unsupported", reason: "That grouped row is missing its query field." };
   }
 
-  const fieldOption = resolveStructuredDraftFieldOption(field, fieldOptions);
-  if (!fieldOption || !isStructuredDraftGroupFieldOption(fieldOption)) {
+  const fieldRef = getStructuredDraftFieldRefForQueryFieldValue(field);
+  const fieldOption = fieldRef
+    ? resolveStructuredDraftFieldOptionForRef({ catalog, field: fieldRef, query })
+    : null;
+  if (!fieldRef || !fieldOption || !isStructuredDraftGroupFieldRef(fieldRef, catalog)) {
     return { kind: "unsupported", reason: "That grouped row cannot be edited through the shared explorer." };
   }
 
@@ -374,11 +594,11 @@ export function classifyStructuredDraftBucketEditRoute({
 }
 
 export function classifyStructuredDraftNodeEditRoute({
-  fieldOptions,
+  catalog,
   path,
   query,
 }: {
-  fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
+  catalog: StructuredDraftRouteCatalog;
   path: number[];
   query: Pf2eTerminalSearchQuery;
 }): StructuredDraftEditRoute {
@@ -388,8 +608,11 @@ export function classifyStructuredDraftNodeEditRoute({
   }
 
   const fieldValue = getStructuredDraftQueryFieldValueForNode(node);
-  const fieldOption = fieldValue ? resolveStructuredDraftFieldOption(fieldValue, fieldOptions) : null;
-  if (fieldOption && isStructuredDraftGroupFieldOption(fieldOption)) {
+  const fieldRef = fieldValue ? getStructuredDraftFieldRefForQueryFieldValue(fieldValue) : null;
+  const fieldOption = fieldRef
+    ? resolveStructuredDraftFieldOptionForRef({ catalog, field: fieldRef, query })
+    : null;
+  if (fieldRef && fieldOption && isStructuredDraftGroupFieldRef(fieldRef, catalog)) {
     const groupPath = getContainingBooleanGroupPath(query.filter, path);
     const memberPaths = collectGroupMemberPathsForField(query.filter, groupPath, fieldOption.value);
     return {
@@ -409,7 +632,10 @@ export function classifyStructuredDraftNodeEditRoute({
   }
 
   if (node.kind === "metadataPredicate" && !canonicalFilterToMetadataNode(node)) {
-    return { kind: "unsupported", reason: "That metadata clause cannot be edited through the current canonical editor set." };
+    return {
+      kind: "unsupported",
+      reason: "That metadata clause cannot be edited through the current canonical editor set.",
+    };
   }
 
   return {

@@ -274,6 +274,7 @@ describe("structured draft structural actions", () => {
         groupPath: [],
         source: "add",
       }),
+      expect.objectContaining({ promptSession: expect.anything() }),
     );
     renderer.unmount();
   });
@@ -298,6 +299,7 @@ describe("structured draft structural actions", () => {
         groupPath: [],
         source: "add",
       }),
+      expect.objectContaining({ promptSession: expect.anything() }),
     );
     renderer.unmount();
   });
@@ -325,6 +327,7 @@ describe("structured draft structural actions", () => {
         groupPath: [],
         source: "add",
       }),
+      expect.objectContaining({ promptSession: expect.anything() }),
     );
     renderer.unmount();
   });

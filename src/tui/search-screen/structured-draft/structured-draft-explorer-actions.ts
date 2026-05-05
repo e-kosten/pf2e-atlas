@@ -41,7 +41,7 @@ import {
 import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host-mutations.js";
 import type { StructuredDraftResumeTarget } from "./structured-draft-state.js";
 import {
-  getStructuredDraftSyntheticFieldOption,
+  getStructuredDraftPromotedFieldOption,
   inferStructuredDraftMetricFieldFamily,
   isStructuredDraftGroupFieldOption,
   structuredDraftSearchFilterNodeContainsFieldValue,
@@ -431,7 +431,7 @@ export function useStructuredDraftExplorerActions({
       }
 
       const fieldOption =
-        getStructuredDraftSyntheticFieldOption(field) ??
+        getStructuredDraftPromotedFieldOption(field) ??
         getScopedFieldOptions(query).find((candidate) => candidate.value === field) ??
         null;
       if (!fieldOption || fieldOption.editor !== "sharedExplorer") {

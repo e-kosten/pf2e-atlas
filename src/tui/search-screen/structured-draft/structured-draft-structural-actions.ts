@@ -15,7 +15,6 @@ import {
   updateSearchFilterNodeAtPath,
   wrapSearchFilterNodeAtPath,
 } from "../../search/query-core.js";
-import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchQueryRootOperator } from "../../search/query-state.js";
 import type {
   Pf2eTerminalQueryFieldOption,
@@ -28,16 +27,15 @@ import type {
 } from "../workspace/workspace-action-types.js";
 import { applyStructuredDraftHostMutationToQuery } from "./structured-draft-host-mutations.js";
 import {
-  classifyStructuredDraftAddFieldRoute,
+  classifyStructuredDraftAddIntentRoute,
   classifyStructuredDraftNodeEditRoute,
-  classifyStructuredDraftPromptLeafAddRoute,
-  getStructuredDraftQueryFieldValueForNode,
-  getStructuredDraftSyntheticFieldOption,
-  resolveStructuredDraftFieldOption,
+  createStructuredDraftRouteCatalog,
+  getStructuredDraftAddIntentForClauseKind,
+  getStructuredDraftEditableClauseKindForNode,
+  getStructuredDraftFieldRefForQueryFieldValue,
   type StructuredDraftEditRoute,
 } from "./structured-draft-edit-routes.js";
 import {
-  isMetricFieldOptionValue,
   type ClauseKind,
   type ClausePromptResult,
   type SearchFilterNodeEditorResult,
@@ -305,40 +303,14 @@ export function getStructuredDraftGroupActionEntries(
 function getEditableClauseKind(
   query: Pf2eTerminalSearchQuery,
   path: number[],
-  node: SearchFilterNode,
+  _node: SearchFilterNode,
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[],
 ): ClauseKind | null {
-  const fieldOptions = getScopedFieldOptions(query);
-  const fieldOptionValue = getStructuredDraftQueryFieldValueForNode(node);
-  const fieldOption = fieldOptionValue
-    ? resolveStructuredDraftFieldOption(fieldOptionValue, fieldOptions)
-    : null;
-  const editableMetadataNode = canonicalFilterToMetadataNode(node);
-  const route = classifyStructuredDraftNodeEditRoute({ query, path, fieldOptions });
-  if (route.kind === "unsupported") {
-    return null;
-  }
-  return route.kind === "groupField"
-    ? "field"
-    : node.kind === "scope"
-      ? "scope"
-      : node.kind === "level"
-        ? "level"
-        : node.kind === "price"
-          ? "price"
-          : node.kind === "pack"
-            ? "pack"
-            : node.kind === "metricCompare"
-              ? "metricCompare"
-              : node.kind === "rarity"
-                ? "rarity"
-                : node.kind === "actionCost"
-                  ? "actionCost"
-                  : fieldOption && editableMetadataNode
-                    ? isMetricFieldOptionValue(fieldOption.value)
-                      ? "metric"
-                      : "field"
-                    : null;
+  return getStructuredDraftEditableClauseKindForNode({
+    catalog: createStructuredDraftRouteCatalog(getScopedFieldOptions(query).map((fieldOption) => fieldOption.value)),
+    path,
+    query,
+  });
 }
 
 export function useStructuredDraftStructuralActions({
@@ -405,6 +377,9 @@ export function useStructuredDraftStructuralActions({
       return terminal.runPromptSession(async (session) => {
         const workingQuery = query;
         for (;;) {
+          const catalog = createStructuredDraftRouteCatalog(
+            getScopedFieldOptions(workingQuery).map((fieldOption) => fieldOption.value),
+          );
           const clauseKind = await promptForClauseKind(session, workingQuery);
           if (clauseKind.kind === "back") {
             return "back";
@@ -417,9 +392,18 @@ export function useStructuredDraftStructuralActions({
             switch (fieldOption.kind) {
               case "apply":
                 if (fieldOption.value) {
+                  const fieldRef = getStructuredDraftFieldRefForQueryFieldValue(fieldOption.value.value);
+                  if (!fieldRef) {
+                    await terminal.pauseForAnyKey("That field is not available in the current query scope.");
+                    return "cancelled";
+                  }
                   return executeStructuredDraftEditRoute(
                     workingQuery,
-                    classifyStructuredDraftAddFieldRoute({ fieldOption: fieldOption.value, groupPath: path, query: workingQuery }),
+                    classifyStructuredDraftAddIntentRoute({
+                      catalog,
+                      intent: { kind: "field", field: fieldRef, groupPath: path },
+                      query: workingQuery,
+                    }),
                   );
                 }
                 break;
@@ -429,37 +413,33 @@ export function useStructuredDraftStructuralActions({
                 return "cancelled";
             }
           }
-          if (
-            wrapper === undefined &&
-            (clauseKind.value === "pack" || clauseKind.value === "rarity" || clauseKind.value === "actionCost")
-          ) {
-            const fieldOption = getStructuredDraftSyntheticFieldOption(clauseKind.value);
-            if (fieldOption) {
-              return executeStructuredDraftEditRoute(
-                workingQuery,
-                classifyStructuredDraftAddFieldRoute({ fieldOption, groupPath: path, query: workingQuery }),
-              );
-            }
-          }
-          if (
-            wrapper !== undefined &&
-            (clauseKind.value === "pack" || clauseKind.value === "rarity" || clauseKind.value === "actionCost")
-          ) {
-            await terminal.pauseForAnyKey(
-              "Grouped query fields must be added directly to an existing group before structural wrapping.",
-            );
-            return "cancelled";
-          }
+          const addIntent = getStructuredDraftAddIntentForClauseKind(clauseKind.value, path);
+          const addRoute = addIntent
+            ? classifyStructuredDraftAddIntentRoute({
+                catalog,
+                intent: addIntent,
+                query: workingQuery,
+                structuralWrapper: wrapper,
+              })
+            : null;
           if (wrapper === undefined) {
+            if (!addRoute) {
+              await terminal.pauseForAnyKey("That clause must be routed through its field-specific editor.");
+              return "cancelled";
+            }
             const result = await executeStructuredDraftEditRoute(
               workingQuery,
-              classifyStructuredDraftPromptLeafAddRoute({ clauseKind: clauseKind.value, groupPath: path }),
+              addRoute,
               { promptSession: session },
             );
             if (result === "back") {
               continue;
             }
             return result;
+          }
+          if (addRoute?.kind === "unsupported") {
+            await terminal.pauseForAnyKey(addRoute.reason);
+            return "cancelled";
           }
           const nextNode = await promptForWrappedStructuralClauseNode(
             promptForClauseNode,
@@ -642,7 +622,9 @@ export function useStructuredDraftStructuralActions({
         await executeStructuredDraftEditRoute(
           query,
           classifyStructuredDraftNodeEditRoute({
-            fieldOptions: getScopedFieldOptions(query),
+            catalog: createStructuredDraftRouteCatalog(
+              getScopedFieldOptions(query).map((fieldOption) => fieldOption.value),
+            ),
             path,
             query,
           }),
