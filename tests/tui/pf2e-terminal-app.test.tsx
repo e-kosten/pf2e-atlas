@@ -757,10 +757,6 @@ describe("pf2e terminal app", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("j");
-    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -793,10 +789,6 @@ describe("pf2e terminal app", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Choose a first-class TUI area");
 
-    app.stdin.write("j");
-    await flushInk();
-    app.stdin.write("j");
-    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1011,6 +1003,10 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Pending Review Queue");
@@ -1044,6 +1040,10 @@ describe("pf2e terminal app", () => {
 
     await flushInk();
 
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Pending Review Queue");
