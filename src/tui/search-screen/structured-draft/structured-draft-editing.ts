@@ -5,7 +5,7 @@ import { clampStructuredDraftSelection } from "../../search/structured-draft-ses
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
 import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
-import { useSearchStructuredDraftMetadataActions } from "./structured-draft-metadata-actions.js";
+import { useSearchStructuredDraftEntryActions } from "./structured-draft-entry-actions.js";
 import type { SearchStructuredDraftState, StructuredDraftResumeTarget } from "./structured-draft-state.js";
 import { buildStructuredQuerySummaryLines } from "../workspace/workspace.js";
 import { buildSearchQuerySummary } from "../workspace/query-summary.js";
@@ -18,7 +18,6 @@ import type {
 } from "../workspace/workspace-action-types.js";
 
 export function useSearchStructuredDraftEditing({
-  appendStructuredDraftMetadataNode,
   clearStructuredDraftMoveSource,
   editFieldClause,
   enterStructuredDraftMoveMode,
@@ -33,10 +32,8 @@ export function useSearchStructuredDraftEditing({
   structuredDraftQuery,
   structuredDraftState,
   terminal,
-  updateStructuredDraftMetadataNode,
   user,
 }: {
-  appendStructuredDraftMetadataNode: (path: number[], nextNode: MetadataFilterNode) => void;
   cancelStructuredDraftSession: () => void;
   clearStructuredDraftMoveSource: () => void;
   editFieldClause: (
@@ -59,16 +56,10 @@ export function useSearchStructuredDraftEditing({
   structuredDraftQuery: Pf2eTerminalSearchQuery | null;
   structuredDraftState: SearchStructuredDraftState | null;
   terminal: SearchWorkspaceTerminal;
-  updateStructuredDraftMetadataNode: (
-    path: number[],
-    update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-    options?: { resumeTarget?: StructuredDraftResumeTarget | null },
-  ) => void;
   user: SearchWorkspaceUser;
 }): SearchStructuredEditorSession | null {
   const { editStructuredDraftMetadata, getStructuredDraftEntryActions, runStructuredDraftEntryAction } =
-    useSearchStructuredDraftMetadataActions({
-      appendStructuredDraftMetadataNode,
+    useSearchStructuredDraftEntryActions({
       clearStructuredDraftMoveSource,
       editFieldClause,
       enterStructuredDraftMoveMode,
@@ -80,7 +71,6 @@ export function useSearchStructuredDraftEditing({
       setStructuredDraftResumeTarget,
       structuredDraftQuery,
       terminal,
-      updateStructuredDraftMetadataNode,
       user,
     });
 

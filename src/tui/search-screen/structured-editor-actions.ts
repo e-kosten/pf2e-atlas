@@ -42,7 +42,6 @@ export function useSearchStructuredEditorActions({
   });
 
   const structuredEditorSession = useSearchStructuredDraftEditing({
-    appendStructuredDraftMetadataNode: structuredDraftActions.appendStructuredDraftMetadataNode,
     cancelStructuredDraftSession: structuredDraftActions.cancelStructuredDraftSession,
     clearStructuredDraftMoveSource: structuredDraftActions.clearStructuredDraftMoveSource,
     editFieldClause,
@@ -58,7 +57,6 @@ export function useSearchStructuredEditorActions({
     structuredDraftQuery: structuredDraftActions.structuredDraftQuery,
     structuredDraftState: structuredDraftActions.structuredDraftState,
     terminal,
-    updateStructuredDraftMetadataNode: structuredDraftActions.updateStructuredDraftMetadataNode,
     user,
   });
 

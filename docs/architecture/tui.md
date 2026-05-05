@@ -225,7 +225,13 @@ The durable owners are:
 - `src/tui/search-screen/structured-draft/structured-draft-continuation.ts` for structured-editor child-flow result and bounded host-mutation vocabulary across prompt and shared-explorer flows
 - `src/tui/search-screen/structured-draft/structured-draft-state.ts` for resume targets over canonical search state
 - `src/tui/search-screen/structured-draft/structured-draft-support.ts` for deriving visible rows and selection from the current query plus resume target
-- `src/tui/search-screen/structured-draft/structured-draft-metadata-actions.ts` for translating child-flow results into bounded structured-editor mutations
+- `src/tui/search-screen/structured-draft/structured-draft-host-mutations.ts` for pure bounded host-mutation application against canonical `SearchRequest` state
+- `src/tui/search-screen/structured-draft/structured-draft-grouped-paths.ts` for pure grouped-field member path calculations shared by mutation and grouped explorer setup
+- `src/tui/search-screen/structured-draft/structured-draft-grouped-field.ts` for grouped field seed state and explorer field-state translation
+- `src/tui/search-screen/structured-draft/structured-draft-explorer-actions.ts` for shared-explorer-backed structured-editor field flows and prompt-facing explorer adapters
+- `src/tui/search-screen/structured-draft/structured-draft-prompt-actions.ts` for prompt-local clause builders and value-entry flows
+- `src/tui/search-screen/structured-draft/structured-draft-structural-actions.ts` for root, group, leaf, `not`, insertion, move, wrap, unwrap, lift, remove, and toggle routing
+- `src/tui/search-screen/structured-draft/structured-draft-entry-actions.ts` for React composition wiring across the owner modules
 
 Resume targets are host state, not canonical search data. The allowed durable targets are root resume, group-local resume by canonical `groupPath`, and exact-node resume by canonical node path when the operation is genuinely node-scoped. Group-local continuation is the default for live prompt and explorer flows. Projected field buckets are presentation-derived from canonical members, and unary `not` remains a wrapper over one child node rather than a peer group-editing anchor.
 

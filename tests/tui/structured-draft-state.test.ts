@@ -34,9 +34,9 @@ Path matrix for the structured-editor continuation model.
 | Unary not wrapper | host tree | wrapNot/addNotGroup | replaceNode or appendNodes | node/containing group; never a peer group anchor |
 
 This file pins the resume-target and projection rows. Coordinator lifecycle coverage
-lives in structured-editor-continuation-coordinator.test.ts, grouped mutation helper
-coverage lives in structured-draft-metadata-actions.test.ts, and broad end-to-end
-interaction coverage stays in search-screen.test.tsx.
+lives in structured-editor-continuation-coordinator.test.ts. Explorer/grouped helper
+coverage lives in structured-draft-explorer-actions.test.ts and structured-draft-grouped-field.test.ts.
+Broad end-to-end interaction coverage stays in search-screen.test.tsx.
 */
 
 function buildEntries(

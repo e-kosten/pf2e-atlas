@@ -23,10 +23,8 @@ import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-e
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
-import {
-  buildGroupedFieldSeedState,
-  buildMetricSelectionTargetResolver,
-} from "../../src/tui/search-screen/structured-draft/structured-draft-metadata-actions.js";
+import { buildMetricSelectionTargetResolver } from "../../src/tui/search-screen/structured-draft/structured-draft-explorer-actions.js";
+import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-grouped-field.js";
 import { SearchScreen, parseJumpToResultInput } from "../../src/tui/search-screen/screen.js";
 import { createInitialSearchScreenState } from "../../src/tui/search-screen/state.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
