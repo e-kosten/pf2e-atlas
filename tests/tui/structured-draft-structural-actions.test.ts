@@ -50,6 +50,7 @@ describe("structured draft structural actions", () => {
     editFieldClause: ReturnType<typeof vi.fn>;
     enterStructuredDraftMoveMode: ReturnType<typeof vi.fn>;
     getActions: () => StructuralActions;
+    openLiveExplorerCanonicalFieldMember: ReturnType<typeof vi.fn>;
     openLiveExplorerExactNodeFieldClauseFallback: ReturnType<typeof vi.fn>;
     openLiveExplorerGroupedField: ReturnType<typeof vi.fn>;
     openLiveExplorerGroupFieldByName: ReturnType<typeof vi.fn>;
@@ -126,6 +127,7 @@ describe("structured draft structural actions", () => {
         }
         return actions;
       },
+      openLiveExplorerCanonicalFieldMember,
       openLiveExplorerExactNodeFieldClauseFallback,
       openLiveExplorerGroupedField,
       openLiveExplorerGroupFieldByName,
@@ -346,6 +348,7 @@ describe("structured draft structural actions", () => {
     }).request;
     const {
       getActions,
+      openLiveExplorerCanonicalFieldMember,
       openLiveExplorerExactNodeFieldClauseFallback,
       openLiveExplorerGroupedField,
       renderer,
@@ -353,8 +356,9 @@ describe("structured draft structural actions", () => {
 
     await getActions().runLeafAction(query, [1], traitsNode, "edit");
 
-    expect(openLiveExplorerGroupedField.mock.calls.length + openLiveExplorerExactNodeFieldClauseFallback.mock.calls.length)
-      .toBe(1);
+    expect(openLiveExplorerCanonicalFieldMember).toHaveBeenCalledWith(query, [1], traitsFieldOption);
+    expect(openLiveExplorerGroupedField).not.toHaveBeenCalled();
+    expect(openLiveExplorerExactNodeFieldClauseFallback).not.toHaveBeenCalled();
     renderer.unmount();
   });
 

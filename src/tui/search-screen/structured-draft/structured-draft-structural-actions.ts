@@ -629,11 +629,33 @@ export function useStructuredDraftStructuralActions({
           );
           return;
         }
-        if (
-          (editableClauseKind === "field" || editableClauseKind === "metric") &&
-          fieldOption &&
-          editableMetadataNode
-        ) {
+        if (editableClauseKind === "field" && fieldOption && editableMetadataNode) {
+          if (fieldOption.editor === "sharedExplorer") {
+            await openLiveExplorerCanonicalFieldMember(query, path, fieldOption);
+            return;
+          }
+          const nextNode = await editFieldClause(query, fieldOption, editableMetadataNode);
+          if (nextNode !== undefined) {
+            const application = applyStructuredDraftHostMutationToQuery(
+              query,
+              {
+                kind: "replaceNode",
+                node: nextNode ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null) : null,
+              },
+              {
+                kind: "replaceNode",
+                path,
+              },
+            );
+            if (application) {
+              replaceStructuredDraftProjection(() => application.nextQuery, {
+                resumeTarget: application.resumeTarget,
+              });
+            }
+          }
+          return;
+        }
+        if (editableClauseKind === "metric" && fieldOption && editableMetadataNode) {
           if (fieldOption.editor === "sharedExplorer") {
             await openLiveExplorerExactNodeFieldClauseFallback(query, path, fieldOption, editableMetadataNode);
             return;

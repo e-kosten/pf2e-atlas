@@ -573,7 +573,7 @@ function createEquipmentStructuredExplorerDomain(): OntologyDomainModel {
                 detailTitle: "Metadata Field Details",
                 detailLines: [{ text: "Traits", tone: "section" }],
                 childPresentation: { mode: "grouped", groupBy: "family", render: "inline" },
-                children: ["magical", "consumable", "cursed"].map((value) => ({
+                children: ["magical", "consumable", "cursed", "alchemical", "invested"].map((value) => ({
                   id: `equipment:traits:${value}`,
                   kind: "trait",
                   label: value,
@@ -1113,6 +1113,80 @@ describe("search structured editor continuation", () => {
         notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "concentrate" })),
       ]),
     );
+  });
+
+  it("keeps flat equipment traits flat when edit-clause returns without changes", async () => {
+    const initialFilter = allOfFilter([
+      packFilter("equipment"),
+      scopeFilter("equipment"),
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "consumable" }),
+      notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "alchemical" })),
+      notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "invested" })),
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "magical" }),
+    ]);
+    const listRecords: ListRecordsFn = vi.fn((request: SearchRequest) => ({
+      searchProfile: null,
+      mode: "structured" as const,
+      sort: request.sort ?? "alphabetical",
+      total: 1,
+      offset: request.offset ?? 0,
+      limit: request.limit ?? 20,
+      hasMore: false,
+      nextOffset: null,
+      records: [createRecord({ category: "equipment", type: "equipment", packName: "equipment" })],
+    }));
+    const services = createServices({ listRecords });
+    services.user.search.getQueryFieldOptions = vi.fn(() => [
+      {
+        value: "traits",
+        label: "Traits",
+        description: "Trait query field for the current browse scope.",
+        fieldType: "set",
+        editor: "sharedExplorer",
+      },
+    ]);
+    services.user.ontology.loadSearchFilterExplorerDomain = vi.fn(async () => createEquipmentStructuredExplorerDomain());
+
+    const app = renderSearch(
+      services,
+      browseQuery("Browse equipment", {
+        filter: initialFilter,
+        limit: 20,
+      }).request,
+    );
+
+    await openStructuredQueryEditor(app);
+    expect(app.lastFrame()).toContain("Pack: equipment");
+    expect(app.lastFrame()).toContain("Scope: Equipment");
+    expect(app.lastFrame()).toContain("Traits: includes Consumable");
+    expect(app.lastFrame()).toContain("! Traits: includes Alchemical");
+    expect(app.lastFrame()).toContain("! Traits: includes Invested");
+    expect(app.lastFrame()).toContain("Traits: includes Magical");
+
+    pressDown(app);
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    pressEnter(app);
+    await waitForFrameToContain(app, "Query Clause", 60);
+    pressEnter(app);
+    await waitForFrameToContain(app, "Traits Explorer", 60);
+    await waitForFrameToContain(app, "[✓] consumable", 120);
+
+    await returnFromExplorerToStructuredEditor(app);
+
+    const frame = app.lastFrame();
+    expect(frame).toContain("Pack: equipment");
+    expect(frame).toContain("Scope: Equipment");
+    expect(frame).toContain("Traits: includes Consumable");
+    expect(frame).toContain("! Traits: includes Alchemical");
+    expect(frame).toContain("! Traits: includes Invested");
+    expect(frame).toContain("Traits: includes Magical");
+    expect(frame.match(/^├─ All of$/m)).toBeNull();
+    expect(frame).not.toContain("Filter: All of (4 filters)");
+
+    await executeCurrentBrowseQuery(app);
+    expect(lastListRequest(listRecords).filter).toEqual(initialFilter);
   });
 
   it("keeps trait and family continuations flat in one group-local host flow", async () => {
