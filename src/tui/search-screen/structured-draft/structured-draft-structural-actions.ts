@@ -603,6 +603,19 @@ export function useStructuredDraftStructuralActions({
           await terminal.pauseForAnyKey("That clause cannot be edited through the current canonical editor set.");
           return;
         }
+        if (editableClauseKind === "pack") {
+          await openLiveExplorerCanonicalFieldMember(
+            query,
+            path,
+            buildExplorerOnlyFieldOption(
+              "pack",
+              "Pack",
+              "Browse live packs for the current scope and stage canonical pack clauses.",
+              "enumString",
+            ),
+          );
+          return;
+        }
         if (editableClauseKind === "rarity") {
           await openLiveExplorerCanonicalFieldMember(
             query,

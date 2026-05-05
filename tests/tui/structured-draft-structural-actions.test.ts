@@ -19,6 +19,7 @@ import {
   browseQuery,
   metadataPredicateFilter,
   notFilter,
+  packFilter,
   scopeFilter,
 } from "../helpers/search-request-fixture.js";
 
@@ -357,6 +358,32 @@ describe("structured draft structural actions", () => {
     await getActions().runLeafAction(query, [1], traitsNode, "edit");
 
     expect(openLiveExplorerCanonicalFieldMember).toHaveBeenCalledWith(query, [1], traitsFieldOption);
+    expect(openLiveExplorerGroupedField).not.toHaveBeenCalled();
+    expect(openLiveExplorerExactNodeFieldClauseFallback).not.toHaveBeenCalled();
+    renderer.unmount();
+  });
+
+  it("routes pack edits through canonical field-member explorer callbacks", async () => {
+    const packNode = packFilter("equipment");
+    const query = browseQuery("Browse creatures", {
+      filter: allOfFilter([scopeFilter("creature"), packNode]),
+      limit: 20,
+    }).request;
+    const {
+      getActions,
+      openLiveExplorerCanonicalFieldMember,
+      openLiveExplorerExactNodeFieldClauseFallback,
+      openLiveExplorerGroupedField,
+      renderer,
+    } = renderStructuralActions();
+
+    await getActions().runLeafAction(query, [1], packNode, "edit");
+
+    expect(openLiveExplorerCanonicalFieldMember).toHaveBeenCalledWith(
+      query,
+      [1],
+      expect.objectContaining({ value: "pack" }),
+    );
     expect(openLiveExplorerGroupedField).not.toHaveBeenCalled();
     expect(openLiveExplorerExactNodeFieldClauseFallback).not.toHaveBeenCalled();
     renderer.unmount();

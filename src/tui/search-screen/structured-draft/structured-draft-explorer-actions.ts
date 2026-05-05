@@ -542,9 +542,12 @@ export function useStructuredDraftExplorerActions({
       currentNode?: Extract<SearchFilterNode, { kind: "pack" }>,
     ): Promise<StructuredDraftExplorerPromptNodeResult> => {
       const baseQuery = setSearchQueryPackSelection(query, { include: [], exclude: [] });
-      const seededQuery = currentNode
-        ? setSearchQueryPackSelection(baseQuery, { include: [currentNode.value], exclude: [] })
-        : baseQuery;
+      const currentSelection = getSearchQueryPackSelection(query);
+      const fallbackSelection = currentNode ? { include: [currentNode.value], exclude: [] } : currentSelection;
+      const seededQuery =
+        fallbackSelection.include.length > 0 || fallbackSelection.exclude.length > 0
+          ? setSearchQueryPackSelection(baseQuery, fallbackSelection)
+          : baseQuery;
       const initialFieldState = buildSearchFilterExplorerFieldState(
         user.search.prepareFilterExplorerDraft(seededQuery, ["pack"]).draft,
       );
@@ -653,10 +656,17 @@ export function useStructuredDraftExplorerActions({
       }
 
       const fieldOption =
-        field === "rarity"
+        field === "pack"
           ? buildExplorerOnlyFieldOption(
-              "rarity",
-              "Rarity",
+              "pack",
+              "Pack",
+              "Browse live packs for the current group and stage canonical pack clauses.",
+              "enumString",
+            )
+          : field === "rarity"
+            ? buildExplorerOnlyFieldOption(
+                "rarity",
+                "Rarity",
               "Browse live rarities for the current group and stage canonical rarity clauses.",
               "enumString",
             )

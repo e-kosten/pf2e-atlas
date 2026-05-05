@@ -944,6 +944,62 @@ describe("createPf2eTerminalSearchService", () => {
     } satisfies MetadataFilterNode);
   });
 
+  it("deduplicates top-level pack clauses and writes excluded packs back as flat peers", () => {
+    const service = createPf2eTerminalSearchService(createDependencies());
+    const defaultQuery = service.createDefaultQuery();
+    const query = {
+      ...defaultQuery,
+      filter: {
+        kind: "allOf",
+        children: [
+          {
+            kind: "scope",
+            category: "equipment",
+            subcategory: { kind: "any" },
+          },
+          { kind: "pack", value: "equipment" },
+          { kind: "not", child: { kind: "pack", value: "vehicles" } },
+          { kind: "not", child: { kind: "pack", value: "vehicles" } },
+          { kind: "pack", value: "equipment" },
+          {
+            kind: "not",
+            child: {
+              kind: "anyOf",
+              children: [
+                { kind: "pack", value: "feats" },
+                { kind: "pack", value: "vehicles" },
+              ],
+            },
+          },
+        ],
+      },
+    } satisfies SearchRequest;
+
+    expect(getSearchQueryPackSelection(query)).toEqual({
+      include: ["equipment"],
+      exclude: ["feats", "vehicles"],
+    });
+
+    const updated = setSearchQueryPackSelection(query, {
+      include: ["equipment", "equipment"],
+      exclude: ["vehicles", "feats", "vehicles"],
+    });
+
+    expect(updated.filter).toEqual({
+      kind: "allOf",
+      children: [
+        {
+          kind: "scope",
+          category: "equipment",
+          subcategory: { kind: "any" },
+        },
+        { kind: "pack", value: "equipment" },
+        { kind: "not", child: { kind: "pack", value: "feats" } },
+        { kind: "not", child: { kind: "pack", value: "vehicles" } },
+      ],
+    });
+  });
+
   it("rebuilds search drafts from the shared compose draft without carrying session metadata in the draft", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const preservedMetadata = {

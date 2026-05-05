@@ -31,7 +31,9 @@ import {
   cloneStringSelection,
   createEmptyNumberSelection,
   createEmptyStringSelection,
+  normalizeNumberSelection,
   normalizeQueryFieldSelection,
+  normalizeStringSelection,
 } from "./selections.js";
 import type {
   Pf2eTerminalFacetField,
@@ -87,8 +89,9 @@ function buildSelectionFilter(
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
   if (kind === "rarity") {
-    const includeValues = (selection.include as string[]).filter((value) => value.length > 0);
-    const excludeValues = (selection.exclude as string[]).filter((value) => value.length > 0);
+    const normalizedSelection = normalizeStringSelection(selection as Pf2eTerminalValueSelection<string>);
+    const includeValues = normalizedSelection.include;
+    const excludeValues = normalizedSelection.exclude;
     const children: SearchFilterNode[] = [];
     if (includeValues.length === 1) {
       children.push({ kind: "rarity", match: { kind: "eq", value: includeValues[0]! } });
@@ -106,8 +109,9 @@ function buildSelectionFilter(
     return children.length === 1 ? children[0]! : { kind: "allOf", children };
   }
 
-  const includeChildren = selection.include.map((value) => buildSelectionLeaf(kind, value));
-  const excludeChildren = selection.exclude.map((value) => buildSelectionLeaf(kind, value));
+  const normalizedSelection = normalizeNumberSelection(selection as Pf2eTerminalValueSelection<number>);
+  const includeChildren = normalizedSelection.include.map((value) => buildSelectionLeaf(kind, value));
+  const excludeChildren = normalizedSelection.exclude.map((value) => buildSelectionLeaf(kind, value));
   const children: SearchFilterNode[] = [];
 
   if (includeChildren.length === 1) {
@@ -116,11 +120,7 @@ function buildSelectionFilter(
     children.push({ kind: "anyOf", children: includeChildren });
   }
 
-  if (excludeChildren.length === 1) {
-    children.push({ kind: "not", child: excludeChildren[0]! });
-  } else if (excludeChildren.length > 1) {
-    children.push({ kind: "not", child: { kind: "anyOf", children: excludeChildren } });
-  }
+  children.push(...excludeChildren.map((child) => ({ kind: "not", child }) satisfies SearchFilterNode));
 
   if (children.length === 0) {
     return null;
@@ -139,7 +139,7 @@ export function buildSearchFilterValueSelectionNode(
 export function buildSearchFilterPackSelectionNode(
   selection: Pf2eTerminalValueSelection<string>,
 ): SearchFilterNode | null {
-  const normalizedSelection = cloneStringSelection(selection);
+  const normalizedSelection = normalizeStringSelection(selection);
   const includeChildren = normalizedSelection.include.map((value) => buildPackLeaf(value));
   const excludeChildren = normalizedSelection.exclude.map((value) => buildPackLeaf(value));
   const children: SearchFilterNode[] = [];
@@ -150,11 +150,7 @@ export function buildSearchFilterPackSelectionNode(
     children.push({ kind: "anyOf", children: includeChildren });
   }
 
-  if (excludeChildren.length === 1) {
-    children.push({ kind: "not", child: excludeChildren[0]! });
-  } else if (excludeChildren.length > 1) {
-    children.push({ kind: "not", child: { kind: "anyOf", children: excludeChildren } });
-  }
+  children.push(...excludeChildren.map((child) => ({ kind: "not", child }) satisfies SearchFilterNode));
 
   if (children.length === 0) {
     return null;
@@ -422,11 +418,26 @@ function insertAfterCanonicalPrefix(
   node: SearchFilterNode,
   predicate: (child: SearchFilterNode) => boolean,
 ): SearchFilterNode[] {
+  return insertNodesAfterCanonicalPrefix(children, [node], predicate);
+}
+
+function insertNodesAfterCanonicalPrefix(
+  children: SearchFilterNode[],
+  nodes: SearchFilterNode[],
+  predicate: (child: SearchFilterNode) => boolean,
+): SearchFilterNode[] {
   let index = 0;
   while (index < children.length && predicate(children[index]!)) {
     index += 1;
   }
-  return [...children.slice(0, index), node, ...children.slice(index)];
+  return [...children.slice(0, index), ...nodes, ...children.slice(index)];
+}
+
+function flattenSelectionFilterForRoot(
+  filter: SearchFilterNode,
+  rootOperator: QueryRootOperator,
+): SearchFilterNode[] {
+  return filter.kind === rootOperator ? [...filter.children] : [filter];
 }
 
 function isTopLevelSelectionChild(
@@ -521,27 +532,37 @@ function findTopLevelSelectionFilter<K extends "rarity" | "actionCost">(
   filter: SearchFilterNode | undefined,
   kind: K,
 ): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
+  const mergedSelection: Pf2eTerminalValueSelection<K extends "rarity" ? string : number> = {
+    include: [],
+    exclude: [],
+  };
   for (const child of getTopLevelQueryChildren(filter)) {
     const selection = extractSelectionFilter(child, kind);
     if (selection && hasSelectionValues(selection)) {
-      return selection;
+      mergedSelection.include.push(...selection.include);
+      mergedSelection.exclude.push(...selection.exclude);
     }
   }
 
-  return null;
+  return hasSelectionValues(mergedSelection) ? mergedSelection : null;
 }
 
 function findTopLevelPackSelectionFilter(
   filter: SearchFilterNode | undefined,
 ): Pf2eTerminalValueSelection<string> | null {
+  const mergedSelection: Pf2eTerminalValueSelection<string> = {
+    include: [],
+    exclude: [],
+  };
   for (const child of getTopLevelQueryChildren(filter)) {
     const selection = extractPackSelection(child);
     if (selection && hasSelectionValues(selection)) {
-      return selection;
+      mergedSelection.include.push(...selection.include);
+      mergedSelection.exclude.push(...selection.exclude);
     }
   }
 
-  return null;
+  return hasSelectionValues(mergedSelection) ? mergedSelection : null;
 }
 
 function extractQueryMetadataTree(
@@ -701,17 +722,15 @@ export function getSearchQueryLevelMatch(query: Pf2eTerminalSearchQuery): Search
 }
 
 export function getSearchQueryRaritySelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
-  return cloneStringSelection(findTopLevelSelectionFilter(query.filter, "rarity") ?? createEmptyStringSelection());
+  return normalizeStringSelection(findTopLevelSelectionFilter(query.filter, "rarity") ?? createEmptyStringSelection());
 }
 
 export function getSearchQueryActionCostSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<number> {
-  return cloneNumberSelection(
-    findTopLevelSelectionFilter(query.filter, "actionCost") ?? createEmptyNumberSelection(),
-  );
+  return normalizeNumberSelection(findTopLevelSelectionFilter(query.filter, "actionCost") ?? createEmptyNumberSelection());
 }
 
 export function getSearchQueryPackSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
-  return cloneStringSelection(findTopLevelPackSelectionFilter(query.filter) ?? createEmptyStringSelection());
+  return normalizeStringSelection(findTopLevelPackSelectionFilter(query.filter) ?? createEmptyStringSelection());
 }
 
 export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
@@ -784,13 +803,17 @@ export function setSearchQueryRaritySelection(
   selection: Pf2eTerminalValueSelection<string>,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeFirstMatchingTopLevelChild(
+  let children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
     (child) => isTopLevelSelectionChild(child, "rarity"),
   );
   const rarityFilter = buildSelectionFilter("rarity", cloneStringSelection(selection));
   if (rarityFilter) {
-    children = insertAfterCanonicalPrefix(children, rarityFilter, (child) => child.kind === "scope" || child.kind === "level");
+    children = insertNodesAfterCanonicalPrefix(
+      children,
+      flattenSelectionFilterForRoot(rarityFilter, rootOperator),
+      (child) => child.kind === "scope" || child.kind === "level",
+    );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
@@ -800,15 +823,15 @@ export function setSearchQueryActionCostSelection(
   selection: Pf2eTerminalValueSelection<number>,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeFirstMatchingTopLevelChild(
+  let children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
     (child) => isTopLevelSelectionChild(child, "actionCost"),
   );
   const actionCostFilter = buildSelectionFilter("actionCost", cloneNumberSelection(selection));
   if (actionCostFilter) {
-    children = insertAfterCanonicalPrefix(
+    children = insertNodesAfterCanonicalPrefix(
       children,
-      actionCostFilter,
+      flattenSelectionFilterForRoot(actionCostFilter, rootOperator),
       (child) =>
         child.kind === "scope" ||
         child.kind === "level" ||
@@ -824,15 +847,15 @@ export function setSearchQueryPackSelection(
   selection: Pf2eTerminalValueSelection<string>,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeFirstMatchingTopLevelChild(
+  let children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
     isTopLevelPackSelectionChild,
   );
   const packFilter = buildSearchFilterPackSelectionNode(selection);
   if (packFilter) {
-    children = insertAfterCanonicalPrefix(
+    children = insertNodesAfterCanonicalPrefix(
       children,
-      packFilter,
+      flattenSelectionFilterForRoot(packFilter, rootOperator),
       (child) =>
         child.kind === "scope" || child.kind === "level" || isTopLevelSelectionChild(child, "rarity"),
     );

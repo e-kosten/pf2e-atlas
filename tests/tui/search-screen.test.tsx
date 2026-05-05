@@ -3182,33 +3182,23 @@ describe("search screen", () => {
             subcategory: { kind: "any" },
           },
           {
-            kind: "allOf",
-            children: [
-              {
-                kind: "rarity",
-                match: { kind: "eq", value: "common" },
-              },
-              {
-                kind: "rarity",
-                match: { kind: "notIn", values: ["rare"] },
-              },
-            ],
+            kind: "rarity",
+            match: { kind: "eq", value: "common" },
           },
           {
-            kind: "allOf",
-            children: [
-              {
-                kind: "actionCost",
-                match: { kind: "eq", value: 2 },
-              },
-              {
-                kind: "not",
-                child: {
-                  kind: "actionCost",
-                  match: { kind: "eq", value: 1 },
-                },
-              },
-            ],
+            kind: "rarity",
+            match: { kind: "notIn", values: ["rare"] },
+          },
+          {
+            kind: "actionCost",
+            match: { kind: "eq", value: 2 },
+          },
+          {
+            kind: "not",
+            child: {
+              kind: "actionCost",
+              match: { kind: "eq", value: 1 },
+            },
           },
           {
             kind: "allOf",

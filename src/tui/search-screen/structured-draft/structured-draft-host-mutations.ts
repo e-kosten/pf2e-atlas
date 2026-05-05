@@ -17,6 +17,25 @@ import {
 } from "./structured-draft-state.js";
 
 export function getFirstGroupedFieldMemberPath(node: SearchFilterNode, path: number[], field: string): number[] | null {
+  if (field === "pack") {
+    if (node.kind === "pack") {
+      return path;
+    }
+    if (node.kind === "allOf" || node.kind === "anyOf") {
+      for (let childIndex = 0; childIndex < node.children.length; childIndex += 1) {
+        const childPath = getFirstGroupedFieldMemberPath(node.children[childIndex]!, [...path, childIndex], field);
+        if (childPath) {
+          return childPath;
+        }
+      }
+      return null;
+    }
+    if (node.kind === "not") {
+      return getFirstGroupedFieldMemberPath(node.child, [...path, 0], field);
+    }
+    return null;
+  }
+
   if (field === "rarity" || field === "actionCost") {
     if (node.kind === field && node.match.kind === "eq") {
       return path;

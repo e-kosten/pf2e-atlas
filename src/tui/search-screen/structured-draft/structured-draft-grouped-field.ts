@@ -39,6 +39,19 @@ export function buildGroupedFieldSeedDiscreteClauses(
     return [];
   }
 
+  if (field === "pack") {
+    if (node.kind === "pack") {
+      return [{ field, value: node.value, operator }];
+    }
+    if (node.kind === "anyOf") {
+      return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
+    }
+    if (node.kind === "not") {
+      return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+    }
+    return [];
+  }
+
   if (field === "rarity" || field === "actionCost") {
     if (node.kind === field && node.match.kind === "eq") {
       return [{ field, value: String(node.match.value), operator }];
@@ -106,6 +119,17 @@ export function buildGroupedFieldReplacementNodes(
         : ({
             kind: "not",
             child: { kind: "rarity", match: { kind: "eq", value: clause.value } },
+          } satisfies SearchFilterNode),
+    );
+  }
+
+  if (field === "pack") {
+    return discreteClauses.map((clause) =>
+      clause.operator === "include"
+        ? ({ kind: "pack", value: clause.value } satisfies SearchFilterNode)
+        : ({
+            kind: "not",
+            child: { kind: "pack", value: clause.value },
           } satisfies SearchFilterNode),
     );
   }
