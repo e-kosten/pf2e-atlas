@@ -134,7 +134,6 @@ cd scripts && npm run dev:tui
 To show opt-in TUI performance diagnostics in the footer while troubleshooting filter explorer stalls, set:
 
 ```bash
-cd scripts
 PF2E_TUI_DEBUG=1 npm run dev:tui
 ```
 

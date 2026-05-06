@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "dev:tui": "cd scripts && npm run dev:tui",
     "mcp": "node dist/index.js",
     "refresh-data": "./scripts/refresh-pf2e-data.sh",
     "refresh-embeddings": "tsx src/refresh-embeddings.ts",
