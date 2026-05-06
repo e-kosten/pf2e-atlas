@@ -75,6 +75,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Derived tag manifest tooling metadata](./items/derived-tag-manifest-tooling-metadata.md)
   Preserve the idea that the shared derived-tag manifest could optionally carry current owner-file metadata for tooling, while leaving open whether that is actually valuable once the future concept/projection model settles. Status: proposed.
 
+- [Rust CLI runtime roadmap](./items/rust-cli-runtime-roadmap.md)
+  Evaluate a Rust-centered local runtime with CLI plus skills as the primary agent surface, Python or Node retained for offline prep, and MCP reduced to an optional compatibility mode. Status: proposed.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
