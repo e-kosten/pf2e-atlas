@@ -206,7 +206,7 @@ function drillIntoFilterExplorerNode(args: {
       }
     })
     .finally(() => {
-      dispatch({ type: "set_child_loading" });
+      dispatch({ type: "set_child_loading", expectedNodeId: node.id });
     });
 }
 

@@ -84,6 +84,27 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+type LegacyOntologyNodeFixture = OntologyNode & { children?: LegacyOntologyNodeFixture[] };
+
+function withStaticChildSources(domain: OntologyDomainModel): OntologyDomainModel {
+  const normalizeNode = (node: LegacyOntologyNodeFixture): void => {
+    if (!node.children) {
+      return;
+    }
+    for (const child of node.children) {
+      normalizeNode(child);
+    }
+    Object.assign(node, {
+      childSource: { kind: "static" as const, children: node.children },
+    });
+  };
+
+  for (const node of domain.rootNodes as LegacyOntologyNodeFixture[]) {
+    normalizeNode(node);
+  }
+  return domain;
+}
+
 async function waitForFrameToContain(app: ReturnType<typeof render>, text: string, attempts = 12): Promise<string> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const frame = app.lastFrame();
@@ -466,7 +487,7 @@ function createServices(
 }
 
 function createFacetPickerOntologyDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Test facet picker domain",
@@ -535,7 +556,7 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainModel {
@@ -543,7 +564,7 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
   const categoryNode = domain.rootNodes[0];
   const metadataFieldsNode = categoryNode?.children?.[0];
   if (!metadataFieldsNode?.children) {
-    return domain;
+    return withStaticChildSources(domain);
   }
 
   metadataFieldsNode.children.unshift(
@@ -607,11 +628,11 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
     },
   );
 
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Creature facet picker domain",
@@ -677,11 +698,11 @@ function createCreatureDerivedTagsOntologyDomain(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createCreatureMetricExplorerModel(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Creature Statistics Explorer",
     description: "Metric explorer test domain",
@@ -711,7 +732,7 @@ function createCreatureMetricExplorerModel(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createLoadingExplorerModel(title: string): OntologyDomainModel {
@@ -719,7 +740,7 @@ function createLoadingExplorerModel(title: string): OntologyDomainModel {
 }
 
 function createNamedExplorerDomain(label: string): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: `searchSemantics:${label.toLowerCase().replace(/\s+/g, "-")}`,
     label,
     description: `${label} test domain`,
@@ -734,11 +755,11 @@ function createNamedExplorerDomain(label: string): OntologyDomainModel {
         detailLines: [{ text: label, tone: "section" }],
       },
     ],
-  };
+  });
 }
 
 function createRarityExplorerDomain(values: readonly string[]): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Rarity Explorer",
     description: "Rarity explorer test domain",
@@ -766,11 +787,11 @@ function createRarityExplorerDomain(values: readonly string[]): OntologyDomainMo
         })),
       },
     ],
-  };
+  });
 }
 
 function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Traits Explorer",
     description: "Traits explorer test domain",
@@ -783,7 +804,7 @@ function createTraitsExplorerDomain(values: readonly string[]): OntologyDomainMo
       detailTitle: "Trait Details",
       detailLines: [{ text: value, tone: "section" }],
     })),
-  };
+  });
 }
 
 function createStructuredTraitsExplorerDomain(
@@ -810,7 +831,7 @@ function createStructuredTraitsExplorerDomain(
   }
   const metadataFields = domain.rootNodes[0]?.children?.[0];
   if (!metadataFields?.children) {
-    return domain;
+    return withStaticChildSources(domain);
   }
 
   metadataFields.children.unshift({
@@ -846,11 +867,11 @@ function createStructuredTraitsExplorerDomain(
     })),
   });
 
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Creature",
     description: "Creature structured explorer test domain",
@@ -1019,7 +1040,7 @@ function createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain(): Ontolo
         ],
       },
     ],
-  };
+  });
 }
 
 function createStructuredCreatureTraitsRarityExplorerDomain(): OntologyDomainModel {
@@ -1027,7 +1048,7 @@ function createStructuredCreatureTraitsRarityExplorerDomain(): OntologyDomainMod
   const categoryNode = domain.rootNodes[0];
   const metadataFieldsNode = categoryNode?.children?.[0];
   if (!metadataFieldsNode?.children) {
-    return domain;
+    return withStaticChildSources(domain);
   }
 
   metadataFieldsNode.children.unshift({
@@ -1069,14 +1090,14 @@ function createStructuredCreatureTraitsRarityExplorerDomain(): OntologyDomainMod
     ],
   });
 
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(): OntologyDomainModel {
   const domain = createStructuredCreatureTraitsFamiliesAndMetricExplorerDomain();
   const categoryNode = domain.rootNodes[0];
   if (!categoryNode?.children) {
-    return domain;
+    return withStaticChildSources(domain);
   }
 
   categoryNode.children.push({
@@ -1109,11 +1130,11 @@ function createStructuredCreatureTraitsFamiliesMetricAndPackExplorerDomain(): On
     ],
   });
 
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function createStructuredCreatureMetricExplorerDomainWithTextMetric(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Creature",
     description: "Creature metric explorer test domain with text and numeric metrics",
@@ -1192,11 +1213,11 @@ function createStructuredCreatureMetricExplorerDomainWithTextMetric(): OntologyD
         ],
       },
     ],
-  };
+  });
 }
 
 function createPackExplorerModel(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Pack Explorer",
     description: "Pack explorer test domain",
@@ -1220,7 +1241,7 @@ function createPackExplorerModel(): OntologyDomainModel {
         detailLines: [{ text: "Monster Core", tone: "section" }],
       },
     ],
-  };
+  });
 }
 
 async function openStructuredQueryEditor(app: ReturnType<typeof render>): Promise<void> {
@@ -3626,7 +3647,7 @@ describe("search screen", () => {
             detailLines: [{ text: discoveryMode === "matching" ? "Matching records: 1" : "Applicable records: 3" }],
           };
         }
-        return domain;
+        return withStaticChildSources(domain);
       },
     );
     services.user.ontology.loadSearchFilterExplorerDomain = loadSearchFilterExplorerDomain;
@@ -3744,7 +3765,7 @@ describe("search screen", () => {
         });
       }
 
-      return domain;
+      return withStaticChildSources(domain);
     });
 
     const app = render(
@@ -5380,7 +5401,7 @@ describe("search screen", () => {
     const onQueryChange = vi.fn();
     const session: SearchFilterExplorerSession = {
       title: "Rarity Explorer",
-      model: {
+      model: withStaticChildSources({
         id: "searchSemantics",
         label: "Rarity Explorer",
         description: "Rarity explorer test domain",
@@ -5409,7 +5430,7 @@ describe("search screen", () => {
             ],
           },
         ],
-      },
+      }),
       query: browseQuery("Browse spells", {
         filter: scopeFilter("spell"),
         limit: 20,

@@ -369,7 +369,7 @@ describe("application search discovery service", () => {
     const reader = await service.prepareSearchSemanticsReader(request, "matching");
 
     expect(reader.scope).toEqual({ category: "creature", subcategory: null });
-    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "traits" })).toEqual([
+    expect(await reader.discoverFieldValuesAsync({ category: "creature", subcategory: null, field: "traits" })).toEqual([
       { id: "undead", value: "undead", count: 2 },
     ]);
     expect(
@@ -574,7 +574,7 @@ describe("application search discovery service", () => {
 
     const reader = await service.prepareSearchSemanticsReader(request, "catalog");
 
-    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "rarity" })).toEqual([
+    expect(await reader.discoverFieldValuesAsync({ category: "creature", subcategory: null, field: "rarity" })).toEqual([
       { id: "rare", value: "rare", count: 4 },
     ]);
     expect(discoverFilterValues).toHaveBeenCalledWith(

@@ -8,22 +8,6 @@ import { buildOntologyExplorerEntitySummary } from "./presenter.js";
 
 const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
 
-type LegacyOntologyChildShape = {
-  readonly children?: readonly OntologyNode[];
-  readonly loadChildren?: () => readonly OntologyNode[];
-};
-
-function getLegacyOntologyChildSource(node: OntologyNode): OntologyChildSource | undefined {
-  const legacyNode = node as OntologyNode & LegacyOntologyChildShape;
-  if (legacyNode.children) {
-    return { kind: "static", children: legacyNode.children };
-  }
-  if (legacyNode.loadChildren) {
-    return { kind: "sync", load: legacyNode.loadChildren };
-  }
-  return undefined;
-}
-
 function cloneOntologyChildSource(
   source: OntologyChildSource | undefined,
   idPrefix?: string,
@@ -82,11 +66,10 @@ function cloneSearchRequest(request: Readonly<SearchRequest>): SearchRequest {
 }
 
 export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): OntologyNode {
-  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
   return {
     ...node,
     id: idPrefix ? `${idPrefix}:${node.id}` : node.id,
-    childSource: cloneOntologyChildSource(childSource, idPrefix),
+    childSource: cloneOntologyChildSource(node.childSource, idPrefix),
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
     query: node.query ? { ...node.query, request: cloneSearchRequest(node.query.request) } : undefined,
@@ -98,12 +81,11 @@ export function getOntologyNodeChildren(node: OntologyNode | undefined): readonl
   if (!node) {
     return [];
   }
-  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
-  if (!childSource) {
+  if (!node.childSource) {
     return [];
   }
-  if (childSource.kind === "static") {
-    return childSource.children;
+  if (node.childSource.kind === "static") {
+    return node.childSource.children;
   }
 
   const cached = loadedOntologyChildren.get(node);
@@ -111,11 +93,11 @@ export function getOntologyNodeChildren(node: OntologyNode | undefined): readonl
     return cached;
   }
 
-  if (childSource.kind === "async") {
+  if (node.childSource.kind === "async") {
     return [];
   }
 
-  const children = childSource.load();
+  const children = node.childSource.load();
   loadedOntologyChildren.set(node, children);
   return children;
 }
@@ -124,12 +106,11 @@ export async function resolveOntologyNodeChildren(node: OntologyNode | undefined
   if (!node) {
     return [];
   }
-  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
-  if (!childSource) {
+  if (!node.childSource) {
     return [];
   }
-  if (childSource.kind === "static") {
-    return childSource.children;
+  if (node.childSource.kind === "static") {
+    return node.childSource.children;
   }
 
   const cached = loadedOntologyChildren.get(node);
@@ -137,7 +118,7 @@ export async function resolveOntologyNodeChildren(node: OntologyNode | undefined
     return cached;
   }
 
-  const children = await childSource.load();
+  const children = await node.childSource.load();
   loadedOntologyChildren.set(node, children);
   return children;
 }

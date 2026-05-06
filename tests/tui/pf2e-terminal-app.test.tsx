@@ -50,6 +50,27 @@ function createDeferred<T>(): {
   return { promise, resolve, reject };
 }
 
+type LegacyOntologyNodeFixture = OntologyNode & { children?: LegacyOntologyNodeFixture[] };
+
+function withStaticChildSources(domain: OntologyDomainModel): OntologyDomainModel {
+  const normalizeNode = (node: LegacyOntologyNodeFixture): void => {
+    if (!node.children) {
+      return;
+    }
+    for (const child of node.children) {
+      normalizeNode(child);
+    }
+    Object.assign(node, {
+      childSource: { kind: "static" as const, children: node.children },
+    });
+  };
+
+  for (const node of domain.rootNodes as LegacyOntologyNodeFixture[]) {
+    normalizeNode(node);
+  }
+  return domain;
+}
+
 function pressLeft(app: ReturnType<typeof render>): void {
   app.stdin.write("\u001b[D");
 }
@@ -167,7 +188,7 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
 }
 
 function createSearchSemanticsModel(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Search semantics ontology",
@@ -219,11 +240,11 @@ function createSearchSemanticsModel(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createRecordOntologyModel(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Search semantics ontology",
@@ -242,7 +263,7 @@ function createRecordOntologyModel(): OntologyDomainModel {
         }),
       },
     ],
-  };
+  });
 }
 
 function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "catalog"): OntologyDomainModel {
@@ -275,7 +296,7 @@ function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "c
   });
   const children = discoveryMode === "matching" ? [nonzeroLeaf] : [nonzeroLeaf, zeroCountLeaf];
 
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Search semantics ontology",
@@ -299,7 +320,7 @@ function createDerivedTagModeSearchSemanticsModel(discoveryMode: "matching" | "c
         children,
       },
     ],
-  };
+  });
 }
 
 function createScrollablePageDocument() {

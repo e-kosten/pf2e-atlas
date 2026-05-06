@@ -48,6 +48,11 @@ export type SearchSemanticsDiscoveryReader = {
     subcategory: SearchSubcategory | null;
     field: string;
   }) => readonly SearchFilterDiscoveryOption[];
+  discoverFieldValuesAsync: (options: {
+    category: SearchCategory;
+    subcategory: SearchSubcategory | null;
+    field: string;
+  }) => Promise<readonly SearchFilterDiscoveryOption[]>;
   discoverMetricKeys: (options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
@@ -464,6 +469,13 @@ export function createPf2eApplicationSearchDiscoveryService(
           applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
           target: { field },
         }).options,
+      discoverFieldValuesAsync: ({ category, subcategory, field }) =>
+        Promise.resolve(
+          discoverCatalogFilterValues({
+            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            target: { field },
+          }).options,
+        ),
       discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
         Promise.resolve(
           discoverMetricKeys({
@@ -504,6 +516,7 @@ export function createPf2eApplicationSearchDiscoveryService(
         scope: null,
         mode,
         discoverFieldValues: () => [],
+        discoverFieldValuesAsync: () => Promise.resolve([]),
         discoverMetricKeys: () => Promise.resolve([]),
         discoverMetricValues: () => Promise.resolve([]),
       };
@@ -514,26 +527,21 @@ export function createPf2eApplicationSearchDiscoveryService(
       ? new Set(options.targetFields.map((field) => normalizeDiscoveryTargetField(field)))
       : null;
     const fieldValuesByField = new Map<string, readonly SearchFilterDiscoveryOption[]>();
-    const scopedFields = getScopedMetadataFields(scope).filter(
-      (field) => field.discoverable && (!targetFields || targetFields.has(field.field)),
-    );
+    const fieldValuePromisesByField = new Map<string, Promise<readonly SearchFilterDiscoveryOption[]>>();
+    const eagerFields = getScopedMetadataFields(scope)
+      .filter((field) => field.discoverable)
+      .filter((field) => (targetFields ? targetFields.has(field.field) : field.field === "derivedTags"));
 
-    const fieldEntries = await Promise.all(
-      scopedFields.map(
-        async (field) =>
-          [
-            field.field,
-            await discoverFieldOptions({
-              mode,
-              context,
-              field: field.field as FilterValueField,
-            }),
-          ] as const,
-      ),
+    await Promise.all(
+      eagerFields.map(async (field) => {
+        const options = await discoverFieldOptions({
+          mode,
+          context,
+          field: field.field as FilterValueField,
+        });
+        fieldValuesByField.set(field.field, options);
+      }),
     );
-    fieldEntries.forEach(([field, options]) => {
-      fieldValuesByField.set(field, options);
-    });
 
     function matchesScope(category: SearchCategory, subcategory: SearchSubcategory | null): boolean {
       return category === preparedScope.category && (subcategory ?? null) === preparedScope.subcategory;
@@ -543,11 +551,40 @@ export function createPf2eApplicationSearchDiscoveryService(
       return !targetFields || targetFields.has(field);
     }
 
+    function loadFieldValues(field: string): Promise<readonly SearchFilterDiscoveryOption[]> {
+      const cached = fieldValuesByField.get(field);
+      if (cached) {
+        return Promise.resolve(cached);
+      }
+      const existing = fieldValuePromisesByField.get(field);
+      if (existing) {
+        return existing;
+      }
+      const promise = discoverFieldOptions({
+        mode,
+        context,
+        field: field as FilterValueField,
+      }).then((options) => {
+        fieldValuesByField.set(field, options);
+        fieldValuePromisesByField.delete(field);
+        return options;
+      });
+      fieldValuePromisesByField.set(field, promise);
+      void promise.catch(() => {
+        if (fieldValuePromisesByField.get(field) === promise) {
+          fieldValuePromisesByField.delete(field);
+        }
+      });
+      return promise;
+    }
+
     return {
       scope: preparedScope,
       mode,
       discoverFieldValues: ({ category, subcategory, field }) =>
-        matchesScope(category, subcategory) ? (fieldValuesByField.get(field) ?? []) : [],
+        matchesScope(category, subcategory) && includesTargetField(field) ? (fieldValuesByField.get(field) ?? []) : [],
+      discoverFieldValuesAsync: ({ category, subcategory, field }) =>
+        matchesScope(category, subcategory) && includesTargetField(field) ? loadFieldValues(field) : Promise.resolve([]),
       discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
         matchesScope(category, subcategory) && includesTargetField(metricField)
           ? discoverFieldOptions({

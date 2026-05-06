@@ -82,6 +82,27 @@ function flushInk(): Promise<void> {
   });
 }
 
+type LegacyOntologyNodeFixture = OntologyDomainModel["rootNodes"][number] & { children?: LegacyOntologyNodeFixture[] };
+
+function withStaticChildSources(domain: OntologyDomainModel): OntologyDomainModel {
+  const normalizeNode = (node: LegacyOntologyNodeFixture): void => {
+    if (!node.children) {
+      return;
+    }
+    for (const child of node.children) {
+      normalizeNode(child);
+    }
+    Object.assign(node, {
+      childSource: { kind: "static" as const, children: node.children },
+    });
+  };
+
+  for (const node of domain.rootNodes as LegacyOntologyNodeFixture[]) {
+    normalizeNode(node);
+  }
+  return domain;
+}
+
 async function waitForFrameToContain(app: ReturnType<typeof render>, text: string, attempts = 12): Promise<string> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const frame = app.lastFrame();
@@ -362,7 +383,7 @@ function createServices(
 }
 
 function createFacetPickerOntologyDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Test facet picker domain",
@@ -388,7 +409,7 @@ function createFacetPickerOntologyDomain(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createStructuredTraitsExplorerDomain(values: readonly string[]): OntologyDomainModel {
@@ -424,11 +445,11 @@ function createStructuredTraitsExplorerDomain(values: readonly string[]): Ontolo
       },
     })),
   });
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function createCreatureStructuredExplorerDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Creature",
     description: "Creature structured explorer test domain",
@@ -539,11 +560,11 @@ function createCreatureStructuredExplorerDomain(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createEquipmentStructuredExplorerDomain(): OntologyDomainModel {
-  return {
+  return withStaticChildSources({
     id: "searchSemantics",
     label: "Equipment",
     description: "Equipment structured explorer test domain",
@@ -639,7 +660,7 @@ function createEquipmentStructuredExplorerDomain(): OntologyDomainModel {
         ],
       },
     ],
-  };
+  });
 }
 
 function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainModel {
@@ -723,7 +744,7 @@ function createFacetPickerOntologyDomainWithDiscreteFields(): OntologyDomainMode
       ],
     },
   );
-  return domain;
+  return withStaticChildSources(domain);
 }
 
 function renderSearch(

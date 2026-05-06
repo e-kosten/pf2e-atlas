@@ -22,6 +22,7 @@ import {
   formatMetadataFieldTypeLabel,
   formatOntologySearchVocabularyLabel,
 } from "../../domain/presentation-vocabulary.js";
+import type { MetadataGlossaryArtifact } from "../../domain/metadata-glossary-types.js";
 import type { DerivedTagCatalogEntry, DerivedTagCatalogTag } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
@@ -156,6 +157,94 @@ function readDerivedTagCountsByScope(
       })
       .map((entry) => [String(entry.value), entry.count]),
   );
+}
+
+function buildPreparedFieldValueChildSource(options: {
+  dataService: SearchSemanticsDataService;
+  preparedReader: SearchSemanticsDiscoveryReader;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  fieldSemantics: SearchDiscoveryField;
+  metadataGlossary: MetadataGlossaryArtifact | null;
+  countLabel: string;
+}): OntologyNode["childSource"] {
+  const { dataService, preparedReader, category, subcategory, fieldSemantics, metadataGlossary, countLabel } = options;
+  const buildNodes = (entries: readonly { value: unknown; count: number }[]) =>
+    buildFieldValueNodes(
+      dataService,
+      category,
+      subcategory,
+      fieldSemantics,
+      entries.map((entry) => ({
+        value: String(entry.value),
+        count: entry.count,
+      })),
+      metadataGlossary,
+      { countLabel },
+    );
+  const cachedOptions = preparedReader.discoverFieldValues({
+    category,
+    subcategory,
+    field: fieldSemantics.field,
+  });
+
+  if (cachedOptions.length > 0) {
+    return { kind: "sync", load: () => buildNodes(cachedOptions) };
+  }
+
+  return {
+    kind: "async",
+    load: async () =>
+      buildNodes(
+        await preparedReader.discoverFieldValuesAsync({
+          category,
+          subcategory,
+          field: fieldSemantics.field,
+        }),
+      ),
+  };
+}
+
+function buildPreparedPackChildSource(options: {
+  dataService: SearchSemanticsDataService;
+  preparedReader: SearchSemanticsDiscoveryReader;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  countLabel: string;
+}): OntologyNode["childSource"] {
+  const { dataService, preparedReader, category, subcategory, countLabel } = options;
+  const buildNodes = (entries: readonly { value: unknown; count: number }[]) =>
+    buildPackValueNodes(
+      dataService,
+      category,
+      subcategory,
+      entries.map((entry) => ({
+        value: String(entry.value),
+        count: entry.count,
+      })),
+      { countLabel },
+    );
+  const cachedOptions = preparedReader.discoverFieldValues({
+    category,
+    subcategory,
+    field: "packs",
+  });
+
+  if (cachedOptions.length > 0) {
+    return { kind: "sync", load: () => buildNodes(cachedOptions) };
+  }
+
+  return {
+    kind: "async",
+    load: async () =>
+      buildNodes(
+        await preparedReader.discoverFieldValuesAsync({
+          category,
+          subcategory,
+          field: "packs",
+        }),
+      ),
+  };
 }
 
 function buildDerivedTagTagCountEntries(
@@ -970,28 +1059,15 @@ export async function buildPreparedSearchFilterExplorerDomain(
             : {}
           : {
               childSource: fieldSemantics.discoverable
-                ? {
-                    kind: "sync",
-                    load: () =>
-                      buildFieldValueNodes(
-                        dataService,
-                        category,
-                        subcategory,
-                        fieldSemantics,
-                        preparedReader
-                          .discoverFieldValues({
-                            category,
-                            subcategory,
-                            field,
-                          })
-                          .map((entry) => ({
-                            value: String(entry.value),
-                            count: entry.count,
-                          })),
-                        metadataGlossary,
-                        { countLabel },
-                      ),
-                  }
+                ? buildPreparedFieldValueChildSource({
+                    dataService,
+                    preparedReader,
+                    category,
+                    subcategory,
+                    fieldSemantics,
+                    metadataGlossary,
+                    countLabel,
+                  })
                 : undefined,
             }),
       };
@@ -1035,26 +1111,13 @@ export async function buildPreparedSearchFilterExplorerDomain(
               : "Drill in to browse packs from the current applicability slice.",
         },
       ],
-      childSource: {
-        kind: "sync",
-        load: () =>
-          buildPackValueNodes(
-            dataService,
-            category,
-            subcategory,
-            preparedReader
-              .discoverFieldValues({
-                category,
-                subcategory,
-                field: "packs",
-              })
-              .map((entry) => ({
-                value: String(entry.value),
-                count: entry.count,
-              })),
-            { countLabel },
-          ),
-      },
+      childSource: buildPreparedPackChildSource({
+        dataService,
+        preparedReader,
+        category,
+        subcategory,
+        countLabel,
+      }),
     };
   }
 

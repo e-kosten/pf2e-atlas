@@ -25,7 +25,7 @@ export type FilterExplorerAction =
   | { type: "append_search"; character: string }
   | { type: "backspace_search" }
   | { type: "clear_search" }
-  | { type: "set_child_loading"; nodeId?: string }
+  | { type: "set_child_loading"; nodeId?: string; expectedNodeId?: string }
   | { type: "move_selection"; delta: number }
   | { type: "jump_selection"; delta: number }
   | { type: "selection_boundary"; boundary: "start" | "end" }
@@ -130,6 +130,9 @@ export function filterExplorerReducer(
         searchInput: "",
       };
     case "set_child_loading":
+      if (action.expectedNodeId && state.loadingChildNodeId !== action.expectedNodeId) {
+        return state;
+      }
       return {
         ...state,
         loadingChildNodeId: action.nodeId,

@@ -124,6 +124,32 @@ describe("filter explorer controller state", () => {
     expect(resolveFilterExplorerBackNavigation(rootListContext)).toBe("exit");
   });
 
+  it("ignores stale async child-load completions after focus moves to a newer loading node", () => {
+    const model = createModel();
+    let state = createFilterExplorerBrowserUiState(model);
+
+    state = filterExplorerReducer(model, state, { type: "set_child_loading", nodeId: "spells" });
+    state = filterExplorerReducer(model, state, { type: "set_child_loading", nodeId: "items" });
+    state = filterExplorerReducer(model, state, { type: "set_child_loading", expectedNodeId: "spells" });
+
+    expect(state.loadingChildNodeId).toBe("items");
+
+    state = filterExplorerReducer(model, state, { type: "set_child_loading", expectedNodeId: "items" });
+
+    expect(state.loadingChildNodeId).toBeUndefined();
+  });
+
+  it("ignores stale async drill-in completions for nodes that are no longer selected", () => {
+    const model = createModel();
+    let state = createFilterExplorerBrowserUiState(model);
+
+    state = filterExplorerReducer(model, state, { type: "move_selection", delta: 1 });
+    state = filterExplorerReducer(model, state, { type: "drill_in", nodeId: "spells" });
+
+    expect(state.browserState.depth).toBe(0);
+    expect(state.browserState.selectedNodeIds).toEqual(["items"]);
+  });
+
   it("captures browser snapshots from effective state", () => {
     const context = createBrowserContext({
       state: {
