@@ -9,7 +9,7 @@ import type { EmbeddingConfig } from "../domain/config-types.js";
 import type { LinkedRecordSummary, PackInfo } from "../domain/record-types.js";
 import { uniqueSorted } from "../shared/utils.js";
 
-export const INDEX_SCHEMA_VERSION = 24;
+export const INDEX_SCHEMA_VERSION = 25;
 
 function hashText(value: string): number {
   let hash = 2166136261;
@@ -165,6 +165,29 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
       FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
     );
 
+    CREATE TABLE metric_key_catalog (
+      metric_field TEXT NOT NULL CHECK (metric_field IN ('actorMetrics', 'itemMetrics')),
+      category TEXT NOT NULL,
+      subcategory TEXT NOT NULL,
+      namespace_prefix TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
+      catalog_count INTEGER NOT NULL,
+      numeric_min REAL,
+      numeric_max REAL,
+      PRIMARY KEY (metric_field, category, subcategory, metric_key)
+    );
+
+    CREATE TABLE metric_value_catalog (
+      metric_field TEXT NOT NULL CHECK (metric_field IN ('actorMetrics', 'itemMetrics')),
+      category TEXT NOT NULL,
+      subcategory TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      catalog_count INTEGER NOT NULL,
+      PRIMARY KEY (metric_field, category, subcategory, metric_key, value)
+    );
+
     CREATE TABLE spell_records (
       record_key TEXT PRIMARY KEY,
       action_cost INTEGER,
@@ -261,6 +284,8 @@ export function createSchema(db: DatabaseSync, embeddingDimensions: number): voi
     CREATE INDEX item_metrics_number_idx ON item_metrics(metric_key, number_value);
     CREATE INDEX item_metrics_text_idx ON item_metrics(metric_key, text_value);
     CREATE INDEX item_metrics_bool_idx ON item_metrics(metric_key, bool_value);
+    CREATE INDEX metric_key_catalog_scope_idx ON metric_key_catalog(metric_field, category, subcategory, namespace_prefix);
+    CREATE INDEX metric_value_catalog_metric_idx ON metric_value_catalog(metric_field, category, subcategory, metric_key);
     CREATE INDEX spell_records_action_cost_idx ON spell_records(action_cost);
     CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
     CREATE INDEX reference_edges_from_type_idx ON reference_edges(from_record_type);

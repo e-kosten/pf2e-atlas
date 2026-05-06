@@ -4,10 +4,7 @@ import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
-import type {
-  Pf2eTerminalQueryFieldOption,
-  Pf2eTerminalSearchQuery,
-} from "../search/service.js";
+import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../search/service.js";
 import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
@@ -39,7 +36,9 @@ export function useSearchFilterExplorerWorkflow({
     initialFieldState?: SearchFilterExplorerFieldState;
     preservedMetadata?: MetadataFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
-    resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+    resolveSelectionTarget?: (
+      node: import("../../domain/ontology-types.js").OntologyNode | undefined,
+    ) => FilterExplorerComposeTarget | undefined;
     onEvent?: (event: SearchFilterExplorerSessionEvent) => void;
     singleFieldBehavior?: "list" | "directValues";
   }) => Promise<boolean>;
@@ -65,14 +64,17 @@ export function useSearchFilterExplorerWorkflow({
       initialFieldState?: SearchFilterExplorerFieldState;
       preservedMetadata?: MetadataFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
-      resolveSelectionTarget?: (node: import("../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
+      resolveSelectionTarget?: (
+        node: import("../../domain/ontology-types.js").OntologyNode | undefined,
+      ) => FilterExplorerComposeTarget | undefined;
       onEvent?: (event: SearchFilterExplorerSessionEvent) => void;
       singleFieldBehavior?: "list" | "directValues";
     }): Promise<boolean> => {
       const scopeQuery = services.search.normalizeQuery(queryOverride ?? query);
       const scopeCategory = getSearchQueryCategory(scopeQuery);
       const scopeSubcategory = getSearchQuerySubcategory(scopeQuery);
-      const sessionTitle = title ?? (fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer");
+      const sessionTitle =
+        title ?? (fieldOptions.length === 1 ? `${fieldOptions[0]!.label} Explorer` : "Filter Explorer");
       if (!scopeCategory && fieldOptions.some((fieldOption) => !isUnscopedFilterExplorerField(fieldOption))) {
         await onUnavailable("Choose a category before editing a discoverable query field.");
         return false;
@@ -96,6 +98,7 @@ export function useSearchFilterExplorerWorkflow({
           ? await services.ontology.loadSearchFilterExplorerDomain({
               request,
               discoveryMode,
+              targetFields: fieldOptions.map((fieldOption) => fieldOption.value),
             })
           : await services.ontology.loadSearchSemanticsDomain({ discoveryMode });
         return buildSearchFilterExplorerModel(preparedDomain, {

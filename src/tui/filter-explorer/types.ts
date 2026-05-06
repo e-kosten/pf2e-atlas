@@ -7,10 +7,7 @@ import type {
   OntologyNodeQuery,
   OntologyTextLine,
 } from "../../domain/ontology-types.js";
-import type {
-  DerivedTagTerminalActionTargetOption,
-  DerivedTagTerminalActionTargetState,
-} from "../action-target.js";
+import type { DerivedTagTerminalActionTargetOption, DerivedTagTerminalActionTargetState } from "../action-target.js";
 import type {
   DerivedTagTerminalLine,
   DerivedTagTerminalPointerEvent,
@@ -18,11 +15,7 @@ import type {
   DerivedTagTerminalTwoPaneLayoutMode,
 } from "../framework/types.js";
 import type { PageDocumentInteractionState } from "../page-document/interaction.js";
-import type {
-  PageDocumentModel,
-  PageDocumentSectionModel,
-  PageDocumentTargetNode,
-} from "../page-document/model.js";
+import type { PageDocumentModel, PageDocumentSectionModel, PageDocumentTargetNode } from "../page-document/model.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
 
@@ -137,9 +130,7 @@ export type FilterExplorerNodeSelection = {
   readonly allowedOperators: readonly FilterExplorerDiscreteClauseOperator[];
 };
 
-export type FilterExplorerNode = Omit<OntologyNode, "children" | "loadChildren" | "query" | "selection"> & {
-  readonly children?: readonly FilterExplorerNode[];
-  readonly loadChildren?: () => readonly FilterExplorerNode[];
+export type FilterExplorerNode = Omit<OntologyNode, "query" | "selection"> & {
   readonly query?: OntologyNodeQuery;
 };
 
@@ -158,6 +149,7 @@ export type FilterExplorerBrowserState = {
 export type FilterExplorerBrowserUiState = {
   activePane: "list" | "detail";
   browserState: FilterExplorerBrowserState;
+  loadingChildNodeId?: string;
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
   searchInput: string;
   searchMode: boolean;
@@ -239,9 +231,7 @@ export type FilterExplorerScalarComposeTarget = {
   editorLabel?: string;
 };
 
-export type FilterExplorerComposeTarget =
-  | FilterExplorerDiscreteComposeTarget
-  | FilterExplorerScalarComposeTarget;
+export type FilterExplorerComposeTarget = FilterExplorerDiscreteComposeTarget | FilterExplorerScalarComposeTarget;
 
 export type FilterExplorerScalarClauseMap = Record<string, FilterExplorerScalarClause>;
 
@@ -333,15 +323,14 @@ export type FilterExplorerControllerContext = {
 
 export type FilterExplorerActionEntryId = `setMode:${string}` | "selectTarget:default" | "selectTarget:query";
 
-export type FilterExplorerActionEntry =
-  DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId> & {
-    readonly action:
-      | {
-          readonly kind: "setMode";
-          readonly mode: string;
-        }
-      | {
-          readonly kind: "selectTarget";
-          readonly selection: "default" | "query";
-        };
-  };
+export type FilterExplorerActionEntry = DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId> & {
+  readonly action:
+    | {
+        readonly kind: "setMode";
+        readonly mode: string;
+      }
+    | {
+        readonly kind: "selectTarget";
+        readonly selection: "default" | "query";
+      };
+};

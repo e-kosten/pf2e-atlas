@@ -11,12 +11,11 @@ import {
 } from "./ontology/search-semantics-domain.js";
 
 export type Pf2eApplicationOntologyService = {
-  loadSearchSemanticsDomain: (options: {
-    discoveryMode: SearchFilterDiscoveryMode;
-  }) => Promise<OntologyDomainModel>;
+  loadSearchSemanticsDomain: (options: { discoveryMode: SearchFilterDiscoveryMode }) => Promise<OntologyDomainModel>;
   loadSearchFilterExplorerDomain: (options: {
     request: Readonly<SearchRequest>;
     discoveryMode: SearchFilterDiscoveryMode;
+    targetFields?: readonly string[];
   }) => Promise<OntologyDomainModel>;
 };
 
@@ -37,8 +36,9 @@ export function createPf2eApplicationOntologyService(
   function buildSearchFilterExplorerCacheKey(options: {
     request: Readonly<SearchRequest>;
     discoveryMode: SearchFilterDiscoveryMode;
+    targetFields?: readonly string[];
   }): string {
-    return `${options.discoveryMode}|${JSON.stringify(options.request)}`;
+    return `${options.discoveryMode}|${JSON.stringify(options.request)}|${[...(options.targetFields ?? [])].sort().join(",")}`;
   }
 
   const loadSearchSemanticsDomain = (options: {
@@ -62,6 +62,7 @@ export function createPf2eApplicationOntologyService(
   const loadSearchFilterExplorerDomain = (options: {
     request: Readonly<SearchRequest>;
     discoveryMode: SearchFilterDiscoveryMode;
+    targetFields?: readonly string[];
   }): Promise<OntologyDomainModel> => {
     const cacheKey = buildSearchFilterExplorerCacheKey(options);
     const cached = searchFilterExplorerPromiseCache.get(cacheKey);

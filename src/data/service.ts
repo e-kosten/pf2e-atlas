@@ -21,6 +21,7 @@ import type {
   SearchWindowPage,
 } from "../domain/search-types.js";
 import { Pf2eRecordCatalog } from "./backend/record-catalog.js";
+import { Pf2eMetricCatalogBackendService } from "./backend/metric-catalog.js";
 import { Pf2ePageRelationsBackendService } from "./backend/page-relations-service.js";
 import { Pf2eRuleGraphBackendService } from "./backend/rule-graph-service.js";
 import { loadPf2eDataRuntime, rebuildPf2eDataRuntime } from "./backend/load-runtime.js";
@@ -39,6 +40,7 @@ export class Pf2eDataService {
   private readonly recordCount: number;
   private readonly rankingConfigStore: RankingConfigStore | null;
   private readonly catalog: Pf2eRecordCatalog;
+  private readonly metricCatalogService: Pf2eMetricCatalogBackendService;
   private readonly searchService: Pf2eSearchBackendService;
   private readonly ruleGraphService: Pf2eRuleGraphBackendService;
   private readonly pageRelationsService: Pf2ePageRelationsBackendService;
@@ -57,6 +59,7 @@ export class Pf2eDataService {
     this.recordCount = recordCount;
     this.rankingConfigStore = rankingConfigStore;
     this.catalog = new Pf2eRecordCatalog(db, packs, rankingConfigStore);
+    this.metricCatalogService = new Pf2eMetricCatalogBackendService(db);
     this.searchService = new Pf2eSearchBackendService(db, this.catalog, embeddingProvider, rankingConfigStore);
     this.ruleGraphService = new Pf2eRuleGraphBackendService(db, this.catalog, this.searchService);
     this.pageRelationsService = new Pf2ePageRelationsBackendService(db, this.catalog);
@@ -111,6 +114,14 @@ export class Pf2eDataService {
     return this.searchService.listFilterValues(query);
   }
 
+  listMetricCatalogKeys(query: FilterValueQuery): FilterValueResult | null {
+    return this.metricCatalogService.listMetricKeys(query);
+  }
+
+  listMetricCatalogValues(query: FilterValueQuery): FilterValueResult | null {
+    return this.metricCatalogService.listMetricValues(query);
+  }
+
   async discoverFilterValues(query: FilterValueQuery, request: Readonly<SearchRequest>): Promise<FilterValueResult> {
     return this.searchService.discoverFilterValues(query, request);
   }
@@ -163,10 +174,7 @@ export class Pf2eDataService {
     return this.searchService.listRecords(request);
   }
 
-  async countRecords(
-    request: SearchRequest,
-    options: { lexicalOnly?: boolean } = {},
-  ): Promise<SearchCountResult> {
+  async countRecords(request: SearchRequest, options: { lexicalOnly?: boolean } = {}): Promise<SearchCountResult> {
     return this.searchService.countRecords(request, options);
   }
 

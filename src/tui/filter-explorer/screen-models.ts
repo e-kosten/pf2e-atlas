@@ -12,10 +12,7 @@ import {
 } from "../interaction-bindings.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "../framework/types.js";
-import {
-  buildTerminalListDetailScreenModel,
-  type TerminalListDetailScreenModel,
-} from "../list-detail-presentation.js";
+import { buildTerminalListDetailScreenModel, type TerminalListDetailScreenModel } from "../list-detail-presentation.js";
 import { buildFilterExplorerListRows } from "./browser.js";
 import { describeFilterExplorerHostNode } from "./host-adapter.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
@@ -76,12 +73,14 @@ function isSelectionExplorer(controller: FilterExplorerControllerContext): boole
 }
 
 function getCurrentActivationStyle(controller: FilterExplorerControllerContext): FilterExplorerActivationStyle {
-  return describeFilterExplorerHostNode({
-    host: controller.host,
-    node: controller.browser.selection.currentNode,
-    isFocused: true,
-    controller,
-  })?.activationStyle ?? "none";
+  return (
+    describeFilterExplorerHostNode({
+      host: controller.host,
+      node: controller.browser.selection.currentNode,
+      isFocused: true,
+      controller,
+    })?.activationStyle ?? "none"
+  );
 }
 
 export function getFilterExplorerInteractionActions(
@@ -233,9 +232,12 @@ export function getFilterExplorerInteractionActions(
   ];
 }
 
-function getStateBadgePresentation(
-  badge: FilterExplorerStateBadge | undefined,
-): { text: string; label: string; tone: DerivedTagTerminalSegment["tone"]; bracketed: boolean } {
+function getStateBadgePresentation(badge: FilterExplorerStateBadge | undefined): {
+  text: string;
+  label: string;
+  tone: DerivedTagTerminalSegment["tone"];
+  bracketed: boolean;
+} {
   switch (badge?.kind) {
     case "include":
       return { text: "\u2713", label: "include", tone: "success", bracketed: true };
@@ -253,25 +255,22 @@ function getDiscreteOperatorStateBadge(operator: FilterExplorerDiscreteClauseOpe
   return operator === "include" ? { kind: "include" } : { kind: "exclude" };
 }
 
-function buildStateBadgeSegments(
-  badge: FilterExplorerStateBadge | undefined,
-): DerivedTagTerminalSegment[] {
+function buildStateBadgeSegments(badge: FilterExplorerStateBadge | undefined): DerivedTagTerminalSegment[] {
   const presentation = getStateBadgePresentation(badge);
   if (!presentation.bracketed) {
     return [{ text: presentation.text, tone: presentation.tone }];
   }
 
-  return [{ text: "[", tone: "dim" }, { text: presentation.text, tone: presentation.tone }, { text: "]", tone: "dim" }];
+  return [
+    { text: "[", tone: "dim" },
+    { text: presentation.text, tone: presentation.tone },
+    { text: "]", tone: "dim" },
+  ];
 }
 
-function buildStateBadgeLabelSegments(
-  badge: FilterExplorerStateBadge | undefined,
-): DerivedTagTerminalSegment[] {
+function buildStateBadgeLabelSegments(badge: FilterExplorerStateBadge | undefined): DerivedTagTerminalSegment[] {
   const presentation = getStateBadgePresentation(badge);
-  return [
-    ...buildStateBadgeSegments(badge),
-    { text: ` ${presentation.label}`, tone: presentation.tone },
-  ];
+  return [...buildStateBadgeSegments(badge), { text: ` ${presentation.label}`, tone: presentation.tone }];
 }
 
 function buildGroupedDiscreteClauseEntrySegments(
@@ -311,12 +310,12 @@ function buildFilterExplorerScalarClauseSummary(clause: FilterExplorerScalarClau
   return `${operatorLabel} ${clause.valueLabel ?? formatFilterExplorerScalarValue(clause.value)}`;
 }
 
-function buildScalarClauseEntrySegments(label: string, clause: FilterExplorerScalarClause): DerivedTagTerminalSegment[] {
+function buildScalarClauseEntrySegments(
+  label: string,
+  clause: FilterExplorerScalarClause,
+): DerivedTagTerminalSegment[] {
   const summaryLabel = formatOntologySearchVocabularyLabel(label);
-  return [
-    { text: `${summaryLabel}: ` },
-    { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" },
-  ];
+  return [{ text: `${summaryLabel}: ` }, { text: buildFilterExplorerScalarClauseSummary(clause), tone: "accent" }];
 }
 
 export function buildFilterExplorerComposeDetailLines(args: {
@@ -328,7 +327,10 @@ export function buildFilterExplorerComposeDetailLines(args: {
   selectedScalarClause?: FilterExplorerControllerContext["selectedScalarClause"];
   baseDetailLines: readonly DerivedTagTerminalLine[];
 }): DerivedTagTerminalLine[] {
-  const groupedDiscreteClauses = new Map<string, { field: string; operator: FilterExplorerDiscreteClauseOperator; values: string[] }>();
+  const groupedDiscreteClauses = new Map<
+    string,
+    { field: string; operator: FilterExplorerDiscreteClauseOperator; values: string[] }
+  >();
   for (const clause of args.draft.discreteClauses) {
     const key = `${clause.field}\u0000${clause.operator}`;
     const existing = groupedDiscreteClauses.get(key);
@@ -354,13 +356,15 @@ export function buildFilterExplorerComposeDetailLines(args: {
       text: `${args.selectedTarget.fieldLabel}: ${args.selectedTarget.valueLabel ?? args.currentNodeLabel ?? args.selectedTarget.value}`,
     });
     lines.push({
-      text: `Focused clause: ${getStateBadgePresentation(
-        args.selectedDiscreteClause?.operator === "include"
-          ? { kind: "include" }
-          : args.selectedDiscreteClause?.operator === "exclude"
-            ? { kind: "exclude" }
-            : { kind: "off" },
-      ).label}`,
+      text: `Focused clause: ${
+        getStateBadgePresentation(
+          args.selectedDiscreteClause?.operator === "include"
+            ? { kind: "include" }
+            : args.selectedDiscreteClause?.operator === "exclude"
+              ? { kind: "exclude" }
+              : { kind: "off" },
+        ).label
+      }`,
       segments: [
         { text: "Focused clause: ", tone: "accent" },
         ...buildStateBadgeLabelSegments(
@@ -401,14 +405,14 @@ export function buildFilterExplorerComposeDetailLines(args: {
     return lines;
   }
 
-  for (const entry of [...groupedDiscreteClauses.values()].sort((left, right) =>
-    left.field.localeCompare(right.field) || left.operator.localeCompare(right.operator),
+  for (const entry of [...groupedDiscreteClauses.values()].sort(
+    (left, right) => left.field.localeCompare(right.field) || left.operator.localeCompare(right.operator),
   )) {
     const values = [...new Set(entry.values)].sort((left, right) => left.localeCompare(right));
     lines.push({
-      text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${getStateBadgePresentation(
-        getDiscreteOperatorStateBadge(entry.operator),
-      ).label} ${values.join(", ")}`,
+      text: `${formatOntologySearchVocabularyLabel(entry.field)}: ${
+        getStateBadgePresentation(getDiscreteOperatorStateBadge(entry.operator)).label
+      } ${values.join(", ")}`,
       segments: buildGroupedDiscreteClauseEntrySegments(entry.field, entry.operator, values),
     });
   }
@@ -446,13 +450,12 @@ function buildComposeListSegments(
   }
 
   return [
-    ...(presentation.stateBadge ? [...buildStateBadgeSegments(presentation.stateBadge), { text: " ", tone: "default" as const }] : []),
-    { text: label, tone: isSelected ? "selected" : presentation.tone ?? "default" },
+    ...(presentation.stateBadge
+      ? [...buildStateBadgeSegments(presentation.stateBadge), { text: " ", tone: "default" as const }]
+      : []),
+    { text: label, tone: isSelected ? "selected" : (presentation.tone ?? "default") },
     ...(presentation.suffixText
-      ? [
-          { text: "  ", tone: "dim" } as const,
-          { text: presentation.suffixText, tone: "accent" as const },
-        ]
+      ? [{ text: "  ", tone: "dim" } as const, { text: presentation.suffixText, tone: "accent" as const }]
       : []),
   ];
 }
@@ -538,12 +541,14 @@ export function buildFilterExplorerActionEntries(
         ]
       : []),
     {
-      id: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-        ? "selectTarget:query"
-        : "selectTarget:default",
-      label: request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
-        ? "Open Search Query"
-        : "Open Query",
+      id:
+        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+          ? "selectTarget:query"
+          : "selectTarget:default",
+      label:
+        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+          ? "Open Search Query"
+          : "Open Query",
       description: queryDescription,
       action: {
         kind: "selectTarget" as const,
@@ -759,11 +764,16 @@ export function buildFilterExplorerScreenModel(
 ): TerminalListDetailScreenModel {
   const interactionActions = getFilterExplorerInteractionActions(controller, controller.actionEntries.length > 0);
   const leftLines = buildFilterExplorerListLines(controller);
-  const statusSuffix =
-    isSelectionExplorer(controller) ? buildComposeStatus(controller) : buildInspectStatus(controller);
-  const statusText = controller.discovery ? `${statusSuffix} | ${formatDiscoveryStatus(controller.discovery)}` : statusSuffix;
+  const statusSuffix = isSelectionExplorer(controller)
+    ? buildComposeStatus(controller)
+    : buildInspectStatus(controller);
+  const childLoadingStatus = controller.browser.state.loadingChildNodeId ? " | loading entries" : "";
+  const statusText = controller.discovery
+    ? `${statusSuffix} | ${formatDiscoveryStatus(controller.discovery)}${childLoadingStatus}`
+    : `${statusSuffix}${childLoadingStatus}`;
   const actionRailVisible =
-    controller.actionEntries.length > 0 && shouldRenderDerivedTagTerminalActionTarget(controller.actionTargetState, "onDemand");
+    controller.actionEntries.length > 0 &&
+    shouldRenderDerivedTagTerminalActionTarget(controller.actionTargetState, "onDemand");
   const footerText =
     controller.actionEntries.length > 0 && controller.actionTargetState.activeTarget === "actions"
       ? formatTerminalInteractionFooter([

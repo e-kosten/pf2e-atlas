@@ -10,7 +10,7 @@ Last reviewed: 2026-04-26
 The repo currently has two related but distinct search-semantics surfaces:
 
 - a broad ontology browser loaded through `loadSearchSemanticsDomain()` and built by `buildSearchSemanticsDomain(...)`
-- a prepared search-scoped explorer loaded through `loadSearchFilterExplorerDomain({ request, discoveryMode })` and built by `buildPreparedSearchFilterExplorerDomain(...)`
+- a prepared search-scoped explorer loaded through `loadSearchFilterExplorerDomain({ request, discoveryMode, targetFields })` and built by `buildPreparedSearchFilterExplorerDomain(...)`
 
 These surfaces already share important lower-level plumbing:
 
@@ -57,9 +57,10 @@ The expected end state is not one universal builder that erases the difference b
 
 ### Prepared search-scoped explorer
 
-- public loader: `loadSearchFilterExplorerDomain({ request, discoveryMode })`
+- public loader: `loadSearchFilterExplorerDomain({ request, discoveryMode, targetFields })`
 - public builder: `buildPreparedSearchFilterExplorerDomain(...)`
 - primary job: show values, counts, and field/tag applicability for one concrete scoped query
+- search-hosted single-field flows pass `targetFields` so prepared discovery does not load unrelated fields or metric families
 
 ### Shared lower-level seams
 

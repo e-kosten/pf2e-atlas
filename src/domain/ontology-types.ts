@@ -46,6 +46,11 @@ export type OntologyChildPresentation =
       readonly autoInlineMaxChildren?: number;
     };
 
+export type OntologyChildSource =
+  | { readonly kind: "static"; readonly children: readonly OntologyNode[] }
+  | { readonly kind: "sync"; readonly load: () => readonly OntologyNode[] }
+  | { readonly kind: "async"; readonly load: () => Promise<readonly OntologyNode[]> };
+
 export interface OntologyNode {
   readonly id: string;
   readonly kind: string;
@@ -56,8 +61,7 @@ export interface OntologyNode {
   readonly listLabel?: string;
   readonly detailTitle?: string;
   readonly detailLines: readonly OntologyTextLine[];
-  readonly children?: readonly OntologyNode[];
-  readonly loadChildren?: () => readonly OntologyNode[];
+  readonly childSource?: OntologyChildSource;
   readonly childPresentation?: OntologyChildPresentation;
   readonly groupValues?: Readonly<Record<string, string>>;
   readonly query?: OntologyNodeQuery;

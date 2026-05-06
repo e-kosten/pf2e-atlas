@@ -43,7 +43,7 @@ function findNodeById(nodes: readonly FilterExplorerNode[], id: string | undefin
 }
 
 export function canDrillIntoFilterExplorerNode(node: FilterExplorerNode | undefined): boolean {
-  return Boolean(node?.children?.length || node?.loadChildren);
+  return Boolean(node?.childSource) || getOntologyNodeChildren(node).length > 0;
 }
 
 function getChildrenOfSelectedParent(
@@ -227,7 +227,10 @@ function shouldInlineGroups(
   );
 }
 
-function getGroupRenderMode(parent: FilterExplorerNode | undefined, nodes: readonly FilterExplorerNode[]): GroupRenderMode {
+function getGroupRenderMode(
+  parent: FilterExplorerNode | undefined,
+  nodes: readonly FilterExplorerNode[],
+): GroupRenderMode {
   return shouldInlineGroups(parent?.childPresentation, nodes) ? "inline" : "flat";
 }
 
@@ -306,10 +309,14 @@ export function moveFilterExplorerSelectionToBoundary(
 export function drillIntoFilterExplorerBrowser(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  expectedNodeId?: string,
 ): FilterExplorerBrowserState {
   const nextState = normalizeFilterExplorerBrowserState(model, state);
   const selection = getFilterExplorerBrowserSelection(model, nextState);
   const currentNode = selection.currentNode;
+  if (expectedNodeId && currentNode?.id !== expectedNodeId) {
+    return nextState;
+  }
   const children = getOntologyNodeChildren(currentNode);
   if (children.length === 0) {
     return nextState;
@@ -489,10 +496,7 @@ export function buildFilterExplorerDetailLines(
   return [...(selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }])];
 }
 
-export function getFilterExplorerDetailTitle(
-  model: FilterExplorerModel,
-  state: FilterExplorerBrowserState,
-): string {
+export function getFilterExplorerDetailTitle(model: FilterExplorerModel, state: FilterExplorerBrowserState): string {
   const selection = getFilterExplorerBrowserSelection(model, state);
   return selection.currentNode?.detailTitle ?? "Details";
 }

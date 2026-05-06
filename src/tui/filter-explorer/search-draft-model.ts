@@ -177,7 +177,7 @@ function aggregateUnscopedDirectValueNodes(
         { text: `Value: ${value}` },
         { text: `Live canonical records: ${entry.count}` },
       ],
-      loadChildren: undefined,
+      childSource: undefined,
       query: undefined,
     };
   });
@@ -227,7 +227,9 @@ function buildSearchFilterExplorerRootNodes(
   },
 ): OntologyNode[] {
   const scopedFieldNodes = options.fieldOptions
-    .map((fieldOption) => findSearchFilterExplorerFieldNode(categoryNode, options.category, options.subcategory, fieldOption))
+    .map((fieldOption) =>
+      findSearchFilterExplorerFieldNode(categoryNode, options.category, options.subcategory, fieldOption),
+    )
     .filter((node): node is OntologyNode => Boolean(node));
   const uniqueScopedFieldNodes = [...new Map(scopedFieldNodes.map((node) => [node.id, node])).values()];
 
@@ -260,15 +262,17 @@ function findSearchFilterExplorerFieldNode(
 
   if (fieldOption.value === "actorMetric") {
     return (
-      (subcategory ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:actorMetrics:discovery`) : undefined) ??
-      findDirectNodeById(categoryChildren, `${category}:actorMetrics:discovery`)
+      (subcategory
+        ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:actorMetrics:discovery`)
+        : undefined) ?? findDirectNodeById(categoryChildren, `${category}:actorMetrics:discovery`)
     );
   }
 
   if (fieldOption.value === "itemMetric") {
     return (
-      (subcategory ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:itemMetrics:discovery`) : undefined) ??
-      findDirectNodeById(categoryChildren, `${category}:itemMetrics:discovery`)
+      (subcategory
+        ? findDirectNodeById(subcategoryChildren, `${category}:${subcategory}:itemMetrics:discovery`)
+        : undefined) ?? findDirectNodeById(categoryChildren, `${category}:itemMetrics:discovery`)
     );
   }
 
@@ -307,11 +311,7 @@ function findSearchFilterExplorerFieldNode(
       ? `${category}:${subcategory}:metadataFields`
       : `${category}:metadataFields`;
     const derivedTagsFieldNode =
-      findScopedSearchFilterExplorerMetadataFieldNode(
-        subcategoryNode,
-        scopedMetadataFieldGroupId,
-        scopedFieldNodeId,
-      ) ??
+      findScopedSearchFilterExplorerMetadataFieldNode(subcategoryNode, scopedMetadataFieldGroupId, scopedFieldNodeId) ??
       findScopedSearchFilterExplorerMetadataFieldNode(
         categoryNode,
         `${category}:metadataFields`,
@@ -463,12 +463,13 @@ export function buildSearchFilterExplorerTargetResolver(
       return undefined;
     }
 
-    const predicate = node.query
-      ? canonicalFilterToMetadataNode(node.query.request.filter)
-      : null;
+    const predicate = node.query ? canonicalFilterToMetadataNode(node.query.request.filter) : null;
     if (!predicate || !isMetadataPredicate(predicate)) {
       return fieldOptions
-        .map((fieldOption) => buildMetricScalarTarget(node, fieldOption) ?? buildFallbackFieldSelectionTarget(node, fieldOption))
+        .map(
+          (fieldOption) =>
+            buildMetricScalarTarget(node, fieldOption) ?? buildFallbackFieldSelectionTarget(node, fieldOption),
+        )
         .find((target): target is FilterExplorerComposeTarget => Boolean(target));
     }
 

@@ -2,14 +2,16 @@ import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../domai
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { Pf2eDataService } from "../../data/service.js";
-import type { OntologyDomainModel, OntologyNode, OntologyNodeQuery } from "../../domain/ontology-types.js";
+import type {
+  OntologyChildSource,
+  OntologyDomainModel,
+  OntologyNode,
+  OntologyNodeQuery,
+} from "../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
-import {
-  buildNormalizedRecordNode,
-  cloneOntologyNode,
-} from "./node-helpers.js";
+import { buildNormalizedRecordNode, cloneOntologyNode } from "./node-helpers.js";
 
 type OntologyExplorerDataService = Pick<Pf2eDataService, "listRecords">;
 type OntologyExplorerOntologyService = Pick<Pf2eApplicationOntologyService, "loadSearchSemanticsDomain">;
@@ -51,8 +53,7 @@ function parseMetricInspectScope(node: OntologyNode): {
   }
 
   const category = normalizeSearchCategory(scopeSegments[0]) ?? null;
-  const subcategory =
-    scopeSegments.length === 2 ? (normalizeSearchSubcategory(scopeSegments[1]) ?? null) : null;
+  const subcategory = scopeSegments.length === 2 ? (normalizeSearchSubcategory(scopeSegments[1]) ?? null) : null;
   if (!category) {
     return null;
   }
@@ -97,24 +98,14 @@ function buildInspectMetricQuery(node: OntologyNode): OntologyNodeQuery | undefi
   };
 }
 
-function decorateNodeForInspectAndOpen(
-  node: OntologyNode,
-  dataService: OntologyExplorerDataService,
-): OntologyNode {
+function decorateNodeForInspectAndOpen(node: OntologyNode, dataService: OntologyExplorerDataService): OntologyNode {
   const cloned = cloneOntologyNode(node);
-  const children = cloned.children?.map((child) => decorateNodeForInspectAndOpen(child, dataService));
+  const decoratedChildSource = decorateChildSourceForInspectAndOpen(cloned.childSource, dataService);
 
-  if (children) {
+  if (decoratedChildSource) {
     return {
       ...cloned,
-      children,
-    };
-  }
-
-  if (cloned.loadChildren) {
-    return {
-      ...cloned,
-      loadChildren: () => cloned.loadChildren!().map((child) => decorateNodeForInspectAndOpen(child, dataService)),
+      childSource: decoratedChildSource,
     };
   }
 
@@ -123,18 +114,43 @@ function decorateNodeForInspectAndOpen(
     return {
       ...cloned,
       query: metricInspectQuery,
-      loadChildren: () => buildOntologyQueryRecordChildren(dataService, metricInspectQuery),
+      childSource: { kind: "sync", load: () => buildOntologyQueryRecordChildren(dataService, metricInspectQuery) },
     };
   }
 
   if (cloned.query && cloned.query.request.mode === "browse") {
     return {
       ...cloned,
-      loadChildren: () => buildOntologyQueryRecordChildren(dataService, cloned.query),
+      childSource: { kind: "sync", load: () => buildOntologyQueryRecordChildren(dataService, cloned.query) },
     };
   }
 
   return cloned;
+}
+
+function decorateChildSourceForInspectAndOpen(
+  source: OntologyChildSource | undefined,
+  dataService: OntologyExplorerDataService,
+): OntologyChildSource | undefined {
+  if (!source) {
+    return undefined;
+  }
+  if (source.kind === "static") {
+    return {
+      kind: "static",
+      children: source.children.map((child) => decorateNodeForInspectAndOpen(child, dataService)),
+    };
+  }
+  if (source.kind === "sync") {
+    return {
+      kind: "sync",
+      load: () => source.load().map((child) => decorateNodeForInspectAndOpen(child, dataService)),
+    };
+  }
+  return {
+    kind: "async",
+    load: async () => (await source.load()).map((child) => decorateNodeForInspectAndOpen(child, dataService)),
+  };
 }
 
 export function buildInspectAndOpenOntologyExplorerModel(

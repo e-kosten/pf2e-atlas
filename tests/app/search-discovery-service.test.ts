@@ -110,10 +110,20 @@ describe("application search discovery service", () => {
               : [],
       }),
     );
+    const listMetricCatalogKeys = vi.fn(() => ({
+      field: "actorMetrics",
+      values: [{ value: "save.best", count: 3 }],
+    }));
+    const listMetricCatalogValues = vi.fn(() => ({
+      field: "actorMetrics",
+      values: [{ value: "fort", count: 3 }],
+    }));
     const service = createPf2eApplicationSearchDiscoveryService({
       discoverFilterValues: vi.fn(async () => ({ field: "actorMetrics", values: [] })),
       getPack: vi.fn(() => undefined),
       listFilterValues,
+      listMetricCatalogKeys,
+      listMetricCatalogValues,
     });
     const applicability = createScopedSearchDiscoveryApplicability("browse", "creature", null);
 
@@ -131,6 +141,17 @@ describe("application search discovery service", () => {
         metricKey: "save.best",
       }),
     ).toEqual([{ id: "fort", value: "fort", count: 3 }]);
+    expect(listMetricCatalogKeys).toHaveBeenCalledWith({
+      field: "actorMetrics",
+      category: "creature",
+      metricPrefix: "save.",
+    });
+    expect(listMetricCatalogValues).toHaveBeenCalledWith({
+      field: "actorMetrics",
+      category: "creature",
+      metric: "save.best",
+    });
+    expect(listFilterValues).not.toHaveBeenCalled();
   });
 
   it("resolves pack aliases through the shared service", () => {
@@ -352,7 +373,7 @@ describe("application search discovery service", () => {
       { id: "undead", value: "undead", count: 2 },
     ]);
     expect(
-      reader.discoverMetricKeys({
+      await reader.discoverMetricKeys({
         category: "creature",
         subcategory: null,
         metricField: "actorMetrics",
@@ -360,7 +381,7 @@ describe("application search discovery service", () => {
       }),
     ).toEqual([{ id: "save.best", value: "save.best", count: 2 }]);
     expect(
-      reader.discoverMetricValues({
+      await reader.discoverMetricValues({
         category: "creature",
         subcategory: null,
         metricField: "actorMetrics",
@@ -411,6 +432,117 @@ describe("application search discovery service", () => {
       expect.objectContaining({ field: "derivedTags", category: "creature" }),
       request,
     );
+  });
+
+  it("prepares only requested fields when the search-hosted explorer supplies target fields", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "ghost", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values: field === "traits" ? [{ value: "undead", count: 2 }] : [{ value: "unexpected", count: 1 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching", { targetFields: ["traits"] });
+
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "traits" })).toEqual([
+      { id: "undead", value: "undead", count: 2 },
+    ]);
+    expect(
+      await reader.discoverMetricKeys({ category: "creature", subcategory: null, metricField: "actorMetrics" }),
+    ).toEqual([]);
+    expect(discoverFilterValues).toHaveBeenCalledTimes(1);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "traits", category: "creature" }),
+      request,
+    );
+  });
+
+  it("normalizes TUI metric target fields before preparing metric discovery", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "ghost", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field, metricPrefix }: { field: string; metricPrefix?: string }) => ({
+      field,
+      values:
+        field === "actorMetrics" && metricPrefix === "save."
+          ? [{ value: "save.best", count: 2 }]
+          : [{ value: "unexpected", count: 1 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching", { targetFields: ["actorMetric"] });
+
+    expect(
+      await reader.discoverMetricKeys({
+        category: "creature",
+        subcategory: null,
+        metricField: "actorMetrics",
+        metricPrefix: "save.",
+      }),
+    ).toEqual([{ id: "save.best", value: "save.best", count: 2 }]);
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "traits" })).toEqual([]);
+  });
+
+  it("uses the static metric catalog for prepared catalog metric discovery", async () => {
+    const request = {
+      mode: "browse",
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async () => ({ field: "actorMetrics", values: [] }));
+    const listMetricCatalogKeys = vi.fn(() => ({
+      field: "actorMetrics",
+      values: [{ value: "save.best", count: 8 }],
+    }));
+    const listMetricCatalogValues = vi.fn(() => ({
+      field: "actorMetrics",
+      values: [{ value: "fort", count: 4 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+      listMetricCatalogKeys,
+      listMetricCatalogValues,
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "catalog", { targetFields: ["actorMetric"] });
+
+    expect(
+      await reader.discoverMetricKeys({
+        category: "creature",
+        subcategory: null,
+        metricField: "actorMetrics",
+        metricPrefix: "save.",
+      }),
+    ).toEqual([{ id: "save.best", value: "save.best", count: 8 }]);
+    expect(
+      await reader.discoverMetricValues({
+        category: "creature",
+        subcategory: null,
+        metricField: "actorMetrics",
+        metricKey: "save.best",
+      }),
+    ).toEqual([{ id: "fort", value: "fort", count: 4 }]);
+    expect(listMetricCatalogKeys).toHaveBeenCalled();
+    expect(listMetricCatalogValues).toHaveBeenCalled();
+    expect(discoverFilterValues).not.toHaveBeenCalled();
   });
 
   it("prepares a catalog search-semantics reader from the applicability slice only", async () => {

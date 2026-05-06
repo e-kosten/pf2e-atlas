@@ -112,7 +112,7 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       { text: tag.negativeSignals?.join(" | ") ?? "(none)", indent: 2 },
       ...buildTagSampleDetailLines(tag),
     ],
-    children: tag.records.map(buildRecordNode),
+    childSource: { kind: "static", children: tag.records.map(buildRecordNode) },
     query: {
       label: "List records with this derived tag",
       request: {
@@ -155,7 +155,7 @@ function buildFamilyNode(family: DerivedTagOntologyExplorerFamilyNode): Ontology
       { text: `Tags: ${family.tagCount}` },
       { text: `Distinct live records: ${family.liveRecordCount}` },
     ],
-    children: family.tags.map(buildTagNode),
+    childSource: { kind: "static", children: family.tags.map(buildTagNode) },
     groupValues: {
       axis: family.axis,
     },
@@ -180,7 +180,7 @@ function buildCategoryNode(category: DerivedTagOntologyExplorerCategoryNode): On
       { text: `Tags: ${category.tagCount}` },
       { text: `Tagged canonical records: ${category.taggedRecordCount}` },
     ],
-    children: category.families.map(buildFamilyNode),
+    childSource: { kind: "static", children: category.families.map(buildFamilyNode) },
     childPresentation: {
       mode: "grouped",
       groupBy: "axis",

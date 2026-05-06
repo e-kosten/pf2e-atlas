@@ -294,12 +294,16 @@ Different between them:
 
 The ontology browser uses the broad search-semantics browse tree from `loadSearchSemanticsDomain(...)`. That model exists to browse the ontology of fields, values, families, and tags even before a user has entered a live scoped search query.
 
-The search explorer uses `loadSearchFilterExplorerDomain({ request, discoveryMode })`. That model is prepared from a concrete canonical `SearchRequest`, so it is scoped to the current query and can change meaningfully when discovery mode switches between `matching` and `catalog`.
+The search explorer uses `loadSearchFilterExplorerDomain({ request, discoveryMode, targetFields })`. That model is prepared from a concrete canonical `SearchRequest`, so it is scoped to the current query and can change meaningfully when discovery mode switches between `matching` and `catalog`. Search-hosted explorer flows pass the active field set as `targetFields` so app-layer preparation does not load hidden fields or unrelated metric families for a single-field editing session.
 
 The practical distinction is:
 
 - broad browse model: "show the ontology/catalog of what exists in general", while broad derived-tag families still honor the current discovery mode
 - prepared search-scoped model: "show what exists or applies for this specific search query right now"
+
+During live query edits, the filter explorer keeps the current model mounted while it prepares refreshed counts. Forced query-change refreshes clear the mode cache before requesting a new model so old query counts are not reused, and stale refresh completions are ignored by request id. The visible loading affordance remains the shared explorer refresh status rather than row-level pending markers.
+
+Ontology nodes expose nested entries through `childSource`, not direct `children` fields. Static child sources are already materialized; sync child sources are cheap local expansions; async child sources are allowed for expensive discovery such as metric namespaces and metric value spaces. TUI code resolves children through `getOntologyNodeChildren(...)` or `resolveOntologyNodeChildren(...)` from `src/app/ontology/node-helpers.ts`, and keeps the existing browser mounted while async children load. The filter explorer only drills after the selected node's children resolve, and stale async completions are ignored when selection has moved.
 
 ### Shared Explorer Shell
 

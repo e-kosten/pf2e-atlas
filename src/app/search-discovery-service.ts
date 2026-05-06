@@ -1,8 +1,6 @@
 import type { Pf2eDataService } from "../data/service.js";
-import { inferActorMetricValueType } from "../domain/actor-metrics.js";
 import { normalizeSearchCategory, normalizeSearchSubcategory } from "../domain/categories.js";
 import { orderFilterValues, type FilterValueOrdering } from "../domain/filter-value-ordering.js";
-import { inferItemMetricValueType } from "../domain/item-metrics.js";
 import type { MetadataFieldName, MetadataFieldType } from "../domain/metadata-field-types.js";
 import {
   buildSearchFilterDiscoveryCatalogRequest,
@@ -19,7 +17,8 @@ import type { SearchRequest, SearchRequestMode } from "../domain/search-request-
 import type { FilterValueField, FilterValueQuery, SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
 
-type SearchDiscoveryDataService = Pick<Pf2eDataService, "discoverFilterValues" | "getPack" | "listFilterValues">;
+type SearchDiscoveryDataService = Pick<Pf2eDataService, "discoverFilterValues" | "getPack" | "listFilterValues"> &
+  Partial<Pick<Pf2eDataService, "listMetricCatalogKeys" | "listMetricCatalogValues">>;
 
 export type SearchDiscoveryScope = {
   category: SearchCategory;
@@ -54,13 +53,13 @@ export type SearchSemanticsDiscoveryReader = {
     subcategory: SearchSubcategory | null;
     metricField: "actorMetrics" | "itemMetrics";
     metricPrefix?: string;
-  }) => readonly SearchFilterDiscoveryOption[];
+  }) => Promise<readonly SearchFilterDiscoveryOption[]>;
   discoverMetricValues: (options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
     metricField: "actorMetrics" | "itemMetrics";
     metricKey: string;
-  }) => readonly SearchFilterDiscoveryOption[];
+  }) => Promise<readonly SearchFilterDiscoveryOption[]>;
 };
 
 export type Pf2eApplicationSearchDiscoveryService = {
@@ -89,6 +88,7 @@ export type Pf2eApplicationSearchDiscoveryService = {
   prepareSearchSemanticsReader: (
     request: Readonly<SearchRequest>,
     mode: SearchFilterDiscoveryMode,
+    options?: { targetFields?: readonly string[] },
   ) => Promise<SearchSemanticsDiscoveryReader>;
   resolvePackName: (packValue: string) => string | undefined;
 };
@@ -119,6 +119,19 @@ function buildDiscoveryContextCacheKey(context: SearchFilterDiscoveryContext): s
   ]);
 }
 
+function normalizeDiscoveryTargetField(field: string): string {
+  if (field === "actorMetric" || field === "actorMetricCompare") {
+    return "actorMetrics";
+  }
+  if (field === "itemMetric" || field === "itemMetricCompare") {
+    return "itemMetrics";
+  }
+  if (field === "pack") {
+    return "packs";
+  }
+  return field;
+}
+
 function resolveContextSearchRequest(
   mode: SearchFilterDiscoveryMode,
   context: SearchFilterDiscoveryContext,
@@ -128,11 +141,7 @@ function resolveContextSearchRequest(
   }
 
   const request = context.request;
-  if (
-    (request.mode === "search" || request.mode === "lookup") &&
-    !request.filter &&
-    !request.search.query.trim()
-  ) {
+  if ((request.mode === "search" || request.mode === "lookup") && !request.filter && !request.search.query.trim()) {
     return buildSearchFilterDiscoveryCatalogRequest(context.applicability);
   }
 
@@ -227,9 +236,7 @@ export function createPf2eApplicationSearchDiscoveryService(
     const fields = semantics.metadataFieldsByCategory[scope.category]
       .map((field) => metadataFieldsByName.get(field))
       .filter((field): field is SearchDiscoveryField => Boolean(field))
-      .filter(
-        (field) => !scope.subcategory || !field.subcategories || field.subcategories.includes(scope.subcategory),
-      );
+      .filter((field) => !scope.subcategory || !field.subcategories || field.subcategories.includes(scope.subcategory));
     scopedFieldCache.set(cacheKey, fields);
     return fields;
   }
@@ -281,8 +288,15 @@ export function createPf2eApplicationSearchDiscoveryService(
     }
 
     const query = buildFilterValueQuery(options.target.field as FilterValueField, options.applicability);
+    const catalogResult =
+      options.target.field === "actorMetrics" || options.target.field === "itemMetrics"
+        ? (dataService.listMetricCatalogKeys?.(query) ?? {
+            field: options.target.field as FilterValueField,
+            values: [],
+          })
+        : null;
     const values = orderFilterValues(
-      dataService.listFilterValues(query).values,
+      (catalogResult ?? dataService.listFilterValues(query)).values,
       getFieldValueOrdering(options.target.field),
     );
     const result: SearchFilterDiscoveryResult = {
@@ -317,21 +331,28 @@ export function createPf2eApplicationSearchDiscoveryService(
       return cached;
     }
 
-    const promise = dataService
-      .discoverFilterValues(
-        buildFilterValueQuery(options.field, options.context.applicability, {
-          metric: options.metric,
-          metricPrefix: options.metricPrefix,
-        }),
-        resolveContextSearchRequest(options.mode, options.context),
-      )
-      .then((result) =>
-        orderFilterValues(result.values, getFieldValueOrdering(options.field)).map((entry) => ({
-          id: entry.value,
-          value: entry.value,
-          count: entry.count,
-        })),
-      );
+    const query = buildFilterValueQuery(options.field, options.context.applicability, {
+      metric: options.metric,
+      metricPrefix: options.metricPrefix,
+    });
+    const resultPromise =
+      options.mode === "catalog" && (options.field === "actorMetrics" || options.field === "itemMetrics")
+        ? Promise.resolve(
+            (options.metric
+              ? dataService.listMetricCatalogValues?.(query)
+              : dataService.listMetricCatalogKeys?.(query)) ?? {
+              field: options.field,
+              values: [],
+            },
+          )
+        : dataService.discoverFilterValues(query, resolveContextSearchRequest(options.mode, options.context));
+    const promise = resultPromise.then((result) =>
+      orderFilterValues(result.values, getFieldValueOrdering(options.field)).map((entry) => ({
+        id: entry.value,
+        value: entry.value,
+        count: entry.count,
+      })),
+    );
     asyncDiscoveryOptionCache.set(cacheKey, promise);
     void promise.catch(() => {
       if (asyncDiscoveryOptionCache.get(cacheKey) === promise) {
@@ -392,7 +413,9 @@ export function createPf2eApplicationSearchDiscoveryService(
     const query = buildFilterValueQuery(options.metricField, options.applicability, {
       metricPrefix: options.metricPrefix,
     });
-    const result = dataService.listFilterValues(query).values.map((entry) => ({
+    const result = (
+      dataService.listMetricCatalogKeys?.(query) ?? { field: options.metricField, values: [] }
+    ).values.map((entry) => ({
       id: entry.value,
       value: entry.value,
       count: entry.count,
@@ -421,7 +444,9 @@ export function createPf2eApplicationSearchDiscoveryService(
     const query = buildFilterValueQuery(options.metricField, options.applicability, {
       metric: options.metricKey,
     });
-    const result = dataService.listFilterValues(query).values.map((entry) => ({
+    const result = (
+      dataService.listMetricCatalogValues?.(query) ?? { field: options.metricField, values: [] }
+    ).values.map((entry) => ({
       id: entry.value,
       value: entry.value,
       count: entry.count,
@@ -440,23 +465,28 @@ export function createPf2eApplicationSearchDiscoveryService(
           target: { field },
         }).options,
       discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
-        discoverMetricKeys({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-          metricField,
-          metricPrefix,
-        }),
+        Promise.resolve(
+          discoverMetricKeys({
+            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            metricField,
+            metricPrefix,
+          }),
+        ),
       discoverMetricValues: ({ category, subcategory, metricField, metricKey }) =>
-        discoverMetricValues({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
-          metricField,
-          metricKey,
-        }),
+        Promise.resolve(
+          discoverMetricValues({
+            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            metricField,
+            metricKey,
+          }),
+        ),
     };
   }
 
   async function prepareSearchSemanticsReader(
     request: Readonly<SearchRequest>,
     mode: SearchFilterDiscoveryMode,
+    options: { targetFields?: readonly string[] } = {},
   ): Promise<SearchSemanticsDiscoveryReader> {
     const context = createSearchFilterDiscoveryContext(request);
     const [scopeEntry] = context.applicability.scopes;
@@ -474,81 +504,43 @@ export function createPf2eApplicationSearchDiscoveryService(
         scope: null,
         mode,
         discoverFieldValues: () => [],
-        discoverMetricKeys: () => [],
-        discoverMetricValues: () => [],
+        discoverMetricKeys: () => Promise.resolve([]),
+        discoverMetricValues: () => Promise.resolve([]),
       };
     }
     const preparedScope = scope;
 
+    const targetFields = options.targetFields
+      ? new Set(options.targetFields.map((field) => normalizeDiscoveryTargetField(field)))
+      : null;
     const fieldValuesByField = new Map<string, readonly SearchFilterDiscoveryOption[]>();
-    const metricKeysByNamespace = new Map<string, readonly SearchFilterDiscoveryOption[]>();
-    const metricValuesByKey = new Map<string, readonly SearchFilterDiscoveryOption[]>();
-    const scopedFields = getScopedMetadataFields(scope).filter((field) => field.discoverable);
-    const metricGroups = getMetricDiscoveryGroups(scope);
+    const scopedFields = getScopedMetadataFields(scope).filter(
+      (field) => field.discoverable && (!targetFields || targetFields.has(field.field)),
+    );
 
     const fieldEntries = await Promise.all(
-      scopedFields.map(async (field) => [
-        field.field,
-        await discoverFieldOptions({
-          mode,
-          context,
-          field: field.field as FilterValueField,
-        }),
-      ] as const),
+      scopedFields.map(
+        async (field) =>
+          [
+            field.field,
+            await discoverFieldOptions({
+              mode,
+              context,
+              field: field.field as FilterValueField,
+            }),
+          ] as const,
+      ),
     );
     fieldEntries.forEach(([field, options]) => {
       fieldValuesByField.set(field, options);
     });
 
-    const metricKeyEntries = await Promise.all(
-      metricGroups.flatMap((group) =>
-        group.namespaces.map(async (namespace) => [
-          `${group.metricField}|${namespace.prefix}`,
-          await discoverFieldOptions({
-            mode,
-            context,
-            field: group.metricField,
-            metricPrefix: namespace.prefix,
-          }),
-        ] as const),
-      ),
-    );
-    metricKeyEntries.forEach(([cacheKey, options]) => {
-      metricKeysByNamespace.set(cacheKey, options);
-    });
-
-    const metricValueEntries = await Promise.all(
-      metricKeyEntries.flatMap(([namespaceKey, options]) => {
-        const [metricField] = namespaceKey.split("|") as ["actorMetrics" | "itemMetrics", string];
-        return options
-          .filter((option) => {
-            const metricKey = String(option.value);
-            const valueType =
-              metricField === "actorMetrics"
-                ? inferActorMetricValueType(metricKey)
-                : inferItemMetricValueType(metricKey);
-            return valueType === "text" || valueType === "boolean";
-          })
-          .map(async (option) => {
-            const metricKey = String(option.value);
-            return [
-              `${metricField}|${metricKey}`,
-              await discoverFieldOptions({
-                mode,
-                context,
-                field: metricField,
-                metric: metricKey,
-              }),
-            ] as const;
-          });
-      }),
-    );
-    metricValueEntries.forEach(([cacheKey, options]) => {
-      metricValuesByKey.set(cacheKey, options);
-    });
-
     function matchesScope(category: SearchCategory, subcategory: SearchSubcategory | null): boolean {
       return category === preparedScope.category && (subcategory ?? null) === preparedScope.subcategory;
+    }
+
+    function includesTargetField(field: string): boolean {
+      return !targetFields || targetFields.has(field);
     }
 
     return {
@@ -557,9 +549,23 @@ export function createPf2eApplicationSearchDiscoveryService(
       discoverFieldValues: ({ category, subcategory, field }) =>
         matchesScope(category, subcategory) ? (fieldValuesByField.get(field) ?? []) : [],
       discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
-        matchesScope(category, subcategory) ? (metricKeysByNamespace.get(`${metricField}|${metricPrefix ?? ""}`) ?? []) : [],
+        matchesScope(category, subcategory) && includesTargetField(metricField)
+          ? discoverFieldOptions({
+              mode,
+              context,
+              field: metricField,
+              metricPrefix,
+            })
+          : Promise.resolve([]),
       discoverMetricValues: ({ category, subcategory, metricField, metricKey }) =>
-        matchesScope(category, subcategory) ? (metricValuesByKey.get(`${metricField}|${metricKey}`) ?? []) : [],
+        matchesScope(category, subcategory) && includesTargetField(metricField)
+          ? discoverFieldOptions({
+              mode,
+              context,
+              field: metricField,
+              metric: metricKey,
+            })
+          : Promise.resolve([]),
     };
   }
 

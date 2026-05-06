@@ -6,10 +6,7 @@ import {
   filterExplorerReducer,
   resolveFilterExplorerBackNavigation,
 } from "../../src/tui/filter-explorer/controller-state.js";
-import type {
-  FilterExplorerBrowserContext,
-  FilterExplorerModel,
-} from "../../src/tui/filter-explorer/types.js";
+import type { FilterExplorerBrowserContext, FilterExplorerModel } from "../../src/tui/filter-explorer/types.js";
 
 function createModel(): FilterExplorerModel {
   return {
@@ -23,15 +20,18 @@ function createModel(): FilterExplorerModel {
         label: "Spells",
         filterText: "spells",
         detailLines: [{ text: "Spells" }],
-        children: [
-          {
-            id: "illusion",
-            kind: "value",
-            label: "Illusion",
-            filterText: "illusion",
-            detailLines: [{ text: "Illusion" }],
-          },
-        ],
+        childSource: {
+          kind: "static",
+          children: [
+            {
+              id: "illusion",
+              kind: "value",
+              label: "Illusion",
+              filterText: "illusion",
+              detailLines: [{ text: "Illusion" }],
+            },
+          ],
+        },
       },
       {
         id: "items",
@@ -44,9 +44,7 @@ function createModel(): FilterExplorerModel {
   };
 }
 
-function createBrowserContext(
-  overrides: Partial<FilterExplorerBrowserContext> = {},
-): FilterExplorerBrowserContext {
+function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> = {}): FilterExplorerBrowserContext {
   const state = {
     activePane: "list" as const,
     browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },

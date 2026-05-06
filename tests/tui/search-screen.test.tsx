@@ -3675,12 +3675,15 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "matching counts", 60);
     expect(app.lastFrame()).toContain("Rarity Explorer");
     expect(app.lastFrame()).toContain("matching counts");
-    expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith({
-      discoveryMode: "matching",
-      request: expect.objectContaining({
-        mode: "browse",
+    expect(loadSearchFilterExplorerDomain).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discoveryMode: "matching",
+        request: expect.objectContaining({
+          mode: "browse",
+        }),
+        targetFields: ["rarity"],
       }),
-    });
+    );
   });
 
   it("routes live ontology composition through clause-kind and field pickers before opening the shared explorer", async () => {

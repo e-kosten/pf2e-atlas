@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
@@ -143,12 +144,28 @@ function createDependencies(
   };
 }
 
+function normalizeLegacyNode(
+  node: OntologyNode & { children?: OntologyNode[]; loadChildren?: () => OntologyNode[] },
+): OntologyNode {
+  const { children, loadChildren, ...rest } = node;
+  return {
+    ...rest,
+    childSource:
+      node.childSource ??
+      (children
+        ? { kind: "static", children: children.map((child) => normalizeLegacyNode(child)) }
+        : loadChildren
+          ? { kind: "sync", load: () => loadChildren().map((child) => normalizeLegacyNode(child)) }
+          : undefined),
+  };
+}
+
 function createSearchSemanticsDomain(rootNodes: OntologyNode[]): OntologyDomainModel {
   return {
     id: "searchSemantics",
     label: "Search Semantics",
     description: "Test search semantics domain",
-    rootNodes,
+    rootNodes: rootNodes.map((node) => normalizeLegacyNode(node)),
   };
 }
 
@@ -351,19 +368,21 @@ describe("createPf2eTerminalSearchService", () => {
   });
 
   it("loads metric-key options from the query-aware shared discovery service and can restrict them to numeric keys", async () => {
-    const discoverFilterValues = vi.fn(async (request: { mode: string; context: unknown; target: { field: string } }) => {
-      if (request.target.field === "actorMetrics") {
-        return {
-          mode: "matching" as const,
-          target: request.target,
-          options: [
-            { id: "hp.value", value: "hp.value", count: 2 },
-            { id: "save.best", value: "save.best", count: 1 },
-          ],
-        };
-      }
-      return { mode: "matching" as const, target: request.target, options: [] };
-    });
+    const discoverFilterValues = vi.fn(
+      async (request: { mode: string; context: unknown; target: { field: string } }) => {
+        if (request.target.field === "actorMetrics") {
+          return {
+            mode: "matching" as const,
+            target: request.target,
+            options: [
+              { id: "hp.value", value: "hp.value", count: 2 },
+              { id: "save.best", value: "save.best", count: 1 },
+            ],
+          };
+        }
+        return { mode: "matching" as const, target: request.target, options: [] };
+      },
+    );
     const discovery = createDependencies().discovery;
     discovery.discoverFilterValues = discoverFilterValues;
     const service = createPf2eTerminalSearchService(
@@ -418,19 +437,21 @@ describe("createPf2eTerminalSearchService", () => {
   });
 
   it("loads pack options from canonical pack values and human-facing labels through query-aware catalog discovery", async () => {
-    const discoverFilterValues = vi.fn(async (request: { mode: string; context: unknown; target: { field: string } }) => {
-      if (request.target.field === "packs") {
-        return {
-          mode: "catalog" as const,
-          target: request.target,
-          options: [
-            { id: "pathfinder-npc-core", value: "pathfinder-npc-core", count: 4 },
-            { id: "bestiary", value: "bestiary", count: 2 },
-          ],
-        };
-      }
-      return { mode: "catalog" as const, target: request.target, options: [] };
-    });
+    const discoverFilterValues = vi.fn(
+      async (request: { mode: string; context: unknown; target: { field: string } }) => {
+        if (request.target.field === "packs") {
+          return {
+            mode: "catalog" as const,
+            target: request.target,
+            options: [
+              { id: "pathfinder-npc-core", value: "pathfinder-npc-core", count: 4 },
+              { id: "bestiary", value: "bestiary", count: 2 },
+            ],
+          };
+        }
+        return { mode: "catalog" as const, target: request.target, options: [] };
+      },
+    );
     const discovery = createDependencies({
       getPack: (packValue) =>
         packValue === "pathfinder-npc-core"
@@ -1027,10 +1048,7 @@ describe("createPf2eTerminalSearchService", () => {
     const updated = replaceSearchQueryRootScope(query, scopeFilter("equipment"));
 
     expect(updated.filter).toEqual(
-      allOfFilter([
-        scopeFilter("equipment"),
-        { kind: "level", match: { kind: "gt", value: 5 } },
-      ]),
+      allOfFilter([scopeFilter("equipment"), { kind: "level", match: { kind: "gt", value: 5 } }]),
     );
   });
 
@@ -1248,7 +1266,7 @@ describe("createPf2eTerminalSearchService", () => {
       groupBy: "axis",
       render: "inline",
     });
-    expect(rootNode?.children?.map((node) => node.id)).toEqual(["spell:field:derivedTags:family:coast"]);
+    expect(getOntologyNodeChildren(rootNode).map((node) => node.id)).toEqual(["spell:field:derivedTags:family:coast"]);
   });
 
   it("preserves zero-count derived-tag catalog leaves on the shared explorer path", () => {
@@ -1339,7 +1357,7 @@ describe("createPf2eTerminalSearchService", () => {
 
     expect(model.rootNodes).toHaveLength(1);
     const [rootNode] = model.rootNodes;
-    const zeroCountLeaf = rootNode?.children?.[0]?.children?.[0];
+    const zeroCountLeaf = getOntologyNodeChildren(getOntologyNodeChildren(rootNode)[0])[0];
 
     expect(rootNode?.id).toBe("spell:field:derivedTags");
     expect(zeroCountLeaf?.listLabel).toBe("Coastal Setting | 0");
@@ -1551,10 +1569,7 @@ describe("createPf2eTerminalSearchService", () => {
       },
     );
 
-    expect(model.rootNodes.map((node) => node.listLabel)).toEqual([
-      "Pathfinder NPC Core | 6",
-      "Monster Core | 8",
-    ]);
+    expect(model.rootNodes.map((node) => node.listLabel)).toEqual(["Pathfinder NPC Core | 6", "Monster Core | 8"]);
 
     const resolver = buildSearchFilterExplorerTargetResolver([packFieldOption]);
     expect(resolver(model.rootNodes[0])).toEqual({

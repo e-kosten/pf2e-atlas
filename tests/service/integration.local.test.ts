@@ -52,6 +52,16 @@ describe("local PF2E integration", async () => {
       expect(service.lookup("Raise a Shield").match?.packLabel).toBe("Actions");
       expect(service.lookup("Analysis Eye").match?.packLabel).toBe("Equipment");
       expect(service.lookup("Cythnigot", { category: "creature" }).match?.type).toBe("npc");
+      expect(
+        service
+          .listMetricCatalogKeys({ field: "actorMetrics", category: "creature", metricPrefix: "save" })
+          ?.values.some((entry) => entry.value === "save.best"),
+      ).toBe(true);
+      expect(
+        service
+          .listMetricCatalogValues({ field: "actorMetrics", category: "creature", metric: "save.best" })
+          ?.values.map((entry) => entry.value),
+      ).toEqual(expect.arrayContaining(["fort", "ref", "will"]));
       service.close();
     },
     60000,

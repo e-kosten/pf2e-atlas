@@ -1,5 +1,5 @@
 import type { NormalizedRecord } from "../../domain/record-types.js";
-import type { OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
+import type { OntologyChildSource, OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import { buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
@@ -7,6 +7,47 @@ import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-reco
 import { buildOntologyExplorerEntitySummary } from "./presenter.js";
 
 const loadedOntologyChildren = new WeakMap<OntologyNode, readonly OntologyNode[]>();
+
+type LegacyOntologyChildShape = {
+  readonly children?: readonly OntologyNode[];
+  readonly loadChildren?: () => readonly OntologyNode[];
+};
+
+function getLegacyOntologyChildSource(node: OntologyNode): OntologyChildSource | undefined {
+  const legacyNode = node as OntologyNode & LegacyOntologyChildShape;
+  if (legacyNode.children) {
+    return { kind: "static", children: legacyNode.children };
+  }
+  if (legacyNode.loadChildren) {
+    return { kind: "sync", load: legacyNode.loadChildren };
+  }
+  return undefined;
+}
+
+function cloneOntologyChildSource(
+  source: OntologyChildSource | undefined,
+  idPrefix?: string,
+): OntologyChildSource | undefined {
+  if (!source) {
+    return undefined;
+  }
+  if (source.kind === "static") {
+    return {
+      kind: "static",
+      children: source.children.map((child) => cloneOntologyNode(child, idPrefix)),
+    };
+  }
+  if (source.kind === "sync") {
+    return {
+      kind: "sync",
+      load: () => source.load().map((child) => cloneOntologyNode(child, idPrefix)),
+    };
+  }
+  return {
+    kind: "async",
+    load: async () => (await source.load()).map((child) => cloneOntologyNode(child, idPrefix)),
+  };
+}
 
 export function titleCaseLabel(value: string): string {
   return humanizeOntologySearchIdentifier(value);
@@ -41,13 +82,11 @@ function cloneSearchRequest(request: Readonly<SearchRequest>): SearchRequest {
 }
 
 export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): OntologyNode {
+  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
   return {
     ...node,
     id: idPrefix ? `${idPrefix}:${node.id}` : node.id,
-    children: node.children?.map((child) => cloneOntologyNode(child, idPrefix)),
-    loadChildren: node.loadChildren
-      ? () => node.loadChildren!().map((child) => cloneOntologyNode(child, idPrefix))
-      : undefined,
+    childSource: cloneOntologyChildSource(childSource, idPrefix),
     childPresentation: node.childPresentation ? { ...node.childPresentation } : undefined,
     groupValues: node.groupValues ? { ...node.groupValues } : undefined,
     query: node.query ? { ...node.query, request: cloneSearchRequest(node.query.request) } : undefined,
@@ -59,11 +98,12 @@ export function getOntologyNodeChildren(node: OntologyNode | undefined): readonl
   if (!node) {
     return [];
   }
-  if (node.children) {
-    return node.children;
-  }
-  if (!node.loadChildren) {
+  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
+  if (!childSource) {
     return [];
+  }
+  if (childSource.kind === "static") {
+    return childSource.children;
   }
 
   const cached = loadedOntologyChildren.get(node);
@@ -71,7 +111,33 @@ export function getOntologyNodeChildren(node: OntologyNode | undefined): readonl
     return cached;
   }
 
-  const children = node.loadChildren();
+  if (childSource.kind === "async") {
+    return [];
+  }
+
+  const children = childSource.load();
+  loadedOntologyChildren.set(node, children);
+  return children;
+}
+
+export async function resolveOntologyNodeChildren(node: OntologyNode | undefined): Promise<readonly OntologyNode[]> {
+  if (!node) {
+    return [];
+  }
+  const childSource = node.childSource ?? getLegacyOntologyChildSource(node);
+  if (!childSource) {
+    return [];
+  }
+  if (childSource.kind === "static") {
+    return childSource.children;
+  }
+
+  const cached = loadedOntologyChildren.get(node);
+  if (cached) {
+    return cached;
+  }
+
+  const children = await childSource.load();
   loadedOntologyChildren.set(node, children);
   return children;
 }

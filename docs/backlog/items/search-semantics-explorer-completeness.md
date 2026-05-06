@@ -15,6 +15,7 @@ The remaining open gap is narrower:
 
 - numeric metric keys still fall back to inspect/query-style exploration instead of offering richer live corpus value exploration
 - the live value-listing path still supports text and boolean metric values but not numeric metric value exploration
+- the prepared index stores numeric metric min/max summaries, but the explorer does not yet expose a richer numeric value-space view
 - the backlog item still describes this as a broad explorer-completeness problem instead of the specific remaining follow-through
 
 ## Desired Outcome
@@ -47,6 +48,7 @@ Current `main` already provides:
 - scoped search-semantics nodes keyed by category/subcategory combinations
 - live record-backed exploration from metadata/value nodes
 - actor metric and item metric grouping, namespace browsing, key browsing, and query launch
+- index-backed static metric key and text/boolean value catalogs for fast catalog-mode metric browsing
 - shared inspect/open behavior that routes explored leaves into real search/result flows
 
 ### Remaining Gap

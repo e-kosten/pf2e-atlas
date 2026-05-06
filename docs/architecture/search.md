@@ -306,6 +306,8 @@ This stage feeds several query builders:
 
 The lexical and semantic retrieval queries reuse the same structural constraints, which keeps ranked search bounded by the same category, metadata, and link filters as structured browse.
 
+When a backend caller already has a concrete matching record-key set, candidate and filter-value SQL still goes through this shared SQL builder. Those record-key-constrained queries explicitly drive `records` through the table primary-key index so repeated value-count discovery over a matching set does not accidentally use broader catalog indexes such as the search-canonical index.
+
 ### 6. Structured runtime path
 
 Structured execution is used by browse flows and lookup-like name matching.
@@ -431,6 +433,10 @@ This is why normal startup is offline-only. The embedding provider must already 
 6. writes the metadata glossary artifact
 
 That rebuild path is separate from MCP startup by design. The runtime expects prepared assets rather than mutating them during a request-serving process.
+
+The prepared SQLite index also owns static metric discovery facts. `src/data/indexer.ts` materializes `metric_key_catalog` and `metric_value_catalog` during index refresh from canonical `actor_metrics` and `item_metrics` rows. The key catalog stores metric field, category, exact subcategory plus category-wide `*` rows, namespace prefix, metric key, value type, catalog count, and numeric min/max summaries. The value catalog stores exact text and boolean value counts. Numeric metric values are summarized on the key catalog and are not expanded into value rows.
+
+Runtime readers access those tables through `Pf2eDataService` and `src/data/backend/metric-catalog.ts`. App discovery code may use that facade for catalog-mode metric keys and values; TUI, server, and ontology builders must not read the SQLite catalog tables directly. Query-scoped matching counts still use live discovery so active search text and filters remain exact.
 
 ## Architectural Notes
 

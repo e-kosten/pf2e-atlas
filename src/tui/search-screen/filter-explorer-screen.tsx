@@ -7,9 +7,7 @@ import {
   createFilterExplorerNumericScalarEditHandler,
   createFilterExplorerOutcomeHandler,
 } from "../filter-explorer/host-helpers.js";
-import {
-  createComposeFilterExplorerHostAdapter,
-} from "../filter-explorer/host-adapter.js";
+import { createComposeFilterExplorerHostAdapter } from "../filter-explorer/host-adapter.js";
 import { FilterExplorerScreen } from "../filter-explorer/screen.js";
 import { useDerivedTagTerminalApp } from "../framework/context.js";
 import { useTerminalInteractionContextAdapters } from "../interaction-context-adapters.js";
@@ -22,12 +20,10 @@ import type {
 } from "../filter-explorer/types.js";
 import type { Pf2eTerminalPreparedFilterExplorerDraft } from "../search/service.js";
 import { isSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
-import {
-  planSearchFilterExplorerRefresh,
-  shouldApplySearchFilterExplorerRefresh,
-} from "./filter-explorer-refresh.js";
+import { planSearchFilterExplorerRefresh, shouldApplySearchFilterExplorerRefresh } from "./filter-explorer-refresh.js";
 import { buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft-model.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import {
   buildSearchFilterExplorerComposeDraft,
   buildSearchFilterExplorerFieldState,
@@ -60,15 +56,15 @@ function mergeExplorerNodeTrees(
       return visibleNode;
     }
 
-    const visibleChildren = visibleNode.children;
-    const refreshedChildren = refreshedNode.children;
-    if (!visibleChildren || !refreshedChildren) {
+    const visibleChildren = getOntologyNodeChildren(visibleNode);
+    const refreshedChildren = getOntologyNodeChildren(refreshedNode);
+    if (visibleChildren.length === 0 || refreshedChildren.length === 0) {
       return refreshedNode;
     }
 
     return {
       ...refreshedNode,
-      children: mergeExplorerNodeTrees(visibleChildren, refreshedChildren),
+      childSource: { kind: "static", children: mergeExplorerNodeTrees(visibleChildren, refreshedChildren) },
     };
   });
 }
@@ -103,18 +99,17 @@ function prepareSessionFieldState(
   };
 }
 
-export function SearchFilterExplorerScreen({
-  session,
-}: {
-  session: SearchFilterExplorerSession;
-}): React.JSX.Element {
+export function SearchFilterExplorerScreen({ session }: { session: SearchFilterExplorerSession }): React.JSX.Element {
   const { user } = usePf2eTerminalAppServices();
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
   const loadModelForDiscoveryMode = session.loadModelForDiscoveryMode;
   const selectTargetMode = Boolean(session.selectTargetMode);
-  const scopedFields = React.useMemo(() => session.fieldOptions.map((fieldOption) => fieldOption.value), [session.fieldOptions]);
+  const scopedFields = React.useMemo(
+    () => session.fieldOptions.map((fieldOption) => fieldOption.value),
+    [session.fieldOptions],
+  );
   const prepareDraft = React.useCallback(
     (query: typeof session.query) => user.search.prepareFilterExplorerDraft(query, scopedFields),
     [scopedFields, user.search],
@@ -128,11 +123,15 @@ export function SearchFilterExplorerScreen({
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const queryRef = React.useRef(session.query);
-  const fieldStateRef = React.useRef<SearchFilterExplorerFieldState>(prepareSessionFieldState(session, prepareDraft).fieldState);
+  const fieldStateRef = React.useRef<SearchFilterExplorerFieldState>(
+    prepareSessionFieldState(session, prepareDraft).fieldState,
+  );
   const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const modelCacheRef = React.useRef(new Map<SearchFilterDiscoveryMode, SearchFilterExplorerSession["model"]>());
   const preservedMetadataRef = React.useRef(prepareSessionFieldState(session, prepareDraft).preservedMetadata);
-  const scopedFieldsRef = React.useRef<readonly typeof scopedFields[number][]>(prepareSessionFieldState(session, prepareDraft).scopedFields);
+  const scopedFieldsRef = React.useRef<readonly (typeof scopedFields)[number][]>(
+    prepareSessionFieldState(session, prepareDraft).scopedFields,
+  );
   const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,6 +159,9 @@ export function SearchFilterExplorerScreen({
 
       const { debounceMs = DISCOVERY_REFRESH_DEBOUNCE_MS, force = false } = options;
       const preserveVisibleNodes = force && nextMode === discoveryModeRef.current;
+      if (force) {
+        modelCacheRef.current.clear();
+      }
       const plan = planSearchFilterExplorerRefresh({
         nextMode,
         displayedMode: discoveryModeRef.current,
@@ -269,7 +271,15 @@ export function SearchFilterExplorerScreen({
     return () => {
       invalidateRefreshes();
     };
-  }, [initialDiscoveryMode, invalidateRefreshes, loadModelForDiscoveryMode, prepareDraft, runModelRefresh, session.initialFieldState, session.model]);
+  }, [
+    initialDiscoveryMode,
+    invalidateRefreshes,
+    loadModelForDiscoveryMode,
+    prepareDraft,
+    runModelRefresh,
+    session.initialFieldState,
+    session.model,
+  ]);
 
   const onDiscoveryModeChange = React.useCallback(
     (nextMode: SearchFilterDiscoveryMode) => {
@@ -336,8 +346,8 @@ export function SearchFilterExplorerScreen({
         queryRef.current,
         buildSearchFilterExplorerComposeDraft(nextFieldState),
         {
-        preservedMetadata: preservedMetadataRef.current,
-        scopedFields: scopedFieldsRef.current,
+          preservedMetadata: preservedMetadataRef.current,
+          scopedFields: scopedFieldsRef.current,
         },
       );
       queryRef.current = nextQuery;
@@ -350,7 +360,8 @@ export function SearchFilterExplorerScreen({
   );
 
   const host = React.useMemo<FilterExplorerHostAdapter>(() => {
-    const resolveTarget = session.resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(session.fieldOptions);
+    const resolveTarget =
+      session.resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(session.fieldOptions);
     if (selectTargetMode) {
       return {
         resolveTarget,

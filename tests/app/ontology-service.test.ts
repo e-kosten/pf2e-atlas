@@ -5,11 +5,17 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
+import { getOntologyNodeChildren, resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchSemanticsBootstrapSummaryResult } from "../../src/data/vocabulary.js";
 import type { Pf2eDataService } from "../../src/data/service.js";
-import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode, type SearchRequest } from "../../src/domain/search-request-types.js";
+import {
+  buildAllOfFilter,
+  buildScopeFilter,
+  type SearchFilterNode,
+  type SearchRequest,
+} from "../../src/domain/search-request-types.js";
 import type { FilterValueField, SearchResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { MetadataGlossaryArtifact } from "../../src/domain/metadata-glossary-types.js";
@@ -35,16 +41,20 @@ function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
   };
 }
 
-function findNodeById(nodes: OntologyNode[], id: string): OntologyNode | undefined {
+function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode | undefined {
   for (const node of nodes) {
     if (node.id === id) {
       return node;
     }
-    if (node.children) {
-      const match = findNodeById(node.children, id);
-      if (match) {
-        return match;
-      }
+    const children =
+      node.childSource?.kind === "static"
+        ? node.childSource.children
+        : node.childSource?.kind === "sync" && node.kind !== "field" && node.kind !== "metricNamespace"
+          ? node.childSource.load()
+          : [];
+    const match = findNodeById(children, id);
+    if (match) {
+      return match;
     }
   }
   return undefined;
@@ -155,63 +165,69 @@ function createRecord(overrides: Partial<NormalizedRecord> = {}): NormalizedReco
   };
 }
 
-function createDataService(): Pick<Pf2eDataService, "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"> {
+function createDataService(): Pick<
+  Pf2eDataService,
+  "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
+> {
   const summary = createSummary();
-  const listRecords = vi.fn((request: SearchRequest) => ({
-    searchProfile: null,
-    mode: "structured" as const,
-    sort: request.sort ?? "alphabetical",
-    total: 1,
-    offset: request.offset ?? 0,
-    limit: request.limit ?? 20,
-    hasMore: false,
-    nextOffset: null,
-    records: [
-      createRecord(
-        request.category === "equipment"
-          ? {
-              recordKey: "equipment:tower-bulwark",
-              id: "tower-bulwark",
-              name: "Tower Bulwark",
-              normalizedName: "tower bulwark",
-              type: "armor",
-              category: "equipment",
-              packName: "equipment",
-              packLabel: "Equipment",
-              actionCost: null,
-              saveType: null,
-              sustained: false,
-              publicationTitle: "Pathfinder Core",
-              actorMetrics: {},
-              itemMetrics: { "weapon.reload": 1 },
-              traits: [],
-              derivedTags: [],
-              traditions: [],
-              spellKinds: [],
-            }
-          : request.category === "creature"
-            ? {
-                recordKey: "creature:ember-ghost",
-                id: "ember-ghost",
-                name: "Ember Ghost",
-                normalizedName: "ember ghost",
-                type: "npc",
-                category: "creature",
-                packName: "creature",
-                packLabel: "Creatures",
-                actionCost: null,
-                saveType: null,
-                sustained: false,
-                publicationTitle: "Pathfinder Monster Core",
-                actorMetrics: { "save.best": "fort" },
-                itemMetrics: {},
-                traditions: [],
-                spellKinds: [],
-              }
-            : {},
-      ),
-    ],
-  }) satisfies SearchResult);
+  const listRecords = vi.fn(
+    (request: SearchRequest) =>
+      ({
+        searchProfile: null,
+        mode: "structured" as const,
+        sort: request.sort ?? "alphabetical",
+        total: 1,
+        offset: request.offset ?? 0,
+        limit: request.limit ?? 20,
+        hasMore: false,
+        nextOffset: null,
+        records: [
+          createRecord(
+            request.category === "equipment"
+              ? {
+                  recordKey: "equipment:tower-bulwark",
+                  id: "tower-bulwark",
+                  name: "Tower Bulwark",
+                  normalizedName: "tower bulwark",
+                  type: "armor",
+                  category: "equipment",
+                  packName: "equipment",
+                  packLabel: "Equipment",
+                  actionCost: null,
+                  saveType: null,
+                  sustained: false,
+                  publicationTitle: "Pathfinder Core",
+                  actorMetrics: {},
+                  itemMetrics: { "weapon.reload": 1 },
+                  traits: [],
+                  derivedTags: [],
+                  traditions: [],
+                  spellKinds: [],
+                }
+              : request.category === "creature"
+                ? {
+                    recordKey: "creature:ember-ghost",
+                    id: "ember-ghost",
+                    name: "Ember Ghost",
+                    normalizedName: "ember ghost",
+                    type: "npc",
+                    category: "creature",
+                    packName: "creature",
+                    packLabel: "Creatures",
+                    actionCost: null,
+                    saveType: null,
+                    sustained: false,
+                    publicationTitle: "Pathfinder Monster Core",
+                    actorMetrics: { "save.best": "fort" },
+                    itemMetrics: {},
+                    traditions: [],
+                    spellKinds: [],
+                  }
+                : {},
+          ),
+        ],
+      }) satisfies SearchResult,
+  );
   return {
     getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
     listFilterValues: vi.fn(
@@ -258,6 +274,8 @@ function createDiscoveryService(dataService: Pick<Pf2eDataService, "listFilterVa
     discoverFilterValues: vi.fn(async (query) => dataService.listFilterValues(query)),
     getPack: vi.fn(() => undefined),
     listFilterValues: dataService.listFilterValues,
+    listMetricCatalogKeys: vi.fn((query) => dataService.listFilterValues(query)),
+    listMetricCatalogValues: vi.fn((query) => dataService.listFilterValues(query)),
   });
 }
 
@@ -326,32 +344,24 @@ describe("application ontology service", () => {
       "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
     > = {
       getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
-      listFilterValues: vi.fn(
-        ({
-          field,
-          category,
-        }: {
-          field: FilterValueField;
-          category?: string;
-        }) => ({
-          field,
-          values:
-            field === "derivedTags" && category === "creature"
-              ? [{ value: "undead_adjacent", count: 3 }]
-              : [],
-        }),
+      listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
+        field,
+        values: field === "derivedTags" && category === "creature" ? [{ value: "undead_adjacent", count: 3 }] : [],
+      })),
+      listRecords: vi.fn(
+        (request: SearchRequest) =>
+          ({
+            searchProfile: null,
+            mode: "structured" as const,
+            sort: request.sort ?? "alphabetical",
+            total: 0,
+            offset: request.offset ?? 0,
+            limit: request.limit ?? 20,
+            hasMore: false,
+            nextOffset: null,
+            records: [],
+          }) satisfies SearchResult,
       ),
-      listRecords: vi.fn((request: SearchRequest) => ({
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: request.sort ?? "alphabetical",
-        total: 0,
-        offset: request.offset ?? 0,
-        limit: request.limit ?? 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [],
-      }) satisfies SearchResult),
     };
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
@@ -370,15 +380,15 @@ describe("application ontology service", () => {
     });
 
     const derivedTagsFieldNode = findNodeById(domain.rootNodes, "creature:field:derivedTags");
-    const familyNode = derivedTagsFieldNode?.children?.[0];
-    const tagNode = familyNode?.children?.[0];
+    const familyNode = getOntologyNodeChildren(derivedTagsFieldNode)[0];
+    const tagNode = getOntologyNodeChildren(familyNode)[0];
 
     expect(derivedTagsFieldNode?.childPresentation).toEqual({
       mode: "grouped",
       groupBy: "axis",
       render: "inline",
     });
-    expect(derivedTagsFieldNode?.children).toHaveLength(1);
+    expect(getOntologyNodeChildren(derivedTagsFieldNode)).toHaveLength(1);
     expect(familyNode).toEqual(
       expect.objectContaining({
         kind: "family",
@@ -452,32 +462,24 @@ describe("application ontology service", () => {
       "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
     > = {
       getSearchSemanticsBootstrapSummary: vi.fn(() => summary),
-      listFilterValues: vi.fn(
-        ({
-          field,
-          category,
-        }: {
-          field: FilterValueField;
-          category?: string;
-        }) => ({
-          field,
-          values:
-            field === "derivedTags" && category === "creature"
-              ? [{ value: "undead_adjacent", count: 3 }]
-              : [],
-        }),
+      listFilterValues: vi.fn(({ field, category }: { field: FilterValueField; category?: string }) => ({
+        field,
+        values: field === "derivedTags" && category === "creature" ? [{ value: "undead_adjacent", count: 3 }] : [],
+      })),
+      listRecords: vi.fn(
+        (request: SearchRequest) =>
+          ({
+            searchProfile: null,
+            mode: "structured" as const,
+            sort: request.sort ?? "alphabetical",
+            total: 0,
+            offset: request.offset ?? 0,
+            limit: request.limit ?? 20,
+            hasMore: false,
+            nextOffset: null,
+            records: [],
+          }) satisfies SearchResult,
       ),
-      listRecords: vi.fn((request: SearchRequest) => ({
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: request.sort ?? "alphabetical",
-        total: 0,
-        offset: request.offset ?? 0,
-        limit: request.limit ?? 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [],
-      }) satisfies SearchResult),
     };
     const service = createPf2eApplicationOntologyService(
       createTestConfig(),
@@ -488,18 +490,20 @@ describe("application ontology service", () => {
     const matching = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const catalog = await service.loadSearchSemanticsDomain({ discoveryMode: "catalog" });
 
-    const matchingFamilyNode = findNodeById(matching.rootNodes, "creature:field:derivedTags")?.children?.[0];
-    const catalogFamilyNode = findNodeById(catalog.rootNodes, "creature:field:derivedTags")?.children?.[0];
+    const matchingFamilyNode = getOntologyNodeChildren(
+      findNodeById(matching.rootNodes, "creature:field:derivedTags"),
+    )[0];
+    const catalogFamilyNode = getOntologyNodeChildren(findNodeById(catalog.rootNodes, "creature:field:derivedTags"))[0];
 
     expect(matchingFamilyNode?.listLabel).toBe("Threat Profile | 1 tags");
-    expect(matchingFamilyNode?.children?.map((node) => node.listLabel)).toEqual(["Undead Adjacent | 3"]);
+    expect(getOntologyNodeChildren(matchingFamilyNode).map((node) => node.listLabel)).toEqual(["Undead Adjacent | 3"]);
 
     expect(catalogFamilyNode?.listLabel).toBe("Threat Profile | 2 tags");
-    expect(catalogFamilyNode?.children?.map((node) => node.listLabel)).toEqual([
+    expect(getOntologyNodeChildren(catalogFamilyNode).map((node) => node.listLabel)).toEqual([
       "Undead Adjacent | 3",
       "Fiend Adjacent | 0",
     ]);
-    expect(catalogFamilyNode?.children?.[1]?.query).toEqual(
+    expect(getOntologyNodeChildren(catalogFamilyNode)[1]?.query).toEqual(
       expect.objectContaining({
         label: "Browse records with the Fiend Adjacent derived tag",
       }),
@@ -559,9 +563,9 @@ describe("application ontology service", () => {
     const sustainedFieldNode = findNodeById(domain.rootNodes, "spell:field:sustained");
     const handsFieldNode = findNodeById(domain.rootNodes, "equipment:field:hands");
 
-    const saveTypeValueNodes = saveTypeFieldNode?.loadChildren?.() ?? [];
-    const sustainedValueNodes = sustainedFieldNode?.loadChildren?.() ?? [];
-    const handsValueNodes = handsFieldNode?.loadChildren?.() ?? [];
+    const saveTypeValueNodes = getOntologyNodeChildren(saveTypeFieldNode);
+    const sustainedValueNodes = getOntologyNodeChildren(sustainedFieldNode);
+    const handsValueNodes = getOntologyNodeChildren(handsFieldNode);
 
     expect(dataService.listFilterValues).toHaveBeenCalledWith(
       expect.objectContaining({ field: "saveType", category: "spell" }),
@@ -583,7 +587,9 @@ describe("application ontology service", () => {
         { kind: "metadataPredicate", predicate: { field: "saveType", op: "eq", value: "fortitude" } },
       ]),
     );
-    expect(getRequestFilter(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.request)).toEqual(
+    expect(
+      getRequestFilter(sustainedValueNodes.find((node) => node.id === "spell:sustained:true")?.query?.request),
+    ).toEqual(
       buildAllOfFilter([
         buildScopeFilter("spell"),
         { kind: "metadataPredicate", predicate: { field: "sustained", op: "eq", value: true } },
@@ -595,14 +601,14 @@ describe("application ontology service", () => {
         { kind: "metadataPredicate", predicate: { field: "hands", op: "eq", value: 1 } },
       ]),
     );
-    const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
+    const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
     expect(getRequestFilter(commonTraitNode?.query?.request)).toEqual(
       buildAllOfFilter([
         buildScopeFilter("spell"),
         { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "fire" } },
       ]),
     );
-    expect(saveTypeValueNode?.loadChildren?.()[0]?.kind).toBe("record");
+    expect(getOntologyNodeChildren(saveTypeValueNode)[0]?.kind).toBe("record");
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
@@ -634,9 +640,9 @@ describe("application ontology service", () => {
       const dataService = createDataService();
       const service = createPf2eApplicationOntologyService(config, dataService, createDiscoveryService(dataService));
       const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
-      const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
+      const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
-      const traitValueNode = traitFieldNode?.loadChildren?.().find((node) => node.id === "spell:traits:fire");
+      const traitValueNode = getOntologyNodeChildren(traitFieldNode).find((node) => node.id === "spell:traits:fire");
 
       expect(commonTraitNode?.label).toBe("Fire");
       expect(commonTraitNode?.listLabel).toBe("Fire | 4");
@@ -663,7 +669,10 @@ describe("application ontology service", () => {
       value: `trait-${index + 1}`,
       count: index + 1,
     }));
-    const dataService: Pick<Pf2eDataService, "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"> = {
+    const dataService: Pick<
+      Pf2eDataService,
+      "getSearchSemanticsBootstrapSummary" | "listFilterValues" | "listRecords"
+    > = {
       getSearchSemanticsBootstrapSummary: vi.fn(() => ({
         categories: [{ value: "spell", count: 14 }],
         subcategoryCountsByCategory: [{ category: "spell", subcategories: [] }],
@@ -675,17 +684,20 @@ describe("application ontology service", () => {
         field,
         values: field === "traits" && category === "spell" ? values : [],
       })),
-      listRecords: vi.fn((request: SearchRequest) => ({
-        searchProfile: null,
-        mode: "structured" as const,
-        sort: request.sort ?? "alphabetical",
-        total: 0,
-        offset: request.offset ?? 0,
-        limit: request.limit ?? 20,
-        hasMore: false,
-        nextOffset: null,
-        records: [],
-      }) satisfies SearchResult),
+      listRecords: vi.fn(
+        (request: SearchRequest) =>
+          ({
+            searchProfile: null,
+            mode: "structured" as const,
+            sort: request.sort ?? "alphabetical",
+            total: 0,
+            offset: request.offset ?? 0,
+            limit: request.limit ?? 20,
+            hasMore: false,
+            nextOffset: null,
+            records: [],
+          }) satisfies SearchResult,
+      ),
     };
 
     const service = createPf2eApplicationOntologyService(
@@ -695,7 +707,7 @@ describe("application ontology service", () => {
     );
     const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
-    const traitValueNodes = traitFieldNode?.loadChildren?.() ?? [];
+    const traitValueNodes = getOntologyNodeChildren(traitFieldNode);
 
     expect(traitValueNodes).toHaveLength(14);
     expect(traitValueNodes[0]?.id).toBe("spell:traits:trait-14");
@@ -711,23 +723,27 @@ describe("application ontology service", () => {
     const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const actorMetricGroup = findNodeById(domain.rootNodes, "creature:actorMetrics:discovery");
     const actorMetricNamespace = findNodeById(domain.rootNodes, "creature:actorMetrics:namespace:save.");
-    const actorMetricNode = actorMetricNamespace
-      ?.loadChildren?.()
-      .find((node) => node.id === "creature:actorMetrics:save.best");
-    const actorMetricValueNode = actorMetricNode
-      ?.loadChildren?.()
-      .find((node) => node.id === "creature:actorMetrics:save.best:fort");
-    const commonTraitNode = findNodeById(domain.rootNodes, "spell:commonTraits")?.children?.[0];
+    const actorMetricNode = (await resolveOntologyNodeChildren(actorMetricNamespace)).find(
+      (node) => node.id === "creature:actorMetrics:save.best",
+    );
+    const actorMetricValueNode = (await resolveOntologyNodeChildren(actorMetricNode)).find(
+      (node) => node.id === "creature:actorMetrics:save.best:fort",
+    );
+    const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
     const saveTypeValueNode = findNodeById(domain.rootNodes, "spell:field:saveType")
-      ?.loadChildren?.()
-      .find((node) => node.id === "spell:saveType:fortitude");
+      ? getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:saveType")).find(
+          (node) => node.id === "spell:saveType:fortitude",
+        )
+      : undefined;
     const publicationTitleValueNode = findNodeById(domain.rootNodes, "spell:field:publicationTitle")
-      ?.loadChildren?.()
-      .find((node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements");
+      ? getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:publicationTitle")).find(
+          (node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements",
+        )
+      : undefined;
     const itemMetricNamespace = findNodeById(domain.rootNodes, "equipment:itemMetrics:namespace:weapon.");
-    const itemMetricNode = itemMetricNamespace
-      ?.loadChildren?.()
-      .find((node) => node.id === "equipment:itemMetrics:weapon.reload");
+    const itemMetricNode = (await resolveOntologyNodeChildren(itemMetricNamespace)).find(
+      (node) => node.id === "equipment:itemMetrics:weapon.reload",
+    );
 
     expect(findNodeById(domain.rootNodes, "equipment:example:0")).toBeUndefined();
     expect(findNodeById(domain.rootNodes, "equipment:examples")).toBeUndefined();
@@ -737,7 +753,7 @@ describe("application ontology service", () => {
     expect(actorMetricGroup?.detailLines.map((line) => line.text)).toContain(
       "Explore live creature statistics namespaces, keys, and exact scalar values from the indexed corpus.",
     );
-    expect(actorMetricNamespace?.loadChildren?.().map((node) => node.label)).toContain("Best Save");
+    expect((await resolveOntologyNodeChildren(actorMetricNamespace)).map((node) => node.label)).toContain("Best Save");
     expect(actorMetricNode?.label).toBe("Best Save");
     expect(actorMetricValueNode?.query).toEqual({
       label: "Browse records where Best Save = fort",
@@ -762,7 +778,7 @@ describe("application ontology service", () => {
         limit: 20,
       },
     });
-    expect(actorMetricValueNode?.loadChildren?.()[0]?.kind).toBe("record");
+    expect(getOntologyNodeChildren(actorMetricValueNode)[0]?.kind).toBe("record");
     expect(itemMetricNode?.label).toBe("Weapon Reload");
     expect(itemMetricNode?.query).toEqual({
       label: "Browse records with Weapon Reload",
@@ -787,7 +803,7 @@ describe("application ontology service", () => {
         limit: 20,
       },
     });
-    expect(itemMetricNode?.loadChildren).toBeUndefined();
+    expect(itemMetricNode?.childSource).toBeUndefined();
     expect(commonTraitNode?.query).toEqual({
       label: "Browse records with this trait",
       request: {

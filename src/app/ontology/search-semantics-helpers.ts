@@ -316,10 +316,7 @@ function buildMetadataValueQuery(
   }
 }
 
-function getPackPresentationLabel(
-  recordsService: SearchSemanticsRecordsDataService,
-  packValue: string,
-): string {
+function getPackPresentationLabel(recordsService: SearchSemanticsRecordsDataService, packValue: string): string {
   const pack = recordsService.getPack?.(packValue);
   return pack?.label ?? pack?.name ?? packValue;
 }
@@ -408,17 +405,22 @@ export function buildFieldValueNodes(
             metadata,
           )
         : undefined,
-      loadChildren: metadata
-        ? () =>
-            buildQueryRecordChildren(
-              dataService,
-              buildSearchSemanticsMetadataQuery(
-                category,
-                subcategory,
-                fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-                metadata,
+      childSource: metadata
+        ? {
+            kind: "sync",
+            load: () =>
+              buildQueryRecordChildren(
+                dataService,
+                buildSearchSemanticsMetadataQuery(
+                  category,
+                  subcategory,
+                  fieldSemantics.field === "traits"
+                    ? "Browse records with this trait"
+                    : "Browse records with this value",
+                  metadata,
+                ),
               ),
-            )
+          }
         : undefined,
     };
   });
@@ -436,15 +438,10 @@ export function buildPackValueNodes(
 
   return values.map((entry): OntologyNode => {
     const packLabel = getPackPresentationLabel(dataService, entry.value);
-    const query = buildSearchSemanticsMetadataQuery(
-      category,
-      subcategory,
-      `Browse records from ${packLabel}`,
-      {
-        kind: "pack",
-        value: entry.value,
-      },
-    );
+    const query = buildSearchSemanticsMetadataQuery(category, subcategory, `Browse records from ${packLabel}`, {
+      kind: "pack",
+      value: entry.value,
+    });
 
     return {
       id: `${idPrefix}:pack:${entry.value}`,
@@ -464,7 +461,7 @@ export function buildPackValueNodes(
         buildResultReaderHint(),
       ),
       query,
-      loadChildren: () => buildQueryRecordChildren(dataService, query),
+      childSource: { kind: "sync", load: () => buildQueryRecordChildren(dataService, query) },
     };
   });
 }
@@ -524,7 +521,7 @@ function buildMetricValueNodes(
         buildResultReaderHint(),
       ),
       query,
-      loadChildren: () => buildQueryRecordChildren(recordsService, query),
+      childSource: { kind: "sync", load: () => buildQueryRecordChildren(recordsService, query) },
     };
   });
 }
@@ -591,28 +588,33 @@ function buildMetricKeyNode(
           ]),
     ],
     query: inspectQuery,
-    loadChildren:
+    childSource:
       valueType === "text" || valueType === "boolean"
-        ? () =>
-            buildMetricValueNodes(recordsService, {
-              category,
-              subcategory,
-              groupLabel,
-              metricField,
-              metadataField,
-              metricKey,
-              valueType,
-              values: discoveryReader.discoverMetricValues({
+        ? {
+            kind: "async",
+            load: async () =>
+              buildMetricValueNodes(recordsService, {
                 category,
                 subcategory,
+                groupLabel,
                 metricField,
+                metadataField,
                 metricKey,
-              }).map((entry) => ({
-                value: String(entry.value),
-                count: entry.count,
-              })),
-              countLabel,
-            })
+                valueType,
+                values: (
+                  await discoveryReader.discoverMetricValues({
+                    category,
+                    subcategory,
+                    metricField,
+                    metricKey,
+                  })
+                ).map((entry) => ({
+                  value: String(entry.value),
+                  count: entry.count,
+                })),
+                countLabel,
+              }),
+          }
         : undefined,
   };
 }
@@ -650,15 +652,17 @@ function buildMetricNamespaceNode(
         text: "Drill in to browse live metric keys, then inspect exact scalar values where the backend can enumerate them.",
       },
     ],
-    loadChildren: () =>
-      discoveryReader
-        .discoverMetricKeys({
-          category,
-          subcategory,
-          metricField,
-          metricPrefix: prefix,
-        })
-        .map((entry) =>
+    childSource: {
+      kind: "async",
+      load: async () =>
+        (
+          await discoveryReader.discoverMetricKeys({
+            category,
+            subcategory,
+            metricField,
+            metricPrefix: prefix,
+          })
+        ).map((entry) =>
           buildMetricKeyNode(recordsService, discoveryReader, {
             category,
             subcategory,
@@ -670,6 +674,7 @@ function buildMetricNamespaceNode(
             countLabel: options.countLabel,
           }),
         ),
+    },
   };
 }
 
@@ -704,17 +709,20 @@ export function buildMetricDiscoveryGroup(
       ],
       `Explore live ${label.toLowerCase()} namespaces, keys, and exact scalar values from the indexed corpus.`,
     ),
-    children: namespaces.map((namespace) =>
-      buildMetricNamespaceNode(recordsService, discoveryReader, {
-        category,
-        subcategory,
-        groupLabel: label,
-        metricField,
-        metadataField,
-        prefix: namespace.prefix,
-        description: namespace.description,
-        countLabel: options.countLabel,
-      }),
-    ),
+    childSource: {
+      kind: "static",
+      children: namespaces.map((namespace) =>
+        buildMetricNamespaceNode(recordsService, discoveryReader, {
+          category,
+          subcategory,
+          groupLabel: label,
+          metricField,
+          metadataField,
+          prefix: namespace.prefix,
+          description: namespace.description,
+          countLabel: options.countLabel,
+        }),
+      ),
+    },
   };
 }

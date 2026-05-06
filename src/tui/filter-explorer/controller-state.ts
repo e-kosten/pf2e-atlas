@@ -1,7 +1,4 @@
-import {
-  reduceDerivedTagTerminalTwoPaneState,
-  type DerivedTagTerminalTwoPaneAction,
-} from "../two-pane-state.js";
+import { reduceDerivedTagTerminalTwoPaneState, type DerivedTagTerminalTwoPaneAction } from "../two-pane-state.js";
 import {
   cloneFilterExplorerBrowserSnapshot,
   drillIntoFilterExplorerBrowser,
@@ -28,10 +25,11 @@ export type FilterExplorerAction =
   | { type: "append_search"; character: string }
   | { type: "backspace_search" }
   | { type: "clear_search" }
+  | { type: "set_child_loading"; nodeId?: string }
   | { type: "move_selection"; delta: number }
   | { type: "jump_selection"; delta: number }
   | { type: "selection_boundary"; boundary: "start" | "end" }
-  | { type: "drill_in" }
+  | { type: "drill_in"; nodeId?: string }
   | { type: "pop_depth" }
   | { type: "move_detail"; delta: number; maxDetailScroll: number }
   | { type: "detail_boundary"; boundary: "start" | "end"; maxDetailScroll: number };
@@ -131,6 +129,11 @@ export function filterExplorerReducer(
         browserState: setFilterExplorerFilter(model, state.browserState, ""),
         searchInput: "",
       };
+    case "set_child_loading":
+      return {
+        ...state,
+        loadingChildNodeId: action.nodeId,
+      };
     case "move_selection":
       return {
         ...state,
@@ -150,7 +153,8 @@ export function filterExplorerReducer(
       return {
         ...state,
         activePane: "list",
-        browserState: drillIntoFilterExplorerBrowser(model, state.browserState),
+        browserState: drillIntoFilterExplorerBrowser(model, state.browserState, action.nodeId),
+        loadingChildNodeId: undefined,
         layoutMode: "split",
         searchInput: "",
         searchMode: false,

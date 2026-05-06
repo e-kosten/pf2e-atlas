@@ -10,10 +10,7 @@ import {
   isMetadataFieldName,
   type MetadataFilterValueSource,
 } from "../search/filters/registry.js";
-import {
-  SearchSort,
-  type FilterValueQuery,
-} from "../domain/search-types.js";
+import { SearchSort, type FilterValueQuery } from "../domain/search-types.js";
 import type { NormalizedSearchFilters, SearchExecutionFilterNode, SqlValue } from "./contracts.js";
 import {
   buildMetadataAtomicPredicateClause,
@@ -44,6 +41,15 @@ type SearchSqlFilterContext = {
     spellAlias?: string;
   };
 };
+
+const RECORDS_PRIMARY_KEY_INDEX = "sqlite_autoindex_records_1";
+
+function recordsTableReference(alias: string, options: { recordKeys?: string[] } = {}): string {
+  if (options.recordKeys && options.recordKeys.length > 0) {
+    return `records ${alias} INDEXED BY ${RECORDS_PRIMARY_KEY_INDEX}`;
+  }
+  return `records ${alias}`;
+}
 
 function buildLinksToClause(target: string, recordKeyExpr: string): { clause: string; params: SqlValue[] } {
   return {
@@ -365,7 +371,7 @@ export function buildCandidateQuery(
 
   const sql = [
     `SELECT ${fields.join(", ")}`,
-    "FROM records r",
+    `FROM ${recordsTableReference("r", options)}`,
     "LEFT JOIN actor_records a ON a.record_key = r.record_key",
     "LEFT JOIN item_records i ON i.record_key = r.record_key",
     "LEFT JOIN spell_records s ON s.record_key = r.record_key",
@@ -417,7 +423,7 @@ export function buildCandidateCountQuery(
 ): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT COUNT(*) AS total",
-    "FROM records r",
+    `FROM ${recordsTableReference("r", options)}`,
     "LEFT JOIN actor_records a ON a.record_key = r.record_key",
     "LEFT JOIN item_records i ON i.record_key = r.record_key",
     "LEFT JOIN spell_records s ON s.record_key = r.record_key",
@@ -447,7 +453,7 @@ export function buildCandidateKeyQuery(
 ): { sql: string; params: SqlValue[] } {
   const sql = [
     "SELECT r.record_key AS recordKey",
-    "FROM records r",
+    `FROM ${recordsTableReference("r", options)}`,
     "LEFT JOIN actor_records a ON a.record_key = r.record_key",
     "LEFT JOIN item_records i ON i.record_key = r.record_key",
     "LEFT JOIN spell_records s ON s.record_key = r.record_key",
@@ -509,7 +515,7 @@ export function buildFilterValueQuery(
   }
 
   const joins = [
-    "FROM records r",
+    `FROM ${recordsTableReference("r", options)}`,
     "LEFT JOIN actor_records a ON a.record_key = r.record_key",
     "LEFT JOIN item_records i ON i.record_key = r.record_key",
     "LEFT JOIN spell_records s ON s.record_key = r.record_key",
@@ -608,12 +614,18 @@ export function buildFilterValueQuery(
   sql.push(`SELECT ${valueExpression} AS value, COUNT(*) AS count`);
   sql.push(...joins);
   sql.push("WHERE 1 = 1");
-  applySearchFilterClauses(sql, params, filters, {
-    records: "r",
-    actor: "a",
-    item: "i",
-    spell: "s",
-  }, options);
+  applySearchFilterClauses(
+    sql,
+    params,
+    filters,
+    {
+      records: "r",
+      actor: "a",
+      item: "i",
+      spell: "s",
+    },
+    options,
+  );
   sql.push(...postFilterClauses);
   params.push(...postFilterParams);
   sql.push("GROUP BY value");
@@ -683,12 +695,17 @@ export function buildSemanticRetrievalQuery(
         recordKeyExpr: "record_embeddings.record_key",
       },
     });
-    appendWhereClause(sql, params, `AND ${compiled.clause}`, ...compiled.params.map((value) => {
-      if (typeof value === "number" && Number.isInteger(value)) {
-        return BigInt(value);
-      }
-      return value;
-    }));
+    appendWhereClause(
+      sql,
+      params,
+      `AND ${compiled.clause}`,
+      ...compiled.params.map((value) => {
+        if (typeof value === "number" && Number.isInteger(value)) {
+          return BigInt(value);
+        }
+        return value;
+      }),
+    );
   }
 
   return { sql: sql.join("\n"), params };

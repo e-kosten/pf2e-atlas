@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
+import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
@@ -62,7 +63,12 @@ function findNodeById(nodes: readonly OntologyNode[], id: string): OntologyNode 
     if (node.id === id) {
       return node;
     }
-    const children = node.children ?? [];
+    const children =
+      node.childSource?.kind === "static"
+        ? node.childSource.children
+        : node.childSource?.kind === "sync" && node.kind !== "field" && node.kind !== "metricNamespace"
+          ? node.childSource.load()
+          : [];
     const match = findNodeById(children, id);
     if (match) {
       return match;
@@ -125,9 +131,11 @@ function createSummary(): SearchSemanticsBootstrapSummaryResult {
   };
 }
 
-function createDataService(options: {
-  includeSummary?: boolean;
-} = {}): Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
+function createDataService(
+  options: {
+    includeSummary?: boolean;
+  } = {},
+): Pick<Pf2eDataService, "discoverFilterValues" | "listFilterValues" | "listRecords"> & {
   getPack: ReturnType<typeof vi.fn>;
   getSearchSemanticsBootstrapSummary?: ReturnType<typeof vi.fn<() => SearchSemanticsBootstrapSummaryResult>>;
 } {
@@ -139,44 +147,39 @@ function createDataService(options: {
   } = {
     getPack: vi.fn(() => undefined),
     listFilterValues: vi.fn(
-      ({
+      ({ field, category, subcategory }: { field: FilterValueField; category?: string; subcategory?: string }) => ({
         field,
-        category,
-        subcategory,
-      }: {
-        field: FilterValueField;
-        category?: string;
-        subcategory?: string;
-      }) => ({
-      field,
-      values:
-        field === "subcategories" && category === "hazard"
-          ? [
-              { value: "trap", count: 2 },
-              { value: "haunt", count: 1 },
-            ]
-          : field === "packs" && category === "hazard"
-            ? [{ value: "hazard-pack", count: 3 }]
-          : field === "derivedTags" && category === "hazard" && subcategory === "trap"
+        values:
+          field === "subcategories" && category === "hazard"
             ? [
-                { value: "fogbound", count: 2 },
-                { value: "snag_line", count: 1 },
+                { value: "trap", count: 2 },
+                { value: "haunt", count: 1 },
               ]
-      : [],
+            : field === "packs" && category === "hazard"
+              ? [{ value: "hazard-pack", count: 3 }]
+              : field === "derivedTags" && category === "hazard" && subcategory === "trap"
+                ? [
+                    { value: "fogbound", count: 2 },
+                    { value: "snag_line", count: 1 },
+                  ]
+                : [],
       }),
     ),
     discoverFilterValues: vi.fn(async (query) => service.listFilterValues(query)),
-    listRecords: vi.fn((request: SearchRequest) => ({
-      searchProfile: null,
-      mode: "structured" as const,
-      sort: request.sort ?? "alphabetical",
-      total: 0,
-      offset: request.offset ?? 0,
-      limit: request.limit ?? 20,
-      hasMore: false,
-      nextOffset: null,
-      records: [],
-    }) satisfies SearchResult),
+    listRecords: vi.fn(
+      (request: SearchRequest) =>
+        ({
+          searchProfile: null,
+          mode: "structured" as const,
+          sort: request.sort ?? "alphabetical",
+          total: 0,
+          offset: request.offset ?? 0,
+          limit: request.limit ?? 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [],
+        }) satisfies SearchResult,
+    ),
   };
 
   if (options.includeSummary ?? true) {
@@ -208,23 +211,32 @@ describe("buildSearchSemanticsDomain", () => {
       groupBy: "axis",
       render: "inline",
     });
-    expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["Mist", "Tripwire"]);
+    const derivedTagFamilies = getOntologyNodeChildren(derivedTagsField);
+    expect(derivedTagFamilies.map((node) => node.label)).toEqual(["Mist", "Tripwire"]);
 
-    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
-    const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
-    const fogboundTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:fogbound");
+    const mistFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:mist"));
+    const tripwireFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:tripwire"));
+    const fogboundTag = findNodeById(
+      getOntologyNodeChildren(mistFamilyNode),
+      "hazard:trap:field:derivedTags:family:mist:tag:fogbound",
+    );
     const trapTag = findNodeById(
-      tripwireFamilyNode?.children ?? [],
+      getOntologyNodeChildren(tripwireFamilyNode),
       "hazard:trap:field:derivedTags:family:tripwire:tag:snag_line",
     );
-    const stillAirTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:still_air");
+    const stillAirTag = findNodeById(
+      getOntologyNodeChildren(mistFamilyNode),
+      "hazard:trap:field:derivedTags:family:mist:tag:still_air",
+    );
 
-    expect(findSearchScopeFilter(fogboundTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
+    expect(findSearchScopeFilter(fogboundTag?.query?.request.filter)?.subcategory).toEqual({
+      kind: "eq",
+      value: "trap",
+    });
     expect(findSearchScopeFilter(trapTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
     expect(mistFamilyNode?.listLabel).toBe("Mist | 1 tags");
     expect(stillAirTag).toBeUndefined();
-    expect(fogboundTag?.children).toBeUndefined();
-    expect(fogboundTag?.loadChildren).toBeUndefined();
+    expect(fogboundTag?.childSource).toBeUndefined();
   });
 
   it("exposes category-level pack fields in the broad search semantics domain", () => {
@@ -239,7 +251,7 @@ describe("buildSearchSemanticsDomain", () => {
     );
 
     const packField = findNodeById(domain.rootNodes, "hazard:pack");
-    const packValues = packField?.loadChildren?.() ?? packField?.children ?? [];
+    const packValues = getOntologyNodeChildren(packField);
 
     expect(packField?.kind).toBe("field");
     expect(packValues.map((node) => node.listLabel)).toEqual(["Hazard Pack | 3"]);
@@ -257,11 +269,12 @@ describe("buildSearchSemanticsDomain", () => {
       createPf2eApplicationSearchDiscoveryService(dataService),
     );
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
-    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
-    const tripwireFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:tripwire"));
+    const derivedTagFamilies = getOntologyNodeChildren(derivedTagsField);
+    const mistFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:mist"));
+    const tripwireFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:tripwire"));
 
-    const mistTags = mistFamilyNode?.children ?? [];
-    const tripwireTags = tripwireFamilyNode?.children ?? [];
+    const mistTags = getOntologyNodeChildren(mistFamilyNode);
+    const tripwireTags = getOntologyNodeChildren(tripwireFamilyNode);
 
     expect(mistTags[0]?.listLabel).toBe("Fogbound | 2");
     expect(tripwireTags[0]?.listLabel).toBe("Snag Line | 1");
@@ -282,13 +295,17 @@ describe("buildSearchSemanticsDomain", () => {
     );
     const derivedTagsField = findNodeById(domain.rootNodes, "hazard:trap:field:derivedTags");
 
-    expect(derivedTagsField?.children?.map((node) => node.label)).toEqual(["Mist", "Tripwire", "Silence"]);
+    const derivedTagFamilies = getOntologyNodeChildren(derivedTagsField);
+    expect(derivedTagFamilies.map((node) => node.label)).toEqual(["Mist", "Tripwire", "Silence"]);
 
-    const mistFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:mist"));
-    const silenceFamilyNode = derivedTagsField?.children?.find((node) => node.id.endsWith(":family:silence"));
-    const stillAirTag = findNodeById(mistFamilyNode?.children ?? [], "hazard:trap:field:derivedTags:family:mist:tag:still_air");
+    const mistFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:mist"));
+    const silenceFamilyNode = derivedTagFamilies.find((node) => node.id.endsWith(":family:silence"));
+    const stillAirTag = findNodeById(
+      getOntologyNodeChildren(mistFamilyNode),
+      "hazard:trap:field:derivedTags:family:mist:tag:still_air",
+    );
     const soundlessTag = findNodeById(
-      silenceFamilyNode?.children ?? [],
+      getOntologyNodeChildren(silenceFamilyNode),
       "hazard:trap:field:derivedTags:family:silence:tag:soundless",
     );
 
@@ -296,7 +313,10 @@ describe("buildSearchSemanticsDomain", () => {
     expect(silenceFamilyNode?.listLabel).toBe("Silence | 1 tags");
     expect(stillAirTag?.listLabel).toBe("Still Air | 0");
     expect(soundlessTag?.listLabel).toBe("Soundless | 0");
-    expect(findSearchScopeFilter(stillAirTag?.query?.request.filter)?.subcategory).toEqual({ kind: "eq", value: "trap" });
+    expect(findSearchScopeFilter(stillAirTag?.query?.request.filter)?.subcategory).toEqual({
+      kind: "eq",
+      value: "trap",
+    });
     expect(findSearchScopeFilter(soundlessTag?.query?.request.filter)?.subcategory).toEqual({
       kind: "eq",
       value: "trap",
@@ -320,7 +340,7 @@ describe("buildSearchSemanticsDomain", () => {
     );
 
     const commonTraitsNode = findNodeById(domain.rootNodes, "hazard:commonTraits");
-    const magicalTraitNode = commonTraitsNode?.children?.[0];
+    const magicalTraitNode = getOntologyNodeChildren(commonTraitsNode)[0];
 
     expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
     expect(dataService.listFilterValues).not.toHaveBeenCalledWith(
@@ -341,7 +361,7 @@ describe("buildSearchSemanticsDomain", () => {
         },
       ]),
     );
-    expect(magicalTraitNode?.loadChildren).toBeTypeOf("function");
+    expect(magicalTraitNode?.childSource?.kind).toBe("sync");
   });
 
   it("requires the dedicated search semantics bootstrap summary loader", () => {

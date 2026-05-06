@@ -71,6 +71,89 @@ type ReusableEmbeddingLookup = {
   get(recordKey: string): ReusableEmbeddingRow | null;
 };
 
+function metricNamespacePrefixExpression(alias: string): string {
+  return `CASE WHEN instr(${alias}.metric_key, '.') > 0 THEN substr(${alias}.metric_key, 1, instr(${alias}.metric_key, '.')) ELSE '' END`;
+}
+
+function populateMetricCatalog(db: DatabaseSync): void {
+  for (const config of [
+    { metricField: "actorMetrics", table: "actor_metrics", alias: "am" },
+    { metricField: "itemMetrics", table: "item_metrics", alias: "im" },
+  ] as const) {
+    const namespacePrefix = metricNamespacePrefixExpression(config.alias);
+    for (const subcategoryExpression of ["COALESCE(r.subcategory, '')", "'*'"]) {
+      db.exec(`
+        INSERT INTO metric_key_catalog (
+          metric_field,
+          category,
+          subcategory,
+          namespace_prefix,
+          metric_key,
+          value_type,
+          catalog_count,
+          numeric_min,
+          numeric_max
+        )
+        SELECT
+          '${config.metricField}',
+          r.category,
+          ${subcategoryExpression},
+          ${namespacePrefix},
+          ${config.alias}.metric_key,
+          ${config.alias}.value_type,
+          COUNT(*) AS catalog_count,
+          CASE WHEN ${config.alias}.value_type = 'number' THEN MIN(${config.alias}.number_value) ELSE NULL END AS numeric_min,
+          CASE WHEN ${config.alias}.value_type = 'number' THEN MAX(${config.alias}.number_value) ELSE NULL END AS numeric_max
+        FROM ${config.table} ${config.alias}
+        JOIN records r ON r.record_key = ${config.alias}.record_key
+        WHERE r.is_search_canonical = 1
+        GROUP BY
+          r.category,
+          ${subcategoryExpression},
+          ${namespacePrefix},
+          ${config.alias}.metric_key,
+          ${config.alias}.value_type
+      `);
+
+      db.exec(`
+        INSERT INTO metric_value_catalog (
+          metric_field,
+          category,
+          subcategory,
+          metric_key,
+          value,
+          catalog_count
+        )
+        SELECT
+          '${config.metricField}',
+          scoped.category,
+          scoped.subcategory,
+          scoped.metric_key,
+          scoped.value,
+          COUNT(*) AS catalog_count
+        FROM (
+          SELECT
+            r.category AS category,
+            ${subcategoryExpression} AS subcategory,
+            ${config.alias}.metric_key AS metric_key,
+            CASE
+              WHEN ${config.alias}.value_type = 'text' THEN ${config.alias}.text_value
+              WHEN ${config.alias}.value_type = 'boolean' AND ${config.alias}.bool_value = 1 THEN 'true'
+              WHEN ${config.alias}.value_type = 'boolean' AND ${config.alias}.bool_value = 0 THEN 'false'
+              ELSE NULL
+            END AS value
+          FROM ${config.table} ${config.alias}
+          JOIN records r ON r.record_key = ${config.alias}.record_key
+          WHERE r.is_search_canonical = 1
+            AND ${config.alias}.value_type IN ('text', 'boolean')
+        ) scoped
+        WHERE scoped.value IS NOT NULL AND scoped.value <> ''
+        GROUP BY scoped.category, scoped.subcategory, scoped.metric_key, scoped.value
+      `);
+    }
+  }
+}
+
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
 }
@@ -1044,6 +1127,8 @@ export async function buildIndex(
         legacyLink.sourceRef,
       );
     }
+
+    populateMetricCatalog(db);
 
     db.exec("COMMIT");
   } catch (error) {

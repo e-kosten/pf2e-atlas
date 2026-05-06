@@ -1129,6 +1129,42 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       ],
     });
 
+    expect(
+      service
+        .listMetricCatalogKeys({
+          field: "actorMetrics",
+          category: "creature",
+          metricPrefix: "save",
+        })
+        ?.values.map((entry) => entry.value),
+    ).toEqual(arrayContaining(["save.best", "save.fort.mod", "save.ref.mod", "save.will.mod", "save.worst"]));
+
+    expect(
+      service.listMetricCatalogValues({
+        field: "actorMetrics",
+        category: "creature",
+        metric: "save.best",
+      }),
+    ).toEqual({
+      field: "actorMetrics",
+      values: [
+        { value: "fort", count: 1 },
+        { value: "ref", count: 1 },
+        { value: "will", count: 1 },
+      ],
+    });
+
+    expect(
+      service.listMetricCatalogValues({
+        field: "actorMetrics",
+        category: "creature",
+        metric: "ability.int.mod",
+      }),
+    ).toEqual({
+      field: "actorMetrics",
+      values: [],
+    });
+
     expect(() =>
       service.listFilterValues({
         field: "actorMetrics",
