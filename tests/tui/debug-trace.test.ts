@@ -114,13 +114,26 @@ describe("terminal debug trace", () => {
         traceFilePath,
       });
 
-      const outer = trace.startSpan("filterExplorer.loadModel", { mode: "matching" });
-      now = 1010;
-      const inner = trace.startSpan("filterExplorer.loadDomain", { targetFields: "traits" });
-      now = 1030;
-      inner.end({ rootNodes: 204 });
-      now = 1050;
-      outer.end();
+      trace.runSpan(
+        "filterExplorer.loadModel",
+        { mode: "matching" },
+        () => {
+          now = 1010;
+          return trace.runSpan(
+            "filterExplorer.loadDomain",
+            { targetFields: "traits" },
+            () => {
+              now = 1030;
+              return { rootNodes: 204 };
+            },
+            (result) => result,
+          );
+        },
+        () => {
+          now = 1050;
+          return {};
+        },
+      );
 
       expect(trace.snapshot().traceFilePath).toBe(traceFilePath);
       const events = readFileSync(traceFilePath, "utf8")
@@ -180,17 +193,21 @@ describe("terminal debug trace", () => {
         traceFilePath,
       });
 
-      const outer = trace.startSpan("filterExplorer.loadModel");
-      const nestedTask = Promise.resolve().then(() => {
-        now = 2010;
-        const nested = trace.startSpan("filterExplorer.loadDomain");
-        now = 2020;
-        nested.end();
-      });
-      now = 2005;
-      outer.end();
-
-      await nestedTask;
+      await trace.runSpan(
+        "filterExplorer.loadModel",
+        {},
+        async () => {
+          const nestedTask = Promise.resolve().then(() => {
+            now = 2010;
+            return trace.runSpan("filterExplorer.loadDomain", {}, () => {
+              now = 2020;
+            });
+          });
+          now = 2005;
+          await nestedTask;
+        },
+        () => ({}),
+      );
 
       now = 2030;
       const sibling = trace.startSpan("filterExplorer.reconcileModel");

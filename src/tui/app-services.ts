@@ -123,21 +123,17 @@ export function createPf2eTerminalAppServices(
       }),
       ontology: {
         loadSearchSemanticsDomain: ontology.loadSearchSemanticsDomain,
-        loadSearchFilterExplorerDomain: async (options) => {
-          const span = debug.startSpan("filterExplorer.loadDomain", {
-            mode: options.discoveryMode,
-            targetFields: options.targetFields?.join(",") ?? "all",
-            requestMode: options.request.mode,
-          });
-          try {
-            const domain = await ontology.loadSearchFilterExplorerDomain(options);
-            span.end({ rootNodes: domain.rootNodes.length });
-            return domain;
-          } catch (error) {
-            span.end({ error: (error as Error).message });
-            throw error;
-          }
-        },
+        loadSearchFilterExplorerDomain: (options) =>
+          debug.runSpan(
+            "filterExplorer.loadDomain",
+            {
+              mode: options.discoveryMode,
+              targetFields: options.targetFields?.join(",") ?? "all",
+              requestMode: options.request.mode,
+            },
+            () => ontology.loadSearchFilterExplorerDomain(options),
+            (domain) => ({ rootNodes: domain.rootNodes.length }),
+          ),
       },
       pageRelations,
       search: createPf2eTerminalSearchService({

@@ -8,6 +8,12 @@ export type SearchTraceSpan = {
 
 export type SearchTraceSink = {
   startSpan: (name: string, metadata?: SearchTraceMetadata) => SearchTraceSpan;
+  runSpan?: <T>(
+    name: string,
+    metadata: SearchTraceMetadata,
+    task: () => T,
+    endMetadata?: (result: Awaited<T>) => SearchTraceMetadata,
+  ) => T;
 };
 
 export function traceSync<T>(
@@ -17,6 +23,9 @@ export function traceSync<T>(
   task: () => T,
   endMetadata?: (result: T) => SearchTraceMetadata,
 ): T {
+  if (trace?.runSpan) {
+    return trace.runSpan(name, metadata, task, endMetadata);
+  }
   const span = trace?.startSpan(name, metadata);
   try {
     const result = task();
@@ -35,6 +44,9 @@ export async function traceAsync<T>(
   task: () => Promise<T>,
   endMetadata?: (result: T) => SearchTraceMetadata,
 ): Promise<T> {
+  if (trace?.runSpan) {
+    return trace.runSpan(name, metadata, task, endMetadata);
+  }
   const span = trace?.startSpan(name, metadata);
   try {
     const result = await task();

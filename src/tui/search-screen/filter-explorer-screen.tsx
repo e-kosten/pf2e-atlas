@@ -188,23 +188,24 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       if (plan.kind === "useCached") {
         setModel((currentModel) =>
-          {
-            const span = debug.startSpan("filterExplorer.reconcileModel", {
+          debug.runSpan(
+            "filterExplorer.reconcileModel",
+            {
               mode: plan.mode,
               source: "cache",
               targetFields: "all",
-            });
-            const reconciled = reconcileSearchFilterExplorerModel({
-              currentModel,
-              refreshedModel: plan.model,
-              fieldState: fieldStateRef.current,
-              fieldOptions: fieldOptionsRef.current,
-              resolveSelectionTarget:
-                resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-            });
-            span.end({ rootNodes: reconciled.rootNodes.length });
-            return reconciled;
-          },
+            },
+            () =>
+              reconcileSearchFilterExplorerModel({
+                currentModel,
+                refreshedModel: plan.model,
+                fieldState: fieldStateRef.current,
+                fieldOptions: fieldOptionsRef.current,
+                resolveSelectionTarget:
+                  resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+              }),
+            (reconciled) => ({ rootNodes: reconciled.rootNodes.length }),
+          ),
         );
         setDiscoveryMode(plan.mode);
         discoveryModeRef.current = plan.mode;
@@ -217,16 +218,19 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       const executeRefresh = () => {
         refreshTimerRef.current = null;
         const coversSessionFields = hasSameTargetFields(targetFields, scopedFieldsRef.current);
-        const loadSpan = debug.startSpan("filterExplorer.loadModel", {
-          mode: nextMode,
-          source: "session",
-          targetFields: getTargetFieldsLabel(targetFields),
-        });
-        void (
-          targetFields ? loadModelForDiscoveryMode(nextMode, { targetFields }) : loadModelForDiscoveryMode(nextMode)
-        )
+        void debug
+          .runSpan(
+            "filterExplorer.loadModel",
+            {
+              mode: nextMode,
+              source: "session",
+              targetFields: getTargetFieldsLabel(targetFields),
+            },
+            () =>
+              targetFields ? loadModelForDiscoveryMode(nextMode, { targetFields }) : loadModelForDiscoveryMode(nextMode),
+            (nextModel) => ({ rootNodes: nextModel.rootNodes.length }),
+          )
           .then((nextModel) => {
-            loadSpan.end({ rootNodes: nextModel.rootNodes.length });
             if (
               !shouldApplySearchFilterExplorerRefresh({
                 currentRequestId: refreshRequestIdRef.current,
@@ -239,31 +243,32 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
               modelCacheRef.current.set(nextMode, nextModel);
             }
             setModel((currentModel) =>
-              {
-                const span = debug.startSpan("filterExplorer.reconcileModel", {
+              debug.runSpan(
+                "filterExplorer.reconcileModel",
+                {
                   mode: nextMode,
                   source: "refresh",
                   targetFields: getTargetFieldsLabel(targetFields),
-                });
-                const reconciled = reconcileSearchFilterExplorerModel({
-                  currentModel,
-                  refreshedModel: nextModel,
-                  fieldState: fieldStateRef.current,
-                  fieldOptions: fieldOptionsRef.current,
-                  resolveSelectionTarget:
-                    resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-                  targetFields: coversSessionFields ? undefined : targetFields,
-                });
-                span.end({ rootNodes: reconciled.rootNodes.length });
-                return reconciled;
-              },
+                },
+                () =>
+                  reconcileSearchFilterExplorerModel({
+                    currentModel,
+                    refreshedModel: nextModel,
+                    fieldState: fieldStateRef.current,
+                    fieldOptions: fieldOptionsRef.current,
+                    resolveSelectionTarget:
+                      resolveSelectionTargetRef.current ??
+                      buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+                    targetFields: coversSessionFields ? undefined : targetFields,
+                  }),
+                (reconciled) => ({ rootNodes: reconciled.rootNodes.length }),
+              ),
             );
             setDiscoveryMode(nextMode);
             discoveryModeRef.current = nextMode;
             setRefreshState(null);
           })
           .catch((error) => {
-            loadSpan.end({ error: (error as Error).message });
             if (
               !shouldApplySearchFilterExplorerRefresh({
                 currentRequestId: refreshRequestIdRef.current,

@@ -34,6 +34,12 @@ export type TerminalDebugTraceSpan = {
 export type Pf2eTerminalDebugTraceService = {
   readonly enabled: boolean;
   startSpan: (name: string, metadata?: TerminalDebugTraceMetadata) => TerminalDebugTraceSpan;
+  runSpan: <T>(
+    name: string,
+    metadata: TerminalDebugTraceMetadata,
+    task: () => T,
+    endMetadata?: (result: Awaited<T>) => TerminalDebugTraceMetadata,
+  ) => T;
   snapshot: () => TerminalDebugTraceSnapshot;
   clear: () => void;
 };
@@ -128,10 +134,15 @@ function writeTraceEvent(traceFilePath: string | undefined, event: TerminalDebug
   appendFileSync(traceFilePath, `${JSON.stringify(event)}\n`, "utf8");
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return Boolean(value) && typeof (value as { then?: unknown }).then === "function";
+}
+
 export function createNoopTerminalDebugTraceService(): Pf2eTerminalDebugTraceService {
   return {
     enabled: false,
     startSpan: () => noopSpan,
+    runSpan: (_name, _metadata, task) => task(),
     snapshot: () => noopSnapshot,
     clear: () => undefined,
   };
@@ -158,79 +169,109 @@ export function createTerminalDebugTraceService(options: {
   const activeSpanStack = new AsyncLocalStorage<readonly number[]>();
   let nextId = 1;
 
+  function createSpan(name: string, metadata?: TerminalDebugTraceMetadata): RunningSpan & TerminalDebugTraceSpan {
+    const id = nextId;
+    nextId += 1;
+    const currentStack = activeSpanStack.getStore() ?? [];
+    const parentSpanId = currentStack.at(-1);
+    const span: RunningSpan = {
+      id,
+      ...(parentSpanId !== undefined ? { parentSpanId } : {}),
+      name,
+      startedAt: now(),
+      metadata: normalizeMetadata(metadata),
+    };
+    running.set(id, span);
+    writeTraceEvent(traceFilePath, {
+      event: "span_start",
+      spanId: id,
+      ...(parentSpanId !== undefined ? { parentSpanId } : {}),
+      name,
+      at: span.startedAt,
+      metadata: span.metadata,
+    });
+    let ended = false;
+    return {
+      ...span,
+      end: (endMetadata) => {
+        if (ended) {
+          return;
+        }
+        ended = true;
+        const finishedAt = now();
+        const current = running.get(id) ?? span;
+        running.delete(id);
+        const completedSpan: TerminalDebugTraceSpanSnapshot = {
+          id,
+          name: current.name,
+          ...(current.parentSpanId !== undefined ? { parentSpanId: current.parentSpanId } : {}),
+          startedAt: current.startedAt,
+          endedAt: finishedAt,
+          elapsedMs: Math.max(0, finishedAt - current.startedAt),
+          status: "completed",
+          metadata: mergeMetadata(current.metadata, endMetadata),
+        };
+        writeTraceEvent(traceFilePath, {
+          event: "span_end",
+          spanId: completedSpan.id,
+          ...(completedSpan.parentSpanId !== undefined ? { parentSpanId: completedSpan.parentSpanId } : {}),
+          name: completedSpan.name,
+          startedAt: completedSpan.startedAt,
+          endedAt: finishedAt,
+          elapsedMs: completedSpan.elapsedMs,
+          metadata: completedSpan.metadata,
+        });
+        recent.unshift(completedSpan);
+        if (recent.length > DEBUG_TRACE_BUFFER_SIZE) {
+          recent.length = DEBUG_TRACE_BUFFER_SIZE;
+        }
+        if (completedSpan.elapsedMs >= slowThresholdMs) {
+          slowRecent.unshift(completedSpan);
+          if (slowRecent.length > DEBUG_TRACE_SLOW_BUFFER_SIZE) {
+            slowRecent.length = DEBUG_TRACE_SLOW_BUFFER_SIZE;
+          }
+        }
+      },
+    };
+  }
+
+  function runSpan<T>(
+    name: string,
+    metadata: TerminalDebugTraceMetadata,
+    task: () => T,
+    endMetadata?: (result: Awaited<T>) => TerminalDebugTraceMetadata,
+  ): T {
+    const span = createSpan(name, metadata);
+    const currentStack = activeSpanStack.getStore() ?? [];
+    const nextStack = [...currentStack, span.id];
+    return activeSpanStack.run(nextStack, () => {
+      try {
+        const result = task();
+        if (isPromiseLike(result)) {
+          return (result as PromiseLike<Awaited<T>>).then(
+            (resolved) => {
+              span.end(endMetadata?.(resolved));
+              return resolved;
+            },
+            (error: unknown) => {
+              span.end({ error: (error as Error).message });
+              throw error;
+            },
+          ) as T;
+        }
+        span.end(endMetadata?.(result as Awaited<T>));
+        return result;
+      } catch (error) {
+        span.end({ error: (error as Error).message });
+        throw error;
+      }
+    });
+  }
+
   return {
     enabled: true,
-    startSpan: (name, metadata) => {
-      const id = nextId;
-      nextId += 1;
-      const currentStack = activeSpanStack.getStore() ?? [];
-      const parentSpanId = currentStack.at(-1);
-      const span: RunningSpan = {
-        id,
-        ...(parentSpanId !== undefined ? { parentSpanId } : {}),
-        name,
-        startedAt: now(),
-        metadata: normalizeMetadata(metadata),
-      };
-      running.set(id, span);
-      activeSpanStack.enterWith([...currentStack, id]);
-      writeTraceEvent(traceFilePath, {
-        event: "span_start",
-        spanId: id,
-        ...(parentSpanId !== undefined ? { parentSpanId } : {}),
-        name,
-        at: span.startedAt,
-        metadata: span.metadata,
-      });
-      let ended = false;
-
-      return {
-        end: (endMetadata) => {
-          if (ended) {
-            return;
-          }
-          ended = true;
-          const finishedAt = now();
-          const current = running.get(id) ?? span;
-          running.delete(id);
-          const stack = activeSpanStack.getStore() ?? [];
-          const stackIndex = stack.lastIndexOf(id);
-          if (stackIndex !== -1) {
-            activeSpanStack.enterWith(stack.filter((spanId) => spanId !== id));
-          }
-          const completedSpan: TerminalDebugTraceSpanSnapshot = {
-            id,
-            name: current.name,
-            ...(current.parentSpanId !== undefined ? { parentSpanId: current.parentSpanId } : {}),
-            startedAt: current.startedAt,
-            endedAt: finishedAt,
-            elapsedMs: Math.max(0, finishedAt - current.startedAt),
-            status: "completed",
-            metadata: mergeMetadata(current.metadata, endMetadata),
-          };
-          writeTraceEvent(traceFilePath, {
-            event: "span_end",
-            spanId: completedSpan.id,
-            ...(completedSpan.parentSpanId !== undefined ? { parentSpanId: completedSpan.parentSpanId } : {}),
-            name: completedSpan.name,
-            startedAt: completedSpan.startedAt,
-            endedAt: finishedAt,
-            elapsedMs: completedSpan.elapsedMs,
-            metadata: completedSpan.metadata,
-          });
-          recent.unshift(completedSpan);
-          if (recent.length > DEBUG_TRACE_BUFFER_SIZE) {
-            recent.length = DEBUG_TRACE_BUFFER_SIZE;
-          }
-          if (completedSpan.elapsedMs >= slowThresholdMs) {
-            slowRecent.unshift(completedSpan);
-            if (slowRecent.length > DEBUG_TRACE_SLOW_BUFFER_SIZE) {
-              slowRecent.length = DEBUG_TRACE_SLOW_BUFFER_SIZE;
-            }
-          }
-        },
-      };
-    },
+    startSpan: (name, metadata) => createSpan(name, metadata),
+    runSpan,
     snapshot: () => {
       const snapshotAt = now();
       return {
@@ -255,7 +296,6 @@ export function createTerminalDebugTraceService(options: {
     },
     clear: () => {
       running.clear();
-      activeSpanStack.enterWith([]);
       recent.length = 0;
       slowRecent.length = 0;
     },
