@@ -8,7 +8,6 @@ import type {
   SearchScopeSubcategoryMatch,
 } from "../../../domain/search-request-types.js";
 import type { SearchCategory } from "../../../domain/search-types.js";
-import type { DerivedTagTerminalSelectPromptResult } from "../../framework/types.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
@@ -60,6 +59,41 @@ export type SearchFilterNodeEditorResult = StructuredDraftPromptFlowResult<Searc
 export type ClausePromptResult = StructuredDraftPromptFlowResult<ClauseKind>;
 export type SharedExplorerFieldOptionPromptResult =
   StructuredDraftPromptFlowResult<Pf2eTerminalQueryFieldOption | null>;
+
+function getScopeCountActionEntries(discoveryMode: SearchFilterDiscoveryMode): Array<{
+  id: string;
+  label: string;
+  description: string;
+}> {
+  return discoveryMode === "matching"
+    ? [
+        {
+          id: "useCatalogCounts",
+          label: "Use Catalog Counts",
+          description: "Show counts from the wider applicability slice.",
+        },
+      ]
+    : [
+        {
+          id: "useMatchingCounts",
+          label: "Use Matching Counts",
+          description: "Show counts from the current query context.",
+        },
+      ];
+}
+
+function applyScopeCountAction(
+  discoveryMode: SearchFilterDiscoveryMode,
+  actionId: string,
+): SearchFilterDiscoveryMode {
+  if (actionId === "useCatalogCounts") {
+    return "catalog";
+  }
+  if (actionId === "useMatchingCounts") {
+    return "matching";
+  }
+  return discoveryMode;
+}
 
 export function isMetricFieldOptionValue(value: Pf2eTerminalQueryFieldOption["value"]): boolean {
   return value === "actorMetric" || value === "itemMetric";
@@ -384,32 +418,6 @@ export function useStructuredDraftPromptActions({
 
       let discoveryMode: SearchFilterDiscoveryMode = "matching";
       for (;;) {
-        const modeSelection: DerivedTagTerminalSelectPromptResult<SearchFilterDiscoveryMode> =
-          await promptSession.promptSelectOption({
-          title: "Scope Counts",
-          prompt: "Choose which counts to show while selecting this scope clause",
-          entries: [
-            {
-              value: "matching" as const,
-              label: "Matching Counts",
-              description: "Show counts from the current query context.",
-            },
-            {
-              value: "catalog" as const,
-              label: "Catalog Counts",
-              description: "Show counts from the wider applicability slice.",
-            },
-          ],
-          selectedValue: discoveryMode,
-        });
-        if (modeSelection.kind === "back") {
-          return structuredDraftPromptBack();
-        }
-        if (modeSelection.kind !== "selected") {
-          return structuredDraftPromptCancel();
-        }
-        discoveryMode = modeSelection.value;
-
         const categoryOptions = (
           await user.search.loadCategoryOptions(query, discoveryMode)
         ).filter(
@@ -429,7 +437,12 @@ export function useStructuredDraftPromptActions({
             description: option.description,
           })),
           selectedValue: currentNode?.category ?? categoryOptions[0]!.value,
+          actionEntries: getScopeCountActionEntries(discoveryMode),
         });
+        if (categorySelection.kind === "action") {
+          discoveryMode = applyScopeCountAction(discoveryMode, categorySelection.actionId);
+          continue;
+        }
         if (categorySelection.kind === "back") {
           return structuredDraftPromptBack();
         }
@@ -500,7 +513,12 @@ export function useStructuredDraftPromptActions({
                 currentSubcategoryValue && subcategoryOptions.some((option) => option.value === currentSubcategoryValue)
                   ? currentSubcategoryValue
                   : subcategoryOptions[0]!.value,
+              actionEntries: getScopeCountActionEntries(discoveryMode),
             });
+            if (subcategorySelection.kind === "action") {
+              discoveryMode = applyScopeCountAction(discoveryMode, subcategorySelection.actionId);
+              break;
+            }
             if (subcategorySelection.kind === "back") {
               continue;
             }

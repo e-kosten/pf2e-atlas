@@ -18,12 +18,22 @@ const baseQuery: Pf2eTerminalSearchQuery = browseQuery("Browse").request;
 function renderPromptActions({
   fieldOptions = [],
   openPromptFieldClause = vi.fn(),
+  loadCategoryOptions = vi.fn(async () => [
+    { value: null, label: "Any", description: "Any category." },
+    { value: "creature", label: "Creature | 12", description: "12 matching canonical records." },
+  ]),
+  loadSubcategoryOptions = vi.fn(async () => [
+    { value: null, label: "Any", description: "Any subcategory." },
+    { value: "familiar", label: "Familiar | 3", description: "3 matching canonical records." },
+  ]),
   promptSelectOption = vi.fn(),
   promptTextInput = vi.fn(),
   selectPromptMetricKey = vi.fn(async () => ({ kind: "cancel" })),
 }: {
   fieldOptions?: Pf2eTerminalQueryFieldOption[];
   openPromptFieldClause?: ReturnType<typeof vi.fn>;
+  loadCategoryOptions?: ReturnType<typeof vi.fn>;
+  loadSubcategoryOptions?: ReturnType<typeof vi.fn>;
   promptSelectOption?: ReturnType<typeof vi.fn>;
   promptTextInput?: ReturnType<typeof vi.fn>;
   selectPromptMetricKey?: ReturnType<typeof vi.fn>;
@@ -49,14 +59,8 @@ function renderPromptActions({
         { value: null, label: "Any", description: "Any subcategory." },
         { value: "familiar", label: "Familiar | 3", description: "3 familiar records." },
       ]),
-      loadCategoryOptions: vi.fn(async () => [
-        { value: null, label: "Any", description: "Any category." },
-        { value: "creature", label: "Creature | 12", description: "12 matching canonical records." },
-      ]),
-      loadSubcategoryOptions: vi.fn(async () => [
-        { value: null, label: "Any", description: "Any subcategory." },
-        { value: "familiar", label: "Familiar | 3", description: "3 matching canonical records." },
-      ]),
+      loadCategoryOptions,
+      loadSubcategoryOptions,
       loadMetricKeyOptions: vi.fn(async () => []),
       prepareFilterExplorerDraft: vi.fn(() => ({
         draft: { discreteClauses: [], scalarClauses: {} },
@@ -117,7 +121,6 @@ describe("structured draft prompt actions", () => {
   it("builds a scope clause from prompt-local category and subcategory choices", async () => {
     const promptSelectOption = vi
       .fn()
-      .mockResolvedValueOnce({ kind: "selected", value: "matching" })
       .mockResolvedValueOnce({ kind: "selected", value: "creature" })
       .mockResolvedValueOnce({ kind: "selected", value: "specific" })
       .mockResolvedValueOnce({ kind: "selected", value: "familiar" });
@@ -129,20 +132,60 @@ describe("structured draft prompt actions", () => {
       kind: "apply",
       value: { kind: "scope", category: "creature", subcategory: { kind: "eq", value: "familiar" } },
     });
-    expect(promptSelectOption.mock.calls[0]?.[0].entries).toContainEqual({
-      value: "matching",
-      label: "Matching Counts",
-      description: "Show counts from the current query context.",
+    expect(promptSelectOption.mock.calls[0]?.[0].actionEntries).toContainEqual({
+      id: "useCatalogCounts",
+      label: "Use Catalog Counts",
+      description: "Show counts from the wider applicability slice.",
     });
-    expect(promptSelectOption.mock.calls[1]?.[0].entries).toContainEqual({
+    expect(promptSelectOption.mock.calls[0]?.[0].entries).toContainEqual({
       value: "creature",
       label: "Creature | 12",
       description: "12 matching canonical records.",
     });
-    expect(promptSelectOption.mock.calls[3]?.[0].entries).toContainEqual({
+    expect(promptSelectOption.mock.calls[2]?.[0].entries).toContainEqual({
       value: "familiar",
       label: "Familiar | 3",
       description: "3 matching canonical records.",
+    });
+
+    renderer.unmount();
+  });
+
+  it("switches scope prompt counts through the select action rail", async () => {
+    const loadCategoryOptions = vi.fn(async (_query, discoveryMode: "matching" | "catalog") => [
+      { value: null, label: "Any", description: "Any category." },
+      {
+        value: "creature",
+        label: discoveryMode === "matching" ? "Creature | 2" : "Creature | 12",
+        description:
+          discoveryMode === "matching" ? "2 matching canonical records." : "12 applicable canonical records.",
+      },
+    ]);
+    const loadSubcategoryOptions = vi.fn(async () => [
+      { value: null, label: "Any", description: "Any subcategory." },
+    ]);
+    const promptSelectOption = vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "action", actionId: "useCatalogCounts" })
+      .mockResolvedValueOnce({ kind: "selected", value: "creature" })
+      .mockResolvedValueOnce({ kind: "selected", value: "any" });
+    const { getActions, promptSession, renderer } = renderPromptActions({
+      loadCategoryOptions,
+      loadSubcategoryOptions,
+      promptSelectOption,
+    });
+
+    const result = await getActions().promptForClauseNode(promptSession, baseQuery, "scope");
+
+    expect(result).toEqual({
+      kind: "apply",
+      value: { kind: "scope", category: "creature", subcategory: { kind: "any" } },
+    });
+    expect(loadCategoryOptions.mock.calls.map((call) => call[1])).toEqual(["matching", "catalog"]);
+    expect(promptSelectOption.mock.calls[1]?.[0].entries).toContainEqual({
+      value: "creature",
+      label: "Creature | 12",
+      description: "12 applicable canonical records.",
     });
 
     renderer.unmount();

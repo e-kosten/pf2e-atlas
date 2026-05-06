@@ -173,9 +173,15 @@ export type DerivedTagTerminalTextInputOptions = {
 };
 
 export type DerivedTagTerminalPromptBackResult = { kind: "back" };
+export type DerivedTagTerminalSelectPromptActionOption<TAction extends string = string> = {
+  id: TAction;
+  label: string;
+  description?: string;
+};
 export type DerivedTagTerminalSelectPromptResult<T = string> =
   | { kind: "cancelled" }
   | DerivedTagTerminalPromptBackResult
+  | { kind: "action"; actionId: string }
   | { kind: "selected"; value: T };
 
 export type DerivedTagTerminalOptionalSelectPromptResult<T = string> =
@@ -193,6 +199,7 @@ export type DerivedTagTerminalSelectPromptOptions<T = string> = {
   presentation?: DerivedTagTerminalPromptPresentation;
   choiceLayout?: DerivedTagTerminalChoiceLayout;
   filtering?: boolean;
+  actionEntries?: readonly DerivedTagTerminalSelectPromptActionOption[];
 };
 
 export type DerivedTagTerminalOptionalSelectPromptOptions<T = string> = {
@@ -248,6 +255,7 @@ export type TerminalSelectModalOptions = {
   presentation?: DerivedTagTerminalPromptPresentation;
   choiceLayout: DerivedTagTerminalChoiceLayout;
   filtering: boolean;
+  actionEntries?: readonly DerivedTagTerminalSelectPromptActionOption[];
 };
 
 export type DerivedTagTerminalPromptSession = Pick<
@@ -288,6 +296,10 @@ export type TerminalModalState =
       selectedIndex: number;
       filterText: string;
       filterMode: boolean;
+      actionTargetState: {
+        activeTarget: "content" | "actions";
+        selectedActionIndex: number;
+      };
       resolve: (
         value:
           | DerivedTagTerminalSelectPromptResult<unknown>

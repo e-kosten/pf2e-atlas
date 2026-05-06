@@ -3,6 +3,10 @@ import { useInput } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
 import {
+  reduceDerivedTagTerminalActionTargetState,
+  resolveDerivedTagTerminalActionTargetIntent,
+} from "../action-target.js";
+import {
   createTerminalInteractionContextRouterState,
   createTerminalMultiSelectPromptInteractionContext,
   createTerminalSelectPromptInteractionContext,
@@ -317,6 +321,44 @@ export function DerivedTagTerminalModalHost({
         return;
       }
 
+      if (modal.kind === "select" && modal.options.actionEntries && modal.options.actionEntries.length > 0) {
+        const actionIntent = resolveDerivedTagTerminalActionTargetIntent(event, modal.actionTargetState, "horizontal");
+        if (actionIntent) {
+          if (actionIntent.kind === "apply_action") {
+            const selectedAction = modal.options.actionEntries[modal.actionTargetState.selectedActionIndex];
+            if (selectedAction) {
+              closeModalAfterResolution(modal, modal.resolve, {
+                kind: "action",
+                actionId: selectedAction.id,
+              });
+            }
+            return;
+          }
+          const action =
+            actionIntent.kind === "toggle_target"
+              ? ({ type: "toggle_target" } as const)
+              : actionIntent.kind === "leave_actions"
+                ? ({ type: "leave_actions" } as const)
+                : ({
+                    type: "move_action",
+                    delta: actionIntent.delta,
+                    actionCount: modal.options.actionEntries.length,
+                  } as const);
+          updateModalForLease(modal.ownership.leaseId, (current) =>
+            current.kind === "select"
+              ? {
+                  ...current,
+                  actionTargetState: reduceDerivedTagTerminalActionTargetState(
+                    current.actionTargetState,
+                    action,
+                  ),
+                }
+              : current,
+          );
+          return;
+        }
+      }
+
       const routed = routeTerminalInteractionContext(event, choiceContext, routerStateRef.current);
       routerStateRef.current = routed.state;
 
@@ -473,6 +515,7 @@ export function DerivedTagTerminalModalHost({
       selectedIndex={modal.selectedIndex}
       filterText={modal.filterText}
       filterMode={modal.filterMode}
+      actionTargetState={modal.actionTargetState}
       width={panelWidth}
       layout={layout}
     />,

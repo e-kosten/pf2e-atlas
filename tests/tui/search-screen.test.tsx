@@ -4724,14 +4724,16 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
-    await waitForFrameToContain(app, "Scope Counts");
-    expect(app.lastFrame()).toContain("Matching Counts");
-
-    app.stdin.write("\r");
-    await flushInk();
     await waitForFrameToContain(app, "Creature");
     expect(app.lastFrame()).toContain("Scope");
     expect(app.lastFrame()).toContain("Creature");
+    expect(app.lastFrame()).toContain("Press : to open the action rail.");
+
+    app.stdin.write(":");
+    await flushInk();
+    await waitForFrameToContain(app, "Use Catalog Counts");
+    app.stdin.write(":");
+    await flushInk();
 
     pressLeft(app);
     await flushInk();
@@ -4799,11 +4801,6 @@ describe("search screen", () => {
 
     await flushInk();
     await flushInk();
-    app.stdin.write("\r");
-    await flushInk();
-    await waitForFrameToContain(app, "Scope Counts");
-    expect(app.lastFrame()).toContain("Matching Counts");
-
     app.stdin.write("\r");
     await flushInk();
     await waitForFrameToContain(app, "Creature");

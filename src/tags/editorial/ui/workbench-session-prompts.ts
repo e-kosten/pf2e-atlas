@@ -351,20 +351,37 @@ async function promptTag(
   required: boolean,
 ): Promise<{ category?: SearchCategory; tag?: string } | undefined> {
   const entries = buildTagSelectOptions(mode, category, subcategory, family, exemplarLimit);
-  const result = required
-    ? await prompts.promptSelectOption({
-        title: "Session Scope",
-        subtitle: "Choose the tag to review",
-        prompt: "Tags",
-        entries,
-      })
-    : await prompts.promptOptionalSelectOption({
-        title: "Session Scope",
-        subtitle: "Optionally narrow the session to one tag",
-        prompt: "Tags",
-        entries,
-        allOption: buildAllTagOption(),
-      });
+  if (required) {
+    const result = await prompts.promptSelectOption<string>({
+      title: "Session Scope",
+      subtitle: "Choose the tag to review",
+      prompt: "Tags",
+      entries,
+    });
+    if (result.kind !== "selected") {
+      return undefined;
+    }
+    const value = result.value;
+    if (!category) {
+      const [resolvedCategory, resolvedTag] = value.split(":", 2);
+      const normalizedCategory = normalizeSearchCategory(resolvedCategory);
+      if (normalizedCategory && resolvedTag) {
+        return {
+          category: normalizedCategory,
+          tag: resolvedTag,
+        };
+      }
+    }
+    return { tag: value };
+  }
+
+  const result = await prompts.promptOptionalSelectOption<string>({
+    title: "Session Scope",
+    subtitle: "Optionally narrow the session to one tag",
+    prompt: "Tags",
+    entries,
+    allOption: buildAllTagOption(),
+  });
 
   if (result.kind === "cancelled" || result.kind === "back") {
     return undefined;

@@ -3,6 +3,7 @@ import { Box, render as renderInkApp, useApp, useInput, useWindowSize } from "in
 import { useStdout } from "ink";
 
 import { TERMINAL_DIALOG_CONTINUE_FOOTER } from "../interaction-bindings.js";
+import { createDerivedTagTerminalActionTargetState } from "../action-target.js";
 import { DerivedTagTerminalContext } from "./context.js";
 import { dispatchDerivedTagTerminalPointerEvent, parseDerivedTagTerminalPointerEvent } from "./pointer-events.js";
 import {
@@ -186,6 +187,7 @@ export function DerivedTagTerminalProvider({
           selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
           filterText: "",
           filterMode: false,
+          actionTargetState: createDerivedTagTerminalActionTargetState(),
           resolve: resolve as (
             value:
               | DerivedTagTerminalSelectPromptResult<unknown>
@@ -221,6 +223,7 @@ export function DerivedTagTerminalProvider({
           selectedIndex: getSelectPromptInitialIndex(modalOptions.entries, options.selectedValue),
           filterText: "",
           filterMode: false,
+          actionTargetState: createDerivedTagTerminalActionTargetState(),
           resolve: resolve as (
             value:
               | DerivedTagTerminalSelectPromptResult<unknown>

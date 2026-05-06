@@ -20,6 +20,11 @@ import {
   TerminalPaneView,
 } from "./screen-components.js";
 import {
+  buildDerivedTagTerminalActionTargetLine,
+  shouldRenderDerivedTagTerminalActionTarget,
+  type DerivedTagTerminalActionTargetState,
+} from "../action-target.js";
+import {
   buildPromptDetailLines,
   clampInlinePromptWindowStart,
   filterPromptEntries,
@@ -264,6 +269,7 @@ export function SelectPromptBody({
   selectedIndex,
   filterText,
   filterMode,
+  actionTargetState,
   width,
   layout,
 }: {
@@ -271,6 +277,7 @@ export function SelectPromptBody({
   selectedIndex: number;
   filterText: string;
   filterMode: boolean;
+  actionTargetState: DerivedTagTerminalActionTargetState;
   width: number;
   layout: FrameworkTerminalModalLayoutResult;
 }): React.JSX.Element {
@@ -344,6 +351,23 @@ export function SelectPromptBody({
   const windowStart = clampInlinePromptWindowStart(selectedVisibleIndex, filteredEntries.length, visibleCount);
   const visibleEntries = filteredEntries.slice(windowStart, windowStart + visibleCount);
 
+  const footerLines = buildPickerFooterLines({
+    filterMode,
+    filterText,
+    filteringEnabled: options.filtering,
+    countText: `${selectedVisibleIndex + 1}/${filteredEntries.length} focused`,
+    primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
+    secondaryFooterText: `${formatTerminalInteractionFooter([{ id: "select" }, { id: "cancel" }, { id: "back" }])}${
+      options.actionEntries && options.actionEntries.length > 0 ? "  : focus actions" : ""
+    }`,
+  });
+  const actionFooterLines =
+    options.actionEntries && options.actionEntries.length > 0
+      ? shouldRenderDerivedTagTerminalActionTarget(actionTargetState, "onDemand")
+        ? [buildDerivedTagTerminalActionTargetLine(options.actionEntries, actionTargetState)]
+        : [{ text: "Press : to open the action rail.", tone: "dim" as const }]
+      : [];
+
   return (
     <TerminalInlinePromptPanel
       title={options.title}
@@ -367,14 +391,7 @@ export function SelectPromptBody({
           layout={layout}
         />
       }
-      footer={buildPickerFooterLines({
-        filterMode,
-        filterText,
-        filteringEnabled: options.filtering,
-        countText: `${selectedVisibleIndex + 1}/${filteredEntries.length} focused`,
-        primaryFooterText: formatTerminalInteractionFooter([{ id: "move" }, { id: "jump" }, { id: "page" }, { id: "edge" }]),
-        secondaryFooterText: formatTerminalInteractionFooter([{ id: "select" }, { id: "cancel" }, { id: "back" }]),
-      })}
+      footer={[...footerLines, ...actionFooterLines]}
       width={width}
       height={layout.totalHeight}
       showTopBorder={layout.showTopBorder}
