@@ -5607,11 +5607,12 @@ describe("search screen", () => {
 
   it("renders the explorer immediately while the initial model refresh is still loading", async () => {
     const services = createServices();
+    const loadModelForDiscoveryMode = vi.fn(() => Promise.resolve(createFacetPickerOntologyDomain()));
     const session: SearchFilterExplorerSession = {
       title: "Derived Tags Explorer",
       model: createLoadingExplorerModel("Derived Tags Explorer"),
       initialDiscoveryMode: "matching",
-      loadModelForDiscoveryMode: vi.fn(() => Promise.resolve(createFacetPickerOntologyDomain())),
+      loadModelForDiscoveryMode,
       query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
       fieldOptions: [
         {
@@ -5639,9 +5640,72 @@ describe("search screen", () => {
 
     await flushInk();
     expect(app.lastFrame()).toMatch(/Loading explorer entries|Spell/);
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledWith("matching", { targetFields: ["derivedTags"] });
 
     await waitForFrameToContain(app, "Spell");
     expect(app.lastFrame()).toContain("matching counts");
+  });
+
+  it("scopes initial loading-model hydration to the session field set", async () => {
+    const services = createServices();
+    const loadModelForDiscoveryMode = vi.fn(() => Promise.resolve(createRarityExplorerDomain(["rare"])));
+    const session: SearchFilterExplorerSession = {
+      title: "Rarity Explorer",
+      model: createLoadingExplorerModel("Rarity Explorer"),
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+        {
+          value: "traits",
+          label: "Traits",
+          description: "Browse live traits for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ],
+      onEvent: vi.fn(),
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+        {
+          value: "traits",
+          label: "Traits",
+          description: "Browse live traits for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
+      ]),
+    };
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+
+    render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledWith("matching", {
+      targetFields: ["rarity", "traits"],
+    });
   });
 
   it("ignores stale explorer loads after the session changes", async () => {

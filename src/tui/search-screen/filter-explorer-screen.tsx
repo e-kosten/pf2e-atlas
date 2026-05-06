@@ -58,6 +58,24 @@ function getChangedDiscreteSelectionFields(
   });
 }
 
+function getRefreshTargetFields(
+  fields: readonly string[],
+): readonly string[] | undefined {
+  return fields.length > 0 ? [...fields] : undefined;
+}
+
+function getTargetFieldsLabel(targetFields: readonly string[] | undefined): string {
+  return targetFields && targetFields.length > 0 ? targetFields.join(",") : "all";
+}
+
+function hasSameTargetFields(left: readonly string[] | undefined, right: readonly string[]): boolean {
+  if (!left || left.length !== right.length) {
+    return false;
+  }
+  const rightSet = new Set(right);
+  return left.every((field) => rightSet.has(field));
+}
+
 function prepareSessionFieldState(
   session: SearchFilterExplorerSession,
   prepareDraft: (query: SearchFilterExplorerSession["query"]) => Pf2eTerminalPreparedFilterExplorerDraft,
@@ -198,10 +216,11 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
+        const coversSessionFields = hasSameTargetFields(targetFields, scopedFieldsRef.current);
         const loadSpan = debug.startSpan("filterExplorer.loadModel", {
           mode: nextMode,
           source: "session",
-          targetFields: targetFields?.join(",") ?? "all",
+          targetFields: getTargetFieldsLabel(targetFields),
         });
         void (
           targetFields ? loadModelForDiscoveryMode(nextMode, { targetFields }) : loadModelForDiscoveryMode(nextMode)
@@ -216,7 +235,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
             ) {
               return;
             }
-            if (!targetFields) {
+            if (!targetFields || coversSessionFields) {
               modelCacheRef.current.set(nextMode, nextModel);
             }
             setModel((currentModel) =>
@@ -224,7 +243,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
                 const span = debug.startSpan("filterExplorer.reconcileModel", {
                   mode: nextMode,
                   source: "refresh",
-                  targetFields: targetFields?.join(",") ?? "all",
+                  targetFields: getTargetFieldsLabel(targetFields),
                 });
                 const reconciled = reconcileSearchFilterExplorerModel({
                   currentModel,
@@ -233,7 +252,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
                   fieldOptions: fieldOptionsRef.current,
                   resolveSelectionTarget:
                     resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-                  targetFields,
+                  targetFields: coversSessionFields ? undefined : targetFields,
                 });
                 span.end({ rootNodes: reconciled.rootNodes.length });
                 return reconciled;
@@ -302,7 +321,11 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
         : null,
     );
     if (loadModelForDiscoveryMode && isSearchFilterExplorerLoadingModel(session.model)) {
-      runModelRefresh(initialDiscoveryMode, { debounceMs: 0, force: true });
+      runModelRefresh(initialDiscoveryMode, {
+        debounceMs: 0,
+        force: true,
+        targetFields: getRefreshTargetFields(preparedFieldState.scopedFields),
+      });
     }
 
     return () => {
@@ -394,7 +417,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
         const changedDiscreteFields = getChangedDiscreteSelectionFields(previousFieldState, nextFieldState);
         runModelRefresh(discoveryModeRef.current, {
           force: true,
-          targetFields: changedDiscreteFields.length === 1 ? changedDiscreteFields : undefined,
+          targetFields: getRefreshTargetFields(changedDiscreteFields),
         });
       }
     },
