@@ -168,6 +168,45 @@ describe("eslint local architecture rules", () => {
     });
   });
 
+  it("keeps concrete TUI theme props behind the framework theme owner", async () => {
+    const expectedMessage =
+      "Do not set concrete Ink theme props here. Route color, background, inverse, and dim styling through src/tui/framework/theme.ts.";
+
+    await expectRuleMessage(
+      "src/tui/framework/screen-components.tsx",
+      "const props = { color: \"cyan\" };\nexport { props };\n",
+      expectedMessage,
+      "arch/no-direct-tui-theme-props",
+    );
+
+    await expectRuleMessage(
+      "src/tui/framework/screen-components.tsx",
+      "const props = { \"backgroundColor\": \"black\" };\nexport { props };\n",
+      expectedMessage,
+      "arch/no-direct-tui-theme-props",
+    );
+
+    await expectRuleMessage(
+      "src/tui/framework/screen-components.tsx",
+      "const props = { [\"inverse\"]: true };\nexport { props };\n",
+      expectedMessage,
+      "arch/no-direct-tui-theme-props",
+    );
+
+    await expectRuleMessage(
+      "src/tui/framework/screen-components.tsx",
+      "import { Text } from \"ink\";\nexport const node = <Text dimColor>Muted</Text>;\n",
+      expectedMessage,
+      "arch/no-direct-tui-theme-props",
+    );
+
+    await expectNoRuleMessages(
+      "src/tui/framework/theme.ts",
+      "const props = { color: \"cyan\", \"backgroundColor\": \"black\", [\"inverse\"]: true, dimColor: true };\nexport { props };\n",
+      "arch/no-direct-tui-theme-props",
+    );
+  });
+
   it("blocks direct JSON.parse outside approved decoder modules and allows explicit decoder boundaries", async () => {
     await expectRuleMessage(
       "src/search/ranking.ts",

@@ -61,6 +61,16 @@ function isLiteralString(node, value) {
   return node?.type === "Literal" && node.value === value;
 }
 
+function getStaticPropertyName(node) {
+  if (node?.type === "Identifier" || node?.type === "JSXIdentifier") {
+    return node.name;
+  }
+  if (node?.type === "Literal" && typeof node.value === "string") {
+    return node.value;
+  }
+  return undefined;
+}
+
 function isImportLikeNode(node) {
   return (
     node?.type === "ImportDeclaration" ||
@@ -371,7 +381,7 @@ const localRules = {
       }
 
       const reportIfThemePropName = (node) => {
-        if (node?.type === "Identifier" && TUI_THEME_PROP_NAMES.has(node.name)) {
+        if (TUI_THEME_PROP_NAMES.has(getStaticPropertyName(node))) {
           context.report({ node, messageId: "noDirectTuiThemeProp" });
         }
       };
@@ -381,9 +391,6 @@ const localRules = {
           reportIfThemePropName(node.name);
         },
         Property(node) {
-          if (node.computed) {
-            return;
-          }
           reportIfThemePropName(node.key);
         },
       };
