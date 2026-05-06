@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 
 import { useDerivedTagTerminalBackdropActive, useDerivedTagTerminalCapabilities } from "./context.js";
+import { terminalBackdropTextProps, terminalHyperlinkTextProps, terminalToneProps } from "./theme.js";
 import type { DerivedTagTerminalLine, DerivedTagTerminalSegment, DerivedTagTerminalTone } from "./types.js";
 
 export type RenderedTerminalLine = {
@@ -406,43 +407,6 @@ export function renderRows(
   return rendered;
 }
 
-export function terminalToneProps(tone: DerivedTagTerminalTone): React.ComponentProps<typeof Text> {
-  switch (tone) {
-    case "default":
-      return {};
-    case "heading":
-      return { color: "cyan", bold: true };
-    case "section":
-      return { bold: true };
-    case "dim":
-      return { dimColor: true };
-    case "accent":
-      return { color: "cyan" };
-    case "success":
-      return { color: "green" };
-    case "warning":
-      return { color: "yellow" };
-    case "danger":
-      return { color: "red" };
-    case "selected":
-      return { inverse: true, bold: true };
-  }
-}
-
-function withBackdropToneProps(
-  props: React.ComponentProps<typeof Text>,
-  backdropActive: boolean,
-): React.ComponentProps<typeof Text> {
-  if (!backdropActive) {
-    return props;
-  }
-
-  return {
-    ...props,
-    dimColor: true,
-  };
-}
-
 const OSC_8_OPEN = "\u001b]8;;";
 const OSC_8_TERMINATOR = "\u001b\\";
 const OSC_8_CLOSE = `${OSC_8_OPEN}${OSC_8_TERMINATOR}`;
@@ -465,16 +429,12 @@ function terminalSegmentProps(
   hyperlinkSupport: "supported" | "unsupported",
   backdropActive: boolean,
 ): React.ComponentProps<typeof Text> {
-  const toneProps = withBackdropToneProps(terminalToneProps(tone), backdropActive);
+  const toneProps = terminalBackdropTextProps(terminalToneProps(tone), backdropActive);
   if (!href || hyperlinkSupport !== "supported") {
     return toneProps;
   }
 
-  return {
-    ...toneProps,
-    color: toneProps.color ?? "cyan",
-    underline: true,
-  };
+  return terminalHyperlinkTextProps(toneProps);
 }
 
 function renderTerminalLineContent(

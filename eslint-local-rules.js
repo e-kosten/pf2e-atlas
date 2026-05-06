@@ -109,6 +109,9 @@ const SEARCH_DISCOVERY_PRIMITIVE_ALLOWED_PATHS = [
   "src/tui/search/service.ts",
 ];
 
+const TUI_THEME_ALLOWED_PATHS = ["src/tui/framework/theme.ts"];
+const TUI_THEME_PROP_NAMES = new Set(["backgroundColor", "color", "dimColor", "inverse"]);
+
 const localRules = {
   "no-direct-json-parse": {
     meta: {
@@ -345,6 +348,43 @@ const localRules = {
           if (isMemberProperty(node.callee, "isTerminalQuitKey")) {
             context.report({ node, messageId: "noDirectQuitHandling" });
           }
+        },
+      };
+    },
+  },
+  "no-direct-tui-theme-props": {
+    meta: {
+      type: "problem",
+      docs: {
+        description: "Keep concrete Ink theme props centralized in the TUI framework theme owner.",
+      },
+      schema: [],
+      messages: {
+        noDirectTuiThemeProp:
+          "Do not set concrete Ink theme props here. Route color, background, inverse, and dim styling through src/tui/framework/theme.ts.",
+      },
+    },
+    create(context) {
+      const filename = toRepoRelativePath(context.filename);
+      if (!filename.startsWith("src/tui/") || matchesAllowedPath(filename, TUI_THEME_ALLOWED_PATHS)) {
+        return {};
+      }
+
+      const reportIfThemePropName = (node) => {
+        if (node?.type === "Identifier" && TUI_THEME_PROP_NAMES.has(node.name)) {
+          context.report({ node, messageId: "noDirectTuiThemeProp" });
+        }
+      };
+
+      return {
+        JSXAttribute(node) {
+          reportIfThemePropName(node.name);
+        },
+        Property(node) {
+          if (node.computed) {
+            return;
+          }
+          reportIfThemePropName(node.key);
         },
       };
     },

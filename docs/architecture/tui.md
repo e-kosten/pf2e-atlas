@@ -99,6 +99,7 @@ Shared ontology/detail presenters may also attach optional link metadata to a te
 - line rendering and wrapping in `framework/line-rendering.tsx`
 - pane and screen geometry in `framework/screen-layout.ts`
 - pane and screen React components in `framework/screen-components.tsx`
+- terminal surface and tone theme ownership in `framework/theme.ts`
 - input and navigation helpers in `framework/input.ts`
 - terminal context in `framework/context.ts`
 - modal host and input routing in `framework/modal-host.tsx`
@@ -108,6 +109,8 @@ Shared ontology/detail presenters may also attach optional link metadata to a te
 - prompt-session ownership in `framework/provider.tsx`, where multi-step prompt flows replace the current prompt without exposing an intermediate background frame and keep blanked-background prompt layout separate from background workspace sizing
 
 Feature code should build on these helpers instead of importing raw terminal primitives directly.
+
+Concrete terminal colors and background treatments are owned by `framework/theme.ts`. Feature and screen code should emit semantic `DerivedTagTerminalTone` values or use framework surface helpers; it should not set Ink `color`, `backgroundColor`, `inverse`, or `dimColor` props directly. Base screens, selected rows, modal panels, and overlay backdrops should all render through the same app-owned theme.
 
 ### App Services Layer
 

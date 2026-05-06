@@ -13,9 +13,9 @@ import {
   fitToWidth,
   getRenderedTerminalLineCount,
   renderRows,
-  terminalToneProps,
 } from "./line-rendering.js";
 import { getTerminalThreePaneDimensions, getTerminalTwoPaneDimensions } from "./screen-layout.js";
+import { terminalBackdropTextProps, terminalSurfaceProps, terminalToneProps } from "./theme.js";
 import type {
   DerivedTagTerminalInlinePromptPanelProps,
   DerivedTagTerminalLine,
@@ -26,20 +26,11 @@ import type {
   DerivedTagTerminalTwoPaneScreenProps,
 } from "./types.js";
 
-const TERMINAL_PANEL_SURFACE_BACKGROUND = "black";
-
 function withBackdropTextProps(
   props: React.ComponentProps<typeof Text>,
   backdropActive: boolean,
 ): React.ComponentProps<typeof Text> {
-  if (!backdropActive) {
-    return props;
-  }
-
-  return {
-    ...props,
-    dimColor: true,
-  };
+  return terminalBackdropTextProps(props, backdropActive);
 }
 
 function TerminalPanelSurface({
@@ -52,7 +43,7 @@ function TerminalPanelSurface({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <Box width={width} height={height} flexDirection="column" backgroundColor={TERMINAL_PANEL_SURFACE_BACKGROUND}>
+    <Box width={width} height={height} flexDirection="column" {...terminalSurfaceProps("panel")}>
       {children}
     </Box>
   );

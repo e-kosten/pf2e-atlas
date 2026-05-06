@@ -13,6 +13,7 @@ import {
 import { DerivedTagTerminalModalHost } from "./modal-host.js";
 import { planTerminalModalStateLayout } from "./modal-planning.js";
 import { isBlankedPromptPresentation } from "./prompt-presentation.js";
+import { terminalSurfaceProps } from "./theme.js";
 import type {
   DerivedTagTerminalContextValue,
   DerivedTagTerminalHyperlinkSupport,
@@ -369,7 +370,7 @@ export function DerivedTagTerminalProvider({
   return (
     <>
       <DerivedTagTerminalContext.Provider value={backgroundContextValue}>
-        <Box flexDirection="column" width={columns} height={rows}>
+        <Box flexDirection="column" width={columns} height={rows} {...terminalSurfaceProps("app")}>
           <Box flexDirection="column" width={columns} height={shouldRenderChildren ? rows : 0}>
             {children}
           </Box>

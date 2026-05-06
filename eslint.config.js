@@ -436,6 +436,12 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/tui/**/*.{ts,tsx}"],
+    rules: {
+      "arch/no-direct-tui-theme-props": "error",
+    },
+  },
+  {
     files: ["src/tui/**/*.{ts,tsx}", "src/tags/editorial/ui/review-ui.tsx"],
     ignores: [
       "src/tui/framework/**/*.{ts,tsx}",

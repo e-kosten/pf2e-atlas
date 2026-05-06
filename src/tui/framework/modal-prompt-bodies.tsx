@@ -11,10 +11,10 @@ import {
   TerminalRows,
   fitToWidth,
   renderRows,
-  terminalToneProps,
 } from "./line-rendering.js";
 import type { FrameworkTerminalModalLayoutResult } from "./modal-planning.js";
 import { isCenteredPromptPresentation } from "./prompt-presentation.js";
+import { terminalToneProps } from "./theme.js";
 import {
   TerminalInlinePromptPanel,
   TerminalPaneView,
