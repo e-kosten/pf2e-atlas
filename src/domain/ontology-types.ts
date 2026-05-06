@@ -49,7 +49,7 @@ export type OntologyChildPresentation =
 export type OntologyChildSource =
   | { readonly kind: "static"; readonly children: readonly OntologyNode[] }
   | { readonly kind: "sync"; readonly load: () => readonly OntologyNode[] }
-  | { readonly kind: "async"; readonly load: () => Promise<readonly OntologyNode[]> };
+  | { readonly kind: "lazy"; readonly load: () => Promise<readonly OntologyNode[]> };
 
 export interface OntologyNode {
   readonly id: string;

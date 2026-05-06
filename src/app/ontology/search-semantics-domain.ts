@@ -204,7 +204,7 @@ function buildPreparedFieldValueChildSource(options: {
   }
 
   return {
-    kind: "async",
+    kind: "lazy",
     load: async () =>
       buildNodes(
         await preparedReader.discoverFieldValuesAsync({
@@ -247,7 +247,7 @@ function buildPreparedPackChildSource(options: {
   }
 
   return {
-    kind: "async",
+    kind: "lazy",
     load: async () =>
       buildNodes(
         await preparedReader.discoverFieldValuesAsync({

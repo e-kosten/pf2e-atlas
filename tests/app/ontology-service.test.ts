@@ -658,7 +658,7 @@ describe("application ontology service", () => {
         { kind: "metadataPredicate", predicate: { field: "traits", op: "includes", value: "fire" } },
       ]),
     );
-    expect(getOntologyNodeChildren(saveTypeValueNode)[0]?.kind).toBe("record");
+    expect((await resolveOntologyNodeChildren(saveTypeValueNode))[0]?.kind).toBe("record");
     expect(saveTypeValueNode?.detailLines.map((line) => line.text)).toContain(
       "Press Enter or o to open the full matching set in the shared result reader.",
     );
@@ -828,7 +828,7 @@ describe("application ontology service", () => {
         limit: 20,
       },
     });
-    expect(getOntologyNodeChildren(actorMetricValueNode)[0]?.kind).toBe("record");
+    expect((await resolveOntologyNodeChildren(actorMetricValueNode))[0]?.kind).toBe("record");
     expect(itemMetricNode?.label).toBe("Weapon Reload");
     expect(itemMetricNode?.query).toEqual({
       label: "Browse records with Weapon Reload",

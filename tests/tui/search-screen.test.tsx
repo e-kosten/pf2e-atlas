@@ -6210,6 +6210,42 @@ describe("search screen", () => {
     expect(getOntologyNodeChildren(rare).map((node) => node.label)).toEqual(["Fresh Member"]);
   });
 
+  it("does not resolve lazy record children while reconciling live rows", () => {
+    const fieldOptions = [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const currentModel = createRarityExplorerDomain(["rare"]);
+    const refreshedModel = createRarityExplorerDomain(["rare"]);
+    const currentRare = getOntologyNodeChildren(currentModel.rootNodes[0])[0]!;
+    const refreshedRare = getOntologyNodeChildren(refreshedModel.rootNodes[0])[0]!;
+    const currentLoad = vi.fn(async () => []);
+    const refreshedLoad = vi.fn(async () => []);
+    Object.assign(currentRare, {
+      childSource: { kind: "lazy" as const, load: currentLoad },
+    });
+    Object.assign(refreshedRare, {
+      childSource: { kind: "lazy" as const, load: refreshedLoad },
+    });
+
+    const model = reconcileSearchFilterExplorerModel({
+      currentModel,
+      refreshedModel,
+      fieldState: { discreteSelections: {}, scalarClauses: {} },
+      fieldOptions,
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+    });
+
+    expect(getOntologyNodeChildren(model.rootNodes[0])[0]?.label).toBe("rare");
+    expect(currentLoad).not.toHaveBeenCalled();
+    expect(refreshedLoad).not.toHaveBeenCalled();
+  });
+
   it("keeps the picker responsive while refreshing live counts after a query edit", async () => {
     const services = createServices();
     const loadModelForDiscoveryMode = vi.fn(async () => createRarityExplorerDomain(["rare"]));

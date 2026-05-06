@@ -124,7 +124,7 @@ describe("filter explorer controller state", () => {
     expect(resolveFilterExplorerBackNavigation(rootListContext)).toBe("exit");
   });
 
-  it("ignores stale async child-load completions after focus moves to a newer loading node", () => {
+  it("ignores stale lazy child-load completions after focus moves to a newer loading node", () => {
     const model = createModel();
     let state = createFilterExplorerBrowserUiState(model);
 

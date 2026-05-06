@@ -433,7 +433,7 @@ describe("buildSearchSemanticsDomain", () => {
         },
       ]),
     );
-    expect(magicalTraitNode?.childSource?.kind).toBe("sync");
+    expect(magicalTraitNode?.childSource?.kind).toBe("lazy");
   });
 
   it("requires the dedicated search semantics bootstrap summary loader", () => {

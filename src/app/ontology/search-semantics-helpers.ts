@@ -403,9 +403,7 @@ function buildQueryRecordChildSource(
   dataService: SearchSemanticsRecordsDataService,
   query: NonNullable<OntologyNode["query"]>,
 ): OntologyNode["childSource"] {
-  return query.request.mode === "browse"
-    ? { kind: "sync", load: () => buildQueryRecordChildren(dataService, query) }
-    : { kind: "async", load: () => buildQueryRecordChildrenAsync(dataService, query) };
+  return { kind: "lazy", load: () => buildQueryRecordChildrenAsync(dataService, query) };
 }
 
 export function buildFieldValueNodes(
@@ -648,7 +646,7 @@ function buildMetricKeyNode(
     childSource:
       valueType === "text" || valueType === "boolean"
         ? {
-            kind: "async",
+            kind: "lazy",
             load: async () =>
               buildMetricValueNodes(recordsService, {
                 category,
@@ -712,7 +710,7 @@ function buildMetricNamespaceNode(
       },
     ],
     childSource: {
-      kind: "async",
+      kind: "lazy",
       load: async () =>
         (
           await discoveryReader.discoverMetricKeys({

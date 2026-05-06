@@ -114,14 +114,14 @@ function decorateNodeForInspectAndOpen(node: OntologyNode, dataService: Ontology
     return {
       ...cloned,
       query: metricInspectQuery,
-      childSource: { kind: "sync", load: () => buildOntologyQueryRecordChildren(dataService, metricInspectQuery) },
+      childSource: { kind: "lazy", load: () => Promise.resolve(buildOntologyQueryRecordChildren(dataService, metricInspectQuery)) },
     };
   }
 
   if (cloned.query && cloned.query.request.mode === "browse") {
     return {
       ...cloned,
-      childSource: { kind: "sync", load: () => buildOntologyQueryRecordChildren(dataService, cloned.query) },
+      childSource: { kind: "lazy", load: () => Promise.resolve(buildOntologyQueryRecordChildren(dataService, cloned.query)) },
     };
   }
 
@@ -148,7 +148,7 @@ function decorateChildSourceForInspectAndOpen(
     };
   }
   return {
-    kind: "async",
+    kind: "lazy",
     load: async () => (await source.load()).map((child) => decorateNodeForInspectAndOpen(child, dataService)),
   };
 }
