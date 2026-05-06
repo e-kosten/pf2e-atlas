@@ -353,10 +353,12 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       queryRef.current = nextQuery;
       session.onEvent({ kind: "change", query: nextQuery, fieldState: nextFieldState });
       if (session.refreshOnQueryChange && session.loadModelForDiscoveryMode) {
-        runModelRefresh(discoveryModeRef.current, { force: true });
+        invalidateRefreshes();
+        modelCacheRef.current.clear();
+        setRefreshState(null);
       }
     },
-    [runModelRefresh, session, user.search],
+    [invalidateRefreshes, session, user.search],
   );
 
   const host = React.useMemo<FilterExplorerHostAdapter>(() => {

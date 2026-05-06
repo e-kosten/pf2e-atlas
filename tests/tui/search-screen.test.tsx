@@ -5985,9 +5985,70 @@ describe("search screen", () => {
     await flushInk();
     await flushInk();
 
+    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).toContain("rare");
     expect(app.lastFrame()).toContain("[x] rare");
     expect(app.lastFrame()).toContain("Current clauses");
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
+  });
+
+  it("does not reload live picker counts on every query edit", async () => {
+    const services = createServices();
+    const loadModelForDiscoveryMode = vi.fn(async () => createRarityExplorerDomain(["common"]));
+    const session: SearchFilterExplorerSession = {
+      title: "Rarity Explorer",
+      model: createRarityExplorerDomain(["common", "rare"]),
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onEvent: vi.fn(),
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ]),
+      refreshOnQueryChange: true,
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+    };
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write(" ");
+    await flushInk();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+
+    expect(loadModelForDiscoveryMode).not.toHaveBeenCalled();
+    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).toContain("rare");
+    expect(app.lastFrame()).toContain("[✓] rare");
   });
 
   it("supports pane clicks and hovered-pane wheel routing in the live search host", async () => {
