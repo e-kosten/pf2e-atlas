@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EntityPageDocument } from "../../src/app/ontology/entity-page.js";
 import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import type { SearchFilterDiscoveryMode } from "../../src/domain/search-field-domains.js";
 import type { SearchCountResult } from "../../src/domain/search-types.js";
 import type { AppConfig } from "../../src/domain/config-types.js";
 import type { NormalizedRecord } from "../../src/domain/record-types.js";
@@ -5992,9 +5993,9 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
   });
 
-  it("does not reload live picker counts on every query edit", async () => {
+  it("keeps the picker responsive while refreshing live counts after a query edit", async () => {
     const services = createServices();
-    const loadModelForDiscoveryMode = vi.fn(async () => createRarityExplorerDomain(["common"]));
+    const loadModelForDiscoveryMode = vi.fn(async () => createRarityExplorerDomain(["rare"]));
     const session: SearchFilterExplorerSession = {
       title: "Rarity Explorer",
       model: createRarityExplorerDomain(["common", "rare"]),
@@ -6040,15 +6041,99 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write(" ");
     await flushInk();
-    await new Promise((resolve) => {
-      setTimeout(resolve, 120);
-    });
-    await flushInk();
 
     expect(loadModelForDiscoveryMode).not.toHaveBeenCalled();
     expect(app.lastFrame()).toContain("common");
     expect(app.lastFrame()).toContain("rare");
     expect(app.lastFrame()).toContain("[✓] rare");
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledTimes(1);
+    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).toContain("rare");
+    expect(app.lastFrame()).toContain("[✓] rare");
+  });
+
+  it("ignores stale live count refreshes after rapid query edits", async () => {
+    const services = createServices();
+    const firstRefresh = createDeferred<OntologyDomainModel>();
+    const secondRefresh = createDeferred<OntologyDomainModel>();
+    const loadModelForDiscoveryMode = vi
+      .fn<(_: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>>()
+      .mockReturnValueOnce(firstRefresh.promise)
+      .mockReturnValueOnce(secondRefresh.promise);
+    const session: SearchFilterExplorerSession = {
+      title: "Rarity Explorer",
+      model: createRarityExplorerDomain(["common", "rare", "unique"]),
+      query: browseQuery("Browse spells", { filter: scopeFilter("spell"), limit: 20 }).request,
+      fieldOptions: [
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ],
+      onEvent: vi.fn(),
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
+        {
+          value: "rarity",
+          label: "Rarity",
+          description: "Browse live rarities for the current scope.",
+          fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+      ]),
+      refreshOnQueryChange: true,
+      initialDiscoveryMode: "matching",
+      loadModelForDiscoveryMode,
+    };
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    pressDown(app);
+    await flushInk();
+    app.stdin.write(" ");
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledTimes(1);
+
+    pressDown(app);
+    await flushInk();
+    app.stdin.write(" ");
+    await new Promise((resolve) => {
+      setTimeout(resolve, 120);
+    });
+    await flushInk();
+    expect(loadModelForDiscoveryMode).toHaveBeenCalledTimes(2);
+
+    firstRefresh.resolve(createNamedExplorerDomain("First Result"));
+    await flushInk();
+    await flushInk();
+    expect(app.lastFrame()).not.toContain("First Result");
+
+    secondRefresh.resolve(createNamedExplorerDomain("Second Result"));
+    await waitForFrameToContain(app, "Second Result", 80);
+    expect(app.lastFrame()).toContain("Second Result");
+    expect(app.lastFrame()).not.toContain("First Result");
   });
 
   it("supports pane clicks and hovered-pane wheel routing in the live search host", async () => {

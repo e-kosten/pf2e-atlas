@@ -362,9 +362,15 @@ describe("application ontology service", () => {
       discoveryMode: "matching",
       targetFields: ["traits"],
     });
+    const filteredMatchingAgain = await service.loadSearchFilterExplorerDomain({
+      request: filteredRequest,
+      discoveryMode: "matching",
+      targetFields: ["traits"],
+    });
 
     expect(filteredCatalog).toBe(firstCatalog);
     expect(filteredMatching).not.toBe(firstCatalog);
+    expect(filteredMatchingAgain).toBe(filteredMatching);
   });
 
   it("keeps the derived-tag explorer populated for broad creature scope in matching mode", async () => {

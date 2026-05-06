@@ -40,7 +40,8 @@ export function createPf2eApplicationOntologyService(
   discoveryService: Pf2eApplicationSearchDiscoveryService,
 ): Pf2eApplicationOntologyService {
   const searchSemanticsDomainPromiseCache = new Map<SearchFilterDiscoveryMode, Promise<OntologyDomainModel>>();
-  const searchFilterExplorerPromiseCache = new Map<string, Promise<OntologyDomainModel>>();
+  const catalogSearchFilterExplorerPromiseCache = new Map<string, Promise<OntologyDomainModel>>();
+  const matchingSearchFilterExplorerPromiseCache = new Map<string, Map<string, Promise<OntologyDomainModel>>>();
   const searchSemanticsSummaryCache = new Map<string, SearchSemanticsBootstrapSummaryResult>();
   const cachedDataService: OntologyDomainDataService = {
     getPack: (packValue) =>
@@ -61,18 +62,21 @@ export function createPf2eApplicationOntologyService(
   readMetadataGlossaryArtifact(config.indexPath);
   cachedDataService.getSearchSemanticsBootstrapSummary();
 
-  function buildSearchFilterExplorerCacheKey(options: {
+  function buildSearchFilterExplorerStaticCacheKey(options: {
     request: Readonly<SearchRequest>;
-    discoveryMode: SearchFilterDiscoveryMode;
     targetFields?: readonly string[];
   }): string {
     const targetFieldKey = [...(options.targetFields ?? [])].sort().join(",");
-    if (options.discoveryMode === "catalog") {
-      const scope = findSearchScopeFilter(options.request.filter);
-      return `${options.discoveryMode}|${scope?.category ?? ""}|${scope ? buildScopeSubcategoryCacheKey(scope.subcategory) : ""}|${targetFieldKey}`;
-    }
+    const scope = findSearchScopeFilter(options.request.filter);
+    return `${scope?.category ?? ""}|${scope ? buildScopeSubcategoryCacheKey(scope.subcategory) : ""}|${targetFieldKey}`;
+  }
 
-    return `${options.discoveryMode}|${JSON.stringify(options.request)}|${targetFieldKey}`;
+  function buildSearchFilterExplorerLiveCacheKey(options: {
+    request: Readonly<SearchRequest>;
+    targetFields?: readonly string[];
+  }): string {
+    const targetFieldKey = [...(options.targetFields ?? [])].sort().join(",");
+    return `${JSON.stringify(options.request)}|${targetFieldKey}`;
   }
 
   const loadSearchSemanticsDomain = (options: {
@@ -98,16 +102,37 @@ export function createPf2eApplicationOntologyService(
     discoveryMode: SearchFilterDiscoveryMode;
     targetFields?: readonly string[];
   }): Promise<OntologyDomainModel> => {
-    const cacheKey = buildSearchFilterExplorerCacheKey(options);
-    const cached = searchFilterExplorerPromiseCache.get(cacheKey);
+    const staticCacheKey = buildSearchFilterExplorerStaticCacheKey(options);
+    if (options.discoveryMode === "catalog") {
+      const cached = catalogSearchFilterExplorerPromiseCache.get(staticCacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const promise = buildPreparedSearchFilterExplorerDomain(config, cachedDataService, discoveryService, options);
+      catalogSearchFilterExplorerPromiseCache.set(staticCacheKey, promise);
+      void promise.catch(() => {
+        catalogSearchFilterExplorerPromiseCache.delete(staticCacheKey);
+      });
+      return promise;
+    }
+
+    const liveCacheKey = buildSearchFilterExplorerLiveCacheKey(options);
+    const liveCache =
+      matchingSearchFilterExplorerPromiseCache.get(staticCacheKey) ?? new Map<string, Promise<OntologyDomainModel>>();
+    matchingSearchFilterExplorerPromiseCache.set(staticCacheKey, liveCache);
+    const cached = liveCache.get(liveCacheKey);
     if (cached) {
       return cached;
     }
 
     const promise = buildPreparedSearchFilterExplorerDomain(config, cachedDataService, discoveryService, options);
-    searchFilterExplorerPromiseCache.set(cacheKey, promise);
+    liveCache.set(liveCacheKey, promise);
     void promise.catch(() => {
-      searchFilterExplorerPromiseCache.delete(cacheKey);
+      liveCache.delete(liveCacheKey);
+      if (liveCache.size === 0) {
+        matchingSearchFilterExplorerPromiseCache.delete(staticCacheKey);
+      }
     });
     return promise;
   };
