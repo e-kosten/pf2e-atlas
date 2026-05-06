@@ -156,6 +156,10 @@ export type Pf2eTerminalSearchService = {
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetValueOption[];
   getCategoryOptions: () => Pf2eTerminalSearchCategoryOption[];
+  loadCategoryOptions: (
+    query: Pf2eTerminalSearchQuery,
+    discoveryMode: SearchFilterDiscoveryMode,
+  ) => Promise<Pf2eTerminalSearchCategoryOption[]>;
   getFacetFieldOptions: (
     category: SearchCategory | null,
     subcategory: SearchSubcategory | null,
@@ -220,6 +224,11 @@ export type Pf2eTerminalSearchService = {
     subcategory: SearchSubcategory | null,
   ) => Pf2eTerminalFacetValueOption[];
   getSubcategoryOptions: (category: SearchCategory | null) => Pf2eTerminalSearchSubcategoryOption[];
+  loadSubcategoryOptions: (
+    query: Pf2eTerminalSearchQuery,
+    category: SearchCategory,
+    discoveryMode: SearchFilterDiscoveryMode,
+  ) => Promise<Pf2eTerminalSearchSubcategoryOption[]>;
   getModeOptions: () => Pf2eTerminalSearchModeOption[];
   getDefaultSort: (mode: Pf2eTerminalSearchMode) => Pf2eTerminalSearchSort;
   loadMore: (

@@ -820,6 +820,8 @@ async function openMetricExplorerFromAddHere(app: ReturnType<typeof render>, tit
 async function addRootTraitGroup(app: ReturnType<typeof render>): Promise<void> {
   await openTraitsExplorerFromAddHere(app);
   await waitForFrameToContain(app, "archetype", 120);
+  await flushInk();
+  await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();

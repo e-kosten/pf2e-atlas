@@ -404,6 +404,91 @@ describe("createPf2eTerminalSearchService", () => {
     ]);
   });
 
+  it("loads scope option counts from the query-aware discovery service", async () => {
+    const discoverFilterValues = vi.fn(
+      async (request: { mode: string; context: { request: SearchRequest }; target: { field: string } }) => {
+        if (request.target.field === "categories") {
+          return {
+            mode: request.mode as "matching" | "catalog",
+            target: request.target,
+            options: [
+              { id: "creature", value: "creature", count: 2 },
+              { id: "spell", value: "spell", count: 5 },
+            ],
+          };
+        }
+        if (request.target.field === "subcategories") {
+          return {
+            mode: request.mode as "matching" | "catalog",
+            target: request.target,
+            options: [{ id: "familiar", value: "familiar", count: 1 }],
+          };
+        }
+        return { mode: request.mode as "matching" | "catalog", target: request.target, options: [] };
+      },
+    );
+    const discovery = createDependencies().discovery;
+    discovery.discoverFilterValues = discoverFilterValues;
+    const service = createPf2eTerminalSearchService(createDependencies({ discovery }));
+    const query = setSearchQueryPackSelection(service.createDefaultQuery("browse"), {
+      include: ["Bestiary"],
+      exclude: [],
+    });
+
+    await expect(service.loadCategoryOptions(query, "matching")).resolves.toEqual(
+      expect.arrayContaining([
+        {
+          value: "creature",
+          label: "Creature | 2",
+          description: "2 matching canonical records.",
+        },
+        {
+          value: "spell",
+          label: "Spell | 5",
+          description: "5 matching canonical records.",
+        },
+      ]),
+    );
+    await expect(service.loadSubcategoryOptions(query, "creature", "catalog")).resolves.toEqual([
+      {
+        value: null,
+        label: "Any Subcategory",
+        description: "Browse every Creature record in the current category.",
+      },
+      {
+        value: "character",
+        label: "Character | 0",
+        description: "0 applicable canonical records.",
+      },
+      {
+        value: "familiar",
+        label: "Familiar | 1",
+        description: "1 applicable canonical record.",
+      },
+    ]);
+    expect(discoverFilterValues).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        mode: "matching",
+        target: { field: "categories" },
+      }),
+    );
+    expect(discoverFilterValues).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        mode: "catalog",
+        target: { field: "subcategories" },
+        context: expect.objectContaining({
+          request: expect.objectContaining({
+            filter: expect.objectContaining({
+              kind: "allOf",
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("loads metric-key options from the query-aware shared discovery service and can restrict them to numeric keys", async () => {
     const discoverFilterValues = vi.fn(
       async (request: { mode: string; context: unknown; target: { field: string } }) => {

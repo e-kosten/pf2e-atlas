@@ -49,6 +49,14 @@ function renderPromptActions({
         { value: null, label: "Any", description: "Any subcategory." },
         { value: "familiar", label: "Familiar | 3", description: "3 familiar records." },
       ]),
+      loadCategoryOptions: vi.fn(async () => [
+        { value: null, label: "Any", description: "Any category." },
+        { value: "creature", label: "Creature | 12", description: "12 matching canonical records." },
+      ]),
+      loadSubcategoryOptions: vi.fn(async () => [
+        { value: null, label: "Any", description: "Any subcategory." },
+        { value: "familiar", label: "Familiar | 3", description: "3 matching canonical records." },
+      ]),
       loadMetricKeyOptions: vi.fn(async () => []),
       prepareFilterExplorerDraft: vi.fn(() => ({
         draft: { discreteClauses: [], scalarClauses: {} },
@@ -109,6 +117,7 @@ describe("structured draft prompt actions", () => {
   it("builds a scope clause from prompt-local category and subcategory choices", async () => {
     const promptSelectOption = vi
       .fn()
+      .mockResolvedValueOnce({ kind: "selected", value: "matching" })
       .mockResolvedValueOnce({ kind: "selected", value: "creature" })
       .mockResolvedValueOnce({ kind: "selected", value: "specific" })
       .mockResolvedValueOnce({ kind: "selected", value: "familiar" });
@@ -121,14 +130,19 @@ describe("structured draft prompt actions", () => {
       value: { kind: "scope", category: "creature", subcategory: { kind: "eq", value: "familiar" } },
     });
     expect(promptSelectOption.mock.calls[0]?.[0].entries).toContainEqual({
+      value: "matching",
+      label: "Matching Counts",
+      description: "Show counts from the current query context.",
+    });
+    expect(promptSelectOption.mock.calls[1]?.[0].entries).toContainEqual({
       value: "creature",
       label: "Creature | 12",
-      description: "12 creature records.",
+      description: "12 matching canonical records.",
     });
-    expect(promptSelectOption.mock.calls[2]?.[0].entries).toContainEqual({
+    expect(promptSelectOption.mock.calls[3]?.[0].entries).toContainEqual({
       value: "familiar",
       label: "Familiar | 3",
-      description: "3 familiar records.",
+      description: "3 matching canonical records.",
     });
 
     renderer.unmount();

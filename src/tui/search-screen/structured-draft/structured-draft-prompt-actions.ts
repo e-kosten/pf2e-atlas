@@ -8,6 +8,7 @@ import type {
   SearchScopeSubcategoryMatch,
 } from "../../../domain/search-request-types.js";
 import type { SearchCategory } from "../../../domain/search-types.js";
+import type { DerivedTagTerminalSelectPromptResult } from "../../framework/types.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
 import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
@@ -381,7 +382,44 @@ export function useStructuredDraftPromptActions({
         return structuredDraftPromptCancel();
       }
 
+      let discoveryMode: SearchFilterDiscoveryMode = "matching";
       for (;;) {
+        const modeSelection: DerivedTagTerminalSelectPromptResult<SearchFilterDiscoveryMode> =
+          await promptSession.promptSelectOption({
+          title: "Scope Counts",
+          prompt: "Choose which counts to show while selecting this scope clause",
+          entries: [
+            {
+              value: "matching" as const,
+              label: "Matching Counts",
+              description: "Show counts from the current query context.",
+            },
+            {
+              value: "catalog" as const,
+              label: "Catalog Counts",
+              description: "Show counts from the wider applicability slice.",
+            },
+          ],
+          selectedValue: discoveryMode,
+        });
+        if (modeSelection.kind === "back") {
+          return structuredDraftPromptBack();
+        }
+        if (modeSelection.kind !== "selected") {
+          return structuredDraftPromptCancel();
+        }
+        discoveryMode = modeSelection.value;
+
+        const categoryOptions = (
+          await user.search.loadCategoryOptions(query, discoveryMode)
+        ).filter(
+          (option): option is { value: SearchCategory; label: string; description: string } => option.value !== null,
+        );
+        if (categoryOptions.length === 0) {
+          await terminal.pauseForAnyKey("No categories are available for the current query.");
+          return structuredDraftPromptCancel();
+        }
+
         const categorySelection = await promptSession.promptSelectOption({
           title: "Scope",
           prompt: "Choose the category for this scope clause",
@@ -404,8 +442,7 @@ export function useStructuredDraftPromptActions({
           return structuredDraftPromptCancel();
         }
 
-        const subcategoryOptions = user.search
-          .getSubcategoryOptions(category)
+        const subcategoryOptions = (await user.search.loadSubcategoryOptions(query, category, discoveryMode))
           .filter((option) => option.value !== null);
         const matchingCurrentNode = currentNode && currentNode.category === category ? currentNode : null;
         const currentMode =

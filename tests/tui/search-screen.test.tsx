@@ -4692,6 +4692,10 @@ describe("search screen", () => {
       { value: null, label: "Any Category", description: "Browse every category." },
       { value: "creature", label: "Creature", description: "Browse creatures." },
     ]);
+    services.user.search.loadCategoryOptions = vi.fn(async () => [
+      { value: null, label: "Any Category", description: "Browse every category." },
+      { value: "creature", label: "Creature | 2", description: "2 matching canonical records." },
+    ]);
 
     const app = render(
       <DerivedTagTerminalProvider>
@@ -4720,6 +4724,11 @@ describe("search screen", () => {
     await flushInk();
     app.stdin.write("\r");
     await flushInk();
+    await waitForFrameToContain(app, "Scope Counts");
+    expect(app.lastFrame()).toContain("Matching Counts");
+
+    app.stdin.write("\r");
+    await flushInk();
     await waitForFrameToContain(app, "Creature");
     expect(app.lastFrame()).toContain("Scope");
     expect(app.lastFrame()).toContain("Creature");
@@ -4735,6 +4744,14 @@ describe("search screen", () => {
     services.user.search.getCategoryOptions = vi.fn(() => [
       { value: null, label: "Any Category", description: "Browse every category." },
       { value: "creature", label: "Creature", description: "Browse creatures." },
+    ]);
+    services.user.search.loadCategoryOptions = vi.fn(async () => [
+      { value: null, label: "Any Category", description: "Browse every category." },
+      { value: "creature", label: "Creature | 2", description: "2 matching canonical records." },
+    ]);
+    services.user.search.loadSubcategoryOptions = vi.fn(async () => [
+      { value: null, label: "Any Subcategory", description: "Browse every Creature record." },
+      { value: "familiar", label: "Familiar | 1", description: "1 matching canonical record." },
     ]);
     services.user.search.getQueryFieldOptions = vi.fn((category) =>
       category === "creature"
@@ -4782,6 +4799,11 @@ describe("search screen", () => {
 
     await flushInk();
     await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+    await waitForFrameToContain(app, "Scope Counts");
+    expect(app.lastFrame()).toContain("Matching Counts");
+
     app.stdin.write("\r");
     await flushInk();
     await waitForFrameToContain(app, "Creature");

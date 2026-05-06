@@ -1,4 +1,8 @@
-import { CATEGORY_SUBCATEGORY_MAP } from "../../domain/categories.js";
+import {
+  CATEGORY_SUBCATEGORY_MAP,
+  SEARCH_CATEGORIES,
+  normalizeSearchSubcategory,
+} from "../../domain/categories.js";
 import { createScopedSearchDiscoveryApplicability } from "../../app/search-discovery-service.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
@@ -34,6 +38,7 @@ import {
   getSearchQuerySubcategory,
   isActionCostAvailableInScope,
   normalizeSearchQuery,
+  replaceSearchQueryRootScope,
   setSearchQueryActionCostSelection,
 } from "./query-state.js";
 import {
@@ -111,6 +116,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     return `${count} ${label} canonical record${count === 1 ? "" : "s"}.`;
   }
 
+  function buildCountedScopeLabel(label: string, count: number): string {
+    return `${label} | ${count}`;
+  }
+
   async function loadDiscoveryFieldOptions(
     query: import("./service-types.js").Pf2eTerminalSearchQuery,
     discoveryMode: "matching" | "catalog",
@@ -127,6 +136,39 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       value: String(option.value),
       count: option.count,
     }));
+  }
+
+  function buildScopeCategoryDiscoveryQuery(
+    query: import("./service-types.js").Pf2eTerminalSearchQuery,
+  ): import("./service-types.js").Pf2eTerminalSearchQuery {
+    return normalizeServiceQuery(replaceSearchQueryRootScope(query, null));
+  }
+
+  function buildScopeSubcategoryDiscoveryQuery(
+    query: import("./service-types.js").Pf2eTerminalSearchQuery,
+    category: SearchCategory,
+  ): import("./service-types.js").Pf2eTerminalSearchQuery {
+    return normalizeServiceQuery(
+      replaceSearchQueryRootScope(query, {
+        kind: "scope",
+        category,
+        subcategory: { kind: "any" },
+      }),
+    );
+  }
+
+  async function loadLiveScopeValueCounts(
+    query: import("./service-types.js").Pf2eTerminalSearchQuery,
+    discoveryMode: "matching" | "catalog",
+    field: "categories" | "subcategories",
+  ): Promise<Map<string, number>> {
+    const result = await dependencies.discovery.discoverFilterValues({
+      mode: discoveryMode,
+      context: createSearchFilterDiscoveryContext(query),
+      target: { field },
+    });
+
+    return new Map(result.options.map((option) => [String(option.value), option.count]));
   }
 
   function normalizeServiceQuery(query: import("./service-types.js").Pf2eTerminalSearchQuery) {
@@ -173,9 +215,27 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         },
         ...categorySummary.categories.map((category) => ({
           value: category.value,
-          label: `${formatCategoryLabel(category.value)} | ${category.count}`,
+          label: buildCountedScopeLabel(formatCategoryLabel(category.value), category.count),
           description: `${category.count} indexed canonical record${category.count === 1 ? "" : "s"}.`,
         })),
+      ];
+    },
+    loadCategoryOptions: async (query, discoveryMode) => {
+      const counts = await loadLiveScopeValueCounts(buildScopeCategoryDiscoveryQuery(query), discoveryMode, "categories");
+      return [
+        {
+          value: null,
+          label: "Any Category",
+          description: "Search or browse across the full indexed PF2E corpus.",
+        },
+        ...SEARCH_CATEGORIES.map((category) => {
+          const count = counts.get(category) ?? 0;
+          return {
+            value: category,
+            label: buildCountedScopeLabel(formatCategoryLabel(category), count),
+            description: buildDiscoveryCountDescription(discoveryMode, count),
+          };
+        }),
       ];
     },
     getFacetFieldOptions: (category, subcategory) => {
@@ -309,9 +369,31 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         },
         ...CATEGORY_SUBCATEGORY_MAP[category].map((subcategory) => ({
           value: subcategory,
-          label: `${formatSubcategoryLabel(subcategory)} | ${subcategoryCounts.get(subcategory) ?? 0}`,
+          label: buildCountedScopeLabel(formatSubcategoryLabel(subcategory), subcategoryCounts.get(subcategory) ?? 0),
           description: `Restrict the workspace to ${formatSubcategoryLabel(subcategory)} records.`,
         })),
+      ];
+    },
+    loadSubcategoryOptions: async (query, category, discoveryMode) => {
+      const counts = await loadLiveScopeValueCounts(
+        buildScopeSubcategoryDiscoveryQuery(query, category),
+        discoveryMode,
+        "subcategories",
+      );
+      return [
+        {
+          value: null,
+          label: "Any Subcategory",
+          description: `Browse every ${formatCategoryLabel(category)} record in the current category.`,
+        },
+        ...CATEGORY_SUBCATEGORY_MAP[category].map((subcategory) => {
+          const count = counts.get(normalizeSearchSubcategory(subcategory) ?? subcategory) ?? 0;
+          return {
+            value: normalizeSearchSubcategory(subcategory) ?? subcategory,
+            label: buildCountedScopeLabel(formatSubcategoryLabel(subcategory), count),
+            description: buildDiscoveryCountDescription(discoveryMode, count),
+          };
+        }),
       ];
     },
     getModeOptions: () => SEARCH_MODE_OPTIONS,
