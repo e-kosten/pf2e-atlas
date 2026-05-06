@@ -6,6 +6,7 @@ import type { MetadataGlossaryArtifact, MetadataGlossaryEntry } from "../domain/
 
 const TRAIT_LABEL_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.Trait(?!Description)([A-Za-z0-9]+)"/g;
 const TRAIT_DESCRIPTION_PATTERN = /["']?([a-z0-9-]+)["']?:\s*"PF2E\.TraitDescription([A-Za-z0-9]+)"/g;
+const metadataGlossaryArtifactCache = new Map<string, MetadataGlossaryArtifact | null>();
 
 function getPf2eLangEntries(rawLang: unknown): Record<string, string> {
   if (!rawLang || typeof rawLang !== "object") {
@@ -107,18 +108,27 @@ export async function writeMetadataGlossaryArtifact(
   const artifactPath = getMetadataGlossaryArtifactPath(indexPath);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+  metadataGlossaryArtifactCache.set(artifactPath, artifact);
   return artifact;
 }
 
 export function readMetadataGlossaryArtifact(indexPath: string): MetadataGlossaryArtifact | null {
   const artifactPath = getMetadataGlossaryArtifactPath(indexPath);
+  if (metadataGlossaryArtifactCache.has(artifactPath)) {
+    return metadataGlossaryArtifactCache.get(artifactPath) ?? null;
+  }
+
   if (!existsSync(artifactPath)) {
+    metadataGlossaryArtifactCache.set(artifactPath, null);
     return null;
   }
 
   try {
-    return JSON.parse(readFileSync(artifactPath, "utf8")) as MetadataGlossaryArtifact;
+    const artifact = JSON.parse(readFileSync(artifactPath, "utf8")) as MetadataGlossaryArtifact;
+    metadataGlossaryArtifactCache.set(artifactPath, artifact);
+    return artifact;
   } catch {
+    metadataGlossaryArtifactCache.set(artifactPath, null);
     return null;
   }
 }

@@ -323,6 +323,50 @@ describe("application ontology service", () => {
     expect(first.rootNodes).toEqual([expect.objectContaining({ id: "searchSemantics:spell" })]);
   });
 
+  it("reuses catalog search filter explorer models by scope and target fields", async () => {
+    const dataService = createDataService();
+    const service = createPf2eApplicationOntologyService(
+      createTestConfig(),
+      dataService,
+      createDiscoveryService(dataService),
+    );
+    const scopedRequest: SearchRequest = {
+      mode: "browse",
+      filter: buildScopeFilter("spell"),
+      limit: 20,
+    };
+    const filteredRequest: SearchRequest = {
+      mode: "browse",
+      filter: buildAllOfFilter([
+        buildScopeFilter("spell"),
+        {
+          kind: "metadataPredicate",
+          predicate: { field: "traits", op: "includes", value: "fire" },
+        },
+      ]),
+      limit: 20,
+    };
+
+    const firstCatalog = await service.loadSearchFilterExplorerDomain({
+      request: scopedRequest,
+      discoveryMode: "catalog",
+      targetFields: ["traits"],
+    });
+    const filteredCatalog = await service.loadSearchFilterExplorerDomain({
+      request: filteredRequest,
+      discoveryMode: "catalog",
+      targetFields: ["traits"],
+    });
+    const filteredMatching = await service.loadSearchFilterExplorerDomain({
+      request: filteredRequest,
+      discoveryMode: "matching",
+      targetFields: ["traits"],
+    });
+
+    expect(filteredCatalog).toBe(firstCatalog);
+    expect(filteredMatching).not.toBe(firstCatalog);
+  });
+
   it("keeps the derived-tag explorer populated for broad creature scope in matching mode", async () => {
     const summary: SearchSemanticsBootstrapSummaryResult = {
       categories: [{ value: "creature", count: 3 }],
@@ -438,7 +482,7 @@ describe("application ontology service", () => {
 
     expect(matchingAgain).toBe(matching);
     expect(catalog).not.toBe(matching);
-    expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(2);
+    expect(dataService.getSearchSemanticsBootstrapSummary).toHaveBeenCalledTimes(1);
   });
 
   it("changes broad derived-tag family output between matching and catalog modes", async () => {

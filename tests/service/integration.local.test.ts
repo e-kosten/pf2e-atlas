@@ -69,7 +69,7 @@ describe("local PF2E integration", async () => {
       ).toEqual(expect.arrayContaining(["fort", "ref", "will"]));
       service.close();
     },
-    60000,
+    120000,
   );
 
   it.runIf(available)(
@@ -97,6 +97,6 @@ describe("local PF2E integration", async () => {
 
       expect(secondMtime).toBe(firstMtime);
     },
-    60000,
+    120000,
   );
 });

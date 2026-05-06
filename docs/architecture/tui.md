@@ -303,6 +303,8 @@ The practical distinction is:
 
 During live query edits, the filter explorer keeps the current model mounted and treats displayed counts as the snapshot for the active editing session. Query edits update the host query immediately and clear cached count models, but they do not reload the current discovery model on every value toggle. Discovery-mode changes and reopened explorer sessions may load fresh matching or catalog counts. This keeps picker input responsive while avoiding synchronous count recomputation on the Ink event loop for each edit.
 
+Prepared catalog explorer models are reusable across query-only filter changes for the same scope and target fields. Prepared matching explorer models are full-request scoped so reopened matching sessions can show exact live counts without reusing stale query-specific counts.
+
 Ontology nodes expose nested entries through `childSource`, not direct `children` fields. Static child sources are already materialized; sync child sources are cheap local expansions; async child sources are allowed for expensive discovery such as metric namespaces and metric value spaces. TUI code resolves children through `getOntologyNodeChildren(...)` or `resolveOntologyNodeChildren(...)` from `src/app/ontology/node-helpers.ts`, and keeps the existing browser mounted while async children load. The filter explorer only drills after the selected node's children resolve, and stale async completions are ignored when selection has moved.
 
 ### Shared Explorer Shell
