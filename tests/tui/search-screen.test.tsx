@@ -22,7 +22,9 @@ import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-conte
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
+import { reconcileSearchFilterExplorerModel } from "../../src/tui/search-screen/filter-explorer-model-reconciliation.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
+import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
 import { buildMetricSelectionTargetResolver } from "../../src/tui/search-screen/structured-draft/structured-draft-explorer-actions.js";
 import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-grouped-field.js";
@@ -5993,6 +5995,96 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
   });
 
+  it("overlays only selected missing values when live counts refresh", () => {
+    const fieldOptions = [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const model = reconcileSearchFilterExplorerModel({
+      currentModel: createRarityExplorerDomain(["common", "rare", "unique"]),
+      refreshedModel: createRarityExplorerDomain(["common"]),
+      fieldState: {
+        discreteSelections: {
+          rarity: {
+            include: [],
+            exclude: ["rare"],
+          },
+        },
+        scalarClauses: {},
+      },
+      fieldOptions,
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+    });
+
+    const rarityField = model.rootNodes[0]!;
+    const values = getOntologyNodeChildren(rarityField);
+    expect(values.map((node) => node.label)).toEqual(["common", "rare"]);
+    expect(values.find((node) => node.label === "rare")?.listLabel).toBe("rare | 0");
+    expect(getOntologyNodeChildren(values.find((node) => node.label === "rare"))).toEqual([]);
+  });
+
+  it("replaces stale member children for refreshed live rows", () => {
+    const fieldOptions = [
+      {
+        value: "rarity",
+        label: "Rarity",
+        description: "Browse live rarities for the current scope.",
+        fieldType: "enumString" as const,
+        editor: "sharedExplorer" as const,
+      },
+    ];
+    const currentModel = createRarityExplorerDomain(["rare"]);
+    const refreshedModel = createRarityExplorerDomain(["rare"]);
+    const currentRare = getOntologyNodeChildren(currentModel.rootNodes[0])[0];
+    const refreshedRare = getOntologyNodeChildren(refreshedModel.rootNodes[0])[0];
+    Object.assign(currentRare, {
+      childSource: {
+        kind: "static" as const,
+        children: [
+          {
+            id: "record:old",
+            kind: "record",
+            label: "Old Member",
+            filterText: "old member",
+            detailLines: [{ text: "Old Member" }],
+          },
+        ],
+      },
+    });
+    Object.assign(refreshedRare, {
+      listLabel: "rare | 1",
+      childSource: {
+        kind: "static" as const,
+        children: [
+          {
+            id: "record:fresh",
+            kind: "record",
+            label: "Fresh Member",
+            filterText: "fresh member",
+            detailLines: [{ text: "Fresh Member" }],
+          },
+        ],
+      },
+    });
+
+    const model = reconcileSearchFilterExplorerModel({
+      currentModel,
+      refreshedModel,
+      fieldState: { discreteSelections: {}, scalarClauses: {} },
+      fieldOptions,
+      resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
+    });
+
+    const rare = getOntologyNodeChildren(model.rootNodes[0])[0];
+    expect(rare.listLabel).toBe("rare | 1");
+    expect(getOntologyNodeChildren(rare).map((node) => node.label)).toEqual(["Fresh Member"]);
+  });
+
   it("keeps the picker responsive while refreshing live counts after a query edit", async () => {
     const services = createServices();
     const loadModelForDiscoveryMode = vi.fn(async () => createRarityExplorerDomain(["rare"]));
@@ -6068,7 +6160,7 @@ describe("search screen", () => {
 
     expect(loadModelForDiscoveryMode).toHaveBeenCalledTimes(1);
     expect(loadModelForDiscoveryMode).toHaveBeenLastCalledWith("matching", { targetFields: ["rarity"] });
-    expect(app.lastFrame()).toContain("common");
+    expect(app.lastFrame()).not.toContain("common");
     expect(app.lastFrame()).toContain("rare");
     expect(app.lastFrame()).toContain("[✓] rare");
   });

@@ -5,7 +5,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
-import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { getOntologyNodeChildren, resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { buildFieldValueNodes } from "../../src/app/ontology/search-semantics-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
@@ -196,6 +197,77 @@ afterEach(() => {
 });
 
 describe("buildSearchSemanticsDomain", () => {
+  it("uses the matching request for live value member children", async () => {
+    const search = vi.fn(
+      async (request: SearchRequest) =>
+        ({
+          searchProfile: "lexical",
+          mode: "lexical" as const,
+          sort: "score",
+          total: 0,
+          offset: request.offset ?? 0,
+          limit: request.limit ?? 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [],
+        }) satisfies SearchResult,
+    );
+    const listRecords = vi.fn(
+      (request: SearchRequest) =>
+        ({
+          searchProfile: null,
+          mode: "structured" as const,
+          sort: request.sort ?? "alphabetical",
+          total: 0,
+          offset: request.offset ?? 0,
+          limit: request.limit ?? 20,
+          hasMore: false,
+          nextOffset: null,
+          records: [],
+        }) satisfies SearchResult,
+    );
+    const matchingRequest: SearchRequest = {
+      mode: "search",
+      search: { query: "dragon", profile: "lexical" },
+      filter: buildAllOfFilter([
+        buildScopeFilter("creature"),
+        {
+          kind: "not",
+          child: {
+            kind: "metadataPredicate",
+            predicate: { field: "traits", op: "includes", value: "fiend" },
+          },
+        },
+      ]),
+      limit: 20,
+    };
+    const [fiendNode] = buildFieldValueNodes(
+      { listRecords, search },
+      "creature",
+      null,
+      { field: "traits", fieldType: "set" },
+      [{ value: "fiend", count: 0 }],
+      null,
+      { countLabel: "Matching records", matchingRequest },
+    );
+
+    expect(fiendNode?.query?.request.mode).toBe("search");
+    expect(fiendNode?.query?.request.filter).toEqual(
+      buildAllOfFilter([
+        matchingRequest.filter,
+        {
+          kind: "metadataPredicate",
+          predicate: { field: "traits", op: "includes", value: "fiend" },
+        },
+      ]),
+    );
+
+    await resolveOntologyNodeChildren(fiendNode);
+
+    expect(search).toHaveBeenCalledWith(fiendNode?.query?.request);
+    expect(listRecords).not.toHaveBeenCalled();
+  });
+
   it("scopes derived-tag families and tag queries to the active subcategory", () => {
     const dataService = createDataService();
     const domain = buildSearchSemanticsDomain(

@@ -21,11 +21,12 @@ export type Pf2eApplicationOntologyService = {
   }) => Promise<OntologyDomainModel>;
 };
 
-type OntologyDomainDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> & {
-  getSearchSemanticsBootstrapSummary: (options?: {
-    traitLimitPerCategory?: number;
-  }) => SearchSemanticsBootstrapSummaryResult;
-};
+type OntologyDomainDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> &
+  Partial<Pick<Pf2eDataService, "search">> & {
+    getSearchSemanticsBootstrapSummary: (options?: {
+      traitLimitPerCategory?: number;
+    }) => SearchSemanticsBootstrapSummaryResult;
+  };
 
 function buildScopeSubcategoryCacheKey(match: SearchScopeSubcategoryMatch): string {
   if (match.kind === "eq") {
@@ -43,10 +44,11 @@ export function createPf2eApplicationOntologyService(
   const catalogSearchFilterExplorerPromiseCache = new Map<string, Promise<OntologyDomainModel>>();
   const matchingSearchFilterExplorerPromiseCache = new Map<string, Map<string, Promise<OntologyDomainModel>>>();
   const searchSemanticsSummaryCache = new Map<string, SearchSemanticsBootstrapSummaryResult>();
+  const dataServiceSearch = dataService.search?.bind(dataService);
   const cachedDataService: OntologyDomainDataService = {
-    getPack: (packValue) =>
-      (dataService as Partial<Pick<Pf2eDataService, "getPack">>).getPack?.(packValue),
+    getPack: (packValue) => (dataService as Partial<Pick<Pf2eDataService, "getPack">>).getPack?.(packValue),
     listRecords: (request) => dataService.listRecords(request),
+    ...(dataServiceSearch ? { search: (request) => dataServiceSearch(request) } : {}),
     getSearchSemanticsBootstrapSummary: (options = {}) => {
       const cacheKey = options.traitLimitPerCategory === undefined ? "default" : String(options.traitLimitPerCategory);
       const cached = searchSemanticsSummaryCache.get(cacheKey);

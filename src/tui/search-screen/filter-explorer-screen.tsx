@@ -22,13 +22,12 @@ import type { Pf2eTerminalPreparedFilterExplorerDraft } from "../search/service.
 import { isSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
 import { planSearchFilterExplorerRefresh, shouldApplySearchFilterExplorerRefresh } from "./filter-explorer-refresh.js";
 import { buildSearchFilterExplorerTargetResolver } from "../filter-explorer/search-draft-model.js";
-import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
-import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import {
   buildSearchFilterExplorerComposeDraft,
   buildSearchFilterExplorerFieldState,
   type SearchFilterExplorerFieldState,
 } from "./filter-explorer-field-state.js";
+import { reconcileSearchFilterExplorerModel } from "./filter-explorer-model-reconciliation.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
 const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
@@ -57,45 +56,6 @@ function getChangedDiscreteSelectionFields(
       previousSelection.exclude.join("\0") !== nextSelection.exclude.join("\0")
     );
   });
-}
-
-function mergeExplorerNodeTrees(
-  visibleNodes: readonly OntologyNode[],
-  refreshedNodes: readonly OntologyNode[],
-): OntologyNode[] {
-  const refreshedById = new Map(refreshedNodes.map((node) => [node.id, node]));
-
-  return visibleNodes.map((visibleNode) => {
-    const refreshedNode = refreshedById.get(visibleNode.id);
-    if (!refreshedNode) {
-      return visibleNode;
-    }
-
-    const visibleChildren = getOntologyNodeChildren(visibleNode);
-    const refreshedChildren = getOntologyNodeChildren(refreshedNode);
-    if (visibleChildren.length === 0 || refreshedChildren.length === 0) {
-      return refreshedNode;
-    }
-
-    return {
-      ...refreshedNode,
-      childSource: { kind: "static", children: mergeExplorerNodeTrees(visibleChildren, refreshedChildren) },
-    };
-  });
-}
-
-function mergeExplorerModelPreservingVisibleNodes(
-  visibleModel: OntologyDomainModel,
-  refreshedModel: OntologyDomainModel,
-): OntologyDomainModel {
-  if (visibleModel.id !== refreshedModel.id) {
-    return refreshedModel;
-  }
-
-  return {
-    ...refreshedModel,
-    rootNodes: mergeExplorerNodeTrees(visibleModel.rootNodes, refreshedModel.rootNodes),
-  };
 }
 
 function prepareSessionFieldState(
@@ -150,6 +110,8 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fieldOptionsRef = React.useRef(session.fieldOptions);
+  const resolveSelectionTargetRef = React.useRef(session.resolveSelectionTarget);
 
   const clearQueuedRefresh = React.useCallback(() => {
     if (refreshTimerRef.current !== null) {
@@ -175,8 +137,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
         return;
       }
 
-      const { debounceMs = DISCOVERY_REFRESH_DEBOUNCE_MS, force = false } = options;
-      const preserveVisibleNodes = force && nextMode === discoveryModeRef.current;
+      const { debounceMs = DISCOVERY_REFRESH_DEBOUNCE_MS, force = false, targetFields } = options;
       if (force) {
         modelCacheRef.current.clear();
       }
@@ -196,7 +157,16 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       }
 
       if (plan.kind === "useCached") {
-        setModel(plan.model);
+        setModel((currentModel) =>
+          reconcileSearchFilterExplorerModel({
+            currentModel,
+            refreshedModel: plan.model,
+            fieldState: fieldStateRef.current,
+            fieldOptions: fieldOptionsRef.current,
+            resolveSelectionTarget:
+              resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+          }),
+        );
         setDiscoveryMode(plan.mode);
         discoveryModeRef.current = plan.mode;
         setRefreshState(null);
@@ -207,9 +177,9 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
-        void (options.targetFields
-          ? loadModelForDiscoveryMode(nextMode, { targetFields: options.targetFields })
-          : loadModelForDiscoveryMode(nextMode))
+        void (
+          targetFields ? loadModelForDiscoveryMode(nextMode, { targetFields }) : loadModelForDiscoveryMode(nextMode)
+        )
           .then((nextModel) => {
             if (
               !shouldApplySearchFilterExplorerRefresh({
@@ -219,11 +189,19 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
             ) {
               return;
             }
-            modelCacheRef.current.set(nextMode, nextModel);
+            if (!targetFields) {
+              modelCacheRef.current.set(nextMode, nextModel);
+            }
             setModel((currentModel) =>
-              preserveVisibleNodes && !isSearchFilterExplorerLoadingModel(currentModel)
-                ? mergeExplorerModelPreservingVisibleNodes(currentModel, nextModel)
-                : nextModel,
+              reconcileSearchFilterExplorerModel({
+                currentModel,
+                refreshedModel: nextModel,
+                fieldState: fieldStateRef.current,
+                fieldOptions: fieldOptionsRef.current,
+                resolveSelectionTarget:
+                  resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+                targetFields,
+              }),
             );
             setDiscoveryMode(nextMode);
             discoveryModeRef.current = nextMode;
@@ -263,7 +241,9 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
   React.useEffect(() => {
     queryRef.current = session.query;
-  }, [session.query]);
+    fieldOptionsRef.current = session.fieldOptions;
+    resolveSelectionTargetRef.current = session.resolveSelectionTarget;
+  }, [session.fieldOptions, session.query, session.resolveSelectionTarget]);
 
   React.useEffect(() => {
     invalidateRefreshes();

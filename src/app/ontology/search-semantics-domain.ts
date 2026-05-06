@@ -43,11 +43,12 @@ import {
   buildSearchSemanticsMetadataQuery,
 } from "./search-semantics-helpers.js";
 
-type SearchSemanticsDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> & {
-  getSearchSemanticsBootstrapSummary: (options?: {
-    traitLimitPerCategory?: number;
-  }) => SearchSemanticsBootstrapSummaryResult;
-};
+type SearchSemanticsDataService = Pick<Pf2eDataService, "getPack" | "listRecords"> &
+  Partial<Pick<Pf2eDataService, "search">> & {
+    getSearchSemanticsBootstrapSummary: (options?: {
+      traitLimitPerCategory?: number;
+    }) => SearchSemanticsBootstrapSummaryResult;
+  };
 
 type BroadSearchSemanticsDomainOptions = {
   discoveryMode?: SearchFilterDiscoveryMode;
@@ -167,8 +168,18 @@ function buildPreparedFieldValueChildSource(options: {
   fieldSemantics: SearchDiscoveryField;
   metadataGlossary: MetadataGlossaryArtifact | null;
   countLabel: string;
+  matchingRequest?: Readonly<SearchRequest>;
 }): OntologyNode["childSource"] {
-  const { dataService, preparedReader, category, subcategory, fieldSemantics, metadataGlossary, countLabel } = options;
+  const {
+    dataService,
+    preparedReader,
+    category,
+    subcategory,
+    fieldSemantics,
+    metadataGlossary,
+    countLabel,
+    matchingRequest,
+  } = options;
   const buildNodes = (entries: readonly { value: unknown; count: number }[]) =>
     buildFieldValueNodes(
       dataService,
@@ -180,7 +191,7 @@ function buildPreparedFieldValueChildSource(options: {
         count: entry.count,
       })),
       metadataGlossary,
-      { countLabel },
+      { countLabel, matchingRequest },
     );
   const cachedOptions = preparedReader.discoverFieldValues({
     category,
@@ -211,8 +222,9 @@ function buildPreparedPackChildSource(options: {
   category: SearchCategory;
   subcategory: SearchSubcategory | null;
   countLabel: string;
+  matchingRequest?: Readonly<SearchRequest>;
 }): OntologyNode["childSource"] {
-  const { dataService, preparedReader, category, subcategory, countLabel } = options;
+  const { dataService, preparedReader, category, subcategory, countLabel, matchingRequest } = options;
   const buildNodes = (entries: readonly { value: unknown; count: number }[]) =>
     buildPackValueNodes(
       dataService,
@@ -222,7 +234,7 @@ function buildPreparedPackChildSource(options: {
         value: String(entry.value),
         count: entry.count,
       })),
-      { countLabel },
+      { countLabel, matchingRequest },
     );
   const cachedOptions = preparedReader.discoverFieldValues({
     category,
@@ -909,6 +921,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
   const metadataGlossary = readMetadataGlossaryArtifact(config.indexPath);
   const summary = loadSearchSemanticsSummary(dataService);
   const countLabel = getPreparedSearchFilterExplorerCountLabel(options.discoveryMode);
+  const matchingRequest = options.discoveryMode === "matching" ? options.request : undefined;
   const derivedTagCatalogByCategory = new Map<SearchCategory, DerivedTagCatalogEntry[]>(
     SEARCH_CATEGORIES.map((category) => [
       category,
@@ -1067,6 +1080,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
                     fieldSemantics,
                     metadataGlossary,
                     countLabel,
+                    matchingRequest,
                   })
                 : undefined,
             }),
@@ -1087,6 +1101,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
           label: getMetricDiscoveryGroupLabel(category, group.metricField),
           namespaces: group.namespaces,
           countLabel,
+          matchingRequest,
         }),
       );
   }
@@ -1117,6 +1132,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
         category,
         subcategory,
         countLabel,
+        matchingRequest,
       }),
     };
   }

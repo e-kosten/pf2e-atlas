@@ -25,7 +25,13 @@ import {
 
 type SearchSemanticsRecordsDataService = {
   listRecords: (request: SearchRequest) => SearchResult;
+  search?: (request: SearchRequest) => Promise<SearchResult>;
   getPack?: (packValue: string) => { name: string; label?: string } | undefined;
+};
+
+type ValueNodeQueryOptions = {
+  countLabel?: string;
+  matchingRequest?: Readonly<SearchRequest>;
 };
 
 const METRIC_SEGMENT_LABELS: Readonly<Record<string, string>> = {
@@ -101,6 +107,28 @@ function buildTraitDetailLines(
 
 function buildResultReaderHint(): string {
   return "Press Enter or o to open the full matching set in the shared result reader.";
+}
+
+function buildValueScopedQuery(
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  label: string,
+  valueFilter: SearchFilterNode,
+  matchingRequest: Readonly<SearchRequest> | undefined,
+): NonNullable<OntologyNode["query"]> {
+  if (!matchingRequest) {
+    return buildSearchSemanticsMetadataQuery(category, subcategory, label, valueFilter);
+  }
+
+  const { offset: _offset, ...requestWithoutOffset } = matchingRequest;
+  return {
+    label,
+    request: {
+      ...requestWithoutOffset,
+      filter: buildAllOfFilter([matchingRequest.filter, valueFilter]),
+      limit: 20,
+    } as SearchRequest,
+  };
 }
 
 function humanizeMetricSegment(segment: string): string {
@@ -195,7 +223,7 @@ export function buildSearchSemanticsMetadataQuery(
   subcategory: SearchSubcategory | null,
   label: string,
   filter: SearchFilterNode,
-): OntologyNode["query"] {
+): NonNullable<OntologyNode["query"]> {
   return {
     label,
     request: {
@@ -351,6 +379,35 @@ function buildQueryRecordChildren(
   return dataService.listRecords(request).records.map(buildNormalizedRecordNode);
 }
 
+async function buildQueryRecordChildrenAsync(
+  dataService: SearchSemanticsRecordsDataService,
+  query: OntologyNode["query"] | undefined,
+): Promise<readonly OntologyNode[]> {
+  if (!query) {
+    return [];
+  }
+
+  if (query.request.mode === "browse") {
+    return buildQueryRecordChildren(dataService, query);
+  }
+
+  const search = dataService.search;
+  if (!search) {
+    return [];
+  }
+
+  return (await search(query.request)).records.map(buildNormalizedRecordNode);
+}
+
+function buildQueryRecordChildSource(
+  dataService: SearchSemanticsRecordsDataService,
+  query: NonNullable<OntologyNode["query"]>,
+): OntologyNode["childSource"] {
+  return query.request.mode === "browse"
+    ? { kind: "sync", load: () => buildQueryRecordChildren(dataService, query) }
+    : { kind: "async", load: () => buildQueryRecordChildrenAsync(dataService, query) };
+}
+
 export function buildFieldValueNodes(
   dataService: SearchSemanticsRecordsDataService,
   category: SearchCategory,
@@ -358,7 +415,7 @@ export function buildFieldValueNodes(
   fieldSemantics: Pick<MetadataFieldSemantics, "field" | "fieldType">,
   values: ReadonlyArray<{ value: string; count: number }>,
   metadataGlossary: MetadataGlossaryArtifact | null,
-  options: { countLabel?: string } = {},
+  options: ValueNodeQueryOptions = {},
 ): readonly OntologyNode[] {
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   const countLabel = options.countLabel ?? "Live canonical records";
@@ -366,6 +423,15 @@ export function buildFieldValueNodes(
     const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
     const traitGlossaryEntry =
       fieldSemantics.field === "traits" ? getTraitGlossaryEntry(metadataGlossary, entry.value) : undefined;
+    const query = metadata
+      ? buildValueScopedQuery(
+          category,
+          subcategory,
+          fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+          metadata,
+          options.matchingRequest,
+        )
+      : undefined;
     return {
       id: `${idPrefix}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
@@ -397,31 +463,8 @@ export function buildFieldValueNodes(
               ],
               buildResultReaderHint(),
             ),
-      query: metadata
-        ? buildSearchSemanticsMetadataQuery(
-            category,
-            subcategory,
-            fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-            metadata,
-          )
-        : undefined,
-      childSource: metadata
-        ? {
-            kind: "sync",
-            load: () =>
-              buildQueryRecordChildren(
-                dataService,
-                buildSearchSemanticsMetadataQuery(
-                  category,
-                  subcategory,
-                  fieldSemantics.field === "traits"
-                    ? "Browse records with this trait"
-                    : "Browse records with this value",
-                  metadata,
-                ),
-              ),
-          }
-        : undefined,
+      query,
+      childSource: query ? buildQueryRecordChildSource(dataService, query) : undefined,
     };
   });
 }
@@ -431,17 +474,23 @@ export function buildPackValueNodes(
   category: SearchCategory,
   subcategory: SearchSubcategory | null,
   values: ReadonlyArray<{ value: string; count: number }>,
-  options: { countLabel?: string } = {},
+  options: ValueNodeQueryOptions = {},
 ): readonly OntologyNode[] {
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   const countLabel = options.countLabel ?? "Live canonical records";
 
   return values.map((entry): OntologyNode => {
     const packLabel = getPackPresentationLabel(dataService, entry.value);
-    const query = buildSearchSemanticsMetadataQuery(category, subcategory, `Browse records from ${packLabel}`, {
-      kind: "pack",
-      value: entry.value,
-    });
+    const query = buildValueScopedQuery(
+      category,
+      subcategory,
+      `Browse records from ${packLabel}`,
+      {
+        kind: "pack",
+        value: entry.value,
+      },
+      options.matchingRequest,
+    );
 
     return {
       id: `${idPrefix}:pack:${entry.value}`,
@@ -461,7 +510,7 @@ export function buildPackValueNodes(
         buildResultReaderHint(),
       ),
       query,
-      childSource: { kind: "sync", load: () => buildQueryRecordChildren(dataService, query) },
+      childSource: buildQueryRecordChildSource(dataService, query),
     };
   });
 }
@@ -478,6 +527,7 @@ function buildMetricValueNodes(
     values: ReadonlyArray<{ value: string; count: number }>;
     valueType: "text" | "boolean";
     countLabel?: string;
+    matchingRequest?: Readonly<SearchRequest>;
   },
 ): readonly OntologyNode[] {
   const { category, subcategory, groupLabel, metricField, metadataField, metricKey, values, valueType } = options;
@@ -486,11 +536,12 @@ function buildMetricValueNodes(
   const countLabel = options.countLabel ?? "Live canonical records";
   return values.map((entry) => {
     const metadata = buildMetricScalarMetadataQuery(metadataField, metricKey, valueType, entry.value);
-    const query = buildSearchSemanticsMetadataQuery(
+    const query = buildValueScopedQuery(
       category,
       subcategory,
       `Browse records where ${metricLabel} ${valueType === "boolean" ? "is" : "="} ${entry.value}`,
       metadata,
+      options.matchingRequest,
     );
     return {
       id: `${idPrefix}:${metricField}:${metricKey}:${entry.value}`,
@@ -521,7 +572,7 @@ function buildMetricValueNodes(
         buildResultReaderHint(),
       ),
       query,
-      childSource: { kind: "sync", load: () => buildQueryRecordChildren(recordsService, query) },
+      childSource: buildQueryRecordChildSource(recordsService, query),
     };
   });
 }
@@ -540,6 +591,7 @@ function buildMetricKeyNode(
     numericMin?: number | null;
     numericMax?: number | null;
     countLabel?: string;
+    matchingRequest?: Readonly<SearchRequest>;
   },
 ): OntologyNode {
   const { category, subcategory, groupLabel, metricField, metadataField, metricKey, liveRecordCount } = options;
@@ -618,6 +670,7 @@ function buildMetricKeyNode(
                   count: entry.count,
                 })),
                 countLabel,
+                matchingRequest: options.matchingRequest,
               }),
           }
         : undefined,
@@ -636,6 +689,7 @@ function buildMetricNamespaceNode(
     prefix: string;
     description: string;
     countLabel?: string;
+    matchingRequest?: Readonly<SearchRequest>;
   },
 ): OntologyNode {
   const { category, subcategory, groupLabel, metricField, metadataField, prefix, description } = options;
@@ -679,6 +733,7 @@ function buildMetricNamespaceNode(
             numericMin: entry.numericMin,
             numericMax: entry.numericMax,
             countLabel: options.countLabel,
+            matchingRequest: options.matchingRequest,
           }),
         ),
     },
@@ -696,6 +751,7 @@ export function buildMetricDiscoveryGroup(
     label: string;
     namespaces: ReadonlyArray<{ prefix: string; description: string }>;
     countLabel?: string;
+    matchingRequest?: Readonly<SearchRequest>;
   },
 ): OntologyNode {
   const { category, subcategory, metricField, metadataField, label, namespaces } = options;
@@ -728,6 +784,7 @@ export function buildMetricDiscoveryGroup(
           prefix: namespace.prefix,
           description: namespace.description,
           countLabel: options.countLabel,
+          matchingRequest: options.matchingRequest,
         }),
       ),
     },
