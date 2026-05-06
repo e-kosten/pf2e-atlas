@@ -173,7 +173,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         },
         ...categorySummary.categories.map((category) => ({
           value: category.value,
-          label: formatCategoryLabel(category.value),
+          label: `${formatCategoryLabel(category.value)} | ${category.count}`,
           description: `${category.count} indexed canonical record${category.count === 1 ? "" : "s"}.`,
         })),
       ];
@@ -294,6 +294,13 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         ];
       }
 
+      const subcategoryCounts = new Map(
+        dependencies
+          .getSearchSemanticsBootstrapSummary?.()
+          .subcategoryCountsByCategory.find((entry) => entry.category === category)
+          ?.subcategories.map((subcategory) => [subcategory.value, subcategory.count]) ?? [],
+      );
+
       return [
         {
           value: null,
@@ -302,7 +309,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         },
         ...CATEGORY_SUBCATEGORY_MAP[category].map((subcategory) => ({
           value: subcategory,
-          label: formatSubcategoryLabel(subcategory),
+          label: `${formatSubcategoryLabel(subcategory)} | ${subcategoryCounts.get(subcategory) ?? 0}`,
           description: `Restrict the workspace to ${formatSubcategoryLabel(subcategory)} records.`,
         })),
       ];

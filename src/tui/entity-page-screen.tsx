@@ -78,6 +78,7 @@ export function EntityPageScreen({
         filter: "",
         detailScroll: 0,
       },
+      materializedChildrenByNodeId: new Map(),
       searchInput: "",
       searchMode: false,
     }),

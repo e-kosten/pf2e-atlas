@@ -1,7 +1,11 @@
 import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
 import type { Pf2eApplicationSearchDiscoveryService } from "../../app/search-discovery-service.js";
-import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
+import type {
+  SearchCategorySummaryResult,
+  SearchSemanticsBootstrapSummaryResult,
+  SearchVocabularyResult,
+} from "../../data/vocabulary.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { MetadataFilterNode } from "./metadata-filter-draft.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
@@ -239,6 +243,7 @@ export type SearchServiceDependencies = {
   discovery: Pf2eApplicationSearchDiscoveryService;
   getPack?: (packValue: string) => { name: string; label?: string } | undefined;
   getSearchCategorySummary?: () => SearchCategorySummaryResult;
+  getSearchSemanticsBootstrapSummary?: () => SearchSemanticsBootstrapSummaryResult;
   getSearchVocabulary: () => SearchVocabularyResult;
   lookup: (
     name: string,

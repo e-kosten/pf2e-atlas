@@ -467,6 +467,7 @@ export function buildFilterExplorerListLines(controller: FilterExplorerControlle
   return buildFilterExplorerListRows(
     controller.model,
     controller.browser.effectiveState,
+    controller.browser.state.materializedChildrenByNodeId,
     controller.browser.bodyHeight,
     (node, isSelected) => {
       const label = node.listLabel ?? node.label;

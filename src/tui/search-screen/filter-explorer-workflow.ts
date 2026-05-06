@@ -91,7 +91,7 @@ export function useSearchFilterExplorerWorkflow({
       const buildPreparedModel = async (
         discoveryMode: "matching" | "catalog",
         options: { targetFields?: readonly string[] } = {},
-      ): Promise<ReturnType<typeof buildSearchFilterExplorerModel>> => {
+      ) => {
         const request = services.search.normalizeQuery(currentQueryRef.current);
         const requestCategory = getSearchQueryCategory(request);
         const requestSubcategory = getSearchQuerySubcategory(request);

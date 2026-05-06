@@ -7,7 +7,6 @@ import {
   isSearchPromotedFieldDomainKey,
 } from "../../domain/search-field-domains.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
-import { getLoadedOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import type { FilterExplorerComposeTarget } from "../filter-explorer/types.js";
 import type { Pf2eTerminalQueryFieldOption } from "../search/service.js";
 
@@ -20,6 +19,10 @@ type SortableNode = {
   target: DiscreteTarget;
   count: number;
 };
+
+function getStaticOntologyNodeChildren(node: OntologyNode): readonly OntologyNode[] {
+  return node.childSource?.kind === "static" ? node.childSource.children : [];
+}
 
 export type SearchFilterExplorerValueSortOptions = {
   readonly sortMode: SearchFilterExplorerValueSortMode;
@@ -143,7 +146,7 @@ function sortNodeLevel(
 }
 
 function sortNodeTree(node: OntologyNode, options: SearchFilterExplorerValueSortOptions): OntologyNode {
-  const children = getLoadedOntologyNodeChildren(node);
+  const children = getStaticOntologyNodeChildren(node);
   if (children.length === 0) {
     return node;
   }

@@ -155,10 +155,13 @@ export type FilterExplorerBrowserState = {
   detailScroll: number;
 };
 
+export type FilterExplorerMaterializedChildren = ReadonlyMap<string, readonly FilterExplorerNode[]>;
+
 export type FilterExplorerBrowserUiState = {
   activePane: "list" | "detail";
   browserState: FilterExplorerBrowserState;
   loadingChildNodeId?: string;
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren;
   layoutMode: DerivedTagTerminalTwoPaneLayoutMode;
   searchInput: string;
   searchMode: boolean;

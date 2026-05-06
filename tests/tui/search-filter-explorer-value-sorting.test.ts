@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
-import { getLoadedOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { buildSearchFilterExplorerTargetResolver } from "../../src/tui/filter-explorer/search-draft-model.js";
 import {
   levelSupportsSearchFilterExplorerFrequencySort,
@@ -180,7 +180,7 @@ describe("search filter explorer value sorting", () => {
     expect(sorted.rootNodes.map((node) => node.label)).toEqual(["true", "false"]);
   });
 
-  it("sorts only value levels inside field nodes", () => {
+  it("sorts only value levels inside field nodes", async () => {
     const fieldOptions: Pf2eTerminalQueryFieldOption[] = [
       {
         value: "traits",
@@ -209,7 +209,10 @@ describe("search filter explorer value sorting", () => {
     });
 
     expect(sorted.rootNodes.map((node) => node.label)).toEqual(["Traits"]);
-    expect(getLoadedOntologyNodeChildren(sorted.rootNodes[0]).map((node) => node.label)).toEqual(["air", "water"]);
+    expect((await resolveOntologyNodeChildren(sorted.rootNodes[0])).map((node) => node.label)).toEqual([
+      "air",
+      "water",
+    ]);
   });
 
   it("keeps reconciled selected zero-count values in semantic order", () => {

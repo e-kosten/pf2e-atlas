@@ -1,4 +1,4 @@
-import { getOntologyNodeChildren, titleCaseLabel } from "../../app/ontology/node-helpers.js";
+import { titleCaseLabel } from "../../app/ontology/node-helpers.js";
 import { formatMetadataFieldTypeLabel } from "../../domain/presentation-vocabulary.js";
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import { moveSelection, moveSelectionWrapped } from "../framework/input.js";
@@ -8,6 +8,7 @@ import type {
   FilterExplorerBrowserSnapshot,
   FilterExplorerBrowserState,
   FilterExplorerBrowserUiState,
+  FilterExplorerMaterializedChildren,
   FilterExplorerModel,
   FilterExplorerNode,
 } from "./types.js";
@@ -43,12 +44,20 @@ function findNodeById(nodes: readonly FilterExplorerNode[], id: string | undefin
 }
 
 export function canDrillIntoFilterExplorerNode(node: FilterExplorerNode | undefined): boolean {
-  return Boolean(node?.childSource) || getOntologyNodeChildren(node).length > 0;
+  return Boolean(node?.childSource);
+}
+
+function getMaterializedChildren(
+  node: FilterExplorerNode | undefined,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
+): readonly FilterExplorerNode[] {
+  return node ? (materializedChildrenByNodeId.get(node.id) ?? []) : [];
 }
 
 function getChildrenOfSelectedParent(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
 ): { ancestors: FilterExplorerNode[]; parent?: FilterExplorerNode; nodes: readonly FilterExplorerNode[] } {
   const ancestors: FilterExplorerNode[] = [];
   let nodes: readonly FilterExplorerNode[] = model.rootNodes;
@@ -56,7 +65,7 @@ function getChildrenOfSelectedParent(
 
   for (let level = 0; level < state.depth; level += 1) {
     const selected = findNodeById(nodes, state.selectedNodeIds[level]);
-    const children = getOntologyNodeChildren(selected);
+    const children = getMaterializedChildren(selected, materializedChildrenByNodeId);
     if (!selected || children.length === 0) {
       return {
         ancestors,
@@ -134,12 +143,14 @@ export function cloneFilterExplorerBrowserSnapshot(
   return {
     ...snapshot,
     browserState: cloneFilterExplorerBrowserState(snapshot.browserState),
+    materializedChildrenByNodeId: new Map(snapshot.materializedChildrenByNodeId),
   };
 }
 
 export function normalizeFilterExplorerBrowserState(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren = new Map(),
 ): FilterExplorerBrowserState {
   const nextSelectedNodeIds = [...state.selectedNodeIds];
   const maxDepth = Math.max(0, nextSelectedNodeIds.length - 1);
@@ -169,7 +180,7 @@ export function normalizeFilterExplorerBrowserState(
       };
     }
 
-    nodes = getOntologyNodeChildren(normalized);
+    nodes = getMaterializedChildren(normalized, materializedChildrenByNodeId);
   }
 
   return {
@@ -182,9 +193,10 @@ export function normalizeFilterExplorerBrowserState(
 export function getFilterExplorerBrowserSelection(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren = new Map(),
 ): FilterExplorerBrowserSelection {
-  const normalized = normalizeFilterExplorerBrowserState(model, state);
-  const { ancestors, parent, nodes } = getChildrenOfSelectedParent(model, normalized);
+  const normalized = normalizeFilterExplorerBrowserState(model, state, materializedChildrenByNodeId);
+  const { ancestors, parent, nodes } = getChildrenOfSelectedParent(model, normalized, materializedChildrenByNodeId);
   const currentNodes = filterNodes(nodes, normalized.filter);
   const currentNode =
     currentNodes.find((node) => node.id === normalized.selectedNodeIds[normalized.depth]) ??
@@ -199,8 +211,12 @@ export function getFilterExplorerBrowserSelection(
   };
 }
 
-function getCurrentNodes(model: FilterExplorerModel, state: FilterExplorerBrowserState): readonly FilterExplorerNode[] {
-  return getFilterExplorerBrowserSelection(model, state).currentNodes;
+function getCurrentNodes(
+  model: FilterExplorerModel,
+  state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
+): readonly FilterExplorerNode[] {
+  return getFilterExplorerBrowserSelection(model, state, materializedChildrenByNodeId).currentNodes;
 }
 
 function shouldInlineGroups(
@@ -237,27 +253,30 @@ function getGroupRenderMode(
 export function moveFilterExplorerSelection(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   delta: number,
 ): FilterExplorerBrowserState {
-  return moveFilterExplorerSelectionWithStyle(model, state, delta, "wrapped");
+  return moveFilterExplorerSelectionWithStyle(model, state, materializedChildrenByNodeId, delta, "wrapped");
 }
 
 export function jumpFilterExplorerSelection(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   delta: number,
 ): FilterExplorerBrowserState {
-  return moveFilterExplorerSelectionWithStyle(model, state, delta, "clamped");
+  return moveFilterExplorerSelectionWithStyle(model, state, materializedChildrenByNodeId, delta, "clamped");
 }
 
 function moveFilterExplorerSelectionWithStyle(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   delta: number,
   motionStyle: "wrapped" | "clamped",
 ): FilterExplorerBrowserState {
-  const nextState = normalizeFilterExplorerBrowserState(model, state);
-  const nodes = getCurrentNodes(model, nextState);
+  const nextState = normalizeFilterExplorerBrowserState(model, state, materializedChildrenByNodeId);
+  const nodes = getCurrentNodes(model, nextState, materializedChildrenByNodeId);
   if (nodes.length === 0) {
     return nextState;
   }
@@ -284,10 +303,11 @@ function moveFilterExplorerSelectionWithStyle(
 export function moveFilterExplorerSelectionToBoundary(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   boundary: "start" | "end",
 ): FilterExplorerBrowserState {
-  const nextState = normalizeFilterExplorerBrowserState(model, state);
-  const nodes = getCurrentNodes(model, nextState);
+  const nextState = normalizeFilterExplorerBrowserState(model, state, materializedChildrenByNodeId);
+  const nodes = getCurrentNodes(model, nextState, materializedChildrenByNodeId);
   if (nodes.length === 0) {
     return nextState;
   }
@@ -309,15 +329,16 @@ export function moveFilterExplorerSelectionToBoundary(
 export function drillIntoFilterExplorerBrowser(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   expectedNodeId?: string,
 ): FilterExplorerBrowserState {
-  const nextState = normalizeFilterExplorerBrowserState(model, state);
-  const selection = getFilterExplorerBrowserSelection(model, nextState);
+  const nextState = normalizeFilterExplorerBrowserState(model, state, materializedChildrenByNodeId);
+  const selection = getFilterExplorerBrowserSelection(model, nextState, materializedChildrenByNodeId);
   const currentNode = selection.currentNode;
   if (expectedNodeId && currentNode?.id !== expectedNodeId) {
     return nextState;
   }
-  const children = getOntologyNodeChildren(currentNode);
+  const children = getMaterializedChildren(currentNode, materializedChildrenByNodeId);
   if (children.length === 0) {
     return nextState;
   }
@@ -350,13 +371,14 @@ export function popFilterExplorerDepth(state: FilterExplorerBrowserState): Filte
 export function setFilterExplorerFilter(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   filter: string,
 ): FilterExplorerBrowserState {
   return normalizeFilterExplorerBrowserState(model, {
     ...state,
     filter,
     detailScroll: 0,
-  });
+  }, materializedChildrenByNodeId);
 }
 
 export function moveFilterExplorerDetailScroll(
@@ -385,14 +407,18 @@ export function createFilterExplorerBrowserUiState(
   model: FilterExplorerModel,
   snapshot?: FilterExplorerBrowserSnapshot,
 ): FilterExplorerBrowserUiState {
+  const materializedChildrenByNodeId =
+    snapshot?.materializedChildrenByNodeId ?? new Map<string, readonly FilterExplorerNode[]>();
   const browserState = normalizeFilterExplorerBrowserState(
     model,
     snapshot ? cloneFilterExplorerBrowserState(snapshot.browserState) : createFilterExplorerBrowserState(model),
+    materializedChildrenByNodeId,
   );
 
   return {
     activePane: snapshot?.activePane ?? "list",
     browserState,
+    materializedChildrenByNodeId,
     layoutMode: snapshot?.layoutMode ?? "split",
     searchInput: snapshot?.searchInput ?? browserState.filter,
     searchMode: snapshot?.searchMode ?? false,
@@ -422,6 +448,7 @@ function formatFilterExplorerGroupValue(groupBy: string, value: string): string 
 export function buildFilterExplorerListRows(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
   bodyHeight: number,
   renderNodeLine: (node: FilterExplorerNode, isSelected: boolean) => DerivedTagTerminalLine = (node, isSelected) => ({
     text: node.listLabel ?? node.label,
@@ -429,7 +456,7 @@ export function buildFilterExplorerListRows(
     noWrap: true,
   }),
 ): FilterExplorerListRow[] {
-  const selection = getFilterExplorerBrowserSelection(model, state);
+  const selection = getFilterExplorerBrowserSelection(model, state, materializedChildrenByNodeId);
   const nodes = selection.currentNodes;
   if (nodes.length === 0) {
     return [
@@ -491,12 +518,17 @@ export function buildFilterExplorerListRows(
 export function buildFilterExplorerDetailLines(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
 ): DerivedTagTerminalLine[] {
-  const selection = getFilterExplorerBrowserSelection(model, state);
+  const selection = getFilterExplorerBrowserSelection(model, state, materializedChildrenByNodeId);
   return [...(selection.currentNode?.detailLines ?? [{ text: "No ontology entry selected.", tone: "dim" }])];
 }
 
-export function getFilterExplorerDetailTitle(model: FilterExplorerModel, state: FilterExplorerBrowserState): string {
-  const selection = getFilterExplorerBrowserSelection(model, state);
+export function getFilterExplorerDetailTitle(
+  model: FilterExplorerModel,
+  state: FilterExplorerBrowserState,
+  materializedChildrenByNodeId: FilterExplorerMaterializedChildren,
+): string {
+  const selection = getFilterExplorerBrowserSelection(model, state, materializedChildrenByNodeId);
   return selection.currentNode?.detailTitle ?? "Details";
 }

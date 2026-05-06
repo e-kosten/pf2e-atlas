@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
@@ -360,11 +360,48 @@ describe("createPf2eTerminalSearchService", () => {
       },
       {
         value: "creature",
-        label: "Creature",
+        label: "Creature | 12",
         description: "12 indexed canonical records.",
       },
     ]);
     expect(getSearchVocabulary).not.toHaveBeenCalled();
+  });
+
+  it("shows live counts on subcategory scope options", () => {
+    const service = createPf2eTerminalSearchService(
+      createDependencies({
+        getSearchSemanticsBootstrapSummary: () => ({
+          categories: [{ value: "creature", count: 9 }],
+          subcategoryCountsByCategory: [
+            {
+              category: "creature",
+              subcategories: [{ value: "character", count: 7 }],
+            },
+          ],
+          commonTraitsByCategory: [],
+          commonDerivedTagsByCategory: [],
+          derivedTagCatalog: [],
+        }),
+      }),
+    );
+
+    expect(service.getSubcategoryOptions("creature")).toEqual([
+      {
+        value: null,
+        label: "Any Subcategory",
+        description: "Browse every Creature record in the current category.",
+      },
+      {
+        value: "character",
+        label: "Character | 7",
+        description: "Restrict the workspace to Character records.",
+      },
+      {
+        value: "familiar",
+        label: "Familiar | 0",
+        description: "Restrict the workspace to Familiar records.",
+      },
+    ]);
   });
 
   it("loads metric-key options from the query-aware shared discovery service and can restrict them to numeric keys", async () => {
@@ -1109,8 +1146,8 @@ describe("createPf2eTerminalSearchService", () => {
     } satisfies MetadataFilterNode);
   });
 
-  it("roots the shared explorer model at the scoped field nodes instead of reviving a picker snapshot bridge", () => {
-    const model = buildSearchFilterExplorerModel(
+  it("roots the shared explorer model at the scoped field nodes instead of reviving a picker snapshot bridge", async () => {
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:spell",
@@ -1178,8 +1215,64 @@ describe("createPf2eTerminalSearchService", () => {
     expect(model.rootNodes.map((node) => node.id)).toEqual(["spell:field:traits", "spell:field:derivedTags"]);
   });
 
-  it("keeps the derived-tag field node and axis grouping intact when opened directly", () => {
-    const model = buildSearchFilterExplorerModel(
+  it("loads scoped pack direct values from the requested lazy branch", async () => {
+    const loadPackValues = vi.fn(async () => [
+      {
+        id: "creature:pack:monster-core",
+        kind: "value" as const,
+        label: "Monster Core",
+        filterText: "monster core",
+        listLabel: "Monster Core | 8",
+        detailTitle: "Pack",
+        detailLines: [{ text: "Monster Core" }],
+      },
+    ]);
+    const loadCreatureChildren = vi.fn(async () => [
+      {
+        id: "creature:pack",
+        kind: "field" as const,
+        label: "Pack",
+        filterText: "pack",
+        detailTitle: "Pack",
+        detailLines: [{ text: "Pack" }],
+        childSource: { kind: "lazy" as const, load: loadPackValues },
+      },
+    ]);
+    const model = await buildSearchFilterExplorerModel(
+      createSearchSemanticsDomain([
+        {
+          id: "searchSemantics:creature",
+          kind: "category",
+          label: "Creature",
+          filterText: "creature",
+          detailTitle: "Creature",
+          detailLines: [{ text: "Creature" }],
+          childSource: { kind: "lazy", load: loadCreatureChildren },
+        },
+      ]),
+      {
+        category: "creature",
+        subcategory: null,
+        fieldOptions: [
+          {
+            value: "pack",
+            label: "Pack",
+            description: "Pack query field",
+            fieldType: "enumString",
+            editor: "sharedExplorer",
+          },
+        ],
+        singleFieldBehavior: "directValues",
+      },
+    );
+
+    expect(model.rootNodes.map((node) => node.listLabel)).toEqual(["Monster Core | 8"]);
+    expect(loadCreatureChildren).toHaveBeenCalledTimes(1);
+    expect(loadPackValues).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the derived-tag field node and axis grouping intact when opened directly", async () => {
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:spell",
@@ -1266,11 +1359,13 @@ describe("createPf2eTerminalSearchService", () => {
       groupBy: "axis",
       render: "inline",
     });
-    expect(getOntologyNodeChildren(rootNode).map((node) => node.id)).toEqual(["spell:field:derivedTags:family:coast"]);
+    expect((await resolveOntologyNodeChildren(rootNode)).map((node) => node.id)).toEqual([
+      "spell:field:derivedTags:family:coast",
+    ]);
   });
 
-  it("preserves zero-count derived-tag catalog leaves on the shared explorer path", () => {
-    const model = buildSearchFilterExplorerModel(
+  it("preserves zero-count derived-tag catalog leaves on the shared explorer path", async () => {
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:spell",
@@ -1357,14 +1452,14 @@ describe("createPf2eTerminalSearchService", () => {
 
     expect(model.rootNodes).toHaveLength(1);
     const [rootNode] = model.rootNodes;
-    const zeroCountLeaf = getOntologyNodeChildren(getOntologyNodeChildren(rootNode)[0])[0];
+    const zeroCountLeaf = (await resolveOntologyNodeChildren((await resolveOntologyNodeChildren(rootNode))[0]))[0];
 
     expect(rootNode?.id).toBe("spell:field:derivedTags");
     expect(zeroCountLeaf?.listLabel).toBe("Coastal Setting | 0");
     expect(zeroCountLeaf?.query?.label).toBe("Browse records with the Coastal Setting derived tag");
   });
 
-  it("aggregates unscoped rarity direct-value counts across search categories", () => {
+  it("aggregates unscoped rarity direct-value counts across search categories", async () => {
     const rarityFieldOption = {
       value: "rarity",
       label: "Rarity",
@@ -1372,7 +1467,7 @@ describe("createPf2eTerminalSearchService", () => {
       fieldType: "enumString",
       editor: "sharedExplorer",
     } as const;
-    const model = buildSearchFilterExplorerModel(
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:spell",
@@ -1483,7 +1578,7 @@ describe("createPf2eTerminalSearchService", () => {
     });
   });
 
-  it("aggregates unscoped pack direct-value counts across search categories", () => {
+  it("aggregates unscoped pack direct-value counts across search categories", async () => {
     const packFieldOption = {
       value: "pack",
       label: "Pack",
@@ -1491,7 +1586,7 @@ describe("createPf2eTerminalSearchService", () => {
       fieldType: "enumString",
       editor: "sharedExplorer",
     } as const;
-    const model = buildSearchFilterExplorerModel(
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:spell",
@@ -1582,7 +1677,7 @@ describe("createPf2eTerminalSearchService", () => {
     });
   });
 
-  it("locates metric explorer roots without traversing unrelated ontology branches", () => {
+  it("locates metric explorer roots without traversing unrelated ontology branches", async () => {
     const unrelatedRootLoadChildren = vi.fn(() => [
       {
         id: "equipment:field:traits:value:bulky",
@@ -1604,7 +1699,7 @@ describe("createPf2eTerminalSearchService", () => {
       },
     ]);
 
-    const model = buildSearchFilterExplorerModel(
+    const model = await buildSearchFilterExplorerModel(
       createSearchSemanticsDomain([
         {
           id: "searchSemantics:equipment",

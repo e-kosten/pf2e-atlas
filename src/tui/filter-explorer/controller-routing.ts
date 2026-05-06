@@ -6,7 +6,7 @@ import {
   type TerminalListDetailRightBehaviorContract,
 } from "../list-detail-behavior.js";
 import type { TerminalListDetailNotificationTone } from "../list-detail-presentation.js";
-import { getOntologyNodeChildren, resolveOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import { getFilterExplorerDiscreteClause, getFilterExplorerScalarClause } from "./compose-state.js";
 import { describeFilterExplorerHostNode, resolveFilterExplorerHostTarget } from "./host-adapter.js";
 import {
@@ -193,11 +193,11 @@ function drillIntoFilterExplorerNode(args: {
     return;
   }
 
-  const cachedChildrenSpan = options.debugTrace?.startSpan("filterExplorer.getNodeChildren", {
+  const cachedChildrenSpan = options.debugTrace?.startSpan("filterExplorer.materializedChildren", {
     nodeId: node.id,
     childSource: node.childSource?.kind ?? "none",
   });
-  const cachedChildren = getOntologyNodeChildren(node);
+  const cachedChildren = keyContext.state.materializedChildrenByNodeId.get(node.id) ?? [];
   cachedChildrenSpan?.end({ children: cachedChildren.length });
   if (cachedChildren.length > 0) {
     dispatch({ type: "drill_in", nodeId: node.id });
@@ -217,6 +217,7 @@ function drillIntoFilterExplorerNode(args: {
     .then((children) => {
       resolveSpan?.end({ children: children.length });
       if (children.length > 0) {
+        dispatch({ type: "materialize_children", nodeId: node.id, children });
         dispatch({ type: "drill_in", nodeId: node.id });
       }
     })

@@ -49,6 +49,7 @@ function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> =
     activePane: "list" as const,
     browserState: { depth: 0, selectedNodeIds: [], filter: "", detailScroll: 0 },
     layoutMode: "split" as const,
+    materializedChildrenByNodeId: new Map(),
     searchInput: "",
     searchMode: false,
   };
@@ -95,6 +96,11 @@ describe("filter explorer controller state", () => {
     expect(state.browserState.filter).toBe("il");
 
     state = filterExplorerReducer(model, state, { type: "clear_search" });
+    state = filterExplorerReducer(model, state, {
+      type: "materialize_children",
+      nodeId: "spells",
+      children: model.rootNodes[0]?.childSource?.kind === "static" ? model.rootNodes[0].childSource.children : [],
+    });
     state = filterExplorerReducer(model, state, { type: "drill_in" });
 
     expect(state.searchMode).toBe(false);
@@ -180,6 +186,7 @@ describe("filter explorer controller state", () => {
       activePane: "detail",
       browserState: { depth: 0, selectedNodeIds: [], filter: "rare", detailScroll: 6 },
       layoutMode: "single",
+      materializedChildrenByNodeId: new Map(),
       searchInput: "rare",
       searchMode: true,
     });

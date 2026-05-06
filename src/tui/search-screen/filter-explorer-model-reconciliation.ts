@@ -1,5 +1,4 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
-import { getLoadedOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import type { FilterExplorerComposeTarget } from "../filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-state.js";
 import type { Pf2eTerminalQueryFieldOption } from "../search/service.js";
@@ -41,6 +40,10 @@ function isDiscreteTarget(target: FilterExplorerComposeTarget | undefined): targ
   return target !== undefined && (!("kind" in target) || target.kind === "discrete");
 }
 
+function getStaticOntologyNodeChildren(node: OntologyNode): readonly OntologyNode[] {
+  return node.childSource?.kind === "static" ? node.childSource.children : [];
+}
+
 function collectSelectedKeys(fieldState: SearchFilterExplorerFieldState): Set<SelectedKey> {
   const selected = new Set<SelectedKey>();
   for (const [field, selection] of Object.entries(fieldState.discreteSelections)) {
@@ -61,7 +64,7 @@ function collectNodeTemplates(
     if (isDiscreteTarget(target)) {
       templates.set(getSelectedKey(target.field, target.value), node);
     }
-    collectNodeTemplates(getLoadedOntologyNodeChildren(node), resolveSelectionTarget, templates);
+    collectNodeTemplates(getStaticOntologyNodeChildren(node), resolveSelectionTarget, templates);
   }
   return templates;
 }
@@ -93,7 +96,7 @@ function nodeContainsField(
   if (node.id.includes(`:field:${field}`) || node.id.endsWith(`:${field}`)) {
     return true;
   }
-  return getLoadedOntologyNodeChildren(node).some((child) => nodeContainsField(child, field, resolveSelectionTarget));
+  return getStaticOntologyNodeChildren(node).some((child) => nodeContainsField(child, field, resolveSelectionTarget));
 }
 
 function cloneAsZeroCountSelectedNode(
@@ -136,8 +139,8 @@ function reconcileNode(
     resolveSelectionTarget: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   },
 ): OntologyNode {
-  const refreshedChildren = getLoadedOntologyNodeChildren(refreshedNode);
-  const previousChildren = previousNode ? getLoadedOntologyNodeChildren(previousNode) : [];
+  const refreshedChildren = getStaticOntologyNodeChildren(refreshedNode);
+  const previousChildren = previousNode ? getStaticOntologyNodeChildren(previousNode) : [];
   if (refreshedChildren.length === 0 && previousChildren.length === 0) {
     const nodeField = getNodeFieldFromId(refreshedNode, options.fieldOptions);
     const missingSelectedNodes = nodeField

@@ -28,7 +28,7 @@ import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-e
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import { reconcileSearchFilterExplorerModel } from "../../src/tui/search-screen/filter-explorer-model-reconciliation.js";
 import type { SearchFilterExplorerSession } from "../../src/tui/search-screen/query-field-builder-session.js";
-import { getOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { getSearchEditorInteractionActions } from "../../src/tui/search-screen/interactions.js";
 import { buildMetricSelectionTargetResolver } from "../../src/tui/search-screen/structured-draft/structured-draft-explorer-actions.js";
 import { buildGroupedFieldSeedState } from "../../src/tui/search-screen/structured-draft/structured-draft-grouped-field.js";
@@ -5019,7 +5019,7 @@ describe("search screen", () => {
     };
     const session: SearchFilterExplorerSession = {
       title: "Traits",
-      model: buildSearchFilterExplorerModel(createFacetPickerOntologyDomain(), {
+      model: await buildSearchFilterExplorerModel(createFacetPickerOntologyDomain(), {
         category: "spell",
         subcategory: null,
         fieldOptions: [traitFieldOption],
@@ -5061,7 +5061,7 @@ describe("search screen", () => {
     };
     const session: SearchFilterExplorerSession = {
       title: "Left Metric",
-      model: buildSearchFilterExplorerModel(createStructuredCreatureMetricExplorerDomainWithTextMetric(), {
+      model: await buildSearchFilterExplorerModel(createStructuredCreatureMetricExplorerDomainWithTextMetric(), {
         category: "creature",
         subcategory: null,
         fieldOptions: [metricFieldOption],
@@ -5233,7 +5233,7 @@ describe("search screen", () => {
     const loadModelForDiscoveryMode = vi.fn(async () => buildMetricExplorerModel());
     const session: SearchFilterExplorerSession = {
       title: "Left Metric",
-      model: buildMetricExplorerModel(),
+      model: await buildMetricExplorerModel(),
       query: browseQuery("Browse creatures", {
         filter: scopeFilter("creature"),
         limit: 20,
@@ -6133,7 +6133,7 @@ describe("search screen", () => {
     expect(app.lastFrame()).not.toContain("No filter values selected yet.");
   });
 
-  it("overlays only selected missing values when live counts refresh", () => {
+  it("overlays only selected missing values when live counts refresh", async () => {
     const fieldOptions = [
       {
         value: "rarity",
@@ -6160,13 +6160,13 @@ describe("search screen", () => {
     });
 
     const rarityField = model.rootNodes[0]!;
-    const values = getOntologyNodeChildren(rarityField);
+    const values = await resolveOntologyNodeChildren(rarityField);
     expect(values.map((node) => node.label)).toEqual(["common", "rare"]);
     expect(values.find((node) => node.label === "rare")?.listLabel).toBe("rare | 0");
-    expect(getOntologyNodeChildren(values.find((node) => node.label === "rare"))).toEqual([]);
+    expect(await resolveOntologyNodeChildren(values.find((node) => node.label === "rare"))).toEqual([]);
   });
 
-  it("replaces stale member children for refreshed live rows", () => {
+  it("replaces stale member children for refreshed live rows", async () => {
     const fieldOptions = [
       {
         value: "rarity",
@@ -6178,8 +6178,8 @@ describe("search screen", () => {
     ];
     const currentModel = createRarityExplorerDomain(["rare"]);
     const refreshedModel = createRarityExplorerDomain(["rare"]);
-    const currentRare = getOntologyNodeChildren(currentModel.rootNodes[0])[0];
-    const refreshedRare = getOntologyNodeChildren(refreshedModel.rootNodes[0])[0];
+    const currentRare = (await resolveOntologyNodeChildren(currentModel.rootNodes[0]))[0];
+    const refreshedRare = (await resolveOntologyNodeChildren(refreshedModel.rootNodes[0]))[0];
     Object.assign(currentRare, {
       childSource: {
         kind: "static" as const,
@@ -6218,12 +6218,12 @@ describe("search screen", () => {
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
     });
 
-    const rare = getOntologyNodeChildren(model.rootNodes[0])[0];
+    const rare = (await resolveOntologyNodeChildren(model.rootNodes[0]))[0];
     expect(rare.listLabel).toBe("rare | 1");
-    expect(getOntologyNodeChildren(rare).map((node) => node.label)).toEqual(["Fresh Member"]);
+    expect((await resolveOntologyNodeChildren(rare)).map((node) => node.label)).toEqual(["Fresh Member"]);
   });
 
-  it("does not resolve lazy record children while reconciling live rows", () => {
+  it("does not resolve lazy record children while reconciling live rows", async () => {
     const fieldOptions = [
       {
         value: "rarity",
@@ -6235,8 +6235,8 @@ describe("search screen", () => {
     ];
     const currentModel = createRarityExplorerDomain(["rare"]);
     const refreshedModel = createRarityExplorerDomain(["rare"]);
-    const currentRare = getOntologyNodeChildren(currentModel.rootNodes[0])[0]!;
-    const refreshedRare = getOntologyNodeChildren(refreshedModel.rootNodes[0])[0]!;
+    const currentRare = (await resolveOntologyNodeChildren(currentModel.rootNodes[0]))[0]!;
+    const refreshedRare = (await resolveOntologyNodeChildren(refreshedModel.rootNodes[0]))[0]!;
     const currentLoad = vi.fn(async () => []);
     const refreshedLoad = vi.fn(async () => []);
     Object.assign(currentRare, {
@@ -6254,7 +6254,7 @@ describe("search screen", () => {
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver(fieldOptions),
     });
 
-    expect(getOntologyNodeChildren(model.rootNodes[0])[0]?.label).toBe("rare");
+    expect((await resolveOntologyNodeChildren(model.rootNodes[0]))[0]?.label).toBe("rare");
     expect(currentLoad).not.toHaveBeenCalled();
     expect(refreshedLoad).not.toHaveBeenCalled();
   });

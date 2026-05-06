@@ -89,6 +89,8 @@ This split matters because it lets the TUI add richer interaction behavior witho
 
 Shared ontology/detail presenters may also attach optional link metadata to a text line, such as `href` plus a plain-text fallback string. The shared TUI framework owns hyperlink rendering for those lines: supported terminals get a clickable OSC 8 hyperlink, while unsupported terminals and plain-text consumers fall back to a readable `label: url` string.
 
+Ontology child access in the TUI is explicit. App-layer ontology models may expose lazy child sources, but render and projection code should not ask for "whatever children are currently loaded" through a generic sync helper. Controllers resolve the exact branch they need with the async ontology resolver, then store those resolved children in filter-explorer session state as materialized branch state. When the model changes, that materialized state is rebuilt from the new model's explicit static path so refreshed screens do not keep stale partial children from a previous model.
+
 ## Major TUI Layers
 
 ### Framework Layer
@@ -195,7 +197,7 @@ Lookup stays a consumer of this shared result-view pathway rather than becoming 
 
 - keeps canonical `SearchRequest` state as the TUI query model
 - uses `query.filter` as the shared semantic filter tree instead of a TUI-local parallel query-part model
-- exposes category, subcategory, sort, and facet options for the UI
+- exposes category, subcategory, sort, and facet options for the UI, including count-bearing scope labels sourced from the search summary data
 - converts ontology-origin queries into canonical TUI query state
 - opens and reads search windows through the shared backend
 - owns TUI session concepts such as result buffers, sort changes, session disposal, and lookup match-type metadata on prepared result rows
@@ -312,7 +314,7 @@ During live query edits, the filter explorer keeps the current model mounted and
 
 Prepared catalog explorer models are reusable across query-only filter changes for the same scope and target fields. Prepared matching explorer caching uses the same static scope and target-field boundary, with request-specific live entries below it, so reopened matching sessions can show exact live counts without collapsing static applicability and live query identity into one flat cache key.
 
-Ontology nodes expose nested entries through `childSource`, not direct `children` fields. Static child sources are already materialized. Sync child sources are cheap local expansions that are safe to inspect during ordinary browser traversal. Lazy child sources may perform backend work such as record-list queries, metric namespace discovery, or metric value discovery, and they should resolve only in response to explicit user navigation. TUI code resolves user-requested children through `getOntologyNodeChildren(...)` or `resolveOntologyNodeChildren(...)` from `src/app/ontology/node-helpers.ts`, and keeps the existing browser mounted while lazy children load. Code that needs to inspect existing tree shape without triggering loaders, such as filter-explorer reconciliation, uses the loaded/static-only traversal helper instead. The filter explorer only drills after the selected node's children resolve, and stale lazy completions are ignored when selection has moved.
+Ontology nodes expose nested entries through `childSource`, not direct `children` fields. Static child sources are already materialized. Sync and lazy child sources are resolved only through `resolveOntologyNodeChildren(...)` from `src/app/ontology/node-helpers.ts`, so a caller either awaits the exact branch it needs or stays on static model structure. Lazy child sources may perform backend work such as record-list queries, metric namespace discovery, or metric value discovery, and they should resolve only in response to explicit user navigation or model preparation for a requested field. Code that needs to inspect existing tree shape without triggering loaders, such as filter-explorer reconciliation and semantic value sorting, uses feature-local static-only traversal rather than a generic loaded-children accessor. The filter explorer only drills after the selected node's children resolve, materializes those children into session state, and ignores stale lazy completions when selection has moved.
 
 ### Shared Explorer Shell
 

@@ -33,7 +33,6 @@ import {
   buildFilterText,
   buildKeyValueDetailLines,
   cloneOntologyNode,
-  getOntologyNodeChildren,
   titleCaseLabel,
 } from "./node-helpers.js";
 import {
@@ -633,7 +632,8 @@ export function buildSearchSemanticsDomain(
     }
 
     const tagCount = matchingFamilies.reduce(
-      (total, familyNode) => total + getOntologyNodeChildren(familyNode).length,
+      (total, familyNode) =>
+        total + (familyNode.childSource?.kind === "static" ? familyNode.childSource.children.length : 0),
       0,
     );
 

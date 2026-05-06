@@ -16,16 +16,19 @@ import type {
   FilterExplorerBrowserSnapshot,
   FilterExplorerBrowserUiState,
   FilterExplorerModel,
+  FilterExplorerNode,
 } from "./types.js";
 
 export type FilterExplorerAction =
   | DerivedTagTerminalTwoPaneAction
   | { type: "normalize" }
+  | { type: "sync_materialized_children" }
   | { type: "set_search_mode"; searchMode: boolean; searchInput?: string }
   | { type: "append_search"; character: string }
   | { type: "backspace_search" }
   | { type: "clear_search" }
   | { type: "set_child_loading"; nodeId?: string; expectedNodeId?: string }
+  | { type: "materialize_children"; nodeId: string; children: readonly FilterExplorerNode[] }
   | { type: "move_selection"; delta: number }
   | { type: "jump_selection"; delta: number }
   | { type: "selection_boundary"; boundary: "start" | "end" }
@@ -43,6 +46,7 @@ export function createFilterExplorerBrowserSnapshot(
     activePane: context.state.activePane,
     browserState: context.effectiveState,
     layoutMode: context.layoutMode,
+    materializedChildrenByNodeId: context.state.materializedChildrenByNodeId,
     searchInput: context.state.searchInput,
     searchMode: context.state.searchMode,
   });
@@ -82,6 +86,29 @@ function reduceExplorerTwoPaneState(
   };
 }
 
+function syncMaterializedChildrenForBrowserPath(
+  model: FilterExplorerModel,
+  state: FilterExplorerBrowserUiState,
+): ReadonlyMap<string, readonly FilterExplorerNode[]> {
+  const materializedChildrenByNodeId = new Map<string, readonly FilterExplorerNode[]>();
+  let nodes: readonly FilterExplorerNode[] = model.rootNodes;
+
+  for (let level = 0; level <= state.browserState.depth; level += 1) {
+    const selectedId = state.browserState.selectedNodeIds[level];
+    const selected = selectedId ? nodes.find((node) => node.id === selectedId) : undefined;
+    if (!selected) {
+      break;
+    }
+    if (selected.childSource?.kind !== "static") {
+      break;
+    }
+    materializedChildrenByNodeId.set(selected.id, selected.childSource.children);
+    nodes = selected.childSource.children;
+  }
+
+  return materializedChildrenByNodeId;
+}
+
 export function filterExplorerReducer(
   model: FilterExplorerModel,
   state: FilterExplorerBrowserUiState,
@@ -99,8 +126,21 @@ export function filterExplorerReducer(
     case "normalize":
       return {
         ...state,
-        browserState: normalizeFilterExplorerBrowserState(model, state.browserState),
+        browserState: normalizeFilterExplorerBrowserState(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+        ),
       };
+    case "sync_materialized_children": {
+      const materializedChildrenByNodeId = syncMaterializedChildrenForBrowserPath(model, state);
+      return {
+        ...state,
+        browserState: normalizeFilterExplorerBrowserState(model, state.browserState, materializedChildrenByNodeId),
+        loadingChildNodeId: undefined,
+        materializedChildrenByNodeId,
+      };
+    }
     case "set_search_mode":
       return {
         ...state,
@@ -111,7 +151,12 @@ export function filterExplorerReducer(
       const searchInput = state.searchInput + action.character;
       return {
         ...state,
-        browserState: setFilterExplorerFilter(model, state.browserState, searchInput),
+        browserState: setFilterExplorerFilter(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+          searchInput,
+        ),
         searchInput,
       };
     }
@@ -119,14 +164,19 @@ export function filterExplorerReducer(
       const searchInput = state.searchInput.slice(0, -1);
       return {
         ...state,
-        browserState: setFilterExplorerFilter(model, state.browserState, searchInput),
+        browserState: setFilterExplorerFilter(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+          searchInput,
+        ),
         searchInput,
       };
     }
     case "clear_search":
       return {
         ...state,
-        browserState: setFilterExplorerFilter(model, state.browserState, ""),
+        browserState: setFilterExplorerFilter(model, state.browserState, state.materializedChildrenByNodeId, ""),
         searchInput: "",
       };
     case "set_child_loading":
@@ -137,23 +187,52 @@ export function filterExplorerReducer(
         ...state,
         loadingChildNodeId: action.nodeId,
       };
+    case "materialize_children": {
+      const materializedChildrenByNodeId = new Map(state.materializedChildrenByNodeId);
+      materializedChildrenByNodeId.set(action.nodeId, action.children);
+      return {
+        ...state,
+        browserState: normalizeFilterExplorerBrowserState(model, state.browserState, materializedChildrenByNodeId),
+        materializedChildrenByNodeId,
+      };
+    }
     case "move_selection":
       return {
         ...state,
-        browserState: moveFilterExplorerSelection(model, state.browserState, action.delta),
+        browserState: moveFilterExplorerSelection(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+          action.delta,
+        ),
       };
     case "jump_selection":
       return {
         ...state,
-        browserState: jumpFilterExplorerSelection(model, state.browserState, action.delta),
+        browserState: jumpFilterExplorerSelection(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+          action.delta,
+        ),
       };
     case "selection_boundary":
       return {
         ...state,
-        browserState: moveFilterExplorerSelectionToBoundary(model, state.browserState, action.boundary),
+        browserState: moveFilterExplorerSelectionToBoundary(
+          model,
+          state.browserState,
+          state.materializedChildrenByNodeId,
+          action.boundary,
+        ),
       };
     case "drill_in": {
-      const nextBrowserState = drillIntoFilterExplorerBrowser(model, state.browserState, action.nodeId);
+      const nextBrowserState = drillIntoFilterExplorerBrowser(
+        model,
+        state.browserState,
+        state.materializedChildrenByNodeId,
+        action.nodeId,
+      );
       const drillSucceeded = nextBrowserState.depth > state.browserState.depth;
       const shouldClearLoading = !action.nodeId || state.loadingChildNodeId === action.nodeId || drillSucceeded;
       return {

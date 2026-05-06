@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { createPf2eApplicationOntologyService } from "../../src/app/ontology-service.js";
-import { getOntologyNodeChildren, resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { SearchSemanticsBootstrapSummaryResult } from "../../src/data/vocabulary.js";
@@ -430,15 +430,16 @@ describe("application ontology service", () => {
     });
 
     const derivedTagsFieldNode = findNodeById(domain.rootNodes, "creature:field:derivedTags");
-    const familyNode = getOntologyNodeChildren(derivedTagsFieldNode)[0];
-    const tagNode = getOntologyNodeChildren(familyNode)[0];
+    const derivedTagFamilies = await resolveOntologyNodeChildren(derivedTagsFieldNode);
+    const familyNode = derivedTagFamilies[0];
+    const tagNode = (await resolveOntologyNodeChildren(familyNode))[0];
 
     expect(derivedTagsFieldNode?.childPresentation).toEqual({
       mode: "grouped",
       groupBy: "axis",
       render: "inline",
     });
-    expect(getOntologyNodeChildren(derivedTagsFieldNode)).toHaveLength(1);
+    expect(derivedTagFamilies).toHaveLength(1);
     expect(familyNode).toEqual(
       expect.objectContaining({
         kind: "family",
@@ -540,20 +541,25 @@ describe("application ontology service", () => {
     const matching = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const catalog = await service.loadSearchSemanticsDomain({ discoveryMode: "catalog" });
 
-    const matchingFamilyNode = getOntologyNodeChildren(
+    const matchingFamilyNode = (await resolveOntologyNodeChildren(
       findNodeById(matching.rootNodes, "creature:field:derivedTags"),
-    )[0];
-    const catalogFamilyNode = getOntologyNodeChildren(findNodeById(catalog.rootNodes, "creature:field:derivedTags"))[0];
+    ))[0];
+    const catalogFamilyNode = (await resolveOntologyNodeChildren(
+      findNodeById(catalog.rootNodes, "creature:field:derivedTags"),
+    ))[0];
 
     expect(matchingFamilyNode?.listLabel).toBe("Threat Profile | 1 tags");
-    expect(getOntologyNodeChildren(matchingFamilyNode).map((node) => node.listLabel)).toEqual(["Undead Adjacent | 3"]);
+    expect((await resolveOntologyNodeChildren(matchingFamilyNode)).map((node) => node.listLabel)).toEqual([
+      "Undead Adjacent | 3",
+    ]);
 
     expect(catalogFamilyNode?.listLabel).toBe("Threat Profile | 2 tags");
-    expect(getOntologyNodeChildren(catalogFamilyNode).map((node) => node.listLabel)).toEqual([
+    const catalogTagNodes = await resolveOntologyNodeChildren(catalogFamilyNode);
+    expect(catalogTagNodes.map((node) => node.listLabel)).toEqual([
       "Undead Adjacent | 3",
       "Fiend Adjacent | 0",
     ]);
-    expect(getOntologyNodeChildren(catalogFamilyNode)[1]?.query).toEqual(
+    expect(catalogTagNodes[1]?.query).toEqual(
       expect.objectContaining({
         label: "Browse records with the Fiend Adjacent derived tag",
       }),
@@ -613,9 +619,9 @@ describe("application ontology service", () => {
     const sustainedFieldNode = findNodeById(domain.rootNodes, "spell:field:sustained");
     const handsFieldNode = findNodeById(domain.rootNodes, "equipment:field:hands");
 
-    const saveTypeValueNodes = getOntologyNodeChildren(saveTypeFieldNode);
-    const sustainedValueNodes = getOntologyNodeChildren(sustainedFieldNode);
-    const handsValueNodes = getOntologyNodeChildren(handsFieldNode);
+    const saveTypeValueNodes = await resolveOntologyNodeChildren(saveTypeFieldNode);
+    const sustainedValueNodes = await resolveOntologyNodeChildren(sustainedFieldNode);
+    const handsValueNodes = await resolveOntologyNodeChildren(handsFieldNode);
 
     expect(dataService.listFilterValues).toHaveBeenCalledWith(
       expect.objectContaining({ field: "saveType", category: "spell" }),
@@ -651,7 +657,7 @@ describe("application ontology service", () => {
         { kind: "metadataPredicate", predicate: { field: "hands", op: "eq", value: 1 } },
       ]),
     );
-    const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
+    const commonTraitNode = (await resolveOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits")))[0];
     expect(getRequestFilter(commonTraitNode?.query?.request)).toEqual(
       buildAllOfFilter([
         buildScopeFilter("spell"),
@@ -690,9 +696,11 @@ describe("application ontology service", () => {
       const dataService = createDataService();
       const service = createPf2eApplicationOntologyService(config, dataService, createDiscoveryService(dataService));
       const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
-      const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
+      const commonTraitNode = (await resolveOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits")))[0];
       const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
-      const traitValueNode = getOntologyNodeChildren(traitFieldNode).find((node) => node.id === "spell:traits:fire");
+      const traitValueNode = (await resolveOntologyNodeChildren(traitFieldNode)).find(
+        (node) => node.id === "spell:traits:fire",
+      );
 
       expect(commonTraitNode?.label).toBe("Fire");
       expect(commonTraitNode?.listLabel).toBe("Fire | 4");
@@ -757,7 +765,7 @@ describe("application ontology service", () => {
     );
     const domain = await service.loadSearchSemanticsDomain({ discoveryMode: "matching" });
     const traitFieldNode = findNodeById(domain.rootNodes, "spell:field:traits");
-    const traitValueNodes = getOntologyNodeChildren(traitFieldNode);
+    const traitValueNodes = await resolveOntologyNodeChildren(traitFieldNode);
 
     expect(traitValueNodes).toHaveLength(14);
     expect(traitValueNodes[0]?.id).toBe("spell:traits:trait-14");
@@ -779,14 +787,14 @@ describe("application ontology service", () => {
     const actorMetricValueNode = (await resolveOntologyNodeChildren(actorMetricNode)).find(
       (node) => node.id === "creature:actorMetrics:save.best:fort",
     );
-    const commonTraitNode = getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits"))[0];
+    const commonTraitNode = (await resolveOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:commonTraits")))[0];
     const saveTypeValueNode = findNodeById(domain.rootNodes, "spell:field:saveType")
-      ? getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:saveType")).find(
+      ? (await resolveOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:saveType"))).find(
           (node) => node.id === "spell:saveType:fortitude",
         )
       : undefined;
     const publicationTitleValueNode = findNodeById(domain.rootNodes, "spell:field:publicationTitle")
-      ? getOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:publicationTitle")).find(
+      ? (await resolveOntologyNodeChildren(findNodeById(domain.rootNodes, "spell:field:publicationTitle"))).find(
           (node) => node.id === "spell:publicationTitle:Pathfinder Rage of Elements",
         )
       : undefined;

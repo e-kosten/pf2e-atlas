@@ -182,7 +182,7 @@ export function TerminalInlinePromptPanel({
           {fitToWidth("─".repeat(Math.max(0, width)), width)}
         </Text>
       ) : null}
-      <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("selected"), backdropActive)}>
+      <Text wrap="truncate-end" {...withBackdropTextProps(terminalToneProps("section"), backdropActive)}>
         {fitToWidth(title, width)}
       </Text>
       <Text

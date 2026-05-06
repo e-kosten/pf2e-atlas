@@ -2,7 +2,7 @@ import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-ty
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
-import { getOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
+import { resolveOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import { isMetadataPredicate } from "../search/query-core.js";
 import type { Pf2eTerminalQueryField, Pf2eTerminalQueryFieldOption } from "../search/service-types.js";
 import type { FilterExplorerComposeTarget } from "./types.js";
@@ -21,33 +21,33 @@ function findDirectNodeById(nodes: readonly OntologyNode[], id: string): Ontolog
   return nodes.find((node) => node.id === id);
 }
 
-function findScopedSearchFilterExplorerSubcategoryNode(
+async function findScopedSearchFilterExplorerSubcategoryNode(
   categoryNode: OntologyNode,
   category: string,
   subcategory: string | null,
-): OntologyNode | undefined {
+): Promise<OntologyNode | undefined> {
   if (!subcategory) {
     return undefined;
   }
 
-  const categoryChildren = getOntologyNodeChildren(categoryNode);
+  const categoryChildren = await resolveOntologyNodeChildren(categoryNode);
   const subcategoriesGroup = findDirectNodeById(categoryChildren, `${category}:subcategories`);
   return subcategoriesGroup
-    ? findDirectNodeById(getOntologyNodeChildren(subcategoriesGroup), `${category}:subcategory:${subcategory}`)
+    ? findDirectNodeById(await resolveOntologyNodeChildren(subcategoriesGroup), `${category}:subcategory:${subcategory}`)
     : undefined;
 }
 
-function findScopedSearchFilterExplorerMetadataFieldNode(
+async function findScopedSearchFilterExplorerMetadataFieldNode(
   scopeNode: OntologyNode | undefined,
   metadataGroupId: string,
   fieldNodeId: string,
-): OntologyNode | undefined {
+): Promise<OntologyNode | undefined> {
   if (!scopeNode) {
     return undefined;
   }
 
-  const metadataGroup = findDirectNodeById(getOntologyNodeChildren(scopeNode), metadataGroupId);
-  return metadataGroup ? findDirectNodeById(getOntologyNodeChildren(metadataGroup), fieldNodeId) : undefined;
+  const metadataGroup = findDirectNodeById(await resolveOntologyNodeChildren(scopeNode), metadataGroupId);
+  return metadataGroup ? findDirectNodeById(await resolveOntologyNodeChildren(metadataGroup), fieldNodeId) : undefined;
 }
 
 function getSelectionValueFromPredicate(node: Record<string, unknown>): string | null {
@@ -76,7 +76,7 @@ function formatMetricLabel(metric: string, fallbackLabel?: string): string {
   return humanizeOntologySearchIdentifier(metric);
 }
 
-export function buildSearchFilterExplorerModel(
+export async function buildSearchFilterExplorerModel(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
     category: string | null;
@@ -84,15 +84,15 @@ export function buildSearchFilterExplorerModel(
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
-): OntologyDomainModel {
+): Promise<OntologyDomainModel> {
   const rootNodes = options.category
-    ? buildScopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
+    ? await buildScopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
         category: options.category,
         subcategory: options.subcategory,
         fieldOptions: options.fieldOptions,
         singleFieldBehavior: options.singleFieldBehavior,
       })
-    : buildUnscopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
+    : await buildUnscopedSearchFilterExplorerRootNodes(searchSemanticsDomain, {
         fieldOptions: options.fieldOptions,
         singleFieldBehavior: options.singleFieldBehavior,
       });
@@ -104,7 +104,7 @@ export function buildSearchFilterExplorerModel(
   };
 }
 
-function buildScopedSearchFilterExplorerRootNodes(
+async function buildScopedSearchFilterExplorerRootNodes(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
     category: string;
@@ -112,7 +112,7 @@ function buildScopedSearchFilterExplorerRootNodes(
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
-): OntologyNode[] {
+): Promise<OntologyNode[]> {
   const categoryNode = findDirectNodeById(searchSemanticsDomain.rootNodes, `searchSemantics:${options.category}`);
   return categoryNode ? buildSearchFilterExplorerRootNodes(categoryNode, options) : [];
 }
@@ -183,25 +183,30 @@ function aggregateUnscopedDirectValueNodes(
   });
 }
 
-function buildUnscopedSearchFilterExplorerRootNodes(
+async function buildUnscopedSearchFilterExplorerRootNodes(
   searchSemanticsDomain: OntologyDomainModel,
   options: {
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
-): OntologyNode[] {
+): Promise<OntologyNode[]> {
   if (options.fieldOptions.some((fieldOption) => !isUnscopedSearchFilterExplorerField(fieldOption))) {
     return [];
   }
 
-  const scopedFieldNodes = searchSemanticsDomain.rootNodes.flatMap((categoryNode) => {
+  const scopedFieldNodeGroups = await Promise.all(searchSemanticsDomain.rootNodes.map(async (categoryNode) => {
     const category = getCategoryFromSearchSemanticsNode(categoryNode);
     return category
-      ? options.fieldOptions
-          .map((fieldOption) => findSearchFilterExplorerFieldNode(categoryNode, category, null, fieldOption))
-          .filter((node): node is OntologyNode => Boolean(node))
+      ? (
+          await Promise.all(
+            options.fieldOptions.map((fieldOption) =>
+              findSearchFilterExplorerFieldNode(categoryNode, category, null, fieldOption),
+            ),
+          )
+        ).filter((node): node is OntologyNode => Boolean(node))
       : [];
-  });
+  }));
+  const scopedFieldNodes = scopedFieldNodeGroups.flat();
   const uniqueScopedFieldNodes = [...new Map(scopedFieldNodes.map((node) => [node.id, node])).values()];
 
   if (
@@ -210,14 +215,17 @@ function buildUnscopedSearchFilterExplorerRootNodes(
     options.fieldOptions[0]?.value !== "derivedTags"
   ) {
     const fieldOption = options.fieldOptions[0]!;
-    const directValueNodes = uniqueScopedFieldNodes.flatMap((node) => getOntologyNodeChildren(node));
+    const directValueNodeGroups = await Promise.all(
+      uniqueScopedFieldNodes.map((node) => resolveOntologyNodeChildren(node)),
+    );
+    const directValueNodes = directValueNodeGroups.flat();
     return aggregateUnscopedDirectValueNodes(fieldOption, directValueNodes);
   }
 
   return uniqueScopedFieldNodes;
 }
 
-function buildSearchFilterExplorerRootNodes(
+async function buildSearchFilterExplorerRootNodes(
   categoryNode: OntologyNode,
   options: {
     category: string;
@@ -225,12 +233,14 @@ function buildSearchFilterExplorerRootNodes(
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     singleFieldBehavior: "list" | "directValues";
   },
-): OntologyNode[] {
-  const scopedFieldNodes = options.fieldOptions
-    .map((fieldOption) =>
-      findSearchFilterExplorerFieldNode(categoryNode, options.category, options.subcategory, fieldOption),
+): Promise<OntologyNode[]> {
+  const scopedFieldNodes = (
+    await Promise.all(
+      options.fieldOptions.map((fieldOption) =>
+        findSearchFilterExplorerFieldNode(categoryNode, options.category, options.subcategory, fieldOption),
+      ),
     )
-    .filter((node): node is OntologyNode => Boolean(node));
+  ).filter((node): node is OntologyNode => Boolean(node));
   const uniqueScopedFieldNodes = [...new Map(scopedFieldNodes.map((node) => [node.id, node])).values()];
 
   if (
@@ -239,7 +249,7 @@ function buildSearchFilterExplorerRootNodes(
     uniqueScopedFieldNodes.length === 1 &&
     options.fieldOptions[0]?.value !== "derivedTags"
   ) {
-    const children = getOntologyNodeChildren(uniqueScopedFieldNodes[0]);
+    const children = await resolveOntologyNodeChildren(uniqueScopedFieldNodes[0]);
     return children.length > 0 ? [...children] : uniqueScopedFieldNodes;
   }
 
@@ -250,15 +260,15 @@ function buildSearchFilterExplorerRootNodes(
   return [categoryNode];
 }
 
-function findSearchFilterExplorerFieldNode(
+async function findSearchFilterExplorerFieldNode(
   categoryNode: OntologyNode,
   category: string,
   subcategory: string | null,
   fieldOption: Pf2eTerminalQueryFieldOption,
-): OntologyNode | undefined {
-  const categoryChildren = getOntologyNodeChildren(categoryNode);
-  const subcategoryNode = findScopedSearchFilterExplorerSubcategoryNode(categoryNode, category, subcategory);
-  const subcategoryChildren = subcategoryNode ? getOntologyNodeChildren(subcategoryNode) : [];
+): Promise<OntologyNode | undefined> {
+  const categoryChildren = await resolveOntologyNodeChildren(categoryNode);
+  const subcategoryNode = await findScopedSearchFilterExplorerSubcategoryNode(categoryNode, category, subcategory);
+  const subcategoryChildren = subcategoryNode ? await resolveOntologyNodeChildren(subcategoryNode) : [];
 
   if (fieldOption.value === "actorMetric") {
     return (
@@ -284,7 +294,7 @@ function findSearchFilterExplorerFieldNode(
   }
 
   const subcategoryFieldNode = subcategory
-    ? findScopedSearchFilterExplorerMetadataFieldNode(
+    ? await findScopedSearchFilterExplorerMetadataFieldNode(
         subcategoryNode,
         `${category}:${subcategory}:metadataFields`,
         `${category}:${subcategory}:field:${fieldOption.value}`,
@@ -294,7 +304,7 @@ function findSearchFilterExplorerFieldNode(
     return subcategoryFieldNode;
   }
 
-  const categoryFieldNode = findScopedSearchFilterExplorerMetadataFieldNode(
+  const categoryFieldNode = await findScopedSearchFilterExplorerMetadataFieldNode(
     categoryNode,
     `${category}:metadataFields`,
     `${category}:field:${fieldOption.value}`,
@@ -311,12 +321,12 @@ function findSearchFilterExplorerFieldNode(
       ? `${category}:${subcategory}:metadataFields`
       : `${category}:metadataFields`;
     const derivedTagsFieldNode =
-      findScopedSearchFilterExplorerMetadataFieldNode(subcategoryNode, scopedMetadataFieldGroupId, scopedFieldNodeId) ??
-      findScopedSearchFilterExplorerMetadataFieldNode(
+      (await findScopedSearchFilterExplorerMetadataFieldNode(subcategoryNode, scopedMetadataFieldGroupId, scopedFieldNodeId)) ??
+      (await findScopedSearchFilterExplorerMetadataFieldNode(
         categoryNode,
         `${category}:metadataFields`,
         `${category}:field:derivedTags`,
-      );
+      ));
     return derivedTagsFieldNode ?? findDirectNodeById(categoryChildren, `${category}:commonDerivedTags`);
   }
 

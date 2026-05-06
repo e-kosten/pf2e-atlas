@@ -142,6 +142,7 @@ export function createPf2eTerminalAppServices(
         discovery,
         getPack: (packValue) => dataService.getPack(packValue),
         getSearchCategorySummary: () => dataService.getSearchCategorySummary(),
+        getSearchSemanticsBootstrapSummary: () => dataService.getSearchSemanticsBootstrapSummary(),
         getSearchVocabulary: () => dataService.getSearchVocabulary(),
         lookup: (name, options) => dataService.lookup(name, options),
         listRecords: (request) => dataService.listRecords(request),

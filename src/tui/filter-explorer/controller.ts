@@ -127,7 +127,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   );
 
   React.useEffect(() => {
-    dispatch({ type: "normalize" });
+    dispatch({ type: "sync_materialized_children" });
   }, [options.model]);
 
   const layoutMode = getDerivedTagTerminalTwoPaneLayoutMode({
@@ -135,8 +135,16 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     detailScroll: state.browserState.detailScroll,
     layoutMode: state.layoutMode,
   });
-  const normalizedBrowserState = normalizeFilterExplorerBrowserState(options.model, state.browserState);
-  const selection = getFilterExplorerBrowserSelection(options.model, normalizedBrowserState);
+  const normalizedBrowserState = normalizeFilterExplorerBrowserState(
+    options.model,
+    state.browserState,
+    state.materializedChildrenByNodeId,
+  );
+  const selection = getFilterExplorerBrowserSelection(
+    options.model,
+    normalizedBrowserState,
+    state.materializedChildrenByNodeId,
+  );
   const selectedTarget = resolveFilterExplorerHostTarget(options.host, selection.currentNode);
   const pageDocument =
     options.mode.kind === "inspect-and-open" ? options.host.resolvePageDocument?.(selection.currentNode) ?? null : null;
@@ -179,7 +187,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         })
       : initialPageDetailLines
         ? initialPageDetailLines
-      : buildFilterExplorerDetailLines(options.model, normalizedBrowserState);
+      : buildFilterExplorerDetailLines(options.model, normalizedBrowserState, state.materializedChildrenByNodeId);
   const detailFooterLineCount = pageInteractionState.mode.kind === "target" ? 3 : 2;
   const presentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
@@ -244,7 +252,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
     : pageDocument
       ? `${pageDocument.title}${focusedPageSection?.title ? ` | ${focusedPageSection.title}` : ""}`
-      : getFilterExplorerDetailTitle(options.model, normalizedBrowserState);
+      : getFilterExplorerDetailTitle(options.model, normalizedBrowserState, state.materializedChildrenByNodeId);
   const screenPresentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,

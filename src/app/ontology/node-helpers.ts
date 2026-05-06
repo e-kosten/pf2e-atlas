@@ -77,41 +77,6 @@ export function cloneOntologyNode(node: OntologyNode, idPrefix?: string): Ontolo
   };
 }
 
-export function getOntologyNodeChildren(node: OntologyNode | undefined): readonly OntologyNode[] {
-  if (!node) {
-    return [];
-  }
-  if (!node.childSource) {
-    return [];
-  }
-  if (node.childSource.kind === "static") {
-    return node.childSource.children;
-  }
-
-  const cached = loadedOntologyChildren.get(node);
-  if (cached) {
-    return cached;
-  }
-
-  if (node.childSource.kind === "lazy") {
-    return [];
-  }
-
-  const children = node.childSource.load();
-  loadedOntologyChildren.set(node, children);
-  return children;
-}
-
-export function getLoadedOntologyNodeChildren(node: OntologyNode | undefined): readonly OntologyNode[] {
-  if (!node?.childSource) {
-    return [];
-  }
-  if (node.childSource.kind === "static") {
-    return node.childSource.children;
-  }
-  return loadedOntologyChildren.get(node) ?? [];
-}
-
 export async function resolveOntologyNodeChildren(node: OntologyNode | undefined): Promise<readonly OntologyNode[]> {
   if (!node) {
     return [];
