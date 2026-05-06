@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdirSync, appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -154,7 +155,7 @@ export function createTerminalDebugTraceService(options: {
   const running = new Map<number, RunningSpan>();
   const recent: TerminalDebugTraceSpanSnapshot[] = [];
   const slowRecent: TerminalDebugTraceSpanSnapshot[] = [];
-  const activeSpanStack: number[] = [];
+  const activeSpanStack = new AsyncLocalStorage<readonly number[]>();
   let nextId = 1;
 
   return {
@@ -162,7 +163,8 @@ export function createTerminalDebugTraceService(options: {
     startSpan: (name, metadata) => {
       const id = nextId;
       nextId += 1;
-      const parentSpanId = activeSpanStack.at(-1);
+      const currentStack = activeSpanStack.getStore() ?? [];
+      const parentSpanId = currentStack.at(-1);
       const span: RunningSpan = {
         id,
         ...(parentSpanId !== undefined ? { parentSpanId } : {}),
@@ -171,7 +173,7 @@ export function createTerminalDebugTraceService(options: {
         metadata: normalizeMetadata(metadata),
       };
       running.set(id, span);
-      activeSpanStack.push(id);
+      activeSpanStack.enterWith([...currentStack, id]);
       writeTraceEvent(traceFilePath, {
         event: "span_start",
         spanId: id,
@@ -191,9 +193,10 @@ export function createTerminalDebugTraceService(options: {
           const finishedAt = now();
           const current = running.get(id) ?? span;
           running.delete(id);
-          const stackIndex = activeSpanStack.lastIndexOf(id);
+          const stack = activeSpanStack.getStore() ?? [];
+          const stackIndex = stack.lastIndexOf(id);
           if (stackIndex !== -1) {
-            activeSpanStack.splice(stackIndex, 1);
+            activeSpanStack.enterWith(stack.filter((spanId) => spanId !== id));
           }
           const completedSpan: TerminalDebugTraceSpanSnapshot = {
             id,
@@ -252,7 +255,7 @@ export function createTerminalDebugTraceService(options: {
     },
     clear: () => {
       running.clear();
-      activeSpanStack.length = 0;
+      activeSpanStack.enterWith([]);
       recent.length = 0;
       slowRecent.length = 0;
     },

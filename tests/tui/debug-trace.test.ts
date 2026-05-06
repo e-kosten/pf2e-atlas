@@ -169,6 +169,49 @@ describe("terminal debug trace", () => {
     }
   });
 
+  it("tracks parent spans by async context instead of a process-wide stack", async () => {
+    const tempDirectory = mkdtempSync(join(tmpdir(), "pf2e-tui-debug-"));
+    try {
+      const traceFilePath = join(tempDirectory, "trace.jsonl");
+      let now = 2000;
+      const trace = createTerminalDebugTraceService({
+        enabled: true,
+        now: () => now,
+        traceFilePath,
+      });
+
+      const outer = trace.startSpan("filterExplorer.loadModel");
+      const nestedTask = Promise.resolve().then(() => {
+        now = 2010;
+        const nested = trace.startSpan("filterExplorer.loadDomain");
+        now = 2020;
+        nested.end();
+      });
+      now = 2005;
+      outer.end();
+
+      await nestedTask;
+
+      now = 2030;
+      const sibling = trace.startSpan("filterExplorer.reconcileModel");
+      now = 2040;
+      sibling.end();
+
+      const events = readFileSync(traceFilePath, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      const startsByName = new Map(events.filter((event) => event.event === "span_start").map((event) => [event.name, event]));
+
+      expect(startsByName.get("filterExplorer.loadDomain")).toMatchObject({
+        parentSpanId: 1,
+      });
+      expect(startsByName.get("filterExplorer.reconcileModel")).not.toHaveProperty("parentSpanId");
+    } finally {
+      rmSync(tempDirectory, { recursive: true, force: true });
+    }
+  });
+
   it("builds the default trace file path under the TUI debug cache", () => {
     expect(createDefaultTerminalDebugTraceFilePath("/repo")).toMatch(
       /^\/repo\/\.cache\/tui-debug\/trace-.+\.jsonl$/,
