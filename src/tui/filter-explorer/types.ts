@@ -43,6 +43,14 @@ export type FilterExplorerDiscoveryState<TMode extends string = string> = {
   readonly onModeChange?: FilterExplorerModeChangeHandler<TMode>;
 };
 
+export type FilterExplorerValueSortMode = "semantic" | "frequency";
+
+export type FilterExplorerValueSortState = {
+  readonly mode: FilterExplorerValueSortMode;
+  readonly supportsFrequency: boolean | ((nodes: readonly FilterExplorerNode[]) => boolean);
+  readonly onModeChange?: (mode: FilterExplorerValueSortMode) => void;
+};
+
 export type FilterExplorerTextLine = OntologyTextLine;
 
 export type FilterExplorerQueryTarget = {
@@ -296,6 +304,7 @@ export type FilterExplorerOptions = {
   host: FilterExplorerHostAdapter;
   mode: FilterExplorerMode;
   discovery?: FilterExplorerDiscoveryState;
+  valueSort?: FilterExplorerValueSortState;
   onOutcome: (outcome: FilterExplorerOutcome, snapshot: FilterExplorerBrowserSnapshot) => void;
   title?: string;
   transitionStatus?: RouteTransitionStatus | null;
@@ -316,6 +325,7 @@ export type FilterExplorerControllerContext = {
   selectedScalarClause?: FilterExplorerScalarClause;
   selectedInspectResult?: FilterExplorerInspectResult;
   discovery?: FilterExplorerDiscoveryState;
+  valueSort?: FilterExplorerValueSortState;
   actionEntries: readonly FilterExplorerActionEntry[];
   actionTargetState: DerivedTagTerminalActionTargetState;
   onListPointerEvent?: (event: DerivedTagTerminalPointerEvent) => boolean | void;
@@ -326,13 +336,21 @@ export type FilterExplorerControllerContext = {
   debugSnapshot?: TerminalDebugTraceSnapshot;
 };
 
-export type FilterExplorerActionEntryId = `setMode:${string}` | "selectTarget:default" | "selectTarget:query";
+export type FilterExplorerActionEntryId =
+  | `setMode:${string}`
+  | `setValueSort:${FilterExplorerValueSortMode}`
+  | "selectTarget:default"
+  | "selectTarget:query";
 
 export type FilterExplorerActionEntry = DerivedTagTerminalActionTargetOption<FilterExplorerActionEntryId> & {
   readonly action:
     | {
         readonly kind: "setMode";
         readonly mode: string;
+      }
+    | {
+        readonly kind: "setValueSort";
+        readonly mode: FilterExplorerValueSortMode;
       }
     | {
         readonly kind: "selectTarget";

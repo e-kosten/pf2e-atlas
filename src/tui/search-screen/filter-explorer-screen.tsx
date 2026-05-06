@@ -17,6 +17,7 @@ import type {
   FilterExplorerDiscoveryState,
   FilterExplorerHostAdapter,
   FilterExplorerModeSwitchOption,
+  FilterExplorerValueSortState,
 } from "../filter-explorer/types.js";
 import type { Pf2eTerminalPreparedFilterExplorerDraft } from "../search/service.js";
 import { isSearchFilterExplorerLoadingModel } from "./filter-explorer-loading-model.js";
@@ -28,6 +29,11 @@ import {
   type SearchFilterExplorerFieldState,
 } from "./filter-explorer-field-state.js";
 import { reconcileSearchFilterExplorerModel } from "./filter-explorer-model-reconciliation.js";
+import {
+  levelSupportsSearchFilterExplorerFrequencySort,
+  sortSearchFilterExplorerModel,
+  type SearchFilterExplorerValueSortMode,
+} from "./filter-explorer-value-sorting.js";
 
 const DISCOVERY_REFRESH_DEBOUNCE_MS = 80;
 const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<SearchFilterDiscoveryMode>[] = [
@@ -107,11 +113,28 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     (query: typeof session.query) => user.search.prepareFilterExplorerDraft(query, scopedFields),
     [scopedFields, user.search],
   );
+  const fieldOptionsRef = React.useRef(session.fieldOptions);
+  const resolveSelectionTargetRef = React.useRef(session.resolveSelectionTarget);
   const buildDraft = React.useCallback(
     (): FilterExplorerComposeDraft => buildSearchFilterExplorerComposeDraft(fieldStateRef.current),
     [],
   );
-  const [model, setModel] = React.useState(session.model);
+  const [sortMode, setSortMode] = React.useState<SearchFilterExplorerValueSortMode>("semantic");
+  const sortModeRef = React.useRef<SearchFilterExplorerValueSortMode>("semantic");
+  const resolveSelectionTarget = React.useCallback(
+    () => resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+    [],
+  );
+  const sortModel = React.useCallback(
+    (nextModel: SearchFilterExplorerSession["model"], nextSortMode = sortModeRef.current) =>
+      sortSearchFilterExplorerModel(nextModel, {
+        sortMode: nextSortMode,
+        fieldOptions: fieldOptionsRef.current,
+        resolveSelectionTarget: resolveSelectionTarget(),
+      }),
+    [resolveSelectionTarget],
+  );
+  const [model, setModel] = React.useState(() => sortModel(session.model));
   const [, rerenderFieldState] = React.useReducer((value: number) => value + 1, 0);
   const [, rerenderDebugTrace] = React.useReducer((value: number) => value + 1, 0);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
@@ -129,8 +152,6 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   const refreshStateRef = React.useRef<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const refreshRequestIdRef = React.useRef(0);
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fieldOptionsRef = React.useRef(session.fieldOptions);
-  const resolveSelectionTargetRef = React.useRef(session.resolveSelectionTarget);
 
   React.useEffect(() => {
     if (!debug.enabled) {
@@ -198,12 +219,13 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
             () =>
               reconcileSearchFilterExplorerModel({
                 currentModel,
-                refreshedModel: plan.model,
+                refreshedModel: sortModel(plan.model),
                 fieldState: fieldStateRef.current,
                 fieldOptions: fieldOptionsRef.current,
                 resolveSelectionTarget:
-                  resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-              }),
+                    resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+                  sortMode: sortModeRef.current,
+                }),
             (reconciled) => ({ rootNodes: reconciled.rootNodes.length }),
           ),
         );
@@ -242,6 +264,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
             if (!targetFields || coversSessionFields) {
               modelCacheRef.current.set(nextMode, nextModel);
             }
+            const sortedNextModel = sortModel(nextModel);
             setModel((currentModel) =>
               debug.runSpan(
                 "filterExplorer.reconcileModel",
@@ -253,13 +276,14 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
                 () =>
                   reconcileSearchFilterExplorerModel({
                     currentModel,
-                    refreshedModel: nextModel,
+                    refreshedModel: sortedNextModel,
                     fieldState: fieldStateRef.current,
                     fieldOptions: fieldOptionsRef.current,
                     resolveSelectionTarget:
                       resolveSelectionTargetRef.current ??
                       buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
                     targetFields: coversSessionFields ? undefined : targetFields,
+                    sortMode: sortModeRef.current,
                   }),
                 (reconciled) => ({ rootNodes: reconciled.rootNodes.length }),
               ),
@@ -289,7 +313,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       executeRefresh();
     },
-    [debug, invalidateRefreshes, loadModelForDiscoveryMode, terminal],
+    [debug, invalidateRefreshes, loadModelForDiscoveryMode, sortModel, terminal],
   );
 
   React.useEffect(() => {
@@ -314,7 +338,9 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     preservedMetadataRef.current = preparedFieldState.preservedMetadata;
     scopedFieldsRef.current = preparedFieldState.scopedFields;
     rerenderFieldState();
-    setModel(session.model);
+    setSortMode("semantic");
+    sortModeRef.current = "semantic";
+    setModel(sortModel(session.model, "semantic"));
     setDiscoveryMode(initialDiscoveryMode);
     discoveryModeRef.current = initialDiscoveryMode;
     modelCacheRef.current = new Map(
@@ -344,6 +370,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     runModelRefresh,
     session.initialFieldState,
     session.model,
+    sortModel,
   ]);
 
   const onDiscoveryModeChange = React.useCallback(
@@ -357,6 +384,18 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     [runModelRefresh],
   );
 
+  const onValueSortModeChange = React.useCallback(
+    (nextMode: SearchFilterExplorerValueSortMode) => {
+      if (nextMode === sortModeRef.current) {
+        return;
+      }
+      sortModeRef.current = nextMode;
+      setSortMode(nextMode);
+      setModel((currentModel) => sortModel(currentModel, nextMode));
+    },
+    [sortModel],
+  );
+
   const discovery = React.useMemo<FilterExplorerDiscoveryState<SearchFilterDiscoveryMode> | undefined>(
     () =>
       createFilterExplorerDiscoveryState({
@@ -368,6 +407,19 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
         enabled: Boolean(session.loadModelForDiscoveryMode),
       }),
     [discoveryMode, onDiscoveryModeChange, refreshState, session.loadModelForDiscoveryMode],
+  );
+
+  const valueSort = React.useMemo<FilterExplorerValueSortState>(
+    () => ({
+      mode: sortMode,
+      supportsFrequency: (nodes) =>
+        levelSupportsSearchFilterExplorerFrequencySort(nodes, {
+          fieldOptions: fieldOptionsRef.current,
+          resolveSelectionTarget: resolveSelectionTarget(),
+        }),
+      onModeChange: onValueSortModeChange,
+    }),
+    [onValueSortModeChange, resolveSelectionTarget, sortMode],
   );
 
   const handleOutcome = React.useMemo(
@@ -458,6 +510,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       exitAtRootDepth
       onOutcome={handleOutcome}
       discovery={discovery}
+      valueSort={valueSort}
       debugTrace={debug}
       debugSnapshot={debugSnapshot}
       mode={

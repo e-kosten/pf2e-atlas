@@ -140,6 +140,11 @@ export function applyFilterExplorerActionEntry(args: {
     return;
   }
 
+  if (actionEntry.action.kind === "setValueSort") {
+    context.valueSort?.onModeChange?.(actionEntry.action.mode);
+    return;
+  }
+
   if (actionEntry.action.selection === "default") {
     onOpenInspectResult(inspectResult);
     return;

@@ -3,6 +3,10 @@ import { getLoadedOntologyNodeChildren } from "../../app/ontology/node-helpers.j
 import type { FilterExplorerComposeTarget } from "../filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "./filter-explorer-field-state.js";
 import type { Pf2eTerminalQueryFieldOption } from "../search/service.js";
+import {
+  sortSearchFilterExplorerModel,
+  type SearchFilterExplorerValueSortMode,
+} from "./filter-explorer-value-sorting.js";
 
 type DiscreteTarget = Extract<FilterExplorerComposeTarget, { kind?: "discrete" }>;
 
@@ -13,6 +17,7 @@ type ReconcileOptions = {
   fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   targetFields?: readonly string[];
+  sortMode?: SearchFilterExplorerValueSortMode;
 };
 
 type TargetedRootReconcileOptions = Omit<ReconcileOptions, "targetFields"> & {
@@ -121,19 +126,6 @@ function cloneAsZeroCountSelectedNode(
   };
 }
 
-function insertNodesInLabelOrder(nodes: OntologyNode[], additions: readonly OntologyNode[]): OntologyNode[] {
-  const next = [...nodes];
-  for (const addition of [...additions].sort((left, right) => left.label.localeCompare(right.label))) {
-    const insertionIndex = next.findIndex((node) => addition.label.localeCompare(node.label) < 0);
-    if (insertionIndex === -1) {
-      next.push(addition);
-    } else {
-      next.splice(insertionIndex, 0, addition);
-    }
-  }
-  return next;
-}
-
 function reconcileNode(
   refreshedNode: OntologyNode,
   previousNode: OntologyNode | undefined,
@@ -205,7 +197,7 @@ function reconcileNodeLevel(
     })
     .map((key) => cloneAsZeroCountSelectedNode(key, options.fieldOptions, options.templates));
 
-  return insertNodesInLabelOrder(reconciled, missingSelectedNodes);
+  return [...reconciled, ...missingSelectedNodes];
 }
 
 function reconcileTargetedRootNodes(options: TargetedRootReconcileOptions): OntologyNode[] {
@@ -236,7 +228,11 @@ function reconcileTargetedRootNodes(options: TargetedRootReconcileOptions): Onto
 
 export function reconcileSearchFilterExplorerModel(options: ReconcileOptions): OntologyDomainModel {
   if (options.currentModel.id !== options.refreshedModel.id) {
-    return options.refreshedModel;
+    return sortSearchFilterExplorerModel(options.refreshedModel, {
+      sortMode: options.sortMode ?? "semantic",
+      fieldOptions: options.fieldOptions,
+      resolveSelectionTarget: options.resolveSelectionTarget,
+    });
   }
 
   const selectedKeys = collectSelectedKeys(options.fieldState);
@@ -250,7 +246,7 @@ export function reconcileSearchFilterExplorerModel(options: ReconcileOptions): O
   };
   const targetFields = options.targetFields ? new Set(options.targetFields) : null;
 
-  return {
+  const reconciledModel = {
     ...options.refreshedModel,
     rootNodes: targetFields
       ? reconcileTargetedRootNodes({
@@ -265,4 +261,10 @@ export function reconcileSearchFilterExplorerModel(options: ReconcileOptions): O
         })
       : reconcileNodeLevel(options.refreshedModel.rootNodes, options.currentModel.rootNodes, baseOptions),
   };
+
+  return sortSearchFilterExplorerModel(reconciledModel, {
+    sortMode: options.sortMode ?? "semantic",
+    fieldOptions: options.fieldOptions,
+    resolveSelectionTarget: options.resolveSelectionTarget,
+  });
 }

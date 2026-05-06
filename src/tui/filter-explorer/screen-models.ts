@@ -511,10 +511,45 @@ function buildDiscoveryModeActionEntries(
     }));
 }
 
+function buildValueSortActionEntries(
+  controller: FilterExplorerControllerContext,
+): FilterExplorerActionEntry[] {
+  const valueSort = controller.valueSort;
+  if (!valueSort?.onModeChange || !valueSort.supportsFrequency) {
+    return [];
+  }
+  const supportsFrequency =
+    typeof valueSort.supportsFrequency === "function"
+      ? valueSort.supportsFrequency(controller.browser.selection.currentNodes)
+      : valueSort.supportsFrequency;
+  if (!supportsFrequency) {
+    return [];
+  }
+
+  const nextMode = valueSort.mode === "semantic" ? "frequency" : "semantic";
+  return [
+    {
+      id: `setValueSort:${nextMode}` as const,
+      label: nextMode === "frequency" ? "Sort By Frequency" : "Sort Semantically",
+      description:
+        nextMode === "frequency"
+          ? "Order the current value list by live count, then label."
+          : "Order the current value list by its field's semantic order.",
+      action: {
+        kind: "setValueSort" as const,
+        mode: nextMode,
+      },
+    },
+  ];
+}
+
 export function buildFilterExplorerActionEntries(
   controller: FilterExplorerControllerContext,
 ): FilterExplorerControllerContext["actionEntries"] {
-  const actions = buildDiscoveryModeActionEntries(controller.discovery);
+  const actions = [
+    ...buildDiscoveryModeActionEntries(controller.discovery),
+    ...buildValueSortActionEntries(controller),
+  ];
 
   if (controller.mode.kind !== "inspect-and-open" || !controller.selectedInspectResult) {
     return actions;

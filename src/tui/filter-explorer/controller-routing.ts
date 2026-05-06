@@ -68,6 +68,7 @@ export function buildFilterExplorerControllerContext(args: {
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode, selectedTarget)
         : undefined,
     discovery: args.options.discovery,
+    valueSort: args.options.valueSort,
     actionEntries: args.actionEntries,
     actionTargetState: args.actionTargetState,
     onListPointerEvent: args.onListPointerEvent,

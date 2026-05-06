@@ -194,6 +194,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         label: formatMetadataFieldLabel(field.field),
         description: field.notes ?? `${describeMetadataFieldType(field.fieldType)} facet for the current browse scope.`,
         fieldType: field.fieldType,
+        valueOrdering: field.valueOrdering,
       }));
     },
     loadMetricKeyOptions: async (query, field, discoveryMode, options = {}) => {

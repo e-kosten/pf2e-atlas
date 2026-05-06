@@ -300,6 +300,7 @@ export function getQueryFieldOptions(
             : `${describeMetadataFieldType(field.fieldType)} query field for the current browse scope.`),
         fieldType: field.fieldType,
         editor: getQueryFieldEditor(field),
+        valueOrdering: field.valueOrdering,
       })),
     ...getMetricQueryFieldOptions(metricGroups, category),
   ];

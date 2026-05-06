@@ -1,4 +1,5 @@
 import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
+import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
 import type { Pf2eApplicationSearchDiscoveryService } from "../../app/search-discovery-service.js";
 import type { SearchCategorySummaryResult, SearchVocabularyResult } from "../../data/vocabulary.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
@@ -57,6 +58,7 @@ export type Pf2eTerminalFacetFieldOption = {
   label: string;
   description: string;
   fieldType: MetadataFieldSemantics["fieldType"];
+  valueOrdering?: FilterValueOrdering;
 };
 
 export type Pf2eTerminalFacetValueOption = {
@@ -101,6 +103,7 @@ export type Pf2eTerminalQueryFieldOption = {
   description: string;
   fieldType: MetadataFieldSemantics["fieldType"];
   editor: Pf2eTerminalQueryFieldEditor;
+  valueOrdering?: FilterValueOrdering;
 };
 
 export type Pf2eTerminalQueryFieldEditor = "structuredForm" | "sharedExplorer";

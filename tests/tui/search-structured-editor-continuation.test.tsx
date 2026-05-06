@@ -825,10 +825,12 @@ async function addRootTraitGroup(app: ReturnType<typeof render>): Promise<void> 
   await flushInk();
   pressDown(app);
   await flushInk();
+  pressDown(app);
+  await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
-  pressDown(app);
+  pressUp(app);
   await flushInk();
   app.stdin.write(" ");
   await flushInk();

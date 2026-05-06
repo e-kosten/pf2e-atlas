@@ -1289,16 +1289,17 @@ async function driveRootTraitAddFlow(app: ReturnType<typeof render>): Promise<vo
 
   pressDown(app);
   await flushInk();
-  app.stdin.write(" ");
-  await flushInk();
-  await flushInk();
-
   pressDown(app);
   await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
 
+  pressUp(app);
+  await flushInk();
+  app.stdin.write(" ");
+  await flushInk();
+  await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
@@ -1474,6 +1475,8 @@ async function addCommonToCurrentRaritySelectionFromExplorer(app: ReturnType<typ
 
 async function addPathfinderNpcCoreToCurrentPackSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
   await waitForFrameToContain(app, "Pathfinder NPC Core", 120);
+  pressDown(app);
+  await flushInk();
   app.stdin.write(" ");
   await flushInk();
   await flushInk();
@@ -1540,15 +1543,18 @@ async function _driveFlatFeatTraitSeedFlow(app: ReturnType<typeof render>): Prom
 
 async function addSkillToCurrentTraitSelectionFromExplorer(app: ReturnType<typeof render>): Promise<void> {
   await waitForFrameToContain(app, "Traits Explorer", 60);
-  for (let attempt = 0; attempt < 3 && !app.lastFrame().includes("skill"); attempt += 1) {
+  for (let attempt = 0; attempt < 6 && !app.lastFrame().includes("skill"); attempt += 1) {
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
   }
+  await waitForFrameToContain(app, "skill", 120);
   expect(app.lastFrame()).toContain("archetype");
   expect(app.lastFrame()).toContain("concentrate");
   expect(app.lastFrame()).toContain("skill");
 
+  pressDown(app);
+  await flushInk();
   pressDown(app);
   await flushInk();
   app.stdin.write(" ");
@@ -2224,7 +2230,7 @@ describe("search screen", () => {
     }
     expect(app.lastFrame()).toContain("Filters >");
 
-    app.stdin.write(" ");
+    app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Structured Query Editor");
     expect(app.lastFrame()).toContain("All of");
@@ -3894,6 +3900,8 @@ describe("search screen", () => {
     await openTraitsExplorerFromAddHere(app);
     await waitForFrameToContain(app, "illusion", 120);
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
@@ -3965,6 +3973,8 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "Traits Explorer", 60);
     await waitForFrameToContain(app, "illusion", 120);
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
@@ -5166,6 +5176,8 @@ describe("search screen", () => {
     expect(app.lastFrame()).toContain("Monster Core");
     expect(app.lastFrame()).toContain("matching counts");
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
@@ -5187,6 +5199,8 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "Pathfinder NPC Core", 120);
     expect(app.lastFrame()).toContain("Pathfinder NPC Core");
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
@@ -5377,6 +5391,8 @@ describe("search screen", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Pathfinder NPC Core");
 
+    pressDown(app);
+    await flushInk();
     app.stdin.write(" ");
     await flushInk();
     await flushInk();
@@ -5927,8 +5943,7 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await waitForFrameToContain(app, "common", 60);
     expect(app.lastFrame()).toContain("common");
-
-    app.stdin.write(" ");
+    app.stdin.write("\r");
     await flushInk();
     await flushInk();
     await flushInk();
@@ -6011,9 +6026,7 @@ describe("search screen", () => {
     await waitForFrameToContain(app, "Traits Explorer");
     expect(app.lastFrame()).toContain("[✓] illusion");
 
-    pressDown(app);
-    await flushInk();
-    app.stdin.write(" ");
+    app.stdin.write("\r");
     await flushInk();
     await flushInk();
 

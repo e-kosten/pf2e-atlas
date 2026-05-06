@@ -4,6 +4,7 @@ export type FilterValueOrdering =
   | { kind: "alpha" }
   | { kind: "countDescThenAlpha" }
   | { kind: "numericAsc" }
+  | { kind: "booleanTrueFirst" }
   | { kind: "canonical"; order: readonly string[]; unknowns?: "tailAlpha" | "headAlpha" };
 
 type FilterValueEntry = {
@@ -29,6 +30,29 @@ function compareNumerically(left: string, right: string): number {
       return -1;
     }
     return leftNumber - rightNumber || compareAlphabetically(left, right);
+  }
+
+  return compareAlphabetically(left, right);
+}
+
+function compareBooleansTrueFirst(left: string, right: string): number {
+  const normalizedLeft = normalizeText(left);
+  const normalizedRight = normalizeText(right);
+  const booleanOrder = new Map([
+    ["true", 0],
+    ["false", 1],
+  ]);
+  const leftIndex = booleanOrder.get(normalizedLeft);
+  const rightIndex = booleanOrder.get(normalizedRight);
+
+  if (leftIndex !== undefined || rightIndex !== undefined) {
+    if (leftIndex === undefined) {
+      return 1;
+    }
+    if (rightIndex === undefined) {
+      return -1;
+    }
+    return leftIndex - rightIndex;
   }
 
   return compareAlphabetically(left, right);
@@ -66,6 +90,8 @@ export function compareFilterValues(
       return compareAlphabetically(left.value, right.value);
     case "numericAsc":
       return compareNumerically(left.value, right.value);
+    case "booleanTrueFirst":
+      return compareBooleansTrueFirst(left.value, right.value);
     case "canonical":
       return compareCanonically(left.value, right.value, ordering);
     case "countDescThenAlpha":
