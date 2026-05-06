@@ -128,6 +128,35 @@ describe("search filter explorer value sorting", () => {
     })).toBe(false);
   });
 
+  it("falls back to domain-owned promoted field ordering when picker metadata omits explicit value ordering", () => {
+    const fieldOptions: Pf2eTerminalQueryFieldOption[] = [
+      {
+        value: "actionCost",
+        label: "Action Cost",
+        description: "Action cost values.",
+        fieldType: "number",
+        editor: "sharedExplorer",
+      },
+    ];
+    const resolver = buildSearchFilterExplorerTargetResolver(fieldOptions);
+
+    const sorted = sortSearchFilterExplorerModel(modelWithRootValues([
+      valueNode("actionCost", "3", 20),
+      valueNode("actionCost", "1", 1),
+      valueNode("actionCost", "2", 10),
+    ]), {
+      sortMode: "frequency",
+      fieldOptions,
+      resolveSelectionTarget: resolver,
+    });
+
+    expect(sorted.rootNodes.map((node) => node.label)).toEqual(["1", "2", "3"]);
+    expect(levelSupportsSearchFilterExplorerFrequencySort(sorted.rootNodes, {
+      fieldOptions,
+      resolveSelectionTarget: resolver,
+    })).toBe(false);
+  });
+
   it("sorts boolean values true first", () => {
     const fieldOptions: Pf2eTerminalQueryFieldOption[] = [
       {

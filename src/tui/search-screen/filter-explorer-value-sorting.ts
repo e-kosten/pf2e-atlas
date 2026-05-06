@@ -2,6 +2,10 @@ import {
   compareFilterValues,
   type FilterValueOrdering,
 } from "../../domain/filter-value-ordering.js";
+import {
+  getSearchPromotedFieldValueOrdering,
+  isSearchPromotedFieldDomainKey,
+} from "../../domain/search-field-domains.js";
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
 import { getLoadedOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
 import type { FilterExplorerComposeTarget } from "../filter-explorer/types.js";
@@ -41,11 +45,8 @@ function getSemanticValueOrdering(fieldOption: Pf2eTerminalQueryFieldOption | un
     return fieldOption.valueOrdering;
   }
 
-  if (fieldOption?.value === "rarity") {
-    return { kind: "canonical", order: ["common", "uncommon", "rare", "unique"] };
-  }
-  if (fieldOption?.value === "actionCost") {
-    return { kind: "canonical", order: ["0", "1", "2", "3"] };
+  if (fieldOption && isSearchPromotedFieldDomainKey(fieldOption.value)) {
+    return getSearchPromotedFieldValueOrdering(fieldOption.value) ?? { kind: "alpha" };
   }
 
   if (!fieldOption) {
@@ -69,10 +70,7 @@ function supportsFrequencySort(fieldOption: Pf2eTerminalQueryFieldOption | undef
   if (!fieldOption) {
     return false;
   }
-  if (fieldOption.value === "rarity" || fieldOption.value === "actionCost") {
-    return false;
-  }
-  if (fieldOption.valueOrdering && fieldOption.valueOrdering.kind !== "alpha") {
+  if (getSemanticValueOrdering(fieldOption).kind !== "alpha") {
     return false;
   }
   return ["set", "enumString", "text"].includes(fieldOption.fieldType);

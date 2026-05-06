@@ -1,11 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createDerivedTagTerminalActionTargetState } from "../../src/tui/action-target.js";
 import { formatTerminalInteractionFooter } from "../../src/tui/interaction-bindings.js";
 import {
+  buildFilterExplorerActionEntries,
   buildFilterExplorerHelpLines,
   getFilterExplorerInteractionActions,
 } from "../../src/tui/filter-explorer/screen-models.js";
+import { applyFilterExplorerActionEntry } from "../../src/tui/filter-explorer/workflow-actions.js";
+import type { OntologyNode } from "../../src/domain/ontology-types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerControllerContext,
@@ -65,6 +68,7 @@ function createBrowserContext(overrides: Partial<FilterExplorerBrowserContext> =
 
 function createControllerContext(overrides: {
   browser?: Partial<FilterExplorerBrowserContext>;
+  valueSort?: FilterExplorerControllerContext["valueSort"];
 } = {}): FilterExplorerControllerContext {
   const browser = createBrowserContext(overrides.browser);
   return {
@@ -82,9 +86,20 @@ function createControllerContext(overrides: {
       scalarClauses: {},
     },
     discreteClauses: [],
+    valueSort: overrides.valueSort,
     actionEntries: [],
     actionTargetState: createDerivedTagTerminalActionTargetState(),
   } as FilterExplorerControllerContext;
+}
+
+function createValueNode(id: string, label: string): OntologyNode {
+  return {
+    id,
+    kind: "value",
+    label,
+    filterText: label,
+    detailLines: [{ text: label }],
+  };
 }
 
 describe("filter explorer screen models", () => {
@@ -190,6 +205,69 @@ describe("filter explorer screen models", () => {
     expect(footer).toContain("↑/↓ move");
     expect(footer).not.toContain("Ctrl-Y/E scroll");
     expect(helpLines.some((line) => line.includes("↑ / ↓ or j / k"))).toBe(true);
+  });
+
+  it("offers frequency sort on eligible value levels and dispatches the selected sort mode", () => {
+    const onModeChange = vi.fn();
+    const currentNodes = [createValueNode("air", "air"), createValueNode("water", "water")];
+    const controller = createControllerContext({
+      browser: {
+        selection: {
+          ancestors: [],
+          currentNodes,
+          currentNode: currentNodes[0],
+          currentParent: undefined,
+        },
+      },
+      valueSort: {
+        mode: "semantic",
+        supportsFrequency: (nodes) => nodes === currentNodes,
+        onModeChange,
+      },
+    });
+
+    const entries = buildFilterExplorerActionEntries(controller);
+    const sortEntry = entries.find((entry) => entry.id === "setValueSort:frequency");
+
+    expect(sortEntry).toMatchObject({
+      label: "Sort By Frequency",
+      action: {
+        kind: "setValueSort",
+        mode: "frequency",
+      },
+    });
+
+    applyFilterExplorerActionEntry({
+      actionEntry: sortEntry!,
+      context: controller,
+      onOpenInspectQuery: vi.fn(),
+      onOpenInspectResult: vi.fn(),
+    });
+
+    expect(onModeChange).toHaveBeenCalledWith("frequency");
+  });
+
+  it("hides frequency sort when the current value level is not eligible", () => {
+    const currentNodes = [createValueNode("common", "common")];
+    const controller = createControllerContext({
+      browser: {
+        selection: {
+          ancestors: [],
+          currentNodes,
+          currentNode: currentNodes[0],
+          currentParent: undefined,
+        },
+      },
+      valueSort: {
+        mode: "semantic",
+        supportsFrequency: false,
+        onModeChange: vi.fn(),
+      },
+    });
+
+    expect(buildFilterExplorerActionEntries(controller).map((entry) => entry.id)).not.toContain(
+      "setValueSort:frequency",
+    );
   });
 
   it("uses shared page-section bindings for record detail pages", () => {
