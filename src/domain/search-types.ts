@@ -158,6 +158,9 @@ export interface FilterValueQuery {
 export interface FilterValueCount {
   value: string;
   count: number;
+  valueType?: "number" | "text" | "boolean";
+  numericMin?: number | null;
+  numericMax?: number | null;
 }
 
 export interface FilterValueResult {

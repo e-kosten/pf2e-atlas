@@ -1,20 +1,13 @@
 import { performance } from "node:perf_hooks";
 
-import { loadConfig } from "../src/app/config.js";
-import { Pf2eDataService } from "../src/data/service.js";
-import { createPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "../src/tui/app-services.js";
-import { buildScopeFilter, type SearchRequest } from "../src/domain/search-request-types.js";
-import { RankingConfigStore } from "../src/search/ranking-config.js";
+import { loadConfig } from "../dist/app/config.js";
+import { Pf2eDataService } from "../dist/data/service.js";
+import { RankingConfigStore } from "../dist/search/ranking-config.js";
+import { createPf2eTerminalAppServices } from "../dist/tui/app-services.js";
+import { buildScopeFilter } from "../dist/domain/search-request-types.js";
 
-type TimingSummary = {
-  label: string;
-  medianMs: number;
-  minMs: number;
-  maxMs: number;
-};
-
-function parseArgs(argv: string[]): { forwardedArgv: string[]; samples: number } {
-  const forwardedArgv: string[] = [];
+function parseArgs(argv) {
+  const forwardedArgv = [];
   let samples = 5;
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -38,28 +31,23 @@ function parseArgs(argv: string[]): { forwardedArgv: string[]; samples: number }
   return { forwardedArgv, samples };
 }
 
-function formatMs(durationMs: number): string {
+function formatMs(durationMs) {
   return `${durationMs.toFixed(2)} ms`;
 }
 
-function median(values: number[]): number {
+function median(values) {
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.floor(sorted.length / 2)] ?? 0;
 }
 
-async function measureCall(task: () => PromiseLike<void> | void): Promise<number> {
+async function measureCall(task) {
   const start = performance.now();
   await task();
   return performance.now() - start;
 }
 
-async function sampleTimings(
-  samples: number,
-  label: string,
-  task: (services: Pf2eTerminalAppServices) => PromiseLike<void> | void,
-  services: Pf2eTerminalAppServices,
-): Promise<TimingSummary> {
-  const timings: number[] = [];
+async function sampleTimings(samples, label, task, services) {
+  const timings = [];
   for (let index = 0; index < samples; index += 1) {
     timings.push(await measureCall(() => task(services)));
   }
@@ -72,7 +60,7 @@ async function sampleTimings(
   };
 }
 
-function printTable(results: TimingSummary[]): void {
+function printTable(results) {
   const labelWidth = Math.max(...results.map((result) => result.label.length), "Path".length);
   const medianWidth = Math.max(...results.map((result) => formatMs(result.medianMs).length), "Median".length);
   const minWidth = Math.max(...results.map((result) => formatMs(result.minMs).length), "Min".length);
@@ -92,24 +80,24 @@ function printTable(results: TimingSummary[]): void {
   }
 }
 
-const creatureCatalogRequest: SearchRequest = {
+const creatureCatalogRequest = {
   mode: "browse",
   filter: buildScopeFilter("creature"),
   limit: 20,
 };
 
-const dragonSearchRequest: SearchRequest = {
+const dragonSearchRequest = {
   mode: "search",
   search: { query: "dragon", profile: "lexical" },
   filter: buildScopeFilter("creature"),
   limit: 20,
 };
 
-async function main(): Promise<void> {
+async function main() {
   const { forwardedArgv, samples } = parseArgs(process.argv.slice(2));
   const config = await loadConfig(forwardedArgv);
   const rankingConfigStore = await RankingConfigStore.create(config.ranking.configPath, { watch: false });
-  let dataService: Pf2eDataService | null = null;
+  let dataService;
   try {
     dataService = await Pf2eDataService.load(config.rootPath, config.manifestPath, {
       indexPath: config.indexPath,
@@ -129,7 +117,7 @@ async function main(): Promise<void> {
   };
   const services = createPf2eTerminalAppServices(runtime);
   try {
-    const results: TimingSummary[] = [];
+    const results = [];
     results.push(
       await sampleTimings(
         samples,
@@ -183,6 +171,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error) => {
-  console.error((error as Error).message);
+  console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });

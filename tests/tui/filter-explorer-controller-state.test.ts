@@ -150,6 +150,19 @@ describe("filter explorer controller state", () => {
     expect(state.browserState.selectedNodeIds).toEqual(["items"]);
   });
 
+  it("does not let stale async drill-in completions clear a newer loading node", () => {
+    const model = createModel();
+    let state = createFilterExplorerBrowserUiState(model);
+
+    state = filterExplorerReducer(model, state, { type: "set_child_loading", nodeId: "items" });
+    state = filterExplorerReducer(model, state, { type: "move_selection", delta: 1 });
+    state = filterExplorerReducer(model, state, { type: "drill_in", nodeId: "spells" });
+
+    expect(state.browserState.depth).toBe(0);
+    expect(state.browserState.selectedNodeIds).toEqual(["items"]);
+    expect(state.loadingChildNodeId).toBe("items");
+  });
+
   it("captures browser snapshots from effective state", () => {
     const context = createBrowserContext({
       state: {

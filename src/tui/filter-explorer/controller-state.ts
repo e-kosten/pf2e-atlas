@@ -152,16 +152,20 @@ export function filterExplorerReducer(
         ...state,
         browserState: moveFilterExplorerSelectionToBoundary(model, state.browserState, action.boundary),
       };
-    case "drill_in":
+    case "drill_in": {
+      const nextBrowserState = drillIntoFilterExplorerBrowser(model, state.browserState, action.nodeId);
+      const drillSucceeded = nextBrowserState.depth > state.browserState.depth;
+      const shouldClearLoading = !action.nodeId || state.loadingChildNodeId === action.nodeId || drillSucceeded;
       return {
         ...state,
         activePane: "list",
-        browserState: drillIntoFilterExplorerBrowser(model, state.browserState, action.nodeId),
-        loadingChildNodeId: undefined,
+        browserState: nextBrowserState,
+        loadingChildNodeId: shouldClearLoading ? undefined : state.loadingChildNodeId,
         layoutMode: "split",
         searchInput: "",
         searchMode: false,
       };
+    }
     case "pop_depth":
       return {
         ...state,

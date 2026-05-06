@@ -174,6 +174,9 @@ export type SearchFilterDiscoveryOption = {
   id: string;
   value: string | number;
   count: number;
+  valueType?: "number" | "text" | "boolean";
+  numericMin?: number | null;
+  numericMax?: number | null;
 };
 
 export type SearchFilterDiscoveryRequest = {

@@ -11,7 +11,7 @@
     "install-hooks": "./install-git-hooks.sh",
     "lint": "cd .. && node ./node_modules/eslint/bin/eslint.js . --cache --cache-strategy content --cache-location .cache/eslint/",
     "lint:fix": "npm run lint -- --fix",
-    "measure:filter-discovery": "cd .. && node --import ./node_modules/tsx/dist/esm/index.mjs ./scripts/measure-filter-discovery-performance.ts",
+    "measure:filter-discovery": "cd .. && node ./scripts/measure-filter-discovery-performance.mjs",
     "measure:search-semantics-startup": "cd .. && node --import ./node_modules/tsx/dist/esm/index.mjs ./scripts/measure-search-semantics-startup.ts",
     "preflight": "./preflight.sh",
     "test": "cd .. && node ./node_modules/vitest/vitest.mjs run",

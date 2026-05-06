@@ -537,6 +537,8 @@ function buildMetricKeyNode(
     metadataField: "actorMetric" | "itemMetric";
     metricKey: string;
     liveRecordCount: number;
+    numericMin?: number | null;
+    numericMax?: number | null;
     countLabel?: string;
   },
 ): OntologyNode {
@@ -574,6 +576,9 @@ function buildMetricKeyNode(
       { text: `Explorer group: ${groupLabel}` },
       { text: `Metric key: ${metricKey}` },
       { text: `Value type: ${valueType ?? "unknown"}` },
+      ...(valueType === "number" && (options.numericMin !== undefined || options.numericMax !== undefined)
+        ? [{ text: `Catalog range: ${options.numericMin ?? "?"} to ${options.numericMax ?? "?"}` }]
+        : []),
       { text: `${countLabel}: ${liveRecordCount}` },
       ...(valueType === "text" || valueType === "boolean"
         ? [
@@ -671,6 +676,8 @@ function buildMetricNamespaceNode(
             metadataField,
             metricKey: String(entry.value),
             liveRecordCount: entry.count,
+            numericMin: entry.numericMin,
+            numericMax: entry.numericMax,
             countLabel: options.countLabel,
           }),
         ),

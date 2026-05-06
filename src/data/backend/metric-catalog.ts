@@ -89,20 +89,37 @@ export class Pf2eMetricCatalogBackendService {
     const rows = this.db
       .prepare(
         `
-        SELECT metric_key AS value, SUM(catalog_count) AS count
+        SELECT
+          metric_key AS value,
+          value_type AS valueType,
+          SUM(catalog_count) AS count,
+          CASE WHEN value_type = 'number' THEN MIN(numeric_min) ELSE NULL END AS numericMin,
+          CASE WHEN value_type = 'number' THEN MAX(numeric_max) ELSE NULL END AS numericMax
         FROM metric_key_catalog
         WHERE metric_field = ?
           AND (${scopeClauses})
           ${prefix !== null ? "AND namespace_prefix = ?" : ""}
-        GROUP BY metric_key
+        GROUP BY metric_key, value_type
         ORDER BY count DESC, value ASC
       `,
       )
-      .all(query.field, ...params) as Array<{ value: string; count: number }>;
+      .all(query.field, ...params) as Array<{
+      value: string;
+      valueType: "number" | "text" | "boolean";
+      count: number;
+      numericMin: number | null;
+      numericMax: number | null;
+    }>;
 
     return {
       field: query.field,
-      values: rows.map((row) => ({ value: row.value, count: Number(row.count) })),
+      values: rows.map((row) => ({
+        value: row.value,
+        count: Number(row.count),
+        valueType: row.valueType,
+        numericMin: row.numericMin,
+        numericMax: row.numericMax,
+      })),
     };
   }
 

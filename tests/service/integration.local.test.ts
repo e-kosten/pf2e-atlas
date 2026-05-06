@@ -59,6 +59,11 @@ describe("local PF2E integration", async () => {
       ).toBe(true);
       expect(
         service
+          .listMetricCatalogKeys({ field: "actorMetrics", category: "creature", metricPrefix: "hp" })
+          ?.values.find((entry) => entry.value === "hp.value"),
+      ).toEqual(expect.objectContaining({ valueType: "number", numericMin: expect.any(Number), numericMax: expect.any(Number) }));
+      expect(
+        service
           .listMetricCatalogValues({ field: "actorMetrics", category: "creature", metric: "save.best" })
           ?.values.map((entry) => entry.value),
       ).toEqual(expect.arrayContaining(["fort", "ref", "will"]));

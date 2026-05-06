@@ -137,6 +137,23 @@ function normalizeDiscoveryTargetField(field: string): string {
   return field;
 }
 
+function mapFilterValueDiscoveryOption(entry: {
+  value: string;
+  count: number;
+  valueType?: "number" | "text" | "boolean";
+  numericMin?: number | null;
+  numericMax?: number | null;
+}): SearchFilterDiscoveryOption {
+  return {
+    id: entry.value,
+    value: entry.value,
+    count: entry.count,
+    ...(entry.valueType ? { valueType: entry.valueType } : {}),
+    ...(entry.numericMin !== undefined ? { numericMin: entry.numericMin } : {}),
+    ...(entry.numericMax !== undefined ? { numericMax: entry.numericMax } : {}),
+  };
+}
+
 function resolveContextSearchRequest(
   mode: SearchFilterDiscoveryMode,
   context: SearchFilterDiscoveryContext,
@@ -307,11 +324,7 @@ export function createPf2eApplicationSearchDiscoveryService(
     const result: SearchFilterDiscoveryResult = {
       mode: "catalog",
       target: options.target,
-      options: values.map((entry) => ({
-        id: entry.value,
-        value: entry.value,
-        count: entry.count,
-      })),
+      options: values.map(mapFilterValueDiscoveryOption),
     };
     catalogFilterValueCache.set(cacheKey, result);
     return result;
@@ -352,11 +365,7 @@ export function createPf2eApplicationSearchDiscoveryService(
           )
         : dataService.discoverFilterValues(query, resolveContextSearchRequest(options.mode, options.context));
     const promise = resultPromise.then((result) =>
-      orderFilterValues(result.values, getFieldValueOrdering(options.field)).map((entry) => ({
-        id: entry.value,
-        value: entry.value,
-        count: entry.count,
-      })),
+      orderFilterValues(result.values, getFieldValueOrdering(options.field)).map(mapFilterValueDiscoveryOption),
     );
     asyncDiscoveryOptionCache.set(cacheKey, promise);
     void promise.catch(() => {
@@ -420,11 +429,7 @@ export function createPf2eApplicationSearchDiscoveryService(
     });
     const result = (
       dataService.listMetricCatalogKeys?.(query) ?? { field: options.metricField, values: [] }
-    ).values.map((entry) => ({
-      id: entry.value,
-      value: entry.value,
-      count: entry.count,
-    }));
+    ).values.map(mapFilterValueDiscoveryOption);
     metricKeyCache.set(cacheKey, result);
     return result;
   }
@@ -451,11 +456,7 @@ export function createPf2eApplicationSearchDiscoveryService(
     });
     const result = (
       dataService.listMetricCatalogValues?.(query) ?? { field: options.metricField, values: [] }
-    ).values.map((entry) => ({
-      id: entry.value,
-      value: entry.value,
-      count: entry.count,
-    }));
+    ).values.map(mapFilterValueDiscoveryOption);
     metricValueCache.set(cacheKey, result);
     return result;
   }

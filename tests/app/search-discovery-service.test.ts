@@ -434,6 +434,48 @@ describe("application search discovery service", () => {
     );
   });
 
+  it("keeps broad prepared discovery lazy except for the derived-tag tree prewarm", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values:
+        field === "derivedTags"
+          ? [{ value: "undead_adjacent", count: 3 }]
+          : field === "traits"
+            ? [{ value: "undead", count: 2 }]
+            : [],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching");
+
+    expect(discoverFilterValues).toHaveBeenCalledTimes(1);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "derivedTags", category: "creature" }),
+      request,
+    );
+
+    await expect(
+      reader.discoverFieldValuesAsync({ category: "creature", subcategory: null, field: "traits" }),
+    ).resolves.toEqual([{ id: "undead", value: "undead", count: 2 }]);
+    await reader.discoverFieldValuesAsync({ category: "creature", subcategory: null, field: "traits" });
+
+    expect(discoverFilterValues).toHaveBeenCalledTimes(2);
+    expect(discoverFilterValues).toHaveBeenLastCalledWith(
+      expect.objectContaining({ field: "traits", category: "creature" }),
+      request,
+    );
+  });
+
   it("prepares only requested fields when the search-hosted explorer supplies target fields", async () => {
     const request = {
       mode: "search",
@@ -508,7 +550,7 @@ describe("application search discovery service", () => {
     const discoverFilterValues = vi.fn(async () => ({ field: "actorMetrics", values: [] }));
     const listMetricCatalogKeys = vi.fn(() => ({
       field: "actorMetrics",
-      values: [{ value: "save.best", count: 8 }],
+      values: [{ value: "hp.value", count: 8, valueType: "number" as const, numericMin: 4, numericMax: 220 }],
     }));
     const listMetricCatalogValues = vi.fn(() => ({
       field: "actorMetrics",
@@ -529,9 +571,9 @@ describe("application search discovery service", () => {
         category: "creature",
         subcategory: null,
         metricField: "actorMetrics",
-        metricPrefix: "save.",
+        metricPrefix: "hp.",
       }),
-    ).toEqual([{ id: "save.best", value: "save.best", count: 8 }]);
+    ).toEqual([{ id: "hp.value", value: "hp.value", count: 8, valueType: "number", numericMin: 4, numericMax: 220 }]);
     expect(
       await reader.discoverMetricValues({
         category: "creature",
