@@ -1,4 +1,4 @@
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { SearchDiscoveryField, SearchDiscoveryMetricGroup } from "../../app/search-discovery-service.js";
 import { getMetricDiscoveryGroupLabel } from "../../domain/metric-discovery-group-label.js";
 import {

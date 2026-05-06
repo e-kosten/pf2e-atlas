@@ -1,4 +1,4 @@
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { FilterValueOrdering } from "../../domain/filter-value-ordering.js";
 import { orderStringValues } from "./service-options.js";
 import type {

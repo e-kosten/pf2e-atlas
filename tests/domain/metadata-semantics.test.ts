@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getMetadataFilterSemantics } from "../../src/search/filters/semantics.js";
+import { getMetadataFilterSemantics } from "../../src/domain/metadata-field-catalog.js";
 import { filterValueFieldSchema } from "../../src/server/tool-schemas.js";
 
 describe("metadata search semantics", () => {

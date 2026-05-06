@@ -4,12 +4,12 @@ import {
   normalizeActorMetricPrefix,
 } from "../domain/actor-metrics.js";
 import { inferItemMetricValueType, normalizeItemMetricKey, normalizeItemMetricPrefix } from "../domain/item-metrics.js";
+import { isMetadataFieldName } from "../domain/metadata-field-catalog.js";
+import { getMetadataRecordSelectClauses } from "../data/metadata-row-projection.js";
 import {
-  getMetadataFieldSpec,
-  getMetadataRecordSelectClauses,
-  isMetadataFieldName,
+  getMetadataExecutionSpec,
   type MetadataFilterValueSource,
-} from "../search/filters/registry.js";
+} from "../search/filters/metadata-execution.js";
 import { SearchSort, type FilterValueQuery } from "../domain/search-types.js";
 import type { NormalizedSearchFilters, SearchExecutionFilterNode, SqlValue } from "./contracts.js";
 import {
@@ -349,7 +349,7 @@ function applyMetadataFilterValueSource(
     return null;
   }
 
-  const source = getMetadataFieldSpec(field).buildFilterValueSource?.() ?? null;
+  const source = getMetadataExecutionSpec(field).buildFilterValueSource?.() ?? null;
   if (!source) {
     return null;
   }

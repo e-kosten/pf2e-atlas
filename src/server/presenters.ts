@@ -1,14 +1,14 @@
 import type { NormalizedRecord, PackInfo } from "../domain/record-types.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { RecordDetail, SearchRecordExplanation } from "../domain/search-types.js";
-import { getMetadataFieldSpecsByPresentation } from "../search/filters/registry.js";
+import { getMetadataFieldPresentationSpecs } from "./metadata-presentation.js";
 
 function assignPresentedMetadata(
   target: Record<string, unknown>,
   record: NormalizedRecord,
   presentation: "summary" | "detail",
 ): void {
-  for (const spec of getMetadataFieldSpecsByPresentation(presentation)) {
+  for (const spec of getMetadataFieldPresentationSpecs(presentation)) {
     if (spec.presentWhen && !spec.presentWhen(record)) {
       continue;
     }

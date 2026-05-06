@@ -12,11 +12,13 @@ The search runtime is shared infrastructure, not an MCP-only feature. The same b
 
 - `src/index.ts` and `src/server/` own MCP registration and wire-format responses.
 - `src/domain/search-request-types.ts` owns `SearchRequest` and the canonical shared filter tree.
-- `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts` own the metadata field vocabulary and atomic metadata predicates carried by that contract.
+- `src/domain/metadata-field-catalog.ts`, `src/domain/metadata-field-types.ts`, and `src/domain/search-filter-metadata.ts` own the public metadata field catalog, metadata field vocabulary, and atomic metadata predicates carried by that contract.
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own the lowering from `SearchRequest` into search-execution filters.
-- `src/search/filters/` owns execution-filter normalization, validation, vocabulary semantics, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
+- `src/search/filters/` owns execution-filter normalization, validation, metadata execution helpers, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
+- `src/data/metadata-row-projection.ts` owns metadata row selection and hydration mapping for normalized records.
+- `src/server/metadata-presentation.ts` owns MCP summary/detail metadata projection.
 - `src/search/runtime-search.ts` owns ranked and structured search execution.
 - `src/search/sql.ts` and `src/data/record-queries.ts` own SQL construction and database retrieval.
 

@@ -1,7 +1,7 @@
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import type { SearchSemanticsDiscoveryReader } from "../search-discovery-service.js";
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,

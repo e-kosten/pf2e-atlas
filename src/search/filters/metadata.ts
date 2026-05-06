@@ -27,28 +27,28 @@ import { normalizeDerivedTag } from "../../tags/runtime.js";
 import { normalizeText } from "../../shared/utils.js";
 import type { SqlValue } from "../contracts.js";
 import {
-  getMetadataBooleanFieldSpec,
+  getMetadataBooleanExecutionSpec,
   getMetadataBooleanRecordValue,
-  getMetadataEnumStringFieldSpec,
-  getMetadataNumberFieldSpec,
+  getMetadataEnumStringExecutionSpec,
+  getMetadataNumberExecutionSpec,
   getMetadataNumberRecordValue,
-  getMetadataSetFieldSpec,
+  getMetadataSetExecutionSpec,
   getMetadataSetRecordValues,
   getMetadataStringRecordValue,
-  getMetadataTextFieldSpec,
+  getMetadataTextExecutionSpec,
   isMetadataEnumStringField,
   isMetadataNumberField,
   isMetadataSetField,
   isMetadataTextField,
-  type MetadataFieldSpecEntry,
+  type MetadataExecutionSpecEntry,
   type MetadataSqlSourceContext,
   type MetadataValueNormalization,
-} from "./registry.js";
+} from "./metadata-execution.js";
 
 export type MetadataSqlContext = {} & MetadataSqlSourceContext;
 
 function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringField, value: string): string {
-  const spec = isMetadataSetField(field) ? getMetadataSetFieldSpec(field) : getMetadataEnumStringFieldSpec(field);
+  const spec = isMetadataSetField(field) ? getMetadataSetExecutionSpec(field) : getMetadataEnumStringExecutionSpec(field);
   const normalization = spec.valueNormalization ?? inferMetadataValueNormalization(spec);
 
   switch (normalization) {
@@ -65,12 +65,12 @@ function normalizeMetadataTextMatchValue(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function inferMetadataValueNormalization(spec: MetadataFieldSpecEntry): MetadataValueNormalization {
-  return spec.fieldType === "text" ? "normalizedText" : "lowercaseTrim";
+function inferMetadataValueNormalization(_spec: MetadataExecutionSpecEntry): MetadataValueNormalization {
+  return "lowercaseTrim";
 }
 
 function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {
-  const spec = getMetadataSetFieldSpec(field);
+  const spec = getMetadataSetExecutionSpec(field);
   return spec.buildSqlExpression ? spec.buildSqlExpression(context) : "[]";
 }
 
@@ -79,12 +79,12 @@ function buildMetadataScalarSqlExpression(
   field: MetadataEnumStringField | MetadataTextStringField | MetadataNumberField | MetadataBooleanField,
 ): string {
   const spec = isMetadataEnumStringField(field)
-    ? getMetadataEnumStringFieldSpec(field)
+    ? getMetadataEnumStringExecutionSpec(field)
     : isMetadataTextField(field)
-      ? getMetadataTextFieldSpec(field)
+      ? getMetadataTextExecutionSpec(field)
       : isMetadataNumberField(field)
-        ? getMetadataNumberFieldSpec(field)
-        : getMetadataBooleanFieldSpec(field);
+        ? getMetadataNumberExecutionSpec(field)
+        : getMetadataBooleanExecutionSpec(field);
   if (!spec.buildSqlExpression) {
     throw new Error(`Metadata field "${field}" does not provide a SQL expression.`);
   }

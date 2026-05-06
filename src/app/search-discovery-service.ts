@@ -15,7 +15,7 @@ import {
 } from "../domain/search-field-domains.js";
 import type { SearchRequest, SearchRequestMode } from "../domain/search-request-types.js";
 import type { FilterValueField, FilterValueQuery, SearchCategory, SearchSubcategory } from "../domain/search-types.js";
-import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
+import { getMetadataFilterSemantics } from "../domain/metadata-field-catalog.js";
 
 type SearchDiscoveryDataService = Pick<Pf2eDataService, "discoverFilterValues" | "getPack" | "listFilterValues"> &
   Partial<Pick<Pf2eDataService, "listMetricCatalogKeys" | "listMetricCatalogValues">>;

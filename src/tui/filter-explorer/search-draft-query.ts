@@ -5,7 +5,7 @@ import type {
   MetadataEnumStringField,
   MetadataSetField,
 } from "../../domain/metadata-field-types.js";
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { MetadataFilterNode, MetadataPredicate } from "../search/metadata-filter-draft.js";
 import { isMetadataPredicate, normalizeMetadataNode } from "../search/query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "../search/discoverable-fields.js";

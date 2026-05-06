@@ -14,7 +14,7 @@ Pick the lowest layer that can own the behavior without depending on a higher-le
 | Terminal workflow, screen behavior, or prompt orchestration                             | `src/tui/`                    | `src/server/` or direct storage/runtime assembly |
 | Cross-surface runtime composition or app-scoped facade wiring                           | `src/app/`                    | individual screens or tool registration files    |
 | Backend retrieval, index-backed record access, rule graph, or reusable search execution | `src/data/` and `src/search/` | `src/server/` or `src/tui/`                      |
-| Shared types, category vocabularies, ontology contracts, or metadata semantics          | `src/domain/`                 | transport/UI layers                              |
+| Shared types, category vocabularies, ontology contracts, or public metadata semantics   | `src/domain/`                 | transport/UI layers or `src/search/filters/`    |
 | Derived-tag authored truth or review registries                                         | `src/tags/{ontology,rules,assignments,exemplars,reviews}/` | non-tag callers outside a facade |
 | Derived-tag runtime publication, derivation, or matching                                | `src/tags/runtime/{publication,derivation,matcher,compat}/` | top-level compatibility barrels as if they were owners |
 | Derived-tag editorial state, sessions, writeback, or review UI                          | `src/tags/editorial/{state,sessions,writeback,ui}/` | top-level `src/tags/editorial/*.ts` shims as if they were owners |
@@ -25,6 +25,7 @@ Useful heuristics:
 - If the code needs `DatabaseSync`, it probably belongs in `src/data/`, `src/app/storage-service.ts`, or an approved CLI entrypoint.
 - If the code mostly translates inputs and outputs around an existing service call, it probably belongs in a thin surface layer.
 - If the code defines vocabulary rather than behavior, it probably belongs in `src/domain/`.
+- If the code defines metadata field meaning for MCP, ontology, or TUI callers, extend `src/domain/metadata-field-catalog.ts`; SQL/filter behavior belongs in `src/search/filters/metadata-execution.ts`, record hydration belongs in `src/data/metadata-row-projection.ts`, and MCP summary/detail projection belongs in `src/server/metadata-presentation.ts`.
 - If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file directly. There is no approved broad `src/domain/index.ts` path.
 - If a helper clearly belongs to `app`, `data`, or `search`, keep it there instead of extending `src/shared/`.
 - If the change is inside `src/tags/`, pick the split owner directory first and treat top-level editorial/runtime re-export files as compatibility bridges, not the architectural home for new work.

@@ -3,7 +3,7 @@ import * as z from "zod/v4";
 
 import { CATEGORY_SUBCATEGORY_MAP } from "../domain/categories.js";
 import type { BrowseRequest, SearchModeRequest } from "../domain/search-request-types.js";
-import { getMetadataFilterSemantics } from "../search/filters/semantics.js";
+import { getMetadataFilterSemantics } from "../domain/metadata-field-catalog.js";
 import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,

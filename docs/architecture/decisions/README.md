@@ -19,6 +19,7 @@ This index is the quickest way to scan the accepted architecture decision record
 - [`0013-tui-canonical-search-state-and-derived-editor-projections.md`](./0013-tui-canonical-search-state-and-derived-editor-projections.md): the TUI’s long-lived canonical search state is `SearchRequest`, while tree models, summaries, and drafts are derived or transient editor state.
 - [`0014-shared-search-result-presentation-capabilities.md`](./0014-shared-search-result-presentation-capabilities.md): result grouping, row metadata, and detail metadata are shared result-view capabilities, with lookup as one consumer rather than the owner.
 - [`0015-shared-explorer-host-contract-and-live-group-editing.md`](./0015-shared-explorer-host-contract-and-live-group-editing.md): the shared explorer owns generic outcomes and host glue, while search group editing stays live and host-specific above that boundary.
+- [`0016-metadata-field-ownership-split.md`](./0016-metadata-field-ownership-split.md): public metadata field semantics, search execution behavior, data row hydration, and MCP metadata presentation are separate owners instead of one fused search registry.
 
 ## Reading Order
 

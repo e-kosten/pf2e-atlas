@@ -3,7 +3,7 @@ import { createScopedSearchDiscoveryApplicability } from "../../app/search-disco
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { createSearchFilterDiscoveryContext } from "../../domain/search-field-domains.js";
-import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import { getMetadataFilterSemantics, type MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { MetadataFieldName } from "../../domain/metadata-field-types.js";
 import {
   describeMetadataFieldType,

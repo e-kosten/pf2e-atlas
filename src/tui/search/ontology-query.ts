@@ -1,4 +1,4 @@
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import {
   normalizeSearchQuery,

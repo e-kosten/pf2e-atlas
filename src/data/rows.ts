@@ -14,7 +14,7 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import { METADATA_FIELD_REGISTRY } from "../search/filters/registry.js";
+import { METADATA_ROW_PROJECTIONS } from "./metadata-row-projection.js";
 import { normalizeText } from "../shared/utils.js";
 
 export type CandidateRow = {
@@ -299,7 +299,7 @@ function parseRawRecordJson(rawJson: string | null | undefined, recordKey: strin
 function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedRecord> {
   const metadata: Record<string, unknown> = {};
 
-  for (const spec of METADATA_FIELD_REGISTRY) {
+  for (const spec of METADATA_ROW_PROJECTIONS) {
     switch (spec.rowValueSource.kind) {
       case "jsonArray":
         metadata[spec.recordProperty] = parseStringArrayJson(

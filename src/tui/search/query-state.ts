@@ -10,7 +10,7 @@ import {
   type SearchFilterNode,
   type SearchNumericMatch,
 } from "../../domain/search-request-types.js";
-import type { MetadataFieldSemantics } from "../../search/filters/semantics.js";
+import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,

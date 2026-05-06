@@ -8,11 +8,11 @@ import {
 } from "../../../domain/presentation-vocabulary.js";
 import { isSearchPromotedFieldDomainKey } from "../../../domain/search-field-domains.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
-import { isMetadataFieldName } from "../../../search/filters/registry.js";
+import { isMetadataFieldName } from "../../../domain/metadata-field-catalog.js";
 import {
   getMetadataFilterSemantics,
   type MetadataFieldSemantics,
-} from "../../../search/filters/semantics.js";
+} from "../../../domain/metadata-field-catalog.js";
 import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchFilterNodeAtPath, isSearchFilterBooleanGroup } from "../../search/query-core.js";
 import type {

@@ -66,6 +66,12 @@ const SEARCH_FILTER_NORMALIZATION_IMPORT_PATHS = [
   "../../search/filters/normalization.js",
   "../../../search/filters/normalization.js",
 ];
+const SEARCH_METADATA_EXECUTION_IMPORT_PATHS = [
+  "./search/filters/metadata-execution.js",
+  "../search/filters/metadata-execution.js",
+  "../../search/filters/metadata-execution.js",
+  "../../../search/filters/metadata-execution.js",
+];
 
 const NON_TAG_SHARED_UTILS_OWNER_IMPORT_NAMES = [
   "bigramDice",
@@ -121,6 +127,11 @@ const SEARCH_REQUEST_BOUNDARY_IMPORT_RESTRICTIONS = {
       message:
         "App, domain, server, and TUI modules must not normalize or validate search execution filters directly. Keep that work inside search-owned execution boundaries.",
     })),
+    ...SEARCH_METADATA_EXECUTION_IMPORT_PATHS.map((name) => ({
+      name,
+      message:
+        "App, domain, server, and TUI modules must use the domain metadata field catalog instead of importing search-owned metadata execution helpers.",
+    })),
   ],
 };
 
@@ -136,6 +147,10 @@ const SEARCH_REQUEST_BOUNDARY_SYNTAX_RESTRICTIONS = [
   ...buildImportSourceSyntaxRestrictions(
     SEARCH_FILTER_NORMALIZATION_IMPORT_PATHS,
     "App, domain, server, and TUI modules must not normalize or validate search execution filters directly. Keep that work inside search-owned execution boundaries.",
+  ),
+  ...buildImportSourceSyntaxRestrictions(
+    SEARCH_METADATA_EXECUTION_IMPORT_PATHS,
+    "App, domain, server, and TUI modules must use the domain metadata field catalog instead of importing search-owned metadata execution helpers.",
   ),
 ];
 
@@ -165,9 +180,9 @@ const DOMAIN_SEARCH_INTERNAL_IMPORT_RESTRICTIONS = {
 
 const DOMAIN_SEARCH_INTERNAL_SYNTAX_RESTRICTIONS = buildImportSourceSyntaxRestrictions(
   [
-    "../search/filters/registry.js",
-    "../../search/filters/registry.js",
-    "../../../search/filters/registry.js",
+    "../search/filters/metadata-execution.js",
+    "../../search/filters/metadata-execution.js",
+    "../../../search/filters/metadata-execution.js",
     "../search/filters/metadata.js",
     "../../search/filters/metadata.js",
     "../../../search/filters/metadata.js",
@@ -1359,6 +1374,22 @@ export default defineConfig(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
         SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS,
+      ),
+    },
+  },
+  {
+    files: ["src/data/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": mergeNonTagRestrictedImports(
+        NON_UI_TUI_IMPORT_RESTRICTIONS,
+        NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
+        {
+          paths: SEARCH_METADATA_EXECUTION_IMPORT_PATHS.map((name) => ({
+            name,
+            message:
+              "Data modules must use data-owned metadata row projection instead of importing search-owned metadata execution helpers.",
+          })),
+        },
       ),
     },
   },
