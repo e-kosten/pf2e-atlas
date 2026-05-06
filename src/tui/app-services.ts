@@ -24,6 +24,7 @@ import {
   type DerivedTagWorkbenchSessionPrompts,
 } from "../tags/editorial-ui.js";
 import {
+  createDefaultTerminalDebugTraceFilePath,
   createTerminalDebugTraceService,
   isTerminalDebugTraceEnabled,
   type Pf2eTerminalDebugTraceService,
@@ -102,8 +103,10 @@ export function createPf2eTerminalAppServices(
   runtime: Pick<Pf2eApplicationRuntime, "config" | "dataService" | "close">,
 ): Pf2eTerminalAppServices {
   const { config, dataService } = runtime;
+  const debugEnabled = isTerminalDebugTraceEnabled();
   const debug = createTerminalDebugTraceService({
-    enabled: isTerminalDebugTraceEnabled(),
+    enabled: debugEnabled,
+    ...(debugEnabled ? { traceFilePath: createDefaultTerminalDebugTraceFilePath() } : {}),
   });
   dataService.setTraceSink(debug.enabled ? debug : undefined);
   const storage = createPf2eApplicationStorageService(config);

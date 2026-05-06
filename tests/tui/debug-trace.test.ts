@@ -1,6 +1,10 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  createDefaultTerminalDebugTraceFilePath,
   createNoopTerminalDebugTraceService,
   createTerminalDebugTraceService,
   isTerminalDebugTraceEnabled,
@@ -96,6 +100,78 @@ describe("terminal debug trace", () => {
     now = 1200;
     expect(trace.snapshot().slowRecent).not.toContainEqual(
       expect.objectContaining({ name: "backend.resolveDiscoveryRecordKeys" }),
+    );
+  });
+
+  it("writes span start and end events to an opt-in trace file", () => {
+    const tempDirectory = mkdtempSync(join(tmpdir(), "pf2e-tui-debug-"));
+    try {
+      const traceFilePath = join(tempDirectory, "nested", "trace.jsonl");
+      let now = 1000;
+      const trace = createTerminalDebugTraceService({
+        enabled: true,
+        now: () => now,
+        traceFilePath,
+      });
+
+      const outer = trace.startSpan("filterExplorer.loadModel", { mode: "matching" });
+      now = 1010;
+      const inner = trace.startSpan("filterExplorer.loadDomain", { targetFields: "traits" });
+      now = 1030;
+      inner.end({ rootNodes: 204 });
+      now = 1050;
+      outer.end();
+
+      expect(trace.snapshot().traceFilePath).toBe(traceFilePath);
+      const events = readFileSync(traceFilePath, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+      expect(events).toEqual([
+        {
+          event: "span_start",
+          spanId: 1,
+          name: "filterExplorer.loadModel",
+          at: 1000,
+          metadata: { mode: "matching" },
+        },
+        {
+          event: "span_start",
+          spanId: 2,
+          parentSpanId: 1,
+          name: "filterExplorer.loadDomain",
+          at: 1010,
+          metadata: { targetFields: "traits" },
+        },
+        {
+          event: "span_end",
+          spanId: 2,
+          parentSpanId: 1,
+          name: "filterExplorer.loadDomain",
+          startedAt: 1010,
+          endedAt: 1030,
+          elapsedMs: 20,
+          metadata: { targetFields: "traits", rootNodes: "204" },
+        },
+        {
+          event: "span_end",
+          spanId: 1,
+          name: "filterExplorer.loadModel",
+          startedAt: 1000,
+          endedAt: 1050,
+          elapsedMs: 50,
+          metadata: { mode: "matching" },
+        },
+      ]);
+    } finally {
+      rmSync(tempDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it("builds the default trace file path under the TUI debug cache", () => {
+    expect(createDefaultTerminalDebugTraceFilePath("/repo")).toMatch(
+      /^\/repo\/\.cache\/tui-debug\/trace-.+\.jsonl$/,
     );
   });
 });

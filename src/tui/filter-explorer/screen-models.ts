@@ -822,6 +822,10 @@ function chunkTraceSpanSummaries(summaries: readonly string[]): string[] {
   return lines.slice(0, FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT);
 }
 
+function formatDebugTraceFilePath(path: string): string {
+  return path.length > 100 ? `...${path.slice(-97)}` : path;
+}
+
 function formatDebugTraceLines(snapshot: TerminalDebugTraceSnapshot | undefined): DerivedTagTerminalLine[] {
   if (!snapshot?.enabled) {
     return [];
@@ -840,16 +844,23 @@ function formatDebugTraceLines(snapshot: TerminalDebugTraceSnapshot | undefined)
   const recent = getSlowRecentTraceSpans(snapshot);
   if (recent.length > 0) {
     const slowest = recent[0]!;
-    const tone = slowest.elapsedMs >= 500 ? "warning" : "dim";
-    return chunkTraceSpanSummaries(recent.map(formatTraceSpanSummary)).map((line, index) => ({
+    const tone: DerivedTagTerminalLine["tone"] = slowest.elapsedMs >= 500 ? "warning" : "dim";
+    const lines = chunkTraceSpanSummaries(recent.map(formatTraceSpanSummary)).map((line, index) => ({
       text: `${index === 0 ? "debug | slow " : "debug |      "}${line}`,
       tone,
     }));
+    if (snapshot.traceFilePath && lines.length < FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT) {
+      lines.push({
+        text: `debug | trace ${formatDebugTraceFilePath(snapshot.traceFilePath)}`,
+        tone: "dim",
+      });
+    }
+    return lines;
   }
 
   return [
     {
-      text: "debug | idle",
+      text: snapshot.traceFilePath ? `debug | trace ${formatDebugTraceFilePath(snapshot.traceFilePath)}` : "debug | idle",
       tone: "dim",
     },
   ];
