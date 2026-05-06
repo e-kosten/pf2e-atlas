@@ -31,6 +31,8 @@ import type {
   FilterExplorerStateBadge,
 } from "./types.js";
 
+export const FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT = 3;
+
 function isDetailContext(controller: FilterExplorerBrowserContext): boolean {
   return controller.layoutMode === "detail-only" || controller.state.activePane === "detail";
 }
@@ -779,10 +781,9 @@ function getLongestRunningTraceSpan(
 }
 
 function getSlowRecentTraceSpans(snapshot: TerminalDebugTraceSnapshot): TerminalDebugTraceSpanSnapshot[] {
-  return snapshot.recent
-    .filter((span) => span.elapsedMs >= snapshot.slowThresholdMs)
+  return [...snapshot.slowRecent]
     .sort((left, right) => right.elapsedMs - left.elapsedMs)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 function formatCompactTraceMetadata(metadata: TerminalDebugTraceSpanSnapshot["metadata"]): string {
@@ -802,32 +803,56 @@ function formatTraceSpanSummary(span: TerminalDebugTraceSpanSnapshot): string {
   return `${span.name} ${Math.round(span.elapsedMs)}ms${formatCompactTraceMetadata(span.metadata)}`;
 }
 
-function formatDebugTraceLine(snapshot: TerminalDebugTraceSnapshot | undefined): DerivedTagTerminalLine | undefined {
+function chunkTraceSpanSummaries(summaries: readonly string[]): string[] {
+  const lines: string[] = [];
+  let current = "";
+  for (const summary of summaries) {
+    const separator = current ? "; " : "";
+    const next = `${current}${separator}${summary}`;
+    if (current && next.length > 110) {
+      lines.push(current);
+      current = summary;
+    } else {
+      current = next;
+    }
+  }
+  if (current) {
+    lines.push(current);
+  }
+  return lines.slice(0, FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT);
+}
+
+function formatDebugTraceLines(snapshot: TerminalDebugTraceSnapshot | undefined): DerivedTagTerminalLine[] {
   if (!snapshot?.enabled) {
-    return undefined;
+    return [];
   }
 
   const running = getLongestRunningTraceSpan(snapshot);
   if (running) {
-    return {
-      text: `debug | running ${running.name} ${Math.round(running.elapsedMs)}ms${formatTraceMetadata(running.metadata)}`,
-      tone: running.elapsedMs >= 500 ? "warning" : "dim",
-    };
+    return [
+      {
+        text: `debug | running ${running.name} ${Math.round(running.elapsedMs)}ms${formatTraceMetadata(running.metadata)}`,
+        tone: running.elapsedMs >= 500 ? "warning" : "dim",
+      },
+    ];
   }
 
   const recent = getSlowRecentTraceSpans(snapshot);
   if (recent.length > 0) {
     const slowest = recent[0]!;
-    return {
-      text: `debug | slow ${recent.map(formatTraceSpanSummary).join("; ")}`,
-      tone: slowest.elapsedMs >= 500 ? "warning" : "dim",
-    };
+    const tone = slowest.elapsedMs >= 500 ? "warning" : "dim";
+    return chunkTraceSpanSummaries(recent.map(formatTraceSpanSummary)).map((line, index) => ({
+      text: `${index === 0 ? "debug | slow " : "debug |      "}${line}`,
+      tone,
+    }));
   }
 
-  return {
-    text: "debug | idle",
-    tone: "dim",
-  };
+  return [
+    {
+      text: "debug | idle",
+      tone: "dim",
+    },
+  ];
 }
 
 export function buildFilterExplorerScreenModel(
@@ -864,7 +889,7 @@ export function buildFilterExplorerScreenModel(
             : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
         tone: "accent" as const,
       };
-  const debugTraceLine = formatDebugTraceLine(controller.debugSnapshot);
+  const debugTraceLines = formatDebugTraceLines(controller.debugSnapshot);
 
   return buildTerminalListDetailScreenModel({
     title: controller.screenTitle,
@@ -892,7 +917,7 @@ export function buildFilterExplorerScreenModel(
         tone: "dim",
       },
       statusLine,
-      ...(debugTraceLine ? [debugTraceLine] : []),
+      ...debugTraceLines,
     ],
     pointerRegions: {
       list: controller.onListPointerEvent

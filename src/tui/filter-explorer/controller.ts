@@ -56,6 +56,7 @@ import type { FilterExplorerInteractionRoute } from "./controller-types.js";
 import {
   buildFilterExplorerActionEntries,
   buildFilterExplorerComposeDetailLines,
+  FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
 import type {
@@ -237,7 +238,8 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       : pageDetailLines
         ? pageDetailLines
         : detailLines;
-  const footerLineCount = detailFooterLineCount + (options.debugSnapshot?.enabled ? 1 : 0);
+  const footerLineCount =
+    detailFooterLineCount + (options.debugSnapshot?.enabled ? FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT : 0);
   const detailTitle = composeMode || selectionPresentation
     ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
     : pageDocument

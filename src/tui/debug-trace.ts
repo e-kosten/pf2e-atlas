@@ -6,6 +6,7 @@ export type TerminalDebugTraceSpanSnapshot = {
   readonly id: number;
   readonly name: string;
   readonly startedAt: number;
+  readonly endedAt?: number;
   readonly elapsedMs: number;
   readonly status: "running" | "completed";
   readonly metadata: Readonly<Record<string, string>>;
@@ -15,7 +16,9 @@ export type TerminalDebugTraceSnapshot = {
   readonly enabled: boolean;
   readonly running: readonly TerminalDebugTraceSpanSnapshot[];
   readonly recent: readonly TerminalDebugTraceSpanSnapshot[];
+  readonly slowRecent: readonly TerminalDebugTraceSpanSnapshot[];
   readonly slowThresholdMs: number;
+  readonly slowRetentionMs: number;
 };
 
 export type TerminalDebugTraceSpan = {
@@ -30,7 +33,9 @@ export type Pf2eTerminalDebugTraceService = {
 };
 
 const DEBUG_TRACE_BUFFER_SIZE = 50;
+const DEBUG_TRACE_SLOW_BUFFER_SIZE = 20;
 const DEFAULT_SLOW_THRESHOLD_MS = 50;
+const DEFAULT_SLOW_RETENTION_MS = 120_000;
 
 type Clock = () => number;
 
@@ -49,7 +54,9 @@ const noopSnapshot: TerminalDebugTraceSnapshot = {
   enabled: false,
   running: [],
   recent: [],
+  slowRecent: [],
   slowThresholdMs: DEFAULT_SLOW_THRESHOLD_MS,
+  slowRetentionMs: DEFAULT_SLOW_RETENTION_MS,
 };
 
 function normalizeMetadata(metadata: TerminalDebugTraceMetadata | undefined): Record<string, string> {
@@ -91,6 +98,7 @@ export function createTerminalDebugTraceService(options: {
   enabled: boolean;
   now?: Clock;
   slowThresholdMs?: number;
+  slowRetentionMs?: number;
 }): Pf2eTerminalDebugTraceService {
   if (!options.enabled) {
     return createNoopTerminalDebugTraceService();
@@ -98,8 +106,10 @@ export function createTerminalDebugTraceService(options: {
 
   const now = options.now ?? (() => Date.now());
   const slowThresholdMs = options.slowThresholdMs ?? DEFAULT_SLOW_THRESHOLD_MS;
+  const slowRetentionMs = options.slowRetentionMs ?? DEFAULT_SLOW_RETENTION_MS;
   const running = new Map<number, RunningSpan>();
   const recent: TerminalDebugTraceSpanSnapshot[] = [];
+  const slowRecent: TerminalDebugTraceSpanSnapshot[] = [];
   let nextId = 1;
 
   return {
@@ -125,16 +135,24 @@ export function createTerminalDebugTraceService(options: {
           const finishedAt = now();
           const current = running.get(id) ?? span;
           running.delete(id);
-          recent.unshift({
+          const completedSpan: TerminalDebugTraceSpanSnapshot = {
             id,
             name: current.name,
             startedAt: current.startedAt,
+            endedAt: finishedAt,
             elapsedMs: Math.max(0, finishedAt - current.startedAt),
             status: "completed",
             metadata: mergeMetadata(current.metadata, endMetadata),
-          });
+          };
+          recent.unshift(completedSpan);
           if (recent.length > DEBUG_TRACE_BUFFER_SIZE) {
             recent.length = DEBUG_TRACE_BUFFER_SIZE;
+          }
+          if (completedSpan.elapsedMs >= slowThresholdMs) {
+            slowRecent.unshift(completedSpan);
+            if (slowRecent.length > DEBUG_TRACE_SLOW_BUFFER_SIZE) {
+              slowRecent.length = DEBUG_TRACE_SLOW_BUFFER_SIZE;
+            }
           }
         },
       };
@@ -152,12 +170,17 @@ export function createTerminalDebugTraceService(options: {
           metadata: span.metadata,
         })),
         recent,
+        slowRecent: slowRecent.filter(
+          (span) => span.endedAt === undefined || snapshotAt - span.endedAt <= slowRetentionMs,
+        ),
         slowThresholdMs,
+        slowRetentionMs,
       };
     },
     clear: () => {
       running.clear();
       recent.length = 0;
+      slowRecent.length = 0;
     },
   };
 }

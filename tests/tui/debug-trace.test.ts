@@ -23,7 +23,9 @@ describe("terminal debug trace", () => {
       enabled: false,
       running: [],
       recent: [],
+      slowRecent: [],
       slowThresholdMs: 50,
+      slowRetentionMs: 120000,
     });
   });
 
@@ -51,9 +53,49 @@ describe("terminal debug trace", () => {
     expect(trace.snapshot().recent).toMatchObject([
       {
         name: "filterExplorer.loadModel",
+        endedAt: 140,
         elapsedMs: 40,
         metadata: { mode: "matching", rootNodes: "2" },
       },
     ]);
+    expect(trace.snapshot().slowRecent).toMatchObject([
+      {
+        name: "filterExplorer.loadModel",
+        endedAt: 140,
+        elapsedMs: 40,
+        metadata: { mode: "matching", rootNodes: "2" },
+      },
+    ]);
+  });
+
+  it("keeps slow spans separate from high-volume recent spans until retention expires", () => {
+    let now = 0;
+    const trace = createTerminalDebugTraceService({
+      enabled: true,
+      now: () => now,
+      slowThresholdMs: 25,
+      slowRetentionMs: 1000,
+    });
+
+    const slowSpan = trace.startSpan("backend.resolveDiscoveryRecordKeys");
+    now = 100;
+    slowSpan.end();
+    for (let index = 0; index < 60; index += 1) {
+      const fastSpan = trace.startSpan("filterExplorer.buildScreenModel");
+      now += 1;
+      fastSpan.end();
+    }
+
+    expect(trace.snapshot().recent).not.toContainEqual(
+      expect.objectContaining({ name: "backend.resolveDiscoveryRecordKeys" }),
+    );
+    expect(trace.snapshot().slowRecent).toContainEqual(
+      expect.objectContaining({ name: "backend.resolveDiscoveryRecordKeys", elapsedMs: 100 }),
+    );
+
+    now = 1200;
+    expect(trace.snapshot().slowRecent).not.toContainEqual(
+      expect.objectContaining({ name: "backend.resolveDiscoveryRecordKeys" }),
+    );
   });
 });
