@@ -29,7 +29,10 @@ export type SearchFilterExplorerSession = {
   title?: string;
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
-  loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
+  loadModelForDiscoveryMode?: (
+    mode: SearchFilterDiscoveryMode,
+    options?: { targetFields?: readonly string[] },
+  ) => Promise<OntologyDomainModel>;
   query: Pf2eTerminalSearchQuery;
   refreshOnQueryChange?: boolean;
   initialFieldState?: SearchFilterExplorerFieldState;

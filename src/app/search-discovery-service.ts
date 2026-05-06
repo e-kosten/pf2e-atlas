@@ -529,9 +529,14 @@ export function createPf2eApplicationSearchDiscoveryService(
       : null;
     const fieldValuesByField = new Map<string, readonly SearchFilterDiscoveryOption[]>();
     const fieldValuePromisesByField = new Map<string, Promise<readonly SearchFilterDiscoveryOption[]>>();
+    const eagerlyDiscoveredField = targetFields
+      ? targetFields.size === 1
+        ? targetFields.values().next().value
+        : null
+      : "derivedTags";
     const eagerFields = getScopedMetadataFields(scope)
       .filter((field) => field.discoverable)
-      .filter((field) => (targetFields ? targetFields.has(field.field) : field.field === "derivedTags"));
+      .filter((field) => field.field === eagerlyDiscoveredField);
 
     await Promise.all(
       eagerFields.map(async (field) => {

@@ -90,21 +90,25 @@ export function useSearchFilterExplorerWorkflow({
 
       const buildPreparedModel = async (
         discoveryMode: "matching" | "catalog",
+        options: { targetFields?: readonly string[] } = {},
       ): Promise<ReturnType<typeof buildSearchFilterExplorerModel>> => {
         const request = services.search.normalizeQuery(currentQueryRef.current);
         const requestCategory = getSearchQueryCategory(request);
         const requestSubcategory = getSearchQuerySubcategory(request);
+        const modelFieldOptions = options.targetFields
+          ? fieldOptions.filter((fieldOption) => options.targetFields?.includes(fieldOption.value))
+          : fieldOptions;
         const preparedDomain = requestCategory
           ? await services.ontology.loadSearchFilterExplorerDomain({
               request,
               discoveryMode,
-              targetFields: fieldOptions.map((fieldOption) => fieldOption.value),
+              targetFields: modelFieldOptions.map((fieldOption) => fieldOption.value),
             })
           : await services.ontology.loadSearchSemanticsDomain({ discoveryMode });
         return buildSearchFilterExplorerModel(preparedDomain, {
           category: requestCategory ?? scopeCategory,
           subcategory: requestSubcategory ?? scopeSubcategory,
-          fieldOptions,
+          fieldOptions: modelFieldOptions,
           singleFieldBehavior,
         });
       };
@@ -113,7 +117,7 @@ export function useSearchFilterExplorerWorkflow({
         title: sessionTitle,
         model: createSearchFilterExplorerLoadingModel(sessionTitle),
         initialDiscoveryMode,
-        loadModelForDiscoveryMode: (mode) => buildPreparedModel(mode),
+        loadModelForDiscoveryMode: (mode, options) => buildPreparedModel(mode, options),
         query: scopeQuery,
         initialFieldState,
         preservedMetadata,

@@ -44,6 +44,21 @@ const SEARCH_DISCOVERY_MODE_OPTIONS: readonly FilterExplorerModeSwitchOption<Sea
   },
 ];
 
+function getChangedDiscreteSelectionFields(
+  previous: SearchFilterExplorerFieldState,
+  next: SearchFilterExplorerFieldState,
+): string[] {
+  const fields = new Set([...Object.keys(previous.discreteSelections), ...Object.keys(next.discreteSelections)]);
+  return [...fields].filter((field) => {
+    const previousSelection = previous.discreteSelections[field] ?? { include: [], exclude: [] };
+    const nextSelection = next.discreteSelections[field] ?? { include: [], exclude: [] };
+    return (
+      previousSelection.include.join("\0") !== nextSelection.include.join("\0") ||
+      previousSelection.exclude.join("\0") !== nextSelection.exclude.join("\0")
+    );
+  });
+}
+
 function mergeExplorerNodeTrees(
   visibleNodes: readonly OntologyNode[],
   refreshedNodes: readonly OntologyNode[],
@@ -149,7 +164,10 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   }, [clearQueuedRefresh]);
 
   const runModelRefresh = React.useCallback(
-    (nextMode: SearchFilterDiscoveryMode, options: { debounceMs?: number; force?: boolean } = {}) => {
+    (
+      nextMode: SearchFilterDiscoveryMode,
+      options: { debounceMs?: number; force?: boolean; targetFields?: readonly string[] } = {},
+    ) => {
       if (!loadModelForDiscoveryMode) {
         setDiscoveryMode(nextMode);
         setRefreshState(null);
@@ -189,7 +207,9 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
-        void loadModelForDiscoveryMode(nextMode)
+        void (options.targetFields
+          ? loadModelForDiscoveryMode(nextMode, { targetFields: options.targetFields })
+          : loadModelForDiscoveryMode(nextMode))
           .then((nextModel) => {
             if (
               !shouldApplySearchFilterExplorerRefresh({
@@ -340,6 +360,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
   const applyNextFieldState = React.useCallback(
     (nextFieldState: SearchFilterExplorerFieldState) => {
+      const previousFieldState = fieldStateRef.current;
       fieldStateRef.current = nextFieldState;
       rerenderFieldState();
       const nextQuery = user.search.applyFilterExplorerDraft(
@@ -353,7 +374,11 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       queryRef.current = nextQuery;
       session.onEvent({ kind: "change", query: nextQuery, fieldState: nextFieldState });
       if (session.refreshOnQueryChange && session.loadModelForDiscoveryMode) {
-        runModelRefresh(discoveryModeRef.current, { force: true });
+        const changedDiscreteFields = getChangedDiscreteSelectionFields(previousFieldState, nextFieldState);
+        runModelRefresh(discoveryModeRef.current, {
+          force: true,
+          targetFields: changedDiscreteFields.length === 1 ? changedDiscreteFields : undefined,
+        });
       }
     },
     [runModelRefresh, session, user.search],

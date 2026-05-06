@@ -6008,6 +6008,13 @@ describe("search screen", () => {
           fieldType: "enumString",
           editor: "sharedExplorer",
         },
+        {
+          value: "traits",
+          label: "Traits",
+          description: "Browse live traits for the current scope.",
+          fieldType: "set",
+          editor: "sharedExplorer",
+        },
       ],
       onEvent: vi.fn(),
       resolveSelectionTarget: buildSearchFilterExplorerTargetResolver([
@@ -6016,6 +6023,13 @@ describe("search screen", () => {
           label: "Rarity",
           description: "Browse live rarities for the current scope.",
           fieldType: "enumString",
+          editor: "sharedExplorer",
+        },
+        {
+          value: "traits",
+          label: "Traits",
+          description: "Browse live traits for the current scope.",
+          fieldType: "set",
           editor: "sharedExplorer",
         },
       ]),
@@ -6053,6 +6067,7 @@ describe("search screen", () => {
     await flushInk();
 
     expect(loadModelForDiscoveryMode).toHaveBeenCalledTimes(1);
+    expect(loadModelForDiscoveryMode).toHaveBeenLastCalledWith("matching", { targetFields: ["rarity"] });
     expect(app.lastFrame()).toContain("common");
     expect(app.lastFrame()).toContain("rare");
     expect(app.lastFrame()).toContain("[✓] rare");

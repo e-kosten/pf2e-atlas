@@ -508,6 +508,45 @@ describe("application search discovery service", () => {
     );
   });
 
+  it("defers field discovery when the search-hosted explorer supplies multiple target fields", async () => {
+    const request = {
+      mode: "search",
+      search: { query: "ghost", profile: "balanced" as const },
+      filter: buildScopeFilter("creature"),
+      limit: 20,
+    } satisfies import("../../src/domain/search-request-types.js").SearchRequest;
+    const discoverFilterValues = vi.fn(async ({ field }: { field: string }) => ({
+      field,
+      values:
+        field === "traits"
+          ? [{ value: "undead", count: 2 }]
+          : field === "families"
+            ? [{ value: "zombie", count: 1 }]
+            : [{ value: "unexpected", count: 1 }],
+    }));
+    const service = createPf2eApplicationSearchDiscoveryService({
+      discoverFilterValues,
+      getPack: vi.fn(() => undefined),
+      listFilterValues: vi.fn(() => ({ field: "traits", values: [] })),
+    });
+
+    const reader = await service.prepareSearchSemanticsReader(request, "matching", {
+      targetFields: ["traits", "families"],
+    });
+
+    expect(discoverFilterValues).not.toHaveBeenCalled();
+    expect(reader.discoverFieldValues({ category: "creature", subcategory: null, field: "traits" })).toEqual([]);
+
+    await expect(
+      reader.discoverFieldValuesAsync({ category: "creature", subcategory: null, field: "traits" }),
+    ).resolves.toEqual([{ id: "undead", value: "undead", count: 2 }]);
+    expect(discoverFilterValues).toHaveBeenCalledTimes(1);
+    expect(discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ field: "traits", category: "creature" }),
+      request,
+    );
+  });
+
   it("normalizes TUI metric target fields before preparing metric discovery", async () => {
     const request = {
       mode: "search",
