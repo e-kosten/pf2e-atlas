@@ -778,8 +778,28 @@ function getLongestRunningTraceSpan(
   return [...snapshot.running].sort((left, right) => right.elapsedMs - left.elapsedMs)[0];
 }
 
-function getLatestSlowTraceSpan(snapshot: TerminalDebugTraceSnapshot): TerminalDebugTraceSpanSnapshot | undefined {
-  return snapshot.recent.find((span) => span.elapsedMs >= snapshot.slowThresholdMs);
+function getSlowRecentTraceSpans(snapshot: TerminalDebugTraceSnapshot): TerminalDebugTraceSpanSnapshot[] {
+  return snapshot.recent
+    .filter((span) => span.elapsedMs >= snapshot.slowThresholdMs)
+    .sort((left, right) => right.elapsedMs - left.elapsedMs)
+    .slice(0, 3);
+}
+
+function formatCompactTraceMetadata(metadata: TerminalDebugTraceSpanSnapshot["metadata"]): string {
+  const entries = Object.entries(metadata)
+    .filter(([, value]) => value.length > 0)
+    .slice(0, 2);
+  if (entries.length === 0) {
+    return "";
+  }
+
+  return `(${entries
+    .map(([key, value]) => `${key}=${value.length > 40 ? `${value.slice(0, 40)}...` : value}`)
+    .join(" ")})`;
+}
+
+function formatTraceSpanSummary(span: TerminalDebugTraceSpanSnapshot): string {
+  return `${span.name} ${Math.round(span.elapsedMs)}ms${formatCompactTraceMetadata(span.metadata)}`;
 }
 
 function formatDebugTraceLine(snapshot: TerminalDebugTraceSnapshot | undefined): DerivedTagTerminalLine | undefined {
@@ -795,11 +815,12 @@ function formatDebugTraceLine(snapshot: TerminalDebugTraceSnapshot | undefined):
     };
   }
 
-  const recent = getLatestSlowTraceSpan(snapshot);
-  if (recent) {
+  const recent = getSlowRecentTraceSpans(snapshot);
+  if (recent.length > 0) {
+    const slowest = recent[0]!;
     return {
-      text: `debug | last ${recent.name} ${Math.round(recent.elapsedMs)}ms${formatTraceMetadata(recent.metadata)}`,
-      tone: recent.elapsedMs >= 500 ? "warning" : "dim",
+      text: `debug | slow ${recent.map(formatTraceSpanSummary).join("; ")}`,
+      tone: slowest.elapsedMs >= 500 ? "warning" : "dim",
     };
   }
 

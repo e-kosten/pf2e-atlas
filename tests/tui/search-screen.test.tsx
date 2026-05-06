@@ -4987,6 +4987,10 @@ describe("search screen", () => {
       now: () => now,
     });
     const span = debug.startSpan("filterExplorer.loadModel", { mode: "matching" });
+    now = 110;
+    const backendSpan = debug.startSpan("backend.resolveDiscoveryRecordKeys", { cache: "miss", profile: "balanced" });
+    now = 200;
+    backendSpan.end({ recordKeys: 42 });
     now = 225;
     span.end({ rootNodes: 1 });
     const services = {
@@ -5028,7 +5032,8 @@ describe("search screen", () => {
     );
 
     await flushInk();
-    expect(app.lastFrame()).toContain("debug | last filterExplorer.loadModel 125ms");
+    expect(app.lastFrame()).toContain("debug | slow filterExplorer.loadModel 125ms(mode=matching rootNodes=1)");
+    expect(app.lastFrame()).toContain("backend.resolveDiscoveryRecordKeys 90ms(cache=miss profile=balanced)");
   });
 
   it("does not allow non-numeric metric keys to resolve as metric-compare select targets", async () => {
