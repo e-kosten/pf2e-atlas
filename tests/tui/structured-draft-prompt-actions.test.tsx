@@ -43,11 +43,11 @@ function renderPromptActions({
       getActionCostOptions: vi.fn(() => []),
       getCategoryOptions: vi.fn(() => [
         { value: null, label: "Any", description: "Any category." },
-        { value: "creature", label: "Creature", description: "Creature records." },
+        { value: "creature", label: "Creature | 12", description: "12 creature records." },
       ]),
       getSubcategoryOptions: vi.fn(() => [
         { value: null, label: "Any", description: "Any subcategory." },
-        { value: "familiar", label: "Familiar", description: "Familiars." },
+        { value: "familiar", label: "Familiar | 3", description: "3 familiar records." },
       ]),
       loadMetricKeyOptions: vi.fn(async () => []),
       prepareFilterExplorerDraft: vi.fn(() => ({
@@ -119,6 +119,16 @@ describe("structured draft prompt actions", () => {
     expect(result).toEqual({
       kind: "apply",
       value: { kind: "scope", category: "creature", subcategory: { kind: "eq", value: "familiar" } },
+    });
+    expect(promptSelectOption.mock.calls[0]?.[0].entries).toContainEqual({
+      value: "creature",
+      label: "Creature | 12",
+      description: "12 creature records.",
+    });
+    expect(promptSelectOption.mock.calls[2]?.[0].entries).toContainEqual({
+      value: "familiar",
+      label: "Familiar | 3",
+      description: "3 familiar records.",
     });
 
     renderer.unmount();
