@@ -29,6 +29,7 @@ import { Pf2eSearchBackendService } from "./backend/search-service.js";
 import type { Pf2eLoadedDataRuntime } from "./backend/types.js";
 import type { Pf2eDataServiceLoadOptions } from "./backend/types.js";
 import type { SearchCategorySummaryResult, SearchSemanticsBootstrapSummaryResult } from "./vocabulary.js";
+import type { SearchTraceSink } from "../search/trace.js";
 
 type LoadOptions = Pf2eDataServiceLoadOptions;
 
@@ -82,6 +83,11 @@ export class Pf2eDataService {
       packCount: this.packs.length,
       recordCount: this.recordCount,
     };
+  }
+
+  setTraceSink(trace: SearchTraceSink | undefined): void {
+    this.catalog.setTraceSink(trace);
+    this.searchService.setTraceSink(trace);
   }
 
   getSearchCategorySummary(): SearchCategorySummaryResult {

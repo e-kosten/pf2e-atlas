@@ -17,6 +17,8 @@ import type {
 import { buildFilterValueQuery } from "../search/sql.js";
 import { normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";
+import type { SearchTraceSink } from "../search/trace.js";
+import { traceSync } from "../search/trace.js";
 import type { ValueCountRow } from "./rows.js";
 import {
   parseSearchCategoryValue,
@@ -402,13 +404,34 @@ export function listFilterValues(
   db: DatabaseSync,
   query: FilterValueQuery,
   filters: NormalizedSearchFilters,
-  options: { recordKeys?: string[] } = {},
+  options: { recordKeys?: string[]; trace?: SearchTraceSink } = {},
 ): FilterValueResult {
   const { sql, params } = buildFilterValueQuery(query, filters, options);
-  const values = (db.prepare(sql).all(...params) as Array<{ value: string; count: number | bigint }>).map((row) => ({
-    value: row.value,
-    count: toSqliteNumber(row.count, `filter values for ${query.field}`),
-  })) as ValueCountRow[];
+  const traceMetadata = {
+    field: query.field,
+    recordKeys: options.recordKeys?.length ?? 0,
+    mode: filters.query || filters.nameQuery ? "search" : "structured",
+  };
+  if (options.trace) {
+    traceSync(
+      options.trace,
+      "sql.filterValues.queryPlan",
+      traceMetadata,
+      () => db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params) as Array<{ detail?: string }>,
+      (rows) => ({ plan: rows.map((row) => row.detail).filter(Boolean).join(" | ").slice(0, 600) }),
+    );
+  }
+  const values = traceSync(
+    options.trace,
+    "sql.filterValues",
+    traceMetadata,
+    () =>
+      (db.prepare(sql).all(...params) as Array<{ value: string; count: number | bigint }>).map((row) => ({
+        value: row.value,
+        count: toSqliteNumber(row.count, `filter values for ${query.field}`),
+      })) as ValueCountRow[],
+    (rows) => ({ values: rows.length }),
+  );
   return {
     field: query.field,
     values,

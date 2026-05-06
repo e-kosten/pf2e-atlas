@@ -47,6 +47,24 @@ function createSnapshot(recordKeys: string[]): SearchWindowSnapshot {
   };
 }
 
+function createTraceSink() {
+  const spans: Array<{ name: string; metadata: Record<string, unknown>; endMetadata?: Record<string, unknown> }> = [];
+  return {
+    spans,
+    trace: {
+      startSpan: (name: string, metadata: Record<string, unknown> = {}) => {
+        const span = { name, metadata };
+        spans.push(span);
+        return {
+          end: (endMetadata: Record<string, unknown> = {}) => {
+            span.endMetadata = endMetadata;
+          },
+        };
+      },
+    },
+  };
+}
+
 describe("Pf2eSearchBackendService discovery caching", () => {
   afterEach(() => {
     vi.resetAllMocks();
@@ -90,5 +108,43 @@ describe("Pf2eSearchBackendService discovery caching", () => {
       expect.any(Object),
       { recordKeys: ["creature-1", "creature-2"] },
     );
+  });
+
+  it("emits opt-in trace spans for matching discovery and matching-set resolution", async () => {
+    vi.mocked(buildSearchWindowSnapshot).mockResolvedValue(createSnapshot(["creature-1", "creature-2"]));
+    const catalog = createCatalog();
+    const { spans, trace } = createTraceSink();
+    const service = new Pf2eSearchBackendService(
+      {} as DatabaseSync,
+      catalog as never,
+      { embed: vi.fn(async () => new Float32Array()) } as EmbeddingProvider,
+      null,
+    );
+    service.setTraceSink(trace);
+
+    await service.discoverFilterValues(
+      { field: "traits", category: "creature" },
+      {
+        mode: "search",
+        search: { query: "ghost", profile: "balanced" },
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      },
+    );
+
+    expect(spans.map((span) => span.name)).toEqual(
+      expect.arrayContaining(["backend.discoverFilterValues", "backend.resolveDiscoveryRecordKeys"]),
+    );
+    expect(spans.find((span) => span.name === "backend.discoverFilterValues")).toMatchObject({
+      metadata: { field: "traits", requestMode: "search", category: "creature" },
+      endMetadata: { values: 1 },
+    });
+    expect(spans.find((span) => span.name === "backend.resolveDiscoveryRecordKeys")).toMatchObject({
+      metadata: { cache: "miss", mode: "search", profile: "balanced" },
+      endMetadata: { recordKeys: 2 },
+    });
   });
 });

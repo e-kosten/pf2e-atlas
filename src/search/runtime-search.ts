@@ -32,6 +32,7 @@ import {
 } from "./runtime-search-snapshot.js";
 import { buildStructuredSearchEntries, matchesExcludedQuery } from "./runtime-search-structured.js";
 import type { SearchWindowSnapshot } from "./runtime-search-snapshot.js";
+import { traceAsync, traceSync } from "./trace.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;
 
@@ -91,7 +92,16 @@ export async function buildSearchWindowSnapshot(
       explainContext,
     );
   }
-  const semanticVector = hybridFusion && rawSemanticQuery ? await deps.embeddingProvider.embed(rawSemanticQuery) : null;
+  const semanticVector =
+    hybridFusion && rawSemanticQuery
+      ? await traceAsync(
+          deps.trace,
+          "search.embedQuery",
+          { queryLength: rawSemanticQuery.length },
+          () => deps.embeddingProvider.embed(rawSemanticQuery),
+          (vector) => ({ dimensions: vector.length }),
+        )
+      : null;
   const candidateCount = Math.max(1, deps.fetchCandidateCount(normalizedFilters));
   const lexicalRetrievalRows = lexicalQuery
     ? deps.fetchLexicalRetrievalRows(
@@ -119,16 +129,38 @@ export async function buildSearchWindowSnapshot(
   const candidateRows = deps.fetchCandidates(normalizedFilters, excludeTokens.length > 0, false, {
     recordKeys: candidateKeys,
   });
-  const filteredCandidateRows =
-    excludeTokens.length > 0
-      ? candidateRows.filter((candidate) => !matchesExcludedQuery(candidate.searchText, excludeTokens))
-      : candidateRows;
-  const candidateRecords = filteredCandidateRows
-    .map(({ record }) => record)
-    .filter((record) => recordMatchesFilters(record, normalizedFilters));
+  const filteredCandidateRows = traceSync(
+    deps.trace,
+    "search.filterExcludedCandidates",
+    { rows: candidateRows.length, excludeTokens: excludeTokens.length },
+    () =>
+      excludeTokens.length > 0
+        ? candidateRows.filter((candidate) => !matchesExcludedQuery(candidate.searchText, excludeTokens))
+        : candidateRows,
+    (rows) => ({ rows: rows.length }),
+  );
+  const candidateRecords = traceSync(
+    deps.trace,
+    "search.filterCandidateRecords",
+    { rows: filteredCandidateRows.length },
+    () =>
+      filteredCandidateRows
+        .map(({ record }) => record)
+        .filter((record) => recordMatchesFilters(record, normalizedFilters)),
+    (records) => ({ records: records.length }),
+  );
   const candidatesByKey = new Map(candidateRecords.map((record) => [record.recordKey, record]));
 
-  const entries = (() => {
+  const entries = traceSync(
+    deps.trace,
+    "search.rankWindowEntries",
+    {
+      mode,
+      candidates: candidateRecords.length,
+      lexicalRows: lexicalRetrievalRows.length,
+      semanticRows: semanticRetrievalRows.length,
+    },
+    () => {
     if (mode === "lexical") {
       return lexicalRetrievedKeys
         .map((recordKey) => candidatesByKey.get(recordKey))
@@ -267,7 +299,9 @@ export async function buildSearchWindowSnapshot(
         return compareRecordsForSort(left.record, right.record, sort, sortSeed);
       })
       .map(({ record, explanation }) => ({ record, explanation }));
-  })();
+    },
+    (rankedEntries) => ({ entries: rankedEntries.length }),
+  );
 
   return createSnapshot(searchProfile, mode, sort, entries, explainContext);
 }

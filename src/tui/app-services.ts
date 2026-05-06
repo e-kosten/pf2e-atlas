@@ -105,6 +105,7 @@ export function createPf2eTerminalAppServices(
   const debug = createTerminalDebugTraceService({
     enabled: isTerminalDebugTraceEnabled(),
   });
+  dataService.setTraceSink(debug.enabled ? debug : undefined);
   const storage = createPf2eApplicationStorageService(config);
   const discovery = createPf2eApplicationSearchDiscoveryService(dataService);
   const ontology = createPf2eApplicationOntologyService(config, dataService, discovery);

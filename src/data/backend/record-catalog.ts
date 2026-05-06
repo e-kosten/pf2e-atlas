@@ -8,6 +8,7 @@ import type {
 import type { LinkedRecordSummary, NormalizedRecord, PackInfo } from "../../domain/record-types.js";
 import type { NormalizedSearchFilters } from "../../search/contracts.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
+import type { SearchTraceSink } from "../../search/trace.js";
 import type {
   SearchCategorySummaryResult,
   SearchSemanticsBootstrapSummaryResult,
@@ -31,6 +32,7 @@ export class Pf2eRecordCatalog {
   private readonly legacyLinksByRecordKey: Map<string, LinkedRecordSummary[]>;
   private searchCategorySummaryCache: SearchCategorySummaryResult | null = null;
   private readonly searchSemanticsBootstrapSummaryCache = new Map<number, SearchSemanticsBootstrapSummaryResult>();
+  private trace: SearchTraceSink | undefined;
 
   constructor(
     private readonly db: DatabaseSync,
@@ -39,6 +41,10 @@ export class Pf2eRecordCatalog {
   ) {
     this.aliasesByRecordKey = loadAliasesByRecordKey(db);
     this.legacyLinksByRecordKey = loadLegacyLinksByRecordKey(db);
+  }
+
+  setTraceSink(trace: SearchTraceSink | undefined): void {
+    this.trace = trace;
   }
 
   getSearchCategorySummary(): SearchCategorySummaryResult {
@@ -91,7 +97,7 @@ export class Pf2eRecordCatalog {
     normalizedFilters: NormalizedSearchFilters,
     options: { recordKeys?: string[] } = {},
   ): FilterValueResult {
-    return listFilterValuesRuntime(this.db, query, normalizedFilters, options);
+    return listFilterValuesRuntime(this.db, query, normalizedFilters, { ...options, trace: this.trace });
   }
 
   getAliases(recordKey: string): string[] {

@@ -30,6 +30,8 @@ import { fetchCandidateRecordKeys } from "../record-queries.js";
 import { getLookupMatchType } from "../../domain/lookup-match-type.js";
 import { normalizeSearchFilters, validateSearchFilters } from "../../search/filters/normalization.js";
 import { hashRecordSortSeed } from "../../search/runtime-search-sorting.js";
+import type { SearchTraceSink } from "../../search/trace.js";
+import { traceAsync, traceSync } from "../../search/trace.js";
 import { createRuntimeSearchDependencies } from "./runtime-search-dependencies.js";
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
@@ -84,6 +86,7 @@ function annotateLookupRecords(
 export class Pf2eSearchBackendService {
   private readonly searchWindows: Pf2eSearchWindowStore;
   private readonly discoveryRecordKeysByRequest = new Map<string, Promise<string[]>>();
+  private trace: SearchTraceSink | undefined;
 
   constructor(
     private readonly db: DatabaseSync,
@@ -94,32 +97,52 @@ export class Pf2eSearchBackendService {
     this.searchWindows = new Pf2eSearchWindowStore((recordKeys) => this.catalog.getRecordsByKeys(recordKeys));
   }
 
+  setTraceSink(trace: SearchTraceSink | undefined): void {
+    this.trace = trace;
+  }
+
   listFilterValues(query: FilterValueQuery): FilterValueResult {
-    const normalizedFilters = this.normalizeRequest({
-      mode: "browse",
-      filter:
-        query.scopes && query.scopes.length > 0
-          ? buildAnyOfFilter(
-              query.scopes.map((scope) => buildScopeFilter(scope.category, scope.subcategories?.[0] ?? null)),
-            )
-          : query.category
-            ? buildScopeFilter(query.category, query.subcategory ?? null)
-            : undefined,
-    });
-    validateSearchFilters(normalizedFilters, "list");
-    return this.catalog.listFilterValues(query, normalizedFilters);
+    return traceSync(
+      this.trace,
+      "backend.listFilterValues",
+      { field: query.field, category: query.category ?? "any" },
+      () => {
+        const normalizedFilters = this.normalizeRequest({
+          mode: "browse",
+          filter:
+            query.scopes && query.scopes.length > 0
+              ? buildAnyOfFilter(
+                  query.scopes.map((scope) => buildScopeFilter(scope.category, scope.subcategories?.[0] ?? null)),
+                )
+              : query.category
+                ? buildScopeFilter(query.category, query.subcategory ?? null)
+                : undefined,
+        });
+        validateSearchFilters(normalizedFilters, "list");
+        return this.catalog.listFilterValues(query, normalizedFilters);
+      },
+      (result) => ({ values: result.values.length }),
+    );
   }
 
   async discoverFilterValues(
     query: FilterValueQuery,
     request: Readonly<SearchRequest>,
   ): Promise<FilterValueResult> {
-    const normalizedFilters = this.normalizeRequest(request);
-    validateSearchFilters(normalizedFilters, request.mode === "browse" ? "list" : "search");
-    const recordKeys = await this.resolveDiscoveryRecordKeys(request, normalizedFilters);
-    return this.catalog.listFilterValues(query, normalizedFilters, {
-      ...(recordKeys ? { recordKeys } : {}),
-    });
+    return traceAsync(
+      this.trace,
+      "backend.discoverFilterValues",
+      { field: query.field, requestMode: request.mode, category: query.category ?? "any" },
+      async () => {
+        const normalizedFilters = this.normalizeRequest(request);
+        validateSearchFilters(normalizedFilters, request.mode === "browse" ? "list" : "search");
+        const recordKeys = await this.resolveDiscoveryRecordKeys(request, normalizedFilters);
+        return this.catalog.listFilterValues(query, normalizedFilters, {
+          ...(recordKeys ? { recordKeys } : {}),
+        });
+      },
+      (result) => ({ values: result.values.length }),
+    );
   }
 
   listRecords(request: SearchRequest): SearchResult {
@@ -329,11 +352,23 @@ export class Pf2eSearchBackendService {
     const cacheKey = buildDiscoveryRecordKeyCacheKey(normalizedFilters);
     const cached = this.discoveryRecordKeysByRequest.get(cacheKey);
     if (cached) {
+      this.trace?.startSpan("backend.resolveDiscoveryRecordKeys", { cache: "hit" }).end();
       return cached;
     }
 
-    const promise = buildSearchWindowSnapshot(normalizedFilters, this.runtimeSearchDependencies()).then((snapshot) =>
-      snapshot.records.map((record) => record.recordKey),
+    const promise = traceAsync(
+      this.trace,
+      "backend.resolveDiscoveryRecordKeys",
+      {
+        cache: "miss",
+        mode: normalizedFilters.query ? "search" : "structured",
+        profile: normalizedFilters.searchProfile ?? "default",
+      },
+      () =>
+        buildSearchWindowSnapshot(normalizedFilters, this.runtimeSearchDependencies()).then((snapshot) =>
+          snapshot.records.map((record) => record.recordKey),
+        ),
+      (recordKeys) => ({ recordKeys: recordKeys.length }),
     );
     this.discoveryRecordKeysByRequest.set(cacheKey, promise);
     if (this.discoveryRecordKeysByRequest.size > DISCOVERY_RECORD_KEY_CACHE_LIMIT) {
@@ -358,6 +393,7 @@ export class Pf2eSearchBackendService {
       decorateRecord: (record) => this.catalog.decorateRecord(record),
       getAliases: (recordKey) => this.catalog.getAliases(recordKey),
       getRankingConfigStatus: () => this.catalog.getRankingConfigStatus(),
+      trace: this.trace,
     });
   }
 }

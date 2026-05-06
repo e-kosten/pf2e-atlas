@@ -40,6 +40,10 @@ The long-lived runtime holds:
 - a `Pf2eSearchBackendService`
 - a `Pf2eRuleGraphBackendService`
 
+Runtime search and discovery code can receive an optional trace sink from a composition root. This is diagnostics-only:
+normal MCP and TUI runs do not install a sink, while `PF2E_TUI_DEBUG=1` wires the TUI debug service into `Pf2eDataService`
+so filter discovery can report nested search, SQL, and matching-set timings without changing request or response contracts.
+
 That means MCP handlers do not construct search dependencies on their own. They reuse the same backend service graph for every request.
 
 ## Request And Data Flow

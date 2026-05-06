@@ -137,6 +137,8 @@ To show opt-in TUI performance diagnostics in the footer while troubleshooting f
 PF2E_TUI_DEBUG=1 npm run dev:tui
 ```
 
+This also enables nested backend search-discovery timings for matching-count refreshes.
+
 Run the two top-level built app surfaces from the repo root:
 
 ```bash

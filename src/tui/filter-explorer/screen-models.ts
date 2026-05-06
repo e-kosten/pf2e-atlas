@@ -767,8 +767,8 @@ function formatTraceMetadata(metadata: TerminalDebugTraceSpanSnapshot["metadata"
   }
 
   return ` | ${entries
-    .slice(0, 3)
-    .map(([key, value]) => `${key}=${value}`)
+    .slice(0, 5)
+    .map(([key, value]) => `${key}=${value.length > 100 ? `${value.slice(0, 100)}...` : value}`)
     .join(" ")}`;
 }
 

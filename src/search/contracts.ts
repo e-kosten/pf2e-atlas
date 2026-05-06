@@ -12,6 +12,7 @@ import type { RankingConfig } from "./ranking-config.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
 import type { MetricOperator, NumericMetricOperator } from "../domain/search-filter-operators.js";
+import type { SearchTraceSink } from "./trace.js";
 
 export type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
 
@@ -80,6 +81,7 @@ export type RuntimeSearchDependencies = {
   embeddingProvider: EmbeddingProvider;
   rankingConfig: RankingConfig;
   rankingConfigStatus: SearchExplainResult["rankingConfig"];
+  trace?: SearchTraceSink;
   fetchCandidateCount: (filters: NormalizedSearchFilters, options?: { recordKeys?: string[] }) => number;
   fetchPagedCandidates: (
     filters: NormalizedSearchFilters,
