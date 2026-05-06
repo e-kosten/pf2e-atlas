@@ -74,6 +74,8 @@ export function buildFilterExplorerControllerContext(args: {
     onDetailPointerEvent: args.onDetailPointerEvent,
     notification: args.notification,
     transitionStatus: args.options.transitionStatus,
+    debugTrace: args.options.debugTrace,
+    debugSnapshot: args.options.debugSnapshot,
   };
 }
 
@@ -182,14 +184,21 @@ function handleSharedFilterExplorerAction(args: {
 function drillIntoFilterExplorerNode(args: {
   dispatch: (action: FilterExplorerAction) => void;
   keyContext: FilterExplorerKeyContext;
+  options: FilterExplorerOptions;
 }): void {
-  const { dispatch, keyContext } = args;
+  const { dispatch, keyContext, options } = args;
   const node = keyContext.currentNode;
   if (!node) {
     return;
   }
 
-  if (getOntologyNodeChildren(node).length > 0) {
+  const cachedChildrenSpan = options.debugTrace?.startSpan("filterExplorer.getNodeChildren", {
+    nodeId: node.id,
+    childSource: node.childSource?.kind ?? "none",
+  });
+  const cachedChildren = getOntologyNodeChildren(node);
+  cachedChildrenSpan?.end({ children: cachedChildren.length });
+  if (cachedChildren.length > 0) {
     dispatch({ type: "drill_in", nodeId: node.id });
     return;
   }
@@ -199,11 +208,20 @@ function drillIntoFilterExplorerNode(args: {
   }
 
   dispatch({ type: "set_child_loading", nodeId: node.id });
+  const resolveSpan = options.debugTrace?.startSpan("filterExplorer.resolveChildren", {
+    nodeId: node.id,
+    childSource: node.childSource.kind,
+  });
   void resolveOntologyNodeChildren(node)
     .then((children) => {
+      resolveSpan?.end({ children: children.length });
       if (children.length > 0) {
         dispatch({ type: "drill_in", nodeId: node.id });
       }
+    })
+    .catch((error) => {
+      resolveSpan?.end({ error: (error as Error).message });
+      throw error;
     })
     .finally(() => {
       dispatch({ type: "set_child_loading", expectedNodeId: node.id });
@@ -253,7 +271,7 @@ function resolveFilterExplorerListRightBehavior(args: {
         destination: {
           availability: "available",
           perform: () => {
-            drillIntoFilterExplorerNode({ dispatch, keyContext });
+            drillIntoFilterExplorerNode({ dispatch, keyContext, options });
           },
         },
       };
@@ -314,7 +332,7 @@ function resolveFilterExplorerListRightBehavior(args: {
       destination: {
         availability: "available",
         perform: () => {
-          drillIntoFilterExplorerNode({ dispatch, keyContext });
+          drillIntoFilterExplorerNode({ dispatch, keyContext, options });
         },
       },
     };

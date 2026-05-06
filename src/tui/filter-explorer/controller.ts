@@ -237,6 +237,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       : pageDetailLines
         ? pageDetailLines
         : detailLines;
+  const footerLineCount = detailFooterLineCount + (options.debugSnapshot?.enabled ? 1 : 0);
   const detailTitle = composeMode || selectionPresentation
     ? composeMode?.detailTitle ?? selectionPresentation?.detailTitle ?? "Detail"
     : pageDocument
@@ -245,7 +246,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const screenPresentationMetrics = measureTerminalListDetailPresentation({
     terminalWidth: size.width,
     terminalHeight: size.height,
-    footerLineCount: detailFooterLineCount,
+    footerLineCount,
     notification,
     transitionStatus: options.transitionStatus,
     detailLines: detailLinesWithFocus,

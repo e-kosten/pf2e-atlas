@@ -18,6 +18,7 @@ import type { PageDocumentInteractionState } from "../page-document/interaction.
 import type { PageDocumentModel, PageDocumentSectionModel, PageDocumentTargetNode } from "../page-document/model.js";
 import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
+import type { Pf2eTerminalDebugTraceService, TerminalDebugTraceSnapshot } from "../debug-trace.js";
 
 export type FilterExplorerModeKind = "inspect-and-open" | "compose";
 export type FilterExplorerLineTone = DerivedTagTerminalTone;
@@ -298,6 +299,8 @@ export type FilterExplorerOptions = {
   onOutcome: (outcome: FilterExplorerOutcome, snapshot: FilterExplorerBrowserSnapshot) => void;
   title?: string;
   transitionStatus?: RouteTransitionStatus | null;
+  debugTrace?: Pf2eTerminalDebugTraceService;
+  debugSnapshot?: TerminalDebugTraceSnapshot;
 };
 
 export type FilterExplorerControllerContext = {
@@ -319,6 +322,8 @@ export type FilterExplorerControllerContext = {
   onDetailPointerEvent?: (event: DerivedTagTerminalPointerEvent) => boolean | void;
   notification?: TerminalListDetailNotification | null;
   transitionStatus?: RouteTransitionStatus | null;
+  debugTrace?: Pf2eTerminalDebugTraceService;
+  debugSnapshot?: TerminalDebugTraceSnapshot;
 };
 
 export type FilterExplorerActionEntryId = `setMode:${string}` | "selectTarget:default" | "selectTarget:query";

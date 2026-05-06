@@ -18,6 +18,7 @@ import {
   type Pf2eAppRoute,
 } from "../../src/tui/pf2e-app-state.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
+import { createNoopTerminalDebugTraceService } from "../../src/tui/debug-trace.js";
 import { createPf2eTerminalSearchService } from "../../src/tui/search/service.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import { browseQuery, scopeFilter } from "../helpers/search-request-fixture.js";
@@ -741,6 +742,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
 
   return {
     config: createTestConfig(),
+    debug: createNoopTerminalDebugTraceService(),
     user: {
       entityPages,
       search: searchService,

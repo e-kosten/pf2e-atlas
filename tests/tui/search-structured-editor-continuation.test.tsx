@@ -12,6 +12,7 @@ import type { SearchFilterNode, SearchRequest } from "../../src/domain/search-re
 import type { SearchCountResult } from "../../src/domain/search-types.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
+import { createNoopTerminalDebugTraceService } from "../../src/tui/debug-trace.js";
 import {
   liftSearchFilterNodeAtPath,
   moveSearchFilterNodeToGroupPath,
@@ -362,6 +363,7 @@ function createServices(
 
   return {
     config: createTestConfig(),
+    debug: createNoopTerminalDebugTraceService(),
     user: {
       entityPages,
       search: searchService,

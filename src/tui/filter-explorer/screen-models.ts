@@ -16,6 +16,7 @@ import { buildTerminalListDetailScreenModel, type TerminalListDetailScreenModel 
 import { buildFilterExplorerListRows } from "./browser.js";
 import { describeFilterExplorerHostNode } from "./host-adapter.js";
 import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
+import type { TerminalDebugTraceSnapshot, TerminalDebugTraceSpanSnapshot } from "../debug-trace.js";
 import type {
   FilterExplorerActionEntry,
   FilterExplorerActivationStyle,
@@ -759,6 +760,55 @@ function formatDiscoveryStatus(discovery: NonNullable<FilterExplorerControllerCo
     : `${activeLabel} | refreshing ${pendingModeLabel}`;
 }
 
+function formatTraceMetadata(metadata: TerminalDebugTraceSpanSnapshot["metadata"]): string {
+  const entries = Object.entries(metadata).filter(([, value]) => value.length > 0);
+  if (entries.length === 0) {
+    return "";
+  }
+
+  return ` | ${entries
+    .slice(0, 3)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(" ")}`;
+}
+
+function getLongestRunningTraceSpan(
+  snapshot: TerminalDebugTraceSnapshot,
+): TerminalDebugTraceSpanSnapshot | undefined {
+  return [...snapshot.running].sort((left, right) => right.elapsedMs - left.elapsedMs)[0];
+}
+
+function getLatestSlowTraceSpan(snapshot: TerminalDebugTraceSnapshot): TerminalDebugTraceSpanSnapshot | undefined {
+  return snapshot.recent.find((span) => span.elapsedMs >= snapshot.slowThresholdMs);
+}
+
+function formatDebugTraceLine(snapshot: TerminalDebugTraceSnapshot | undefined): DerivedTagTerminalLine | undefined {
+  if (!snapshot?.enabled) {
+    return undefined;
+  }
+
+  const running = getLongestRunningTraceSpan(snapshot);
+  if (running) {
+    return {
+      text: `debug | running ${running.name} ${Math.round(running.elapsedMs)}ms${formatTraceMetadata(running.metadata)}`,
+      tone: running.elapsedMs >= 500 ? "warning" : "dim",
+    };
+  }
+
+  const recent = getLatestSlowTraceSpan(snapshot);
+  if (recent) {
+    return {
+      text: `debug | last ${recent.name} ${Math.round(recent.elapsedMs)}ms${formatTraceMetadata(recent.metadata)}`,
+      tone: recent.elapsedMs >= 500 ? "warning" : "dim",
+    };
+  }
+
+  return {
+    text: "debug | idle",
+    tone: "dim",
+  };
+}
+
 export function buildFilterExplorerScreenModel(
   controller: FilterExplorerControllerContext,
 ): TerminalListDetailScreenModel {
@@ -793,6 +843,7 @@ export function buildFilterExplorerScreenModel(
             : `${controller.browser.state.activePane} focus | ${controller.browser.layoutMode} layout | ${statusText} | Detail scroll ${controller.browser.effectiveState.detailScroll}/${controller.browser.maxDetailScroll}`,
         tone: "accent" as const,
       };
+  const debugTraceLine = formatDebugTraceLine(controller.debugSnapshot);
 
   return buildTerminalListDetailScreenModel({
     title: controller.screenTitle,
@@ -820,6 +871,7 @@ export function buildFilterExplorerScreenModel(
         tone: "dim",
       },
       statusLine,
+      ...(debugTraceLine ? [debugTraceLine] : []),
     ],
     pointerRegions: {
       list: controller.onListPointerEvent

@@ -30,12 +30,14 @@ Those responsibilities stay below the TUI behind app-layer and backend facades.
 - `createPf2eApplicationStorageService()` supplies app-scoped storage helpers for workflows that need direct index access, such as editorial workbench flows
 - `createPf2eApplicationOntologyService()` prepares cached search-semantics browse models for the ontology area from config, the shared data facade, and the shared app-layer discovery service
 - `createPf2eTerminalSearchService()` adapts shared catalog/search capabilities into a TUI-facing query/session API
+- `PF2E_TUI_DEBUG=1` enables terminal-local trace collection for diagnosing slow screen transitions and filter explorer refreshes; this stays opt-in and does not change app/backend service contracts
 - the derived-tag workbench services are wired in as a development/editorial area, not mixed into the user search and ontology APIs
 
 That gives the terminal app one explicit dependency object, `Pf2eTerminalAppServices`, with a clear split:
 
 - `user`: TUI-facing services for ontology and search
 - `dev`: editorial workbench services
+- `debug`: opt-in terminal diagnostics for presentation/workflow spans
 
 ## Runtime Flow
 

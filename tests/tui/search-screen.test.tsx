@@ -20,6 +20,10 @@ import {
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchSession } from "../../src/tui/search/service.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
 import type { Pf2eTerminalAppServices } from "../../src/tui/app-services.js";
+import {
+  createNoopTerminalDebugTraceService,
+  createTerminalDebugTraceService,
+} from "../../src/tui/debug-trace.js";
 import { SearchFilterExplorerScreen } from "../../src/tui/search-screen/filter-explorer-screen.js";
 import { createSearchFilterExplorerLoadingModel } from "../../src/tui/search-screen/filter-explorer-loading-model.js";
 import { reconcileSearchFilterExplorerModel } from "../../src/tui/search-screen/filter-explorer-model-reconciliation.js";
@@ -469,6 +473,7 @@ function createServices(
 
   return {
     config: createTestConfig(),
+    debug: createNoopTerminalDebugTraceService(),
     user: {
       entityPages,
       search: searchService,
@@ -4973,6 +4978,57 @@ describe("search screen", () => {
     app.stdin.write("\r");
     await flushInk();
     expect(app.lastFrame()).toContain("Metric comparison");
+  });
+
+  it("shows opt-in debug trace status in the filter explorer footer", async () => {
+    let now = 100;
+    const debug = createTerminalDebugTraceService({
+      enabled: true,
+      now: () => now,
+    });
+    const span = debug.startSpan("filterExplorer.loadModel", { mode: "matching" });
+    now = 225;
+    span.end({ rootNodes: 1 });
+    const services = {
+      ...createServices(),
+      debug,
+    };
+    const SearchFilterExplorer = SearchFilterExplorerScreen as React.ComponentType<{
+      session: SearchFilterExplorerSession;
+    }>;
+    const traitFieldOption = {
+      value: "traits",
+      label: "Traits",
+      description: "Browse traits.",
+      fieldType: "enumString" as const,
+      editor: "sharedExplorer" as const,
+    };
+    const session: SearchFilterExplorerSession = {
+      title: "Traits",
+      model: buildSearchFilterExplorerModel(createFacetPickerOntologyDomain(), {
+        category: "spell",
+        subcategory: null,
+        fieldOptions: [traitFieldOption],
+        singleFieldBehavior: "list",
+      }),
+      query: browseQuery("Browse spells", {
+        filter: scopeFilter("spell"),
+        limit: 20,
+      }).request,
+      fieldOptions: [traitFieldOption],
+      onEvent: vi.fn(),
+    };
+
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalAppServicesProvider services={services}>
+          <SearchFilterExplorer session={session} />
+        </Pf2eTerminalAppServicesProvider>
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+    expect(app.lastFrame()).toContain("debug | last filterExplorer.loadModel 125ms");
   });
 
   it("does not allow non-numeric metric keys to resolve as metric-compare select targets", async () => {

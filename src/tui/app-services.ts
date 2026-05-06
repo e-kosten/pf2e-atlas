@@ -23,6 +23,11 @@ import {
   promptAndCreateDerivedTagWorkbenchSession,
   type DerivedTagWorkbenchSessionPrompts,
 } from "../tags/editorial-ui.js";
+import {
+  createTerminalDebugTraceService,
+  isTerminalDebugTraceEnabled,
+  type Pf2eTerminalDebugTraceService,
+} from "./debug-trace.js";
 import { createPf2eTerminalSearchService, type Pf2eTerminalSearchService } from "./search/service.js";
 
 type SessionOptions = Omit<DerivedTagWorkbenchSessionCreationOptions, "decisionKind"> & {
@@ -56,6 +61,7 @@ export type Pf2eTerminalDevelopmentServices = {
 
 export type Pf2eTerminalAppServices = {
   config: AppConfig;
+  debug: Pf2eTerminalDebugTraceService;
   user: Pf2eTerminalUserServices;
   dev: Pf2eTerminalDevelopmentServices;
   close: () => void;
@@ -96,17 +102,39 @@ export function createPf2eTerminalAppServices(
   runtime: Pick<Pf2eApplicationRuntime, "config" | "dataService" | "close">,
 ): Pf2eTerminalAppServices {
   const { config, dataService } = runtime;
+  const debug = createTerminalDebugTraceService({
+    enabled: isTerminalDebugTraceEnabled(),
+  });
   const storage = createPf2eApplicationStorageService(config);
   const discovery = createPf2eApplicationSearchDiscoveryService(dataService);
+  const ontology = createPf2eApplicationOntologyService(config, dataService, discovery);
   const pageRelations = createPf2eApplicationPageRelationsService(dataService);
   return {
     config,
+    debug,
     user: {
       entityPages: createPf2eApplicationEntityPageService({
         ...pageRelations,
         getRecord: (recordKey) => dataService.getRecord(recordKey),
       }),
-      ontology: createPf2eApplicationOntologyService(config, dataService, discovery),
+      ontology: {
+        loadSearchSemanticsDomain: ontology.loadSearchSemanticsDomain,
+        loadSearchFilterExplorerDomain: async (options) => {
+          const span = debug.startSpan("filterExplorer.loadDomain", {
+            mode: options.discoveryMode,
+            targetFields: options.targetFields?.join(",") ?? "all",
+            requestMode: options.request.mode,
+          });
+          try {
+            const domain = await ontology.loadSearchFilterExplorerDomain(options);
+            span.end({ rootNodes: domain.rootNodes.length });
+            return domain;
+          } catch (error) {
+            span.end({ error: (error as Error).message });
+            throw error;
+          }
+        },
+      },
       pageRelations,
       search: createPf2eTerminalSearchService({
         closeSearchWindow: (windowId) => dataService.closeSearchWindow(windowId),

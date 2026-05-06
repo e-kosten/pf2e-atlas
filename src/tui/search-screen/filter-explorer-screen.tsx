@@ -75,7 +75,7 @@ function prepareSessionFieldState(
 }
 
 export function SearchFilterExplorerScreen({ session }: { session: SearchFilterExplorerSession }): React.JSX.Element {
-  const { user } = usePf2eTerminalAppServices();
+  const { debug, user } = usePf2eTerminalAppServices();
   const terminal = useDerivedTagTerminalApp();
   const prompts = useTerminalInteractionContextAdapters();
   const initialDiscoveryMode = session.initialDiscoveryMode ?? "matching";
@@ -95,6 +95,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   );
   const [model, setModel] = React.useState(session.model);
   const [, rerenderFieldState] = React.useReducer((value: number) => value + 1, 0);
+  const [, rerenderDebugTrace] = React.useReducer((value: number) => value + 1, 0);
   const [discoveryMode, setDiscoveryMode] = React.useState<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const [refreshState, setRefreshState] = React.useState<{ pendingMode: SearchFilterDiscoveryMode } | null>(null);
   const queryRef = React.useRef(session.query);
@@ -112,6 +113,17 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const fieldOptionsRef = React.useRef(session.fieldOptions);
   const resolveSelectionTargetRef = React.useRef(session.resolveSelectionTarget);
+
+  React.useEffect(() => {
+    if (!debug.enabled) {
+      return;
+    }
+
+    const interval = setInterval(rerenderDebugTrace, 250);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [debug]);
 
   const clearQueuedRefresh = React.useCallback(() => {
     if (refreshTimerRef.current !== null) {
@@ -158,14 +170,23 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       if (plan.kind === "useCached") {
         setModel((currentModel) =>
-          reconcileSearchFilterExplorerModel({
-            currentModel,
-            refreshedModel: plan.model,
-            fieldState: fieldStateRef.current,
-            fieldOptions: fieldOptionsRef.current,
-            resolveSelectionTarget:
-              resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-          }),
+          {
+            const span = debug.startSpan("filterExplorer.reconcileModel", {
+              mode: plan.mode,
+              source: "cache",
+              targetFields: "all",
+            });
+            const reconciled = reconcileSearchFilterExplorerModel({
+              currentModel,
+              refreshedModel: plan.model,
+              fieldState: fieldStateRef.current,
+              fieldOptions: fieldOptionsRef.current,
+              resolveSelectionTarget:
+                resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+            });
+            span.end({ rootNodes: reconciled.rootNodes.length });
+            return reconciled;
+          },
         );
         setDiscoveryMode(plan.mode);
         discoveryModeRef.current = plan.mode;
@@ -177,10 +198,16 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       const executeRefresh = () => {
         refreshTimerRef.current = null;
+        const loadSpan = debug.startSpan("filterExplorer.loadModel", {
+          mode: nextMode,
+          source: "session",
+          targetFields: targetFields?.join(",") ?? "all",
+        });
         void (
           targetFields ? loadModelForDiscoveryMode(nextMode, { targetFields }) : loadModelForDiscoveryMode(nextMode)
         )
           .then((nextModel) => {
+            loadSpan.end({ rootNodes: nextModel.rootNodes.length });
             if (
               !shouldApplySearchFilterExplorerRefresh({
                 currentRequestId: refreshRequestIdRef.current,
@@ -193,21 +220,31 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
               modelCacheRef.current.set(nextMode, nextModel);
             }
             setModel((currentModel) =>
-              reconcileSearchFilterExplorerModel({
-                currentModel,
-                refreshedModel: nextModel,
-                fieldState: fieldStateRef.current,
-                fieldOptions: fieldOptionsRef.current,
-                resolveSelectionTarget:
-                  resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
-                targetFields,
-              }),
+              {
+                const span = debug.startSpan("filterExplorer.reconcileModel", {
+                  mode: nextMode,
+                  source: "refresh",
+                  targetFields: targetFields?.join(",") ?? "all",
+                });
+                const reconciled = reconcileSearchFilterExplorerModel({
+                  currentModel,
+                  refreshedModel: nextModel,
+                  fieldState: fieldStateRef.current,
+                  fieldOptions: fieldOptionsRef.current,
+                  resolveSelectionTarget:
+                    resolveSelectionTargetRef.current ?? buildSearchFilterExplorerTargetResolver(fieldOptionsRef.current),
+                  targetFields,
+                });
+                span.end({ rootNodes: reconciled.rootNodes.length });
+                return reconciled;
+              },
             );
             setDiscoveryMode(nextMode);
             discoveryModeRef.current = nextMode;
             setRefreshState(null);
           })
           .catch((error) => {
+            loadSpan.end({ error: (error as Error).message });
             if (
               !shouldApplySearchFilterExplorerRefresh({
                 currentRequestId: refreshRequestIdRef.current,
@@ -228,7 +265,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
 
       executeRefresh();
     },
-    [invalidateRefreshes, loadModelForDiscoveryMode, terminal],
+    [debug, invalidateRefreshes, loadModelForDiscoveryMode, terminal],
   );
 
   React.useEffect(() => {
@@ -382,6 +419,8 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     });
   }, [onEditScalarTarget, selectTargetMode, session.fieldOptions, session.resolveSelectionTarget]);
 
+  const debugSnapshot = debug.enabled ? debug.snapshot() : undefined;
+
   return (
     <FilterExplorerScreen
       title={session.title}
@@ -391,6 +430,8 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
       exitAtRootDepth
       onOutcome={handleOutcome}
       discovery={discovery}
+      debugTrace={debug}
+      debugSnapshot={debugSnapshot}
       mode={
         selectTargetMode
           ? { kind: "inspect-and-open" }

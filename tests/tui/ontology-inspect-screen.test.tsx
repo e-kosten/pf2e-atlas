@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EntityPageDocument } from "../../src/app/ontology/entity-page.js";
 import type { OntologyDomainModel } from "../../src/domain/ontology-types.js";
 import { Pf2eTerminalAppServicesProvider } from "../../src/tui/app-service-context.js";
+import { createNoopTerminalDebugTraceService } from "../../src/tui/debug-trace.js";
 import { OntologyInspectScreen } from "../../src/tui/ontology-explorer/inspect-screen.js";
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
@@ -363,6 +364,7 @@ function createServices(documents: EntityPageDocument | readonly EntityPageDocum
   const documentsByRecordKey = new Map(documentList.map((document) => [document.recordKey, document]));
   return {
     config: {} as never,
+    debug: createNoopTerminalDebugTraceService(),
     user: {
       entityPages: {
         buildDocument: vi.fn(),
