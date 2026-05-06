@@ -11,7 +11,7 @@ The next useful typing work is not just “enable more strict rules.” There ar
 
 The original scratch note called out several concrete hotspots:
 
-- metadata registry access relying on stringly typed lookups and repeated type recovery
+- metadata field catalog access relying on stringly typed lookups and repeated type recovery
 - prompt result flows where sentinel values and narrowing still create friction
 - matcher code depending on awkward external-library typing behavior
 - a large remaining typed-lint backlog in test helpers and mocks
@@ -22,7 +22,7 @@ Continue type-safety work as a set of bounded seam cleanups rather than as a bro
 
 That work should:
 
-- expose stronger typed helpers around the metadata registry
+- expose stronger typed helpers around the metadata field catalog
 - simplify prompt result shapes where sentinel handling still forces repeated assertions
 - isolate external-library typing quirks behind small adapters with focused tests
 - tighten test fixtures and mocks before taking on broader unsafe-any style typed-lint passes

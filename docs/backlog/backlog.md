@@ -82,7 +82,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
 - [Typed seams cleanup](./items/typed-seams-cleanup.md)
-  Continue focused type-safety work around metadata registry access, prompt result narrowing, matcher adapters, and test fixtures. Status: proposed.
+  Continue focused type-safety work around metadata field catalog access, prompt result narrowing, matcher adapters, and test fixtures. Status: proposed.
 
 - [Shared UI model boundary enforcement](./items/shared-ui-model-boundary-enforcement.md)
   Identify which reusable TUI state and view-model helpers should become mandatory and enforce them once those pathways are stable enough. Status: proposed.
