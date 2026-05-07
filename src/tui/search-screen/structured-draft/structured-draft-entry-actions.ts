@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -44,8 +44,8 @@ export function useSearchStructuredDraftEntryActions({
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
+    currentNode?: SearchFilterNode | null,
+  ) => Promise<SearchFilterNode | null | undefined>;
   enterStructuredDraftMoveMode: (path: number[]) => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   openFilterExplorer: OpenSearchFilterExplorer;

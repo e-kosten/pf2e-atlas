@@ -204,7 +204,7 @@ Lookup stays a consumer of this shared result-view pathway rather than becoming 
 
 This keeps query editing and result reading logic in the TUI while leaving shared query semantics in `src/domain/` and search execution in backend/search-owned services.
 
-Within the search screen, the live workspace no longer renders structured rows directly from raw query state. The search-screen workspace derives a summary/document model from the canonical query state first, then renders:
+Within the search screen, the live workspace derives a summary/document model from the canonical query state first, then renders:
 
 - workspace rows
 - live structured-query summaries
@@ -213,8 +213,9 @@ Within the search screen, the live workspace no longer renders structured rows d
 That summary layer owns stable anchors for major query branches and filter nodes. The durable rule is:
 
 - `SearchRequest` is the canonical TUI query state, including the structured filter tree
-- query-state helpers own normalization, projection, and interpretation of canonical `query.filter`
-- metadata-node adapters may convert between editor-facing metadata nodes and canonical filter nodes, but they do not own a parallel query semantics model
+- `SearchFilterNode` is the only durable structured-filter model for TUI search editing
+- query-state helpers own canonical filter commands, normalization, projection, and interpretation of canonical `query.filter`
+- editor-facing field selections, grouped rows, scalar summaries, and cursor/resume state are derived projections over canonical nodes, not alternate semantic filter trees
 - `SearchRequest` is the shared semantic contract once query state crosses out of the TUI
 - the workspace summary/document model owns editor-facing identity and display structure
 - terminal renderers consume that summary model instead of re-deriving structured meaning from raw query state in each pane

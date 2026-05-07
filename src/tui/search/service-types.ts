@@ -6,8 +6,7 @@ import type {
   SearchSemanticsBootstrapSummaryResult,
   SearchVocabularyResult,
 } from "../../data/vocabulary.js";
-import type { SearchRequest } from "../../domain/search-request-types.js";
-import type { MetadataFilterNode } from "./metadata-filter-draft.js";
+import type { SearchFilterNode, SearchRequest } from "../../domain/search-request-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
@@ -118,14 +117,14 @@ export type Pf2eTerminalFilterExplorerDraft = FilterExplorerComposeDraft;
 
 export type Pf2eTerminalPreparedFilterExplorerDraft = {
   draft: Pf2eTerminalFilterExplorerDraft;
-  preservedMetadata: MetadataFilterNode | null;
+  preservedFilter: SearchFilterNode | null;
   scopedFields: readonly Pf2eTerminalQueryField[];
 };
 
 export type Pf2eTerminalPreparedFilterExplorerContext = Omit<Pf2eTerminalPreparedFilterExplorerDraft, "draft">;
 export type Pf2eTerminalFilterExplorerInsertionResult =
-  | { kind: "replace"; node: MetadataFilterNode | null }
-  | { kind: "insert"; nodes: MetadataFilterNode[] };
+  | { kind: "replace"; node: SearchFilterNode | null }
+  | { kind: "insert"; nodes: SearchFilterNode[] };
 
 export type Pf2eTerminalSearchSession = {
   windowId: string;
@@ -183,23 +182,23 @@ export type Pf2eTerminalSearchService = {
     query: Pf2eTerminalSearchQuery,
     scopedFields: readonly Pf2eTerminalQueryField[],
   ) => Pf2eTerminalPreparedFilterExplorerDraft;
-  prepareFilterExplorerDraftFromMetadataNode: (
-    node: MetadataFilterNode | null,
+  prepareFilterExplorerDraftFromFilter: (
+    node: SearchFilterNode | null,
     scopedFields: readonly Pf2eTerminalQueryField[],
   ) => Pf2eTerminalPreparedFilterExplorerDraft;
-  buildFilterExplorerMetadataNode: (
+  buildFilterExplorerFilter: (
     draft: Pf2eTerminalFilterExplorerDraft,
-    options?: { preservedMetadata?: MetadataFilterNode | null },
-  ) => MetadataFilterNode | null;
+    options?: { preservedFilter?: SearchFilterNode | null },
+  ) => SearchFilterNode | null;
   buildFilterExplorerInsertionResult: (
     draft: Pf2eTerminalFilterExplorerDraft,
-    options?: { preservedMetadata?: MetadataFilterNode | null; preferReplace?: boolean },
+    options?: { preservedFilter?: SearchFilterNode | null; preferReplace?: boolean },
   ) => Pf2eTerminalFilterExplorerInsertionResult;
   applyFilterExplorerDraft: (
     query: Pf2eTerminalSearchQuery,
     draft: Pf2eTerminalFilterExplorerDraft,
     options?: {
-      preservedMetadata?: MetadataFilterNode | null;
+      preservedFilter?: SearchFilterNode | null;
       scopedFields?: readonly Pf2eTerminalQueryField[];
     },
   ) => Pf2eTerminalSearchQuery;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
+import type { SearchFilterNode } from "../../src/domain/search-request-types.js";
 import {
   createDefaultQuery,
   setSearchQueryActionCostSelection,
@@ -8,7 +8,7 @@ import {
   setSearchQueryLevelRange,
   setSearchQuerySearchProfile,
   setSearchQueryCategory,
-  setSearchQueryMetadataTree,
+  setSearchQueryPredicateFilter,
   setSearchQueryRaritySelection,
   setSearchQueryText,
 } from "../../src/tui/search/query-state.js";
@@ -22,19 +22,27 @@ import {
   getVisibleSearchQuerySummaryEntries,
 } from "../../src/tui/search-screen/workspace/query-summary.js";
 
-function createMetadataTree(): MetadataFilterNode {
+function createMetadataTree(): SearchFilterNode {
   return {
-    or: [
+    kind: "anyOf",
+    children: [
       {
-        field: "traits",
-        op: "includes",
-        value: "ghost",
+        kind: "metadataPredicate",
+        predicate: {
+          field: "traits",
+          op: "includes",
+          value: "ghost",
+        },
       },
       {
-        not: {
-          field: "publicationRemaster",
-          op: "eq",
-          value: true,
+        kind: "not",
+        child: {
+          kind: "metadataPredicate",
+          predicate: {
+            field: "publicationRemaster",
+            op: "eq",
+            value: true,
+          },
         },
       },
     ],
@@ -61,7 +69,7 @@ function createStructuredQuery(options: { includeRarity?: boolean } = {}) {
     include: [2],
     exclude: [],
   });
-  return setSearchQueryMetadataTree(query, createMetadataTree());
+  return setSearchQueryPredicateFilter(query, createMetadataTree());
 }
 
 function createIdleCountState(): SearchCountState {

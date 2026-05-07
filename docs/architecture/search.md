@@ -219,6 +219,8 @@ flowchart TD
 
 That shared semantic contract includes metadata field names, field kinds, and atomic metadata predicate operators as part of cross-surface query meaning. Boolean composition is owned by the canonical `SearchFilterNode` tree itself via `allOf`, `anyOf`, and `not`, not by a separate metadata-owned grouped AST.
 
+TUI search editing also uses that canonical filter tree as its durable query state. Terminal editor projections such as selected rows, grouped-field views, scalar summaries, and continuation targets may be cached or derived for interaction, but they must apply commands back to canonical `SearchFilterNode` values instead of carrying a second semantic filter model.
+
 Top-level numeric matcher leaves preserve exact, strict, inclusive, and bounded-range semantics as distinct canonical variants. The shared contract treats `eq`, `gt`, `gte`, `lt`, `lte`, and `between` as different matcher kinds rather than editor sugar over a smaller inclusive-only model.
 
 The canonical filter tree also owns symmetric exact record-link leaves over the shared `reference_edges` surface:

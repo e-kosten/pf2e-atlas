@@ -1,6 +1,6 @@
-import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import {
   buildAllOfFilter,
+  type SearchFilterNode,
 } from "../../domain/search-request-types.js";
 import { createEmptyFilterExplorerComposeDraft, isFilterExplorerScalarTarget } from "./compose-state.js";
 import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
@@ -20,7 +20,6 @@ import {
   type FilterExplorerQueryTarget,
   type FilterExplorerScalarClause,
 } from "./types.js";
-import { metadataFilterNodeToCanonicalFilter } from "../search/query-parts.js";
 
 export function resolveFilterExplorerLaunchIntent(
   mode: FilterExplorerInspectAndOpenMode,
@@ -65,7 +64,7 @@ function parseInspectScalarTargetKey(key: string): { field: "actorMetric" | "ite
 function buildInspectScalarPredicate(
   target: Exclude<FilterExplorerInspectResult["target"], undefined>,
   clause: FilterExplorerScalarClause,
-): MetadataFilterNode | null {
+): SearchFilterNode | null {
   if (!isFilterExplorerScalarTarget(target) || target.valueType !== "number") {
     return null;
   }
@@ -77,17 +76,18 @@ function buildInspectScalarPredicate(
 
   if (clause.operator === "between") {
     return {
-      and: [
+      kind: "allOf",
+      children: [
         {
-          field: metricTarget.field,
+          kind: "metric",
           metric: metricTarget.metric,
-          op: ">=",
+          op: "gte",
           value: clause.min,
         },
         {
-          field: metricTarget.field,
+          kind: "metric",
           metric: metricTarget.metric,
-          op: "<=",
+          op: "lte",
           value: clause.max,
         },
       ],
@@ -96,19 +96,19 @@ function buildInspectScalarPredicate(
 
   const operator =
     clause.operator === "eq"
-      ? "=="
+      ? "eq"
       : clause.operator === "neq"
-        ? "!="
+        ? "notEq"
         : clause.operator === "gt"
-          ? ">"
+          ? "gt"
         : clause.operator === "gte"
-          ? ">="
+          ? "gte"
           : clause.operator === "lt"
-            ? "<"
-          : "<=";
+            ? "lt"
+          : "lte";
 
   return {
-    field: metricTarget.field,
+    kind: "metric",
     metric: metricTarget.metric,
     op: operator,
     value: clause.value as number,
@@ -144,12 +144,7 @@ export function buildCompiledFilterExplorerInspectResult(
     return null;
   }
 
-  const metadata = buildInspectScalarPredicate(result.target, clause);
-  if (!metadata) {
-    return null;
-  }
-
-  const metadataFilter = metadataFilterNodeToCanonicalFilter(metadata);
+  const metadataFilter = buildInspectScalarPredicate(result.target, clause);
   if (!metadataFilter) {
     return null;
   }

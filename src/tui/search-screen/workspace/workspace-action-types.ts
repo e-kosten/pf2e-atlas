@@ -1,10 +1,10 @@
 import type { Pf2eTerminalAppServices } from "../../app-services.js";
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchTerminalPromptAdapters } from "../../interaction-context-adapters.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { DerivedTagTerminalApp } from "../../framework/types.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../filter-explorer-field-state.js";
@@ -28,7 +28,7 @@ export type OpenSearchFilterExplorer = (options: {
   queryOverride?: Pf2eTerminalSearchQuery;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   initialFieldState?: SearchFilterExplorerFieldState;
-  preservedMetadata?: MetadataFilterNode | null;
+  preservedFilter?: SearchFilterNode | null;
   fieldOptions: Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   onEvent?: (event: SearchFilterExplorerSessionEvent) => void;

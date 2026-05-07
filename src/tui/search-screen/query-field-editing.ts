@@ -1,7 +1,11 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
-import { isMetadataPredicate } from "../search/query-core.js";
+import type { SearchFilterNode } from "../../domain/search-request-types.js";
+import type {
+  MetadataBooleanField,
+  MetadataNumberField,
+  MetadataTextStringField,
+} from "../../domain/metadata-field-types.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalQueryFieldOption,
@@ -27,8 +31,8 @@ export function useSearchQueryFieldEditing({
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
+    currentNode?: SearchFilterNode | null,
+  ) => Promise<SearchFilterNode | null | undefined>;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
 } {
   const getScopedFieldOptions = React.useCallback(
@@ -41,8 +45,8 @@ export function useSearchQueryFieldEditing({
     async (
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
-      currentNode: MetadataFilterNode | null = null,
-    ): Promise<MetadataFilterNode | null | undefined> => {
+      currentNode: SearchFilterNode | null = null,
+    ): Promise<SearchFilterNode | null | undefined> => {
       if (fieldOption.editor === "sharedExplorer") {
         return currentNode;
       }
@@ -55,8 +59,10 @@ export function useSearchQueryFieldEditing({
 
       if (fieldOption.fieldType === "boolean") {
         const currentValue =
-          currentNode && isMetadataPredicate(currentNode) && "value" in currentNode && currentNode.op === "eq"
-            ? String(currentNode.value)
+          currentNode?.kind === "metadataPredicate" &&
+          "value" in currentNode.predicate &&
+          currentNode.predicate.op === "eq"
+            ? String(currentNode.predicate.value)
             : null;
         const result = await prompts.promptOptionalSelectOption({
           title: `${fieldOption.label} Clause`,
@@ -78,18 +84,21 @@ export function useSearchQueryFieldEditing({
         if (result.kind === "all") {
           return null;
         }
-        return { field: metadataField, op: "eq", value: result.value === "true" } as MetadataFilterNode;
+        return {
+          kind: "metadataPredicate",
+          predicate: { field: metadataField as MetadataBooleanField, op: "eq", value: result.value === "true" },
+        };
       }
 
       if (fieldOption.fieldType === "text") {
         const currentText =
-          currentNode && isMetadataPredicate(currentNode) && "value" in currentNode ? String(currentNode.value) : "";
+          currentNode?.kind === "metadataPredicate" && "value" in currentNode.predicate
+            ? String(currentNode.predicate.value)
+            : "";
         const currentOp =
-          currentNode &&
-          isMetadataPredicate(currentNode) &&
-          "op" in currentNode &&
-          ["contains", "notContains"].includes(currentNode.op)
-            ? currentNode.op
+          currentNode?.kind === "metadataPredicate" &&
+          ["contains", "notContains"].includes(currentNode.predicate.op)
+            ? currentNode.predicate.op
             : "contains";
         const opResult = await prompts.promptSelectOption({
           title: `${fieldOption.label} Clause`,
@@ -121,27 +130,34 @@ export function useSearchQueryFieldEditing({
         if (!value.trim()) {
           return null;
         }
-        return { field: metadataField, op: opResult.value, value: value.trim() } as MetadataFilterNode;
+        return {
+          kind: "metadataPredicate",
+          predicate: {
+            field: metadataField as MetadataTextStringField,
+            op: opResult.value as "contains" | "notContains",
+            value: value.trim(),
+          },
+        };
       }
 
       const currentNumericOp =
-        currentNode &&
-        isMetadataPredicate(currentNode) &&
-        (currentNode.op === "eq" ||
-          currentNode.op === "gte" ||
-          currentNode.op === "lte" ||
-          currentNode.op === "between")
-          ? currentNode.op
+        currentNode?.kind === "metadataPredicate" &&
+        (currentNode.predicate.op === "eq" ||
+          currentNode.predicate.op === "gte" ||
+          currentNode.predicate.op === "lte" ||
+          currentNode.predicate.op === "between")
+          ? currentNode.predicate.op
           : null;
+      const currentPredicate = currentNode?.kind === "metadataPredicate" ? currentNode.predicate : null;
       const currentClause =
-        currentNumericOp === "between" && currentNode && "min" in currentNode && "max" in currentNode
-          ? { op: "between" as const, min: currentNode.min, max: currentNode.max }
+        currentNumericOp === "between" && currentPredicate && "min" in currentPredicate && "max" in currentPredicate
+          ? { op: "between" as const, min: currentPredicate.min!, max: currentPredicate.max! }
           : currentNumericOp &&
               currentNumericOp !== "between" &&
-              currentNode &&
-              "value" in currentNode &&
-              typeof currentNode.value === "number"
-            ? { op: currentNumericOp, value: currentNode.value }
+              currentPredicate &&
+              "value" in currentPredicate &&
+              typeof currentPredicate.value === "number"
+            ? { op: currentNumericOp, value: currentPredicate.value }
             : null;
       const nextClause = await promptNumericScalarClause(prompts, terminal, {
         title: `${fieldOption.label} Clause`,
@@ -155,9 +171,27 @@ export function useSearchQueryFieldEditing({
       if (!nextClause) {
         return null;
       }
+      if (nextClause.op === "neq") {
+        return undefined;
+      }
       return nextClause.op === "between"
-        ? ({ field: metadataField, op: "between", min: nextClause.min, max: nextClause.max } as MetadataFilterNode)
-        : ({ field: metadataField, op: nextClause.op, value: nextClause.value } as MetadataFilterNode);
+        ? {
+            kind: "metadataPredicate",
+            predicate: {
+              field: metadataField as MetadataNumberField,
+              op: "between",
+              min: nextClause.min,
+              max: nextClause.max,
+            },
+          }
+        : {
+            kind: "metadataPredicate",
+            predicate: {
+              field: metadataField as MetadataNumberField,
+              op: nextClause.op,
+              value: nextClause.value,
+            },
+          };
     },
     [prompts, terminal, user.search],
   );

@@ -1,4 +1,3 @@
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
@@ -86,7 +85,7 @@ export async function runStructuredDraftExplorerContinuation({
   initialFieldState,
   onHostChange,
   openFilterExplorer,
-  preservedMetadata,
+  preservedFilter,
   query,
   resolveSelectionTarget,
   singleFieldBehavior = "directValues",
@@ -99,7 +98,7 @@ export async function runStructuredDraftExplorerContinuation({
   initialFieldState?: SearchFilterExplorerFieldState;
   onHostChange?: (change: StructuredDraftContinuationChange) => void;
   openFilterExplorer: OpenSearchFilterExplorer;
-  preservedMetadata?: MetadataFilterNode | null;
+  preservedFilter?: SearchFilterNode | null;
   query: Pf2eTerminalSearchQuery;
   resolveSelectionTarget?: (
     node: import("../../../domain/ontology-types.js").OntologyNode | undefined,
@@ -115,8 +114,8 @@ export async function runStructuredDraftExplorerContinuation({
   return new Promise<StructuredDraftExplorerContinuationResult>((resolve, reject) => {
     let settled = false;
     let currentChange: StructuredDraftContinuationChange | undefined;
-    const resolvedPreservedMetadata =
-      preservedMetadata ?? user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata;
+    const resolvedPreservedFilter =
+      preservedFilter ?? user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedFilter;
 
     const buildChange = (
       nextQuery: Pf2eTerminalSearchQuery,
@@ -140,7 +139,7 @@ export async function runStructuredDraftExplorerContinuation({
       queryOverride: query,
       initialDiscoveryMode,
       initialFieldState,
-      preservedMetadata: resolvedPreservedMetadata,
+      preservedFilter: resolvedPreservedFilter,
       fieldOptions: [fieldOption],
       resolveSelectionTarget,
       onEvent: (event) => {
@@ -189,7 +188,7 @@ export async function runStructuredDraftExplorerChildSurface({
   initialDiscoveryMode,
   initialFieldState,
   openFilterExplorer,
-  preservedMetadata,
+  preservedFilter,
   query,
   resolveSelectionTarget,
   singleFieldBehavior = "directValues",
@@ -200,7 +199,7 @@ export async function runStructuredDraftExplorerChildSurface({
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   initialFieldState?: SearchFilterExplorerFieldState;
   openFilterExplorer: OpenSearchFilterExplorer;
-  preservedMetadata?: MetadataFilterNode | null;
+  preservedFilter?: SearchFilterNode | null;
   query: Pf2eTerminalSearchQuery;
   resolveSelectionTarget?: (
     node: import("../../../domain/ontology-types.js").OntologyNode | undefined,
@@ -215,8 +214,8 @@ export async function runStructuredDraftExplorerChildSurface({
 
   return new Promise<StructuredDraftExplorerChildSurfaceResult>((resolve, reject) => {
     let settled = false;
-    const resolvedPreservedMetadata =
-      preservedMetadata ?? user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata;
+    const resolvedPreservedFilter =
+      preservedFilter ?? user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedFilter;
 
     const finish = (result: StructuredDraftExplorerChildSurfaceResult): void => {
       if (settled) {
@@ -231,7 +230,7 @@ export async function runStructuredDraftExplorerChildSurface({
       queryOverride: query,
       initialDiscoveryMode,
       initialFieldState,
-      preservedMetadata: resolvedPreservedMetadata,
+      preservedFilter: resolvedPreservedFilter,
       fieldOptions: [fieldOption],
       resolveSelectionTarget,
       onEvent: (event) => {

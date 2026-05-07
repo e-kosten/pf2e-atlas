@@ -10,13 +10,13 @@ import {
   getSearchQueryCategory,
   getSearchQueryExcludeText,
   getSearchQueryLevelMatch,
-  getSearchQueryMetadataTree,
+  getSearchQueryPredicateFilter,
   getSearchQueryRootOperator,
   getSearchQuerySearchProfile,
   getSearchQueryText,
 } from "../../search/query-state.js";
 import {
-  countMetadataPredicates,
+  countSearchFilterPredicateNodes,
   formatSearchFilterNodePresentationAlias,
   type SearchFilterRenderOptions,
 } from "../../search/query-core.js";
@@ -176,8 +176,8 @@ export function buildSearchQuerySummary(
   const queryText = getSearchQueryText(query);
   const excludeText = getSearchQueryExcludeText(query);
   const searchProfile = getSearchQuerySearchProfile(query);
-  const metadataTree = getSearchQueryMetadataTree(query);
-  const metadataPredicateCount = countMetadataPredicates(metadataTree);
+  const metadataTree = getSearchQueryPredicateFilter(query);
+  const metadataPredicateCount = countSearchFilterPredicateNodes(metadataTree ?? undefined);
   const rootChildren = getVisibleRootChildren(query.filter);
 
   return {

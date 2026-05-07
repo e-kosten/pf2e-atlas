@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
+import type { SearchFilterNode } from "../../src/domain/search-request-types.js";
 import type { Pf2eTerminalQueryFieldOption } from "../../src/tui/search/service.js";
 import type { FilterExplorerSelectTargetOutcome } from "../../src/tui/filter-explorer/types.js";
 import type { SearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
@@ -15,7 +15,11 @@ import type {
   OpenSearchFilterExplorer,
   SearchWorkspaceUser,
 } from "../../src/tui/search-screen/workspace/workspace-action-types.js";
-import { browseQuery, metadataPredicateFilter, scopeFilter } from "../helpers/search-request-fixture.js";
+import {
+  browseQuery,
+  metadataPredicateFilter,
+  scopeFilter,
+} from "../helpers/search-request-fixture.js";
 
 const query = browseQuery("Browse creatures", {
   filter: scopeFilter("creature"),
@@ -50,8 +54,8 @@ function fieldState(include: string[]): SearchFilterExplorerFieldState {
 }
 
 function createUser(
-  searchResult: { kind: "insert"; nodes: MetadataFilterNode[] } | { kind: "replace"; node: MetadataFilterNode },
-  preservedMetadata: MetadataFilterNode | null,
+  searchResult: { kind: "insert"; nodes: SearchFilterNode[] } | { kind: "replace"; node: SearchFilterNode },
+  preservedFilter: SearchFilterNode | null,
 ) {
   return {
     search: {
@@ -60,7 +64,7 @@ function createUser(
           discreteClauses: [],
           scalarClauses: {},
         },
-        preservedMetadata,
+        preservedFilter,
         scopedFields: ["traits"],
       })),
       buildFilterExplorerInsertionResult: vi.fn(() => searchResult),
@@ -151,12 +155,12 @@ describe("structured editor continuation coordinator", () => {
   });
 
   it("preserves the latest live explorer change when canceling a node edit", async () => {
-    const preservedMetadata = metadataPredicateFilter({ field: "rarity", op: "is", value: "common" });
+    const preservedFilter = metadataPredicateFilter({ field: "rarity", op: "is", value: "common" });
     const replacementResult = {
       kind: "replace",
-      node: { field: "traits", op: "includes", value: "amphibious" },
+      node: metadataPredicateFilter({ field: "traits", op: "includes", value: "amphibious" }),
     } as const;
-    const user = createUser(replacementResult, preservedMetadata);
+    const user = createUser(replacementResult, preservedFilter);
     let explorerOptions: Parameters<OpenSearchFilterExplorer>[0] | undefined;
     const openFilterExplorer: OpenSearchFilterExplorer = vi.fn(async (options) => {
       explorerOptions = options;

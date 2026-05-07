@@ -1,14 +1,12 @@
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import {
   getSearchFilterNodeAtPath,
   isSearchFilterBooleanGroup,
   updateSearchFilterNodeAtPath,
 } from "../../search/query-core.js";
-import { metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import {
-  getSearchQueryMetadataTree,
-  setSearchQueryMetadataTree,
+  getSearchQueryPredicateFilter,
+  setSearchQueryPredicateFilter,
 } from "../../search/query-state.js";
 import type {
   Pf2eTerminalFilterExplorerDraft,
@@ -159,26 +157,22 @@ export function buildGroupedFieldReplacementNodes(
         clause.operator === "include"
           ? { include: [clause.value], exclude: [] }
           : { include: [], exclude: [clause.value] };
-      const replacementNode = metadataFilterNodeToCanonicalFilter(
-        getSearchQueryMetadataTree(
-          searchUser.applyDiscoverableQueryFieldSelections(
-            setSearchQueryMetadataTree(query, null),
-            { [field]: selection },
-            [field],
-          ),
+      const replacementNode = getSearchQueryPredicateFilter(
+        searchUser.applyDiscoverableQueryFieldSelections(
+          setSearchQueryPredicateFilter(query, null),
+          { [field]: selection },
+          [field],
         ),
       );
       return replacementNode ? [replacementNode] : [];
     });
   }
 
-  const replacementNode = metadataFilterNodeToCanonicalFilter(
-    getSearchQueryMetadataTree(
-      searchUser.applyDiscoverableQueryFieldSelections(
-        setSearchQueryMetadataTree(query, null),
-        { [field]: selection },
-        [field],
-      ),
+  const replacementNode = getSearchQueryPredicateFilter(
+    searchUser.applyDiscoverableQueryFieldSelections(
+      setSearchQueryPredicateFilter(query, null),
+      { [field]: selection },
+      [field],
     ),
   );
   return replacementNode ? [replacementNode] : [];
@@ -195,7 +189,7 @@ export function buildGroupedFieldSeedState(
   seedGroupPath: number[];
   seedQuery: Pf2eTerminalSearchQuery;
   initialFieldState: SearchFilterExplorerFieldState;
-  preservedMetadata: MetadataFilterNode | null;
+  preservedFilter: SearchFilterNode | null;
 } {
   const groupNode =
     groupPath.length === 0 ? query.filter : (getSearchFilterNodeAtPath(query.filter, groupPath) ?? undefined);
@@ -207,7 +201,7 @@ export function buildGroupedFieldSeedState(
         discreteClauses: [],
         scalarClauses: {},
       }),
-      preservedMetadata: getSearchQueryMetadataTree(query),
+      preservedFilter: getSearchQueryPredicateFilter(query),
     };
   }
 
@@ -241,6 +235,6 @@ export function buildGroupedFieldSeedState(
     seedGroupPath: groupPath,
     seedQuery,
     initialFieldState: buildSearchFilterExplorerFieldState(initialDraft),
-    preservedMetadata: getSearchQueryMetadataTree(seedQuery),
+    preservedFilter: getSearchQueryPredicateFilter(seedQuery),
   };
 }

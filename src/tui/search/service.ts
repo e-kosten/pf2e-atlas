@@ -25,8 +25,8 @@ import {
 import {
   applyFilterExplorerDraft,
   buildFilterExplorerInsertionResult,
-  buildFilterExplorerMetadataNode,
-  prepareFilterExplorerDraftFromMetadataNode,
+  buildFilterExplorerFilter,
+  prepareFilterExplorerDraftFromFilter,
   prepareFilterExplorerDraftFromQuery,
 } from "../filter-explorer/search-draft-query.js";
 import { buildSearchRequest } from "./filter-building.js";
@@ -191,10 +191,10 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       createSearchQueryFromOntologyQuery(query, dependencies, fieldSemanticsByName),
     prepareFilterExplorerDraft: (query, scopedFields) =>
       prepareFilterExplorerDraftFromQuery(query, scopedFields, fieldSemanticsByName),
-    prepareFilterExplorerDraftFromMetadataNode: (node, scopedFields) =>
-      prepareFilterExplorerDraftFromMetadataNode(node, scopedFields, fieldSemanticsByName),
-    buildFilterExplorerMetadataNode: (draft, options) =>
-      buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, options),
+    prepareFilterExplorerDraftFromFilter: (node, scopedFields) =>
+      prepareFilterExplorerDraftFromFilter(node, scopedFields, fieldSemanticsByName),
+    buildFilterExplorerFilter: (draft, options) =>
+      buildFilterExplorerFilter(draft, fieldSemanticsByName, options),
     buildFilterExplorerInsertionResult: (draft, options) =>
       buildFilterExplorerInsertionResult(draft, fieldSemanticsByName, options),
     applyFilterExplorerDraft: (query, draft, options) =>

@@ -3,10 +3,8 @@ import { humanizeOntologySearchIdentifier } from "../../domain/presentation-voca
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { resolveOntologyNodeChildren } from "../../app/ontology/node-helpers.js";
-import { isMetadataPredicate } from "../search/query-core.js";
 import type { Pf2eTerminalQueryField, Pf2eTerminalQueryFieldOption } from "../search/service-types.js";
 import type { FilterExplorerComposeTarget } from "./types.js";
-import { canonicalFilterToMetadataNode } from "../search/query-parts.js";
 
 type SearchFilterExplorerMetricField = "actorMetric" | "itemMetric";
 
@@ -473,8 +471,8 @@ export function buildSearchFilterExplorerTargetResolver(
       return undefined;
     }
 
-    const predicate = node.query ? canonicalFilterToMetadataNode(node.query.request.filter) : null;
-    if (!predicate || !isMetadataPredicate(predicate)) {
+    const predicate = node.query?.request.filter;
+    if (!predicate || (predicate.kind !== "metadataPredicate" && predicate.kind !== "metric" && predicate.kind !== "metricCompare")) {
       return fieldOptions
         .map(
           (fieldOption) =>
@@ -483,17 +481,26 @@ export function buildSearchFilterExplorerTargetResolver(
         .find((target): target is FilterExplorerComposeTarget => Boolean(target));
     }
 
-    if (predicate.field === "actorMetric" || predicate.field === "itemMetric") {
-      const fieldOption = allowedFields.get(predicate.field);
-      if (!fieldOption || !("metric" in predicate)) {
+    if (predicate.kind === "metric") {
+      const metricField =
+        inferActorMetricValueType(predicate.metric) && allowedFields.has("actorMetric")
+          ? "actorMetric"
+          : inferItemMetricValueType(predicate.metric) && allowedFields.has("itemMetric")
+            ? "itemMetric"
+            : null;
+      if (!metricField) {
+        return undefined;
+      }
+      const fieldOption = allowedFields.get(metricField);
+      if (!fieldOption) {
         return undefined;
       }
       const metricLabel = formatMetricLabel(predicate.metric, node.label);
-      const valueType = inferMetricValueType(predicate.field, predicate.metric);
-      if (valueType === "number" && "value" in predicate && typeof predicate.value === "number") {
+      const valueType = inferMetricValueType(metricField, predicate.metric);
+      if (valueType === "number" && typeof predicate.value === "number") {
         return {
           kind: "scalar",
-          key: getMetricSelectionKey(predicate.field, predicate.metric),
+          key: getMetricSelectionKey(metricField, predicate.metric),
           fieldLabel: fieldOption.label,
           subjectLabel: metricLabel,
           valueType,
@@ -506,7 +513,7 @@ export function buildSearchFilterExplorerTargetResolver(
       }
       return {
         kind: "discrete",
-        field: getMetricSelectionKey(predicate.field, predicate.metric),
+        field: getMetricSelectionKey(metricField, predicate.metric),
         fieldLabel: `${fieldOption.label} / ${metricLabel}`,
         value,
         valueLabel: node.label,
@@ -514,10 +521,18 @@ export function buildSearchFilterExplorerTargetResolver(
       };
     }
 
-    if (predicate.field === "actorMetricCompare" || predicate.field === "itemMetricCompare") {
-      const metricField = predicate.field === "actorMetricCompare" ? "actorMetric" : "itemMetric";
+    if (predicate.kind === "metricCompare") {
+      const metricField =
+        inferActorMetricValueType(predicate.leftMetric) && allowedFields.has("actorMetric")
+          ? "actorMetric"
+          : inferItemMetricValueType(predicate.leftMetric) && allowedFields.has("itemMetric")
+            ? "itemMetric"
+            : null;
+      if (!metricField) {
+        return undefined;
+      }
       const fieldOption = allowedFields.get(metricField);
-      if (!fieldOption || !("leftMetric" in predicate) || !("rightMetric" in predicate)) {
+      if (!fieldOption) {
         return undefined;
       }
       if (predicate.leftMetric !== predicate.rightMetric) {
@@ -541,11 +556,11 @@ export function buildSearchFilterExplorerTargetResolver(
       };
     }
 
-    const fieldOption = allowedFields.get(predicate.field as Pf2eTerminalQueryField);
+    const fieldOption = allowedFields.get(predicate.predicate.field as Pf2eTerminalQueryField);
     if (!fieldOption) {
       return undefined;
     }
-    const value = getSelectionValueFromPredicate(predicate);
+    const value = getSelectionValueFromPredicate(predicate.predicate);
     if (value === null) {
       return undefined;
     }

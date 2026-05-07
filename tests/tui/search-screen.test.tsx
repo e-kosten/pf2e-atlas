@@ -37,10 +37,10 @@ import { createInitialSearchScreenState } from "../../src/tui/search-screen/stat
 import { ROUTE_TRANSITION_STATUS_KIND } from "../../src/tui/route-transition-status.js";
 import { DerivedTagTerminalProvider } from "../../src/tui/terminal-ui.js";
 import {
-  getSearchQueryMetadataTree,
+  getSearchQueryPredicateFilter,
   getSearchQueryPackSelection,
   setSearchQueryActionCostSelection,
-  setSearchQueryMetadataTree,
+  setSearchQueryPredicateFilter,
   setSearchQueryRaritySelection,
 } from "../../src/tui/search/query-state.js";
 import {
@@ -3161,7 +3161,7 @@ describe("search screen", () => {
     const services = createServices({ search });
 
     await services.user.search.executeQuery(
-      setSearchQueryMetadataTree(
+      setSearchQueryPredicateFilter(
         setSearchQueryActionCostSelection(
           setSearchQueryRaritySelection(
             searchRequest({
@@ -3182,27 +3182,11 @@ describe("search screen", () => {
             exclude: [1],
           },
         ),
-        {
-          and: [
-            {
-              field: "traits",
-              op: "includes",
-              value: "illusion",
-            },
-            {
-              field: "traits",
-              op: "includes",
-              value: "auditory",
-            },
-            {
-              not: {
-                field: "traits",
-                op: "includes",
-                value: "emotion",
-              },
-            },
-          ],
-        },
+        allOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "auditory" }),
+          notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" })),
+        ]),
       ),
     );
 
@@ -6018,7 +6002,7 @@ describe("search screen", () => {
           model,
           query,
           initialFieldState: seededState.initialFieldState,
-          preservedMetadata: seededState.preservedMetadata,
+          preservedFilter: seededState.preservedFilter,
           fieldOptions,
           onEvent: (event) => {
             if (event.kind === "change") {
@@ -6050,18 +6034,16 @@ describe("search screen", () => {
     await flushInk();
 
     expect(app.lastFrame()).toContain("[✓] humanoid");
-    expect(getSearchQueryMetadataTree(latestQueryRef.current)).toEqual({
-      and: [
-        {
-          or: [
-            { field: "traits", op: "includes", value: "auditory" },
-            { field: "traits", op: "includes", value: "emotion" },
-          ],
-        },
-        { field: "traits", op: "includes", value: "humanoid" },
-        { field: "traits", op: "includes", value: "illusion" },
-      ],
-    });
+    expect(getSearchQueryPredicateFilter(latestQueryRef.current)).toEqual(
+      allOfFilter([
+        anyOfFilter([
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "auditory" }),
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "emotion" }),
+        ]),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "humanoid" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+      ]),
+    );
   });
 
   it("keeps excluded values visible while matching counts refresh in place", async () => {

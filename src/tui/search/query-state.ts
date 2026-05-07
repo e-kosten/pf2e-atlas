@@ -14,18 +14,13 @@ import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog
 import type {
   MetadataBooleanField,
   MetadataEnumStringField,
-  MetadataFilterNode,
   MetadataSetField,
-} from "./metadata-filter-draft.js";
+} from "../../domain/metadata-field-types.js";
 import type {
   SearchCategory,
   SearchProfile,
   SearchSubcategory,
 } from "../../domain/search-types.js";
-import {
-  canonicalFilterToMetadataNode,
-  metadataFilterNodeToCanonicalFilter,
-} from "./query-parts.js";
 import {
   cloneNumberSelection,
   cloneStringSelection,
@@ -57,15 +52,40 @@ function hasSelectionValues<T extends number | string>(selection: Pf2eTerminalVa
   return selection.include.length > 0 || selection.exclude.length > 0;
 }
 
-function isCanonicalMetadataFilterCandidate(filter: SearchFilterNode): boolean {
-  return (
-    filter.kind === "metadataPredicate" ||
-    filter.kind === "metric" ||
-    filter.kind === "metricCompare" ||
-    filter.kind === "anyOf" ||
-    filter.kind === "allOf" ||
-    filter.kind === "not"
-  );
+function extractCanonicalPredicateProjection(filter: SearchFilterNode): SearchFilterNode | null {
+  if (filter.kind === "metadataPredicate" || filter.kind === "metric" || filter.kind === "metricCompare") {
+    return filter;
+  }
+  if (filter.kind === "not") {
+    const child = extractCanonicalPredicateProjection(filter.child);
+    return child ? { kind: "not", child } : null;
+  }
+  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+    const children = filter.children
+      .map((child) => extractCanonicalPredicateProjection(child))
+      .filter((child): child is SearchFilterNode => Boolean(child));
+    const node = filter.kind === "allOf" ? buildAllOfFilter(children) : buildAnyOfFilter(children);
+    return node ?? null;
+  }
+  return null;
+}
+
+function pruneCanonicalPredicateProjection(filter: SearchFilterNode): SearchFilterNode | null {
+  if (filter.kind === "metadataPredicate" || filter.kind === "metric" || filter.kind === "metricCompare") {
+    return null;
+  }
+  if (filter.kind === "not") {
+    const child = pruneCanonicalPredicateProjection(filter.child);
+    return child ? { kind: "not", child } : null;
+  }
+  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+    const children = filter.children
+      .map((child) => pruneCanonicalPredicateProjection(child))
+      .filter((child): child is SearchFilterNode => Boolean(child));
+    const node = filter.kind === "allOf" ? buildAllOfFilter(children) : buildAnyOfFilter(children);
+    return node ?? null;
+  }
+  return filter;
 }
 
 function isScopeDependentFilterNode(filter: SearchFilterNode): boolean {
@@ -482,10 +502,6 @@ function isTopLevelPackSelectionChild(child: SearchFilterNode): boolean {
   return Boolean(selection && hasSelectionValues(selection));
 }
 
-function isTopLevelMetadataChild(child: SearchFilterNode): boolean {
-  return isCanonicalMetadataFilterCandidate(child) && Boolean(canonicalFilterToMetadataNode(child));
-}
-
 function isSearchNumericMatch(
   value: {
     levelMin: number | null;
@@ -594,21 +610,21 @@ function findTopLevelPackSelectionFilter(
   return hasSelectionValues(mergedSelection) ? mergedSelection : null;
 }
 
-function extractQueryMetadataTree(
+function extractQueryPredicateFilter(
   filter: SearchFilterNode | undefined,
-): MetadataFilterNode | null {
+): SearchFilterNode | null {
   const rootOperator = getQueryRootOperator(filter);
-  const metadataChildren = getTopLevelQueryChildren(filter).filter((child) => isTopLevelMetadataChild(child));
+  const metadataChildren = getTopLevelQueryChildren(filter)
+    .map((child) => extractCanonicalPredicateProjection(child))
+    .filter((child): child is SearchFilterNode => Boolean(child));
 
   if (metadataChildren.length === 0) {
     return null;
   }
 
-  return canonicalFilterToMetadataNode(
-    metadataChildren.length === 1
-      ? metadataChildren[0]!
-      : { kind: rootOperator, children: metadataChildren },
-  );
+  return metadataChildren.length === 1
+    ? metadataChildren[0]!
+    : { kind: rootOperator, children: metadataChildren };
 }
 
 export function createDefaultQuery(mode: Pf2eTerminalSearchMode = "browse"): Pf2eTerminalSearchQuery {
@@ -762,8 +778,8 @@ export function getSearchQueryPackSelection(query: Pf2eTerminalSearchQuery): Pf2
   return normalizeStringSelection(findTopLevelPackSelectionFilter(query.filter) ?? createEmptyStringSelection());
 }
 
-export function getSearchQueryMetadataTree(query: Pf2eTerminalSearchQuery): MetadataFilterNode | null {
-  return extractQueryMetadataTree(query.filter);
+export function getSearchQueryPredicateFilter(query: Pf2eTerminalSearchQuery): SearchFilterNode | null {
+  return extractQueryPredicateFilter(query.filter);
 }
 
 export function getSearchQueryRootOperator(query: Pf2eTerminalSearchQuery): QueryRootOperator {
@@ -909,17 +925,18 @@ export function setSearchQueryPackSelection(
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
 
-export function setSearchQueryMetadataTree(
+export function setSearchQueryPredicateFilter(
   query: Pf2eTerminalSearchQuery,
-  node: MetadataFilterNode | null,
+  node: SearchFilterNode | null,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeAllMatchingTopLevelChildren(getTopLevelQueryChildren(query.filter), isTopLevelMetadataChild);
-  const metadataFilter = metadataFilterNodeToCanonicalFilter(node);
-  if (metadataFilter) {
+  let children = getTopLevelQueryChildren(query.filter)
+    .map((child) => pruneCanonicalPredicateProjection(child))
+    .filter((child): child is SearchFilterNode => Boolean(child));
+  if (node) {
     children = insertAfterCanonicalPrefix(
       children,
-      metadataFilter,
+      node,
       (child) =>
         child.kind === "scope" ||
         child.kind === "level" ||
@@ -946,11 +963,11 @@ export function isActionCostAvailableInScope(
   );
 }
 
-export function buildMetadataNodeForQueryFieldSelection(
+export function buildSearchFilterNodeForQueryFieldSelection(
   field: Pf2eTerminalFacetField,
   selection: Pf2eTerminalValueSelection<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): MetadataFilterNode | null {
+): SearchFilterNode | null {
   const normalizedSelection = normalizeQueryFieldSelection(field, selection, fieldSemanticsByName);
   if (!normalizedSelection) {
     return null;
@@ -963,75 +980,109 @@ export function buildMetadataNodeForQueryFieldSelection(
 
   if (fieldSemantics.fieldType === "set") {
     const includeClauses = normalizedSelection.include.map(
-      (value): MetadataFilterNode => ({
-        field: field as MetadataSetField,
-        op: "includes",
-        value,
-      }),
-    );
-    const excludeClauses = normalizedSelection.exclude.map(
-      (value): MetadataFilterNode => ({
-        not: {
+      (value): SearchFilterNode => ({
+        kind: "metadataPredicate",
+        predicate: {
           field: field as MetadataSetField,
           op: "includes",
           value,
         },
       }),
     );
-    const clauses: MetadataFilterNode[] = [];
+    const excludeClauses = normalizedSelection.exclude.map(
+      (value): SearchFilterNode => ({
+        kind: "not",
+        child: {
+          kind: "metadataPredicate",
+          predicate: {
+            field: field as MetadataSetField,
+            op: "includes",
+            value,
+          },
+        },
+      }),
+    );
+    const clauses: SearchFilterNode[] = [];
     if (includeClauses.length === 1) {
       clauses.push(includeClauses[0]!);
     } else if (includeClauses.length > 1) {
-      clauses.push({ or: includeClauses });
+      clauses.push({ kind: "anyOf", children: includeClauses });
     }
     clauses.push(...excludeClauses);
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
   }
 
   if (fieldSemantics.fieldType === "enumString") {
-    const clauses: MetadataFilterNode[] = [];
+    const clauses: SearchFilterNode[] = [];
     if (normalizedSelection.include.length === 1) {
       clauses.push({
-        field: field as MetadataEnumStringField,
-        op: "eq",
-        value: normalizedSelection.include[0]!,
+        kind: "metadataPredicate",
+        predicate: {
+          field: field as MetadataEnumStringField,
+          op: "eq",
+          value: normalizedSelection.include[0]!,
+        },
       });
     } else if (normalizedSelection.include.length > 1) {
       clauses.push({
-        field: field as MetadataEnumStringField,
-        op: "in",
-        values: normalizedSelection.include,
+        kind: "anyOf",
+        children: normalizedSelection.include.map((value) => ({
+          kind: "metadataPredicate",
+          predicate: { field: field as MetadataEnumStringField, op: "eq", value },
+        })),
       });
     }
     if (normalizedSelection.exclude.length > 0) {
       clauses.push({
-        field: field as MetadataEnumStringField,
-        op: "notIn",
-        values: normalizedSelection.exclude,
+        kind: "not",
+        child:
+          normalizedSelection.exclude.length === 1
+            ? {
+                kind: "metadataPredicate",
+                predicate: {
+                  field: field as MetadataEnumStringField,
+                  op: "eq",
+                  value: normalizedSelection.exclude[0]!,
+                },
+              }
+            : {
+                kind: "anyOf",
+                children: normalizedSelection.exclude.map((value) => ({
+                  kind: "metadataPredicate",
+                  predicate: { field: field as MetadataEnumStringField, op: "eq", value },
+                })),
+              },
       });
     }
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
   }
 
   if (fieldSemantics.fieldType === "boolean") {
-    const clauses: MetadataFilterNode[] = [];
+    const clauses: SearchFilterNode[] = [];
     for (const value of normalizedSelection.include) {
       clauses.push({
-        field: field as MetadataBooleanField,
-        op: "eq",
-        value: value === "true",
-      });
-    }
-    for (const value of normalizedSelection.exclude) {
-      clauses.push({
-        not: {
+        kind: "metadataPredicate",
+        predicate: {
           field: field as MetadataBooleanField,
           op: "eq",
           value: value === "true",
         },
       });
     }
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { and: clauses };
+    for (const value of normalizedSelection.exclude) {
+      clauses.push({
+        kind: "not",
+        child: {
+          kind: "metadataPredicate",
+          predicate: {
+            field: field as MetadataBooleanField,
+            op: "eq",
+            value: value === "true",
+          },
+        },
+      });
+    }
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
   }
 
   return null;

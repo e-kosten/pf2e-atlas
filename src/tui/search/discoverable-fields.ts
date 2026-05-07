@@ -5,8 +5,9 @@ import {
   describeMetadataFieldType,
   formatMetadataFieldLabel,
 } from "../../domain/presentation-vocabulary.js";
-import { normalizeMetadataNode } from "./query-core.js";
-import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
+import type { SearchFilterNode } from "../../domain/search-request-types.js";
+import type { MetadataAtomicPredicate } from "../../domain/search-filter-metadata.js";
+import { normalizeSearchFilterNode } from "./query-core.js";
 import type { SearchCategory } from "../../domain/search-types.js";
 import {
   createEmptyStringSelection,
@@ -16,9 +17,9 @@ import {
   normalizeQueryFieldSelection,
 } from "./selections.js";
 import {
-  buildMetadataNodeForQueryFieldSelection,
-  getSearchQueryMetadataTree,
-  setSearchQueryMetadataTree,
+  buildSearchFilterNodeForQueryFieldSelection,
+  getSearchQueryPredicateFilter,
+  setSearchQueryPredicateFilter,
 } from "./query-state.js";
 import type {
   Pf2eTerminalFacetField,
@@ -31,7 +32,7 @@ import type {
 } from "./service-types.js";
 
 function extractSelectionFromMetadataPredicate(
-  node: MetadataPredicate,
+  node: MetadataAtomicPredicate,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): { field: Pf2eTerminalQueryField; selection: Pf2eTerminalValueSelection<string> } | null {
   const fieldSemantics = fieldSemanticsByName.get(node.field as Pf2eTerminalFacetField);
@@ -50,12 +51,6 @@ function extractSelectionFromMetadataPredicate(
     if ("value" in node && node.op === "eq") {
       return { field: node.field, selection: { include: [String(node.value)], exclude: [] } };
     }
-    if ("values" in node && node.op === "in") {
-      return { field: node.field, selection: { include: node.values.map(String), exclude: [] } };
-    }
-    if ("values" in node) {
-      return { field: node.field, selection: { include: [], exclude: node.values.map(String) } };
-    }
     return null;
   }
 
@@ -73,12 +68,12 @@ type ScopedSelectionExtraction = {
 };
 
 function tryExtractScopedSelectionNode(
-  node: MetadataFilterNode,
+  node: SearchFilterNode,
   scopedFieldSet: ReadonlySet<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): ScopedSelectionExtraction | null {
-  if ("not" in node) {
-    const extracted = tryExtractScopedSelectionNode(node.not, scopedFieldSet, fieldSemanticsByName);
+  if (node.kind === "not") {
+    const extracted = tryExtractScopedSelectionNode(node.child, scopedFieldSet, fieldSemanticsByName);
     if (!extracted || extracted.selection.exclude.length > 0 || extracted.positiveGroups !== 1) {
       return null;
     }
@@ -92,11 +87,11 @@ function tryExtractScopedSelectionNode(
     };
   }
 
-  if ("or" in node) {
+  if (node.kind === "anyOf") {
     let extractedField: Pf2eTerminalQueryField | null = null;
     let mergedSelection = createEmptyStringSelection();
 
-    for (const child of node.or) {
+    for (const child of node.children) {
       const extracted = tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName);
       if (!extracted || extracted.selection.exclude.length > 0 || extracted.positiveGroups !== 1) {
         return null;
@@ -113,12 +108,12 @@ function tryExtractScopedSelectionNode(
       : null;
   }
 
-  if ("and" in node) {
+  if (node.kind === "allOf") {
     let extractedField: Pf2eTerminalQueryField | null = null;
     let mergedSelection = createEmptyStringSelection();
     let positiveGroups = 0;
 
-    for (const child of node.and) {
+    for (const child of node.children) {
       const extracted = tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName);
       if (!extracted || !scopedFieldSet.has(extracted.field)) {
         return null;
@@ -143,7 +138,11 @@ function tryExtractScopedSelectionNode(
       : null;
   }
 
-  const extracted = extractSelectionFromMetadataPredicate(node, fieldSemanticsByName);
+  if (node.kind !== "metadataPredicate") {
+    return null;
+  }
+
+  const extracted = extractSelectionFromMetadataPredicate(node.predicate, fieldSemanticsByName);
   return extracted && scopedFieldSet.has(extracted.field)
     ? {
         ...extracted,
@@ -153,12 +152,11 @@ function tryExtractScopedSelectionNode(
 }
 
 function shouldPreserveUnsupportedScopedSelectionGroup(
-  node: Extract<MetadataFilterNode, { and: MetadataFilterNode[] } | { or: MetadataFilterNode[] }>,
+  node: Extract<SearchFilterNode, { kind: "allOf"; children: SearchFilterNode[] } | { kind: "anyOf"; children: SearchFilterNode[] }>,
   scopedFieldSet: ReadonlySet<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): boolean {
-  const children = "and" in node ? node.and : node.or;
-  const childExtractions = children.map((child) =>
+  const childExtractions = node.children.map((child) =>
     tryExtractScopedSelectionNode(child, scopedFieldSet, fieldSemanticsByName),
   );
   const [firstExtraction] = childExtractions;
@@ -170,16 +168,16 @@ function shouldPreserveUnsupportedScopedSelectionGroup(
 }
 
 function extractScopedQueryFieldSelections(
-  node: MetadataFilterNode | null,
+  node: SearchFilterNode | null,
   scopedFieldSet: ReadonlySet<string>,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): {
-  metadata: MetadataFilterNode | null;
+  filter: SearchFilterNode | null;
   selections: Pf2eTerminalQueryFieldSelectionMap;
 } {
   if (!node) {
     return {
-      metadata: null,
+      filter: null,
       selections: {},
     };
   }
@@ -187,57 +185,57 @@ function extractScopedQueryFieldSelections(
   const directExtraction = tryExtractScopedSelectionNode(node, scopedFieldSet, fieldSemanticsByName);
   if (directExtraction) {
     return {
-      metadata: null,
+      filter: null,
       selections: {
         [directExtraction.field]: directExtraction.selection,
       },
     };
   }
 
-  if ("and" in node) {
+  if (node.kind === "allOf") {
     if (shouldPreserveUnsupportedScopedSelectionGroup(node, scopedFieldSet, fieldSemanticsByName)) {
       return {
-        metadata: node,
+        filter: node,
         selections: {},
       };
     }
 
     let selections: Pf2eTerminalQueryFieldSelectionMap = {};
-    const children: MetadataFilterNode[] = [];
+    const children: SearchFilterNode[] = [];
 
-    for (const child of node.and) {
+    for (const child of node.children) {
       const extracted = extractScopedQueryFieldSelections(child, scopedFieldSet, fieldSemanticsByName);
       selections = mergeSelectionMaps(selections, extracted.selections);
-      if (extracted.metadata) {
-        children.push(extracted.metadata);
+      if (extracted.filter) {
+        children.push(extracted.filter);
       }
     }
 
     return {
-      metadata: normalizeMetadataNode(children.length === 0 ? null : { and: children }),
+      filter: normalizeSearchFilterNode(children.length === 0 ? null : { kind: "allOf", children }) ?? null,
       selections,
     };
   }
 
-  if ("or" in node && shouldPreserveUnsupportedScopedSelectionGroup(node, scopedFieldSet, fieldSemanticsByName)) {
+  if (node.kind === "anyOf" && shouldPreserveUnsupportedScopedSelectionGroup(node, scopedFieldSet, fieldSemanticsByName)) {
     return {
-      metadata: node,
+      filter: node,
       selections: {},
     };
   }
 
   return {
-    metadata: node,
+    filter: node,
     selections: {},
   };
 }
 
 export function partitionDiscoverableQueryFieldSelections(
-  node: MetadataFilterNode | null,
+  node: SearchFilterNode | null,
   scopedFields: readonly string[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): {
-  metadata: MetadataFilterNode | null;
+  filter: SearchFilterNode | null;
   selections: Pf2eTerminalQueryFieldSelectionMap;
 } {
   return extractScopedQueryFieldSelections(node, new Set(scopedFields), fieldSemanticsByName);
@@ -313,7 +311,7 @@ export function buildDiscoverableQueryFieldSelections(
 ): Pf2eTerminalQueryFieldSelectionMap {
   const selectionMap = createScopedSelectionMap(scopedFields);
   const extracted = partitionDiscoverableQueryFieldSelections(
-    getSearchQueryMetadataTree(query),
+    getSearchQueryPredicateFilter(query),
     scopedFields,
     fieldSemanticsByName,
   );
@@ -351,11 +349,11 @@ export function applyDiscoverableQueryFieldSelections(
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalSearchQuery {
   const extracted = partitionDiscoverableQueryFieldSelections(
-    getSearchQueryMetadataTree(query),
+    getSearchQueryPredicateFilter(query),
     scopedFields,
     fieldSemanticsByName,
   );
-  const metadataClauses: MetadataFilterNode[] = extracted.metadata ? [extracted.metadata] : [];
+  const filterClauses: SearchFilterNode[] = extracted.filter ? [extracted.filter] : [];
 
   for (const field of scopedFields) {
     const nextSelection = normalizeQueryFieldSelection(
@@ -367,21 +365,21 @@ export function applyDiscoverableQueryFieldSelections(
       continue;
     }
 
-    const metadataNode = buildMetadataNodeForQueryFieldSelection(
+    const filterNode = buildSearchFilterNodeForQueryFieldSelection(
       field as Pf2eTerminalFacetField,
       nextSelection,
       fieldSemanticsByName,
     );
-    if (metadataNode) {
-      metadataClauses.push(metadataNode);
+    if (filterNode) {
+      filterClauses.push(filterNode);
     }
   }
-  return setSearchQueryMetadataTree(
+  return setSearchQueryPredicateFilter(
     query,
-    metadataClauses.length === 0
+    filterClauses.length === 0
       ? null
-      : metadataClauses.length === 1
-        ? metadataClauses[0]!
-        : normalizeMetadataNode({ and: metadataClauses }),
+      : filterClauses.length === 1
+        ? filterClauses[0]!
+        : normalizeSearchFilterNode({ kind: "allOf", children: filterClauses }) ?? null,
   );
 }

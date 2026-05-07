@@ -9,8 +9,6 @@ import type {
 } from "../../../domain/search-request-types.js";
 import type { SearchCategory } from "../../../domain/search-types.js";
 import { promptLevelRangeDraft, promptNumericScalarClause } from "../../filter-explorer/scalar-editor.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
-import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import {
   getSearchQueryCategory,
   getSearchQuerySubcategory,
@@ -31,7 +29,7 @@ import {
   type StructuredDraftPromptFlowResult,
 } from "./structured-draft-continuation.js";
 import {
-  getMetadataFilterNodeFieldValue,
+  getSearchFilterNodeFieldValue,
   inferMetricFieldFamily,
   type MetricFieldFamily,
   type StructuredDraftExplorerMetricKeyResult,
@@ -127,13 +125,13 @@ export function useStructuredDraftPromptActions({
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
+    currentNode?: SearchFilterNode | null,
+  ) => Promise<SearchFilterNode | null | undefined>;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];
   openPromptFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode: MetadataFilterNode | null,
+    currentNode: SearchFilterNode | null,
   ) => Promise<StructuredDraftExplorerPromptNodeResult>;
   selectPromptMetricKey: (
     query: Pf2eTerminalSearchQuery,
@@ -151,7 +149,7 @@ export function useStructuredDraftPromptActions({
       promptSession: SearchWorkspacePromptAdapters,
       query: Pf2eTerminalSearchQuery,
       family: "field" | "metric",
-      currentNode: MetadataFilterNode | null = null,
+      currentNode: SearchFilterNode | null = null,
     ): Promise<SearchFilterNodeEditorResult> => {
       const fieldOptions = getScopedFieldOptions(query).filter((fieldOption) =>
         family === "metric"
@@ -167,7 +165,7 @@ export function useStructuredDraftPromptActions({
         return structuredDraftPromptCancel();
       }
 
-      let preferredFieldValue = getMetadataFilterNodeFieldValue(currentNode) ?? fieldOptions[0]!.value;
+      let preferredFieldValue = getSearchFilterNodeFieldValue(currentNode) ?? fieldOptions[0]!.value;
       for (;;) {
         const selection = await promptSession.promptSelectOption({
           title: family === "metric" ? "Metric" : "Metadata",
@@ -204,7 +202,7 @@ export function useStructuredDraftPromptActions({
         const nextNode = await editFieldClause(query, fieldOption, currentNode);
         return nextNode === undefined
           ? structuredDraftPromptCancel()
-          : structuredDraftPromptApply(nextNode ? (metadataFilterNodeToCanonicalFilter(nextNode) ?? null) : null);
+          : structuredDraftPromptApply(nextNode);
       }
     },
     [editFieldClause, getScopedFieldOptions, openPromptFieldClause, terminal],
@@ -641,14 +639,14 @@ export function useStructuredDraftPromptActions({
             promptSession,
             query,
             "field",
-            currentNode ? canonicalFilterToMetadataNode(currentNode) : null,
+            currentNode ?? null,
           );
         case "metric":
           return promptForFieldClause(
             promptSession,
             query,
             "metric",
-            currentNode ? canonicalFilterToMetadataNode(currentNode) : null,
+            currentNode ?? null,
           );
         case "metricCompare":
           return promptForMetricCompareClause(

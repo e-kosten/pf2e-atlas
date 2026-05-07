@@ -6,9 +6,7 @@ import type {
   Pf2eTerminalSearchQuery,
 } from "../../search/service.js";
 import { getSearchFilterNodeAtPath } from "../../search/query-core.js";
-import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import { replaceSearchQueryRootScope } from "../../search/query-state.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import type {
   SearchWorkspacePromptAdapters,
@@ -207,8 +205,8 @@ export function useStructuredDraftEditRouteActions({
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
+    currentNode?: SearchFilterNode | null,
+  ) => Promise<SearchFilterNode | null | undefined>;
   openLiveExplorerGroupedField: (
     query: Pf2eTerminalSearchQuery,
     entry: SearchStructuredDraftEntry,
@@ -267,13 +265,11 @@ export function useStructuredDraftEditRouteActions({
           route.leafKind === "metadataBoolean" ||
           route.leafKind === "metadataText")
       ) {
-        const currentMetadataNode = currentNode ? canonicalFilterToMetadataNode(currentNode) : null;
-        const nextMetadataNode = await editFieldClause(query, route.fieldOption, currentMetadataNode);
-        if (nextMetadataNode === undefined) {
+        const nextFilterNode = await editFieldClause(query, route.fieldOption, currentNode ?? null);
+        if (nextFilterNode === undefined) {
           return "cancelled";
         }
-        const nextNode = nextMetadataNode ? (metadataFilterNodeToCanonicalFilter(nextMetadataNode) ?? null) : null;
-        applyLeafReplacement({ nextNode, path: route.path, query, replaceStructuredDraftProjection });
+        applyLeafReplacement({ nextNode: nextFilterNode, path: route.path, query, replaceStructuredDraftProjection });
         return "applied";
       }
 

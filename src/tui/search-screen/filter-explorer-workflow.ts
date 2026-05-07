@@ -1,11 +1,11 @@
 import React from "react";
 
+import type { SearchFilterNode } from "../../domain/search-request-types.js";
 import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
 } from "../filter-explorer/search-draft-model.js";
 import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../search/service.js";
-import type { MetadataFilterNode } from "../search/metadata-filter-draft.js";
 import { getSearchQueryCategory, getSearchQuerySubcategory } from "../search/query-state.js";
 import type { SearchFilterExplorerSession } from "./model.js";
 import type { Pf2eTerminalAppServices } from "../app-services.js";
@@ -34,7 +34,7 @@ export function useSearchFilterExplorerWorkflow({
     queryOverride?: Pf2eTerminalSearchQuery;
     initialDiscoveryMode?: SearchFilterDiscoveryMode;
     initialFieldState?: SearchFilterExplorerFieldState;
-    preservedMetadata?: MetadataFilterNode | null;
+    preservedFilter?: SearchFilterNode | null;
     fieldOptions: Pf2eTerminalQueryFieldOption[];
     resolveSelectionTarget?: (
       node: import("../../domain/ontology-types.js").OntologyNode | undefined,
@@ -52,7 +52,7 @@ export function useSearchFilterExplorerWorkflow({
       queryOverride,
       initialDiscoveryMode = "matching",
       initialFieldState,
-      preservedMetadata,
+      preservedFilter,
       fieldOptions,
       resolveSelectionTarget,
       onEvent,
@@ -62,7 +62,7 @@ export function useSearchFilterExplorerWorkflow({
       queryOverride?: Pf2eTerminalSearchQuery;
       initialDiscoveryMode?: SearchFilterDiscoveryMode;
       initialFieldState?: SearchFilterExplorerFieldState;
-      preservedMetadata?: MetadataFilterNode | null;
+      preservedFilter?: SearchFilterNode | null;
       fieldOptions: Pf2eTerminalQueryFieldOption[];
       resolveSelectionTarget?: (
         node: import("../../domain/ontology-types.js").OntologyNode | undefined,
@@ -120,7 +120,7 @@ export function useSearchFilterExplorerWorkflow({
         loadModelForDiscoveryMode: (mode, options) => buildPreparedModel(mode, options),
         query: scopeQuery,
         initialFieldState,
-        preservedMetadata,
+        preservedFilter,
         fieldOptions,
         refreshOnQueryChange: Boolean(onEvent),
         resolveSelectionTarget: resolveSelectionTarget ?? buildSearchFilterExplorerTargetResolver(fieldOptions),

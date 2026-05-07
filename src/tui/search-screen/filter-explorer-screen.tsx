@@ -87,13 +87,13 @@ function prepareSessionFieldState(
   prepareDraft: (query: SearchFilterExplorerSession["query"]) => Pf2eTerminalPreparedFilterExplorerDraft,
 ): {
   fieldState: SearchFilterExplorerFieldState;
-  preservedMetadata: Pf2eTerminalPreparedFilterExplorerDraft["preservedMetadata"];
+  preservedFilter: Pf2eTerminalPreparedFilterExplorerDraft["preservedFilter"];
   scopedFields: Pf2eTerminalPreparedFilterExplorerDraft["scopedFields"];
 } {
   const preparedDraft = prepareDraft(session.query);
   return {
     fieldState: session.initialFieldState ?? buildSearchFilterExplorerFieldState(preparedDraft.draft),
-    preservedMetadata: session.preservedMetadata ?? preparedDraft.preservedMetadata,
+    preservedFilter: session.preservedFilter ?? preparedDraft.preservedFilter,
     scopedFields: preparedDraft.scopedFields,
   };
 }
@@ -145,7 +145,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
   );
   const discoveryModeRef = React.useRef<SearchFilterDiscoveryMode>(initialDiscoveryMode);
   const modelCacheRef = React.useRef(new Map<SearchFilterDiscoveryMode, SearchFilterExplorerSession["model"]>());
-  const preservedMetadataRef = React.useRef(prepareSessionFieldState(session, prepareDraft).preservedMetadata);
+  const preservedFilterRef = React.useRef(prepareSessionFieldState(session, prepareDraft).preservedFilter);
   const scopedFieldsRef = React.useRef<readonly (typeof scopedFields)[number][]>(
     prepareSessionFieldState(session, prepareDraft).scopedFields,
   );
@@ -335,7 +335,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
     const preparedFieldState = prepareSessionFieldState(session, prepareDraft);
     queryRef.current = session.query;
     fieldStateRef.current = preparedFieldState.fieldState;
-    preservedMetadataRef.current = preparedFieldState.preservedMetadata;
+    preservedFilterRef.current = preparedFieldState.preservedFilter;
     scopedFieldsRef.current = preparedFieldState.scopedFields;
     rerenderFieldState();
     setSortMode("semantic");
@@ -464,7 +464,7 @@ export function SearchFilterExplorerScreen({ session }: { session: SearchFilterE
         queryRef.current,
         buildSearchFilterExplorerComposeDraft(nextFieldState),
         {
-          preservedMetadata: preservedMetadataRef.current,
+          preservedFilter: preservedFilterRef.current,
           scopedFields: scopedFieldsRef.current,
         },
       );

@@ -1,8 +1,8 @@
 import React from "react";
 
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchStructuredDraftEntry } from "../../search/structured-draft-session.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type { Pf2eTerminalQueryFieldOption, Pf2eTerminalSearchQuery } from "../../search/service.js";
 import type { SearchStructuredEditorSession } from "../query-field-builder/query-field-builder-session.js";
 import { useSearchStructuredDraftEntryActions } from "./structured-draft-entry-actions.js";
@@ -39,8 +39,8 @@ export function useSearchStructuredDraftEditing({
   editFieldClause: (
     query: Pf2eTerminalSearchQuery,
     fieldOption: Pf2eTerminalQueryFieldOption,
-    currentNode?: MetadataFilterNode | null,
-  ) => Promise<MetadataFilterNode | null | undefined>;
+    currentNode?: SearchFilterNode | null,
+  ) => Promise<SearchFilterNode | null | undefined>;
   enterStructuredDraftMoveMode: (path: number[]) => void;
   finishStructuredDraftSession: () => void;
   getScopedFieldOptions: (query: Pf2eTerminalSearchQuery) => Pf2eTerminalQueryFieldOption[];

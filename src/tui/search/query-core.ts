@@ -1,4 +1,3 @@
-import type { MetadataFilterNode, MetadataPredicate } from "./metadata-filter-draft.js";
 import type { SearchFilterNode } from "../../domain/search-request-types.js";
 import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
@@ -6,20 +5,6 @@ import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-la
 import { formatMetadataFieldLabel, humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
 import type { SearchCategory } from "../../domain/search-types.js";
 
-export type SearchMetadataNodeSummary = {
-  label: string;
-  value: string;
-  description: string;
-};
-
-export type SearchMetadataTreeEntry = {
-  depth: number;
-  node: MetadataFilterNode;
-  path: number[];
-  summary: SearchMetadataNodeSummary;
-};
-
-export type SearchMetadataPresentationAliasStyle = "compact" | "tree";
 export type SearchFilterPresentationAliasStyle = "compact" | "tree";
 export type SearchFilterRenderOptions = {
   category?: SearchCategory | null;
@@ -31,10 +16,6 @@ type MetricQueryFieldPresentation =
   | "actorMetricCompare"
   | "itemMetric"
   | "itemMetricCompare";
-
-export function isMetadataPredicate(node: MetadataFilterNode): node is MetadataPredicate {
-  return !("and" in node) && !("or" in node) && !("not" in node);
-}
 
 function formatPackPresentationValue(
   packValue: string,
@@ -63,483 +44,6 @@ function resolveMetricQueryFieldPresentation(
   }
 
   return comparison ? "actorMetricCompare" : "actorMetric";
-}
-
-export function isMetadataBooleanGroup(
-  node: MetadataFilterNode,
-): node is Extract<MetadataFilterNode, { and: MetadataFilterNode[] } | { or: MetadataFilterNode[] }> {
-  return "and" in node || "or" in node;
-}
-
-function createMetadataBooleanGroup(
-  operator: "and" | "or",
-  children: MetadataFilterNode[],
-): Extract<MetadataFilterNode, { and: MetadataFilterNode[] } | { or: MetadataFilterNode[] }> {
-  return operator === "and" ? { and: children } : { or: children };
-}
-
-export function getMetadataNodeChildren(node: MetadataFilterNode): MetadataFilterNode[] {
-  if ("and" in node) {
-    return node.and;
-  }
-  if ("or" in node) {
-    return node.or;
-  }
-  if ("not" in node) {
-    return [node.not];
-  }
-  return [];
-}
-
-export function getMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): MetadataFilterNode | null {
-  let current = node;
-  for (const segment of path) {
-    if (!current) {
-      return null;
-    }
-    current = getMetadataNodeChildren(current)[segment] ?? null;
-  }
-  return current;
-}
-
-export function normalizeMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if ("and" in node) {
-    const children = node.and
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { and: children };
-  }
-
-  if ("or" in node) {
-    const children = node.or
-      .map((child) => normalizeMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    if (children.length === 0) {
-      return null;
-    }
-    if (children.length === 1) {
-      return children[0]!;
-    }
-    return { or: children };
-  }
-
-  if ("not" in node) {
-    const child = normalizeMetadataNode(node.not);
-    if (!child) {
-      return null;
-    }
-    if ("not" in child) {
-      return normalizeMetadataNode(child.not);
-    }
-    return { not: child };
-  }
-
-  return node;
-}
-
-function normalizeEditableMetadataNode(node: MetadataFilterNode | null): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if ("and" in node) {
-    const children = node.and
-      .map((child) => normalizeEditableMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    return children.length > 0 ? { and: children } : null;
-  }
-
-  if ("or" in node) {
-    const children = node.or
-      .map((child) => normalizeEditableMetadataNode(child))
-      .filter((child): child is MetadataFilterNode => Boolean(child));
-    return children.length > 0 ? { or: children } : null;
-  }
-
-  if ("not" in node) {
-    const child = normalizeEditableMetadataNode(node.not);
-    return child ? { not: child } : null;
-  }
-
-  return node;
-}
-
-export function updateMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-  update: (current: MetadataFilterNode) => MetadataFilterNode | null,
-): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if (path.length === 0) {
-    return normalizeEditableMetadataNode(update(node));
-  }
-
-  const [segment, ...rest] = path;
-  if (segment === undefined) {
-    return normalizeEditableMetadataNode(node);
-  }
-
-  if ("and" in node) {
-    const children = [...node.and];
-    const updatedChild = updateMetadataNodeAtPath(children[segment] ?? null, rest, update);
-    if (updatedChild) {
-      children[segment] = updatedChild;
-    } else {
-      children.splice(segment, 1);
-    }
-    return normalizeEditableMetadataNode({ and: children });
-  }
-
-  if ("or" in node) {
-    const children = [...node.or];
-    const updatedChild = updateMetadataNodeAtPath(children[segment] ?? null, rest, update);
-    if (updatedChild) {
-      children[segment] = updatedChild;
-    } else {
-      children.splice(segment, 1);
-    }
-    return normalizeEditableMetadataNode({ or: children });
-  }
-
-  if ("not" in node) {
-    if (segment !== 0) {
-      return node;
-    }
-    const updatedChild = updateMetadataNodeAtPath(node.not, rest, update);
-    return normalizeEditableMetadataNode(updatedChild ? { not: updatedChild } : null);
-  }
-
-  return node;
-}
-
-export function appendMetadataNodeAtPath(
-  metadata: MetadataFilterNode | null,
-  path: readonly number[],
-  nextNode: MetadataFilterNode,
-): MetadataFilterNode | null {
-  if (!metadata) {
-    return normalizeEditableMetadataNode(nextNode);
-  }
-
-  return updateMetadataNodeAtPath(metadata, path, (current) => {
-    if ("and" in current) {
-      return { and: [...current.and, nextNode] };
-    }
-    if ("or" in current) {
-      return { or: [...current.or, nextNode] };
-    }
-    return { and: [current, nextNode] };
-  });
-}
-
-export function removeMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): MetadataFilterNode | null {
-  return updateMetadataNodeAtPath(node, path, () => null);
-}
-
-export function wrapMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-  wrapper: "and" | "or" | "not",
-): MetadataFilterNode | null {
-  return updateMetadataNodeAtPath(node, path, (current) =>
-    wrapper === "not" ? { not: current } : createMetadataBooleanGroup(wrapper, [current]),
-  );
-}
-
-export function reshapeMetadataBooleanGroupAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-  operator: "and" | "or",
-): MetadataFilterNode | null {
-  return updateMetadataNodeAtPath(node, path, (current) => {
-    if (!isMetadataBooleanGroup(current)) {
-      return current;
-    }
-    return createMetadataBooleanGroup(operator, [...getMetadataNodeChildren(current)]);
-  });
-}
-
-function updateMetadataGroupAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-  update: (
-    operator: "and" | "or",
-    children: MetadataFilterNode[],
-  ) => MetadataFilterNode[] | MetadataFilterNode | null,
-): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if (path.length === 0) {
-    if (!isMetadataBooleanGroup(node)) {
-      return node;
-    }
-    const result = update("and" in node ? "and" : "or", [...getMetadataNodeChildren(node)]);
-    if (Array.isArray(result)) {
-      return normalizeEditableMetadataNode(createMetadataBooleanGroup("and" in node ? "and" : "or", result));
-    }
-    return normalizeEditableMetadataNode(result);
-  }
-
-  const [segment, ...rest] = path;
-  if (segment === undefined) {
-    return normalizeEditableMetadataNode(node);
-  }
-
-  if ("and" in node || "or" in node) {
-    const operator = "and" in node ? "and" : "or";
-    const children = [...getMetadataNodeChildren(node)];
-    const child = children[segment] ?? null;
-    if (!child) {
-      return normalizeEditableMetadataNode(node);
-    }
-    const updatedChild = updateMetadataGroupAtPath(child, rest, update);
-    if (updatedChild) {
-      children[segment] = updatedChild;
-    } else {
-      children.splice(segment, 1);
-    }
-    return normalizeEditableMetadataNode(createMetadataBooleanGroup(operator, children));
-  }
-
-  if ("not" in node) {
-    if (segment !== 0) {
-      return normalizeEditableMetadataNode(node);
-    }
-    const updatedChild = updateMetadataGroupAtPath(node.not, rest, update);
-    return normalizeEditableMetadataNode(updatedChild ? { not: updatedChild } : null);
-  }
-
-  return normalizeEditableMetadataNode(node);
-}
-
-export function unwrapMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if (path.length === 0) {
-    return "not" in node ? node.not : node;
-  }
-
-  const parentPath = path.slice(0, -1);
-  const childIndex = path[path.length - 1]!;
-  return updateMetadataGroupAtPath(node, parentPath, (operator, children) => {
-    const target = children[childIndex] ?? null;
-    if (!target) {
-      return children;
-    }
-    if ("not" in target) {
-      return [...children.slice(0, childIndex), target.not, ...children.slice(childIndex + 1)];
-    }
-    if ("and" in target || "or" in target) {
-      return [...children.slice(0, childIndex), ...getMetadataNodeChildren(target), ...children.slice(childIndex + 1)];
-    }
-    return children;
-  });
-}
-
-function insertMetadataNodeIntoBooleanGroupAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-  index: number,
-  nextNode: MetadataFilterNode,
-): MetadataFilterNode | null {
-  return updateMetadataGroupAtPath(node, path, (operator, children) => [
-    ...children.slice(0, index),
-    nextNode,
-    ...children.slice(index),
-  ]);
-}
-
-function adjustPathAfterRemoval(targetPath: readonly number[], removedPath: readonly number[]): number[] {
-  const nextPath = [...targetPath];
-  const removedParentPath = removedPath.slice(0, -1);
-  const removedIndex = removedPath[removedPath.length - 1];
-  if (removedIndex === undefined || targetPath.length <= removedParentPath.length) {
-    return nextPath;
-  }
-
-  if (!removedParentPath.every((segment, index) => targetPath[index] === segment)) {
-    return nextPath;
-  }
-
-  const targetSiblingIndex = targetPath[removedParentPath.length];
-  if (targetSiblingIndex !== undefined && targetSiblingIndex > removedIndex) {
-    nextPath[removedParentPath.length] = targetSiblingIndex - 1;
-  }
-  return nextPath;
-}
-
-function isDescendantOrSamePath(path: readonly number[], ancestor: readonly number[]): boolean {
-  return ancestor.length <= path.length && ancestor.every((segment, index) => path[index] === segment);
-}
-
-export function isValidMetadataMoveTargetGroupPath(
-  node: MetadataFilterNode | null,
-  sourcePath: readonly number[],
-  targetGroupPath: readonly number[],
-): boolean {
-  if (!node || sourcePath.length === 0) {
-    return false;
-  }
-
-  if (isDescendantOrSamePath(targetGroupPath, sourcePath)) {
-    return false;
-  }
-
-  if (targetGroupPath.length === 0) {
-    return true;
-  }
-
-  const targetNode = getMetadataNodeAtPath(node, targetGroupPath);
-  return Boolean(targetNode && isMetadataBooleanGroup(targetNode));
-}
-
-export function moveMetadataNodeToGroupPath(
-  node: MetadataFilterNode | null,
-  sourcePath: readonly number[],
-  targetGroupPath: readonly number[],
-): MetadataFilterNode | null {
-  if (!node || sourcePath.length === 0) {
-    return node;
-  }
-
-  if (!isValidMetadataMoveTargetGroupPath(node, sourcePath, targetGroupPath)) {
-    return node;
-  }
-
-  const payload = getMetadataNodeAtPath(node, sourcePath);
-  if (!payload) {
-    return node;
-  }
-
-  const withoutSource = removeMetadataNodeAtPath(node, sourcePath);
-  const adjustedTargetPath = adjustPathAfterRemoval(targetGroupPath, sourcePath);
-  return appendMetadataNodeAtPath(withoutSource, adjustedTargetPath, payload);
-}
-
-export function liftMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): MetadataFilterNode | null {
-  if (!node || !canLiftMetadataNodeAtPath(node, path)) {
-    return node;
-  }
-
-  const payload = getMetadataNodeAtPath(node, path);
-  const parentPath = path.slice(0, -1);
-  const grandparentPath = path.slice(0, -2);
-  const parentIndex = path[path.length - 2]!;
-  const parentNode = getMetadataNodeAtPath(node, parentPath);
-  const grandparentNode = grandparentPath.length > 0 ? getMetadataNodeAtPath(node, grandparentPath) : null;
-
-  if (!payload || !parentNode || !isMetadataBooleanGroup(parentNode) || !grandparentNode || !isMetadataBooleanGroup(grandparentNode)) {
-    return node;
-  }
-
-  const parentChildCount = getMetadataNodeChildren(parentNode).length;
-  const withoutSource = removeMetadataNodeAtPath(node, path);
-  return insertMetadataNodeIntoBooleanGroupAtPath(
-    withoutSource,
-    grandparentPath,
-    parentChildCount > 1 ? parentIndex + 1 : parentIndex,
-    payload,
-  );
-}
-
-export function canUnwrapMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): boolean {
-  if (!node) {
-    return false;
-  }
-
-  const targetNode = getMetadataNodeAtPath(node, path);
-  if (!targetNode) {
-    return false;
-  }
-
-  if ("not" in targetNode) {
-    return true;
-  }
-
-  if (!isMetadataBooleanGroup(targetNode) || path.length === 0) {
-    return false;
-  }
-
-  const parentNode = getMetadataNodeAtPath(node, path.slice(0, -1));
-  return Boolean(parentNode && isMetadataBooleanGroup(parentNode));
-}
-
-export function canLiftMetadataNodeAtPath(
-  node: MetadataFilterNode | null,
-  path: readonly number[],
-): boolean {
-  if (!node || path.length < 2) {
-    return false;
-  }
-
-  const targetNode = getMetadataNodeAtPath(node, path);
-  const parentNode = getMetadataNodeAtPath(node, path.slice(0, -1));
-  const grandparentNode = getMetadataNodeAtPath(node, path.slice(0, -2));
-  return Boolean(
-    targetNode &&
-      parentNode &&
-      grandparentNode &&
-      isMetadataBooleanGroup(parentNode) &&
-      isMetadataBooleanGroup(grandparentNode),
-  );
-}
-
-export function toggleMetadataRootGroupOperator(node: MetadataFilterNode | null): MetadataFilterNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if ("and" in node) {
-    return { or: [...node.and] };
-  }
-
-  if ("or" in node) {
-    return { and: [...node.or] };
-  }
-
-  return { or: [node] };
-}
-
-export function countMetadataPredicates(node: MetadataFilterNode | null): number {
-  if (!node) {
-    return 0;
-  }
-  if (isMetadataPredicate(node)) {
-    return 1;
-  }
-  return getMetadataNodeChildren(node).reduce((total, child) => total + countMetadataPredicates(child), 0);
 }
 
 export function isSearchFilterBooleanGroup(
@@ -577,6 +81,32 @@ export function getSearchFilterNodeAtPath(
     current = getSearchFilterNodeChildren(current)[segment] ?? null;
   }
   return current;
+}
+
+export function normalizeSearchFilterNode(node: SearchFilterNode | undefined | null): SearchFilterNode | undefined {
+  if (!node) {
+    return undefined;
+  }
+
+  if (node.kind === "anyOf" || node.kind === "allOf") {
+    const children = node.children
+      .map((child) => normalizeSearchFilterNode(child))
+      .filter((child): child is SearchFilterNode => Boolean(child));
+    if (children.length === 0) {
+      return undefined;
+    }
+    return children.length === 1 ? children[0]! : { kind: node.kind, children };
+  }
+
+  if (node.kind === "not") {
+    const child = normalizeSearchFilterNode(node.child);
+    if (!child) {
+      return undefined;
+    }
+    return child.kind === "not" ? normalizeSearchFilterNode(child.child) : { kind: "not", child };
+  }
+
+  return node;
 }
 
 function normalizeEditableSearchFilterNode(node: SearchFilterNode | undefined | null): SearchFilterNode | undefined {
@@ -952,6 +482,22 @@ export function toggleSearchFilterRootGroupOperator(
   return { kind: "anyOf", children: [node] };
 }
 
+export function isSearchFilterPredicateNode(
+  node: SearchFilterNode,
+): node is Extract<SearchFilterNode, { kind: "metadataPredicate" } | { kind: "metric" } | { kind: "metricCompare" }> {
+  return node.kind === "metadataPredicate" || node.kind === "metric" || node.kind === "metricCompare";
+}
+
+export function countSearchFilterPredicateNodes(node: SearchFilterNode | undefined): number {
+  if (!node) {
+    return 0;
+  }
+  if (isSearchFilterPredicateNode(node)) {
+    return 1;
+  }
+  return getSearchFilterNodeChildren(node).reduce((total, child) => total + countSearchFilterPredicateNodes(child), 0);
+}
+
 function formatSearchNumericMatch(match: Extract<SearchFilterNode, { kind: "level" | "price" }>["match"]): string {
   switch (match.kind) {
     case "eq":
@@ -991,7 +537,7 @@ function formatCanonicalMetricOperator(
 function formatBooleanGroupAlias(
   operator: "allOf" | "anyOf",
   count: number,
-  style: SearchFilterPresentationAliasStyle | SearchMetadataPresentationAliasStyle,
+  style: SearchFilterPresentationAliasStyle,
 ): string {
   const label = operator === "allOf" ? "All of" : "Any of";
   if (style === "compact") {
@@ -1123,160 +669,4 @@ export function formatMetadataScalar(value: boolean | number | string): string {
     return value ? "true" : "false";
   }
   return typeof value === "number" ? String(value) : humanizeOntologySearchIdentifier(value);
-}
-
-export function formatMetadataPredicateValue(node: MetadataPredicate): string {
-  if ("metric" in node) {
-    return `${node.metric} ${node.op} ${formatMetadataScalar(node.value)}`;
-  }
-  if ("leftMetric" in node) {
-    return `${node.leftMetric} ${node.op} ${node.rightMetric}`;
-  }
-  if ("values" in node) {
-    const values = node.values.map((value) => formatMetadataScalar(value)).join(", ");
-    switch (node.op) {
-      case "in":
-        return `is one of ${values}`;
-      case "notIn":
-        return `is not ${values}`;
-    }
-  }
-  if ("min" in node && "max" in node) {
-    return `between ${node.min} and ${node.max}`;
-  }
-  if ("value" in node) {
-    switch (node.op) {
-      case "includes":
-        return `includes ${formatMetadataScalar(node.value)}`;
-      case "contains":
-        return `contains ${formatMetadataScalar(node.value)}`;
-      case "notContains":
-        return `does not contain ${formatMetadataScalar(node.value)}`;
-      case "eq":
-        return `is ${formatMetadataScalar(node.value)}`;
-      case "notEq":
-        return `is not ${formatMetadataScalar(node.value)}`;
-      case "gte":
-        return `>= ${node.value}`;
-      case "lte":
-        return `<= ${node.value}`;
-    }
-  }
-  return JSON.stringify(node);
-}
-
-export function describeMetadataNode(
-  node: MetadataFilterNode,
-  options: { isRoot?: boolean; rootLabel?: "node" | "query"; category?: SearchCategory | null } = {},
-): SearchMetadataNodeSummary {
-  const isRoot = options.isRoot ?? false;
-  const rootLabel = options.rootLabel ?? "query";
-  const category = options.category ?? null;
-
-  if ("and" in node) {
-    return {
-      label: isRoot && rootLabel === "query" ? "Query Logic" : "AND Group",
-      value: `${node.and.length} clause${node.and.length === 1 ? "" : "s"}`,
-      description: "Every child clause in this group must match.",
-    };
-  }
-
-  if ("or" in node) {
-    return {
-      label: isRoot && rootLabel === "query" ? "Query Logic" : "OR Group",
-      value: `${node.or.length} clause${node.or.length === 1 ? "" : "s"}`,
-      description: "Any child clause in this group may match.",
-    };
-  }
-
-  if ("not" in node) {
-    return {
-      label: isRoot && rootLabel === "query" ? "Query Logic" : "NOT Group",
-      value: "1 clause",
-      description: "Negate the child clause in this group.",
-    };
-  }
-
-  const label =
-    node.field === "actorMetric"
-      ? getMetricQueryFieldLabel("actorMetric", category)
-      : node.field === "actorMetricCompare"
-          ? getMetricQueryFieldLabel("actorMetricCompare", category)
-          : node.field === "itemMetric"
-            ? getMetricQueryFieldLabel("itemMetric", category)
-            : node.field === "itemMetricCompare"
-              ? getMetricQueryFieldLabel("itemMetricCompare", category)
-              : formatMetadataFieldLabel(node.field);
-
-  return {
-    label: isRoot && rootLabel === "query" ? "Query Clause" : label,
-    value: formatMetadataPredicateValue(node),
-    description: `Edit or remove this ${label.toLowerCase()} clause.`,
-  };
-}
-
-export function formatMetadataNodePresentationAlias(
-  node: MetadataFilterNode,
-  options: {
-    category?: SearchCategory | null;
-    style?: SearchMetadataPresentationAliasStyle;
-  } = {},
-): string {
-  const category = options.category ?? null;
-  const style = options.style ?? "tree";
-
-  if ("and" in node) {
-    return formatBooleanGroupAlias("allOf", node.and.length, style);
-  }
-
-  if ("or" in node) {
-    return formatBooleanGroupAlias("anyOf", node.or.length, style);
-  }
-
-  if ("not" in node) {
-    return formatNegationAlias(formatMetadataNodePresentationAlias(node.not, { category, style }));
-  }
-
-  const summary = describeMetadataNode(node, { rootLabel: "node", category });
-  return `${summary.label}: ${summary.value}`;
-}
-
-export function flattenMetadataTree(
-  node: MetadataFilterNode,
-  options: {
-    depth?: number;
-    path?: number[];
-    rootLabel?: "node" | "query";
-    category?: SearchCategory | null;
-  } = {},
-): SearchMetadataTreeEntry[] {
-  const depth = options.depth ?? 0;
-  const path = options.path ?? [];
-  const rootLabel = options.rootLabel ?? "query";
-  const category = options.category ?? null;
-  const entries: SearchMetadataTreeEntry[] = [
-    {
-      depth,
-      node,
-      path,
-      summary: describeMetadataNode(node, {
-        isRoot: path.length === 0,
-        rootLabel,
-        category,
-      }),
-    },
-  ];
-
-  getMetadataNodeChildren(node).forEach((child, childIndex) => {
-    entries.push(
-      ...flattenMetadataTree(child, {
-        depth: depth + 1,
-        path: [...path, childIndex],
-        rootLabel: "node",
-        category,
-      }),
-    );
-  });
-
-  return entries;
 }

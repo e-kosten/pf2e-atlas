@@ -13,7 +13,6 @@ import {
   getMetadataFilterSemantics,
   type MetadataFieldSemantics,
 } from "../../../domain/metadata-field-catalog.js";
-import { canonicalFilterToMetadataNode } from "../../search/query-parts.js";
 import { getSearchFilterNodeAtPath, isSearchFilterBooleanGroup } from "../../search/query-core.js";
 import type {
   Pf2eTerminalQueryField,
@@ -592,13 +591,6 @@ export function classifyStructuredDraftNodeEditRoute({
   const leafKind = getLeafKindForNode(node, fieldOption ?? undefined);
   if (!leafKind) {
     return { kind: "unsupported", reason: "That clause cannot be edited through the current canonical editor set." };
-  }
-
-  if (node.kind === "metadataPredicate" && !canonicalFilterToMetadataNode(node)) {
-    return {
-      kind: "unsupported",
-      reason: "That metadata clause cannot be edited through the current canonical editor set.",
-    };
   }
 
   return {

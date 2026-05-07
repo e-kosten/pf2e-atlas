@@ -13,7 +13,7 @@ import {
   getSearchQueryExcludeText,
   getSearchQuerySearchProfile,
   getSearchQueryText,
-  setSearchQueryMetadataTree,
+  setSearchQueryPredicateFilter,
   setSearchQueryExcludeText,
   setSearchQuerySearchProfile,
   setSearchQueryText,
@@ -201,7 +201,7 @@ export function useSearchWorkspaceActions({
         return;
       }
       if (action === "clearClauses") {
-        openStructuredDraftSession({ kind: "queryNode", path: [] }, setSearchQueryMetadataTree(state.query, null));
+        openStructuredDraftSession({ kind: "queryNode", path: [] }, setSearchQueryPredicateFilter(state.query, null));
         return;
       }
       if (action === "reset") {

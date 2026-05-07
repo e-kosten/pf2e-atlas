@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
-import { getSearchQueryCategory, setSearchQueryMetadataTree } from "../../src/tui/search/query-state.js";
+import { getSearchQueryCategory, setSearchQueryPredicateFilter } from "../../src/tui/search/query-state.js";
 import { buildSearchFilterExplorerFieldState } from "../../src/tui/search-screen/filter-explorer-field-state.js";
 import {
   buildGroupedFieldReplacementNodes,
@@ -21,17 +20,18 @@ describe("structured draft grouped-field helpers", () => {
   const groupedFieldSearchAdapter: StructuredDraftGroupedFieldSearchAdapter = {
     applyDiscoverableQueryFieldSelections: (query, selections) => {
       const selection = selections.traits ?? { include: [], exclude: [] };
-      const clauses: MetadataFilterNode[] = [
-        ...selection.include.map(
-          (value): MetadataFilterNode => ({ field: "traits", op: "includes", value }),
+      const clauses = [
+        ...selection.include.map((value) =>
+          metadataPredicateFilter({ field: "traits", op: "includes", value }),
         ),
-        ...selection.exclude.map(
-          (value): MetadataFilterNode => ({
-            not: { field: "traits", op: "includes", value },
-          }),
+        ...selection.exclude.map((value) =>
+          notFilter(metadataPredicateFilter({ field: "traits", op: "includes", value })),
         ),
       ];
-      return setSearchQueryMetadataTree(query, clauses.length === 1 ? clauses[0]! : { and: clauses });
+      return setSearchQueryPredicateFilter(
+        query,
+        clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses },
+      );
     },
   };
 
@@ -146,7 +146,7 @@ describe("structured draft grouped-field helpers", () => {
       limit: 20,
     }).request;
 
-    const { initialFieldState, preservedMetadata, seedQuery } = buildGroupedFieldSeedState(query, [1], {
+    const { initialFieldState, preservedFilter, seedQuery } = buildGroupedFieldSeedState(query, [1], {
       field: "traits",
       fieldMemberPaths: [[1, 0], [1, 0]],
     });
@@ -163,7 +163,7 @@ describe("structured draft grouped-field helpers", () => {
         exclude: [],
       },
     });
-    expect(preservedMetadata).toBeNull();
+    expect(preservedFilter).toBeNull();
   });
 
   it("preserves outer group context when seeding a nested grouped field editor", () => {
@@ -182,7 +182,7 @@ describe("structured draft grouped-field helpers", () => {
       limit: 20,
     }).request;
 
-    const { initialFieldState, preservedMetadata, seedGroupPath, seedQuery } = buildGroupedFieldSeedState(query, [1, 0], {
+    const { initialFieldState, preservedFilter, seedGroupPath, seedQuery } = buildGroupedFieldSeedState(query, [1, 0], {
       field: "traits",
       fieldMemberPaths: [[1, 0, 0], [1, 0, 1]],
     });
@@ -203,11 +203,9 @@ describe("structured draft grouped-field helpers", () => {
         exclude: [],
       },
     });
-    expect(preservedMetadata).toEqual({
-      field: "derivedTags",
-      op: "includes",
-      value: "coastal_setting",
-    });
+    expect(preservedFilter).toEqual(
+      metadataPredicateFilter({ field: "derivedTags", op: "includes", value: "coastal_setting" }),
+    );
   });
 
   it("seeds direct action-cost shared-explorer leaf edits from canonical action-cost clauses", () => {

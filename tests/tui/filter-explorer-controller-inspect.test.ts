@@ -13,13 +13,18 @@ import {
   createInspectFilterExplorerHostAdapter,
   type FilterExplorerInspectAndOpenMode,
 } from "../../src/tui/filter-explorer/index.js";
-import { canonicalFilterToMetadataNode } from "../../src/tui/search/query-parts.js";
 import type { FilterExplorerKeyContext } from "../../src/tui/filter-explorer/controller-types.js";
 import type {
   FilterExplorerNode,
   FilterExplorerOptions,
 } from "../../src/tui/filter-explorer/types.js";
-import { browseRequest, searchRequest, scopeFilter } from "../helpers/search-request-fixture.js";
+import {
+  allOfFilter,
+  browseRequest,
+  metricFilter,
+  searchRequest,
+  scopeFilter,
+} from "../helpers/search-request-fixture.js";
 
 function createNode(overrides: Partial<FilterExplorerNode> = {}): FilterExplorerNode {
   return {
@@ -155,22 +160,15 @@ describe("filter explorer controller inspect", () => {
         },
       },
     });
-    expect(canonicalFilterToMetadataNode(compiled?.query.request.filter)).toEqual({
-      and: [
-        {
-          field: "actorMetric",
-          metric: "attributes.hp.max",
-          op: ">=",
-          value: 40,
-        },
-        {
-          field: "actorMetric",
-          metric: "attributes.hp.max",
-          op: "<=",
-          value: 80,
-        },
-      ],
-    });
+    expect(compiled?.query.request.filter).toEqual(
+      allOfFilter([
+        scopeFilter("creature"),
+        allOfFilter([
+          metricFilter("attributes.hp.max", "gte", 40),
+          metricFilter("attributes.hp.max", "lte", 80),
+        ]),
+      ]),
+    );
   });
 
   it("opens inspect queries with editor intent snapshots", () => {
@@ -262,12 +260,9 @@ describe("filter explorer controller inspect", () => {
       expect.any(Object),
     );
     const [[call]] = (options.onOutcome as ReturnType<typeof vi.fn>).mock.calls;
-    expect(canonicalFilterToMetadataNode(call.queryIntent.query.request.filter)).toEqual({
-      field: "actorMetric",
-      metric: "speed.land",
-      op: ">=",
-      value: 12,
-    });
+    expect(call.queryIntent.query.request.filter).toEqual(
+      allOfFilter([scopeFilter("creature"), metricFilter("speed.land", "gte", 12)]),
+    );
   });
 
   it("opens non-record list nodes immediately but record nodes only on leaves", () => {

@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
-import type { MetadataFilterNode } from "../../src/tui/search/metadata-filter-draft.js";
 import type { OntologyDomainModel, OntologyNode } from "../../src/domain/ontology-types.js";
-import type { SearchRequest } from "../../src/domain/search-request-types.js";
+import type { SearchFilterNode, SearchRequest } from "../../src/domain/search-request-types.js";
 import {
   buildSearchFilterExplorerModel,
   buildSearchFilterExplorerTargetResolver,
@@ -15,12 +14,12 @@ import {
   getSearchQueryActionCostSelection,
   getSearchQueryPackSelection,
   getSearchQueryText,
-  getSearchQueryMetadataTree,
+  getSearchQueryPredicateFilter,
   getSearchQueryRaritySelection,
   replaceSearchQueryRootScope,
   setSearchQueryActionCostSelection,
   setSearchQueryPackSelection,
-  setSearchQueryMetadataTree,
+  setSearchQueryPredicateFilter,
   setSearchQueryRaritySelection,
   setSearchQuerySearchProfile,
   setSearchQueryText,
@@ -714,7 +713,7 @@ describe("createPf2eTerminalSearchService", () => {
       }),
     );
     const defaultQuery = service.createDefaultQuery();
-    const query = setSearchQueryMetadataTree(
+    const query = setSearchQueryPredicateFilter(
       {
         ...defaultQuery,
         filter: {
@@ -724,17 +723,10 @@ describe("createPf2eTerminalSearchService", () => {
         },
       },
       {
-        and: [
-          {
-            field: "traits",
-            op: "includes",
-            value: "illusion",
-          },
-          {
-            field: "sourceCategory",
-            op: "eq",
-            value: "core",
-          },
+        kind: "allOf",
+        children: [
+          metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+          metadataPredicateFilter({ field: "sourceCategory", op: "eq", value: "core" }),
         ],
       },
     );
@@ -758,40 +750,26 @@ describe("createPf2eTerminalSearchService", () => {
       ["traits"],
     );
 
-    expect(getSearchQueryMetadataTree(updated)).toEqual({
-      and: [
-        {
-          field: "sourceCategory",
-          op: "eq",
-          value: "core",
-        },
-        {
-          field: "traits",
-          op: "includes",
-          value: "evocation",
-        },
+    expect(getSearchQueryPredicateFilter(updated)).toEqual({
+      kind: "allOf",
+      children: [
+        metadataPredicateFilter({ field: "sourceCategory", op: "eq", value: "core" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evocation" }),
       ],
-    } satisfies MetadataFilterNode);
+    } satisfies SearchFilterNode);
   });
 
   it("preserves grouped same-field set conjunctions as metadata when query-field selections reopen", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const defaultQuery = service.createDefaultQuery();
     const groupedTraits = {
-      and: [
-        {
-          field: "traits",
-          op: "includes",
-          value: "illusion",
-        },
-        {
-          field: "traits",
-          op: "includes",
-          value: "auditory",
-        },
+      kind: "allOf",
+      children: [
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "auditory" }),
       ],
-    } satisfies MetadataFilterNode;
-    const query = setSearchQueryMetadataTree(
+    } satisfies SearchFilterNode;
+    const query = setSearchQueryPredicateFilter(
       {
         ...defaultQuery,
         filter: {
@@ -821,26 +799,23 @@ describe("createPf2eTerminalSearchService", () => {
       ["traits"],
     );
 
-    expect(getSearchQueryMetadataTree(updated)).toEqual({
-      and: [
+    expect(getSearchQueryPredicateFilter(updated)).toEqual({
+      kind: "allOf",
+      children: [
         groupedTraits,
-        {
-          field: "traits",
-          op: "includes",
-          value: "evocation",
-        },
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evocation" }),
       ],
-    } satisfies MetadataFilterNode);
+    } satisfies SearchFilterNode);
   });
 
   it("extracts numeric metric clauses into the filter explorer draft and rebuilds them as metadata", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
 
-    const preparedDraft = service.prepareFilterExplorerDraftFromMetadataNode(
+    const preparedDraft = service.prepareFilterExplorerDraftFromFilter(
       {
-        field: "actorMetric",
+        kind: "metric",
         metric: "perception.mod",
-        op: ">=",
+        op: "gte",
         value: 12,
       },
       ["actorMetric"],
@@ -854,12 +829,12 @@ describe("createPf2eTerminalSearchService", () => {
         value: 12,
       },
     });
-    expect(service.buildFilterExplorerMetadataNode(draft)).toEqual({
-      field: "actorMetric",
+    expect(service.buildFilterExplorerFilter(draft)).toEqual({
+      kind: "metric",
       metric: "perception.mod",
-      op: ">=",
+      op: "gte",
       value: 12,
-    } satisfies MetadataFilterNode);
+    } satisfies SearchFilterNode);
   });
 
   it("emits peer metadata leaves when explorer-backed categorical drafts are inserted into the current group", () => {
@@ -876,16 +851,8 @@ describe("createPf2eTerminalSearchService", () => {
     ).toEqual({
       kind: "insert",
       nodes: [
-        {
-          field: "traits",
-          op: "includes",
-          value: "evocation",
-        },
-        {
-          field: "traits",
-          op: "includes",
-          value: "illusion",
-        },
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evocation" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
       ],
     });
   });
@@ -916,7 +883,7 @@ describe("createPf2eTerminalSearchService", () => {
       }),
     );
     const defaultQuery = service.createDefaultQuery();
-    const query = setSearchQueryMetadataTree(
+    const query = setSearchQueryPredicateFilter(
       setSearchQueryActionCostSelection(
         setSearchQueryRaritySelection(
           {
@@ -937,22 +904,16 @@ describe("createPf2eTerminalSearchService", () => {
           exclude: [1],
         },
       ),
-      {
-        field: "traits",
-        op: "includes",
-        value: "illusion",
-      },
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
     );
 
     const preparedDraft = service.prepareFilterExplorerDraft(query, ["rarity", "actionCost"]);
     const draft = preparedDraft.draft;
 
     expect(preparedDraft.scopedFields).toEqual(["rarity", "actionCost"]);
-    expect(preparedDraft.preservedMetadata).toEqual({
-      field: "traits",
-      op: "includes",
-      value: "illusion",
-    } satisfies MetadataFilterNode);
+    expect(preparedDraft.preservedFilter).toEqual(
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+    );
     expect(draft.discreteClauses).toEqual([
       { field: "actionCost", value: "1", operator: "exclude" },
       { field: "actionCost", value: "2", operator: "include" },
@@ -970,7 +931,7 @@ describe("createPf2eTerminalSearchService", () => {
         ],
       },
       {
-        preservedMetadata: preparedDraft.preservedMetadata,
+        preservedFilter: preparedDraft.preservedFilter,
         scopedFields: preparedDraft.scopedFields,
       },
     );
@@ -983,59 +944,47 @@ describe("createPf2eTerminalSearchService", () => {
       include: [1],
       exclude: [],
     });
-    expect(getSearchQueryMetadataTree(updated)).toEqual({
-      field: "traits",
-      op: "includes",
-      value: "illusion",
-    } satisfies MetadataFilterNode);
+    expect(getSearchQueryPredicateFilter(updated)).toEqual(
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+    );
   });
 
   it("preserves grouped same-field set clauses as preserved metadata when reopening the filter explorer", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const groupedTraits = {
-      and: [
-        {
-          field: "traits",
-          op: "includes",
-          value: "illusion",
-        },
-        {
-          field: "traits",
-          op: "includes",
-          value: "auditory",
-        },
+      kind: "allOf",
+      children: [
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "auditory" }),
       ],
-    } satisfies MetadataFilterNode;
+    } satisfies SearchFilterNode;
 
-    const preparedDraft = service.prepareFilterExplorerDraftFromMetadataNode(groupedTraits, ["traits"]);
+    const preparedDraft = service.prepareFilterExplorerDraftFromFilter(groupedTraits, ["traits"]);
 
     expect(preparedDraft.draft.discreteClauses).toEqual([]);
-    expect(preparedDraft.preservedMetadata).toEqual(groupedTraits);
+    expect(preparedDraft.preservedFilter).toEqual(groupedTraits);
 
     expect(
-      service.buildFilterExplorerMetadataNode(
+      service.buildFilterExplorerFilter(
         {
           ...preparedDraft.draft,
           discreteClauses: [{ field: "traits", value: "evocation", operator: "include" }],
         },
-        { preservedMetadata: preparedDraft.preservedMetadata },
+        { preservedFilter: preparedDraft.preservedFilter },
       ),
     ).toEqual({
-      and: [
+      kind: "allOf",
+      children: [
         groupedTraits,
-        {
-          field: "traits",
-          op: "includes",
-          value: "evocation",
-        },
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "evocation" }),
       ],
-    } satisfies MetadataFilterNode);
+    } satisfies SearchFilterNode);
   });
 
   it("round-trips canonical pack clauses through the shared explorer draft without emitting impossible conjunctions", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
     const defaultQuery = service.createDefaultQuery();
-    const query = setSearchQueryMetadataTree(
+    const query = setSearchQueryPredicateFilter(
       setSearchQueryPackSelection(
         {
           ...defaultQuery,
@@ -1050,20 +999,14 @@ describe("createPf2eTerminalSearchService", () => {
           exclude: ["abomination-vaults"],
         },
       ),
-      {
-        field: "traits",
-        op: "includes",
-        value: "undead",
-      },
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "undead" }),
     );
 
     const preparedDraft = service.prepareFilterExplorerDraft(query, ["pack"]);
     expect(preparedDraft.scopedFields).toEqual(["pack"]);
-    expect(preparedDraft.preservedMetadata).toEqual({
-      field: "traits",
-      op: "includes",
-      value: "undead",
-    } satisfies MetadataFilterNode);
+    expect(preparedDraft.preservedFilter).toEqual(
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "undead" }),
+    );
     expect(preparedDraft.draft.discreteClauses).toEqual([
       { field: "pack", value: "abomination-vaults", operator: "exclude" },
       { field: "pack", value: "monster-core", operator: "include" },
@@ -1080,7 +1023,7 @@ describe("createPf2eTerminalSearchService", () => {
         ],
       },
       {
-        preservedMetadata: preparedDraft.preservedMetadata,
+        preservedFilter: preparedDraft.preservedFilter,
         scopedFields: preparedDraft.scopedFields,
       },
     );
@@ -1089,11 +1032,9 @@ describe("createPf2eTerminalSearchService", () => {
       include: ["pathfinder-npc-core"],
       exclude: ["monster-core"],
     });
-    expect(getSearchQueryMetadataTree(updated)).toEqual({
-      field: "traits",
-      op: "includes",
-      value: "undead",
-    } satisfies MetadataFilterNode);
+    expect(getSearchQueryPredicateFilter(updated)).toEqual(
+      metadataPredicateFilter({ field: "traits", op: "includes", value: "undead" }),
+    );
   });
 
   it("deduplicates top-level pack clauses and writes excluded packs back as flat peers", () => {
@@ -1176,11 +1117,7 @@ describe("createPf2eTerminalSearchService", () => {
 
   it("rebuilds search drafts from the shared compose draft without carrying session metadata in the draft", () => {
     const service = createPf2eTerminalSearchService(createDependencies());
-    const preservedMetadata = {
-      field: "traits",
-      op: "includes",
-      value: "illusion",
-    } satisfies MetadataFilterNode;
+    const preservedFilter = metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" });
     const composeDraft = cloneFilterExplorerComposeDraft({
       discreteClauses: [],
       scalarClauses: {},
@@ -1204,31 +1141,29 @@ describe("createPf2eTerminalSearchService", () => {
         max: 120,
       },
     });
-    expect(service.buildFilterExplorerMetadataNode(nextDraft, { preservedMetadata })).toEqual({
-      and: [
+    expect(service.buildFilterExplorerFilter(nextDraft, { preservedFilter })).toEqual({
+      kind: "allOf",
+      children: [
+        metadataPredicateFilter({ field: "traits", op: "includes", value: "illusion" }),
         {
-          field: "traits",
-          op: "includes",
-          value: "illusion",
-        },
-        {
-          and: [
+          kind: "allOf",
+          children: [
             {
-              field: "itemMetric",
+              kind: "metric",
               metric: "weapon.range_increment",
-              op: ">=",
+              op: "gte",
               value: 60,
             },
             {
-              field: "itemMetric",
+              kind: "metric",
               metric: "weapon.range_increment",
-              op: "<=",
+              op: "lte",
               value: 120,
             },
           ],
         },
       ],
-    } satisfies MetadataFilterNode);
+    } satisfies SearchFilterNode);
   });
 
   it("roots the shared explorer model at the scoped field nodes instead of reviving a picker snapshot bridge", async () => {

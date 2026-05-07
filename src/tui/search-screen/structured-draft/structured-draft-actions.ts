@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import { clampStructuredDraftSelection } from "../../search/structured-draft-session.js";
 import {
   appendSearchFilterNodeAtPath,
@@ -13,7 +13,6 @@ import {
   getSearchQuerySubcategory,
   getSearchQueryRootOperator,
 } from "../../search/query-state.js";
-import { canonicalFilterToMetadataNode, metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 import { buildStructuredDraftEntries } from "./structured-draft-support.js";
 import {
   canonicalizeStructuredDraftResumeTarget,
@@ -43,7 +42,7 @@ export function useSearchStructuredDraftActions({
   currentQuery: Pf2eTerminalSearchQuery;
   user: SearchWorkspaceUser;
 }): {
-  appendStructuredDraftMetadataNode: (path: number[], nextNode: MetadataFilterNode) => void;
+  appendStructuredDraftMetadataNode: (path: number[], nextNode: SearchFilterNode) => void;
   cancelStructuredDraftSession: () => void;
   clearStructuredDraftMoveSource: () => void;
   enterStructuredDraftMoveMode: (path: number[]) => void;
@@ -60,7 +59,7 @@ export function useSearchStructuredDraftActions({
   structuredDraftState: SearchStructuredDraftState | null;
   updateStructuredDraftMetadataNode: (
     path: number[],
-    update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+    update: (current: SearchFilterNode) => SearchFilterNode | null,
     options?: StructuredDraftProjectionOptions,
   ) => void;
 } {
@@ -166,19 +165,14 @@ export function useSearchStructuredDraftActions({
   );
 
   const appendStructuredDraftMetadataNode = React.useCallback(
-    (path: number[], nextNode: MetadataFilterNode) => {
-      const nextFilterNode = metadataFilterNodeToCanonicalFilter(nextNode);
-      if (!nextFilterNode) {
-        return;
-      }
-
+    (path: number[], nextNode: SearchFilterNode) => {
       replaceStructuredDraftProjection(
         (draftQuery) => ({
           ...draftQuery,
           filter: appendSearchFilterNodeAtPath(
             draftQuery.filter,
             path,
-            nextFilterNode,
+            nextNode,
             getSearchQueryRootOperator(draftQuery),
           ),
         }),
@@ -193,18 +187,16 @@ export function useSearchStructuredDraftActions({
   const updateStructuredDraftMetadataNode = React.useCallback(
     (
       path: number[],
-      update: (current: MetadataFilterNode) => MetadataFilterNode | null,
+      update: (current: SearchFilterNode) => SearchFilterNode | null,
       options?: StructuredDraftProjectionOptions,
     ) => {
       const liveQuery = currentQueryRef.current;
       const currentNode = getSearchFilterNodeAtPath(liveQuery.filter, path);
-      const currentMetadataNode = currentNode ? canonicalFilterToMetadataNode(currentNode) : null;
-      if (!currentMetadataNode) {
+      if (!currentNode) {
         return;
       }
 
-      const nextMetadataNode = update(currentMetadataNode);
-      const nextCanonicalNode = metadataFilterNodeToCanonicalFilter(nextMetadataNode);
+      const nextCanonicalNode = update(currentNode) ?? undefined;
       replaceStructuredDraftProjection(
         (draftQuery) => ({
           ...draftQuery,

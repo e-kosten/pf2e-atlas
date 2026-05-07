@@ -37,6 +37,8 @@ Adopt one canonical shared search-request model with these durable rules:
   - multiplicity is expressed through boolean composition, not plural payload shapes
 - surface sugar is allowed only at the transport or editor edge
   - any friendly or shorthand input must lower into the canonical model before it crosses the shared contract boundary
+- TUI editor projections are not semantic request models
+  - derived selections, grouped-field views, cursor state, and continuation state may support interaction, but search edits must write commands against canonical `SearchFilterNode` values inside `SearchRequest`
 - search-execution DTOs remain compiled output owned by `src/search/`
   - they are not alternate public/shared contracts
 
@@ -48,4 +50,5 @@ This ADR intentionally replaces the older shared-contract assumptions that kept 
 - The repository should not preserve alias request fields, parallel public filter shapes, or compatibility readers for the replaced shared contract.
 - Search compilation, normalization, and validation remain centralized, but they now lower from the canonical filter tree instead of from the old `parts` shape.
 - Surface-local editing or transport affordances may still exist, but only as edge sugar that lowers into the canonical model.
+- TUI search editors may derive projections from canonical state, but they must not introduce a TUI-local semantic filter AST, compatibility bridge, or converter as a second durable query path.
 - Future shared search concepts should be added to this canonical model once and then lowered centrally, rather than reopening surface-specific semantic contracts.

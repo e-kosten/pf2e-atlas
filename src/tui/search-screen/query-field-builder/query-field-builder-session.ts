@@ -1,7 +1,7 @@
 import type { OntologyDomainModel } from "../../../domain/ontology-types.js";
+import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import type { FilterExplorerComposeTarget } from "../../filter-explorer/index.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   type DerivedTagTerminalActionTargetOption,
@@ -36,7 +36,7 @@ export type SearchFilterExplorerSession = {
   query: Pf2eTerminalSearchQuery;
   refreshOnQueryChange?: boolean;
   initialFieldState?: SearchFilterExplorerFieldState;
-  preservedMetadata?: MetadataFilterNode | null;
+  preservedFilter?: SearchFilterNode | null;
   fieldOptions: readonly Pf2eTerminalQueryFieldOption[];
   resolveSelectionTarget?: (node: import("../../../domain/ontology-types.js").OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
   selectTargetMode?: boolean;

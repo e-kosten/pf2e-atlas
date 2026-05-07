@@ -6,19 +6,20 @@ import type {
   MetadataSetField,
 } from "../../domain/metadata-field-types.js";
 import type { MetadataFieldSemantics } from "../../domain/metadata-field-catalog.js";
-import type { MetadataFilterNode, MetadataPredicate } from "../search/metadata-filter-draft.js";
-import { isMetadataPredicate, normalizeMetadataNode } from "../search/query-core.js";
+import type { SearchFilterNode } from "../../domain/search-request-types.js";
+import type { MetricOperator } from "../../domain/search-filter-operators.js";
+import { normalizeSearchFilterNode } from "../search/query-core.js";
 import { partitionDiscoverableQueryFieldSelections } from "../search/discoverable-fields.js";
 import { createEmptyStringSelection, normalizeQueryFieldSelection } from "../search/selections.js";
 import {
-  buildMetadataNodeForQueryFieldSelection,
+  buildSearchFilterNodeForQueryFieldSelection,
   getSearchQueryActionCostSelection,
-  getSearchQueryMetadataTree,
+  getSearchQueryPredicateFilter,
   getSearchQueryPackSelection,
   getSearchQueryRaritySelection,
   setSearchQueryPackSelection,
   setSearchQueryActionCostSelection,
-  setSearchQueryMetadataTree,
+  setSearchQueryPredicateFilter,
   setSearchQueryRaritySelection,
 } from "../search/query-state.js";
 import type {
@@ -169,120 +170,132 @@ function buildMetricClauseKey(field: SearchFilterExplorerMetricField, metric: st
   return getMetricSelectionKey(field, metric);
 }
 
+function inferMetricNodeField(
+  metric: string,
+  allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
+): SearchFilterExplorerMetricField | null {
+  if (allowedMetricFields.has("actorMetric") && inferActorMetricValueType(metric)) {
+    return "actorMetric";
+  }
+  if (allowedMetricFields.has("itemMetric") && inferItemMetricValueType(metric)) {
+    return "itemMetric";
+  }
+  return allowedMetricFields.size === 1 ? [...allowedMetricFields][0]! : null;
+}
+
+function canonicalMetricOperatorToScalarOperator(
+  op: MetricOperator,
+): Exclude<FilterExplorerScalarClause["operator"], "between"> {
+  switch (op) {
+    case "eq":
+      return "eq";
+    case "notEq":
+      return "neq";
+    case "gt":
+      return "gt";
+    case "gte":
+      return "gte";
+    case "lt":
+      return "lt";
+    case "lte":
+      return "lte";
+  }
+}
+
 function extractMetricSelectionFromPredicate(
-  node: MetadataPredicate,
+  node: Extract<SearchFilterNode, { kind: "metric" }>,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): { key: string; selection: Pf2eTerminalValueSelection<string> } | null {
-  if (!("metric" in node) || !("value" in node)) {
-    return null;
-  }
-  if (!allowedMetricFields.has(node.field) || typeof node.value === "number") {
+  const field = inferMetricNodeField(node.metric, allowedMetricFields);
+  if (!field || typeof node.value === "number") {
     return null;
   }
 
   const selectionValue = String(node.value);
-  if (node.op === "==") {
+  if (node.op === "eq") {
     return {
-      key: getMetricSelectionKey(node.field, node.metric),
+      key: getMetricSelectionKey(field, node.metric),
       selection: { include: [selectionValue], exclude: [] },
     };
   }
 
+  if (node.op !== "notEq") {
+    return null;
+  }
+
   return {
-    key: getMetricSelectionKey(node.field, node.metric),
+    key: getMetricSelectionKey(field, node.metric),
     selection: { include: [], exclude: [selectionValue] },
   };
 }
 
 function extractMetricScalarClauseFromPredicate(
-  node: MetadataPredicate,
+  node: Extract<SearchFilterNode, { kind: "metric" }>,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): { key: string; clause: FilterExplorerScalarClause } | null {
-  if (!("metric" in node) || !("value" in node)) {
-    return null;
-  }
-  if (!allowedMetricFields.has(node.field)) {
+  const field = inferMetricNodeField(node.metric, allowedMetricFields);
+  if (!field) {
     return null;
   }
 
-  const valueType = inferMetricValueType(node.field, node.metric);
+  const valueType = inferMetricValueType(field, node.metric);
   if (valueType !== "number" || typeof node.value !== "number") {
     return null;
   }
 
-  const operator =
-    node.op === "=="
-      ? "eq"
-      : node.op === "!="
-        ? "neq"
-        : node.op === ">"
-          ? "gt"
-        : node.op === ">="
-          ? "gte"
-          : node.op === "<"
-            ? "lt"
-            : "lte";
-
   return {
-    key: buildMetricClauseKey(node.field, node.metric),
+    key: buildMetricClauseKey(field, node.metric),
     clause: {
-      operator,
+      operator: canonicalMetricOperatorToScalarOperator(node.op),
       value: node.value,
     },
   };
 }
 
 function tryExtractMetricBetweenClause(
-  node: MetadataFilterNode,
+  node: SearchFilterNode,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): { key: string; clause: FilterExplorerScalarClause } | null {
-  if (!("and" in node) || node.and.length !== 2) {
+  if (node.kind !== "allOf" || node.children.length !== 2) {
     return null;
   }
 
-  const [left, right] = node.and;
-  if (!left || !right || !isMetadataPredicate(left) || !isMetadataPredicate(right)) {
+  const [left, right] = node.children;
+  if (!left || !right || left.kind !== "metric" || right.kind !== "metric") {
     return null;
   }
-  if (
-    !("metric" in left) ||
-    !("metric" in right) ||
-    !("value" in left) ||
-    !("value" in right) ||
-    left.field !== right.field ||
-    left.metric !== right.metric ||
-    !allowedMetricFields.has(left.field)
-  ) {
+  const field = inferMetricNodeField(left.metric, allowedMetricFields);
+  if (!field || left.metric !== right.metric) {
     return null;
   }
-  if (inferMetricValueType(left.field, left.metric) !== "number") {
+  if (inferMetricValueType(field, left.metric) !== "number") {
     return null;
   }
   if (typeof left.value !== "number" || typeof right.value !== "number") {
     return null;
   }
 
-  const lower = left.op === ">=" ? left : right.op === ">=" ? right : null;
-  const upper = left.op === "<=" ? left : right.op === "<=" ? right : null;
+  const lower = left.op === "gte" ? left : right.op === "gte" ? right : null;
+  const upper = left.op === "lte" ? left : right.op === "lte" ? right : null;
   if (!lower || !upper) {
     return null;
   }
 
   return {
-    key: buildMetricClauseKey(left.field, left.metric),
+    key: buildMetricClauseKey(field, left.metric),
     clause: {
       operator: "between",
-      min: lower.value,
-      max: upper.value,
+      min: lower.value as number,
+      max: upper.value as number,
     },
   };
 }
 
 function extractMetricDraftEntries(
-  node: MetadataFilterNode | null,
+  node: SearchFilterNode | null,
   allowedMetricFields: ReadonlySet<SearchFilterExplorerMetricField>,
 ): {
-  metadata: MetadataFilterNode | null;
+  metadata: SearchFilterNode | null;
   selections: Pf2eTerminalQueryFieldSelectionMap;
   scalarClauses: FilterExplorerScalarClauseMap;
 } {
@@ -290,7 +303,7 @@ function extractMetricDraftEntries(
     return { metadata: node, selections: {}, scalarClauses: {} };
   }
 
-  if (isMetadataPredicate(node)) {
+  if (node.kind === "metric") {
     const scalarClause = extractMetricScalarClauseFromPredicate(node, allowedMetricFields);
     if (scalarClause) {
       return { metadata: null, selections: {}, scalarClauses: { [scalarClause.key]: scalarClause.clause } };
@@ -302,7 +315,7 @@ function extractMetricDraftEntries(
       : { metadata: node, selections: {}, scalarClauses: {} };
   }
 
-  if ("and" in node) {
+  if (node.kind === "allOf") {
     const betweenClause = tryExtractMetricBetweenClause(node, allowedMetricFields);
     if (betweenClause) {
       return { metadata: null, selections: {}, scalarClauses: { [betweenClause.key]: betweenClause.clause } };
@@ -310,9 +323,9 @@ function extractMetricDraftEntries(
 
     let selections: Pf2eTerminalQueryFieldSelectionMap = {};
     let scalarClauses: FilterExplorerScalarClauseMap = {};
-    const children: MetadataFilterNode[] = [];
+    const children: SearchFilterNode[] = [];
 
-    for (const child of node.and) {
+    for (const child of node.children) {
       const extracted = extractMetricDraftEntries(child, allowedMetricFields);
       const mergedScalarClauses = mergeScalarClauseMaps(scalarClauses, extracted.scalarClauses);
       if (!mergedScalarClauses) {
@@ -326,14 +339,14 @@ function extractMetricDraftEntries(
     }
 
     return {
-      metadata: normalizeMetadataNode(children.length === 0 ? null : { and: children }),
+      metadata: normalizeSearchFilterNode(children.length === 0 ? null : { kind: "allOf", children }) ?? null,
       selections,
       scalarClauses,
     };
   }
 
-  if ("or" in node) {
-    const childSelections = node.or.map((child) => extractMetricDraftEntries(child, allowedMetricFields));
+  if (node.kind === "anyOf") {
+    const childSelections = node.children.map((child) => extractMetricDraftEntries(child, allowedMetricFields));
     const allExtracted = childSelections.every(
       (entry) => entry.metadata === null && Object.keys(entry.scalarClauses).length === 0,
     );
@@ -357,16 +370,16 @@ function buildMetricSelectionMetadataNode(
   metric: string,
   operator: FilterExplorerDiscreteClause["operator"],
   value: string,
-): MetadataFilterNode {
+): SearchFilterNode {
   return {
-    field,
+    kind: "metric",
     metric,
-    op: operator === "include" ? "==" : "!=",
+    op: operator === "include" ? "eq" : "notEq",
     value: normalizeMetricSelectionValue(value),
   };
 }
 
-function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorerScalarClause): MetadataFilterNode | null {
+function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorerScalarClause): SearchFilterNode | null {
   const metricKey = parseMetricSelectionKey(key);
   if (!metricKey) {
     return null;
@@ -378,47 +391,48 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
   }
 
   if (clause.operator === "between") {
-    return normalizeMetadataNode({
-      and: [
-        { field: metricKey.field, metric: metricKey.metric, op: ">=", value: clause.min },
-        { field: metricKey.field, metric: metricKey.metric, op: "<=", value: clause.max },
+    return normalizeSearchFilterNode({
+      kind: "allOf",
+      children: [
+        { kind: "metric", metric: metricKey.metric, op: "gte", value: clause.min },
+        { kind: "metric", metric: metricKey.metric, op: "lte", value: clause.max },
       ],
-    });
+    }) ?? null;
   }
 
-  let op: "==" | "!=" | ">" | ">=" | "<" | "<=";
+  let op: MetricOperator;
   switch (clause.operator) {
     case "eq":
-      op = "==";
+      op = "eq";
       break;
     case "neq":
-      op = "!=";
+      op = "notEq";
       break;
     case "gt":
-      op = ">";
+      op = "gt";
       break;
     case "gte":
-      op = ">=";
+      op = "gte";
       break;
     case "lt":
-      op = "<";
+      op = "lt";
       break;
     case "lte":
-      op = "<=";
+      op = "lte";
       break;
   }
 
   if (valueType !== "number") {
     return {
-      field: metricKey.field,
+      kind: "metric",
       metric: metricKey.metric,
-      op: op === ">" || op === ">=" || op === "<" || op === "<=" ? "==" : op,
+      op: op === "gt" || op === "gte" || op === "lt" || op === "lte" ? "eq" : op,
       value: clause.value as string | boolean,
     };
   }
 
   return {
-    field: metricKey.field,
+    kind: "metric",
     metric: metricKey.metric,
     op,
     value: clause.value as number,
@@ -428,7 +442,7 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
 function buildMetadataNodeForDiscreteClause(
   clause: FilterExplorerDiscreteClause,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): MetadataFilterNode | null {
+): SearchFilterNode | null {
   if (isTopLevelSearchFilterExplorerField(clause.field)) {
     return null;
   }
@@ -446,33 +460,58 @@ function buildMetadataNodeForDiscreteClause(
   if (fieldSemantics.fieldType === "set") {
     return clause.operator === "include"
       ? ({
-          field: clause.field as MetadataSetField,
-          op: "includes",
-          value: clause.value,
-        } satisfies MetadataFilterNode)
-      : ({
-          not: {
+          kind: "metadataPredicate",
+          predicate: {
             field: clause.field as MetadataSetField,
             op: "includes",
             value: clause.value,
           },
-        } satisfies MetadataFilterNode);
+        } satisfies SearchFilterNode)
+      : ({
+          kind: "not",
+          child: {
+            kind: "metadataPredicate",
+            predicate: {
+              field: clause.field as MetadataSetField,
+              op: "includes",
+              value: clause.value,
+            },
+          },
+        } satisfies SearchFilterNode);
   }
 
   if (fieldSemantics.fieldType === "enumString") {
     return clause.operator === "include"
-      ? { field: clause.field as MetadataEnumStringField, op: "eq", value: clause.value }
-      : { not: { field: clause.field as MetadataEnumStringField, op: "eq", value: clause.value } };
+      ? {
+          kind: "metadataPredicate",
+          predicate: { field: clause.field as MetadataEnumStringField, op: "eq", value: clause.value },
+        }
+      : {
+          kind: "not",
+          child: {
+            kind: "metadataPredicate",
+            predicate: { field: clause.field as MetadataEnumStringField, op: "eq", value: clause.value },
+          },
+        };
   }
 
   if (fieldSemantics.fieldType === "boolean") {
     const value = clause.value === "true";
     return clause.operator === "include"
-      ? { field: clause.field as MetadataBooleanField, op: "eq", value }
-      : { not: { field: clause.field as MetadataBooleanField, op: "eq", value } };
+      ? {
+          kind: "metadataPredicate",
+          predicate: { field: clause.field as MetadataBooleanField, op: "eq", value },
+        }
+      : {
+          kind: "not",
+          child: {
+            kind: "metadataPredicate",
+            predicate: { field: clause.field as MetadataBooleanField, op: "eq", value },
+          },
+        };
   }
 
-  return buildMetadataNodeForQueryFieldSelection(
+  return buildSearchFilterNodeForQueryFieldSelection(
     clause.field as Pf2eTerminalFacetField,
     clause.operator === "include"
       ? { include: [clause.value], exclude: [] }
@@ -484,7 +523,7 @@ function buildMetadataNodeForDiscreteClause(
 function buildInsertionMetadataNodesForDiscreteClause(
   clause: FilterExplorerDiscreteClause,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-): MetadataFilterNode[] {
+): SearchFilterNode[] {
   const node = buildMetadataNodeForDiscreteClause(clause, fieldSemanticsByName);
   return node ? [node] : [];
 }
@@ -594,15 +633,15 @@ function buildPackSelectionFromDraft(
   };
 }
 
-export function prepareFilterExplorerDraftFromMetadataNode(
-  node: MetadataFilterNode | null,
+export function prepareFilterExplorerDraftFromFilter(
+  node: SearchFilterNode | null,
   scopedFields: readonly Pf2eTerminalQueryField[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalPreparedFilterExplorerDraft {
   const regularFields = scopedFields.filter((field): field is Pf2eTerminalFacetField => !isMetricQueryField(field));
   const discoverablePartition = partitionDiscoverableQueryFieldSelections(node, regularFields, fieldSemanticsByName);
   const metricPartition = extractMetricDraftEntries(
-    discoverablePartition.metadata,
+    discoverablePartition.filter,
     new Set(scopedFields.filter(isMetricQueryField)),
   );
 
@@ -615,7 +654,7 @@ export function prepareFilterExplorerDraftFromMetadataNode(
       ),
       scalarClauses: cloneScalarClauseMap(metricPartition.scalarClauses),
     }),
-    preservedMetadata: normalizeMetadataNode(metricPartition.metadata),
+    preservedFilter: normalizeSearchFilterNode(metricPartition.metadata) ?? null,
   };
 }
 
@@ -624,8 +663,8 @@ export function prepareFilterExplorerDraftFromQuery(
   scopedFields: readonly Pf2eTerminalQueryField[],
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
 ): Pf2eTerminalPreparedFilterExplorerDraft {
-  const preparedDraft = prepareFilterExplorerDraftFromMetadataNode(
-    getSearchQueryMetadataTree(query),
+  const preparedDraft = prepareFilterExplorerDraftFromFilter(
+    getSearchQueryPredicateFilter(query),
     scopedFields,
     fieldSemanticsByName,
   );
@@ -660,19 +699,19 @@ export function prepareFilterExplorerDraftFromQuery(
       discreteClauses,
       scalarClauses: cloneScalarClauseMap(preparedDraft.draft.scalarClauses),
     }),
-    preservedMetadata: preparedDraft.preservedMetadata,
+    preservedFilter: preparedDraft.preservedFilter,
   };
 }
 
-export function buildFilterExplorerMetadataNode(
+export function buildFilterExplorerFilter(
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-  options: { preservedMetadata?: MetadataFilterNode | null } = {},
-): MetadataFilterNode | null {
-  const metadataClauses: MetadataFilterNode[] = [];
+  options: { preservedFilter?: SearchFilterNode | null } = {},
+): SearchFilterNode | null {
+  const metadataClauses: SearchFilterNode[] = [];
 
-  if (options.preservedMetadata) {
-    metadataClauses.push(options.preservedMetadata);
+  if (options.preservedFilter) {
+    metadataClauses.push(options.preservedFilter);
   }
 
   for (const clause of draft.discreteClauses) {
@@ -695,24 +734,24 @@ export function buildFilterExplorerMetadataNode(
   if (metadataClauses.length === 1) {
     return metadataClauses[0]!;
   }
-  return normalizeMetadataNode({ and: metadataClauses });
+  return normalizeSearchFilterNode({ kind: "allOf", children: metadataClauses }) ?? null;
 }
 
 export function buildFilterExplorerInsertionResult(
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
-  options: { preservedMetadata?: MetadataFilterNode | null; preferReplace?: boolean } = {},
+  options: { preservedFilter?: SearchFilterNode | null; preferReplace?: boolean } = {},
 ): Pf2eTerminalFilterExplorerInsertionResult {
-  if (options.preservedMetadata || options.preferReplace) {
+  if (options.preservedFilter || options.preferReplace) {
     return {
       kind: "replace",
-      node: buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, {
-        preservedMetadata: options.preservedMetadata,
+      node: buildFilterExplorerFilter(draft, fieldSemanticsByName, {
+        preservedFilter: options.preservedFilter,
       }),
     };
   }
 
-  const insertionNodes: MetadataFilterNode[] = [];
+  const insertionNodes: SearchFilterNode[] = [];
 
   for (const clause of draft.discreteClauses) {
     insertionNodes.push(...buildInsertionMetadataNodesForDiscreteClause(clause, fieldSemanticsByName));
@@ -733,22 +772,22 @@ export function applyFilterExplorerDraft(
   draft: Pf2eTerminalFilterExplorerDraft,
   fieldSemanticsByName: Map<Pf2eTerminalFacetField, MetadataFieldSemantics>,
   options: {
-    preservedMetadata?: MetadataFilterNode | null;
+    preservedFilter?: SearchFilterNode | null;
     scopedFields?: readonly Pf2eTerminalQueryField[];
   } = {},
 ): Pf2eTerminalSearchQuery {
   const scopedFields = options.scopedFields ? [...options.scopedFields] : inferScopedFieldsFromDraft(draft);
   const scopedFieldSet = new Set(scopedFields);
-  const preservedMetadata =
-    options.preservedMetadata ??
+  const preservedFilter =
+    options.preservedFilter ??
     (scopedFields.length > 0
-      ? prepareFilterExplorerDraftFromMetadataNode(getSearchQueryMetadataTree(query), scopedFields, fieldSemanticsByName)
-          .preservedMetadata
-      : getSearchQueryMetadataTree(query));
+      ? prepareFilterExplorerDraftFromFilter(getSearchQueryPredicateFilter(query), scopedFields, fieldSemanticsByName)
+          .preservedFilter
+      : getSearchQueryPredicateFilter(query));
 
-  let nextQuery = setSearchQueryMetadataTree(
+  let nextQuery = setSearchQueryPredicateFilter(
     query,
-    buildFilterExplorerMetadataNode(draft, fieldSemanticsByName, { preservedMetadata }),
+    buildFilterExplorerFilter(draft, fieldSemanticsByName, { preservedFilter }),
   );
 
   if (scopedFieldSet.has("rarity")) {

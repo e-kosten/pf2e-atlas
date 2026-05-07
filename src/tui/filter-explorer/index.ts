@@ -7,8 +7,8 @@ export {
 } from "./host-adapter.js";
 export {
   applyFilterExplorerDraft,
-  buildFilterExplorerMetadataNode,
-  prepareFilterExplorerDraftFromMetadataNode,
+  buildFilterExplorerFilter,
+  prepareFilterExplorerDraftFromFilter,
   prepareFilterExplorerDraftFromQuery,
 } from "./search-draft-query.js";
 export {

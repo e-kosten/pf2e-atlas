@@ -6,7 +6,6 @@ import type { OntologyNode } from "../../../domain/ontology-types.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
 import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
 import { getSearchQueryCategory } from "../../search/query-state.js";
-import type { MetadataFilterNode } from "../../search/metadata-filter-draft.js";
 import type {
   Pf2eTerminalQueryFieldOption,
   Pf2eTerminalSearchQuery,
@@ -46,7 +45,6 @@ import {
   isStructuredDraftGroupFieldOption,
   structuredDraftSearchFilterNodeContainsFieldValue,
 } from "./structured-draft-edit-routes.js";
-import { metadataFilterNodeToCanonicalFilter } from "../../search/query-parts.js";
 
 export type MetricFieldFamily = "actorMetric" | "itemMetric";
 export type StructuredDraftExplorerMetricKeySelection = {
@@ -159,16 +157,23 @@ function getSearchFilterNodeEditorValue(mutation: StructuredDraftHostMutation): 
   return null;
 }
 
-export function getMetadataFilterNodeFieldValue(
-  node: MetadataFilterNode | null,
+export function getSearchFilterNodeFieldValue(
+  node: SearchFilterNode | null,
 ): Pf2eTerminalQueryFieldOption["value"] | null {
-  if (!node || "and" in node || "or" in node || "not" in node) {
+  if (!node) {
     return null;
   }
-  if (node.field === "actorMetricCompare" || node.field === "itemMetricCompare") {
-    return null;
+
+  if (node.kind === "metadataPredicate") {
+    return node.predicate.field;
   }
-  return node.field;
+  if (node.kind === "metric") {
+    return inferStructuredDraftMetricFieldFamily(node.metric);
+  }
+  if (node.kind === "pack" || node.kind === "rarity" || node.kind === "actionCost") {
+    return node.kind;
+  }
+  return null;
 }
 
 export function inferMetricFieldFamily(
@@ -249,7 +254,7 @@ export function useStructuredDraftExplorerActions({
       initialDiscoveryMode,
       initialFieldState,
       onHostChange,
-      preservedMetadata,
+      preservedFilter,
       query,
       resolveSelectionTarget,
       singleFieldBehavior,
@@ -260,7 +265,7 @@ export function useStructuredDraftExplorerActions({
       initialDiscoveryMode?: SearchFilterDiscoveryMode;
       initialFieldState?: SearchFilterExplorerFieldState;
       onHostChange?: (change: StructuredDraftContinuationChange) => void;
-      preservedMetadata?: MetadataFilterNode | null;
+      preservedFilter?: SearchFilterNode | null;
       query: Pf2eTerminalSearchQuery;
       resolveSelectionTarget?: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
       singleFieldBehavior?: "list" | "directValues";
@@ -273,7 +278,7 @@ export function useStructuredDraftExplorerActions({
         initialFieldState,
         onHostChange,
         openFilterExplorer,
-        preservedMetadata,
+        preservedFilter,
         query,
         resolveSelectionTarget,
         singleFieldBehavior,
@@ -288,7 +293,7 @@ export function useStructuredDraftExplorerActions({
       fieldOption,
       initialDiscoveryMode,
       initialFieldState,
-      preservedMetadata,
+      preservedFilter,
       query,
       resolveSelectionTarget,
       singleFieldBehavior,
@@ -297,7 +302,7 @@ export function useStructuredDraftExplorerActions({
       fieldOption: Pf2eTerminalQueryFieldOption;
       initialDiscoveryMode?: SearchFilterDiscoveryMode;
       initialFieldState?: SearchFilterExplorerFieldState;
-      preservedMetadata?: MetadataFilterNode | null;
+      preservedFilter?: SearchFilterNode | null;
       query: Pf2eTerminalSearchQuery;
       resolveSelectionTarget?: (node: OntologyNode | undefined) => FilterExplorerComposeTarget | undefined;
       singleFieldBehavior?: "list" | "directValues";
@@ -308,7 +313,7 @@ export function useStructuredDraftExplorerActions({
         initialDiscoveryMode,
         initialFieldState,
         openFilterExplorer,
-        preservedMetadata,
+        preservedFilter,
         query,
         resolveSelectionTarget,
         singleFieldBehavior,
@@ -322,7 +327,7 @@ export function useStructuredDraftExplorerActions({
     async (
       query: Pf2eTerminalSearchQuery,
       fieldOption: Pf2eTerminalQueryFieldOption,
-      currentNode: MetadataFilterNode | null,
+      currentNode: SearchFilterNode | null,
     ): Promise<StructuredDraftExplorerPromptNodeResult> => {
       if (isStructuredDraftGroupFieldOption(fieldOption)) {
         await terminal.pauseForAnyKey("That grouped field must be edited through the structured field route.");
@@ -342,7 +347,7 @@ export function useStructuredDraftExplorerActions({
       const insertionResult = user.search.buildFilterExplorerInsertionResult(
         buildSearchFilterExplorerComposeDraft(continuation.fieldState),
         {
-          preservedMetadata: user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedMetadata,
+          preservedFilter: user.search.prepareFilterExplorerDraft(query, [fieldOption.value]).preservedFilter,
           preferReplace: currentNode !== null,
         },
       );
@@ -350,13 +355,11 @@ export function useStructuredDraftExplorerActions({
         insertionResult.kind === "insert"
           ? ({
               kind: "appendNodes",
-              nodes: insertionResult.nodes
-                .map((node) => metadataFilterNodeToCanonicalFilter(node))
-                .filter((node): node is SearchFilterNode => Boolean(node)),
+              nodes: insertionResult.nodes,
             } satisfies StructuredDraftHostMutation)
           : ({
               kind: "replaceNode",
-              node: insertionResult.node ? (metadataFilterNodeToCanonicalFilter(insertionResult.node) ?? null) : null,
+              node: insertionResult.node,
             } satisfies StructuredDraftHostMutation);
       const addedQueryFieldNodes = getAddedSearchFilterNodesForFieldValue(
         query.filter,
@@ -439,7 +442,7 @@ export function useStructuredDraftExplorerActions({
         return;
       }
 
-      const { seedQuery, initialFieldState, preservedMetadata } = buildGroupedFieldSeedState(query, groupPath, {
+      const { seedQuery, initialFieldState, preservedFilter } = buildGroupedFieldSeedState(query, groupPath, {
         field,
         fieldMemberPaths,
       });
@@ -471,7 +474,7 @@ export function useStructuredDraftExplorerActions({
         fieldOption,
         buildHostMutation,
         initialFieldState,
-        preservedMetadata,
+        preservedFilter,
         onHostChange: applyChange,
       });
       if (
