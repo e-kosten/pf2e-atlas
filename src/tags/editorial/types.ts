@@ -17,6 +17,8 @@ import type {
 import type { DerivedTagSource } from "../runtime/publication/catalog.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import type { OntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
+import type { DerivedTagTranslationRecord } from "../../domain/derived-tag-types.js";
+import type { DerivedTagTranslationOverride } from "../translations/tag-overrides.js";
 
 export type { DerivedTagManagedCategory } from "../manifest.js";
 
@@ -152,3 +154,32 @@ export type DerivedTagAuthoredState = {
 };
 
 export type DerivedTagReviewDecisionKind = "assignment" | "exemplar";
+
+export type DerivedTagTranslationReviewFilterStatus = "all" | "mapped" | "provisional" | "unmapped";
+
+export type DerivedTagTranslationReviewRow = {
+  key: `${SearchCategory}:${string}`;
+  base: DerivedTagTranslationRecord;
+  currentOverride: DerivedTagTranslationOverride;
+  draftOverride: DerivedTagTranslationOverride;
+};
+
+export type DerivedTagTranslationReviewSessionManifest = {
+  id: string;
+  createdAt: string;
+  rowCount: number;
+};
+
+export type DerivedTagTranslationReviewSessionState = {
+  currentIndex: number;
+  categoryFilter: SearchCategory | "all";
+  statusFilter: DerivedTagTranslationReviewFilterStatus;
+  imported: boolean;
+  updatedAt: string;
+};
+
+export type DerivedTagTranslationReviewSession = {
+  manifest: DerivedTagTranslationReviewSessionManifest;
+  rows: DerivedTagTranslationReviewRow[];
+  reviewState: DerivedTagTranslationReviewSessionState;
+};

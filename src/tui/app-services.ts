@@ -46,7 +46,7 @@ export type Pf2eTerminalTagWorkbenchService = {
   getQueueItems: () => DerivedTagReviewQueueSummaryItem[];
   getTranslationQueueItems: (options?: {
     category?: DerivedTagTranslationRecord["currentCategory"];
-    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "provisional" | "unmapped">>;
+    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "mapped" | "provisional" | "unmapped">>;
   }) => DerivedTagTranslationRecord[];
   promptAndCreateSession: (
     rootPath: string,

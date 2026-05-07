@@ -9,24 +9,24 @@ import type {
 import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../domain/record-types.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../ontology/utils.js";
-import { getDerivedTagFamilyTranslationDefaults } from "./family-defaults.js";
 import { inferOperationalTranslationDefaults } from "./inference.js";
-import { getDerivedTagTranslationOverride } from "./tag-overrides.js";
+import { applyDerivedTagTranslationOverride } from "./record-utils.js";
+import {
+  getCurrentDerivedTagFamilyTranslationDefault,
+  getCurrentDerivedTagTranslationOverride,
+} from "./state.js";
 
 function tagKey(category: string, tag: string): `${string}:${string}` {
   return `${category}:${tag}`;
 }
 
-function mergeNotes(...parts: Array<string | undefined>): string | undefined {
-  const merged = parts.filter(Boolean).join(" ");
-  return merged || undefined;
-}
-
 function buildTranslationRecord(
   family: DerivedTagOntologyFamily,
   tag: DerivedTagOntologyTag,
+  options: { includeOverrides?: boolean } = {},
 ): DerivedTagTranslationRecord {
-  const config = getDerivedTagFamilyTranslationDefaults(`${tag.category}:${tag.family}`);
+  const includeOverrides = options.includeOverrides ?? true;
+  const config = getCurrentDerivedTagFamilyTranslationDefault(`${tag.category}:${tag.family}`);
   if (!config) {
     throw new Error(`Missing derived-tag translation defaults for ${tag.category}:${tag.family}.`);
   }
@@ -56,10 +56,11 @@ function buildTranslationRecord(
     Object.assign(row, inferOperationalTranslationDefaults(tag.tag));
   }
 
-  const override = getDerivedTagTranslationOverride(`${tag.category}:${tag.tag}`);
-  if (override) {
-    Object.assign(row, override);
-    row.notes = mergeNotes(config.notes, override.notes);
+  if (includeOverrides) {
+    const override = getCurrentDerivedTagTranslationOverride(`${tag.category}:${tag.tag}`);
+    if (override) {
+      Object.assign(row, applyDerivedTagTranslationOverride(row, override));
+    }
   }
 
   if (tag.assignmentMode === "composite" && row.publishTag) {
@@ -191,6 +192,7 @@ function buildProjections(
 
 export function buildPublishedDerivedTagConceptModel(
   ontologyByCategory: Record<DerivedTagManagedCategory, DerivedTagAuthoredCategoryOntology>,
+  options: { includeOverrides?: boolean } = {},
 ): PublishedDerivedTagConceptModel {
   const flattened = Object.values(ontologyByCategory).map((ontology) => flattenDerivedTagAuthoredCategoryOntology(ontology));
   const families = flattened.flatMap((entry) => entry.families);
@@ -203,7 +205,7 @@ export function buildPublishedDerivedTagConceptModel(
     if (!family) {
       throw new Error(`Missing source family for ${tag.category}:${tag.family}.`);
     }
-    return buildTranslationRecord(family, tag);
+    return buildTranslationRecord(family, tag, options);
   });
 
   const concepts = buildCanonicalConcepts(translations);

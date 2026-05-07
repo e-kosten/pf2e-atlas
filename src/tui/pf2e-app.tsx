@@ -68,7 +68,12 @@ export function Pf2eTerminalApp({
     workbenchSessionPrompts,
   });
   const queueItems = services.dev.tagRefinement.getQueueItems();
-  const translationQueueItems = services.dev.tagRefinement.getTranslationQueueItems();
+  const translationQueueItems = services.dev.tagRefinement.getTranslationQueueItems({
+    statuses: ["mapped", "provisional", "unmapped"],
+  });
+  const unresolvedTranslationQueueCount = services.dev.tagRefinement.getTranslationQueueItems({
+    statuses: ["provisional", "unmapped"],
+  }).length;
   const state = navigation.state;
   const route = navigation.route;
   const transitionStatus = navigation.transitionStatus;
@@ -187,8 +192,9 @@ export function Pf2eTerminalApp({
     screen = (
       <DerivedTagTranslationQueueScreen
         items={translationQueueItems}
+        rootPath={rootPath}
         initialCategory={route.initialCategory ?? "all"}
-        initialStatus={route.initialStatus ?? "all"}
+        initialStatus={route.initialStatus ?? "provisional"}
         onBack={navigation.backOrExit}
         transitionStatus={transitionStatus}
       />
@@ -231,7 +237,7 @@ export function Pf2eTerminalApp({
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
-        translationQueueCount={translationQueueItems.length}
+        translationQueueCount={unresolvedTranslationQueueCount}
         onBack={navigation.backOrExit}
         onMove={(delta, itemCount) =>
           delta === 0

@@ -7,16 +7,9 @@ Last reviewed: 2026-05-07
 
 ## Problem
 
-The durable documentation-preservation work for the derived-tag future shape is complete, but the actual implementation follow-through is still missing.
+The future ontology shape is now partially implemented in tracked source, but the implementation is still not at the final authored end state.
 
-The canonical concept/projection model and the resolved ontology review decisions now live in backlog and scratch planning context, but tracked source still uses the current category/axis/family/tag ownership shape. The repo does not yet have a real `src/tags/` source-of-truth schema for:
-
-- canonical concepts
-- category projections
-- aggregate/member relations
-- canonical operation/domain metadata
-
-That leaves the future-state ontology model preserved but not yet owned by the runtime, editorial tooling, or TUI surfaces.
+The runtime, editorial tooling, and TUI now consume live concept/projection/translation plumbing, but canonical concepts and projections are still compiled from the current category-local ontology rather than authored independently as the final source of truth.
 
 ## Desired Outcome
 
@@ -32,7 +25,7 @@ That implementation work should cover:
 
 ## Current Slice
 
-The first live cutover slice is now underway in tracked `src/tags/` source.
+The first live cutover slice is landed in tracked `src/tags/` source.
 
 Implemented in this slice:
 
@@ -41,14 +34,18 @@ Implemented in this slice:
 - projection-backed ontology publication wired into `runtime/derivation/api.ts`
 - stable user/runtime tag ids preserved while canonical labels and metadata publish alongside them
 - editorial/runtime accessors for concept-model and translation-record inspection
+- a dedicated ontology translation review route in the TUI
+- session-backed ontology translation review artifacts under `scratch/translation-sessions/`
+- explicit lint-and-import writeback for ontology translation review
+- translation import support for both per-tag overrides and promoted family-default updates
 
 Intentionally deferred to a follow-up slice:
 
-- a dedicated translation-review session/workbench mode in the TUI
 - direct assignment migration onto canonical concept/projection ownership
 - retirement of legacy rules and legacy seed migration paths
+- independent authored source ownership for canonical concepts and projections instead of compiler-derived publication from the current category ontology
 
-This means the future ontology model is no longer planning-only, but the human review workflow for unresolved translation rows is still only partially surfaced through summary accessors rather than a full interactive queue.
+This means the future ontology model is no longer planning-only, and the human translation-review workflow is live, but the authored source model is still transitional because the canonical layer is not yet independently authored.
 
 ## Constraints
 
@@ -62,7 +59,7 @@ This means the future ontology model is no longer planning-only, but the human r
 
 The documentation-preservation item [Derived-tag ontology future shape](./derived-tag-ontology-future-shape.md) is complete and should remain as the durable design record for the model and the resolved review outcomes.
 
-This item exists because the actual source implementation still has to happen.
+This item now tracks the remaining implementation gap between the landed live cutover and the final independent authored end state.
 
 ## Related
 

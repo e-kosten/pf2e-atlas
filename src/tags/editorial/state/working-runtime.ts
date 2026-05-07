@@ -19,6 +19,10 @@ import {
 } from "../../runtime/publication/catalog.js";
 import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../../legacy-seed-migrations/index.js";
 import { getCurrentDerivedTagAuthoredState, getCurrentDerivedTagAuthoredStateRevision } from "./authored-state.js";
+import {
+  getCurrentDerivedTagFamilyTranslationDefaultsRevision,
+  getCurrentDerivedTagTranslationOverridesRevision,
+} from "../../translations/state.js";
 
 type DerivedTagAssignmentGroup = {
   category: (typeof DERIVED_TAG_REGISTRATION_CATEGORIES)[number];
@@ -34,7 +38,12 @@ type DerivedTagWorkingRuntime = {
   explicitAssignments: ReturnType<typeof buildDerivedTagExplicitAssignmentIndex>;
 };
 
-let workingRuntimeCache: { revision: number; runtime: DerivedTagWorkingRuntime } | null = null;
+let workingRuntimeCache: {
+  authoredRevision: number;
+  familyDefaultsRevision: number;
+  translationRevision: number;
+  runtime: DerivedTagWorkingRuntime;
+} | null = null;
 
 function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
   const state = getCurrentDerivedTagAuthoredState();
@@ -81,10 +90,19 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
 }
 
 export function getCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
-  const revision = getCurrentDerivedTagAuthoredStateRevision();
-  if (!workingRuntimeCache || workingRuntimeCache.revision !== revision) {
+  const authoredRevision = getCurrentDerivedTagAuthoredStateRevision();
+  const familyDefaultsRevision = getCurrentDerivedTagFamilyTranslationDefaultsRevision();
+  const translationRevision = getCurrentDerivedTagTranslationOverridesRevision();
+  if (
+    !workingRuntimeCache ||
+    workingRuntimeCache.authoredRevision !== authoredRevision ||
+    workingRuntimeCache.familyDefaultsRevision !== familyDefaultsRevision ||
+    workingRuntimeCache.translationRevision !== translationRevision
+  ) {
     workingRuntimeCache = {
-      revision,
+      authoredRevision,
+      familyDefaultsRevision,
+      translationRevision,
       runtime: buildCurrentDerivedTagWorkingRuntime(),
     };
   }

@@ -13,6 +13,9 @@ export {
   summarizeCurrentDerivedTagTranslationQueue,
 } from "./editorial/state/runtime-state.js";
 export {
+  createDerivedTagTranslationReviewSession,
+} from "./editorial/translation-review/controller.js";
+export {
   createDerivedTagWorkbenchSession,
   getDerivedTagWorkbenchQueueItems,
   type DerivedTagWorkbenchServices,
@@ -20,10 +23,18 @@ export {
 } from "./editorial/ui/workbench-controller.js";
 export { buildDerivedTagReviewSession } from "./editorial/sessions/session-builder.js";
 export { writeDerivedTagReviewSession } from "./editorial/sessions/session-store.js";
+export {
+  readDerivedTagTranslationReviewSession,
+  writeDerivedTagTranslationReviewSession,
+} from "./editorial/sessions/translation-session-store.js";
 export { writeDerivedTagReviewSummary } from "./editorial/writeback/review-summary.js";
+export { importDerivedTagTranslationReviewSession } from "./editorial/writeback/translation-session-importer.js";
 export type {
   DerivedTagWorkbenchMode,
   DerivedTagReviewDecisionKind,
   DerivedTagReviewSession,
   DerivedTagReviewQueueSummaryItem,
+  DerivedTagTranslationReviewFilterStatus,
+  DerivedTagTranslationReviewRow,
+  DerivedTagTranslationReviewSession,
 } from "./editorial/types.js";

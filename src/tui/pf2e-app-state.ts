@@ -80,7 +80,7 @@ export type Pf2ePageRoute = {
 export type Pf2eTranslationQueueRoute = {
   kind: (typeof PF2E_APP_ROUTE_KIND)["TRANSLATION_QUEUE"];
   initialCategory?: SearchCategory;
-  initialStatus?: "all" | "provisional" | "unmapped";
+  initialStatus?: "all" | "mapped" | "provisional" | "unmapped";
 };
 
 export type Pf2eAppRoute =

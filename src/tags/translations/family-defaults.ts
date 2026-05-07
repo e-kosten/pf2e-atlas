@@ -8,11 +8,11 @@ export type DerivedTagFamilyTranslationDefaults = {
   notes?: string;
 };
 
-const FAMILY_TRANSLATION_DEFAULTS = new Map<string, DerivedTagFamilyTranslationDefaults>();
+export const DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS = new Map<string, DerivedTagFamilyTranslationDefaults>();
 
 function setFamilies(keys: string[], config: DerivedTagFamilyTranslationDefaults): void {
   for (const key of keys) {
-    FAMILY_TRANSLATION_DEFAULTS.set(key, config);
+    DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS.set(key, config);
   }
 }
 
@@ -187,5 +187,5 @@ setFamilies(["spell:revelation"], {
 });
 
 export function getDerivedTagFamilyTranslationDefaults(key: string): DerivedTagFamilyTranslationDefaults | undefined {
-  return FAMILY_TRANSLATION_DEFAULTS.get(key);
+  return DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS.get(key);
 }

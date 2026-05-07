@@ -58,12 +58,14 @@ export function summarizeCurrentDerivedTagTranslationQueue(): Array<{
 export function listCurrentDerivedTagTranslationQueueItems(
   options: {
     category?: string;
-    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "provisional" | "unmapped">>;
+    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "mapped" | "provisional" | "unmapped">>;
   } = {},
 ): DerivedTagTranslationRecord[] {
   const allowedStatuses = new Set(options.statuses ?? ["provisional", "unmapped"]);
   return listPublishedDerivedTagTranslations()
-    .filter((translation) => allowedStatuses.has(translation.translationStatus as "provisional" | "unmapped"))
+    .filter((translation) =>
+      allowedStatuses.has(translation.translationStatus as "mapped" | "provisional" | "unmapped"),
+    )
     .filter((translation) => !options.category || translation.currentCategory === options.category)
     .sort(
       (left, right) =>

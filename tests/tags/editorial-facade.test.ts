@@ -13,13 +13,17 @@ describe("editorial facade", () => {
   });
 
   it("keeps UI-only workbench exports out of the non-UI editorial facade", () => {
+    expect(editorial).toHaveProperty("createDerivedTagTranslationReviewSession");
     expect(editorial).toHaveProperty("createDerivedTagWorkbenchSession");
     expect(editorial).toHaveProperty("getDerivedTagWorkbenchQueueItems");
     expect(editorial).toHaveProperty("getPublishedDerivedTagConceptModel");
     expect(editorial).toHaveProperty("getVisibleDerivedTagOntology");
+    expect(editorial).toHaveProperty("importDerivedTagTranslationReviewSession");
     expect(editorial).toHaveProperty("listCurrentDerivedTagTranslationQueueItems");
     expect(editorial).toHaveProperty("listPublishedDerivedTagTranslations");
+    expect(editorial).toHaveProperty("readDerivedTagTranslationReviewSession");
     expect(editorial).toHaveProperty("summarizeCurrentDerivedTagTranslationQueue");
+    expect(editorial).toHaveProperty("writeDerivedTagTranslationReviewSession");
     expect(editorial).not.toHaveProperty("promptAndCreateDerivedTagWorkbenchSession");
     expect(editorial).not.toHaveProperty("formatDerivedTagWorkbenchModeLabel");
     expect(editorial).not.toHaveProperty("DerivedTagReviewScreen");

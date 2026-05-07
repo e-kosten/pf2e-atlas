@@ -538,14 +538,14 @@ export function usePf2eNavigation({
   const openTranslationQueue = React.useCallback(
     (options?: {
       initialCategory?: CreatePf2eDerivedTagSessionOptions["category"];
-      initialStatus?: "all" | "provisional" | "unmapped";
+      initialStatus?: "all" | "mapped" | "provisional" | "unmapped";
     }) => {
       dispatch({
         type: "push_route",
         route: {
           kind: PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE,
           ...(options?.initialCategory ? { initialCategory: options.initialCategory } : {}),
-          ...(options?.initialStatus ? { initialStatus: options.initialStatus } : {}),
+          initialStatus: options?.initialStatus ?? "provisional",
         },
       });
     },

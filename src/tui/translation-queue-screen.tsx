@@ -1,8 +1,23 @@
 import React from "react";
 
 import type { SearchCategory } from "../domain/search-types.js";
-import type { DerivedTagTranslationRecord } from "../domain/derived-tag-types.js";
+import type { DerivedTagTranslationOverride } from "../tags/translations/tag-overrides.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../tags/manifest.js";
+import {
+  applyDerivedTagTranslationOverride,
+  cloneDerivedTagTranslationOverride,
+} from "../tags/translations/record-utils.js";
+import {
+  createDerivedTagTranslationReviewSession,
+  importDerivedTagTranslationReviewSession,
+  writeDerivedTagTranslationReviewSession,
+} from "../tags/editorial.js";
+import type {
+  DerivedTagTranslationReviewFilterStatus,
+  DerivedTagTranslationReviewRow,
+  DerivedTagTranslationReviewSession,
+} from "../tags/editorial.js";
+import type { DerivedTagTranslationRecord } from "../domain/derived-tag-types.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   createMergedReturnFooterBinding,
@@ -15,25 +30,59 @@ import {
   type TerminalInteractionAction,
   type TerminalMenuScreenInteractions,
 } from "./terminal-ui.js";
+import { useDerivedTagTerminalApp } from "./framework/context.js";
+import { useTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
 
 type TranslationQueueCategoryFilter = SearchCategory | "all";
-type TranslationQueueStatusFilter = "all" | "provisional" | "unmapped";
-type TranslationQueueActionId = "cycle_category" | "cycle_status" | "reset_filters";
+type TranslationQueueStatusFilter = DerivedTagTranslationReviewFilterStatus;
+type TranslationEditableFieldId =
+  | "canonicalConceptLabel"
+  | "canonicalConceptId"
+  | "domainId"
+  | "operation"
+  | "primaryFacetKind"
+  | "primaryFacetValue"
+  | "projectionAxis"
+  | "projectionFamily";
+type TranslationQueueActionId =
+  | "cycle_category"
+  | "cycle_status"
+  | "set_translation_status"
+  | "set_schema_kind"
+  | "edit_field"
+  | "reset_row"
+  | "import";
 
 type TranslationQueueMenuItem = {
   label: string;
-  translation: DerivedTagTranslationRecord;
+  row: DerivedTagTranslationReviewRow;
+  effective: DerivedTagTranslationRecord;
+  modified: boolean;
 };
 
 function formatFilterLabel(value: TranslationQueueCategoryFilter | TranslationQueueStatusFilter): string {
   return value === "all" ? "all" : value;
 }
 
-function buildTranslationQueueMenuItems(items: DerivedTagTranslationRecord[]): TranslationQueueMenuItem[] {
-  return items.map((translation) => ({
-    label: `[${translation.translationStatus}] ${translation.currentCategory} / ${translation.currentFamily} / ${translation.currentTag} -> ${translation.canonicalConceptLabel}`,
-    translation,
-  }));
+function overridesEqual(left: DerivedTagTranslationOverride, right: DerivedTagTranslationOverride): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function isRowModified(row: DerivedTagTranslationReviewRow): boolean {
+  return !overridesEqual(row.currentOverride, row.draftOverride);
+}
+
+function buildTranslationQueueMenuItems(rows: DerivedTagTranslationReviewRow[]): TranslationQueueMenuItem[] {
+  return rows.map((row) => {
+    const effective = applyDerivedTagTranslationOverride(row.base, row.draftOverride);
+    const modified = isRowModified(row);
+    return {
+      label: `${modified ? "*" : " "} [${effective.translationStatus}] ${effective.currentCategory} / ${effective.currentFamily} / ${effective.currentTag} -> ${effective.canonicalConceptLabel}`,
+      row,
+      effective,
+      modified,
+    };
+  });
 }
 
 function buildTranslationDetailLines(args: {
@@ -42,15 +91,20 @@ function buildTranslationDetailLines(args: {
   visibleCount: number;
   categoryFilter: TranslationQueueCategoryFilter;
   statusFilter: TranslationQueueStatusFilter;
+  persistError: string | null;
 }): DerivedTagTerminalLine[] {
   const summaryLines: DerivedTagTerminalLine[] = [
-    { text: "Translation queue", tone: "section" },
-    { text: `Showing ${args.visibleCount} of ${args.totalCount} unresolved rows.`, indent: 2 },
+    { text: "Translation review session", tone: "section" },
+    { text: `Showing ${args.visibleCount} of ${args.totalCount} session rows.`, indent: 2 },
     { text: `Category filter: ${formatFilterLabel(args.categoryFilter)}`, indent: 2 },
     { text: `Status filter: ${formatFilterLabel(args.statusFilter)}`, indent: 2 },
   ];
 
-  const selected = args.selectedItem?.translation;
+  if (args.persistError) {
+    summaryLines.push({ text: `Persist error: ${args.persistError}`, indent: 2, tone: "warning" });
+  }
+
+  const selected = args.selectedItem;
   if (!selected) {
     return [
       ...summaryLines,
@@ -60,40 +114,41 @@ function buildTranslationDetailLines(args: {
   }
 
   const facetLine =
-    selected.primaryFacetKind && selected.primaryFacetValue
-      ? `${selected.primaryFacetKind} / ${selected.primaryFacetValue}`
+    selected.effective.primaryFacetKind && selected.effective.primaryFacetValue
+      ? `${selected.effective.primaryFacetKind} / ${selected.effective.primaryFacetValue}`
       : "(none)";
 
   const lines: DerivedTagTerminalLine[] = [
     ...summaryLines,
     { text: "" },
-    { text: selected.currentTag, tone: "section" },
-    { text: `Status: ${selected.translationStatus}`, indent: 2 },
-    { text: `Current category: ${selected.currentCategory}`, indent: 2 },
-    { text: `Current axis: ${selected.currentBrowseAxis}`, indent: 2 },
-    { text: `Current family: ${selected.currentFamily}`, indent: 2 },
-    { text: `Current assignment mode: ${selected.currentAssignmentMode}`, indent: 2 },
+    { text: selected.effective.currentTag, tone: "section" },
+    { text: `Status: ${selected.effective.translationStatus}`, indent: 2 },
+    { text: `Modified: ${selected.modified ? "yes" : "no"}`, indent: 2 },
+    { text: `Current category: ${selected.effective.currentCategory}`, indent: 2 },
+    { text: `Current axis: ${selected.effective.currentBrowseAxis}`, indent: 2 },
+    { text: `Current family: ${selected.effective.currentFamily}`, indent: 2 },
+    { text: `Current assignment mode: ${selected.effective.currentAssignmentMode}`, indent: 2 },
     { text: "" },
     { text: "Proposed canonical target", tone: "section" },
-    { text: `Label: ${selected.canonicalConceptLabel}`, indent: 2 },
-    { text: `ID: ${selected.canonicalConceptId}`, indent: 2 },
-    { text: `Schema: ${selected.schemaKind}`, indent: 2 },
-    { text: `Projection axis: ${selected.projectionAxis}`, indent: 2 },
-    { text: `Projection family: ${selected.projectionFamily}`, indent: 2 },
+    { text: `Label: ${selected.effective.canonicalConceptLabel}`, indent: 2 },
+    { text: `ID: ${selected.effective.canonicalConceptId}`, indent: 2 },
+    { text: `Schema: ${selected.effective.schemaKind}`, indent: 2 },
+    { text: `Projection axis: ${selected.effective.projectionAxis}`, indent: 2 },
+    { text: `Projection family: ${selected.effective.projectionFamily}`, indent: 2 },
     { text: `Primary facet: ${facetLine}`, indent: 2 },
   ];
 
-  if (selected.domainId) {
-    lines.push({ text: `Domain: ${selected.domainId}`, indent: 2 });
+  if (selected.effective.domainId !== undefined) {
+    lines.push({ text: `Domain: ${selected.effective.domainId || "(blank)"}`, indent: 2 });
   }
-  if (selected.operation) {
-    lines.push({ text: `Operation: ${selected.operation}`, indent: 2 });
+  if (selected.effective.operation !== undefined) {
+    lines.push({ text: `Operation: ${selected.effective.operation || "(blank)"}`, indent: 2 });
   }
-  if (selected.renameNote) {
-    lines.push({ text: "" }, { text: "Rename note", tone: "section" }, { text: selected.renameNote, indent: 2 });
+  if (selected.effective.renameNote) {
+    lines.push({ text: "" }, { text: "Rename note", tone: "section" }, { text: selected.effective.renameNote, indent: 2 });
   }
-  if (selected.notes) {
-    lines.push({ text: "" }, { text: "Editorial notes", tone: "section" }, { text: selected.notes, indent: 2 });
+  if (selected.effective.notes) {
+    lines.push({ text: "" }, { text: "Editorial notes", tone: "section" }, { text: selected.effective.notes, indent: 2 });
   }
 
   return lines;
@@ -118,17 +173,37 @@ function buildTranslationQueueActionEntries(args: {
     {
       id: "cycle_category",
       label: `Cycle Category (${formatFilterLabel(args.categoryFilter)})`,
-      description: "Rotate the category filter across unresolved translation rows.",
+      description: "Rotate the category filter across the translation review session.",
     },
     {
       id: "cycle_status",
       label: `Cycle Status (${formatFilterLabel(args.statusFilter)})`,
-      description: "Rotate between all unresolved rows, provisional only, and unmapped only.",
+      description: "Rotate between all session rows, provisional only, unmapped only, and mapped only.",
     },
     {
-      id: "reset_filters",
-      label: "Reset Filters",
-      description: "Show all unresolved translation rows again.",
+      id: "set_translation_status",
+      label: "Set Translation Status",
+      description: "Mark the selected row mapped, provisional, unmapped, or dropped.",
+    },
+    {
+      id: "set_schema_kind",
+      label: "Set Schema Kind",
+      description: "Choose descriptive, operational, or aggregate for the selected row.",
+    },
+    {
+      id: "edit_field",
+      label: "Edit Target Field",
+      description: "Edit the selected row's canonical/projection fields.",
+    },
+    {
+      id: "reset_row",
+      label: "Reset Row",
+      description: "Revert the selected row to the currently authored override.",
+    },
+    {
+      id: "import",
+      label: "Lint + Import",
+      description: "Apply the session into src/tags/translations/tag-overrides.ts after validation.",
     },
   ];
 }
@@ -140,7 +215,8 @@ function buildTranslationQueueHelpLines(
     orientation: "horizontal",
     visibility: "onDemand",
     actions: actionEntries,
-    contentHelpText: "Use the action rail to cycle category and translation-status filters.",
+    contentHelpText:
+      "Use the action rail to filter the session, edit per-tag translation overrides, and import the session.",
   });
 }
 
@@ -160,7 +236,7 @@ function createTranslationQueueInteractions(
         {
           title: "Navigation",
           actions: [
-            { id: "move", helpText: "move between unresolved translation rows" },
+            { id: "move", helpText: "move between translation rows" },
             { id: "jump", helpText: "jump through the list" },
             { id: "page", helpText: "page through the list" },
             { id: "edge", helpText: "jump to the first or last row" },
@@ -184,55 +260,105 @@ function cycleValue<T extends string>(values: readonly T[], current: T): T {
   return values[(currentIndex + 1) % values.length] ?? current;
 }
 
-function filterTranslationQueueItems(args: {
-  items: DerivedTagTranslationRecord[];
+function filterTranslationQueueRows(args: {
+  rows: DerivedTagTranslationReviewRow[];
   categoryFilter: TranslationQueueCategoryFilter;
   statusFilter: TranslationQueueStatusFilter;
-}): DerivedTagTranslationRecord[] {
-  return args.items.filter((item) => {
-    if (args.categoryFilter !== "all" && item.currentCategory !== args.categoryFilter) {
+}): DerivedTagTranslationReviewRow[] {
+  return args.rows.filter((row) => {
+    const effective = applyDerivedTagTranslationOverride(row.base, row.draftOverride);
+    if (args.categoryFilter !== "all" && effective.currentCategory !== args.categoryFilter) {
       return false;
     }
-    if (args.statusFilter !== "all" && item.translationStatus !== args.statusFilter) {
+    if (args.statusFilter !== "all" && effective.translationStatus !== args.statusFilter) {
       return false;
     }
     return true;
   });
 }
 
+function fieldMetadata(field: TranslationEditableFieldId): {
+  title: string;
+  prompt: string;
+  hint?: string;
+} {
+  switch (field) {
+    case "canonicalConceptLabel":
+      return { title: "Canonical Label", prompt: "Canonical label", hint: "Required. Example: poison_remediation" };
+    case "canonicalConceptId":
+      return { title: "Canonical ID", prompt: "Canonical id", hint: "Required. Example: poison_remediation" };
+    case "domainId":
+      return { title: "Domain", prompt: "Domain id", hint: "Optional. Leave blank to force an empty domain." };
+    case "operation":
+      return { title: "Operation", prompt: "Operation", hint: "Optional. Leave blank to force an empty operation." };
+    case "primaryFacetKind":
+      return { title: "Primary Facet Kind", prompt: "Primary facet kind", hint: "Optional. Leave blank to force empty." };
+    case "primaryFacetValue":
+      return { title: "Primary Facet Value", prompt: "Primary facet value", hint: "Optional. Leave blank to force empty." };
+    case "projectionAxis":
+      return { title: "Projection Axis", prompt: "Projection axis", hint: "Required browse axis for the projected tag." };
+    case "projectionFamily":
+      return { title: "Projection Family", prompt: "Projection family", hint: "Required browse family for the projected tag." };
+  }
+}
+
+function setOverrideField(
+  override: DerivedTagTranslationOverride,
+  field: TranslationEditableFieldId,
+  value: string,
+): DerivedTagTranslationOverride {
+  const next = cloneDerivedTagTranslationOverride(override);
+  (
+    next as Record<TranslationEditableFieldId, DerivedTagTranslationOverride[TranslationEditableFieldId]>
+  )[field] = value as DerivedTagTranslationOverride[TranslationEditableFieldId];
+  return next;
+}
+
 export function DerivedTagTranslationQueueScreen({
   items,
+  rootPath,
   initialCategory = "all",
-  initialStatus = "all",
+  initialStatus = "provisional",
   onBack,
   transitionStatus,
 }: {
   items: DerivedTagTranslationRecord[];
+  rootPath: string;
   initialCategory?: TranslationQueueCategoryFilter;
   initialStatus?: TranslationQueueStatusFilter;
   onBack: () => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
+  const terminal = useDerivedTagTerminalApp();
+  const prompts = useTerminalInteractionContextAdapters();
   const categoryFilterValues = React.useMemo<readonly TranslationQueueCategoryFilter[]>(() => {
     const categories = DERIVED_TAG_MANAGED_CATEGORIES.filter((category) =>
       items.some((item) => item.currentCategory === category),
     );
     return ["all", ...categories];
   }, [items]);
+  const [session, setSession] = React.useState<DerivedTagTranslationReviewSession>(() =>
+    createDerivedTagTranslationReviewSession({
+      categoryFilter: initialCategory,
+      statusFilter: initialStatus,
+      rows: items,
+    }),
+  );
   const [selectedIndex, setSelectedIndex] = React.useState(0);
-  const [categoryFilter, setCategoryFilter] = React.useState<TranslationQueueCategoryFilter>(initialCategory);
-  const [statusFilter, setStatusFilter] = React.useState<TranslationQueueStatusFilter>(initialStatus);
+  const [persistError, setPersistError] = React.useState<string | null>(null);
 
-  const filteredItems = React.useMemo(
+  const categoryFilter = session.reviewState.categoryFilter;
+  const statusFilter = session.reviewState.statusFilter;
+  const filteredRows = React.useMemo(
     () =>
-      filterTranslationQueueItems({
-        items,
+      filterTranslationQueueRows({
+        rows: session.rows,
         categoryFilter,
         statusFilter,
       }),
-    [categoryFilter, items, statusFilter],
+    [categoryFilter, session.rows, statusFilter],
   );
-  const menuItems = React.useMemo(() => buildTranslationQueueMenuItems(filteredItems), [filteredItems]);
+  const menuItems = React.useMemo(() => buildTranslationQueueMenuItems(filteredRows), [filteredRows]);
   const actionEntries = React.useMemo(
     () =>
       buildTranslationQueueActionEntries({
@@ -244,16 +370,169 @@ export function DerivedTagTranslationQueueScreen({
   const interactions = React.useMemo(() => createTranslationQueueInteractions(actionEntries), [actionEntries]);
 
   React.useEffect(() => {
+    let cancelled = false;
+    void writeDerivedTagTranslationReviewSession(rootPath, session)
+      .then(() => {
+        if (!cancelled) {
+          setPersistError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPersistError((error as Error).message);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rootPath, session]);
+
+  React.useEffect(() => {
     setSelectedIndex((current) => Math.max(0, Math.min(current, Math.max(0, menuItems.length - 1))));
   }, [menuItems.length]);
+
+  const updateRow = React.useCallback(
+    (rowKey: string, nextOverride: DerivedTagTranslationOverride) => {
+      setSession((current) => ({
+        ...current,
+        rows: current.rows.map((row) =>
+          row.key === rowKey
+            ? {
+                ...row,
+                draftOverride: cloneDerivedTagTranslationOverride(nextOverride),
+              }
+            : row,
+        ),
+        reviewState: {
+          ...current.reviewState,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+    },
+    [],
+  );
+
+  const requestFieldEdit = React.useCallback(
+    async (item: TranslationQueueMenuItem) => {
+      const fieldResult = await prompts.promptSelectOption<TranslationEditableFieldId>({
+        title: "Edit Translation Field",
+        prompt: "Field",
+        entries: [
+          { value: "canonicalConceptLabel", label: "Canonical label" },
+          { value: "canonicalConceptId", label: "Canonical id" },
+          { value: "domainId", label: "Domain" },
+          { value: "operation", label: "Operation" },
+          { value: "primaryFacetKind", label: "Primary facet kind" },
+          { value: "primaryFacetValue", label: "Primary facet value" },
+          { value: "projectionAxis", label: "Projection axis" },
+          { value: "projectionFamily", label: "Projection family" },
+        ],
+      });
+      if (fieldResult.kind !== "selected") {
+        return;
+      }
+      const field = fieldResult.value;
+      const metadata = fieldMetadata(field);
+      const currentValue = String(item.effective[field] ?? "");
+      const input = await prompts.promptTextInput({
+        title: metadata.title,
+        prompt: metadata.prompt,
+        defaultValue: currentValue,
+        hint: metadata.hint,
+        presentation: "overlay",
+      });
+      if (input === undefined) {
+        return;
+      }
+      const nextValue = input.trim();
+      if (
+        (field === "canonicalConceptLabel" ||
+          field === "canonicalConceptId" ||
+          field === "projectionAxis" ||
+          field === "projectionFamily") &&
+        !nextValue
+      ) {
+        await terminal.pauseForAnyKey(`${metadata.title} cannot be blank.`);
+        return;
+      }
+      updateRow(item.row.key, setOverrideField(item.row.draftOverride, field, nextValue));
+    },
+    [prompts, terminal, updateRow],
+  );
+
+  const requestStatusEdit = React.useCallback(
+    async (item: TranslationQueueMenuItem) => {
+      const result = await prompts.promptSelectOption<DerivedTagTranslationRecord["translationStatus"]>({
+        title: "Set Translation Status",
+        prompt: "Status",
+        entries: [
+          { value: "mapped", label: "mapped" },
+          { value: "provisional", label: "provisional" },
+          { value: "unmapped", label: "unmapped" },
+          { value: "dropped", label: "dropped" },
+        ],
+      });
+      if (result.kind !== "selected") {
+        return;
+      }
+      const nextOverride = cloneDerivedTagTranslationOverride(item.row.draftOverride);
+      nextOverride.translationStatus = result.value;
+      if (result.value === "dropped") {
+        nextOverride.publishTag = false;
+      } else {
+        delete nextOverride.publishTag;
+      }
+      updateRow(item.row.key, nextOverride);
+    },
+    [prompts, updateRow],
+  );
+
+  const requestSchemaEdit = React.useCallback(
+    async (item: TranslationQueueMenuItem) => {
+      const result = await prompts.promptSelectOption<DerivedTagTranslationRecord["schemaKind"]>({
+        title: "Set Schema Kind",
+        prompt: "Schema kind",
+        entries: [
+          { value: "descriptive", label: "descriptive" },
+          { value: "operational", label: "operational" },
+          { value: "aggregate", label: "aggregate" },
+        ],
+      });
+      if (result.kind !== "selected") {
+        return;
+      }
+      const nextOverride = cloneDerivedTagTranslationOverride(item.row.draftOverride);
+      nextOverride.schemaKind = result.value;
+      updateRow(item.row.key, nextOverride);
+    },
+    [prompts, updateRow],
+  );
+
+  const handleImport = React.useCallback(async () => {
+    try {
+      await importDerivedTagTranslationReviewSession(rootPath, session);
+      setSession((current) => ({
+        ...current,
+        reviewState: {
+          ...current.reviewState,
+          imported: true,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+      await terminal.pauseForAnyKey(`Imported translation session ${session.manifest.id}.`);
+      onBack();
+    } catch (error) {
+      await terminal.pauseForAnyKey(`Import failed: ${(error as Error).message}`);
+    }
+  }, [onBack, rootPath, session, terminal]);
 
   return (
     <TerminalActionMenuScreen
       title="Ontology Translation Review"
-      subtitle={`${filteredItems.length} unresolved row${filteredItems.length === 1 ? "" : "s"} shown`}
-      leftTitle="Unresolved Rows"
+      subtitle={`${filteredRows.length} session row${filteredRows.length === 1 ? "" : "s"} shown`}
+      leftTitle="Translation Rows"
       rightTitle="Translation Detail"
-      leftWidth={52}
+      leftWidth={60}
       items={menuItems}
       selectedIndex={selectedIndex}
       interactions={interactions}
@@ -261,15 +540,16 @@ export function DerivedTagTranslationQueueScreen({
       buildRightLines={(selectedItem) =>
         buildTranslationDetailLines({
           selectedItem,
-          totalCount: items.length,
-          visibleCount: filteredItems.length,
+          totalCount: session.rows.length,
+          visibleCount: filteredRows.length,
           categoryFilter,
           statusFilter,
+          persistError,
         })
       }
       buildStatusLine={({ selectedItem }) => ({
         text: selectedItem
-          ? `Selected: ${selectedItem.translation.currentCategory} / ${selectedItem.translation.currentTag}`
+          ? `Selected: ${selectedItem.row.base.currentCategory} / ${selectedItem.row.base.currentTag}`
           : `Filters: ${formatFilterLabel(categoryFilter)} | ${formatFilterLabel(statusFilter)}`,
         tone: "accent",
       })}
@@ -287,16 +567,52 @@ export function DerivedTagTranslationQueueScreen({
       onSelect={() => {}}
       onBack={onBack}
       onAction={(actionId) => {
+        const selectedItem = menuItems[selectedIndex];
         if (actionId === "cycle_category") {
-          setCategoryFilter((current) => cycleValue(categoryFilterValues, current));
+          setSession((current) => ({
+            ...current,
+            reviewState: {
+              ...current.reviewState,
+              categoryFilter: cycleValue(categoryFilterValues, current.reviewState.categoryFilter),
+              updatedAt: new Date().toISOString(),
+            },
+          }));
           return;
         }
         if (actionId === "cycle_status") {
-          setStatusFilter((current) => cycleValue(["all", "provisional", "unmapped"] as const, current));
+          setSession((current) => ({
+            ...current,
+            reviewState: {
+              ...current.reviewState,
+              statusFilter: cycleValue(
+                ["all", "provisional", "unmapped", "mapped"] as const,
+                current.reviewState.statusFilter,
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+          }));
           return;
         }
-        setCategoryFilter("all");
-        setStatusFilter("all");
+        if (!selectedItem) {
+          return;
+        }
+        if (actionId === "set_translation_status") {
+          void requestStatusEdit(selectedItem);
+          return;
+        }
+        if (actionId === "set_schema_kind") {
+          void requestSchemaEdit(selectedItem);
+          return;
+        }
+        if (actionId === "edit_field") {
+          void requestFieldEdit(selectedItem);
+          return;
+        }
+        if (actionId === "reset_row") {
+          updateRow(selectedItem.row.key, selectedItem.row.currentOverride);
+          return;
+        }
+        void handleImport();
       }}
       transitionStatus={transitionStatus}
     />

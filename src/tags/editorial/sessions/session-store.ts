@@ -99,7 +99,7 @@ function lineSeparatedJson<T>(records: T[]): string {
   return records.map((record) => JSON.stringify(record)).join("\n") + (records.length > 0 ? "\n" : "");
 }
 
-function parseJson(raw: string, context: string): unknown {
+export function parseSessionJson(raw: string, context: string): unknown {
   try {
     return JSON.parse(raw) as unknown;
   } catch (error) {
@@ -114,7 +114,9 @@ function parseJsonLines<T>(value: string, context: string, parseLine: (line: unk
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line, index) => parseLine(parseJson(line, `${context} line ${index + 1}`), `${context} line ${index + 1}`));
+    .map((line, index) =>
+      parseLine(parseSessionJson(line, `${context} line ${index + 1}`), `${context} line ${index + 1}`),
+    );
 }
 
 function expectObject(value: unknown, context: string): JsonObject {
@@ -588,13 +590,13 @@ export async function readDerivedTagReviewSession(
   ]);
 
   return {
-    manifest: parseSessionManifest(parseJson(manifestRaw, "manifest.json"), "manifest.json"),
+    manifest: parseSessionManifest(parseSessionJson(manifestRaw, "manifest.json"), "manifest.json"),
     records: parseJsonLines(recordsRaw, "records.jsonl", (line, lineContext) =>
       parseSessionRecord(line, lineContext),
     ).map((record) => normalizeSessionRecord(record)),
     decisions: parseJsonLines(decisionsRaw, "decisions.jsonl", (line, lineContext) =>
       parseRecordDecision(line, lineContext),
     ),
-    reviewState: parseSessionReviewState(parseJson(reviewStateRaw, "review-state.json"), "review-state.json"),
+    reviewState: parseSessionReviewState(parseSessionJson(reviewStateRaw, "review-state.json"), "review-state.json"),
   };
 }
