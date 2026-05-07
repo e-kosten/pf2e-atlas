@@ -14,9 +14,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Core architecture convergence](./items/core-architecture-convergence.md)
-  Land the long-term non-tag architecture cleanup from the May 2026 codebase architecture review. Status: planned.
-
 - [Search interaction cleanup](./items/search-interaction-cleanup.md)
   Unify how `/`, query text, and action menus work in the search editor and long selection lists. Status: proposed.
 

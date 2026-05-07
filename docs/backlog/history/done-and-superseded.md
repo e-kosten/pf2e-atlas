@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Core architecture convergence](./items/core-architecture-convergence.md)
+  The long-term non-tag architecture cleanup from the May 2026 codebase architecture review is landed across data/search retrieval, canonical TUI query editing, typed indexing stages, and search-discovery/ontology ownership. Status: done.
+
 - `Add loading affordances`
   Shared route-transition loading affordances already exist. Remaining work is tuning and polish, not first-pass implementation. Status: done.
 
