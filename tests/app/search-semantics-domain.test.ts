@@ -4,9 +4,9 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics-domain.js";
+import { buildSearchSemanticsDomain } from "../../src/app/ontology/search-semantics/domain.js";
 import { resolveOntologyNodeChildren } from "../../src/app/ontology/node-helpers.js";
-import { buildFieldValueNodes } from "../../src/app/ontology/search-semantics-helpers.js";
+import { buildFieldValueNodes } from "../../src/app/ontology/search-semantics/value-node-builder.js";
 import { createPf2eApplicationSearchDiscoveryService } from "../../src/app/search-discovery-service.js";
 import { getMetadataGlossaryArtifactPath } from "../../src/data/metadata-glossary.js";
 import type { OntologyNode } from "../../src/domain/ontology-types.js";
@@ -397,7 +397,7 @@ describe("buildSearchSemanticsDomain", () => {
 
   it("builds common-trait shortcuts from summary data without eagerly loading the trait field value space", async () => {
     const dataService = createDataService();
-    const indexPath = createTempIndexPath("search-semantics-domain-");
+    const indexPath = createTempIndexPath("search-semantics-");
     writeTraitGlossary(indexPath, {
       magical: {
         value: "magical",

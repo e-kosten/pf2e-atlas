@@ -10,7 +10,7 @@ import type { Pf2eApplicationSearchDiscoveryService } from "./search-discovery-s
 import {
   buildPreparedSearchFilterExplorerDomain,
   buildSearchSemanticsDomain,
-} from "./ontology/search-semantics-domain.js";
+} from "./ontology/search-semantics/domain.js";
 
 export type Pf2eApplicationOntologyService = {
   loadSearchSemanticsDomain: (options: { discoveryMode: SearchFilterDiscoveryMode }) => Promise<OntologyDomainModel>;

@@ -38,6 +38,13 @@ The shared discovery service is the durable owner for:
 - pack label/name resolution before canonical request construction
 - shared option ordering and any justified runtime caching
 
+The app-facing implementation keeps those responsibilities split under `src/app/search-discovery/`:
+
+- `service.ts` exposes the stable app facade
+- `applicability.ts`, `query-builders.ts`, and `cache-keys.ts` own shared request shape and cache identity helpers
+- `metadata-fields.ts`, `metric-discovery.ts`, and `value-discovery.ts` own metadata-field, metric, and value discovery respectively
+- `readers.ts` prepares search-semantics discovery readers for ontology and explorer consumers
+
 The service is not the owner for:
 
 - picker shell/container choice
@@ -45,6 +52,8 @@ The service is not the owner for:
 - local dialog draft state
 - TUI-only selection helpers
 - ontology-only navigation and presentation structure
+
+Ontology search-semantics browsing consumes the discovery service from focused builders under `src/app/ontology/search-semantics/`. That folder owns ontology domain composition, field nodes, metric nodes, pack nodes, value nodes, child sources, query construction, derived-tag nodes, and labels as separate concerns so discovery semantics are not duplicated in presentation assembly.
 
 ## Consequences
 

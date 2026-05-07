@@ -16,7 +16,7 @@ These surfaces already share important lower-level plumbing:
 
 - the `OntologyDomainModel` / `OntologyNode` tree contract
 - the shared filter-explorer list/detail shell and action rail
-- some builder helpers and derived-tag assembly logic under `src/app/ontology/search-semantics-domain.ts`
+- focused builder helpers and derived-tag assembly logic under `src/app/ontology/search-semantics/`
 
 But they still diverge in ways that are only partly intentional:
 
@@ -131,7 +131,7 @@ This item is also the right umbrella for several still-open issues that cluster 
 - the search-side derived-tag surface can still appear empty for broad scoped cases such as only `scope=creature`
 - ontology derived-tag matching/catalog semantics are still mixed rather than explicit
 - ontology family-node action affordances and discovery behavior still need follow-through now that the basic wiring exists
-- the current builder split in `src/app/ontology/search-semantics-domain.ts` likely contains refactorable duplication that should be cataloged before future feature work deepens it
+- the current builder split in `src/app/ontology/search-semantics/` should stay cataloged by owner so future feature work does not deepen duplication
 
 These should not all be treated as one commit or one immediate refactor, but they belong to the same tracked architectural area.
 
@@ -145,7 +145,7 @@ These should not all be treated as one commit or one immediate refactor, but the
 
 ## Suggested Next Steps
 
-1. Catalog the overlapping helper families inside `src/app/ontology/search-semantics-domain.ts` and identify which ones can be shared without hiding the surface distinction.
+1. Catalog the overlapping helper families inside `src/app/ontology/search-semantics/` and identify which ones can be shared without hiding the surface distinction.
 2. Decide the intended ontology meaning of `matching` vs `catalog`, especially for derived-tag families and zero-count tag visibility.
 3. Fix the search-side empty derived-tag path for broad scoped requests so the prepared explorer remains a trustworthy semantic reference.
 4. Align ontology family counts, child lists, and action affordances to the chosen semantics.

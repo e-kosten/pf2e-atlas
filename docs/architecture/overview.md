@@ -19,6 +19,7 @@ The shortest useful mental model is:
 - `src/index.ts` is the MCP composition root
 - `src/tui/app-services.ts` is the terminal/editorial composition root
 - `src/app/` wires runtime and app-level facades together
+- `src/app/search-discovery-service.ts` is the public app facade for shared search discovery; focused discovery owners live under `src/app/search-discovery/`
 - `src/data/` owns index-backed catalog, search, and rule-graph access
 - `src/data/indexing/` owns the typed index rebuild pipeline and stage artifacts
 - `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic search contract
@@ -185,6 +186,7 @@ Owns application-level composition and facades:
 - runtime assembly in `runtime.ts`
 - storage boundary in `storage-service.ts`
 - ontology assembly in `ontology-service.ts` and `ontology/`
+- search-semantics ontology assembly in `ontology/search-semantics/`, where domain, field, metric, pack, value-node, child-source, query, and label builders stay split by ownership
 - shared entity-page document and page-text presentation ownership in `ontology/entity-page.ts`, with normalized page facts projected by `ontology/entity-page-facts.ts`, `ontology/entity-page-service.ts` as the relation-aware app facade, and `ontology/presenter.ts` as the durable plain-line presentation seam for non-page consumers
 - page-relation grouping and seeded drill preparation in `page-relations-service.ts`
 

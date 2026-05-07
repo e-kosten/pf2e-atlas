@@ -113,6 +113,8 @@ const DATABASE_SYNC_ALLOWED_PATHS = [
 
 const SEARCH_DISCOVERY_PRIMITIVE_ALLOWED_PATHS = [
   "src/app/search-discovery-service.ts",
+  "src/app/search-discovery/value-discovery.ts",
+  /src\/app\/search-discovery\/value-discovery\.ts$/,
   "src/data/backend/search-service.ts",
   "src/data/service.ts",
   "src/server/register-search-tools.ts",
@@ -423,11 +425,7 @@ const localRules = {
           return;
         }
         const normalized = value.toLowerCase();
-        if (
-          normalized.includes("draft") ||
-          normalized.includes("setup") ||
-          normalized.includes("opensetup")
-        ) {
+        if (normalized.includes("draft") || normalized.includes("setup") || normalized.includes("opensetup")) {
           context.report({ node, messageId: "noStaleSearchTerminology" });
         }
       };
