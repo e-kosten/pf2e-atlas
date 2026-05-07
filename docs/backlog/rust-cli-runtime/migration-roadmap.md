@@ -1,6 +1,7 @@
-# Rust CLI Runtime Roadmap
+# Rust CLI Runtime Migration Roadmap
 
-Status: proposed  
+Status: in_progress  
+Design state: design in progress  
 Priority: later  
 Owner: unassigned  
 Last reviewed: 2026-05-06
@@ -212,6 +213,24 @@ Using a different engine at ingest and runtime is acceptable only if the produce
 - Which derived-tag editorial workflows are stable enough to model as Rust state machines now?
 - Does the optional `atlas mcp` mode need the official Rust MCP SDK, or is MCP no longer worth preserving locally?
 
+## Research Dependencies
+
+This migration is design-in-progress and should not move into implementation until the research spikes in this folder produce enough evidence to choose the runtime and retrieval architecture.
+
+Required decision inputs:
+
+- [Rust query embedding spike](./spikes/rust-query-embedding.md)
+- [Search quality bakeoff spike](./spikes/search-quality-bakeoff.md)
+- [Tantivy lexical search spike](./spikes/tantivy-lexical-search.md)
+- [LanceDB retrieval store spike](./spikes/lancedb-retrieval-store.md)
+- [Rust CLI agent surface spike](./spikes/rust-cli-agent-surface.md)
+- [Rust TUI state machine spike](./spikes/rust-tui-state-machine.md)
+- [Artifact contract spike](./spikes/artifact-contract.md)
+- [Canonical ingest ownership spike](./spikes/canonical-ingest-ownership.md)
+- [Optional MCP compatibility spike](./spikes/optional-mcp-compatibility.md)
+
+The first implementation plan should explicitly summarize the outcomes of these spikes, name the chosen retrieval stack, and identify any rejected alternatives that remain future options.
+
 ## Suggested Work Breakdown
 
 ### Phase 1: Decision Prototypes
@@ -345,5 +364,5 @@ Any implementation plan that comes from this item should include:
 - [Search architecture](../../architecture/search.md)
 - [TUI architecture](../../architecture/tui.md)
 - [Editorial architecture](../../architecture/editorial.md)
-- [Derived-tag index service layer](./derived-tag-index-service-layer.md)
-- [Tagging tooling reorganization](./tagging-tooling-reorg.md)
+- [Derived-tag index service layer](../items/derived-tag-index-service-layer.md)
+- [Tagging tooling reorganization](../items/tagging-tooling-reorg.md)
