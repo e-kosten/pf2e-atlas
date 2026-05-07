@@ -3,7 +3,13 @@ export {
   getCurrentDerivedTagAuthoredStateRevision,
 } from "./editorial/state/authored-state.js";
 export { compareDisplayText, compareManagedCategory } from "./editorial/list-sorting.js";
-export { getPublishedDerivedTagOntology, summarizeCurrentDerivedTagReviewQueue } from "./editorial/state/runtime-state.js";
+export {
+  getPublishedDerivedTagConceptModel,
+  getPublishedDerivedTagOntology,
+  listPublishedDerivedTagTranslations,
+  summarizeCurrentDerivedTagReviewQueue,
+  summarizeCurrentDerivedTagTranslationQueue,
+} from "./editorial/state/runtime-state.js";
 export {
   createDerivedTagWorkbenchSession,
   getDerivedTagWorkbenchQueueItems,

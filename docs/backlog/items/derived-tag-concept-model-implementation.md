@@ -1,9 +1,9 @@
 # Derived-Tag Concept Model Implementation
 
-Status: proposed  
+Status: in_progress  
 Priority: soon  
 Owner: unassigned  
-Last reviewed: 2026-04-21
+Last reviewed: 2026-05-07
 
 ## Problem
 
@@ -29,6 +29,26 @@ That implementation work should cover:
 - explicit aggregate concept and relation authoring
 - canonical metadata that editorial tooling and the TUI can surface directly
 - a clear replacement path from the current category/axis/family/tag shape to the canonical concept/projection model
+
+## Current Slice
+
+The first live cutover slice is now underway in tracked `src/tags/` source.
+
+Implemented in this slice:
+
+- canonical concept, projection, relation, and translation-record types
+- a live `src/tags/translations/` layer that bridges current ontology tags into canonical concepts and projections
+- projection-backed ontology publication wired into `runtime/derivation/api.ts`
+- stable user/runtime tag ids preserved while canonical labels and metadata publish alongside them
+- editorial/runtime accessors for concept-model and translation-record inspection
+
+Intentionally deferred to a follow-up slice:
+
+- a dedicated translation-review session/workbench mode in the TUI
+- direct assignment migration onto canonical concept/projection ownership
+- retirement of legacy rules and legacy seed migration paths
+
+This means the future ontology model is no longer planning-only, but the human review workflow for unresolved translation rows is still only partially surfaced through summary accessors rather than a full interactive queue.
 
 ## Constraints
 

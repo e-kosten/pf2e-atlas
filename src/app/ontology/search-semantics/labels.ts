@@ -161,9 +161,11 @@ export function getDerivedTagLabels(
   return {
     categoryLabel: formatOntologySearchVocabularyLabel(category),
     activeSubcategoryLabel: activeSubcategory ? formatOntologySearchVocabularyLabel(activeSubcategory) : "(all)",
-    familyLabel: formatOntologySearchVocabularyLabel(familyEntry.family),
+    familyLabel: familyEntry.label
+      ? formatOntologySearchVocabularyLabel(familyEntry.label)
+      : formatOntologySearchVocabularyLabel(familyEntry.family),
     axisLabel: formatOntologySearchVocabularyLabel(familyEntry.axis),
-    tagLabel: formatOntologySearchVocabularyLabel(tag.value),
+    tagLabel: tag.label ? formatOntologySearchVocabularyLabel(tag.label) : formatOntologySearchVocabularyLabel(tag.value),
     familyScopeLabel: formatDerivedTagFamilyScopeLabel(familyEntry),
     assignmentModeLabel: tag.assignmentMode
       ? formatOntologySearchVocabularyLabel(tag.assignmentMode)

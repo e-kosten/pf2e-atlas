@@ -147,9 +147,9 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
       arrayContaining([
         objectContaining({
           category: "creature",
-          family: "setting",
-          axis: "legacy",
-          description: stringContaining("Legacy umbrella family"),
+          family: "regional_setting",
+          axis: "setting",
+          description: stringContaining("broad Golarion macro-regions"),
         }),
         objectContaining({
           category: "creature",

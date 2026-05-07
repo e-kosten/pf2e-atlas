@@ -123,7 +123,9 @@ function buildDerivedTagFamilyBrowseNode(options: {
 }): OntologyNode {
   const { category, subcategory, familyEntry, idPrefix, tagNodes, visibleTagCount, detailLines, childPresentation } =
     options;
-  const familyLabel = formatOntologySearchVocabularyLabel(familyEntry.family);
+  const familyLabel = familyEntry.label
+    ? formatOntologySearchVocabularyLabel(familyEntry.label)
+    : formatOntologySearchVocabularyLabel(familyEntry.family);
   return {
     id: getDerivedTagFamilyNodeId(idPrefix, familyEntry),
     kind: "family",
@@ -133,6 +135,7 @@ function buildDerivedTagFamilyBrowseNode(options: {
       subcategory ?? "",
       familyEntry.axis,
       familyEntry.family,
+      familyEntry.label ?? "",
       familyEntry.description,
       ...(familyEntry.subcategories ?? []),
       ...familyEntry.tags.map((tag) => tag.value),
@@ -172,6 +175,9 @@ export function createDerivedTagFamilyNodeBuilder(options: {
     if (tagEntries.length === 0) {
       return null;
     }
+    const familyLabel = familyEntry.label
+      ? formatOntologySearchVocabularyLabel(familyEntry.label)
+      : formatOntologySearchVocabularyLabel(familyEntry.family);
 
     const familyNodeId = getDerivedTagFamilyNodeId(idPrefix, familyEntry);
     const tagNodes = tagEntries.map((tagEntry) => {
@@ -217,7 +223,7 @@ export function createDerivedTagFamilyNodeBuilder(options: {
       detailLines:
         options.detailMode === "catalog"
           ? buildKeyValueDetailLines(
-              formatOntologySearchVocabularyLabel(familyEntry.family),
+              familyLabel,
               [
                 ["Category", formatOntologySearchVocabularyLabel(category)],
                 ["Active subcategory", subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"],
@@ -228,7 +234,7 @@ export function createDerivedTagFamilyNodeBuilder(options: {
               familyEntry.description,
             )
           : buildKeyValueDetailLines(
-              formatOntologySearchVocabularyLabel(familyEntry.family),
+              familyLabel,
               [
                 ["Category", formatOntologySearchVocabularyLabel(category)],
                 ["Subcategory", subcategory ? formatOntologySearchVocabularyLabel(subcategory) : "(all)"],

@@ -3,8 +3,9 @@ import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../../exemplars/index.js";
 import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../../legacy-rules/index.js";
 import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../../legacy-seed-migrations/index.js";
 import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../../manifest.js";
-import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY, flattenDerivedTagAuthoredCategoryOntology } from "../../ontology/index.js";
+import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY } from "../../ontology/index.js";
 import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY, compileAuthoredDerivedTagRules } from "../../rules/index.js";
+import { buildProjectedDerivedTagOntologyPublication, buildPublishedDerivedTagConceptModel } from "../../translations/index.js";
 import { getLegacyDerivedTagFamilyAliases } from "../compat/family-compatibility.js";
 import {
   createDerivedTagExplicitAssignmentIndex,
@@ -40,25 +41,21 @@ const AUTHORED_DERIVED_TAG_RULES = [
   ...DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY[category]),
 ];
 
-const AUTHORED_DERIVED_TAG_ONTOLOGIES = DERIVED_TAG_REGISTRATION_CATEGORIES.map(
-  (category) => DERIVED_TAG_ONTOLOGY_BY_CATEGORY[category],
-);
-const FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES = AUTHORED_DERIVED_TAG_ONTOLOGIES.map((ontology) =>
-  flattenDerivedTagAuthoredCategoryOntology(ontology),
-);
-const AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES.flatMap(
-  (ontology) => ontology.families,
-);
-const AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS = FLATTENED_AUTHORED_DERIVED_TAG_ONTOLOGIES.flatMap(
-  (ontology) => ontology.tags,
+const AUTHORED_DERIVED_TAG_CONCEPT_MODEL = buildPublishedDerivedTagConceptModel(DERIVED_TAG_ONTOLOGY_BY_CATEGORY);
+const AUTHORED_DERIVED_TAG_ONTOLOGY_PUBLICATION = buildProjectedDerivedTagOntologyPublication(
+  DERIVED_TAG_ONTOLOGY_BY_CATEGORY,
+  AUTHORED_DERIVED_TAG_CONCEPT_MODEL,
 );
 
 const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntology(
-  AUTHORED_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  AUTHORED_DERIVED_TAG_ONTOLOGY_TAGS,
+  AUTHORED_DERIVED_TAG_ONTOLOGY_PUBLICATION.families,
+  AUTHORED_DERIVED_TAG_ONTOLOGY_PUBLICATION.tags,
+  AUTHORED_DERIVED_TAG_CONCEPT_MODEL,
 );
 export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
 export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
+export const DERIVED_TAG_ONTOLOGY_CONCEPTS = DERIVED_TAG_ONTOLOGY.conceptModel.concepts;
+export const DERIVED_TAG_ONTOLOGY_TRANSLATIONS = DERIVED_TAG_ONTOLOGY.conceptModel.translations;
 const COMPILED_AUTHORED_DERIVED_TAG_RULES = compileAuthoredDerivedTagRules(
   DERIVED_TAG_ONTOLOGY,
   AUTHORED_DERIVED_TAG_RULES,

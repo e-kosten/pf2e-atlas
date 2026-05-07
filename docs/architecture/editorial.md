@@ -13,6 +13,7 @@ For broader project layering, read [overview.md](./overview.md) and [boundaries.
 `src/tags/` exists to support a human-in-the-loop editorial workflow around derived tags:
 
 - define the authored ontology and explainable rules
+- define canonical concept/projection/translation ownership for the future ontology shape
 - carry explicit assignments, exemplars, and durable review registries
 - inspect the live indexed corpus for missing, over-broad, or repeatedly rejected coverage
 - build editorial sessions from pending review queues, migration inputs, and evidence passes
@@ -27,6 +28,7 @@ When evaluating the long-term shape of `src/tags/`, treat `legacy-rules/` and `l
 ```mermaid
 flowchart LR
   authored["ontology/, rules/, assignments/, exemplars/<br/>authored derived-tag source"]
+  translations["translations/<br/>canonical concepts, projections,<br/>translation records"]
   reviews["reviews/<br/>assignment reviews, memory, exemplar reviews,<br/>reviewed discovery negatives"]
   runtimePub["runtime/publication/<br/>publish ontology, exemplars, legacy seed indexes"]
   runtimeDerive["runtime/derivation/<br/>explicit assignments and final derivation API"]
@@ -42,9 +44,12 @@ flowchart LR
   app["src/app/ + src/tui/app-services.ts<br/>shared runtime, storage, workbench composition"]
   index["SQLite index + embeddings"]
 
+  authored --> translations
   authored --> runtimePub
   authored --> runtimeDerive
   authored --> runtimeMatch
+  translations --> runtimePub
+  translations --> editorialState
   reviews --> runtimeDerive
   reviews --> editorialState
   runtimeMatch --> runtimeDerive
@@ -170,6 +175,7 @@ The important split is:
 | Area | Owns | Consumes | Produces |
 | --- | --- | --- | --- |
 | `ontology/`, `rules/`, `assignments/`, `exemplars/` | Authored ontology, authored rules, explicit overrides, curated teaching sets | Shared manifest and domain contracts | The durable inputs the runtime and writeback flows operate on |
+| `translations/` | Canonical concepts, category projections, concept relations, and current-tag translation records | Authored ontology families/tags plus canonical concept policy | The live bridge from current ontology ownership into the concept/projection model |
 | `reviews/` | Pending assignment reviews, prior assignment memory, pending exemplar reviews, reviewed discovery negatives | Current editorial policy and managed categories | Durable review registries used by session building, discovery filtering, and writeback |
 | `runtime/publication/` | Published ontology catalogs, exemplar publication, legacy seed publication, source catalogs | Authored ontology, exemplars, seed definitions | Flattened runtime registries and source-aware publication helpers |
 | `runtime/derivation/` | Explicit assignment index, final tag derivation API, runtime-level assignment views | Published ontology, matcher outputs, review registries, legacy inputs | `deriveRecordTags`, source-aware derivations, pending-assignment views |
@@ -231,6 +237,25 @@ The durable editorial inputs now come from two different places:
 - `reviews/discovery-reviewed-records.ts` records reviewed-negative discovery outcomes so future family-gap passes can suppress or audit them intentionally
 
 Callers should import that reviewed-discovery registry from `src/tags/reviews/discovery-reviewed-records.ts` directly.
+
+## Concept / Projection Translation Layer
+
+The future derived-tag ontology shape now has a live bridge layer under `src/tags/translations/`.
+
+That layer owns:
+
+- canonical concept definitions published from the current ontology
+- category projections that preserve long-term axis/family browsing
+- translation records keyed to the current tag rows
+- translation status (`mapped`, `provisional`, `unmapped`, `dropped`)
+
+The important architectural split is:
+
+- `ontology/` still owns the current category-local authored tag definitions
+- `translations/` owns how those current tags map into the future concept/projection model
+- `runtime/publication/` compiles the projection-backed published ontology used by derivation and the explorer surfaces
+
+In the current implementation slice, unresolved translation rows are available through editorial/runtime summaries and translation records, but the dedicated row-centric review workbench mode is still a follow-up.
 
 ## Discovery And Evaluation Loop
 

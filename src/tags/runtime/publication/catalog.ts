@@ -1,5 +1,6 @@
 import type {
   DerivedTagCatalogEntry,
+  PublishedDerivedTagConceptModel,
   DerivedTagSeedRecordReference,
   DerivedTagLegacySeedMigrationCategory,
   DerivedTagOntologyFamily,
@@ -65,6 +66,7 @@ export type DerivedTagLegacySeedMigrationIndex = {
 export type PublishedDerivedTagOntology = {
   families: DerivedTagOntologyFamily[];
   tags: DerivedTagOntologyTag[];
+  conceptModel: PublishedDerivedTagConceptModel;
   familyByKey: Map<OntologyFamilyKey, DerivedTagOntologyFamily>;
   tagByKey: Map<OntologyTagKey, DerivedTagOntologyTag>;
   tagsByFamilyKey: Map<OntologyFamilyKey, DerivedTagOntologyTag[]>;
@@ -325,6 +327,7 @@ function buildTagOwnedRecordIndex(
 export function publishDerivedTagOntology(
   families: DerivedTagOntologyFamily[],
   tags: DerivedTagOntologyTag[],
+  conceptModel: PublishedDerivedTagConceptModel,
 ): PublishedDerivedTagOntology {
   const familyByKey = new Map<OntologyFamilyKey, DerivedTagOntologyFamily>();
   const tagByKey = new Map<OntologyTagKey, DerivedTagOntologyTag>();
@@ -376,6 +379,7 @@ export function publishDerivedTagOntology(
   return {
     families,
     tags,
+    conceptModel,
     familyByKey,
     tagByKey,
     tagsByFamilyKey: buildTagsByFamilyKey(tags),
@@ -397,11 +401,13 @@ export function groupDerivedTagOntology(
         category: family.category,
         subcategories: family.subcategories,
         family: family.family,
+        label: family.label,
         axis: family.axis,
         description: family.description,
         variantInheritance: family.variantInheritance,
         tags: tags.map((tag) => ({
           value: tag.tag,
+          label: tag.label,
           description: tag.description,
           assignmentMode: tag.assignmentMode,
           nativeOntologyPolicy: tag.nativeOntologyPolicy,
@@ -412,6 +418,14 @@ export function groupDerivedTagOntology(
           adjacentTags: tag.adjacentTags,
           compositeOfAnyTags: tag.compositeOfAnyTags,
           variantInheritance: tag.variantInheritance,
+          canonicalConceptId: tag.canonicalConceptId,
+          translationStatus: tag.translationStatus,
+          schemaKind: tag.schemaKind,
+          domainId: tag.domainId,
+          operation: tag.operation,
+          primaryFacetKind: tag.primaryFacetKind,
+          primaryFacetValue: tag.primaryFacetValue,
+          secondaryFacets: tag.secondaryFacets,
         })),
       };
     })

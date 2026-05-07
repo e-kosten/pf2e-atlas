@@ -1,3 +1,4 @@
+import type { DerivedTagConceptSchemaKind, DerivedTagTranslationStatus } from "./derived-tag-concept-types.js";
 import type { SearchCategory, SearchSubcategory } from "./search-types.js";
 import type { ActorMetricMap } from "./actor-metrics.js";
 import type { ItemMetricMap } from "./item-metrics.js";
@@ -113,6 +114,7 @@ export interface DerivedTagOntologyFamily<C extends DerivedTagOntologyCategory =
   category: C;
   subcategories?: SearchSubcategory[];
   family: string;
+  label?: string;
   axis: DerivedTagOntologyAxis<C>;
   description: string;
   variantInheritance?: boolean;
@@ -139,6 +141,7 @@ export interface DerivedTagOntologyTag {
   category: SearchCategory;
   family: string;
   tag: string;
+  label?: string;
   description: string;
   assignmentMode: DerivedTagAssignmentMode;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
@@ -149,10 +152,21 @@ export interface DerivedTagOntologyTag {
   adjacentTags?: string[];
   compositeOfAnyTags?: string[];
   variantInheritance?: boolean;
+  canonicalConceptId?: string;
+  translationStatus?: DerivedTagTranslationStatus;
+  schemaKind?: DerivedTagConceptSchemaKind;
+  domainId?: string;
+  operation?: string;
+  primaryFacetKind?: string;
+  primaryFacetValue?: string;
+  secondaryFacets?: string[];
+  renameNote?: string;
+  translationNotes?: string;
 }
 
 export interface DerivedTagCatalogTag {
   value: string;
+  label?: string;
   description?: string;
   assignmentMode?: DerivedTagAssignmentMode;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
@@ -163,12 +177,21 @@ export interface DerivedTagCatalogTag {
   adjacentTags?: string[];
   compositeOfAnyTags?: string[];
   variantInheritance?: boolean;
+  canonicalConceptId?: string;
+  translationStatus?: DerivedTagTranslationStatus;
+  schemaKind?: DerivedTagConceptSchemaKind;
+  domainId?: string;
+  operation?: string;
+  primaryFacetKind?: string;
+  primaryFacetValue?: string;
+  secondaryFacets?: string[];
 }
 
 export interface DerivedTagCatalogEntry {
   category: DerivedTagOntologyCategory;
   subcategories?: SearchSubcategory[];
   family: string;
+  label?: string;
   axis: DerivedTagOntologyAxis;
   description: string;
   assignmentMode?: DerivedTagAssignmentMode;

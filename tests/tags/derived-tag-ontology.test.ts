@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
 import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
-import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/runtime.js";
+import {
+  DERIVED_TAG_ONTOLOGY_CONCEPTS,
+  DERIVED_TAG_ONTOLOGY_FAMILIES,
+  DERIVED_TAG_ONTOLOGY_TAGS,
+  DERIVED_TAG_ONTOLOGY_TRANSLATIONS,
+} from "../../src/tags/runtime.js";
 
 function matcherAnyString(): unknown {
   return expect.any(String);
@@ -671,6 +676,60 @@ describe("derived tag ontology", () => {
       (entry) => entry.category === "equipment" && entry.family === "purpose",
     );
     expect(equipmentPurpose).toBeUndefined();
+  });
+
+  it("publishes canonical concept metadata and translation records alongside stable tag ids", () => {
+    const poisonRemediation = DERIVED_TAG_ONTOLOGY_CONCEPTS.find((concept) => concept.id === "poison_remediation");
+    expect(poisonRemediation).toEqual(
+      matcherObjectContaining({
+        id: "poison_remediation",
+        label: "poison_remediation",
+        schemaKind: "operational",
+        domainId: "poison",
+        operation: "remediate",
+      }),
+    );
+
+    const spellAntiPoison = DERIVED_TAG_ONTOLOGY_TAGS.find(
+      (tag) => tag.category === "spell" && tag.tag === "anti_poison",
+    );
+    expect(spellAntiPoison).toEqual(
+      matcherObjectContaining({
+        family: "support",
+        tag: "anti_poison",
+        label: "poison_remediation",
+        canonicalConceptId: "poison_remediation",
+        translationStatus: "provisional",
+        schemaKind: "operational",
+        domainId: "poison",
+        operation: "remediate",
+      }),
+    );
+
+    const spellRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+      (tag) => tag.category === "spell" && tag.tag === "revelation",
+    );
+    expect(spellRevelation).toEqual(
+      matcherObjectContaining({
+        label: "problem_discovery",
+        canonicalConceptId: "problem_discovery",
+        schemaKind: "aggregate",
+      }),
+    );
+
+    expect(
+      DERIVED_TAG_ONTOLOGY_TRANSLATIONS.find(
+        (translation) => translation.currentCategory === "equipment" && translation.currentTag === "beneficial",
+      ),
+    ).toEqual(
+      matcherObjectContaining({
+        translationStatus: "dropped",
+        publishTag: false,
+      }),
+    );
+    expect(
+      DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "equipment" && tag.tag === "beneficial"),
+    ).toBe(false);
   });
 
   it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {

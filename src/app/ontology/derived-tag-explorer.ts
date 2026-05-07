@@ -30,6 +30,7 @@ export type DerivedTagOntologyExplorerTagNode = {
   family: string;
   subcategories?: SearchSubcategory[];
   tag: string;
+  label: string;
   description: string;
   assignmentMode: DerivedTagAssignmentMode;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
@@ -55,6 +56,7 @@ export type DerivedTagOntologyExplorerFamilyNode = {
   key: string;
   category: SearchCategory;
   family: string;
+  label: string;
   axis: string;
   description: string;
   subcategories?: SearchSubcategory[];
@@ -98,6 +100,7 @@ function buildTagFilterText(tag: {
   category: SearchCategory;
   family: string;
   tag: string;
+  label?: string;
   description: string;
   appliesWhen?: string[];
   doesNotApplyWhen?: string[];
@@ -110,6 +113,7 @@ function buildTagFilterText(tag: {
     tag.category,
     tag.family,
     tag.tag,
+    tag.label ?? "",
     tag.description,
     ...(tag.appliesWhen ?? []),
     ...(tag.doesNotApplyWhen ?? []),
@@ -126,6 +130,7 @@ function buildFamilyFilterText(
   family: {
     category: SearchCategory;
     family: string;
+    label?: string;
     axis: string;
     description: string;
     subcategories?: SearchSubcategory[];
@@ -135,6 +140,7 @@ function buildFamilyFilterText(
   return [
     family.category,
     family.family,
+    family.label ?? "",
     family.axis,
     family.description,
     ...(family.subcategories ?? []),
@@ -146,11 +152,11 @@ function buildFamilyFilterText(
 
 function buildCategoryFilterText(
   category: SearchCategory,
-  families: Array<{ family: string; description: string; filterText: string }>,
+  families: Array<{ family: string; label?: string; description: string; filterText: string }>,
 ): string {
   return [
     category,
-    ...families.map((family) => `${family.family} ${family.description}`),
+    ...families.map((family) => `${family.family} ${family.label ?? ""} ${family.description}`),
     ...families.map((family) => family.filterText),
   ]
     .join(" ")
@@ -301,6 +307,7 @@ export function buildDerivedTagOntologyExplorerModel(
             family: tag.family,
             subcategories: family.subcategories,
             tag: tag.tag,
+            label: tag.label ?? tag.tag,
             description: tag.description,
             assignmentMode: tag.assignmentMode,
             nativeOntologyPolicy: tag.nativeOntologyPolicy,
@@ -328,6 +335,7 @@ export function buildDerivedTagOntologyExplorerModel(
         key: familyKey,
         category: family.category,
         family: family.family,
+        label: family.label ?? family.family,
         axis: family.axis,
         description: family.description,
         subcategories: family.subcategories,

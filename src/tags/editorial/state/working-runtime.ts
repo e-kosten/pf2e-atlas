@@ -1,7 +1,8 @@
 import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../../legacy-rules/index.js";
 import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../../manifest.js";
-import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY, flattenDerivedTagAuthoredCategoryOntology } from "../../ontology/index.js";
+import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY } from "../../ontology/index.js";
 import { compileAuthoredDerivedTagRules } from "../../rules/index.js";
+import { buildProjectedDerivedTagOntologyPublication, buildPublishedDerivedTagConceptModel } from "../../translations/index.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
   type AuthoredDerivedTagAssignment,
@@ -35,12 +36,12 @@ let workingRuntimeCache: { revision: number; runtime: DerivedTagWorkingRuntime }
 
 function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
   const state = getCurrentDerivedTagAuthoredState();
-  const flattenedOntologies = DERIVED_TAG_REGISTRATION_CATEGORIES.map((category) =>
-    flattenDerivedTagAuthoredCategoryOntology(DERIVED_TAG_ONTOLOGY_BY_CATEGORY[category]),
-  );
+  const conceptModel = buildPublishedDerivedTagConceptModel(DERIVED_TAG_ONTOLOGY_BY_CATEGORY);
+  const publishedOntology = buildProjectedDerivedTagOntologyPublication(DERIVED_TAG_ONTOLOGY_BY_CATEGORY, conceptModel);
   const ontology = publishDerivedTagOntology(
-    flattenedOntologies.flatMap((category) => category.families),
-    flattenedOntologies.flatMap((category) => category.tags),
+    publishedOntology.families,
+    publishedOntology.tags,
+    conceptModel,
   );
   const authoredRules = compileAuthoredDerivedTagRules(
     ontology,

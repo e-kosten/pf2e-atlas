@@ -1,4 +1,16 @@
 export type {
+  DerivedTagCanonicalConcept,
+  DerivedTagCanonicalConceptRelation,
+  DerivedTagCategoryProjection,
+  DerivedTagConceptFacet,
+  DerivedTagConceptRelation,
+  DerivedTagConceptSchemaKind,
+  DerivedTagConceptText,
+  DerivedTagTranslationRecord,
+  DerivedTagTranslationStatus,
+  PublishedDerivedTagConceptModel,
+} from "./derived-tag-concept-types.js";
+export type {
   AuthoredDerivedTagRule,
   DerivedTagAuthoredRuleBlockers,
   DerivedTagAuthoredTextNearConstraint,

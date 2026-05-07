@@ -15,9 +15,18 @@ describe("editorial facade", () => {
   it("keeps UI-only workbench exports out of the non-UI editorial facade", () => {
     expect(editorial).toHaveProperty("createDerivedTagWorkbenchSession");
     expect(editorial).toHaveProperty("getDerivedTagWorkbenchQueueItems");
+    expect(editorial).toHaveProperty("getPublishedDerivedTagConceptModel");
+    expect(editorial).toHaveProperty("listPublishedDerivedTagTranslations");
+    expect(editorial).toHaveProperty("summarizeCurrentDerivedTagTranslationQueue");
     expect(editorial).not.toHaveProperty("promptAndCreateDerivedTagWorkbenchSession");
     expect(editorial).not.toHaveProperty("formatDerivedTagWorkbenchModeLabel");
     expect(editorial).not.toHaveProperty("DerivedTagReviewScreen");
+  });
+
+  it("exposes a translation-review summary without requiring the UI workbench", () => {
+    const summary = editorial.summarizeCurrentDerivedTagTranslationQueue();
+    expect(summary.length).toBeGreaterThan(0);
+    expect(summary.some((entry) => entry.translationStatus === "provisional")).toBe(true);
   });
 });
 
