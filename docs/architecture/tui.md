@@ -11,7 +11,7 @@ Its job is to own:
 - terminal rendering and input handling
 - screen state, workflow state, and interaction routing
 - user-facing search editing and ontology navigation flows
-- editorial workbench entrypoints for tag-review tasks
+- editorial workbench entrypoints for tag-review tasks, including the row-centric ontology translation queue
 
 It should not own:
 

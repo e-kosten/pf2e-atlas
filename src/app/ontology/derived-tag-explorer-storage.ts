@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import type { SearchCategory } from "../../domain/search-types.js";
 import { parseSearchCategoryValue } from "../../data/sql-row-decoding.js";
-import { compareDisplayText, getPublishedDerivedTagOntology } from "../../tags/editorial.js";
+import { compareDisplayText, getVisibleDerivedTagOntology } from "../../tags/editorial.js";
 import { normalizeDerivedTag } from "../../tags/runtime.js";
 import type { DerivedTagOntologyExplorerData } from "./derived-tag-explorer.js";
 import {
@@ -84,7 +84,7 @@ function buildLiveCountMaps(rows: ExplorerCountRow[]): {
   categoryCounts: Map<SearchCategory, number>;
   recordKeysByTagKey: Map<string, string[]>;
 } {
-  const ontology = getPublishedDerivedTagOntology();
+  const ontology = getVisibleDerivedTagOntology();
   const tagCounts = new Map<string, number>();
   const familyRecordKeys = new Map<string, Set<string>>();
   const categoryRecordKeys = new Map<SearchCategory, Set<string>>();

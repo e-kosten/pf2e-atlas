@@ -20,11 +20,21 @@ export type {
   DerivedTagTerminalTwoPaneScreenProps,
   DialogOptions,
 } from "./framework/types.js";
+export type { DerivedTagTerminalActionTargetOption } from "./action-target.js";
+export type { TerminalInteractionAction } from "./interaction-bindings.js";
+export type { RouteTransitionStatus, TerminalMenuScreenInteractions } from "./shared-screens.js";
 export type {
   DerivedTagTerminalListNavigationAction,
   DerivedTagTerminalListNavigationOptions,
   DerivedTagTerminalListNavigationState,
 } from "./framework/input.js";
+export {
+  buildDerivedTagTerminalActionTargetHelpLines,
+} from "./action-target.js";
+export {
+  createMergedReturnFooterBinding,
+  createSharedReturnInteractionActions,
+} from "./shell-navigation-copy.js";
 export {
   useDerivedTagTerminalApp,
   useDerivedTagTerminalSize,
@@ -52,6 +62,9 @@ export {
   toggleTerminalTwoPaneFocus,
   toggleTerminalTwoPaneLayoutMode,
 } from "./framework/screen-layout.js";
+export {
+  TerminalActionMenuScreen,
+} from "./shared-screens.js";
 export {
   TerminalPaneScreen,
   TerminalTextScreen,

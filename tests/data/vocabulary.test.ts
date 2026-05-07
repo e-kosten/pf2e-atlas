@@ -100,6 +100,10 @@ describe("search vocabulary decoding", () => {
       traits: [{ value: "concentrate", count: 1 }],
     });
     expect(bootstrapSummary.commonDerivedTagsByCategory).toContainEqual({
+      category: "creature",
+      tags: [{ value: "undead_adjacent", count: 1 }],
+    });
+    expect(bootstrapSummary.commonDerivedTagsByCategory).not.toContainEqual({
       category: "rule",
       tags: [{ value: "action_economy", count: 1 }],
     });

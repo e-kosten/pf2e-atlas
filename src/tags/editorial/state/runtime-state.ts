@@ -13,6 +13,10 @@ export function getPublishedDerivedTagOntology(): PublishedDerivedTagOntology {
   return getCurrentDerivedTagWorkingRuntime().ontology;
 }
 
+export function getVisibleDerivedTagOntology(): PublishedDerivedTagOntology {
+  return getCurrentDerivedTagWorkingRuntime().visibleOntology;
+}
+
 export function getPublishedDerivedTagConceptModel(): PublishedDerivedTagConceptModel {
   return getCurrentDerivedTagWorkingRuntime().ontology.conceptModel;
 }
@@ -48,6 +52,25 @@ export function summarizeCurrentDerivedTagTranslationQueue(): Array<{
       (left, right) =>
         left.category.localeCompare(right.category) ||
         left.translationStatus.localeCompare(right.translationStatus),
+    );
+}
+
+export function listCurrentDerivedTagTranslationQueueItems(
+  options: {
+    category?: string;
+    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "provisional" | "unmapped">>;
+  } = {},
+): DerivedTagTranslationRecord[] {
+  const allowedStatuses = new Set(options.statuses ?? ["provisional", "unmapped"]);
+  return listPublishedDerivedTagTranslations()
+    .filter((translation) => allowedStatuses.has(translation.translationStatus as "provisional" | "unmapped"))
+    .filter((translation) => !options.category || translation.currentCategory === options.category)
+    .sort(
+      (left, right) =>
+        left.currentCategory.localeCompare(right.currentCategory) ||
+        left.currentBrowseAxis.localeCompare(right.currentBrowseAxis) ||
+        left.currentFamily.localeCompare(right.currentFamily) ||
+        left.currentTag.localeCompare(right.currentTag),
     );
 }
 

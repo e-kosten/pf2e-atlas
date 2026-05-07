@@ -1,6 +1,10 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS, groupDerivedTagOntology } from "../tags/runtime.js";
+import {
+  PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
+  groupDerivedTagOntology,
+} from "../tags/runtime.js";
 import type {
   DerivedTagCatalogEntry,
   DerivedTagOntologyFamily,
@@ -70,8 +74,8 @@ type RawCategoryValueCountRow = {
 };
 
 const DERIVED_TAG_CATALOG = groupDerivedTagOntology({
-  families: DERIVED_TAG_ONTOLOGY_FAMILIES,
-  tags: DERIVED_TAG_ONTOLOGY_TAGS,
+  families: PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  tags: PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
 });
 
 function parseValueCountRows(rows: RawValueCountRow[], context: string): Array<{ value: string; count: number }> {
@@ -251,7 +255,14 @@ export function getSearchSemanticsBootstrapSummary(
       "search vocabulary derived tag",
     ),
     traitLimit,
-  ).map(({ category, values }) => ({ category, tags: values }));
+  )
+    .map(({ category, values }) => ({
+      category,
+      tags: values.filter((entry) =>
+        PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === category && tag.tag === entry.value),
+      ),
+    }))
+    .filter((entry) => entry.tags.length > 0);
 
   return {
     categories,
@@ -386,8 +397,8 @@ export function getSearchVocabulary(
     sourceCategories,
     commonTraitsByCategory: summary.commonTraitsByCategory,
     commonDerivedTagsByCategory: summary.commonDerivedTagsByCategory,
-    derivedTagOntologyFamilies: DERIVED_TAG_ONTOLOGY_FAMILIES,
-    derivedTagOntologyTags: DERIVED_TAG_ONTOLOGY_TAGS,
+    derivedTagOntologyFamilies: PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
+    derivedTagOntologyTags: PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
     derivedTagCatalog: summary.derivedTagCatalog,
   };
 }

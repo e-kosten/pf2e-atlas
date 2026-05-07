@@ -66,6 +66,7 @@ describe("menu transition status hosts", () => {
         <TagRefinementMenuScreen
           selectedIndex={0}
           queueItems={[]}
+          translationQueueCount={12}
           onBack={vi.fn()}
           onMove={vi.fn()}
           onOpenSelected={vi.fn()}
@@ -83,7 +84,7 @@ describe("menu transition status hosts", () => {
 
     const frame = app.lastFrame();
     expect(frame).toContain("Pending Review Queue");
-    expect(frame).toContain("Create legacy-seed review session");
+    expect(frame).toContain("Review ontology translation queue");
     expect(frame).toContain("Pending Review Queue");
     expect(frame).toContain("Loading next view | Preparing legacy-seed review session...");
   });

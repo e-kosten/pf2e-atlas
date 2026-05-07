@@ -5,7 +5,7 @@ import {
   compareManagedCategory,
   getCurrentDerivedTagAuthoredState,
   getCurrentDerivedTagAuthoredStateRevision,
-  getPublishedDerivedTagOntology,
+  getVisibleDerivedTagOntology,
 } from "../../tags/editorial.js";
 import {
   getDerivedTagExemplars,
@@ -271,7 +271,7 @@ export function buildDerivedTagOntologyExplorerModel(
     }
   }
 
-  const ontology = getPublishedDerivedTagOntology();
+  const ontology = getVisibleDerivedTagOntology();
   const authoredState = getCurrentDerivedTagAuthoredState();
   const tagCounts = mapFromCountRecord(data.tagCounts);
   const familyCounts = mapFromCountRecord(data.familyCounts);

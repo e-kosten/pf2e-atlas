@@ -25,6 +25,7 @@ import { createTerminalInteractionContextAdapters } from "./interaction-context-
 import { useDerivedTagTerminalApp } from "./framework/context.js";
 import { runDerivedTagTerminalApp } from "./framework/provider.js";
 import { TagRefinementMenuScreen, type TagRefinementMenuItem } from "./tag-refinement-menu-screen.js";
+import { DerivedTagTranslationQueueScreen } from "./translation-queue-screen.js";
 import { usePf2eNavigation } from "./pf2e-navigation.js";
 
 function StartupErrorScreen({ message, onExit }: { message: string; onExit: () => void }): React.JSX.Element {
@@ -67,6 +68,7 @@ export function Pf2eTerminalApp({
     workbenchSessionPrompts,
   });
   const queueItems = services.dev.tagRefinement.getQueueItems();
+  const translationQueueItems = services.dev.tagRefinement.getTranslationQueueItems();
   const state = navigation.state;
   const route = navigation.route;
   const transitionStatus = navigation.transitionStatus;
@@ -118,15 +120,23 @@ export function Pf2eTerminalApp({
         });
         return;
       }
+      if (selectedItem.kind === "translation_queue") {
+        navigation.openTranslationQueue();
+        return;
+      }
       navigation.promptForReviewSession(selectedItem.mode);
     },
     [navigation, state.tagRefinementSelectedIndex],
   );
 
   const runQuickTagRefinementAction = React.useCallback(
-    (mode: "review_all" | DerivedTagWorkbenchMode) => {
+    (mode: "review_all" | "translation_queue" | DerivedTagWorkbenchMode) => {
       if (mode === "review_all") {
         navigation.openReviewSession("review_queue", {});
+        return;
+      }
+      if (mode === "translation_queue") {
+        navigation.openTranslationQueue();
         return;
       }
       navigation.promptForReviewSession(mode);
@@ -173,6 +183,16 @@ export function Pf2eTerminalApp({
         onComplete={navigation.backOrExit}
       />
     );
+  } else if (route.kind === PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE) {
+    screen = (
+      <DerivedTagTranslationQueueScreen
+        items={translationQueueItems}
+        initialCategory={route.initialCategory ?? "all"}
+        initialStatus={route.initialStatus ?? "all"}
+        onBack={navigation.backOrExit}
+        transitionStatus={transitionStatus}
+      />
+    );
   } else if (route.kind === PF2E_APP_ROUTE_KIND.PAGE) {
     screen = (
       <EntityPageScreen
@@ -211,6 +231,7 @@ export function Pf2eTerminalApp({
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
         queueItems={queueItems}
+        translationQueueCount={translationQueueItems.length}
         onBack={navigation.backOrExit}
         onMove={(delta, itemCount) =>
           delta === 0

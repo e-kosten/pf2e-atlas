@@ -757,6 +757,7 @@ function createFakeServices(overrides: Partial<Pf2eTerminalAppServices> = {}): P
       tagRefinement: {
         createSession: vi.fn(() => Promise.reject(new Error("not implemented"))),
         getQueueItems: vi.fn(() => []),
+        getTranslationQueueItems: vi.fn(() => []),
         promptAndCreateSession: vi.fn(() => Promise.resolve(undefined)),
       },
     },
@@ -1035,6 +1036,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Pending Review Queue");
 
+    app.stdin.write("j");
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1072,6 +1075,8 @@ describe("pf2e terminal app", () => {
     await flushInk();
     expect(app.lastFrame()).toContain("Pending Review Queue");
 
+    app.stdin.write("j");
+    await flushInk();
     app.stdin.write("\r");
     await flushInk();
     await flushInk();
@@ -1087,6 +1092,53 @@ describe("pf2e terminal app", () => {
     await flushInk();
     await flushInk();
     expect(app.lastFrame()).toContain("Pending Review Queue");
+  });
+
+  it("opens the ontology translation queue from tag refinement", async () => {
+    const services = createFakeServices();
+    services.dev.tagRefinement.getTranslationQueueItems = vi.fn(() => [
+      {
+        currentCategory: "spell",
+        currentBrowseAxis: "support",
+        currentFamily: "support",
+        currentTag: "quickened_support",
+        currentAssignmentMode: "hybrid",
+        translationStatus: "provisional",
+        canonicalConceptId: "quickened_support",
+        canonicalConceptLabel: "quickened_support",
+        schemaKind: "descriptive",
+        projectionAxis: "support",
+        projectionFamily: "support",
+        publishTag: true,
+        notes: "Still needs a final operational vs capability decision.",
+      },
+    ]);
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <Pf2eTerminalApp rootPath={process.cwd()} onExit={vi.fn()} services={services} />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInk();
+
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("j");
+    await flushInk();
+    app.stdin.write("\r");
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Pending Review Queue");
+    expect(app.lastFrame()).toContain("Review ontology translation queue");
+
+    app.stdin.write("\r");
+    await flushInk();
+    await flushInk();
+
+    expect(app.lastFrame()).toContain("Ontology Translation Review");
+    expect(app.lastFrame()).toContain("quickened_support");
+    expect(app.lastFrame()).toContain("Proposed canonical target");
+    expect(app.lastFrame()).toContain("Current category: spell");
   });
 
   it("renders grouped return wording on the direct ontology explorer entry", async () => {

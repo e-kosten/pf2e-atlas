@@ -5,10 +5,12 @@ import { createPf2eApplicationSearchDiscoveryService } from "../app/search-disco
 import { createPf2eApplicationStorageService, type Pf2eApplicationStorageService } from "../app/storage-service.js";
 import { loadPf2eApplicationRuntime, type Pf2eApplicationRuntime } from "../app/runtime.js";
 import type { AppConfig } from "../domain/config-types.js";
+import type { DerivedTagTranslationRecord } from "../domain/derived-tag-types.js";
 import {
   buildDerivedTagReviewSession,
   createDerivedTagWorkbenchSession,
   getDerivedTagWorkbenchQueueItems,
+  listCurrentDerivedTagTranslationQueueItems,
   summarizeCurrentDerivedTagReviewQueue,
   writeDerivedTagReviewSession,
   writeDerivedTagReviewSummary,
@@ -42,6 +44,10 @@ export type Pf2eTerminalTagWorkbenchService = {
     options: SessionOptions,
   ) => Promise<DerivedTagReviewSession>;
   getQueueItems: () => DerivedTagReviewQueueSummaryItem[];
+  getTranslationQueueItems: (options?: {
+    category?: DerivedTagTranslationRecord["currentCategory"];
+    statuses?: Array<Extract<DerivedTagTranslationRecord["translationStatus"], "provisional" | "unmapped">>;
+  }) => DerivedTagTranslationRecord[];
   promptAndCreateSession: (
     rootPath: string,
     mode: DerivedTagWorkbenchMode,
@@ -89,6 +95,7 @@ function createTagWorkbenchService(
     createSession: (rootPath, mode, options) =>
       createDerivedTagWorkbenchSession(rootPath, [], mode, options, services),
     getQueueItems: () => getDerivedTagWorkbenchQueueItems(services),
+    getTranslationQueueItems: (options) => listCurrentDerivedTagTranslationQueueItems(options),
     promptAndCreateSession: (rootPath, mode, prompts) =>
       promptAndCreateDerivedTagWorkbenchSession(rootPath, [], mode, prompts, services),
   };

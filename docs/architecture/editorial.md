@@ -255,7 +255,7 @@ The important architectural split is:
 - `translations/` owns how those current tags map into the future concept/projection model
 - `runtime/publication/` compiles the projection-backed published ontology used by derivation and the explorer surfaces
 
-In the current implementation slice, unresolved translation rows are available through editorial/runtime summaries and translation records, but the dedicated row-centric review workbench mode is still a follow-up.
+The current implementation exposes unresolved translation rows through both editorial/runtime summaries and a dedicated TUI translation-review route. That route is a row-centric browser over current-tag translation records with category and translation-status filters; it is intentionally separate from the older record-review session flow because translation review is keyed to ontology rows, not record sets.
 
 ## Discovery And Evaluation Loop
 

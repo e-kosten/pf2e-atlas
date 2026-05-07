@@ -324,6 +324,59 @@ function buildTagOwnedRecordIndex(
   };
 }
 
+export function buildVisibleDerivedTagOntology(ontology: PublishedDerivedTagOntology): PublishedDerivedTagOntology {
+  const visibleTagKeys = new Set(
+    ontology.tags
+      .filter((tag) => tag.translationStatus === "mapped")
+      .map((tag) => tagKey(tag.category, tag.tag)),
+  );
+  const visibleTags = ontology.tags
+    .filter((tag) => visibleTagKeys.has(tagKey(tag.category, tag.tag)))
+    .map((tag) => ({
+      ...tag,
+      adjacentTags: tag.adjacentTags?.filter((adjacentTag) => visibleTagKeys.has(tagKey(tag.category, adjacentTag))),
+      compositeOfAnyTags: tag.compositeOfAnyTags?.filter((childTag) => visibleTagKeys.has(tagKey(tag.category, childTag))),
+    }));
+  const visibleFamilyKeys = new Set(
+    visibleTags.map((tag) => familyKey(tag.category, tag.family)),
+  );
+  const visibleFamilies = ontology.families.filter((family) =>
+    visibleFamilyKeys.has(familyKey(family.category, family.family)),
+  );
+  const visibleProjectionKeys = new Set(visibleTags.map((tag) => `${tag.category}:${tag.tag}`));
+  const visibleTranslations = ontology.conceptModel.translations.filter(
+    (translation) =>
+      translation.translationStatus === "mapped" &&
+      translation.publishTag &&
+      visibleProjectionKeys.has(`${translation.currentCategory}:${translation.currentTag}`),
+  );
+  const visibleConceptIds = new Set(visibleTranslations.map((translation) => translation.canonicalConceptId));
+  const visibleConcepts = ontology.conceptModel.concepts.filter((concept) => visibleConceptIds.has(concept.id));
+  const visibleProjections = ontology.conceptModel.projections.filter((projection) =>
+    visibleProjectionKeys.has(`${projection.category}:${projection.currentTag}`),
+  );
+  const visibleRelations = ontology.conceptModel.relations.filter(
+    (relation) => visibleConceptIds.has(relation.fromConceptId) && visibleConceptIds.has(relation.toConceptId),
+  );
+
+  return publishDerivedTagOntology(visibleFamilies, visibleTags, {
+    concepts: visibleConcepts,
+    conceptById: new Map(visibleConcepts.map((concept) => [concept.id, concept])),
+    projections: visibleProjections,
+    projectionsByTagKey: new Map(
+      visibleProjections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const),
+    ),
+    translations: visibleTranslations,
+    translationsByTagKey: new Map(
+      visibleTranslations.map((translation) => [
+        `${translation.currentCategory}:${translation.currentTag}`,
+        translation,
+      ] as const),
+    ),
+    relations: visibleRelations,
+  });
+}
+
 export function publishDerivedTagOntology(
   families: DerivedTagOntologyFamily[],
   tags: DerivedTagOntologyTag[],

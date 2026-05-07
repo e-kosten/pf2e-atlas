@@ -3,20 +3,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 import { cleanupCreatedRoots, createFixture, createHardFilterFixture } from "../helpers/pf2e-service-fixture.js";
 
-function anyString(): unknown {
-  return expect.any(String);
-}
-
 function arrayContaining(values: unknown[]): unknown {
   return expect.arrayContaining(values);
-}
-
-function objectContaining(value: Record<string, unknown>): unknown {
-  return expect.objectContaining(value);
-}
-
-function stringContaining(value: string): unknown {
-  return expect.stringContaining(value);
 }
 
 describe("Pf2eDataService / Rules and Vocabulary", () => {
@@ -134,472 +122,234 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
     expect(
       vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "equipment")?.tags.length,
     ).toBeGreaterThan(0);
-    expect(
-      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "spell")?.tags.length,
-    ).toBeGreaterThan(0);
-    expect(
-      vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "hazard")?.tags.length,
-    ).toBeGreaterThan(0);
+    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "spell")).toBeUndefined();
+    expect(vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "hazard")).toBeUndefined();
     expect(
       vocabulary.commonDerivedTagsByCategory.find((entry) => entry.category === "affliction")?.tags.length,
     ).toBeGreaterThan(0);
-    expect(vocabulary.derivedTagOntologyFamilies).toEqual(
-      arrayContaining([
-        objectContaining({
-          category: "creature",
-          family: "regional_setting",
-          axis: "setting",
-          description: stringContaining("broad Golarion macro-regions"),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "habitat_setting",
-          axis: "setting",
-          description: stringContaining("habitat tags"),
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "problem_shape",
-          axis: "problem",
-          description: stringContaining("investigation, timing"),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "control",
-          axis: "battlefield",
-          description: stringContaining("denying movement"),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "consultation",
-          axis: "utility",
-          description: stringContaining("ask for guidance"),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "revelation",
-          axis: "utility",
-          description: stringContaining("Detection and revelation"),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "movement_traversal",
-          axis: "utility",
-          description: stringContaining("move, climb, navigate"),
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "response_profile",
-          axis: "response",
-          description: stringContaining("response problem"),
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "resolution_profile",
-          axis: "response",
-          description: stringContaining("remedies"),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "play_pattern",
-          axis: "party_role",
-          description: stringContaining("play-pattern-facing"),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "resolution",
-          axis: "utility",
-          description: stringContaining("break curses"),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "corruption_profile",
-          axis: "specialization",
-          description: stringContaining("corruption and taint"),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "resolution",
-          axis: "utility",
-          description: stringContaining("solve curses"),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "expedition",
-          axis: "utility",
-          description: stringContaining("travel"),
-        }),
-      ]),
+    expect(vocabulary.derivedTagOntologyTags.every((tag) => tag.translationStatus === "mapped")).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "creature" &&
+          family.family === "regional_setting" &&
+          family.axis === "setting" &&
+          family.description.includes("broad Golarion macro-regions"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "creature" &&
+          family.family === "habitat_setting" &&
+          family.axis === "setting" &&
+          family.description.includes("habitat tags"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "hazard" &&
+          family.family === "problem_shape" &&
+          family.axis === "problem" &&
+          family.description.includes("investigation, timing"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "affliction" &&
+          family.family === "response_profile" &&
+          family.axis === "response" &&
+          family.description.includes("response problem"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "affliction" &&
+          family.family === "resolution_profile" &&
+          family.axis === "response" &&
+          family.description.includes("remedies"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "equipment" &&
+          family.family === "play_pattern" &&
+          family.axis === "party_role" &&
+          family.description.includes("play-pattern-facing"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "equipment" &&
+          family.family === "function" &&
+          family.axis === "effect" &&
+          family.description.includes("Beneficial consumable outcome"),
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyFamilies.some(
+        (family) =>
+          family.category === "creature" &&
+          family.family === "corruption_profile" &&
+          family.axis === "specialization" &&
+          family.description.includes("corruption and taint"),
+      ),
+    ).toBe(true);
+
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "creature" &&
+          tag.family === "site_setting" &&
+          tag.tag === "urban_setting" &&
+          tag.assignmentMode === "editorial",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "affliction" &&
+          tag.family === "response_profile" &&
+          tag.tag === "outbreak_management" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "affliction" &&
+          tag.family === "resolution_profile" &&
+          tag.tag === "cursebreaking_resolution" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "creature" &&
+          tag.family === "corruption_profile" &&
+          tag.tag === "fungal_infested" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "equipment" &&
+          tag.family === "function" &&
+          tag.tag === "anti_poison" &&
+          tag.assignmentMode === "deterministic",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "equipment" &&
+          tag.family === "party_role" &&
+          tag.tag === "scout_support" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "equipment" &&
+          tag.family === "play_pattern" &&
+          tag.tag === "shield_support" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "hazard" &&
+          tag.family === "problem_shape" &&
+          tag.tag === "source_tracing" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+    expect(
+      vocabulary.derivedTagOntologyTags.some(
+        (tag) =>
+          tag.category === "hazard" &&
+          tag.family === "mechanism" &&
+          tag.tag === "planar_breach" &&
+          tag.assignmentMode === "hybrid",
+      ),
+    ).toBe(true);
+
+    const findCatalogEntry = (category: string, family: string) =>
+      vocabulary.derivedTagCatalog.find((entry) => entry.category === category && entry.family === family);
+
+    const equipmentPartyRole = findCatalogEntry("equipment", "party_role");
+    expect(equipmentPartyRole?.axis).toBe("party_role");
+    expect(equipmentPartyRole?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["defender_support", "scout_support", "face_support"]),
     );
-    expect(vocabulary.derivedTagOntologyTags).toEqual(
-      arrayContaining([
-        objectContaining({
-          category: "creature",
-          family: "site_setting",
-          tag: "urban_setting",
-          assignmentMode: "editorial",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "infiltration",
-          tag: "infiltration",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "consultation",
-          tag: "consultation",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "communication",
-          tag: "telepathic_communication",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "communication",
-          tag: "communication",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "expedition",
-          tag: "expedition",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "support",
-          tag: "anti_poison",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "resolution",
-          tag: "ritual_appeasement",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "revelation",
-          tag: "truth_reveal",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "revelation",
-          tag: "revelation",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "spell",
-          family: "control",
-          tag: "countermagic",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "access_bypass",
-          tag: "barrier_bypass",
-          assignmentMode: "deterministic",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "party_role",
-          tag: "defender_support",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "party_role",
-          tag: "scout_support",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "play_pattern",
-          tag: "shield_support",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "resolution",
-          tag: "resolution",
-          assignmentMode: "composite",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "resolution",
-          tag: "source_revelation",
-          assignmentMode: "deterministic",
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "resolution",
-          tag: "ritual_appeasement",
-          assignmentMode: "deterministic",
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "countermeasure_profile",
-          tag: "contamination_cleanup_countermeasure",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "problem_shape",
-          tag: "source_tracing",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "function",
-          tag: "sentinel_guardian",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "response_profile",
-          tag: "outbreak_management",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "resolution_profile",
-          tag: "cursebreaking_resolution",
-          assignmentMode: "hybrid",
-        }),
-        objectContaining({
-          category: "creature",
-          family: "corruption_profile",
-          tag: "fungal_infested",
-          assignmentMode: "hybrid",
-        }),
-      ]),
+
+    const equipmentPlayPattern = findCatalogEntry("equipment", "play_pattern");
+    expect(equipmentPlayPattern?.axis).toBe("party_role");
+    expect(equipmentPlayPattern?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["shield_support", "action_economy_support"]),
     );
-    expect(vocabulary.derivedTagCatalog).toEqual(
-      arrayContaining([
-        objectContaining({
-          category: "equipment",
-          family: "movement_traversal",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "navigation", description: anyString() }),
-            objectContaining({ value: "transport", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "party_role",
-          axis: "party_role",
-          tags: arrayContaining([
-            objectContaining({ value: "defender_support", description: anyString() }),
-            objectContaining({ value: "scout_support", description: anyString() }),
-            objectContaining({ value: "face_support", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "play_pattern",
-          axis: "party_role",
-          tags: arrayContaining([
-            objectContaining({ value: "shield_support", description: anyString() }),
-            objectContaining({ value: "action_economy_support", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "infiltration",
-          axis: "utility",
-          tags: arrayContaining([objectContaining({ value: "stealth_support", description: anyString() })]),
-        }),
-        objectContaining({
-          category: "equipment",
-          family: "resolution",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "resolution", assignmentMode: "composite" }),
-            objectContaining({ value: "ritual_appeasement", description: anyString() }),
-            objectContaining({ value: "sanctification", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "infiltration",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "stealth_support", description: anyString() }),
-            objectContaining({ value: "infiltration", assignmentMode: "composite" }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "consultation",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "consultation", assignmentMode: "composite" }),
-            objectContaining({ value: "omen_guidance", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "communication",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "communication", assignmentMode: "composite" }),
-            objectContaining({ value: "telepathic_communication", description: anyString() }),
-            objectContaining({ value: "message_delivery", description: anyString() }),
-            objectContaining({ value: "translation_support", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "expedition",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "expedition", assignmentMode: "composite" }),
-            objectContaining({ value: "field_shelter", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "resolution",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "resolution", assignmentMode: "composite" }),
-            objectContaining({ value: "ritual_appeasement", description: anyString() }),
-            objectContaining({ value: "source_revelation", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "security",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "alarm", description: anyString() }),
-            objectContaining({ value: "security", assignmentMode: "composite" }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "revelation",
-          axis: "utility",
-          tags: arrayContaining([
-            objectContaining({ value: "truth_reveal", description: anyString() }),
-            objectContaining({ value: "revelation", assignmentMode: "composite" }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "support",
-          axis: "support",
-          tags: arrayContaining([
-            objectContaining({ value: "anti_poison", description: anyString() }),
-            objectContaining({ value: "anti_disease", description: anyString() }),
-            objectContaining({ value: "quickened_support", description: anyString() }),
-            objectContaining({ value: "eidolon_support", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "spell",
-          family: "impact",
-          axis: "effect",
-          tags: arrayContaining([
-            objectContaining({ value: "persistent_damage", description: anyString() }),
-            objectContaining({ value: "burst_damage", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "function",
-          axis: "encounter",
-          tags: arrayContaining([
-            objectContaining({ value: "zone_denial", description: anyString() }),
-            objectContaining({ value: "sentinel_guardian", description: anyString() }),
-            objectContaining({ value: "forced_separation_hazard", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "countermeasure_profile",
-          axis: "resolution",
-          tags: arrayContaining([
-            objectContaining({
-              value: "quarantine_containment_countermeasure",
-              description: anyString(),
-            }),
-            objectContaining({ value: "contamination_cleanup_countermeasure", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "hazard",
-          family: "problem_shape",
-          axis: "problem",
-          tags: arrayContaining([
-            objectContaining({ value: "observation_first", description: anyString() }),
-            objectContaining({ value: "source_tracing", description: anyString() }),
-            objectContaining({ value: "layered_resolution", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "response_profile",
-          axis: "response",
-          tags: arrayContaining([
-            objectContaining({ value: "outbreak_management", description: anyString() }),
-            objectContaining({ value: "cure_clock_urgency", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "affliction",
-          family: "resolution_profile",
-          axis: "response",
-          tags: arrayContaining([
-            objectContaining({ value: "countermagic_resolution", description: anyString() }),
-            objectContaining({ value: "quarantine_containment_resolution", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "planar_setting",
-          axis: "setting",
-          tags: arrayContaining([
-            objectContaining({ value: "astral_setting", description: anyString() }),
-            objectContaining({ value: "upper_plane_setting", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "scene_role",
-          axis: "npc_role",
-          tags: arrayContaining([
-            objectContaining({ value: "enforcer_npc", description: anyString() }),
-            objectContaining({ value: "infiltrator_npc", description: anyString() }),
-            objectContaining({ value: "guardian_npc", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "threat_profile",
-          axis: "encounter",
-          tags: arrayContaining([
-            objectContaining({ value: "prey_control_threat", description: anyString() }),
-            objectContaining({ value: "reinforcement_threat", description: anyString() }),
-            objectContaining({ value: "infiltration_threat", description: anyString() }),
-          ]),
-        }),
-        objectContaining({
-          category: "creature",
-          family: "corruption_profile",
-          axis: "specialization",
-          tags: arrayContaining([
-            objectContaining({ value: "blight_tainted", description: anyString() }),
-            objectContaining({ value: "void_tainted", description: anyString() }),
-          ]),
-        }),
-      ]),
+
+    const equipmentFunction = findCatalogEntry("equipment", "function");
+    expect(equipmentFunction?.axis).toBe("effect");
+    expect(equipmentFunction?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["anti_poison", "anti_disease", "buff_support"]),
+    );
+
+    const equipmentAmmunitionPayload = findCatalogEntry("equipment", "ammunition_payload");
+    expect(equipmentAmmunitionPayload?.axis).toBe("item_mechanical");
+    expect(equipmentAmmunitionPayload?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["elemental_payload", "creature_bane"]),
+    );
+
+    const hazardMechanism = findCatalogEntry("hazard", "mechanism");
+    expect(hazardMechanism?.axis).toBe("mechanism");
+    expect(hazardMechanism?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["planar_breach", "threshold_lockdown"]),
+    );
+
+    const hazardProblemShape = findCatalogEntry("hazard", "problem_shape");
+    expect(hazardProblemShape?.axis).toBe("problem");
+    expect(hazardProblemShape?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["endurance_pressure", "observation_first", "source_tracing", "layered_resolution"]),
+    );
+
+    const afflictionResponseProfile = findCatalogEntry("affliction", "response_profile");
+    expect(afflictionResponseProfile?.axis).toBe("response");
+    expect(afflictionResponseProfile?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["outbreak_management", "cure_clock_urgency", "source_tracing"]),
+    );
+
+    const afflictionResolutionProfile = findCatalogEntry("affliction", "resolution_profile");
+    expect(afflictionResolutionProfile?.axis).toBe("response");
+    expect(afflictionResolutionProfile?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["countermagic_resolution", "antidote_resolution", "quarantine_containment_resolution"]),
+    );
+
+    const creatureSceneRole = findCatalogEntry("creature", "scene_role");
+    expect(creatureSceneRole?.axis).toBe("npc_role");
+    expect(creatureSceneRole?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["enforcer_npc", "infiltrator_npc", "guardian_npc"]),
+    );
+
+    const creatureThreatProfile = findCatalogEntry("creature", "threat_profile");
+    expect(creatureThreatProfile?.axis).toBe("encounter");
+    expect(creatureThreatProfile?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["prey_control_threat", "reinforcement_threat", "infiltration_threat"]),
+    );
+
+    const creatureCorruptionProfile = findCatalogEntry("creature", "corruption_profile");
+    expect(creatureCorruptionProfile?.axis).toBe("specialization");
+    expect(creatureCorruptionProfile?.tags.map((tag) => tag.value)).toEqual(
+      arrayContaining(["blight_tainted", "void_tainted"]),
     );
   });
 

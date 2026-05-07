@@ -227,6 +227,10 @@ export function usePf2eNavigation({
   openSearchResults: (query: SearchRequest) => void;
   openReviewSession: (mode: DerivedTagWorkbenchMode, options: CreatePf2eDerivedTagSessionOptions) => void;
   promptForReviewSession: (mode: DerivedTagWorkbenchMode) => void;
+  openTranslationQueue: (options?: {
+    initialCategory?: CreatePf2eDerivedTagSessionOptions["category"];
+    initialStatus?: "all" | "provisional" | "unmapped";
+  }) => void;
   returnFromSearch: (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => void;
 } {
   const [state, dispatch] = React.useReducer(pf2eAppReducer, initialRoute, createPf2eAppState);
@@ -531,6 +535,23 @@ export function usePf2eNavigation({
     [rootPath, runRouteTransition, services.dev.tagRefinement, terminal, workbenchSessionPrompts],
   );
 
+  const openTranslationQueue = React.useCallback(
+    (options?: {
+      initialCategory?: CreatePf2eDerivedTagSessionOptions["category"];
+      initialStatus?: "all" | "provisional" | "unmapped";
+    }) => {
+      dispatch({
+        type: "push_route",
+        route: {
+          kind: PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE,
+          ...(options?.initialCategory ? { initialCategory: options.initialCategory } : {}),
+          ...(options?.initialStatus ? { initialStatus: options.initialStatus } : {}),
+        },
+      });
+    },
+    [],
+  );
+
   const returnFromSearch = React.useCallback(
     (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
       void runRouteTransition({
@@ -568,6 +589,7 @@ export function usePf2eNavigation({
     openSearchResults,
     openReviewSession,
     promptForReviewSession,
+    openTranslationQueue,
     returnFromSearch,
   };
 }

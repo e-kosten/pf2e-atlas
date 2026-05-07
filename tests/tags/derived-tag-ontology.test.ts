@@ -8,6 +8,8 @@ import {
   DERIVED_TAG_ONTOLOGY_FAMILIES,
   DERIVED_TAG_ONTOLOGY_TAGS,
   DERIVED_TAG_ONTOLOGY_TRANSLATIONS,
+  PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
+  PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
 } from "../../src/tags/runtime.js";
 
 function matcherAnyString(): unknown {
@@ -730,6 +732,19 @@ describe("derived tag ontology", () => {
     expect(
       DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "equipment" && tag.tag === "beneficial"),
     ).toBe(false);
+  });
+
+  it("publishes a settled-only public ontology surface", () => {
+    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES.length).toBeGreaterThan(0);
+    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.length).toBeGreaterThan(0);
+    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.every((tag) => tag.translationStatus === "mapped")).toBe(true);
+    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "spell")).toBe(false);
+    expect(
+      PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "affliction" && tag.tag === "community_outbreak"),
+    ).toBe(true);
+    expect(
+      PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "equipment" && tag.tag === "anti_poison"),
+    ).toBe(true);
   });
 
   it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {

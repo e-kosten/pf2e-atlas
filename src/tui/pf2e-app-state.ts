@@ -16,6 +16,7 @@ import { moveSelectionWrapped } from "./framework/input.js";
 export const PF2E_APP_ROUTE_KIND = {
   AREAS: "areas",
   TAG_REFINEMENT: "tag_refinement",
+  TRANSLATION_QUEUE: "translation_queue",
   SEARCH: "search",
   ONTOLOGY: "ontology",
   PAGE: "page",
@@ -76,9 +77,16 @@ export type Pf2ePageRoute = {
   document: EntityPageDocument;
 };
 
+export type Pf2eTranslationQueueRoute = {
+  kind: (typeof PF2E_APP_ROUTE_KIND)["TRANSLATION_QUEUE"];
+  initialCategory?: SearchCategory;
+  initialStatus?: "all" | "provisional" | "unmapped";
+};
+
 export type Pf2eAppRoute =
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["AREAS"] }
   | { kind: (typeof PF2E_APP_ROUTE_KIND)["TAG_REFINEMENT"] }
+  | Pf2eTranslationQueueRoute
   | Pf2eSearchRoute
   | Pf2eOntologyRoute
   | Pf2ePageRoute

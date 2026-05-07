@@ -24,6 +24,7 @@ describe("tag refinement menu screen", () => {
         <TagRefinementMenuScreen
           selectedIndex={0}
           queueItems={[]}
+          translationQueueCount={12}
           onBack={vi.fn()}
           onMove={vi.fn()}
           onOpenSelected={vi.fn()}
@@ -36,12 +37,12 @@ describe("tag refinement menu screen", () => {
     app.stdin.write(":");
     await flushInk();
     expect(app.lastFrame()).toContain("Actions:");
-    expect(app.lastFrame()).toContain("Create Legacy-Seed Review Session");
+    expect(app.lastFrame()).toContain("Review Ontology Translation Queue (12)");
     expect(app.lastFrame()).not.toContain("[ACTIONS]");
     app.stdin.write("\r");
     await flushInk();
 
-    expect(onQuickAction).toHaveBeenCalledWith("legacy_seed");
+    expect(onQuickAction).toHaveBeenCalledWith("translation_queue");
   });
 
   it("does not keep old page-specific letters as live commands", async () => {
@@ -51,6 +52,7 @@ describe("tag refinement menu screen", () => {
         <TagRefinementMenuScreen
           selectedIndex={0}
           queueItems={[]}
+          translationQueueCount={12}
           onBack={vi.fn()}
           onMove={vi.fn()}
           onOpenSelected={vi.fn()}
@@ -74,6 +76,7 @@ describe("tag refinement menu screen", () => {
         <TagRefinementMenuScreen
           selectedIndex={0}
           queueItems={[]}
+          translationQueueCount={12}
           onBack={onBack}
           onMove={vi.fn()}
           onOpenSelected={vi.fn()}
@@ -100,6 +103,7 @@ describe("tag refinement menu screen", () => {
         <TagRefinementMenuScreen
           selectedIndex={0}
           queueItems={[]}
+          translationQueueCount={12}
           onBack={vi.fn()}
           onMove={vi.fn()}
           onOpenSelected={vi.fn()}

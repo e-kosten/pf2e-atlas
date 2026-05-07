@@ -152,6 +152,7 @@ function createNavigationTestServices({
       tagRefinement: {
         createSession: vi.fn(),
         getQueueItems: vi.fn(() => []),
+        getTranslationQueueItems: vi.fn(() => []),
         promptAndCreateSession: vi.fn(),
       },
     },
@@ -234,6 +235,29 @@ describe("pf2e navigation", () => {
     expect(capture.current!.state.routeStack[1]).toHaveProperty("loadModelForDiscoveryMode");
     expect(typeof capture.current!.state.routeStack[1]?.loadModelForDiscoveryMode).toBe("function");
     expect(capture.current!.navigation.transitionStatus).toBeNull();
+  });
+
+  it("opens the ontology translation queue as its own route", async () => {
+    const terminal = {
+      pauseForAnyKey: vi.fn(),
+    };
+    const { services } = createNavigationTestServices();
+    const { capture, renderer } = await renderNavigationHarness({ services, terminal });
+    renderers.push(renderer);
+
+    await act(async () => {
+      capture.current!.navigation.openTranslationQueue({
+        initialCategory: "spell",
+        initialStatus: "provisional",
+      });
+      await flushReact();
+    });
+
+    expect(capture.current!.state.routeStack.at(-1)).toEqual({
+      kind: PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE,
+      initialCategory: "spell",
+      initialStatus: "provisional",
+    });
   });
 
   it("opens generic search results through the shared navigation owner", async () => {

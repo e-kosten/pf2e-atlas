@@ -13,6 +13,7 @@ import {
 } from "./assignments.js";
 import { deriveRecordTagsFromRules, normalizeDerivedTag, type DerivedTagContext } from "../matcher/engine.js";
 import {
+  buildVisibleDerivedTagOntology,
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
@@ -52,8 +53,11 @@ const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntol
   AUTHORED_DERIVED_TAG_ONTOLOGY_PUBLICATION.tags,
   AUTHORED_DERIVED_TAG_CONCEPT_MODEL,
 );
+const PUBLIC_DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = buildVisibleDerivedTagOntology(DERIVED_TAG_ONTOLOGY);
 export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
 export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
+export const PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES = PUBLIC_DERIVED_TAG_ONTOLOGY.families;
+export const PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS = PUBLIC_DERIVED_TAG_ONTOLOGY.tags;
 export const DERIVED_TAG_ONTOLOGY_CONCEPTS = DERIVED_TAG_ONTOLOGY.conceptModel.concepts;
 export const DERIVED_TAG_ONTOLOGY_TRANSLATIONS = DERIVED_TAG_ONTOLOGY.conceptModel.translations;
 const COMPILED_AUTHORED_DERIVED_TAG_RULES = compileAuthoredDerivedTagRules(

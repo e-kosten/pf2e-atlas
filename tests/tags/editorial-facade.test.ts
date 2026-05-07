@@ -16,6 +16,8 @@ describe("editorial facade", () => {
     expect(editorial).toHaveProperty("createDerivedTagWorkbenchSession");
     expect(editorial).toHaveProperty("getDerivedTagWorkbenchQueueItems");
     expect(editorial).toHaveProperty("getPublishedDerivedTagConceptModel");
+    expect(editorial).toHaveProperty("getVisibleDerivedTagOntology");
+    expect(editorial).toHaveProperty("listCurrentDerivedTagTranslationQueueItems");
     expect(editorial).toHaveProperty("listPublishedDerivedTagTranslations");
     expect(editorial).toHaveProperty("summarizeCurrentDerivedTagTranslationQueue");
     expect(editorial).not.toHaveProperty("promptAndCreateDerivedTagWorkbenchSession");
@@ -27,6 +29,20 @@ describe("editorial facade", () => {
     const summary = editorial.summarizeCurrentDerivedTagTranslationQueue();
     expect(summary.length).toBeGreaterThan(0);
     expect(summary.some((entry) => entry.translationStatus === "provisional")).toBe(true);
+  });
+
+  it("exposes row-level translation queue items and a settled-only visible ontology", () => {
+    const queueItems = editorial.listCurrentDerivedTagTranslationQueueItems();
+    expect(queueItems.length).toBeGreaterThan(0);
+    expect(
+      queueItems.every(
+        (entry) => entry.translationStatus === "provisional" || entry.translationStatus === "unmapped",
+      ),
+    ).toBe(true);
+
+    const visibleOntology = editorial.getVisibleDerivedTagOntology();
+    expect(visibleOntology.tags.length).toBeGreaterThan(0);
+    expect(visibleOntology.tags.every((tag) => tag.translationStatus === "mapped")).toBe(true);
   });
 });
 

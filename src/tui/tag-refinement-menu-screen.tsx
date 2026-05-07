@@ -17,15 +17,25 @@ import {
   type TerminalMenuScreenInteractions,
 } from "./shared-screens.js";
 
-type TagRefinementCommandId = "review_all" | "legacy_seed" | "legacy_rule" | "exemplar_cleanup" | "proposal_review";
+type TagRefinementCommandId =
+  | "review_all"
+  | "translation_queue"
+  | "legacy_seed"
+  | "legacy_rule"
+  | "exemplar_cleanup"
+  | "proposal_review";
 
 export type TagRefinementMenuItem =
   | { kind: "review_queue_item"; label: string; queueItem: DerivedTagReviewQueueSummaryItem }
+  | { kind: "translation_queue"; label: string }
   | { kind: "review_all"; label: string }
   | { kind: "create_mode"; label: string; mode: DerivedTagWorkbenchMode }
   | { kind: "back"; label: string };
 
-export function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryItem[]): TagRefinementMenuItem[] {
+export function buildTagRefinementMenuItems(
+  items: DerivedTagReviewQueueSummaryItem[],
+  translationQueueCount: number,
+): TagRefinementMenuItem[] {
   const menuItems: TagRefinementMenuItem[] = [];
   if (items.length > 0) {
     menuItems.push({ kind: "review_all", label: "Review all pending queue items" });
@@ -42,6 +52,10 @@ export function buildTagRefinementMenuItems(items: DerivedTagReviewQueueSummaryI
       });
     }
   }
+  menuItems.push({
+    kind: "translation_queue",
+    label: `Review ontology translation queue  unresolved=${translationQueueCount}`,
+  });
   menuItems.push(
     { kind: "create_mode", label: "Create legacy-seed review session", mode: "legacy_seed" },
     { kind: "create_mode", label: "Create legacy-rule review session", mode: "legacy_rule" },
@@ -83,6 +97,7 @@ function getTagRefinementInteractionActions(): TerminalInteractionAction[] {
 
 function buildTagRefinementActionEntries(
   hasQueueItems: boolean,
+  translationQueueCount: number,
 ): DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[] {
   const entries: DerivedTagTerminalActionTargetOption<TagRefinementCommandId>[] = [];
   if (hasQueueItems) {
@@ -92,6 +107,11 @@ function buildTagRefinementActionEntries(
       description: "Create a queue review session covering all pending items.",
     });
   }
+  entries.push({
+    id: "translation_queue",
+    label: `Review Ontology Translation Queue (${translationQueueCount})`,
+    description: "Browse unresolved canonical-translation rows by category and translation status.",
+  });
   entries.push(
     {
       id: "legacy_seed",
@@ -168,18 +188,20 @@ export function TagRefinementMenuScreen({
   onMove,
   onOpenSelected,
   onQuickAction,
+  translationQueueCount,
   transitionStatus,
 }: {
   selectedIndex: number;
   queueItems: DerivedTagReviewQueueSummaryItem[];
+  translationQueueCount: number;
   onBack: () => void;
   onMove: (delta: number, itemCount: number) => void;
   onOpenSelected: (menuItems: TagRefinementMenuItem[]) => void;
-  onQuickAction: (mode: "review_all" | DerivedTagWorkbenchMode) => void;
+  onQuickAction: (mode: "review_all" | "translation_queue" | DerivedTagWorkbenchMode) => void;
   transitionStatus?: RouteTransitionStatus | null;
 }): React.JSX.Element {
-  const menuItems = buildTagRefinementMenuItems(queueItems);
-  const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0);
+  const menuItems = buildTagRefinementMenuItems(queueItems, translationQueueCount);
+  const actionEntries = buildTagRefinementActionEntries(queueItems.length > 0, translationQueueCount);
   const interactions = createTagRefinementInteractions(actionEntries);
   const clampedSelectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, menuItems.length - 1)));
 
@@ -193,6 +215,10 @@ export function TagRefinementMenuScreen({
     (commandId: TagRefinementCommandId) => {
       if (commandId === "review_all") {
         onQuickAction("review_all");
+        return;
+      }
+      if (commandId === "translation_queue") {
+        onQuickAction("translation_queue");
         return;
       }
       onQuickAction(commandId);

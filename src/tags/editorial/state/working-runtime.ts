@@ -10,6 +10,7 @@ import {
 import { deriveRecordTagsFromRules, type DerivedTagContext, type DerivedTagRule } from "../../runtime/matcher/engine.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "../../runtime/publication/catalog-seed-records.js";
 import {
+  buildVisibleDerivedTagOntology,
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
   publishDerivedTagOntology,
@@ -28,6 +29,7 @@ type DerivedTagWorkingRuntime = {
   authoredRules: DerivedTagRule[];
   legacyRules: DerivedTagRule[];
   ontology: PublishedDerivedTagOntology;
+  visibleOntology: PublishedDerivedTagOntology;
   legacySeedMigrations: ReturnType<typeof buildDerivedTagLegacySeedMigrationIndex>;
   explicitAssignments: ReturnType<typeof buildDerivedTagExplicitAssignmentIndex>;
 };
@@ -43,6 +45,7 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
     publishedOntology.tags,
     conceptModel,
   );
+  const visibleOntology = buildVisibleDerivedTagOntology(ontology);
   const authoredRules = compileAuthoredDerivedTagRules(
     ontology,
     DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => state.authoredRules[category]),
@@ -71,6 +74,7 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
     authoredRules,
     legacyRules,
     ontology,
+    visibleOntology,
     legacySeedMigrations,
     explicitAssignments,
   };

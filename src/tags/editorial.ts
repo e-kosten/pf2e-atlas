@@ -6,6 +6,8 @@ export { compareDisplayText, compareManagedCategory } from "./editorial/list-sor
 export {
   getPublishedDerivedTagConceptModel,
   getPublishedDerivedTagOntology,
+  getVisibleDerivedTagOntology,
+  listCurrentDerivedTagTranslationQueueItems,
   listPublishedDerivedTagTranslations,
   summarizeCurrentDerivedTagReviewQueue,
   summarizeCurrentDerivedTagTranslationQueue,
