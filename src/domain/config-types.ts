@@ -9,6 +9,7 @@ export interface AppConfig {
 
 export interface RankingRuntimeConfig {
   configPath: string;
+  watch: boolean;
 }
 
 export type EmbeddingProviderKind = "hash" | "hf-local";

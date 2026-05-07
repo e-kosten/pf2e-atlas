@@ -44,6 +44,7 @@ describe("loadConfig", () => {
     expect(config.embeddings.provider).toBe("hf-local");
     expect(config.embeddings.modelId).toBe("Xenova/all-MiniLM-L12-v2");
     expect(config.ranking.configPath.endsWith("pf2e-ranking.json")).toBe(true);
+    expect(config.ranking.watch).toBe(false);
   });
 
   it("defaults to vendor/pf2e under the current working directory", async () => {
@@ -94,7 +95,17 @@ describe("loadConfig", () => {
     });
     expect(config.ranking).toEqual({
       configPath: path.join(root, "config", "ranking.json"),
+      watch: false,
     });
+  });
+
+  it("accepts explicit ranking config watcher settings", async () => {
+    const root = await createRepoFixture();
+    const config = await loadConfig(["--data-path", path.join(root, "vendor", "pf2e")], {
+      PF2E_RANKING_CONFIG_WATCH: "true",
+    });
+
+    expect(config.ranking.watch).toBe(true);
   });
 
   it("throws when the default path does not contain a manifest", async () => {

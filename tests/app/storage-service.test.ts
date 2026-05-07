@@ -27,6 +27,7 @@ function createTestConfig(rootPath: string, indexPath: string): AppConfig {
     },
     ranking: {
       configPath: path.join(rootPath, "pf2e-ranking.json"),
+      watch: false,
     },
   };
 }

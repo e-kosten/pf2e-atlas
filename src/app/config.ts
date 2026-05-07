@@ -33,6 +33,22 @@ function parseCliArgs(argv: string[]): Record<string, string> {
   return parsed;
 }
 
+function parseOptionalBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
+}
+
 export async function loadConfig(argv = process.argv.slice(2), env = process.env): Promise<AppConfig> {
   const args = parseCliArgs(argv);
   const configuredPath = args["data-path"] ?? env.PF2E_DATA_PATH ?? path.join(process.cwd(), "vendor", "pf2e");
@@ -47,6 +63,9 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
   const configuredEmbeddingLocalModelPath = args["embedding-local-model-path"] ?? env.PF2E_EMBEDDING_LOCAL_MODEL_PATH;
   const configuredRankingConfigPath =
     args["ranking-config-path"] ?? env.PF2E_RANKING_CONFIG_PATH ?? path.join(process.cwd(), "pf2e-ranking.json");
+  const configuredRankingConfigWatch = parseOptionalBoolean(
+    args["ranking-config-watch"] ?? env.PF2E_RANKING_CONFIG_WATCH,
+  );
 
   const rootPath = path.resolve(expandHome(configuredPath));
   const indexPath = path.resolve(expandHome(configuredIndexPath));
@@ -73,6 +92,7 @@ export async function loadConfig(argv = process.argv.slice(2), env = process.env
         },
         ranking: {
           configPath: rankingConfigPath,
+          watch: configuredRankingConfigWatch ?? false,
         },
       };
     }

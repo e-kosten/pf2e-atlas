@@ -381,7 +381,7 @@ The fusion profile comes from the active ranking config:
 - `balanced` favors lexical evidence more heavily
 - `concept` favors semantic evidence more heavily
 
-`RankingConfigStore` is long-lived and watched by default, so changed ranking config values can affect later requests without rebuilding the runtime.
+`RankingConfigStore` can watch the ranking config file so changed ranking values affect later requests without rebuilding the runtime. The application runtime leaves that watcher disabled by default to keep MCP startup reliable in low-file-descriptor agent environments; set `PF2E_RANKING_CONFIG_WATCH=true` or pass `--ranking-config-watch true` when hot reload is needed.
 
 ### 8. Response shaping and explain output
 

@@ -15,7 +15,9 @@ export async function loadPf2eApplicationRuntime(
   argv: string[] = process.argv.slice(2),
 ): Promise<Pf2eApplicationRuntime> {
   const config = await loadConfig(argv);
-  const rankingConfigStore = await RankingConfigStore.create(config.ranking.configPath);
+  const rankingConfigStore = await RankingConfigStore.create(config.ranking.configPath, {
+    watch: config.ranking.watch,
+  });
   let dataService: Pf2eDataService | null = null;
 
   try {

@@ -89,7 +89,7 @@ Example MCP client entry:
 }
 ```
 
-The MCP client should point at the built server entrypoint. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
+The MCP client should point at the built server entrypoint. Keep the full path as one JSON/TOML string or one shell argument; a line break inside the path makes Node try to load only the prefix before the break. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
 
 ## Configuration
 
@@ -99,6 +99,11 @@ You can also override the data path with:
 
 - `PF2E_DATA_PATH`
 - `--data-path /path/to/pf2e`
+
+Ranking config hot reload is off by default for reliable startup in agent environments with low file descriptor limits. Enable it with:
+
+- `PF2E_RANKING_CONFIG_WATCH=true`
+- `--ranking-config-watch true`
 
 The SQLite index path defaults to `.cache/pf2e-index.sqlite` under the current working directory. You can override it with:
 

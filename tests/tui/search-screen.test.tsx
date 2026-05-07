@@ -171,6 +171,7 @@ function createTestConfig(): AppConfig {
     },
     ranking: {
       configPath: "pf2e-ranking.json",
+      watch: false,
     },
   };
 }

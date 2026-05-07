@@ -37,6 +37,7 @@ function createTestConfig(indexPath = ".cache/pf2e-index.sqlite"): AppConfig {
     },
     ranking: {
       configPath: "pf2e-ranking.json",
+      watch: false,
     },
   };
 }
