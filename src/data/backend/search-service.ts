@@ -14,6 +14,7 @@ import type {
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { EmbeddingProvider } from "../../embeddings.js";
 import type { RankingConfigStore } from "../../search/ranking-config.js";
+import { DEFAULT_RANKING_CONFIG } from "../../search/ranking-config.js";
 import {
   buildSearchWindowSnapshot,
   countSearchResults as countSearchResultsRuntime,
@@ -23,7 +24,7 @@ import {
   search as searchRuntime,
   searchStructured as searchStructuredRuntime,
 } from "../../search/runtime-search.js";
-import type { NormalizedSearchFilters } from "../../search/contracts.js";
+import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "../../search/contracts.js";
 import { compileSearchRequest } from "../../search/request-compilation.js";
 import { buildAllOfFilter, buildAnyOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { fetchCandidateRecordKeys } from "../record-queries.js";
@@ -32,7 +33,7 @@ import { normalizeSearchFilters, validateSearchFilters } from "../../search/filt
 import { hashRecordSortSeed } from "../../search/runtime-search-sorting.js";
 import type { SearchTraceSink } from "../../search/trace.js";
 import { traceAsync, traceSync } from "../../search/trace.js";
-import { createRuntimeSearchDependencies } from "./runtime-search-dependencies.js";
+import { createSearchRetrievalPort } from "./search-retrieval.js";
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
 
@@ -385,15 +386,18 @@ export class Pf2eSearchBackendService {
     return promise;
   }
 
-  private runtimeSearchDependencies() {
-    return createRuntimeSearchDependencies({
-      db: this.db,
+  private runtimeSearchDependencies(): RuntimeSearchDependencies {
+    return {
+      ...createSearchRetrievalPort({
+        db: this.db,
+        decorateRecord: (record) => this.catalog.decorateRecord(record),
+        trace: this.trace,
+      }),
       embeddingProvider: this.embeddingProvider,
-      rankingConfigStore: this.rankingConfigStore,
-      decorateRecord: (record) => this.catalog.decorateRecord(record),
-      getAliases: (recordKey) => this.catalog.getAliases(recordKey),
-      getRankingConfigStatus: () => this.catalog.getRankingConfigStatus(),
+      rankingConfig: this.rankingConfigStore?.getConfig() ?? DEFAULT_RANKING_CONFIG,
+      rankingConfigStatus: this.catalog.getRankingConfigStatus(),
       trace: this.trace,
-    });
+      getAliases: (recordKey) => this.catalog.getAliases(recordKey),
+    };
   }
 }

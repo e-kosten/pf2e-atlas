@@ -12,14 +12,31 @@ import {
   buildLexicalRetrievalQuery,
   buildSemanticRetrievalQuery,
   SQLITE_VECTOR_QUERY_K_LIMIT,
-} from "../search/sql.js";
+} from "./backend/search-sql.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "../search/ranking.js";
 import type { SearchSort } from "../domain/search-types.js";
+import { normalizeText } from "../shared/utils.js";
 
 function encodeVector(vector: Float32Array): Buffer {
   return Buffer.from(vector.buffer.slice(vector.byteOffset, vector.byteOffset + vector.byteLength));
+}
+
+function buildFtsQuery(query: string): string | null {
+  const tokens = normalizeText(query).split(" ").filter(Boolean);
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  return tokens.map((token) => `"${token}"*`).join(" OR ");
+}
+
+function resolveSemanticRetrievalLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
+  const boundedBaseLimit = Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.max(1, baseLimit));
+  return filters.filter
+    ? Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.min(1000, Math.max(boundedBaseLimit * 2, boundedBaseLimit + 50)))
+    : boundedBaseLimit;
 }
 
 function buildRecordSelect(includeRaw = false): string {
@@ -83,9 +100,14 @@ export function fetchPagedCandidates(
 export function fetchLexicalRetrievalRows(
   db: DatabaseSync,
   filters: NormalizedSearchFilters,
-  ftsQuery: string,
+  lexicalQuery: string,
   limit: number,
 ): LexicalRetrievalRow[] {
+  const ftsQuery = buildFtsQuery(lexicalQuery);
+  if (!ftsQuery) {
+    return [];
+  }
+
   const { sql, params } = buildLexicalRetrievalQuery(filters, ftsQuery, limit);
   return db.prepare(sql).all(...params) as LexicalRetrievalRow[];
 }
@@ -103,7 +125,7 @@ export function fetchSemanticRetrievalRows(
   const encodedQuery = encodeVector(queryVector);
   const { sql, params } = buildSemanticRetrievalQuery(
     filters,
-    Math.max(1, Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, limit)),
+    resolveSemanticRetrievalLimit(limit, filters),
   );
   return db.prepare(sql).all(encodedQuery, ...params) as SemanticRetrievalRow[];
 }

@@ -712,7 +712,7 @@ describe("eslint local architecture rules", () => {
     expect(
       messages.some((message) =>
         message.includes(
-          "Search modules must depend on Pf2eDataService or another higher-level facade instead of storage rows/query/schema internals.",
+          "Search modules must use search-owned contracts and retrieval ports instead of importing src/data storage internals.",
         ),
       ),
     ).toBe(true);
@@ -721,7 +721,7 @@ describe("eslint local architecture rules", () => {
   it("blocks server modules from importing low-level search and storage internals", async () => {
     await expectRuleMessage(
       "src/server/presenters.ts",
-      'import { buildSearchWhereClause } from "../search/sql.js";\nexport const value = buildSearchWhereClause;\n',
+      'import { buildFilterValueQuery } from "../data/backend/search-sql.js";\nexport const value = buildFilterValueQuery;\n',
       "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
     );
   });
@@ -737,7 +737,7 @@ describe("eslint local architecture rules", () => {
     expect(
       messages.some((message) =>
         message.includes(
-          "Search modules must depend on Pf2eDataService or another higher-level facade instead of storage rows/query/schema internals.",
+          "Search modules must use search-owned contracts and retrieval ports instead of importing src/data storage internals.",
         ),
       ),
     ).toBe(true);

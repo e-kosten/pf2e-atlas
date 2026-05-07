@@ -45,7 +45,7 @@ describe("runtime search", () => {
     expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(80);
   });
 
-  it("allows filtered semantic retrieval to widen from the configured top-k without using candidate count", async () => {
+  it("leaves filtered semantic retrieval expansion to the retrieval port", async () => {
     const fetchSemanticRetrievalRows = vi.fn(() => []);
     const deps = createDependencies({
       fetchCandidateCount: () => 26_377,
@@ -65,6 +65,6 @@ describe("runtime search", () => {
     );
 
     expect(fetchSemanticRetrievalRows).toHaveBeenCalledTimes(1);
-    expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(160);
+    expect(fetchSemanticRetrievalRows.mock.calls[0]?.[2]).toBe(80);
   });
 });

@@ -25,7 +25,7 @@ Useful heuristics:
 - If the code needs `DatabaseSync`, it probably belongs in `src/data/`, `src/app/storage-service.ts`, or an approved CLI entrypoint.
 - If the code mostly translates inputs and outputs around an existing service call, it probably belongs in a thin surface layer.
 - If the code defines vocabulary rather than behavior, it probably belongs in `src/domain/`.
-- If the code defines metadata field meaning for MCP, ontology, or TUI callers, extend `src/domain/metadata-field-catalog.ts`; SQL/filter behavior belongs in `src/search/filters/metadata-execution.ts`, record hydration belongs in `src/data/metadata-row-projection.ts`, and MCP summary/detail projection belongs in `src/server/metadata-presentation.ts`.
+- If the code defines metadata field meaning for MCP, ontology, or TUI callers, extend `src/domain/metadata-field-catalog.ts`; storage-backed metadata predicate SQL belongs in data-owned SQL modules such as `src/data/backend/metadata-search-sql.ts`, record hydration belongs in `src/data/metadata-row-projection.ts`, search normalization and record-level matching belong in `src/search/filters/metadata-execution.ts`, and MCP summary/detail projection belongs in `src/server/metadata-presentation.ts`.
 - If a non-tag caller needs a domain type, import the concrete `src/domain/*` owner file directly. There is no approved broad `src/domain/index.ts` path.
 - If a helper clearly belongs to `app`, `data`, or `search`, keep it there instead of extending `src/shared/`.
 - If the change is inside `src/tags/`, pick the split owner directory first and treat top-level editorial/runtime re-export files as compatibility bridges, not the architectural home for new work.
@@ -115,7 +115,7 @@ A new MCP tool usually means:
 3. register the tool in the relevant `src/server/register-*.ts` module
 4. shape the response in `src/server/presenters.ts` or nearby server helpers
 
-Do not import `src/search/sql.ts`, `src/data/record-queries.ts`, or `src/data/schema.ts` from a server registration module. The lint config blocks that on purpose. If the server layer needs new data, the fix is to extend the backend facade first.
+Do not import data-owned SQL builders, `src/data/record-queries.ts`, or `src/data/schema.ts` from a server registration module. The lint config blocks that on purpose. If the server layer needs new data, the fix is to extend the backend facade first.
 
 ### Adding A New TUI Feature
 

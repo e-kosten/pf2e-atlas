@@ -2,21 +2,20 @@ import {
   inferActorMetricValueType,
   normalizeActorMetricKey,
   normalizeActorMetricPrefix,
-} from "../domain/actor-metrics.js";
-import { inferItemMetricValueType, normalizeItemMetricKey, normalizeItemMetricPrefix } from "../domain/item-metrics.js";
-import { isMetadataFieldName } from "../domain/metadata-field-catalog.js";
-import { getMetadataRecordSelectClauses } from "../data/metadata-row-projection.js";
-import {
-  getMetadataExecutionSpec,
-  type MetadataFilterValueSource,
-} from "../search/filters/metadata-execution.js";
-import { SearchSort, type FilterValueQuery } from "../domain/search-types.js";
-import type { NormalizedSearchFilters, SearchExecutionFilterNode, SqlValue } from "./contracts.js";
+} from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType, normalizeItemMetricKey, normalizeItemMetricPrefix } from "../../domain/item-metrics.js";
+import { isMetadataFieldName } from "../../domain/metadata-field-catalog.js";
+import { getMetadataRecordSelectClauses } from "../metadata-row-projection.js";
+import { SearchSort, type FilterValueQuery } from "../../domain/search-types.js";
+import type { NormalizedSearchFilters, SearchExecutionFilterNode } from "../../search/contracts.js";
+import type { SqlValue } from "../sql-types.js";
 import {
   buildMetadataAtomicPredicateClause,
   buildMetricCompareClause,
   buildMetricPredicateClause,
-} from "./filters/metadata.js";
+  getMetadataFilterValueSource,
+  type MetadataFilterValueSource,
+} from "./metadata-search-sql.js";
 
 function appendWhereClause(sql: string[], params: SqlValue[], clause: string, ...values: SqlValue[]): void {
   sql.push(clause);
@@ -349,7 +348,7 @@ function applyMetadataFilterValueSource(
     return null;
   }
 
-  const source = getMetadataExecutionSpec(field).buildFilterValueSource?.() ?? null;
+  const source = getMetadataFilterValueSource(field);
   if (!source) {
     return null;
   }
@@ -661,13 +660,6 @@ export function buildLexicalRetrievalQuery(
 }
 
 export const SQLITE_VECTOR_QUERY_K_LIMIT = 4096;
-
-export function semanticQueryLimit(baseLimit: number, filters: NormalizedSearchFilters): number {
-  const boundedBaseLimit = Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.max(1, baseLimit));
-  return filters.filter
-    ? Math.min(SQLITE_VECTOR_QUERY_K_LIMIT, Math.min(1000, Math.max(boundedBaseLimit * 2, boundedBaseLimit + 50)))
-    : boundedBaseLimit;
-}
 
 export function buildSemanticRetrievalQuery(
   filters: NormalizedSearchFilters,

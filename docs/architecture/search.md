@@ -16,11 +16,12 @@ The search runtime is shared infrastructure, not an MCP-only feature. The same b
 - `src/app/runtime.ts` owns application startup composition.
 - `src/data/service.ts` exposes `Pf2eDataService`, the main facade for server and TUI callers.
 - `src/search/request-compilation.ts` and `src/search/contracts.ts` own the lowering from `SearchRequest` into search-execution filters.
-- `src/search/filters/` owns execution-filter normalization, validation, metadata execution helpers, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring and runtime dependency assembly.
+- `src/search/filters/` owns execution-filter normalization, validation, metadata normalization helpers, and in-memory matching, while `src/data/backend/search-service.ts` owns backend wiring.
 - `src/data/metadata-row-projection.ts` owns metadata row selection and hydration mapping for normalized records.
+- `src/data/backend/search-sql.ts`, `src/data/backend/metadata-search-sql.ts`, `src/data/record-queries.ts`, and `src/data/backend/search-retrieval.ts` own SQL construction, database retrieval, row-to-record hydration, and the concrete implementation of the search retrieval port.
 - `src/server/metadata-presentation.ts` owns MCP summary/detail metadata projection.
 - `src/search/runtime-search.ts` owns ranked and structured search execution.
-- `src/search/sql.ts` and `src/data/record-queries.ts` own SQL construction and database retrieval.
+- `src/search/contracts.ts` owns the storage-agnostic retrieval port consumed by runtime search.
 
 ## Runtime Composition
 
@@ -65,15 +66,17 @@ flowchart TD
   G --> H[Pf2eSearchBackendService]
   H --> I[compileSearchRequest]
   I --> J[normalizeSearchFilters<br/>validateSearchFilters]
-  J --> K[createRuntimeSearchDependencies]
+  J --> K[assemble runtime deps<br/>with SearchRetrievalPort]
   K --> L[runtime-search.ts]
-  L --> M[record-queries.ts]
-  M --> N[search/sql.ts]
-  N --> O[(SQLite index<br/>records / records_fts / record_embeddings)]
+  L --> M[SearchRetrievalPort]
+  M --> N[search-retrieval.ts]
+  N --> O[record-queries.ts]
+  O --> P[search-sql.ts]
+  P --> Q[(SQLite index<br/>records / records_fts / record_embeddings)]
 
-  L --> P[SearchResult or lookup match]
-  P --> Q[presenters.ts<br/>formatSearchResult / summarizeRecord]
-  Q --> R[MCP text + structuredContent response]
+  L --> R[SearchResult or lookup match]
+  R --> S[presenters.ts<br/>formatSearchResult / summarizeRecord]
+  S --> T[MCP text + structuredContent response]
 ```
 
 ### What stays thin
@@ -235,7 +238,7 @@ Programmatic seeded browse/query pathways, such as page and drill surfaces, shou
 - mapping `search.query`, `search.exclude`, and `search.profile` onto the appropriate ranked-search execution inputs
 - preserving shared pagination, explain, pack-label resolution, and browse or lookup sort settings where that mode allows them
 
-Search-execution filters are not the shared contract. They are search-owned compiled output used by normalization, validation, SQL construction, and runtime execution.
+Search-execution filters are not the shared contract. They are search-owned compiled output used by normalization, validation, and runtime execution. Data-owned retrieval modules lower those filters into SQLite queries through the search retrieval port.
 
 The backend does not preserve a hidden compatibility path for legacy `intent` / `parts` / flat-root-filter inputs. Surface adapters and ontology query carriers must provide real `SearchRequest` values before execution begins.
 
@@ -261,7 +264,7 @@ This request-model convergence also does not introduce a durable migration surfa
 
 ### 3. Runtime dependency assembly
 
-`createRuntimeSearchDependencies(...)` turns backend services into the small interface expected by `src/search/runtime-search.ts`.
+`Pf2eSearchBackendService` assembles the small runtime dependency object expected by `src/search/runtime-search.ts`. The storage-specific part of that object is the `SearchRetrievalPort` implemented by `src/data/backend/search-retrieval.ts`.
 
 That dependency object provides:
 
@@ -274,7 +277,7 @@ That dependency object provides:
 - the current ranking config and ranking-config status
 - the embedding provider
 
-This keeps `runtime-search.ts` independent from direct `DatabaseSync` and catalog wiring details.
+This keeps `runtime-search.ts` independent from direct `DatabaseSync`, SQL query builders, row hydration, and catalog wiring details. The data layer owns the physical SQLite implementation behind the port.
 
 ### 4. Mode resolution
 
@@ -292,9 +295,9 @@ Default MCP search behavior is important here:
 
 ### 5. SQL candidate filtering
 
-The SQL filter stage is shared across browse, lexical retrieval, semantic retrieval, and candidate hydration.
+The SQL filter stage is data-owned and shared across browse, lexical retrieval, semantic retrieval, and candidate hydration.
 
-`applySearchFilterClauses(...)` in `src/search/sql.ts` adds the core boundaries:
+`applySearchFilterClauses(...)` in the data-owned search SQL builder adds the core boundaries:
 
 - `is_search_canonical = 1`
 - exact pack or pack-label match

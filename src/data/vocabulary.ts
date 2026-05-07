@@ -14,7 +14,7 @@ import type {
   SearchCategory,
   SearchSubcategory,
 } from "../domain/search-types.js";
-import { buildFilterValueQuery } from "../search/sql.js";
+import { buildFilterValueQuery } from "./backend/search-sql.js";
 import { normalizeText } from "../shared/utils.js";
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import type { SearchTraceSink } from "../search/trace.js";

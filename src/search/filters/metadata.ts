@@ -4,48 +4,30 @@ import {
   normalizeActorMetricTextValue,
   type ActorMetricValue,
 } from "../../domain/actor-metrics.js";
+import { inferItemMetricValueType, normalizeItemMetricKey } from "../../domain/item-metrics.js";
 import {
-  inferItemMetricValueType,
-  normalizeItemMetricKey,
-} from "../../domain/item-metrics.js";
-import type {
-  MetadataAtomicPredicate,
-} from "../../domain/search-filter-metadata.js";
-import type {
-  MetricOperator,
-  NumericMetricOperator,
-} from "../../domain/search-filter-operators.js";
-import {
-  type MetadataBooleanField,
   type MetadataEnumStringField,
-  type MetadataNumberField,
   type MetadataSetField,
-  type MetadataTextStringField,
 } from "../../domain/metadata-field-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
-import { normalizeDerivedTag } from "../../tags/runtime.js";
+import type { MetadataAtomicPredicate } from "../../domain/search-filter-metadata.js";
+import type { MetricOperator, NumericMetricOperator } from "../../domain/search-filter-operators.js";
 import { normalizeText } from "../../shared/utils.js";
-import type { SqlValue } from "../contracts.js";
+import { normalizeDerivedTag } from "../../tags/runtime.js";
 import {
-  getMetadataBooleanExecutionSpec,
   getMetadataBooleanRecordValue,
   getMetadataEnumStringExecutionSpec,
-  getMetadataNumberExecutionSpec,
   getMetadataNumberRecordValue,
   getMetadataSetExecutionSpec,
   getMetadataSetRecordValues,
   getMetadataStringRecordValue,
-  getMetadataTextExecutionSpec,
   isMetadataEnumStringField,
   isMetadataNumberField,
   isMetadataSetField,
   isMetadataTextField,
   type MetadataExecutionSpecEntry,
-  type MetadataSqlSourceContext,
   type MetadataValueNormalization,
 } from "./metadata-execution.js";
-
-export type MetadataSqlContext = {} & MetadataSqlSourceContext;
 
 function normalizeMetadataValue(field: MetadataSetField | MetadataEnumStringField, value: string): string {
   const spec = isMetadataSetField(field) ? getMetadataSetExecutionSpec(field) : getMetadataEnumStringExecutionSpec(field);
@@ -69,46 +51,7 @@ function inferMetadataValueNormalization(_spec: MetadataExecutionSpecEntry): Met
   return "lowercaseTrim";
 }
 
-function buildMetadataJsonArraySql(context: MetadataSqlContext, field: MetadataSetField): string {
-  const spec = getMetadataSetExecutionSpec(field);
-  return spec.buildSqlExpression ? spec.buildSqlExpression(context) : "[]";
-}
-
-function buildMetadataScalarSqlExpression(
-  context: MetadataSqlContext,
-  field: MetadataEnumStringField | MetadataTextStringField | MetadataNumberField | MetadataBooleanField,
-): string {
-  const spec = isMetadataEnumStringField(field)
-    ? getMetadataEnumStringExecutionSpec(field)
-    : isMetadataTextField(field)
-      ? getMetadataTextExecutionSpec(field)
-      : isMetadataNumberField(field)
-        ? getMetadataNumberExecutionSpec(field)
-        : getMetadataBooleanExecutionSpec(field);
-  if (!spec.buildSqlExpression) {
-    throw new Error(`Metadata field "${field}" does not provide a SQL expression.`);
-  }
-  return spec.buildSqlExpression(context);
-}
-
-function metricSqlOperator(op: "==" | "!=" | ">" | ">=" | "<" | "<="): "=" | "<>" | ">" | ">=" | "<" | "<=" {
-  switch (op) {
-    case "==":
-      return "=";
-    case "!=":
-      return "<>";
-    case ">":
-      return ">";
-    case ">=":
-      return ">=";
-    case "<":
-      return "<";
-    case "<=":
-      return "<=";
-  }
-}
-
-function rawMetricOperator(
+export function rawMetricOperator(
   op: MetricOperator | NumericMetricOperator,
 ): "==" | "!=" | ">" | ">=" | "<" | "<=" {
   switch (op) {
@@ -127,7 +70,7 @@ function rawMetricOperator(
   }
 }
 
-function normalizeSearchMetricValueType(
+export function normalizeSearchMetricValueType(
   metric: string,
 ): { owner: "actor"; valueType: "number" | "text" | "boolean" } | { owner: "item"; valueType: "number" | "text" | "boolean" } | null {
   const actorMetric = inferActorMetricValueType(metric);
@@ -141,172 +84,6 @@ function normalizeSearchMetricValueType(
   }
 
   return null;
-}
-
-function buildActorMetricPredicateClause(
-  metric: string,
-  op: "==" | "!=" | ">" | ">=" | "<" | "<=",
-  valueType: "number" | "text" | "boolean",
-  value: string | number | boolean,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  const sqlOperator = metricSqlOperator(op);
-
-  if (valueType === "number") {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`Actor metric "${metric}" requires a finite numeric value.`);
-    }
-    return {
-      clause: `EXISTS (
-        SELECT 1
-        FROM actor_metrics actor_metric
-        WHERE actor_metric.record_key = ${context.recordKeyExpr}
-          AND actor_metric.metric_key = ?
-          AND actor_metric.value_type = 'number'
-          AND actor_metric.number_value ${sqlOperator} ?
-      )`,
-      params: [metric, value],
-    };
-  }
-
-  if (valueType === "text") {
-    if (typeof value !== "string") {
-      throw new Error(`Actor metric "${metric}" requires a string value.`);
-    }
-    return {
-      clause: `EXISTS (
-        SELECT 1
-        FROM actor_metrics actor_metric
-        WHERE actor_metric.record_key = ${context.recordKeyExpr}
-          AND actor_metric.metric_key = ?
-          AND actor_metric.value_type = 'text'
-          AND LOWER(COALESCE(actor_metric.text_value, '')) ${sqlOperator} ?
-      )`,
-      params: [metric, normalizeActorMetricTextValue(value)],
-    };
-  }
-
-  if (typeof value !== "boolean") {
-    throw new Error(`Actor metric "${metric}" requires a boolean value.`);
-  }
-
-  return {
-    clause: `EXISTS (
-      SELECT 1
-      FROM actor_metrics actor_metric
-      WHERE actor_metric.record_key = ${context.recordKeyExpr}
-        AND actor_metric.metric_key = ?
-        AND actor_metric.value_type = 'boolean'
-        AND COALESCE(actor_metric.bool_value, 0) ${sqlOperator} ?
-    )`,
-    params: [metric, value ? 1 : 0],
-  };
-}
-
-function buildItemMetricPredicateClause(
-  metric: string,
-  op: "==" | "!=" | ">" | ">=" | "<" | "<=",
-  valueType: "number" | "text" | "boolean",
-  value: string | number | boolean,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  const sqlOperator = metricSqlOperator(op);
-
-  if (valueType === "number") {
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`Item metric "${metric}" requires a finite numeric value.`);
-    }
-    return {
-      clause: `EXISTS (
-        SELECT 1
-        FROM item_metrics item_metric
-        WHERE item_metric.record_key = ${context.recordKeyExpr}
-          AND item_metric.metric_key = ?
-          AND item_metric.value_type = 'number'
-          AND item_metric.number_value ${sqlOperator} ?
-      )`,
-      params: [metric, value],
-    };
-  }
-
-  if (valueType === "text") {
-    if (typeof value !== "string") {
-      throw new Error(`Item metric "${metric}" requires a string value.`);
-    }
-    return {
-      clause: `EXISTS (
-        SELECT 1
-        FROM item_metrics item_metric
-        WHERE item_metric.record_key = ${context.recordKeyExpr}
-          AND item_metric.metric_key = ?
-          AND item_metric.value_type = 'text'
-          AND LOWER(COALESCE(item_metric.text_value, '')) ${sqlOperator} ?
-      )`,
-      params: [metric, normalizeActorMetricTextValue(value)],
-    };
-  }
-
-  if (typeof value !== "boolean") {
-    throw new Error(`Item metric "${metric}" requires a boolean value.`);
-  }
-
-  return {
-    clause: `EXISTS (
-      SELECT 1
-      FROM item_metrics item_metric
-      WHERE item_metric.record_key = ${context.recordKeyExpr}
-        AND item_metric.metric_key = ?
-        AND item_metric.value_type = 'boolean'
-        AND COALESCE(item_metric.bool_value, 0) ${sqlOperator} ?
-    )`,
-    params: [metric, value ? 1 : 0],
-  };
-}
-
-function buildActorMetricCompareClause(
-  leftMetric: string,
-  op: "==" | "!=" | ">" | ">=" | "<" | "<=",
-  rightMetric: string,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  return {
-    clause: `EXISTS (
-      SELECT 1
-      FROM actor_metrics left_metric
-      JOIN actor_metrics right_metric
-        ON right_metric.record_key = left_metric.record_key
-      WHERE left_metric.record_key = ${context.recordKeyExpr}
-        AND left_metric.metric_key = ?
-        AND left_metric.value_type = 'number'
-        AND right_metric.metric_key = ?
-        AND right_metric.value_type = 'number'
-        AND left_metric.number_value ${metricSqlOperator(op)} right_metric.number_value
-    )`,
-    params: [leftMetric, rightMetric],
-  };
-}
-
-function buildItemMetricCompareClause(
-  leftMetric: string,
-  op: "==" | "!=" | ">" | ">=" | "<" | "<=",
-  rightMetric: string,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  return {
-    clause: `EXISTS (
-      SELECT 1
-      FROM item_metrics left_metric
-      JOIN item_metrics right_metric
-        ON right_metric.record_key = left_metric.record_key
-      WHERE left_metric.record_key = ${context.recordKeyExpr}
-        AND left_metric.metric_key = ?
-        AND left_metric.value_type = 'number'
-        AND right_metric.metric_key = ?
-        AND right_metric.value_type = 'number'
-        AND left_metric.number_value ${metricSqlOperator(op)} right_metric.number_value
-    )`,
-    params: [leftMetric, rightMetric],
-  };
 }
 
 function compareMetricValues(
@@ -401,142 +178,6 @@ export function normalizeMetadataAtomicPredicate(predicate: MetadataAtomicPredic
   }
 
   return predicate;
-}
-
-export function buildMetadataAtomicPredicateClause(
-  predicate: MetadataAtomicPredicate,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  const normalized = normalizeMetadataAtomicPredicate(predicate) as MetadataAtomicPredicate & Record<string, unknown>;
-
-  if (isMetadataSetField(normalized.field)) {
-    if (normalized.op === "isNull") {
-      const expression = buildMetadataJsonArraySql(context, normalized.field);
-      return {
-        clause: `COALESCE(json_array_length(${expression}), 0) = 0`,
-        params: [],
-      };
-    }
-
-    if (normalized.op === "isNotNull") {
-      const expression = buildMetadataJsonArraySql(context, normalized.field);
-      return {
-        clause: `COALESCE(json_array_length(${expression}), 0) > 0`,
-        params: [],
-      };
-    }
-
-    const value = normalized.value as string;
-    if (normalized.field === "traits") {
-      return {
-        clause: `EXISTS (
-          SELECT 1
-          FROM record_traits value_set
-          WHERE value_set.record_key = ${context.recordKeyExpr}
-            AND value_set.trait = ?
-        )`,
-        params: [value],
-      };
-    }
-
-    if (normalized.field === "derivedTags") {
-      return {
-        clause: `EXISTS (
-          SELECT 1
-          FROM record_derived_tags value_set
-          WHERE value_set.record_key = ${context.recordKeyExpr}
-            AND value_set.tag = ?
-        )`,
-        params: [value],
-      };
-    }
-
-    return {
-      clause: `EXISTS (
-        SELECT 1
-        FROM json_each(${buildMetadataJsonArraySql(context, normalized.field)}) AS value_set
-        WHERE LOWER(value_set.value) = ?
-      )`,
-      params: [value],
-    };
-  }
-
-  const expression = buildMetadataScalarSqlExpression(context, normalized.field as never);
-
-  if (isMetadataEnumStringField(normalized.field)) {
-    if (normalized.op === "isNull") {
-      return { clause: `${expression} IS NULL OR TRIM(${expression}) = ''`, params: [] };
-    }
-    if (normalized.op === "isNotNull") {
-      return { clause: `${expression} IS NOT NULL AND TRIM(${expression}) <> ''`, params: [] };
-    }
-    return {
-      clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notEq" ? "<>" : "="} ?`,
-      params: [normalized.value as SqlValue],
-    };
-  }
-
-  if (isMetadataTextField(normalized.field)) {
-    if (normalized.op === "isNull") {
-      return { clause: `${expression} IS NULL OR TRIM(${expression}) = ''`, params: [] };
-    }
-    if (normalized.op === "isNotNull") {
-      return { clause: `${expression} IS NOT NULL AND TRIM(${expression}) <> ''`, params: [] };
-    }
-    if (normalized.op === "contains" || normalized.op === "notContains") {
-      return {
-        clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notContains" ? "NOT " : ""}LIKE ?`,
-        params: [`%${normalized.value as string}%`],
-      };
-    }
-    return {
-      clause: `LOWER(COALESCE(${expression}, '')) ${normalized.op === "notEq" ? "<>" : "="} ?`,
-      params: [normalized.value as SqlValue],
-    };
-  }
-
-  if (isMetadataNumberField(normalized.field)) {
-    if (normalized.op === "isNull") {
-      return { clause: `${expression} IS NULL`, params: [] };
-    }
-    if (normalized.op === "isNotNull") {
-      return { clause: `${expression} IS NOT NULL`, params: [] };
-    }
-    if (normalized.op === "between") {
-      return {
-        clause: `(${expression} >= ? AND ${expression} <= ?)`,
-        params: [normalized.min as number, normalized.max as number],
-      };
-    }
-    const operator =
-      normalized.op === "eq"
-        ? "="
-        : normalized.op === "notEq"
-          ? "<>"
-          : normalized.op === "gt"
-            ? ">"
-            : normalized.op === "gte"
-              ? ">="
-              : normalized.op === "lt"
-                ? "<"
-                : "<=";
-    return {
-      clause: `${expression} ${operator} ?`,
-      params: [normalized.value as SqlValue],
-    };
-  }
-
-  if (normalized.op === "isNull") {
-    return { clause: `${expression} IS NULL`, params: [] };
-  }
-  if (normalized.op === "isNotNull") {
-    return { clause: `${expression} IS NOT NULL`, params: [] };
-  }
-
-  return {
-    clause: `COALESCE(${expression}, 0) ${normalized.op === "notEq" ? "<>" : "="} ?`,
-    params: [normalized.value ? 1 : 0],
-  };
 }
 
 export function recordMatchesMetadataAtomicPredicate(record: NormalizedRecord, predicate: MetadataAtomicPredicate): boolean {
@@ -641,49 +282,6 @@ export function normalizeSearchMetricKey(metric: string): string {
   }
 
   throw new Error(`Unknown metric "${metric}".`);
-}
-
-export function buildMetricPredicateClause(
-  metric: string,
-  op: MetricOperator,
-  value: string | number | boolean,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  const normalizedMetric = normalizeSearchMetricKey(metric);
-  const rawOp = rawMetricOperator(op);
-  const metricInfo = normalizeSearchMetricValueType(normalizedMetric);
-  if (!metricInfo) {
-    throw new Error(`Unknown metric "${metric}".`);
-  }
-
-  return metricInfo.owner === "actor"
-    ? buildActorMetricPredicateClause(normalizedMetric, rawOp, metricInfo.valueType, value, context)
-    : buildItemMetricPredicateClause(normalizedMetric, rawOp, metricInfo.valueType, value, context);
-}
-
-export function buildMetricCompareClause(
-  leftMetric: string,
-  op: NumericMetricOperator,
-  rightMetric: string,
-  context: MetadataSqlContext,
-): { clause: string; params: SqlValue[] } {
-  const normalizedLeftMetric = normalizeSearchMetricKey(leftMetric);
-  const normalizedRightMetric = normalizeSearchMetricKey(rightMetric);
-  const rawOp = rawMetricOperator(op);
-
-  const actorLeft = inferActorMetricValueType(normalizedLeftMetric) === "number";
-  const actorRight = inferActorMetricValueType(normalizedRightMetric) === "number";
-  if (actorLeft && actorRight) {
-    return buildActorMetricCompareClause(normalizedLeftMetric, rawOp, normalizedRightMetric, context);
-  }
-
-  const itemLeft = inferItemMetricValueType(normalizedLeftMetric) === "number";
-  const itemRight = inferItemMetricValueType(normalizedRightMetric) === "number";
-  if (itemLeft && itemRight) {
-    return buildItemMetricCompareClause(normalizedLeftMetric, rawOp, normalizedRightMetric, context);
-  }
-
-  throw new Error(`Unknown numeric metric comparison "${leftMetric}" ${op} "${rightMetric}".`);
 }
 
 export function recordMatchesMetricPredicate(

@@ -161,9 +161,9 @@ function mergeNonTagRestrictedImports(...restrictions) {
 const SEARCH_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   patterns: [
     {
-      group: ["../data/rows.js", "../data/record-queries.js", "../data/schema.js"],
+      group: ["../data/**", "../../data/**", "../../../data/**"],
       message:
-        "Search modules must depend on Pf2eDataService or another higher-level facade instead of storage rows/query/schema internals.",
+        "Search modules must use search-owned contracts and retrieval ports instead of importing src/data storage internals.",
     },
   ],
 };
@@ -250,7 +250,7 @@ const LEGACY_ENTITY_DETAIL_PRESENTER_IMPORT_RESTRICTIONS = {
 const SERVER_STORAGE_INTERNAL_IMPORT_RESTRICTIONS = {
   patterns: [
     {
-      group: ["../search/sql.js", "../data/record-queries.js", "../data/schema.js"],
+      group: ["../data/backend/search-sql.js", "../data/record-queries.js", "../data/schema.js"],
       message:
         "Server tool registration must depend on Pf2eDataService or higher-level services, not low-level SQL/query internals.",
     },
@@ -1389,13 +1389,6 @@ export default defineConfig(
       "no-restricted-imports": mergeNonTagRestrictedImports(
         NON_UI_TUI_IMPORT_RESTRICTIONS,
         NON_TAGS_DERIVED_TAG_IMPORT_RESTRICTIONS,
-        {
-          paths: SEARCH_METADATA_EXECUTION_IMPORT_PATHS.map((name) => ({
-            name,
-            message:
-              "Data modules must use data-owned metadata row projection instead of importing search-owned metadata execution helpers.",
-          })),
-        },
       ),
     },
   },

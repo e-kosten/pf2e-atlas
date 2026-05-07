@@ -7,7 +7,8 @@ import {
   buildCandidateKeyQuery,
   buildCandidateQuery,
   buildFilterValueQuery,
-} from "../../src/search/sql.js";
+} from "../../src/data/backend/search-sql.js";
+import { fetchSemanticRetrievalRows } from "../../src/data/record-queries.js";
 
 const EMPTY_FILTERS = {};
 
@@ -118,5 +119,30 @@ describe("search SQL builders", () => {
     } finally {
       db.close();
     }
+  });
+
+  it("widens filtered semantic retrieval inside the data-owned retrieval path", () => {
+    let preparedSql = "";
+    const db = {
+      prepare: (sql: string) => {
+        preparedSql = sql;
+        return { all: () => [] };
+      },
+    } as unknown as DatabaseSync;
+
+    fetchSemanticRetrievalRows(
+      db,
+      {
+        filter: {
+          kind: "scope",
+          category: "creature",
+          subcategory: { kind: "any" },
+        },
+      },
+      new Float32Array([1, 2, 3]),
+      80,
+    );
+
+    expect(preparedSql).toContain("AND k = 160");
   });
 });

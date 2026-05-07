@@ -29,7 +29,8 @@ The shortest useful mental model is:
 - `src/tags/reviews/` owns durable review registries and reviewed discovery state
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
-- `src/search/filters/` owns execution-time metadata normalization, matching, and SQL-facing filter assembly; public metadata field semantics stay in `src/domain/metadata-field-catalog.ts`
+- `src/search/filters/` owns execution-time metadata normalization, validation, and record-level matching; public metadata field semantics stay in `src/domain/metadata-field-catalog.ts`
+- `src/data/backend/search-sql.ts` and `src/data/backend/metadata-search-sql.ts` own SQL-facing filter assembly and metadata predicate SQL construction
 - `src/data/metadata-row-projection.ts` owns metadata row selection and hydration mapping for normalized records
 - `src/search/request-compilation.ts` owns the lowering from `SearchRequest` into search-execution filters
 - `src/tags/runtime.ts`, `src/tags/editorial.ts`, and `src/tags/editorial-ui.ts` are the approved non-tag tag facades

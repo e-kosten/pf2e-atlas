@@ -1,6 +1,5 @@
 import { buildLiteralQueryWeights, buildSearchQueryAnalysis } from "./query-analysis.js";
 import { recordMatchesFilters } from "./filters/scope.js";
-import { semanticQueryLimit } from "./sql.js";
 import {
   buildLexicalSignal,
   buildNormalizedRankScoreMap,
@@ -20,7 +19,6 @@ import type {
   SearchResult,
 } from "../domain/search-types.js";
 import type { NormalizedSearchFilters, RuntimeSearchDependencies, SearchExecutionFilters } from "./contracts.js";
-import { normalizeText } from "../shared/utils.js";
 import { clampLimit, clampOffset } from "./primitives.js";
 import { compareRecordsForSort, sortRecords } from "./runtime-search-sorting.js";
 import {
@@ -35,15 +33,6 @@ import type { SearchWindowSnapshot } from "./runtime-search-snapshot.js";
 import { traceAsync, traceSync } from "./trace.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;
-
-function buildFtsQuery(query: string): string | null {
-  const tokens = normalizeText(query).split(" ").filter(Boolean);
-  if (tokens.length === 0) {
-    return null;
-  }
-
-  return tokens.map((token) => `"${token}"*`).join(" OR ");
-}
 
 export function buildStructuredSearchSnapshot(
   normalizedFilters: NormalizedSearchFilters,
@@ -106,7 +95,7 @@ export async function buildSearchWindowSnapshot(
   const lexicalRetrievalRows = lexicalQuery
     ? deps.fetchLexicalRetrievalRows(
         normalizedFilters,
-        buildFtsQuery(lexicalQuery) ?? "",
+        lexicalQuery,
         Math.max(mode === "lexical" ? LOOKUP_LEXICAL_TOP_K : (hybridFusion?.config.lexicalTopK ?? 0), candidateCount),
       )
     : [];
@@ -117,10 +106,10 @@ export async function buildSearchWindowSnapshot(
   const semanticRetrievalRows =
     semanticVector && hybridFusion
       ? deps.fetchSemanticRetrievalRows(
-          normalizedFilters,
-          semanticVector,
-          semanticQueryLimit(hybridFusion.config.semanticTopK, normalizedFilters),
-        )
+        normalizedFilters,
+        semanticVector,
+        hybridFusion.config.semanticTopK,
+      )
       : [];
   const semanticRetrievedKeys = semanticRetrievalRows.map((row) => row.recordKey);
   const semanticRetrievalRanks = buildRankMap(semanticRetrievedKeys);

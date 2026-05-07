@@ -14,8 +14,6 @@ import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.j
 import type { MetricOperator, NumericMetricOperator } from "../domain/search-filter-operators.js";
 import type { SearchTraceSink } from "./trace.js";
 
-export type SqlValue = string | number | bigint | Uint8Array | Buffer | null;
-
 export type SearchExecutionScopeSubcategoryMatch =
   | { kind: "any" }
   | { kind: "eq"; value: SearchSubcategory }
@@ -77,11 +75,7 @@ export type SearchCandidate = {
   searchText?: string | null;
 };
 
-export type RuntimeSearchDependencies = {
-  embeddingProvider: EmbeddingProvider;
-  rankingConfig: RankingConfig;
-  rankingConfigStatus: SearchExplainResult["rankingConfig"];
-  trace?: SearchTraceSink;
+export type SearchRetrievalPort = {
   fetchCandidateCount: (filters: NormalizedSearchFilters, options?: { recordKeys?: string[] }) => number;
   fetchPagedCandidates: (
     filters: NormalizedSearchFilters,
@@ -89,7 +83,6 @@ export type RuntimeSearchDependencies = {
     offset: number,
     limit: number,
   ) => SearchCandidate[];
-  getAliases: (recordKey: string) => string[];
   fetchCandidates: (
     filters: NormalizedSearchFilters,
     includeSearchText?: boolean,
@@ -98,7 +91,7 @@ export type RuntimeSearchDependencies = {
   ) => SearchCandidate[];
   fetchLexicalRetrievalRows: (
     filters: NormalizedSearchFilters,
-    ftsQuery: string,
+    lexicalQuery: string,
     limit: number,
   ) => LexicalRetrievalRow[];
   fetchSemanticRetrievalRows: (
@@ -106,4 +99,12 @@ export type RuntimeSearchDependencies = {
     queryVector: Float32Array,
     limit: number,
   ) => SemanticRetrievalRow[];
+};
+
+export type RuntimeSearchDependencies = SearchRetrievalPort & {
+  embeddingProvider: EmbeddingProvider;
+  rankingConfig: RankingConfig;
+  rankingConfigStatus: SearchExplainResult["rankingConfig"];
+  trace?: SearchTraceSink;
+  getAliases: (recordKey: string) => string[];
 };
