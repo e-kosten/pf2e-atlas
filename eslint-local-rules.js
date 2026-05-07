@@ -95,7 +95,7 @@ const JSON_PARSE_ALLOWED_PATHS = [
   "src/data/metadata-glossary.ts",
   "src/data/references.ts",
   "src/data/sql-row-decoding.ts",
-  "src/data/indexer.ts",
+  "src/data/indexing/source-loading.ts",
   "src/data/rows.ts",
   "src/search/ranking-config.ts",
   "src/tags/editorial/sessions/session-store.ts",

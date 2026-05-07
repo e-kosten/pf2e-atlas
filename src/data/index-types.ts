@@ -178,6 +178,21 @@ export type BuildSourceEntry = {
   resolvedReferences: ResolvedBuildReference[];
 };
 
+export type IndexedBuildSourceEntry = BuildSourceEntry & {
+  record: NormalizedIndexRecord;
+};
+
+export type WritableIndexEntry = {
+  record: NormalizedIndexRecord;
+  raw: Record<string, unknown>;
+  actorData: ActorIndexData | null;
+  itemData: ItemIndexData | null;
+  spellData: SpellIndexData | null;
+  resolvedReferences: ResolvedBuildReference[];
+  aliasTexts: string[];
+  isSearchCanonical: boolean;
+};
+
 export type BuildIndexResult = {
   packs: PackInfo[];
   warnings: string[];
@@ -185,4 +200,14 @@ export type BuildIndexResult = {
   stageTimings: StageTiming[];
   reusedCanonicalEmbeddingCount: number;
   regeneratedCanonicalEmbeddingCount: number;
+};
+
+export type ReusableEmbeddingRow = {
+  semanticInputHash: string;
+  dimensions: number;
+  vectorBlob: Uint8Array;
+};
+
+export type ReusableEmbeddingLookup = {
+  get(recordKey: string): ReusableEmbeddingRow | null;
 };

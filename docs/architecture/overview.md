@@ -20,6 +20,7 @@ The shortest useful mental model is:
 - `src/tui/app-services.ts` is the terminal/editorial composition root
 - `src/app/` wires runtime and app-level facades together
 - `src/data/` owns index-backed catalog, search, and rule-graph access
+- `src/data/indexing/` owns the typed index rebuild pipeline and stage artifacts
 - `src/domain/search-request-types.ts` owns `SearchRequest`, the shared semantic search contract
 - `src/domain/metadata-field-catalog.ts`, `src/domain/metadata-field-types.ts`, `src/domain/search-filter-metadata.ts`, and `src/domain/search-request-types.ts` own the shared metadata filter vocabulary carried by `SearchRequest`
 - `src/search/` owns reusable ranked-search mechanics
@@ -158,6 +159,7 @@ Owns index-backed retrieval and normalized record access:
 - `Pf2eDataService` as the main backend facade
 - backend catalog, search, rule-graph, and generic reference-edge services in `src/data/backend/`
 - normalization, row decoding, indexing, and schema helpers
+- typed index rebuild stages under `src/data/indexing/`; `build-index.ts` owns the transaction and stage order, while focused stage modules own source loading, normalization, family assignment, reference resolution, canonicalization, record/search-text writing, embedding writing, and catalog writing
 
 This layer also owns its record/raw-value helper pathways such as normalization, nested-value extraction, and formatting helpers that were previously reachable through broader shared modules.
 

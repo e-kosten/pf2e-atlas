@@ -438,14 +438,16 @@ This is why normal startup is offline-only. The embedding provider must already 
 
 1. loads config
 2. calls `Pf2eDataService.rebuildIndex(...)`
-3. rebuilds the SQLite schema and indexed records
+3. rebuilds the SQLite schema and indexed records through the typed `src/data/indexing/` pipeline
 4. optionally reuses unchanged embeddings when `--reuse-embeddings` is enabled
 5. rewrites the ontology explorer cache
 6. writes the metadata glossary artifact
 
 That rebuild path is separate from MCP startup by design. The runtime expects prepared assets rather than mutating them during a request-serving process.
 
-The prepared SQLite index also owns static metric discovery facts. `src/data/indexer.ts` materializes `metric_key_catalog` and `metric_value_catalog` during index refresh from canonical `actor_metrics` and `item_metrics` rows. The key catalog stores metric field, category, exact subcategory plus category-wide `*` rows, namespace prefix, metric key, value type, catalog count, and numeric min/max summaries. The value catalog stores exact text and boolean value counts. Numeric metric values are summarized on the key catalog and are not expanded into value rows.
+The index rebuild pipeline is data-layer ownership. `src/data/indexing/build-index.ts` owns transaction lifetime and stage ordering; focused stage modules return typed artifacts for source loading, normalization, family assignment, reference resolution, canonicalization, record and search-text writing, embedding writing, and catalog writing. Stage modules should pass explicit artifact values forward instead of sharing hidden mutable cross-stage collections.
+
+The prepared SQLite index also owns static metric discovery facts. `src/data/indexing/catalog-writer.ts` materializes `metric_key_catalog` and `metric_value_catalog` during index refresh from canonical `actor_metrics` and `item_metrics` rows. The key catalog stores metric field, category, exact subcategory plus category-wide `*` rows, namespace prefix, metric key, value type, catalog count, and numeric min/max summaries. The value catalog stores exact text and boolean value counts. Numeric metric values are summarized on the key catalog and are not expanded into value rows.
 
 Runtime readers access those tables through `Pf2eDataService` and `src/data/backend/metric-catalog.ts`. App discovery code may use that facade for catalog-mode metric keys and values; TUI, server, and ontology builders must not read the SQLite catalog tables directly. Query-scoped matching counts still use live discovery so active search text and filters remain exact. Prepared catalog explorer domains are keyed by scope and requested target fields because catalog facts are static within a category or subcategory. Prepared matching explorer caches are split into a static applicability key for scope and target fields plus a live key for the full canonical request, so adjacent query states share the same static cache boundary while request-specific counts remain exact.
 

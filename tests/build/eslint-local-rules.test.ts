@@ -222,6 +222,12 @@ describe("eslint local architecture rules", () => {
     );
 
     await expectNoRuleMessages(
+      "src/data/indexing/source-loading.ts",
+      "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
+      "arch/no-direct-json-parse",
+    );
+
+    await expectNoRuleMessages(
       "src/tags/editorial/sessions/session-store.ts",
       "const parsed = JSON.parse(serialized);\nexport { parsed };\n",
       "arch/no-direct-json-parse",
