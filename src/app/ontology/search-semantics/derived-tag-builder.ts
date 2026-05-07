@@ -6,7 +6,7 @@ import type { SearchSemanticsDiscoveryReader } from "../../search-discovery/serv
 import { normalizeText } from "../../../shared/utils.js";
 import { buildFilterText, buildKeyValueDetailLines } from "../node-helpers.js";
 import { formatDerivedTagFamilyScopeLabel, getDerivedTagLabels, type DerivedTagLabels } from "./labels.js";
-import { buildSearchSemanticsMetadataQuery } from "./query-builders.js";
+import { buildDerivedTagQuery } from "./query-builders.js";
 
 type DerivedTagVisibilityMode = "nonzeroOnly" | "allAuthored";
 
@@ -36,22 +36,6 @@ export function readDerivedTagCountsByScope(
       })
       .map((entry) => [String(entry.value), entry.count]),
   );
-}
-
-function buildDerivedTagQuery(
-  category: SearchCategory,
-  subcategory: SearchSubcategory | null,
-  tag: string,
-  label: string,
-): OntologyNode["query"] {
-  return buildSearchSemanticsMetadataQuery(category, subcategory, label, {
-    kind: "metadataPredicate",
-    predicate: {
-      field: "derivedTags",
-      op: "includes",
-      value: tag,
-    },
-  });
 }
 
 function isDerivedTagFamilyInScope(

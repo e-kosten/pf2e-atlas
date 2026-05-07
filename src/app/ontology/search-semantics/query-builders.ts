@@ -65,6 +65,71 @@ export function buildValueScopedQuery(
   };
 }
 
+export function buildDerivedTagQuery(
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  tag: string,
+  label: string,
+): NonNullable<OntologyNode["query"]> {
+  return buildSearchSemanticsMetadataQuery(category, subcategory, label, {
+    kind: "metadataPredicate",
+    predicate: {
+      field: "derivedTags",
+      op: "includes",
+      value: tag,
+    },
+  });
+}
+
+export function buildPackValueQuery(
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  label: string,
+  packValue: string,
+  matchingRequest: Readonly<SearchRequest> | undefined,
+): NonNullable<OntologyNode["query"]> {
+  return buildValueScopedQuery(
+    category,
+    subcategory,
+    label,
+    {
+      kind: "pack",
+      value: packValue,
+    },
+    matchingRequest,
+  );
+}
+
+export function buildFieldValueQuery(
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  fieldSemantics: Pick<MetadataFieldSemantics, "field" | "fieldType">,
+  value: string,
+  label: string,
+  matchingRequest: Readonly<SearchRequest> | undefined,
+): NonNullable<OntologyNode["query"]> | undefined {
+  const valueFilter = buildMetadataValueQuery(fieldSemantics, value);
+  return valueFilter ? buildValueScopedQuery(category, subcategory, label, valueFilter, matchingRequest) : undefined;
+}
+
+export function buildMetricValueQuery(
+  category: SearchCategory,
+  subcategory: SearchSubcategory | null,
+  metricKey: string,
+  valueType: "text" | "boolean",
+  value: string,
+  label: string,
+  matchingRequest: Readonly<SearchRequest> | undefined,
+): NonNullable<OntologyNode["query"]> {
+  return buildValueScopedQuery(
+    category,
+    subcategory,
+    label,
+    buildMetricScalarMetadataQuery(metricKey, valueType, value),
+    matchingRequest,
+  );
+}
+
 export function buildMetricInspectQuery(
   category: SearchCategory,
   subcategory: SearchSubcategory | null,
@@ -155,8 +220,7 @@ export function buildMetadataValueQuery(
   }
 }
 
-export function buildMetricScalarMetadataQuery(
-  _field: "actorMetric" | "itemMetric",
+function buildMetricScalarMetadataQuery(
   metric: string,
   valueType: "text" | "boolean",
   value: string,

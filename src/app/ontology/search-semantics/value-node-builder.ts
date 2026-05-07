@@ -4,7 +4,7 @@ import type { OntologyNode } from "../../../domain/ontology-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import { buildFilterText, buildKeyValueDetailLines, titleCaseLabel } from "../node-helpers.js";
 import { formatSearchSemanticsMetricLabel } from "./labels.js";
-import { buildMetadataValueQuery, buildMetricScalarMetadataQuery, buildValueScopedQuery } from "./query-builders.js";
+import { buildFieldValueQuery, buildMetricValueQuery, buildPackValueQuery } from "./query-builders.js";
 import { buildQueryRecordChildSource } from "./record-child-sources.js";
 import type { SearchSemanticsRecordsDataService, ValueNodeQueryOptions } from "./types.js";
 
@@ -53,18 +53,16 @@ export function buildFieldValueNodes(
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   const countLabel = options.countLabel ?? "Live canonical records";
   return values.map((entry): OntologyNode => {
-    const metadata = buildMetadataValueQuery(fieldSemantics, entry.value);
     const traitGlossaryEntry =
       fieldSemantics.field === "traits" ? getTraitGlossaryEntry(metadataGlossary, entry.value) : undefined;
-    const query = metadata
-      ? buildValueScopedQuery(
-          category,
-          subcategory,
-          fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
-          metadata,
-          options.matchingRequest,
-        )
-      : undefined;
+    const query = buildFieldValueQuery(
+      category,
+      subcategory,
+      fieldSemantics,
+      entry.value,
+      fieldSemantics.field === "traits" ? "Browse records with this trait" : "Browse records with this value",
+      options.matchingRequest,
+    );
     return {
       id: `${idPrefix}:${fieldSemantics.field}:${entry.value}`,
       kind: "value",
@@ -114,14 +112,11 @@ export function buildPackValueNodes(
 
   return values.map((entry): OntologyNode => {
     const packLabel = getPackPresentationLabel(dataService, entry.value);
-    const query = buildValueScopedQuery(
+    const query = buildPackValueQuery(
       category,
       subcategory,
       `Browse records from ${packLabel}`,
-      {
-        kind: "pack",
-        value: entry.value,
-      },
+      entry.value,
       options.matchingRequest,
     );
 
@@ -163,17 +158,18 @@ export function buildMetricValueNodes(
     matchingRequest?: ValueNodeQueryOptions["matchingRequest"];
   },
 ): readonly OntologyNode[] {
-  const { category, subcategory, groupLabel, metricField, metadataField, metricKey, values, valueType } = options;
+  const { category, subcategory, groupLabel, metricField, metricKey, values, valueType } = options;
   const idPrefix = subcategory ? `${category}:${subcategory}` : category;
   const metricLabel = formatSearchSemanticsMetricLabel(metricKey);
   const countLabel = options.countLabel ?? "Live canonical records";
   return values.map((entry) => {
-    const metadata = buildMetricScalarMetadataQuery(metadataField, metricKey, valueType, entry.value);
-    const query = buildValueScopedQuery(
+    const query = buildMetricValueQuery(
       category,
       subcategory,
+      metricKey,
+      valueType,
+      entry.value,
       `Browse records where ${metricLabel} ${valueType === "boolean" ? "is" : "="} ${entry.value}`,
-      metadata,
       options.matchingRequest,
     );
     return {
