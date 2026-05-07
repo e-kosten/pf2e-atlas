@@ -64,6 +64,27 @@ describe("loadConfig", () => {
     }
   });
 
+  it("defaults the embedding cache beside an explicit index path", async () => {
+    const root = await createRepoFixture();
+    const launchRoot = await mkdtemp(path.join(os.tmpdir(), "pf2e-config-launch-"));
+    createdRoots.push(launchRoot);
+    const indexPath = path.join(root, ".cache", "pf2e-index.sqlite");
+    const originalCwd = process.cwd();
+
+    try {
+      process.chdir(launchRoot);
+      const config = await loadConfig([], {
+        PF2E_DATA_PATH: path.join(root, "vendor", "pf2e"),
+        PF2E_INDEX_PATH: indexPath,
+      });
+
+      expect(config.indexPath).toBe(indexPath);
+      expect(config.embeddings.cachePath).toBe(path.join(root, ".cache", "hf-models"));
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it("accepts explicit embedding configuration", async () => {
     const root = await createRepoFixture();
     const config = await loadConfig(

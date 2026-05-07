@@ -110,7 +110,7 @@ The SQLite index path defaults to `.cache/pf2e-index.sqlite` under the current w
 - `PF2E_INDEX_PATH`
 - `--index-path /path/to/index.sqlite`
 
-The embedding cache path defaults to `.cache/hf-models`. You can override it with:
+The embedding cache path defaults to `hf-models` beside the configured SQLite index path. You can override it with:
 
 - `PF2E_EMBEDDING_CACHE_PATH`
 - `--embedding-cache-path /path/to/hf-models`
