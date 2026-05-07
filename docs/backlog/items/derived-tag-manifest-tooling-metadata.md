@@ -78,8 +78,8 @@ So this idea should only land if it has a real consumer, not just because the br
 
 This idea is explicitly subordinate to the longer-term derived-tag future-state planning captured in:
 
-- [Derived Tag Canonical Concept Model](../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Canonical Concept Model](../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)
 
 Those planning artifacts may change which registry metadata is actually useful and where it should live.
 
@@ -96,5 +96,5 @@ This note preserves the one interesting leftover idea from the retired clean bra
 
 - [Derived-tag assignments layout](./derived-tag-assignments-layout.md)
 - [Tagging tooling reorganization](./tagging-tooling-reorg.md)
-- [Derived Tag Canonical Concept Model](../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Canonical Concept Model](../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)

@@ -162,5 +162,5 @@ The broader ontology work already resolved the following nearby issues, so they 
 ## Related
 
 - [Derived-tag ontology future shape](./derived-tag-ontology-future-shape.md)
-- [Derived Tag Canonical Concept Model](../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Canonical Concept Model](../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)

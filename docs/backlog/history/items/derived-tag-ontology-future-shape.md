@@ -63,10 +63,10 @@ Key semantic principles:
 
 The active scratch artifacts for this work are:
 
-- [Derived Tag Canonical Concept Model](../../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping CSV](../../../../scratch/plans/derived-tag-concept-mapping.csv)
-- [Derived Tag Concept Mapping Summary](../../../../scratch/plans/derived-tag-concept-mapping-summary.md)
-- [Derived Tag Concept Mapping Generator](../../../../scratch/scripts/generate-derived-tag-concept-mapping.mjs)
+- [Derived Tag Canonical Concept Model](../../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping CSV](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping.csv)
+- [Derived Tag Concept Mapping Summary](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Concept Mapping Generator](../../../../scratch/derived-tag-ontology/generate-derived-tag-concept-mapping.mjs)
 
 Those files are the live working plans. This backlog item is the durable reminder of what that work is for and where the ontology stands.
 
@@ -137,5 +137,5 @@ When this backlog item is picked up for implementation rather than continued ont
 - [Derived-tag assignments layout](../../items/derived-tag-assignments-layout.md)
 - [Derived tag manifest tooling metadata](../../items/derived-tag-manifest-tooling-metadata.md)
 - [Tagging tooling reorganization](../../items/tagging-tooling-reorg.md)
-- [Derived Tag Canonical Concept Model](../../../../scratch/plans/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../../scratch/plans/derived-tag-concept-mapping-summary.md)
+- [Derived Tag Canonical Concept Model](../../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)
