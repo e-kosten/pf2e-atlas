@@ -1,13 +1,29 @@
+import { EventEmitter } from "node:events";
+import type { FSWatcher } from "node:fs";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_RANKING_CONFIG, mergeRankingConfig, RankingConfigStore } from "../../src/search/ranking-config.js";
 
+const watchMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:fs", async (importActual) => {
+  const actual = await importActual<typeof import("node:fs")>();
+  return {
+    ...actual,
+    watch: watchMock,
+  };
+});
+
 describe("ranking config", () => {
   const createdRoots: string[] = [];
+
+  beforeEach(() => {
+    watchMock.mockReset();
+  });
 
   afterEach(async () => {
     await Promise.all(
@@ -56,5 +72,30 @@ describe("ranking config", () => {
     expect(store.getStatus().source).toBe("default");
     expect(store.getStatus().lastError).toMatch(/Failed to load ranking config/);
     store.close();
+  });
+
+  it("records watcher errors and keeps the loaded config usable", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pf2e-ranking-config-test-"));
+    createdRoots.push(root);
+    await mkdir(path.join(root, "config"), { recursive: true });
+    const configPath = path.join(root, "config", "ranking.json");
+
+    const watcher = new EventEmitter() as FSWatcher & { close: ReturnType<typeof vi.fn> };
+    watcher.close = vi.fn();
+    watchMock.mockReturnValue(watcher);
+
+    const store = await RankingConfigStore.create(configPath);
+    const emittedError = Object.assign(new Error("too many open files, watch"), { code: "EMFILE" });
+
+    watcher.emit("error", emittedError);
+
+    expect(store.getConfig()).toEqual(DEFAULT_RANKING_CONFIG);
+    expect(store.getStatus().lastError).toMatch(/Ranking config watcher disabled/);
+    expect(store.getStatus().lastError).toContain("EMFILE");
+    expect(store.warnings).toContain(store.getStatus().lastError);
+    expect(watcher.close).toHaveBeenCalledTimes(1);
+
+    store.close();
+    expect(watcher.close).toHaveBeenCalledTimes(1);
   });
 });

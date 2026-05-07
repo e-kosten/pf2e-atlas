@@ -1,4 +1,5 @@
-import { watch, FSWatcher } from "node:fs";
+import { watch } from "node:fs";
+import type { FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -350,6 +351,9 @@ export class RankingConfigStore {
           void this.reload();
         }, 50);
       });
+      watcher.on("error", (error) => {
+        this.disableWatcher(watcher, directory, error);
+      });
       this.watchers.push(watcher);
     } catch (error) {
       const message = `Failed to watch ranking config directory ${directory}: ${(error as Error).message}`;
@@ -357,6 +361,21 @@ export class RankingConfigStore {
       this.currentStatus = { ...this.currentStatus, lastError: message };
       console.error(message);
     }
+  }
+
+  private disableWatcher(watcher: FSWatcher, directory: string, error: Error): void {
+    const emittedError = error as NodeJS.ErrnoException;
+    const codePrefix = emittedError.code ? `${emittedError.code}: ` : "";
+    const message = `Ranking config watcher disabled for ${directory}: ${codePrefix}${emittedError.message}`;
+    this.warnings.push(message);
+    this.currentStatus = { ...this.currentStatus, lastError: message };
+    console.error(message);
+
+    const watcherIndex = this.watchers.indexOf(watcher);
+    if (watcherIndex >= 0) {
+      this.watchers.splice(watcherIndex, 1);
+    }
+    watcher.close();
   }
 
   private static async loadFromDisk(
