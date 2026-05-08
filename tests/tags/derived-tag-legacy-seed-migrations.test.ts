@@ -4,6 +4,7 @@ import type {
   DerivedTagLegacySeedMigrationCategory,
   DerivedTagOntologyFamily,
   DerivedTagOntologyTag,
+  PublishedDerivedTagConceptModel,
 } from "../../src/domain/derived-tag-types.js";
 import { buildDerivedTagExplicitAssignmentIndex } from "../../src/tags/runtime/derivation/assignments.js";
 import {
@@ -40,7 +41,36 @@ const tags: DerivedTagOntologyTag[] = [
   },
 ];
 
-const ontology = publishDerivedTagOntology(families, tags);
+function buildTestConceptModel(tags: DerivedTagOntologyTag[]): PublishedDerivedTagConceptModel {
+  const concepts = tags.map((tag) => ({
+    id: `${tag.category}:${tag.tag}`,
+    label: tag.tag,
+    schemaKind: "descriptive" as const,
+  }));
+  const projections = tags.map((tag) => ({
+    id: `${tag.category}:${tag.tag}`,
+    conceptId: `${tag.category}:${tag.tag}`,
+    category: tag.category,
+    axis: "utility" as const,
+    family: tag.family,
+    currentTag: tag.tag,
+    description: tag.description,
+    assignmentMode: tag.assignmentMode,
+    translationStatus: "mapped" as const,
+  }));
+  return {
+    concepts,
+    conceptById: new Map(concepts.map((concept) => [concept.id, concept])),
+    projections,
+    projectionsById: new Map(projections.map((projection) => [projection.id, projection])),
+    projectionsByTagKey: new Map(projections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const)),
+    translations: [],
+    translationsByTagKey: new Map(),
+    relations: [],
+  };
+}
+
+const ontology = publishDerivedTagOntology(families, tags, buildTestConceptModel(tags));
 const seedLookup = buildDerivedTagSeedLookup([
   { recordKey: "equipment:mask", pack: "equipment-srd", name: "Mask" },
   { recordKey: "equipment:veil", pack: "equipment-srd", name: "Veil" },
@@ -130,15 +160,13 @@ describe("derived tag legacy seed migrations", () => {
           {
             name: "Mask",
             recordKey: "equipment:mask",
-            excluded: {
-              infiltration: [
-                {
-                  tag: "disguise",
-                  source: "human",
-                  rationale: "This record is being intentionally suppressed during review.",
-                },
-              ],
-            },
+            excluded: [
+              {
+                projectionId: "equipment:disguise",
+                source: "human",
+                rationale: "This record is being intentionally suppressed during review.",
+              },
+            ],
           },
         ],
       },

@@ -13,10 +13,12 @@ import {
 } from "../../manifest.js";
 import type {
   AuthoredDerivedTagAssignment,
+  DerivedTagAssignmentDecision,
   DerivedTagAssignmentMemoryCategory,
   DerivedTagAssignmentReviewCategory,
 } from "../../runtime/derivation/assignments.js";
 import { setCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type { DerivedTagAuthoredState } from "../types.js";
 
 type DerivedTagManagedRegistry<T> = Record<DerivedTagManagedCategory, T>;
@@ -93,15 +95,85 @@ function getCategoryExportPrefix(category: DerivedTagManagedCategory): string {
   return getDerivedTagCategoryManifestEntry(category).exportPrefix;
 }
 
+function getCategoryProjectionMapExportName(category: DerivedTagManagedCategory): string {
+  return `${getCategoryExportPrefix(category)}_DERIVED_TAG_CANONICAL_PROJECTIONS_BY_TAG`;
+}
+
+function renderAssignmentDecision(
+  category: DerivedTagManagedCategory,
+  decision: DerivedTagAssignmentDecision,
+  level: number,
+): string {
+  const ontology = getPublishedDerivedTagOntology();
+  const projection = ontology.conceptModel.projectionsById.get(decision.projectionId);
+  if (!projection) {
+    throw new Error(`Cannot render assignment decision for unknown projection "${decision.projectionId}".`);
+  }
+  if (projection.category !== category) {
+    throw new Error(
+      `Cannot render assignment decision for projection "${decision.projectionId}" into "${category}" assignments.`,
+    );
+  }
+
+  const projectionExpression = `${getCategoryProjectionMapExportName(category)}[${JSON.stringify(projection.currentTag)}].id`;
+  const lines = [
+    `${indent(level)}{`,
+    `${indent(level + 1)}projectionId: ${projectionExpression},`,
+    `${indent(level + 1)}source: ${JSON.stringify(decision.source)},`,
+    ...(decision.confidence ? [`${indent(level + 1)}confidence: ${JSON.stringify(decision.confidence)},`] : []),
+    `${indent(level + 1)}rationale: ${JSON.stringify(decision.rationale)},`,
+    `${indent(level)}}`,
+  ];
+  return lines.join("\n");
+}
+
+function renderAssignmentDecisionList(
+  category: DerivedTagManagedCategory,
+  decisions: DerivedTagAssignmentDecision[] | undefined,
+  level: number,
+): string | undefined {
+  if (!decisions || decisions.length === 0) {
+    return undefined;
+  }
+  const rendered = decisions
+    .map((decision) => renderAssignmentDecision(category, decision, level + 1))
+    .join(",\n");
+  return `[\n${rendered}\n${indent(level)}]`;
+}
+
 function renderAssignmentFile(
   category: DerivedTagManagedCategory,
   assignments: AuthoredDerivedTagAssignment[],
 ): string {
   const exportName = `${getCategoryExportPrefix(category)}_DERIVED_TAG_ASSIGNMENTS`;
+  const projectionImportName = getCategoryProjectionMapExportName(category);
+  const renderedAssignments =
+    assignments.length === 0
+      ? "[]"
+      : `[\n${assignments
+          .map((assignment) => {
+            const lines = [
+              `${indent(1)}{`,
+              `${indent(2)}name: ${JSON.stringify(assignment.name)},`,
+              `${indent(2)}recordKey: ${JSON.stringify(assignment.recordKey)},`,
+            ];
+            const applied = renderAssignmentDecisionList(category, assignment.applied, 2);
+            if (applied) {
+              lines.push(`${indent(2)}applied: ${applied},`);
+            }
+            const excluded = renderAssignmentDecisionList(category, assignment.excluded, 2);
+            if (excluded) {
+              lines.push(`${indent(2)}excluded: ${excluded},`);
+            }
+            lines.push(`${indent(1)}}`);
+            return lines.join("\n");
+          })
+          .join(",\n")}\n]`;
   return [
     'import type { AuthoredDerivedTagAssignment } from "../runtime/derivation/assignments.js";',
+    `import { ${projectionImportName} } from "../canonical/projections/${category}.js";`,
     "",
-    `export const ${exportName}: AuthoredDerivedTagAssignment[] = ${renderTsValue(assignments)};`,
+    `export const ${exportName}: AuthoredDerivedTagAssignment[] = ${renderedAssignments};`,
     "",
   ].join("\n");
 }

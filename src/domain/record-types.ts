@@ -92,14 +92,6 @@ export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
 export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";
 export type DerivedTagOntologyCategory = "equipment" | "creature" | "hazard" | "affliction" | "spell";
-export type DerivedTagCompositeSelector =
-  | { kind: "tag"; tag: string }
-  | {
-      kind: "family";
-      family: string;
-      include?: "leaf_tags" | "all_tags";
-      excludeTags?: string[];
-    };
 export interface DerivedTagOntologyAxisByCategory {
   equipment: "legacy" | "utility" | "party_role" | "item_mechanical" | "effect";
   creature: "legacy" | "setting" | "encounter" | "npc_role" | "presentation" | "specialization";
@@ -118,23 +110,6 @@ export interface DerivedTagOntologyFamily<C extends DerivedTagOntologyCategory =
   axis: DerivedTagOntologyAxis<C>;
   description: string;
   variantInheritance?: boolean;
-}
-
-export interface DerivedTagAuthoredTag extends Omit<DerivedTagOntologyTag, "category" | "family"> {
-  compositeOfAny?: DerivedTagCompositeSelector[];
-}
-
-export interface DerivedTagAuthoredFamily<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
-  subcategories?: SearchSubcategory[];
-  axis: DerivedTagOntologyAxis<C>;
-  description: string;
-  variantInheritance?: boolean;
-  tags: DerivedTagAuthoredTag[];
-}
-
-export interface DerivedTagAuthoredCategoryOntology<C extends DerivedTagOntologyCategory = DerivedTagOntologyCategory> {
-  category: C;
-  families: Record<string, DerivedTagAuthoredFamily<C>>;
 }
 
 export interface DerivedTagOntologyTag {

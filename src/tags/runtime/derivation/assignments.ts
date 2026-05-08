@@ -1,10 +1,9 @@
-import type { DerivedTagOntologyTag, SearchCategory } from "../../../domain/derived-tag-types.js";
+import type { DerivedTagCategoryProjection, SearchCategory } from "../../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../../assignments/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
 import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../../reviews/assignment-memory/index.js";
 import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../../reviews/assignment-reviews/index.js";
-import { listLegacyDerivedTagFamilyAliases } from "../compat/family-compatibility.js";
 import { normalizeDerivedTag } from "../matcher/engine.js";
 import type { PublishedDerivedTagOntology } from "../publication/catalog.js";
 
@@ -17,7 +16,7 @@ export type DerivedTagReviewSource = "human" | "llm";
 export type DerivedTagAssignmentDecisionSource = "human" | "llm_auto" | "llm_reviewed";
 
 export type DerivedTagAssignmentDecision = {
-  tag: string;
+  projectionId: string;
   source: DerivedTagAssignmentDecisionSource;
   confidence?: DerivedTagReviewConfidence;
   rationale: string;
@@ -26,8 +25,8 @@ export type DerivedTagAssignmentDecision = {
 export type AuthoredDerivedTagAssignment = {
   name: string;
   recordKey: string;
-  applied?: Record<string, DerivedTagAssignmentDecision[]>;
-  excluded?: Record<string, DerivedTagAssignmentDecision[]>;
+  applied?: DerivedTagAssignmentDecision[];
+  excluded?: DerivedTagAssignmentDecision[];
 };
 
 export type DerivedTagAssignmentReviewDecision = {
@@ -108,218 +107,161 @@ const RAW_DERIVED_TAG_ASSIGNMENT_MEMORY: DerivedTagAssignmentMemoryGroup[] = [
   ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY[category]),
 ];
 
-function buildFamilyTagMap(tags: DerivedTagOntologyTag[]): Map<SearchCategory, Map<string, Set<string>>> {
-  const familiesByCategory = new Map<SearchCategory, Map<string, Set<string>>>();
+type NormalizedProjectionDecisionMap = Map<string, DerivedTagAssignmentDecision>;
 
-  for (const tag of tags) {
-    const categoryFamilies = familiesByCategory.get(tag.category) ?? new Map<string, Set<string>>();
-    const normalizedFamily = normalizeDerivedTag(tag.family);
-    const familyTags = categoryFamilies.get(normalizedFamily) ?? new Set<string>();
-    familyTags.add(normalizeDerivedTag(tag.tag));
-    categoryFamilies.set(normalizedFamily, familyTags);
-    familiesByCategory.set(tag.category, categoryFamilies);
-  }
-
-  for (const [category, categoryFamilies] of familiesByCategory.entries()) {
-    for (const { legacyFamily, targetFamilies } of listLegacyDerivedTagFamilyAliases(category)) {
-      const legacyTags = categoryFamilies.get(legacyFamily) ?? new Set<string>();
-      for (const targetFamily of targetFamilies) {
-        for (const tag of categoryFamilies.get(targetFamily) ?? []) {
-          legacyTags.add(tag);
-        }
-      }
-      categoryFamilies.set(legacyFamily, legacyTags);
-    }
-  }
-
-  return familiesByCategory;
-}
-
-function buildTagMap(tags: DerivedTagOntologyTag[]): Map<SearchCategory, Map<string, DerivedTagOntologyTag>> {
-  const tagsByCategory = new Map<SearchCategory, Map<string, DerivedTagOntologyTag>>();
-
-  for (const tag of tags) {
-    const categoryTags = tagsByCategory.get(tag.category) ?? new Map<string, DerivedTagOntologyTag>();
-    categoryTags.set(normalizeDerivedTag(tag.tag), tag);
-    tagsByCategory.set(tag.category, categoryTags);
-  }
-
-  return tagsByCategory;
-}
-
-type NormalizedFamilyDecisionMap = Map<string, Map<string, DerivedTagAssignmentDecision>>;
-
-function createEmptyFamilyDecisionMap(): NormalizedFamilyDecisionMap {
-  return new Map<string, Map<string, DerivedTagAssignmentDecision>>();
+function createEmptyProjectionDecisionMap(): NormalizedProjectionDecisionMap {
+  return new Map<string, DerivedTagAssignmentDecision>();
 }
 
 function normalizeAssignmentDecision(decision: DerivedTagAssignmentDecision): DerivedTagAssignmentDecision {
   return {
     ...decision,
-    tag: normalizeDerivedTag(decision.tag),
+    projectionId: decision.projectionId.trim(),
   };
 }
 
-function normalizeFamilyTagAssignments(
-  groupedDecisions: Record<string, DerivedTagAssignmentDecision[]> | undefined,
+function renderProjectionTag(projection: DerivedTagCategoryProjection): string {
+  return `${normalizeDerivedTag(projection.family)}.${normalizeDerivedTag(projection.currentTag)}`;
+}
+
+function validateProjectionReference(
+  fieldName: string,
   category: SearchCategory,
-  familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
-  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
+  recordKey: string,
+  projectionId: string,
+  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+): DerivedTagCategoryProjection {
+  const projection = projectionsById.get(projectionId);
+  if (!projection) {
+    throw new Error(
+      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" does not exist in category "${category}".`,
+    );
+  }
+  if (projection.category !== category) {
+    throw new Error(
+      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" belongs to category "${projection.category}", not "${category}".`,
+    );
+  }
+  if (projection.assignmentMode === "composite") {
+    throw new Error(
+      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" cannot target composite tag "${projection.currentTag}"; assign one of its child tags instead.`,
+    );
+  }
+  return projection;
+}
+
+function normalizeProjectionAssignments(
+  decisions: DerivedTagAssignmentDecision[] | undefined,
+  category: SearchCategory,
   fieldName: "applied" | "excluded",
   recordKey: string,
-): NormalizedFamilyDecisionMap {
-  const normalizedAssignments = createEmptyFamilyDecisionMap();
-  if (!groupedDecisions) {
+  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+): NormalizedProjectionDecisionMap {
+  const normalizedAssignments = createEmptyProjectionDecisionMap();
+  if (!decisions) {
     return normalizedAssignments;
   }
 
-  const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
-  const categoryTags = tagMap.get(category) ?? new Map<string, DerivedTagOntologyTag>();
-
-  for (const [rawFamily, rawDecisions] of Object.entries(groupedDecisions)) {
-    const normalizedFamily = normalizeDerivedTag(rawFamily);
-    const familyTags = categoryFamilies.get(normalizedFamily);
-    if (!familyTags) {
+  for (const rawDecision of decisions) {
+    const normalizedDecision = normalizeAssignmentDecision(rawDecision);
+    const projection = validateProjectionReference(
+      `assignment ${fieldName}`,
+      category,
+      recordKey,
+      normalizedDecision.projectionId,
+      projectionsById,
+    );
+    if (normalizedAssignments.has(normalizedDecision.projectionId)) {
       throw new Error(
-        `Derived tag assignment ${fieldName} family "${rawFamily}" for "${recordKey}" does not exist in category "${category}".`,
+        `Derived tag assignment ${fieldName} for "${recordKey}" repeats "${renderProjectionTag(projection)}".`,
       );
     }
-
-    const familyDecisions =
-      normalizedAssignments.get(normalizedFamily) ?? new Map<string, DerivedTagAssignmentDecision>();
-    for (const rawDecision of rawDecisions) {
-      const normalizedDecision = normalizeAssignmentDecision(rawDecision);
-      if (!familyTags.has(normalizedDecision.tag)) {
-        throw new Error(
-          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" does not belong to family "${rawFamily}" in category "${category}".`,
-        );
-      }
-      const ontologyTag = categoryTags.get(normalizedDecision.tag);
-      if (!ontologyTag) {
-        throw new Error(
-          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" does not exist in category "${category}".`,
-        );
-      }
-      if (ontologyTag.assignmentMode === "composite") {
-        throw new Error(
-          `Derived tag assignment ${fieldName} tag "${rawDecision.tag}" for "${recordKey}" cannot target composite tag "${ontologyTag.tag}"; assign one of its child tags instead.`,
-        );
-      }
-      if (familyDecisions.has(normalizedDecision.tag)) {
-        throw new Error(
-          `Derived tag assignment ${fieldName} for "${recordKey}" repeats "${rawFamily}.${normalizedDecision.tag}".`,
-        );
-      }
-      familyDecisions.set(normalizedDecision.tag, normalizedDecision);
-    }
-    if (familyDecisions.size > 0) {
-      normalizedAssignments.set(normalizedFamily, familyDecisions);
-    }
+    normalizedAssignments.set(normalizedDecision.projectionId, normalizedDecision);
   }
 
   return normalizedAssignments;
 }
 
-function flattenNormalizedAssignments(assignments: NormalizedFamilyDecisionMap): string[] {
+function flattenNormalizedAssignments(
+  assignments: NormalizedProjectionDecisionMap,
+  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+): string[] {
   const flattenedTags = new Set<string>();
-  for (const familyDecisions of assignments.values()) {
-    for (const tag of familyDecisions.keys()) {
-      flattenedTags.add(tag);
+  for (const projectionId of assignments.keys()) {
+    const projection = projectionsById.get(projectionId);
+    if (!projection) {
+      throw new Error(`Missing projection "${projectionId}" while flattening explicit derived tag assignments.`);
     }
+    flattenedTags.add(normalizeDerivedTag(projection.currentTag));
   }
 
   return uniqueSorted([...flattenedTags]);
 }
 
-function hasNormalizedDecision(assignments: NormalizedFamilyDecisionMap, family: string, tag: string): boolean {
-  return assignments.get(family)?.has(tag) ?? false;
-}
-
-function renderQualifiedTag(family: string, tag: string): string {
-  return `${family}.${tag}`;
-}
-
 function normalizeAssignment(
   assignment: AuthoredDerivedTagAssignment,
   category: SearchCategory,
-  familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
-  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
+  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
 ): {
-  includeByFamily: NormalizedFamilyDecisionMap;
-  excludeByFamily: NormalizedFamilyDecisionMap;
+  includeDecisions: NormalizedProjectionDecisionMap;
+  excludeDecisions: NormalizedProjectionDecisionMap;
 } {
-  const includeByFamily = normalizeFamilyTagAssignments(
+  const includeDecisions = normalizeProjectionAssignments(
     assignment.applied,
     category,
-    familyTagMap,
-    tagMap,
     "applied",
     assignment.recordKey,
+    projectionsById,
   );
-  const excludeByFamily = normalizeFamilyTagAssignments(
+  const excludeDecisions = normalizeProjectionAssignments(
     assignment.excluded,
     category,
-    familyTagMap,
-    tagMap,
     "excluded",
     assignment.recordKey,
+    projectionsById,
   );
 
-  for (const family of uniqueSorted([...includeByFamily.keys()])) {
-    const includedTags = includeByFamily.get(family);
-    if (!includedTags) {
-      continue;
-    }
-
-    for (const tag of uniqueSorted([...includedTags.keys()])) {
-      if (hasNormalizedDecision(excludeByFamily, family, tag)) {
-        throw new Error(
-          `Derived tag assignment for "${assignment.recordKey}" places "${renderQualifiedTag(family, tag)}" in both applied and excluded.`,
-        );
-      }
+  for (const projectionId of uniqueSorted([...includeDecisions.keys()])) {
+    if (excludeDecisions.has(projectionId)) {
+      const projection = projectionsById.get(projectionId);
+      const renderedTarget = projection ? renderProjectionTag(projection) : projectionId;
+      throw new Error(
+        `Derived tag assignment for "${assignment.recordKey}" places "${renderedTarget}" in both applied and excluded.`,
+      );
     }
   }
 
-  if (includeByFamily.size === 0 && excludeByFamily.size === 0) {
+  if (includeDecisions.size === 0 && excludeDecisions.size === 0) {
     throw new Error(
       `Derived tag assignment for "${assignment.recordKey}" must include at least one applied or excluded tag.`,
     );
   }
 
   return {
-    includeByFamily,
-    excludeByFamily,
+    includeDecisions,
+    excludeDecisions,
   };
 }
 
-function validateFamilyTagReference(
+function validateReviewTagReference(
   fieldName: string,
-  category: SearchCategory,
-  familyTagMap: Map<SearchCategory, Map<string, Set<string>>>,
-  tagMap: Map<SearchCategory, Map<string, DerivedTagOntologyTag>>,
   recordKey: string,
+  category: SearchCategory,
   family: string,
   tag: string,
-): { family: string; tag: string } {
+  ontology: PublishedDerivedTagOntology,
+): { family: string; tag: string; projection: DerivedTagCategoryProjection } {
   const normalizedFamily = normalizeDerivedTag(family);
   const normalizedTag = normalizeDerivedTag(tag);
-  const categoryFamilies = familyTagMap.get(category) ?? new Map<string, Set<string>>();
-  const familyTags = categoryFamilies.get(normalizedFamily);
-  const ontologyTag = tagMap.get(category)?.get(normalizedTag);
-
-  if (!familyTags) {
-    throw new Error(
-      `Derived tag ${fieldName} family "${family}" for "${recordKey}" does not exist in category "${category}".`,
-    );
-  }
-  if (!familyTags.has(normalizedTag)) {
-    throw new Error(
-      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not belong to family "${family}" in category "${category}".`,
-    );
-  }
+  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}`);
   if (!ontologyTag) {
     throw new Error(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not exist in category "${category}".`,
+    );
+  }
+  if (normalizeDerivedTag(ontologyTag.family) !== normalizedFamily) {
+    throw new Error(
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not belong to family "${family}" in category "${category}".`,
     );
   }
   if (ontologyTag.assignmentMode === "composite") {
@@ -327,8 +269,13 @@ function validateFamilyTagReference(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" cannot target composite tag "${ontologyTag.tag}"; assign one of its child tags instead.`,
     );
   }
-
-  return { family: normalizedFamily, tag: normalizedTag };
+  const projection = ontology.conceptModel.projectionsByTagKey.get(`${category}:${normalizedTag}`);
+  if (!projection) {
+    throw new Error(
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" is missing a canonical projection in category "${category}".`,
+    );
+  }
+  return { family: normalizedFamily, tag: normalizedTag, projection };
 }
 
 function reviewIdentity(
@@ -357,21 +304,18 @@ export function buildDerivedTagPendingAssignmentViews(
   ontology: PublishedDerivedTagOntology,
   groups: DerivedTagAssignmentReviewGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS,
 ): DerivedTagPendingAssignmentView[] {
-  const familyTagMap = buildFamilyTagMap(ontology.tags);
-  const tagMap = buildTagMap(ontology.tags);
   const seenDecisionKeys = new Set<string>();
   const pendingByRecord = new Map<string, DerivedTagPendingAssignmentView>();
 
   for (const group of groups) {
     for (const decision of group.decisions) {
-      const validated = validateFamilyTagReference(
+      const validated = validateReviewTagReference(
         "assignment review",
-        group.category,
-        familyTagMap,
-        tagMap,
         decision.recordKey,
+        group.category,
         decision.family,
         decision.tag,
+        ontology,
       );
       const key = reviewIdentity(decision);
       if (seenDecisionKeys.has(key)) {
@@ -416,20 +360,17 @@ export function validateDerivedTagAssignmentMemory(
   ontology: PublishedDerivedTagOntology,
   groups: DerivedTagAssignmentMemoryGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_MEMORY,
 ): void {
-  const familyTagMap = buildFamilyTagMap(ontology.tags);
-  const tagMap = buildTagMap(ontology.tags);
   const seenDecisionKeys = new Set<string>();
 
   for (const group of groups) {
     for (const decision of group.decisions) {
-      validateFamilyTagReference(
+      validateReviewTagReference(
         "assignment memory",
-        group.category,
-        familyTagMap,
-        tagMap,
         decision.recordKey,
+        group.category,
         decision.family,
         decision.tag,
+        ontology,
       );
       const key = memoryIdentity(decision);
       if (seenDecisionKeys.has(key)) {
@@ -446,8 +387,7 @@ export function buildDerivedTagExplicitAssignmentIndex(
   ontology: PublishedDerivedTagOntology,
   groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
 ): DerivedTagExplicitAssignmentIndex {
-  const familyTagMap = buildFamilyTagMap(ontology.tags);
-  const tagMap = buildTagMap(ontology.tags);
+  const projectionsById = ontology.conceptModel.projectionsById;
   const assignmentsByRecordKey = new Map<string, DerivedTagExplicitAssignment>();
 
   for (const group of groups) {
@@ -456,13 +396,13 @@ export function buildDerivedTagExplicitAssignmentIndex(
         throw new Error(`Duplicate explicit derived tag assignment for "${assignment.recordKey}".`);
       }
 
-      const normalizedAssignment = normalizeAssignment(assignment, group.category, familyTagMap, tagMap);
+      const normalizedAssignment = normalizeAssignment(assignment, group.category, projectionsById);
 
       assignmentsByRecordKey.set(assignment.recordKey, {
         category: group.category,
         name: assignment.name,
-        includeTags: flattenNormalizedAssignments(normalizedAssignment.includeByFamily),
-        excludeTags: flattenNormalizedAssignments(normalizedAssignment.excludeByFamily),
+        includeTags: flattenNormalizedAssignments(normalizedAssignment.includeDecisions, projectionsById),
+        excludeTags: flattenNormalizedAssignments(normalizedAssignment.excludeDecisions, projectionsById),
       });
     }
   }

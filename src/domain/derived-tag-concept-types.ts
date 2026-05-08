@@ -45,11 +45,13 @@ export type DerivedTagCanonicalConceptRelation = {
 };
 
 export type DerivedTagCategoryProjection = {
+  id: string;
   conceptId: string;
   category: SearchCategory;
   axis: DerivedTagOntologyAxis;
   family: string;
   currentTag: string;
+  label?: string;
   description: string;
   assignmentMode: DerivedTagAssignmentMode;
   subcategories?: SearchSubcategory[];
@@ -90,6 +92,7 @@ export type PublishedDerivedTagConceptModel = {
   concepts: DerivedTagCanonicalConcept[];
   conceptById: Map<string, DerivedTagCanonicalConcept>;
   projections: DerivedTagCategoryProjection[];
+  projectionsById: Map<string, DerivedTagCategoryProjection>;
   projectionsByTagKey: Map<`${string}:${string}`, DerivedTagCategoryProjection>;
   translations: DerivedTagTranslationRecord[];
   translationsByTagKey: Map<`${string}:${string}`, DerivedTagTranslationRecord>;

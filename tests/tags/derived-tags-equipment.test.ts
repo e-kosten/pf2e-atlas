@@ -12,7 +12,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "The drinker gains darkvision and a bonus to Perception for 1 hour.",
         traits: ["alchemical", "consumable", "elixir"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "senses_support", "buff_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["ally_support", "senses_support", "buff_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -22,7 +22,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "This restorative tonic helps recover from mental conditions and steady the emotions.",
         traits: ["alchemical", "consumable"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]));
+    ).toEqual(expect.arrayContaining(["condition_support", "mental_recovery"]));
 
     expect(
       deriveRecordTags({
@@ -33,7 +33,7 @@ describe("derived tag rules: equipment", () => {
           "This restorative tonic steadies the emotions, protects against fear effects, and helps recover from confusion.",
         traits: ["alchemical", "consumable"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_fear", "anti_confusion"]));
+    ).toEqual(expect.arrayContaining(["anti_fear", "anti_confusion"]));
 
     expect(
       deriveRecordTags({
@@ -43,7 +43,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "This bitter elixir can remove a curse or lift a curse from the drinker.",
         traits: ["consumable", "magical", "elixir"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "curse_removal"]));
+    ).toEqual(expect.arrayContaining(["curse_removal"]));
 
     expect(
       deriveRecordTags({
@@ -54,7 +54,7 @@ describe("derived tag rules: equipment", () => {
           "This cloudy remedy helps against petrification and can restore flesh from stone before the body fully locks.",
         traits: ["consumable", "magical", "elixir"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_petrification"]));
+    ).toEqual(expect.arrayContaining(["anti_petrification"]));
 
     expect(
       deriveRecordTags({
@@ -64,7 +64,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "This draught restores movement to paralyzed limbs and helps against paralysis.",
         traits: ["consumable", "magical", "potion"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_paralysis"]));
+    ).toEqual(expect.arrayContaining(["anti_paralysis"]));
 
     expect(
       deriveRecordTags({
@@ -74,7 +74,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "Spread over an injury, this salve helps stop bleeding and end persistent bleed damage.",
         traits: ["consumable", "alchemical"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_bleed"]));
+    ).toEqual(expect.arrayContaining(["anti_bleed"]));
 
     expect(
       deriveRecordTags({
@@ -84,7 +84,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "The drinker gains resistance to fire for 1 hour.",
         traits: ["alchemical", "consumable", "elixir"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["energy_resistance", "buff_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -104,7 +104,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "Drinking this thick, fortifying potion grants resistance 10 against cold damage for 1 hour.",
         traits: ["consumable", "magical", "potion"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["energy_resistance", "buff_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -115,7 +115,7 @@ describe("derived tag rules: equipment", () => {
           "This cloudy liquid helps protect against poisons. When you drink an antivenom potion, you can immediately attempt to end persistent poison damage.",
         traits: ["consumable", "magical", "potion"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_poison", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["anti_poison", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -136,7 +136,7 @@ describe("derived tag rules: equipment", () => {
           },
         ],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "escape_support", "buff_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["escape_support", "buff_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -146,7 +146,7 @@ describe("derived tag rules: equipment", () => {
         descriptionText: "Once activated, the mask sharpens odors, giving you imprecise scent with a 60-foot range.",
         traits: ["alchemical", "consumable"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "senses_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["senses_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -157,7 +157,7 @@ describe("derived tag rules: equipment", () => {
           "When you drink this cordial, you roll twice on your next Sense Direction check and take the better result as a fortune effect.",
         traits: ["consumable", "magical"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "fortune_support", "self_buff"]));
+    ).toEqual(expect.arrayContaining(["fortune_support", "self_buff"]));
 
     expect(
       deriveRecordTags({
@@ -1373,7 +1373,7 @@ describe("derived tag rules: equipment", () => {
           "An antidote protects you against toxins. Upon drinking an antidote, you gain a +2 item bonus to Fortitude saving throws against poisons for 6 hours.",
         traits: ["alchemical", "consumable", "elixir", "healing"],
       }),
-    ).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    ).toEqual(expect.arrayContaining(["anti_poison"]));
     expect(
       deriveRecordTags({
         name: "Antidote (Lesser)",

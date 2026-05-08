@@ -363,6 +363,7 @@ export function buildVisibleDerivedTagOntology(ontology: PublishedDerivedTagOnto
     concepts: visibleConcepts,
     conceptById: new Map(visibleConcepts.map((concept) => [concept.id, concept])),
     projections: visibleProjections,
+    projectionsById: new Map(visibleProjections.map((projection) => [projection.id, projection])),
     projectionsByTagKey: new Map(
       visibleProjections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const),
     ),

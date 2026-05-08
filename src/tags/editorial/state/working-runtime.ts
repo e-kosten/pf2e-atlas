@@ -1,8 +1,13 @@
 import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../../legacy-rules/index.js";
 import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../../manifest.js";
-import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY } from "../../ontology/index.js";
+import { getDerivedTagCanonicalOntology } from "../../canonical/index.js";
 import { compileAuthoredDerivedTagRules } from "../../rules/index.js";
-import { buildProjectedDerivedTagOntologyPublication, buildPublishedDerivedTagConceptModel } from "../../translations/index.js";
+import {
+  buildPublishedDerivedTagTranslations,
+  buildPublishedDerivedTagTranslationsByKey,
+  translateLegacyDerivedTags,
+  translateLegacySeedMigrationCategories,
+} from "../../translations/index.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
   type AuthoredDerivedTagAssignment,
@@ -13,7 +18,6 @@ import {
   buildVisibleDerivedTagOntology,
   buildDerivedTagLegacySeedMigrationIndex,
   deriveCatalogTagDerivation,
-  publishDerivedTagOntology,
   type DerivedTagDerivation,
   type PublishedDerivedTagOntology,
 } from "../../runtime/publication/catalog.js";
@@ -34,6 +38,8 @@ type DerivedTagWorkingRuntime = {
   legacyRules: DerivedTagRule[];
   ontology: PublishedDerivedTagOntology;
   visibleOntology: PublishedDerivedTagOntology;
+  legacyTranslations: ReturnType<typeof buildPublishedDerivedTagTranslations>;
+  legacyTranslationsByKey: ReturnType<typeof buildPublishedDerivedTagTranslationsByKey>;
   legacySeedMigrations: ReturnType<typeof buildDerivedTagLegacySeedMigrationIndex>;
   explicitAssignments: ReturnType<typeof buildDerivedTagExplicitAssignmentIndex>;
 };
@@ -47,14 +53,10 @@ let workingRuntimeCache: {
 
 function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
   const state = getCurrentDerivedTagAuthoredState();
-  const conceptModel = buildPublishedDerivedTagConceptModel(DERIVED_TAG_ONTOLOGY_BY_CATEGORY);
-  const publishedOntology = buildProjectedDerivedTagOntologyPublication(DERIVED_TAG_ONTOLOGY_BY_CATEGORY, conceptModel);
-  const ontology = publishDerivedTagOntology(
-    publishedOntology.families,
-    publishedOntology.tags,
-    conceptModel,
-  );
+  const ontology = getDerivedTagCanonicalOntology();
   const visibleOntology = buildVisibleDerivedTagOntology(ontology);
+  const legacyTranslations = buildPublishedDerivedTagTranslations();
+  const legacyTranslationsByKey = buildPublishedDerivedTagTranslationsByKey();
   const authoredRules = compileAuthoredDerivedTagRules(
     ontology,
     DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => state.authoredRules[category]),
@@ -73,10 +75,14 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
   const legacySeedMigrations = buildDerivedTagLegacySeedMigrationIndex(
     ontology,
     DERIVED_TAG_SEED_LOOKUP,
-    DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => {
-      const migration = DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY[category];
-      return migration ? [migration] : [];
-    }),
+    translateLegacySeedMigrationCategories(
+      DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => {
+        const migration = DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY[category];
+        return migration ? [migration] : [];
+      }),
+      ontology,
+      legacyTranslationsByKey,
+    ),
   );
 
   return {
@@ -84,6 +90,8 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
     legacyRules,
     ontology,
     visibleOntology,
+    legacyTranslations,
+    legacyTranslationsByKey,
     legacySeedMigrations,
     explicitAssignments,
   };
@@ -116,7 +124,12 @@ export function deriveCurrentRecordTagDerivation(input: DerivedTagContext): Deri
     input,
     {
       authoredRuleTags: deriveRecordTagsFromRules(runtime.authoredRules, input),
-      legacyRuleTags: deriveRecordTagsFromRules(runtime.legacyRules, input),
+      legacyRuleTags: translateLegacyDerivedTags(
+        input.category,
+        deriveRecordTagsFromRules(runtime.legacyRules, input),
+        runtime.ontology,
+        runtime.legacyTranslationsByKey,
+      ),
     },
     runtime.explicitAssignments,
     runtime.legacySeedMigrations,

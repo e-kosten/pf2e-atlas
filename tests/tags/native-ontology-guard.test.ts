@@ -4,12 +4,6 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { DerivedTagOntologyTag, DerivedTagRule } from "../../src/domain/derived-tag-types.js";
-import { AFFLICTION_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/affliction.js";
-import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
-import { EQUIPMENT_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/equipment.js";
-import { HAZARD_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/hazard.js";
-import { SPELL_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/spell.js";
-import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import {
   AFFLICTION_LEGACY_DERIVED_TAG_RULES,
   CREATURE_LEGACY_DERIVED_TAG_RULES,
@@ -17,16 +11,11 @@ import {
   HAZARD_LEGACY_DERIVED_TAG_RULES,
   SPELL_LEGACY_DERIVED_TAG_RULES,
 } from "../../src/tags/legacy-rules/index.js";
+import { DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/runtime.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 
-const DERIVED_TAG_ONTOLOGY = [
-  ...flattenDerivedTagAuthoredCategoryOntology(EQUIPMENT_DERIVED_TAG_ONTOLOGY).tags,
-  ...flattenDerivedTagAuthoredCategoryOntology(SPELL_DERIVED_TAG_ONTOLOGY).tags,
-  ...flattenDerivedTagAuthoredCategoryOntology(HAZARD_DERIVED_TAG_ONTOLOGY).tags,
-  ...flattenDerivedTagAuthoredCategoryOntology(AFFLICTION_DERIVED_TAG_ONTOLOGY).tags,
-  ...flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY).tags,
-];
+const DERIVED_TAG_ONTOLOGY = DERIVED_TAG_ONTOLOGY_TAGS;
 
 const LEGACY_DERIVED_TAG_RULES = [
   ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,

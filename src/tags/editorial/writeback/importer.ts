@@ -20,6 +20,7 @@ import { expectDerivedTagManagedCategory } from "../../manifest.js";
 import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import { lintDerivedTagReviewSession } from "./linter.js";
 import { writeDerivedTagAuthoredState } from "./authored-state-writer.js";
 import type {
@@ -74,78 +75,81 @@ function mapAssignmentDecisionSource(
   return "human";
 }
 
-function toStoredAssignmentDecision(decision: DerivedTagReviewAssignmentDecision): DerivedTagAssignmentDecision {
+function resolveProjectionIdForAssignmentDecision(
+  category: SearchCategory,
+  recordKey: string,
+  decision: Pick<DerivedTagReviewAssignmentDecision, "family" | "tag">,
+): string {
+  const ontology = getPublishedDerivedTagOntology();
+  const normalizedTag = normalizeDerivedTag(decision.tag);
+  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}`);
+  if (!ontologyTag) {
+    throw new Error(
+      `Could not resolve assignment projection for "${recordKey}" because "${decision.tag}" is not in the published ontology.`,
+    );
+  }
+  if (normalizeDerivedTag(ontologyTag.family) !== normalizeDerivedTag(decision.family)) {
+    throw new Error(
+      `Could not resolve assignment projection for "${recordKey}" because "${decision.family}.${decision.tag}" uses the wrong family.`,
+    );
+  }
+  const projection = ontology.conceptModel.projectionsByTagKey.get(`${category}:${normalizedTag}`);
+  if (!projection) {
+    throw new Error(
+      `Could not resolve assignment projection for "${recordKey}" because "${category}:${normalizedTag}" has no canonical projection.`,
+    );
+  }
+  return projection.id;
+}
+
+function toStoredAssignmentDecision(
+  category: SearchCategory,
+  recordKey: string,
+  decision: DerivedTagReviewAssignmentDecision,
+): DerivedTagAssignmentDecision {
   return {
-    tag: normalizeDerivedTag(decision.tag),
+    projectionId: resolveProjectionIdForAssignmentDecision(category, recordKey, decision),
     source: mapAssignmentDecisionSource(decision),
     rationale: decision.rationale,
     ...(decision.confidence ? { confidence: decision.confidence } : {}),
   };
 }
 
-function removeAssignmentTag(
-  groupedAssignments: Record<string, DerivedTagAssignmentDecision[]> | undefined,
-  family: string,
-  tag: string,
-): Record<string, DerivedTagAssignmentDecision[]> | undefined {
-  if (!groupedAssignments) {
+function removeAssignmentDecision(
+  decisions: DerivedTagAssignmentDecision[] | undefined,
+  projectionId: string,
+): DerivedTagAssignmentDecision[] | undefined {
+  if (!decisions) {
     return undefined;
   }
 
-  const nextAssignments = Object.fromEntries(
-    Object.entries(groupedAssignments)
-      .map(([currentFamily, decisions]) => {
-        if (normalizeDerivedTag(currentFamily) !== family) {
-          return [currentFamily, decisions] as const;
-        }
-        const filtered = decisions.filter((entry) => normalizeDerivedTag(entry.tag) !== tag);
-        return [currentFamily, filtered] as const;
-      })
-      .filter(([, decisions]) => decisions.length > 0),
-  );
-
-  return Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined;
+  const filtered = decisions.filter((entry) => entry.projectionId.trim() !== projectionId);
+  return filtered.length > 0 ? filtered : undefined;
 }
 
-function upsertAssignmentTag(
-  groupedAssignments: Record<string, DerivedTagAssignmentDecision[]> | undefined,
-  family: string,
+function upsertAssignmentDecision(
+  decisions: DerivedTagAssignmentDecision[] | undefined,
   decision: DerivedTagAssignmentDecision,
-): Record<string, DerivedTagAssignmentDecision[]> {
-  const current = groupedAssignments?.[family] ?? [];
-  const filtered = current.filter((entry) => normalizeDerivedTag(entry.tag) !== normalizeDerivedTag(decision.tag));
-  const nextFamilyAssignments = [...filtered, decision].sort((left, right) =>
-    normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)),
-  );
-
-  return {
-    ...(groupedAssignments ?? {}),
-    [family]: nextFamilyAssignments,
-  };
+): DerivedTagAssignmentDecision[] {
+  const filtered = (decisions ?? []).filter((entry) => entry.projectionId.trim() !== decision.projectionId.trim());
+  return [...filtered, decision].sort((left, right) => left.projectionId.localeCompare(right.projectionId));
 }
 
-function sortGroupedAssignmentDecisions(
-  groupedAssignments: Record<string, DerivedTagAssignmentDecision[]> | undefined,
-): Record<string, DerivedTagAssignmentDecision[]> | undefined {
-  if (!groupedAssignments) {
+function sortAssignmentDecisions(
+  decisions: DerivedTagAssignmentDecision[] | undefined,
+): DerivedTagAssignmentDecision[] | undefined {
+  if (!decisions) {
     return undefined;
   }
 
-  return Object.fromEntries(
-    Object.entries(groupedAssignments)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([family, decisions]) => [
-        family,
-        decisions
-          .map((decision) => ({ ...decision, tag: normalizeDerivedTag(decision.tag) }))
-          .sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag))),
-      ]),
-  );
+  return decisions
+    .map((decision) => ({ ...decision, projectionId: decision.projectionId.trim() }))
+    .sort((left, right) => left.projectionId.localeCompare(right.projectionId));
 }
 
 function cleanAssignment(assignment: AuthoredDerivedTagAssignment): AuthoredDerivedTagAssignment | null {
-  assignment.applied = sortGroupedAssignmentDecisions(assignment.applied);
-  assignment.excluded = sortGroupedAssignmentDecisions(assignment.excluded);
+  assignment.applied = sortAssignmentDecisions(assignment.applied);
+  assignment.excluded = sortAssignmentDecisions(assignment.excluded);
   if (!assignment.applied && !assignment.excluded) {
     return null;
   }
@@ -154,20 +158,21 @@ function cleanAssignment(assignment: AuthoredDerivedTagAssignment): AuthoredDeri
 
 function applyLiveAssignmentDecision(
   assignment: AuthoredDerivedTagAssignment,
+  category: SearchCategory,
+  recordKey: string,
   decision: DerivedTagReviewAssignmentDecision,
 ): void {
-  const family = normalizeDerivedTag(decision.family);
-  const tag = normalizeDerivedTag(decision.tag);
-  const storedDecision = toStoredAssignmentDecision(decision);
+  const storedDecision = toStoredAssignmentDecision(category, recordKey, decision);
+  const projectionId = storedDecision.projectionId;
 
   if (decision.mode === "include") {
-    assignment.excluded = removeAssignmentTag(assignment.excluded, family, tag);
-    assignment.applied = upsertAssignmentTag(assignment.applied, family, storedDecision);
+    assignment.excluded = removeAssignmentDecision(assignment.excluded, projectionId);
+    assignment.applied = upsertAssignmentDecision(assignment.applied, storedDecision);
     return;
   }
 
-  assignment.applied = removeAssignmentTag(assignment.applied, family, tag);
-  assignment.excluded = upsertAssignmentTag(assignment.excluded, family, storedDecision);
+  assignment.applied = removeAssignmentDecision(assignment.applied, projectionId);
+  assignment.excluded = upsertAssignmentDecision(assignment.excluded, storedDecision);
 }
 
 function sortAssignments(assignments: AuthoredDerivedTagAssignment[]): AuthoredDerivedTagAssignment[] {
@@ -193,7 +198,7 @@ export function applyMigrationSessionToAssignments(
     }
     const assignment = ensureAssignment(nextAssignments, recordDecision);
     for (const decision of assignmentDecisions) {
-      applyLiveAssignmentDecision(assignment, decision);
+      applyLiveAssignmentDecision(assignment, recordDecision.category, recordDecision.recordKey, decision);
     }
   }
 

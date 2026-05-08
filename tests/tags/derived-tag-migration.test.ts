@@ -43,8 +43,17 @@ import {
   toggleDerivedTagReviewUnresolvedOnly,
   updateDerivedTagReviewDecisionStatus,
 } from "../../src/tags/editorial/sessions/review-session.js";
+import { getDerivedTagCanonicalOntology } from "../../src/tags/canonical/index.js";
 import { moveSelection } from "../../src/tui/terminal-ui.js";
 import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
+
+function projectionId(category: SearchCategory, tag: string): string {
+  const projection = getDerivedTagCanonicalOntology().conceptModel.projectionsByTagKey.get(`${category}:${tag}`);
+  if (!projection) {
+    throw new Error(`Missing canonical projection for ${category}:${tag} in test fixture.`);
+  }
+  return projection.id;
+}
 
 function createEntityRecord(
   overrides: Partial<OntologyExplorerEntityRecord> &
@@ -192,16 +201,14 @@ describe("derived tag migration tooling", () => {
       {
         name: "Watch Bell",
         recordKey: "equipment:bell",
-        applied: {
-          security: [
-            {
-              tag: "alarm",
-              source: "llm_reviewed",
-              confidence: "high",
-              rationale: "Confirmed by review.",
-            },
-          ],
-        },
+        applied: [
+          {
+            projectionId: projectionId("equipment", "alarm"),
+            source: "llm_reviewed",
+            confidence: "high",
+            rationale: "Confirmed by review.",
+          },
+        ],
       },
     ]);
     expect(applyMigrationSessionToAssignmentReviews(assignmentReviews, sessionDecisions)).toEqual({
@@ -253,16 +260,14 @@ describe("derived tag migration tooling", () => {
       {
         name: "Masquerade Mask",
         recordKey: "equipment:mask",
-        applied: {
-          infiltration: [
-            {
-              tag: "social_infiltration",
-              source: "llm_auto",
-              confidence: "high",
-              rationale: "High-confidence direct tagging call.",
-            },
-          ],
-        },
+        applied: [
+          {
+            projectionId: projectionId("equipment", "social_infiltration"),
+            source: "llm_auto",
+            confidence: "high",
+            rationale: "High-confidence direct tagging call.",
+          },
+        ],
       },
     ]);
   });
@@ -701,15 +706,13 @@ describe("derived tag migration tooling", () => {
         {
           name: "Plain Widget",
           recordKey: "equipment:plain-widget",
-          applied: {
-            infiltration: [
-              {
-                tag: "social_infiltration",
-                source: "human",
-                rationale: "Confirmed during migration review.",
-              },
-            ],
-          },
+          applied: [
+            {
+              projectionId: projectionId("equipment", "social_infiltration"),
+              source: "human",
+              rationale: "Confirmed during migration review.",
+            },
+          ],
         },
       ];
       nextState.assignmentReviews.equipment = {

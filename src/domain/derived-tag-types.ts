@@ -18,10 +18,7 @@ export type {
 } from "./derived-tag-rule-types.js";
 export type { OntologyTextLine } from "./ontology-types.js";
 export type {
-  DerivedTagAuthoredCategoryOntology,
-  DerivedTagAuthoredTag,
   DerivedTagCatalogEntry,
-  DerivedTagCompositeSelector,
   DerivedTagExemplarCategory,
   DerivedTagExemplarPolarity,
   DerivedTagExemplarRecord,

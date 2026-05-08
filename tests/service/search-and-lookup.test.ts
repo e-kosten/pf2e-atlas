@@ -84,18 +84,6 @@ function browseByDerivedTag(
   return browseByPredicate(category, { field: "derivedTags", op: "includes", value: tag }, subcategory, options);
 }
 
-function browseByAllDerivedTags(
-  category: SearchCategoryInput,
-  tags: string[],
-  subcategory?: string,
-) {
-  return browseByPredicates(
-    category,
-    tags.map((tag) => metadataPredicateFilter({ field: "derivedTags", op: "includes", value: tag })),
-    subcategory,
-  );
-}
-
 function browseWithoutDerivedTag(
   category: SearchCategoryInput,
   tag: string,
@@ -456,7 +444,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     ).toEqual(["Repeating Crossbow Magazine"]);
     expect(
       service
-        .listRecords(browseByAllDerivedTags("equipment", ["beneficial", "anti_disease"], "consumable"))
+        .listRecords(browseByDerivedTag("equipment", "anti_disease", "consumable"))
         .records.map((record) => record.name),
     ).toEqual(["Antiplague (Lesser)"]);
     expect(
@@ -966,21 +954,21 @@ describe("Pf2eDataService / Search and Lookup", () => {
     const protectCompanion = service.lookup("Protect Companion", { category: "spell" }).match;
     expect(protectCompanion?.derivedTags).toContain("eidolon_support");
     const antidote = service.lookup("Antidote (Lesser)", { category: "equipment" }).match;
-    expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["beneficial", "anti_poison"]));
+    expect(antidote?.derivedTags).toEqual(expect.arrayContaining(["anti_poison"]));
     expect(antidote?.derivedTags).not.toEqual(expect.arrayContaining(["offensive", "thrown_offense"]));
     const bottledCatharsis = service.lookup("Bottled Catharsis (Serenity)", { category: "equipment" }).match;
     expect(bottledCatharsis?.derivedTags).toEqual(
-      expect.arrayContaining(["beneficial", "condition_support", "mental_recovery"]),
+      expect.arrayContaining(["condition_support", "mental_recovery"]),
     );
     const coldResistancePotion = service.lookup("Potion of Cold Resistance (Moderate)", {
       category: "equipment",
     }).match;
     expect(coldResistancePotion?.derivedTags).toEqual(
-      expect.arrayContaining(["beneficial", "energy_resistance", "buff_support", "self_buff"]),
+      expect.arrayContaining(["energy_resistance", "buff_support", "self_buff"]),
     );
     const bloodhoundMask = service.lookup("Bloodhound Mask (Greater)", { category: "equipment" }).match;
     expect(bloodhoundMask?.derivedTags).toEqual(
-      expect.arrayContaining(["beneficial", "senses_support", "self_buff", "tracking"]),
+      expect.arrayContaining(["senses_support", "self_buff", "tracking"]),
     );
     expect(bloodhoundMask?.derivedTags).not.toContain("anti_tracking");
     const aromaConcealer = service.lookup("Aroma Concealer", { category: "equipment" }).match;
@@ -991,7 +979,7 @@ describe("Pf2eDataService / Search and Lookup", () => {
     expect(ichthyosisMutagen?.derivedTags).not.toContain("anti_tracking");
     const escapeFulu = service.lookup("Escape Fulu", { category: "equipment" }).match;
     expect(escapeFulu?.derivedTags).toEqual(
-      expect.arrayContaining(["beneficial", "escape_support", "buff_support", "self_buff"]),
+      expect.arrayContaining(["escape_support", "buff_support", "self_buff"]),
     );
     const travelersFulu = service.lookup("Traveler's Fulu", { category: "equipment" }).match;
     expect(travelersFulu?.derivedTags).toContain("navigation");
