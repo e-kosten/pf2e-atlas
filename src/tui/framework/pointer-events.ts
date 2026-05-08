@@ -28,6 +28,12 @@ export function parseDerivedTagTerminalPointerEvent(input: string): DerivedTagTe
   if (code === 0 && match[4] === "M") {
     return { kind: "click", x, y, button: "left" };
   }
+  if (code === 32 && match[4] === "M") {
+    return { kind: "drag", x, y, button: "left" };
+  }
+  if (code === 0 && match[4] === "m") {
+    return { kind: "release", x, y, button: "left" };
+  }
 
   return undefined;
 }

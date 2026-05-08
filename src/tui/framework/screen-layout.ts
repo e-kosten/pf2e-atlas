@@ -14,16 +14,32 @@ export function getTerminalPaneBodyHeight(
 export function getTerminalTwoPaneDimensions(
   sessionOrWidth: number | { width: number },
   preferredLeftWidth?: number,
+  options: { minLeftWidth?: number; minRightWidth?: number } = {},
 ): { leftWidth: number; rightWidth: number; separatorWidth: number } {
   const totalWidth = typeof sessionOrWidth === "number" ? sessionOrWidth : sessionOrWidth.width;
   const separatorWidth = 1;
-  const leftWidth = Math.max(
-    24,
-    Math.min(preferredLeftWidth ?? Math.floor(totalWidth * 0.38), totalWidth - separatorWidth - 20),
-  );
-  const rightWidth = Math.max(20, totalWidth - leftWidth - separatorWidth);
+  const minLeftWidth = options.minLeftWidth ?? 24;
+  const minRightWidth = options.minRightWidth ?? 20;
+  const leftWidth = clampTerminalTwoPaneLeftWidth(totalWidth, preferredLeftWidth ?? Math.floor(totalWidth * 0.38), {
+    minLeftWidth,
+    minRightWidth,
+  });
+  const rightWidth = Math.max(minRightWidth, totalWidth - leftWidth - separatorWidth);
 
   return { leftWidth, rightWidth, separatorWidth };
+}
+
+export function clampTerminalTwoPaneLeftWidth(
+  sessionOrWidth: number | { width: number },
+  preferredLeftWidth: number,
+  options: { minLeftWidth?: number; minRightWidth?: number } = {},
+): number {
+  const totalWidth = typeof sessionOrWidth === "number" ? sessionOrWidth : sessionOrWidth.width;
+  const separatorWidth = 1;
+  const minLeftWidth = options.minLeftWidth ?? 24;
+  const minRightWidth = options.minRightWidth ?? 20;
+  const maxLeftWidth = Math.max(minLeftWidth, totalWidth - separatorWidth - minRightWidth);
+  return Math.max(minLeftWidth, Math.min(preferredLeftWidth, maxLeftWidth));
 }
 
 export function getTerminalTwoPaneDetailWidth(

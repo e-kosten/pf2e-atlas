@@ -4,6 +4,7 @@ import { Box, Text } from "ink";
 import {
   useDerivedTagTerminalBackdropActive,
   useDerivedTagTerminalCapabilities,
+  useCaptureDerivedTagTerminalPointerEvents,
   useRegisterDerivedTagTerminalPointerRegion,
   useDerivedTagTerminalSize,
   useDerivedTagTerminalViewportSize,
@@ -14,13 +15,18 @@ import {
   getRenderedTerminalLineCount,
   renderRows,
 } from "./line-rendering.js";
-import { getTerminalThreePaneDimensions, getTerminalTwoPaneDimensions } from "./screen-layout.js";
+import {
+  clampTerminalTwoPaneLeftWidth,
+  getTerminalThreePaneDimensions,
+  getTerminalTwoPaneDimensions,
+} from "./screen-layout.js";
 import { terminalBackdropTextProps, terminalSurfaceProps, terminalToneProps } from "./theme.js";
 import type {
   DerivedTagTerminalInlinePromptPanelProps,
   DerivedTagTerminalLine,
   DerivedTagTerminalPane,
   DerivedTagTerminalPaneScreenProps,
+  DerivedTagTerminalPointerEvent,
   DerivedTagTerminalTextScreenProps,
   DerivedTagTerminalThreePaneScreenProps,
   DerivedTagTerminalTwoPaneScreenProps,
@@ -294,14 +300,76 @@ export function TerminalTwoPaneScreen({
   right,
   footer,
   leftWidth,
+  resize,
 }: DerivedTagTerminalTwoPaneScreenProps): React.JSX.Element {
   const backdropActive = useDerivedTagTerminalBackdropActive();
+  const capturePointerEvents = useCaptureDerivedTagTerminalPointerEvents();
   const size = useDerivedTagTerminalSize();
   const headerHeight = subtitle ? 3 : 2;
   const footerHeight = footer?.length ?? 0;
   const contentHeight = Math.max(0, size.height - headerHeight - footerHeight);
-  const dimensions = getTerminalTwoPaneDimensions(size.width, leftWidth);
+  const [internalLeftWidth, setInternalLeftWidth] = React.useState(leftWidth);
+  const releaseResizeCaptureRef = React.useRef<(() => void) | null>(null);
+  const preferredLeftWidth = resize?.onLeftWidthChange ? leftWidth : (internalLeftWidth ?? leftWidth);
+  const dimensions = getTerminalTwoPaneDimensions(size.width, preferredLeftWidth, {
+    minLeftWidth: resize?.minLeftWidth,
+    minRightWidth: resize?.minRightWidth,
+  });
   const separator = Array.from({ length: Math.max(1, contentHeight) }, () => "│").join("\n");
+  React.useEffect(() => {
+    if (!resize?.onLeftWidthChange) {
+      setInternalLeftWidth(leftWidth);
+    }
+  }, [leftWidth, resize?.onLeftWidthChange]);
+  const applyLeftWidth = React.useCallback(
+    (nextLeftWidth: number) => {
+      const clampedLeftWidth = clampTerminalTwoPaneLeftWidth(size.width, nextLeftWidth, {
+        minLeftWidth: resize?.minLeftWidth,
+        minRightWidth: resize?.minRightWidth,
+      });
+      if (resize?.onLeftWidthChange) {
+        resize.onLeftWidthChange(clampedLeftWidth);
+        return;
+      }
+      setInternalLeftWidth(clampedLeftWidth);
+    },
+    [resize, size.width],
+  );
+  const startResize = React.useCallback(
+    (event: DerivedTagTerminalPointerEvent) => {
+      if (event.kind !== "click") {
+        return false;
+      }
+      releaseResizeCaptureRef.current?.();
+      const startX = event.x;
+      const startLeftWidth = dimensions.leftWidth;
+      const releaseCapture = capturePointerEvents((capturedEvent) => {
+        if (capturedEvent.kind === "drag") {
+          applyLeftWidth(startLeftWidth + capturedEvent.x - startX);
+          return true;
+        }
+        if (capturedEvent.kind === "release") {
+          applyLeftWidth(startLeftWidth + capturedEvent.x - startX);
+          releaseResizeCaptureRef.current?.();
+          releaseResizeCaptureRef.current = null;
+          return true;
+        }
+        return true;
+      });
+      releaseResizeCaptureRef.current = releaseCapture;
+      return true;
+    },
+    [applyLeftWidth, capturePointerEvents, dimensions.leftWidth],
+  );
+
+  React.useEffect(
+    () => () => {
+      releaseResizeCaptureRef.current?.();
+      releaseResizeCaptureRef.current = null;
+    },
+    [],
+  );
+
   useTerminalPanePointerRegion({
     x: 0,
     y: headerHeight,
@@ -315,6 +383,16 @@ export function TerminalTwoPaneScreen({
     width: dimensions.rightWidth,
     height: contentHeight,
     pointerRegion: right.pointerRegion,
+  });
+  useRegisterDerivedTagTerminalPointerRegion({
+    rect: {
+      x: dimensions.leftWidth,
+      y: headerHeight,
+      width: dimensions.separatorWidth,
+      height: contentHeight,
+    },
+    priority: 100,
+    onPointerEvent: startResize,
   });
 
   return (

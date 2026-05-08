@@ -185,7 +185,7 @@ Pane-focus changes remain explicit actions. For qualifying list/detail callers, 
 
 The current qualifying page-document callers are the search result-reader preview, ontology record detail inside the shared filter explorer inspect/open page contexts, and the dedicated entity-page route screen. The derived-tag review screen still uses the shared presentation mechanics, but it does not fit this rightward behavior contract because its primary rightward interaction is an action-target flow rather than list-row confirm behavior.
 
-Shared pointer routing also lives at this layer boundary. Pane-level list/detail hosts should expose pointer regions for both panes so wheel or trackpad input follows the hovered pane, pane clicks can set focus explicitly, and overlays capture pointer input before background panes. Fine-grained in-pane target activation remains a separate concern from pane routing.
+Shared pointer routing also lives at this layer boundary. Pane-level list/detail hosts should expose pointer regions for both panes so wheel or trackpad input follows the hovered pane, pane clicks can set focus explicitly, and overlays capture pointer input before background panes. Two-pane separator resizing is a shared framework/list-detail behavior: hosts should feed the current left-pane width back into shared measurement instead of resizing only inside the rendered component. Fine-grained in-pane target activation remains a separate concern from pane routing and separator resizing.
 
 Use this layer when a screen is fundamentally a list/detail surface with shared pane, footer/help, and routing mechanics. Do not push unrelated staged-editor or domain workflow logic into it just to make a screen fit the abstraction.
 

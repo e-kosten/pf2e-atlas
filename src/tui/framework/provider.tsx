@@ -18,6 +18,7 @@ import { terminalSurfaceProps } from "./theme.js";
 import type {
   DerivedTagTerminalContextValue,
   DerivedTagTerminalHyperlinkSupport,
+  DerivedTagTerminalPointerCaptureHandler,
   DerivedTagTerminalPointerRegion,
   DerivedTagTerminalMultiSelectPromptResult,
   DerivedTagTerminalOptionalSelectPromptResult,
@@ -91,6 +92,7 @@ export function DerivedTagTerminalProvider({
   const overlayBackdropActive = modalLayout?.centeredPromptBackground === "overlay";
   const blankedPromptActive = isBlankedPromptPresentation(modalLayout?.centeredPromptBackground);
   const pointerRegionsRef = React.useRef<(DerivedTagTerminalPointerRegion & { order: number })[]>([]);
+  const pointerCaptureRef = React.useRef<DerivedTagTerminalPointerCaptureHandler | null>(null);
   const nextPointerRegionOrderRef = React.useRef(1);
   const availableRows =
     modalLayout?.centeredPromptBackground
@@ -273,14 +275,23 @@ export function DerivedTagTerminalProvider({
     };
   }, []);
 
+  const capturePointerEvents = React.useCallback((handler: DerivedTagTerminalPointerCaptureHandler): (() => void) => {
+    pointerCaptureRef.current = handler;
+    return () => {
+      if (pointerCaptureRef.current === handler) {
+        pointerCaptureRef.current = null;
+      }
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!stdout.isTTY || stdout !== process.stdout) {
       return undefined;
     }
 
-    stdout.write("\u001b[?1000h\u001b[?1006h");
+    stdout.write("\u001b[?1000h\u001b[?1002h\u001b[?1006h");
     return () => {
-      stdout.write("\u001b[?1000l\u001b[?1006l");
+      stdout.write("\u001b[?1002l\u001b[?1000l\u001b[?1006l");
     };
   }, [stdout]);
 
@@ -288,6 +299,13 @@ export function DerivedTagTerminalProvider({
     const pointerEvent = parseDerivedTagTerminalPointerEvent(input);
     if (!pointerEvent) {
       return;
+    }
+
+    const captured = pointerCaptureRef.current;
+    if (captured) {
+      if (captured(pointerEvent) !== false) {
+        return;
+      }
     }
 
     dispatchDerivedTagTerminalPointerEvent(pointerRegionsRef.current, pointerEvent);
@@ -344,13 +362,14 @@ export function DerivedTagTerminalProvider({
       runPromptSession,
       pauseForAnyKey: promptSession.pauseForAnyKey,
       registerPointerRegion,
+      capturePointerEvents,
       promptOptionalSelectOption: promptSession.promptOptionalSelectOption,
       promptMultiSelectOption: promptSession.promptMultiSelectOption,
       promptSelectOption: promptSession.promptSelectOption,
       promptTextInput: promptSession.promptTextInput,
       showDialog: promptSession.showDialog,
     }),
-    [capabilities, columns, exit, modal, promptSession, registerPointerRegion, rows, runPromptSession],
+    [capabilities, capturePointerEvents, columns, exit, modal, promptSession, registerPointerRegion, rows, runPromptSession],
   );
 
   const modalContextValue = React.useMemo<DerivedTagTerminalContextValue>(

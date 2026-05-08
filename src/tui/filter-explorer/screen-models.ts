@@ -943,7 +943,7 @@ export function buildFilterExplorerScreenModel(
     subtitle: `${controller.browser.breadcrumb}${controller.browser.searchIndicator}`,
     activePane: controller.browser.state.activePane,
     layoutMode: controller.browser.layoutMode,
-    leftWidth: 46,
+    leftWidth: controller.layout?.leftWidth ?? 46,
     leftPane: {
       title: controller.browser.state.activePane === "list" ? "[LIST] Explorer Entries" : "Explorer Entries",
       lines: leftLines,
@@ -980,5 +980,6 @@ export function buildFilterExplorerScreenModel(
     },
     notification: controller.notification,
     transitionStatus: controller.transitionStatus,
+    resize: controller.layout?.resize,
   });
 }

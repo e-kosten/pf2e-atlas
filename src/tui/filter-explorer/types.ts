@@ -13,6 +13,7 @@ import type {
   DerivedTagTerminalPointerEvent,
   DerivedTagTerminalTone,
   DerivedTagTerminalTwoPaneLayoutMode,
+  DerivedTagTerminalTwoPaneScreenProps,
 } from "../framework/types.js";
 import type { PageDocumentInteractionState } from "../page-document/interaction.js";
 import type { PageDocumentModel, PageDocumentSectionModel, PageDocumentTargetNode } from "../page-document/model.js";
@@ -313,6 +314,10 @@ export type FilterExplorerOptions = {
   transitionStatus?: RouteTransitionStatus | null;
   debugTrace?: Pf2eTerminalDebugTraceService;
   debugSnapshot?: TerminalDebugTraceSnapshot;
+  layout?: {
+    leftWidth?: number;
+    resize?: DerivedTagTerminalTwoPaneScreenProps["resize"];
+  };
 };
 
 export type FilterExplorerControllerContext = {
@@ -337,6 +342,10 @@ export type FilterExplorerControllerContext = {
   transitionStatus?: RouteTransitionStatus | null;
   debugTrace?: Pf2eTerminalDebugTraceService;
   debugSnapshot?: TerminalDebugTraceSnapshot;
+  layout?: {
+    leftWidth: number;
+    resize?: DerivedTagTerminalTwoPaneScreenProps["resize"];
+  };
 };
 
 export type FilterExplorerActionEntryId =

@@ -198,7 +198,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     detailLines,
     detailScroll: normalizedBrowserState.detailScroll,
     layoutMode,
-    leftWidth: 46,
+    leftWidth: options.layout?.leftWidth ?? 46,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
   const focusedPageSection = pageDocument
@@ -262,7 +262,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     detailLines: detailLinesWithFocus,
     detailScroll: normalizedBrowserState.detailScroll,
     layoutMode,
-    leftWidth: 46,
+    leftWidth: options.layout?.leftWidth ?? 46,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
   const maxDetailScroll = screenPresentationMetrics.maxDetailScroll;
@@ -317,6 +317,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
         dispatch({ type: "set_focus", pane: "detail" });
         return true;
       }
+      if (event.kind !== "wheel") {
+        return false;
+      }
       dispatch({ type: "move_detail", delta: event.deltaY, maxDetailScroll: browserContext.maxDetailScroll });
       return true;
     },
@@ -327,6 +330,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
       if (event.kind === "click") {
         dispatch({ type: "set_focus", pane: "list" });
         return true;
+      }
+      if (event.kind !== "wheel") {
+        return false;
       }
       dispatch({ type: "move_selection", delta: event.deltaY });
       return true;

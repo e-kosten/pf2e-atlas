@@ -64,6 +64,18 @@ export type DerivedTagTerminalPointerEvent =
       x: number;
       y: number;
       button: "left";
+    }
+  | {
+      kind: "drag";
+      x: number;
+      y: number;
+      button: "left";
+    }
+  | {
+      kind: "release";
+      x: number;
+      y: number;
+      button: "left";
     };
 export type DerivedTagTerminalPointerRect = {
   x: number;
@@ -77,6 +89,9 @@ export type DerivedTagTerminalPointerRegion = {
   onPointerEvent: (event: DerivedTagTerminalPointerEvent) => boolean | void;
 };
 export type DerivedTagTerminalPanePointerRegion = Omit<DerivedTagTerminalPointerRegion, "rect">;
+export type DerivedTagTerminalPointerCaptureHandler = (
+  event: DerivedTagTerminalPointerEvent,
+) => boolean | void;
 
 export type DerivedTagTerminalInputEvent = {
   input: string;
@@ -131,6 +146,11 @@ export type DerivedTagTerminalTwoPaneScreenProps = {
   right: DerivedTagTerminalPane;
   footer?: DerivedTagTerminalLine[];
   leftWidth?: number;
+  resize?: {
+    minLeftWidth?: number;
+    minRightWidth?: number;
+    onLeftWidthChange?: (leftWidth: number) => void;
+  };
 };
 
 export type DerivedTagTerminalThreePaneScreenProps = {
@@ -328,6 +348,7 @@ export type DerivedTagTerminalContextValue = {
   modalActive: boolean;
   pauseForAnyKey: (message: string) => Promise<void>;
   registerPointerRegion: (region: DerivedTagTerminalPointerRegion) => () => void;
+  capturePointerEvents: (handler: DerivedTagTerminalPointerCaptureHandler) => () => void;
   runPromptSession: <T>(runner: (session: DerivedTagTerminalPromptSession) => Promise<T>) => Promise<T>;
   promptOptionalSelectOption: <T>(
     options: OptionalSelectPromptOptions<T>,

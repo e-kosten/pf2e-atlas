@@ -91,6 +91,27 @@ function OverlayCaptureHarness(): React.JSX.Element {
   );
 }
 
+function ResizablePaneHarness(): React.JSX.Element {
+  const [leftWidth, setLeftWidth] = React.useState(24);
+
+  return (
+    <TerminalTwoPaneScreen
+      title="Pane Resize"
+      leftWidth={leftWidth}
+      resize={{ onLeftWidthChange: setLeftWidth }}
+      left={{
+        title: "Left",
+        lines: [{ text: "left pane" }],
+      }}
+      right={{
+        title: "Right",
+        lines: [{ text: "right pane" }],
+      }}
+      footer={[{ text: `leftWidth=${leftWidth}` }]}
+    />
+  );
+}
+
 describe("terminal pointer input", () => {
   it("routes wheel events to the hovered pane region", async () => {
     const app = render(
@@ -124,5 +145,25 @@ describe("terminal pointer input", () => {
     app.stdin.write("\u001b[<64;40;8M");
     await flushInkFrames();
     expect(app.lastFrame()).toContain("background=0");
+  });
+
+  it("resizes two-pane screens by dragging the separator", async () => {
+    const app = render(
+      <DerivedTagTerminalProvider>
+        <ResizablePaneHarness />
+      </DerivedTagTerminalProvider>,
+    );
+
+    await flushInkFrames();
+    expect(app.lastFrame()).toContain("leftWidth=24");
+
+    app.stdin.write("\u001b[<0;25;4M");
+    await flushInkFrames();
+    app.stdin.write("\u001b[<32;35;4M");
+    await flushInkFrames();
+    app.stdin.write("\u001b[<0;35;4m");
+    await flushInkFrames();
+
+    expect(app.lastFrame()).toContain("leftWidth=34");
   });
 });

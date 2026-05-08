@@ -81,15 +81,18 @@ export type SearchScreenControllerResult = {
   screen: DerivedTagTerminalTwoPaneScreenProps;
 };
 
-export function useSearchScreenController({
-  entry = "editor",
-  transitionStatus,
-  origin = "app",
-  promptForInitialMode = false,
-  onBack,
-  onActivatePageTarget,
-  ...routeEntry
-}: SearchScreenProps): SearchScreenControllerResult {
+export function useSearchScreenController(
+  {
+    entry = "editor",
+    transitionStatus,
+    origin = "app",
+    promptForInitialMode = false,
+    onBack,
+    onActivatePageTarget,
+    ...routeEntry
+  }: SearchScreenProps,
+  layout: { leftWidth?: number; resize?: DerivedTagTerminalTwoPaneScreenProps["resize"] } = {},
+): SearchScreenControllerResult {
   const initialRequest = entry === "results" ? undefined : ("initialRequest" in routeEntry ? routeEntry.initialRequest : undefined);
   const initialSession = entry === "results" ? routeEntry.initialSession : undefined;
   const terminal = useDerivedTagTerminalApp();
@@ -378,7 +381,7 @@ export function useSearchScreenController({
     detailLines: detailLinesWithFocus,
     detailScroll: state.detailScroll,
     layoutMode: "split",
-    leftWidth: SEARCH_LEFT_WIDTH,
+    leftWidth: layout.leftWidth ?? SEARCH_LEFT_WIDTH,
     hyperlinkSupport: terminal.capabilities.hyperlinkSupport,
   });
 
@@ -732,7 +735,7 @@ export function useSearchScreenController({
     subtitle: buildSearchSubtitle(state, countState),
     activePane: state.layout === "results" ? state.activePane : "list",
     layoutMode: "split",
-    leftWidth: SEARCH_LEFT_WIDTH,
+    leftWidth: layout.leftWidth ?? SEARCH_LEFT_WIDTH,
     leftPane: {
       title:
         state.layout === "editor"
@@ -775,6 +778,7 @@ export function useSearchScreenController({
     ],
     notification,
     transitionStatus,
+    resize: layout.resize,
     pointerRegions: {
       list: {
         onPointerEvent: (event) => {
@@ -783,6 +787,9 @@ export function useSearchScreenController({
               dispatch({ type: "set_active_pane", pane: "list" });
               return true;
             }
+            return false;
+          }
+          if (event.kind !== "wheel") {
             return false;
           }
 
@@ -810,6 +817,9 @@ export function useSearchScreenController({
                 if (event.kind === "click") {
                   dispatch({ type: "set_active_pane", pane: "detail" });
                   return true;
+                }
+                if (event.kind !== "wheel") {
+                  return false;
                 }
                 handleScreenIntent({ type: "move_detail", delta: event.deltaY });
                 return true;

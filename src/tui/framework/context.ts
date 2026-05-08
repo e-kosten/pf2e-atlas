@@ -3,6 +3,7 @@ import React from "react";
 import type {
   DerivedTagTerminalCapabilities,
   DerivedTagTerminalContextValue,
+  DerivedTagTerminalPointerCaptureHandler,
   DerivedTagTerminalPointerRegion,
 } from "./types.js";
 
@@ -56,4 +57,10 @@ export function useRegisterDerivedTagTerminalPointerRegion(
 
     return terminal.registerPointerRegion(region);
   }, [region, terminal]);
+}
+
+export function useCaptureDerivedTagTerminalPointerEvents(): (
+  handler: DerivedTagTerminalPointerCaptureHandler,
+) => () => void {
+  return ensureTerminalContext().capturePointerEvents;
 }

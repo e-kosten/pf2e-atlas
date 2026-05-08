@@ -34,6 +34,7 @@ describe("list detail presentation", () => {
 
   it("builds a two-pane screen model with active pane flags", () => {
     const onPointerEvent = () => true;
+    const onLeftWidthChange = () => undefined;
     const screen = buildTerminalListDetailScreenModel({
       title: "Shared Screen",
       subtitle: "Subtitle",
@@ -56,6 +57,9 @@ describe("list detail presentation", () => {
           onPointerEvent,
         },
       },
+      resize: {
+        onLeftWidthChange,
+      },
     });
 
     expect(screen.kind).toBe("two-pane");
@@ -66,6 +70,7 @@ describe("list detail presentation", () => {
     expect(screen.props.right.active).toBe(true);
     expect(screen.props.right.lines).toEqual([{ text: "Detail 1" }]);
     expect(screen.props.right.pointerRegion?.onPointerEvent).toBe(onPointerEvent);
+    expect(screen.props.resize?.onLeftWidthChange).toBe(onLeftWidthChange);
   });
 
   it("builds grouped list rows through the shared list/detail presentation owner", () => {

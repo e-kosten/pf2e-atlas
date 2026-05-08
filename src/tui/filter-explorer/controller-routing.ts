@@ -77,6 +77,12 @@ export function buildFilterExplorerControllerContext(args: {
     transitionStatus: args.options.transitionStatus,
     debugTrace: args.options.debugTrace,
     debugSnapshot: args.options.debugSnapshot,
+    layout: args.options.layout
+      ? {
+          leftWidth: args.options.layout.leftWidth ?? 46,
+          resize: args.options.layout.resize,
+        }
+      : undefined,
   };
 }
 

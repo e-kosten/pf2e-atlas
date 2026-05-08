@@ -292,6 +292,7 @@ export function buildTerminalListDetailScreenModel(options: {
       priority?: number;
     };
   };
+  resize?: DerivedTagTerminalTwoPaneScreenProps["resize"];
 }): TerminalListDetailScreenModel {
   const notificationLine = buildTerminalListDetailNotificationLine(options.notification);
   const footer = appendRouteTransitionFooterLine(
@@ -335,6 +336,7 @@ export function buildTerminalListDetailScreenModel(options: {
       },
       footer,
       leftWidth: options.leftWidth,
+      resize: options.resize,
     },
   };
 }

@@ -9,13 +9,16 @@ import {
 import { useSearchScreenController } from "./controller.js";
 import type { SearchScreenProps } from "./entry-props.js";
 import { SearchFilterExplorerScreen } from "./filter-explorer-screen.js";
+import { SEARCH_LEFT_WIDTH } from "./model.js";
 import { TerminalTwoPaneScreen } from "../framework/screen-components.js";
+import { useTerminalTwoPaneResize } from "../framework/two-pane-resize.js";
 import { TerminalActionMenuScreen } from "../shared-screens.js";
 
 export { parseJumpToResultInput } from "./model.js";
 
 export function SearchScreen(props: SearchScreenProps): React.JSX.Element {
-  const controller = useSearchScreenController(props);
+  const twoPaneResize = useTerminalTwoPaneResize({ defaultLeftWidth: SEARCH_LEFT_WIDTH });
+  const controller = useSearchScreenController(props, twoPaneResize);
 
   if (controller.filterExplorerSession) {
     return <SearchFilterExplorerScreen session={controller.filterExplorerSession} />;

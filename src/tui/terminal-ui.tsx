@@ -54,6 +54,7 @@ export {
   sliceRenderedTerminalLines,
 } from "./framework/line-rendering.js";
 export {
+  clampTerminalTwoPaneLeftWidth,
   getTerminalPaneBodyHeight,
   getTerminalThreePaneDimensions,
   getTerminalTwoPaneDetailWidth,
@@ -62,6 +63,7 @@ export {
   toggleTerminalTwoPaneFocus,
   toggleTerminalTwoPaneLayoutMode,
 } from "./framework/screen-layout.js";
+export { useTerminalTwoPaneResize } from "./framework/two-pane-resize.js";
 export {
   TerminalActionMenuScreen,
 } from "./shared-screens.js";
