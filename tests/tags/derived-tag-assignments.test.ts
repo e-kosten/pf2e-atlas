@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../src/domain/derived-tag-types.js";
+import type {
+  DerivedTagOntologyFamily,
+  DerivedTagOntologyTag,
+  PublishedDerivedTagConceptModel,
+} from "../../src/domain/derived-tag-types.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
   buildDerivedTagPendingAssignmentViews,
@@ -9,9 +13,8 @@ import {
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "../../src/tags/runtime/derivation/assignments.js";
 import { publishDerivedTagOntology, deriveCatalogTagDerivation } from "../../src/tags/runtime/publication/catalog.js";
-import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
-import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import { deriveRecordTagDerivation } from "../../src/tags/runtime.js";
+import { getDerivedTagCanonicalOntology } from "../../src/tags/canonical/index.js";
 
 const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {
@@ -80,9 +83,49 @@ const assignmentTags: DerivedTagOntologyTag[] = [
   },
 ];
 
-const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags);
-const flattenedCreatureOntology = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
-const creatureOntology = publishDerivedTagOntology(flattenedCreatureOntology.families, flattenedCreatureOntology.tags);
+function buildTestConceptModel(tags: DerivedTagOntologyTag[]): PublishedDerivedTagConceptModel {
+  const concepts = tags.map((tag) => ({
+    id: `${tag.category}:${tag.tag}`,
+    label: tag.tag,
+    schemaKind: tag.assignmentMode === "composite" ? ("aggregate" as const) : ("descriptive" as const),
+  }));
+  const projections = tags.map((tag) => ({
+    id: `${tag.category}:${tag.tag}`,
+    conceptId: `${tag.category}:${tag.tag}`,
+    category: tag.category,
+    axis: assignmentFamilies.find((family) => family.category === tag.category && family.family === tag.family)?.axis ?? "utility",
+    family: tag.family,
+    currentTag: tag.tag,
+    label: tag.label,
+    description: tag.description,
+    assignmentMode: tag.assignmentMode,
+    compositeOfAnyTags: tag.compositeOfAnyTags,
+    translationStatus: "mapped" as const,
+  }));
+
+  return {
+    concepts,
+    conceptById: new Map(concepts.map((concept) => [concept.id, concept])),
+    projections,
+    projectionsById: new Map(projections.map((projection) => [projection.id, projection])),
+    projectionsByTagKey: new Map(projections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const)),
+    translations: [],
+    translationsByTagKey: new Map(),
+    relations: [],
+  };
+}
+
+function projectionId(category: "equipment" | "creature" | "hazard" | "affliction" | "spell", tag: string): string {
+  return `${category}:${tag}`;
+}
+
+const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags, buildTestConceptModel(assignmentTags));
+const canonicalOntology = getDerivedTagCanonicalOntology();
+const creatureOntology = publishDerivedTagOntology(
+  canonicalOntology.families.filter((family) => family.category === "creature"),
+  canonicalOntology.tags.filter((tag) => tag.category === "creature"),
+  canonicalOntology.conceptModel,
+);
 
 describe("derived tag explicit assignments", () => {
   it("flattens applied and excluded assignments into concrete include and exclude tags", () => {
@@ -93,26 +136,22 @@ describe("derived tag explicit assignments", () => {
           {
             name: "Masquerade Mask",
             recordKey: "equipment:mask",
-            applied: {
-              infiltration: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  confidence: "high",
-                  rationale: "Tailored for moving through social spaces while disguised.",
-                },
-              ],
-            },
-            excluded: {
-              infiltration: [
-                {
-                  tag: "disguise",
-                  source: "human",
-                  confidence: "high",
-                  rationale: "This record is using a narrower social fit than a broad disguise bucket.",
-                },
-              ],
-            },
+            applied: [
+              {
+                projectionId: projectionId("equipment", "social_infiltration"),
+                source: "human",
+                confidence: "high",
+                rationale: "Tailored for moving through social spaces while disguised.",
+              },
+            ],
+            excluded: [
+              {
+                projectionId: projectionId("equipment", "disguise"),
+                source: "human",
+                confidence: "high",
+                rationale: "This record is using a narrower social fit than a broad disguise bucket.",
+              },
+            ],
           },
         ],
       },
@@ -135,15 +174,13 @@ describe("derived tag explicit assignments", () => {
             {
               name: "Masquerade Mask",
               recordKey: "equipment:mask",
-              applied: {
-                stealth: [
-                  {
-                    tag: "social_infiltration",
-                    source: "human",
-                    rationale: "Invalid family.",
-                  },
-                ],
-              },
+              applied: [
+                {
+                  projectionId: "equipment:does_not_exist",
+                  source: "human",
+                  rationale: "Invalid family.",
+                },
+              ],
             },
           ],
         },
@@ -158,20 +195,18 @@ describe("derived tag explicit assignments", () => {
             {
               name: "Masquerade Mask",
               recordKey: "equipment:mask",
-              applied: {
-                security: [
-                  {
-                    tag: "social_infiltration",
-                    source: "human",
-                    rationale: "Invalid family placement.",
-                  },
-                ],
-              },
+              applied: [
+                {
+                  projectionId: projectionId("creature", "urban_setting"),
+                  source: "human",
+                  rationale: "Invalid category placement.",
+                },
+              ],
             },
           ],
         },
       ]),
-    ).toThrow(/does not belong to family/);
+    ).toThrow(/does not exist in category/);
   });
 
   it("validates canonical name drift only when the record is present in the build", () => {
@@ -182,15 +217,13 @@ describe("derived tag explicit assignments", () => {
           {
             name: "Masquerade Mask",
             recordKey: "equipment:mask",
-            applied: {
-              infiltration: [
-                {
-                  tag: "social_infiltration",
-                  source: "human",
-                  rationale: "Core assignment for the masquerade entry.",
-                },
-              ],
-            },
+            applied: [
+              {
+                projectionId: projectionId("equipment", "social_infiltration"),
+                source: "human",
+                rationale: "Core assignment for the masquerade entry.",
+              },
+            ],
           },
         ],
       },
@@ -219,15 +252,13 @@ describe("derived tag explicit assignments", () => {
           {
             name: "Watch Bell",
             recordKey: "equipment:bell",
-            applied: {
-              security: [
-                {
-                  tag: "alarm",
-                  source: "human",
-                  rationale: "Live assignment stays separate from pending review state.",
-                },
-              ],
-            },
+            applied: [
+              {
+                projectionId: projectionId("equipment", "alarm"),
+                source: "human",
+                rationale: "Live assignment stays separate from pending review state.",
+              },
+            ],
           },
         ],
       },
@@ -290,24 +321,8 @@ describe("derived tag explicit assignments", () => {
             {
               name: "Masquerade Mask",
               recordKey: "equipment:mask",
-              applied: {
-                infiltration: [
-                  {
-                    tag: "social_infiltration",
-                    source: "human",
-                    rationale: "Conflicting live placement should be rejected.",
-                  },
-                ],
-              },
-              excluded: {
-                infiltration: [
-                  {
-                    tag: "social_infiltration",
-                    source: "human",
-                    rationale: "Conflicting live placement should be rejected.",
-                  },
-                ],
-              },
+              applied: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "human", rationale: "Conflicting live placement should be rejected." }],
+              excluded: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "human", rationale: "Conflicting live placement should be rejected." }],
             },
           ],
         },
@@ -322,20 +337,10 @@ describe("derived tag explicit assignments", () => {
             {
               name: "Watch Bell",
               recordKey: "equipment:bell",
-              applied: {
-                security: [
-                  {
-                    tag: "alarm",
-                    source: "human",
-                    rationale: "Duplicate live entries should be rejected.",
-                  },
-                  {
-                    tag: "alarm",
-                    source: "human",
-                    rationale: "Duplicate live entries should be rejected.",
-                  },
-                ],
-              },
+              applied: [
+                { projectionId: projectionId("equipment", "alarm"), source: "human", rationale: "Duplicate live entries should be rejected." },
+                { projectionId: projectionId("equipment", "alarm"), source: "human", rationale: "Duplicate live entries should be rejected." },
+              ],
             },
           ],
         },
@@ -350,15 +355,9 @@ describe("derived tag explicit assignments", () => {
             {
               name: "Spyglass Kit",
               recordKey: "equipment:spyglass-kit",
-              applied: {
-                reconnaissance: [
-                  {
-                    tag: "reconnaissance",
-                    source: "human",
-                    rationale: "Composite umbrella tags should not be assigned directly.",
-                  },
-                ],
-              },
+              applied: [
+                { projectionId: projectionId("equipment", "reconnaissance"), source: "human", rationale: "Composite umbrella tags should not be assigned directly." },
+              ],
             },
           ],
         },
@@ -464,24 +463,8 @@ describe("derived tag explicit assignments", () => {
           {
             name: "Masquerade Mask",
             recordKey: "equipment:mask",
-            applied: {
-              infiltration: [
-                {
-                  tag: "social_infiltration",
-                  source: "llm_auto",
-                  rationale: "Live high-confidence assignment.",
-                },
-              ],
-            },
-            excluded: {
-              infiltration: [
-                {
-                  tag: "disguise",
-                  source: "human",
-                  rationale: "Explicitly keeping the broader disguise tag off this record.",
-                },
-              ],
-            },
+            applied: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "llm_auto", rationale: "Live high-confidence assignment." }],
+            excluded: [{ projectionId: projectionId("equipment", "disguise"), source: "human", rationale: "Explicitly keeping the broader disguise tag off this record." }],
           },
         ],
       },

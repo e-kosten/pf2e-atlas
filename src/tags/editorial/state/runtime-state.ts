@@ -22,7 +22,7 @@ export function getPublishedDerivedTagConceptModel(): PublishedDerivedTagConcept
 }
 
 export function listPublishedDerivedTagTranslations(): DerivedTagTranslationRecord[] {
-  return getPublishedDerivedTagConceptModel().translations;
+  return getCurrentDerivedTagWorkingRuntime().legacyTranslations;
 }
 
 export function summarizeCurrentDerivedTagTranslationQueue(): Array<{

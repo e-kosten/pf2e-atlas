@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
-import { CREATURE_DERIVED_TAG_ONTOLOGY } from "../../src/tags/ontology/creature.js";
-import { flattenDerivedTagAuthoredCategoryOntology } from "../../src/tags/ontology/utils.js";
 import {
   DERIVED_TAG_ONTOLOGY_CONCEPTS,
   DERIVED_TAG_ONTOLOGY_FAMILIES,
@@ -747,24 +745,39 @@ describe("derived tag ontology", () => {
     ).toBe(true);
   });
 
-  it("authors category-scoped ontology with explicit family hierarchy before flattening", () => {
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.category).toBe("creature");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.setting.description).toContain("Legacy umbrella family");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.habitat_setting.description).toContain("habitat tags");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.description).toContain("tactical");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.cohort_role.description).toContain("roster-construction");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.description).toContain("immediate-scenario");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.description).toContain(
-      "outside one immediate encounter slot",
-    );
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.corruption_profile.description).toContain("corruption and taint");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.description).toContain("visual motifs");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.description).toContain("genre-tone");
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.description).toContain("plot-driving motifs");
+  it("publishes creature family and tag hierarchy through the canonical runtime surface", () => {
+    const creatureFamilies = DERIVED_TAG_ONTOLOGY_FAMILIES.filter((family) => family.category === "creature");
+    const creatureTags = DERIVED_TAG_ONTOLOGY_TAGS.filter((tag) => tag.category === "creature");
 
-    const urbanSetting = CREATURE_DERIVED_TAG_ONTOLOGY.families.site_setting.tags.find(
-      (tag) => tag.tag === "urban_setting",
-    );
+    expect(
+      creatureFamilies.find((family) => family.family === "habitat_setting")?.description,
+    ).toContain("habitat tags");
+    expect(
+      creatureFamilies.find((family) => family.family === "combat_role")?.description,
+    ).toContain("tactical");
+    expect(
+      creatureFamilies.find((family) => family.family === "cohort_role")?.description,
+    ).toContain("roster-construction");
+    expect(
+      creatureFamilies.find((family) => family.family === "scene_role")?.description,
+    ).toContain("immediate-scenario");
+    expect(
+      creatureFamilies.find((family) => family.family === "social_role")?.description,
+    ).toContain("outside one immediate encounter slot");
+    expect(
+      creatureFamilies.find((family) => family.family === "corruption_profile")?.description,
+    ).toContain("corruption and taint");
+    expect(
+      creatureFamilies.find((family) => family.family === "visual_motif")?.description,
+    ).toContain("visual motifs");
+    expect(
+      creatureFamilies.find((family) => family.family === "genre_motif")?.description,
+    ).toContain("genre-tone");
+    expect(
+      creatureFamilies.find((family) => family.family === "story_motif")?.description,
+    ).toContain("plot-driving motifs");
+
+    const urbanSetting = creatureTags.find((tag) => tag.family === "site_setting" && tag.tag === "urban_setting");
     expect(urbanSetting).toEqual(
       matcherObjectContaining({
         tag: "urban_setting",
@@ -772,9 +785,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["small_settlement_setting", "fortress_setting"],
       }),
     );
-    const authorityNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find(
-      (tag) => tag.tag === "authority_npc",
-    );
+    const authorityNpc = creatureTags.find((tag) => tag.family === "social_role" && tag.tag === "authority_npc");
     expect(authorityNpc).toEqual(
       matcherObjectContaining({
         tag: "authority_npc",
@@ -785,7 +796,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const guideNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.social_role.tags.find((tag) => tag.tag === "guide_npc");
+    const guideNpc = creatureTags.find((tag) => tag.family === "social_role" && tag.tag === "guide_npc");
     expect(guideNpc).toEqual(
       matcherObjectContaining({
         tag: "guide_npc",
@@ -796,9 +807,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const infiltratorNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.tags.find(
-      (tag) => tag.tag === "infiltrator_npc",
-    );
+    const infiltratorNpc = creatureTags.find((tag) => tag.family === "scene_role" && tag.tag === "infiltrator_npc");
     expect(infiltratorNpc).toEqual(
       matcherObjectContaining({
         tag: "infiltrator_npc",
@@ -809,9 +818,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const guardianNpc = CREATURE_DERIVED_TAG_ONTOLOGY.families.scene_role.tags.find(
-      (tag) => tag.tag === "guardian_npc",
-    );
+    const guardianNpc = creatureTags.find((tag) => tag.family === "scene_role" && tag.tag === "guardian_npc");
     expect(guardianNpc).toEqual(
       matcherObjectContaining({
         tag: "guardian_npc",
@@ -819,8 +826,8 @@ describe("derived tag ontology", () => {
         adjacentTags: ["enforcer_npc", "watcher_npc"],
       }),
     );
-    const reinforcementThreat = CREATURE_DERIVED_TAG_ONTOLOGY.families.threat_profile.tags.find(
-      (tag) => tag.tag === "reinforcement_threat",
+    const reinforcementThreat = creatureTags.find(
+      (tag) => tag.family === "threat_profile" && tag.tag === "reinforcement_threat",
     );
     expect(reinforcementThreat).toEqual(
       matcherObjectContaining({
@@ -832,9 +839,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const bruteCombatant = CREATURE_DERIVED_TAG_ONTOLOGY.families.combat_role.tags.find(
-      (tag) => tag.tag === "brute_combatant",
-    );
+    const bruteCombatant = creatureTags.find((tag) => tag.family === "combat_role" && tag.tag === "brute_combatant");
     expect(bruteCombatant).toEqual(
       matcherObjectContaining({
         tag: "brute_combatant",
@@ -842,9 +847,10 @@ describe("derived tag ontology", () => {
         adjacentTags: ["defender_combatant", "artillery_combatant"],
       }),
     );
-    const crewMemberAuthored = CREATURE_DERIVED_TAG_ONTOLOGY.families.cohort_role.tags.find(
-      (tag) => tag.tag === "crew_member",
-    );
+    const creatureGenreMotifTags = creatureTags.filter((tag) => tag.family === "genre_motif");
+    const creatureStoryMotifTags = creatureTags.filter((tag) => tag.family === "story_motif");
+    const creatureVisualMotifTags = creatureTags.filter((tag) => tag.family === "visual_motif");
+    const crewMemberAuthored = creatureTags.find((tag) => tag.family === "cohort_role" && tag.tag === "crew_member");
     expect(crewMemberAuthored).toEqual(
       matcherObjectContaining({
         tag: "crew_member",
@@ -852,9 +858,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["nautical_setting", "escort_npc"],
       }),
     );
-    const tricksterMischief = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find(
-      (tag) => tag.tag === "trickster_mischief",
-    );
+    const tricksterMischief = creatureGenreMotifTags.find((tag) => tag.tag === "trickster_mischief");
     expect(tricksterMischief).toEqual(
       matcherObjectContaining({
         tag: "trickster_mischief",
@@ -865,9 +869,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const dreamNightmare = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find(
-      (tag) => tag.tag === "dream_nightmare",
-    );
+    const dreamNightmare = creatureGenreMotifTags.find((tag) => tag.tag === "dream_nightmare");
     expect(dreamNightmare).toEqual(
       matcherObjectContaining({
         tag: "dream_nightmare",
@@ -878,7 +880,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const folkHorror = CREATURE_DERIVED_TAG_ONTOLOGY.families.genre_motif.tags.find((tag) => tag.tag === "folk_horror");
+    const folkHorror = creatureGenreMotifTags.find((tag) => tag.tag === "folk_horror");
     expect(folkHorror).toEqual(
       matcherObjectContaining({
         tag: "folk_horror",
@@ -889,10 +891,10 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.visual_motif.tags.map((tag) => tag.tag)).toEqual(
+    expect(creatureVisualMotifTags.map((tag) => tag.tag)).toEqual(
       matcherArrayContaining(["mask_motif", "mirror_motif", "living_toy", "living_artwork"]),
     );
-    expect(CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.map((tag) => tag.tag)).toEqual(
+    expect(creatureStoryMotifTags.map((tag) => tag.tag)).toEqual(
       matcherArrayContaining([
         "prophecy_omen",
         "corrupted_sacred",
@@ -910,9 +912,7 @@ describe("derived tag ontology", () => {
         "occult_conspiracy",
       ]),
     );
-    const prophecyOmen = CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.find(
-      (tag) => tag.tag === "prophecy_omen",
-    );
+    const prophecyOmen = creatureStoryMotifTags.find((tag) => tag.tag === "prophecy_omen");
     expect(prophecyOmen).toEqual(
       matcherObjectContaining({
         tag: "prophecy_omen",
@@ -920,9 +920,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["apocalypse_ruin", "ancestral_legacy"],
       }),
     );
-    const occultConspiracy = CREATURE_DERIVED_TAG_ONTOLOGY.families.story_motif.tags.find(
-      (tag) => tag.tag === "occult_conspiracy",
-    );
+    const occultConspiracy = creatureStoryMotifTags.find((tag) => tag.tag === "occult_conspiracy");
     expect(occultConspiracy).toEqual(
       matcherObjectContaining({
         tag: "occult_conspiracy",
@@ -1042,58 +1040,53 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const flattened = flattenDerivedTagAuthoredCategoryOntology(CREATURE_DERIVED_TAG_ONTOLOGY);
-    expect(flattened.families).toContainEqual(
-      matcherObjectContaining({
-        category: "creature",
-        family: "setting",
-      }),
-    );
-    expect(flattened.families).toContainEqual(
+    const creatureRuntimeFamilies = DERIVED_TAG_ONTOLOGY_FAMILIES.filter((family) => family.category === "creature");
+    const creatureRuntimeTags = DERIVED_TAG_ONTOLOGY_TAGS.filter((tag) => tag.category === "creature");
+    expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "site_setting",
       }),
     );
-    expect(flattened.families).toContainEqual(
+    expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "social_role",
       }),
     );
-    expect(flattened.families).toContainEqual(
+    expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "scene_role",
       }),
     );
-    expect(flattened.families).toContainEqual(
+    expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "cohort_role",
       }),
     );
-    expect(flattened.families).toContainEqual(
+    expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "story_motif",
       }),
     );
-    expect(flattened.tags).toContainEqual(
+    expect(creatureRuntimeTags).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "site_setting",
         tag: "urban_setting",
       }),
     );
-    expect(flattened.tags).toContainEqual(
+    expect(creatureRuntimeTags).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "combat_role",
         tag: "artillery_combatant",
       }),
     );
-    expect(flattened.tags).toContainEqual(
+    expect(creatureRuntimeTags).toContainEqual(
       matcherObjectContaining({
         category: "creature",
         family: "cohort_role",

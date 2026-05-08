@@ -1,308 +1,147 @@
 import type {
-  DerivedTagAuthoredCategoryOntology,
-  DerivedTagCanonicalConcept,
-  DerivedTagCanonicalConceptRelation,
-  DerivedTagCategoryProjection,
+  DerivedTagLegacySeedMigrationCategory,
   DerivedTagTranslationRecord,
-  PublishedDerivedTagConceptModel,
+  SearchCategory,
 } from "../../domain/derived-tag-types.js";
-import type { DerivedTagOntologyFamily, DerivedTagOntologyTag } from "../../domain/record-types.js";
-import type { DerivedTagManagedCategory } from "../manifest.js";
-import { flattenDerivedTagAuthoredCategoryOntology } from "../ontology/utils.js";
-import { inferOperationalTranslationDefaults } from "./inference.js";
+import { normalizeDerivedTag } from "../runtime/matcher/engine.js";
+import type { PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
+import { getCurrentDerivedTagFamilyTranslationDefault, getCurrentDerivedTagTranslationOverride } from "./state.js";
+import { DERIVED_TAG_BASE_LEGACY_TRANSLATIONS } from "./base-mappings.js";
 import { applyDerivedTagTranslationOverride } from "./record-utils.js";
-import {
-  getCurrentDerivedTagFamilyTranslationDefault,
-  getCurrentDerivedTagTranslationOverride,
-} from "./state.js";
 
-function tagKey(category: string, tag: string): `${string}:${string}` {
-  return `${category}:${tag}`;
+function translationKey(category: SearchCategory, tag: string): `${SearchCategory}:${string}` {
+  return `${category}:${normalizeDerivedTag(tag)}`;
 }
 
-function buildTranslationRecord(
-  family: DerivedTagOntologyFamily,
-  tag: DerivedTagOntologyTag,
-  options: { includeOverrides?: boolean } = {},
+function familyKey(category: SearchCategory, family: string): `${SearchCategory}:${string}` {
+  return `${category}:${normalizeDerivedTag(family)}`;
+}
+
+function applyFamilyDefaults(
+  row: DerivedTagTranslationRecord,
+  defaults: ReturnType<typeof getCurrentDerivedTagFamilyTranslationDefault>,
 ): DerivedTagTranslationRecord {
-  const includeOverrides = options.includeOverrides ?? true;
-  const config = getCurrentDerivedTagFamilyTranslationDefault(`${tag.category}:${tag.family}`);
-  if (!config) {
-    throw new Error(`Missing derived-tag translation defaults for ${tag.category}:${tag.family}.`);
+  if (!defaults) {
+    return row;
   }
-
-  const row: DerivedTagTranslationRecord = {
-    currentCategory: tag.category,
-    currentBrowseAxis: family.axis,
-    currentFamily: tag.family,
-    currentTag: tag.tag,
-    currentAssignmentMode: tag.assignmentMode,
-    translationStatus: config.translationStatus,
-    canonicalConceptId: tag.tag,
-    canonicalConceptLabel: tag.tag,
-    schemaKind: config.schemaKind,
-    domainId: "",
-    operation: "",
-    primaryFacetKind: config.primaryFacetKind,
-    primaryFacetValue: config.primaryFacetValue,
-    secondaryFacets: [],
-    projectionAxis: family.axis,
-    projectionFamily: tag.family,
-    notes: config.notes,
-    publishTag: true,
+  const preserveExplicitRowShape =
+    row.currentAssignmentMode === "composite" || row.schemaKind === "aggregate" || row.translationStatus === "dropped";
+  return {
+    ...row,
+    ...(!preserveExplicitRowShape ? { schemaKind: defaults.schemaKind, translationStatus: defaults.translationStatus } : {}),
+    ...(!preserveExplicitRowShape && defaults.primaryFacetKind !== undefined ? { primaryFacetKind: defaults.primaryFacetKind } : {}),
+    ...(!preserveExplicitRowShape && defaults.primaryFacetValue !== undefined ? { primaryFacetValue: defaults.primaryFacetValue } : {}),
+    ...(defaults.notes ? { notes: [row.notes, defaults.notes].filter(Boolean).join(" ") } : {}),
   };
-
-  if (row.schemaKind === "operational") {
-    Object.assign(row, inferOperationalTranslationDefaults(tag.tag));
-  }
-
-  if (includeOverrides) {
-    const override = getCurrentDerivedTagTranslationOverride(`${tag.category}:${tag.tag}`);
-    if (override) {
-      Object.assign(row, applyDerivedTagTranslationOverride(row, override));
-    }
-  }
-
-  if (tag.assignmentMode === "composite" && row.publishTag) {
-    row.schemaKind = "aggregate";
-  }
-
-  return row;
 }
 
-function buildCanonicalConcepts(translations: DerivedTagTranslationRecord[]): DerivedTagCanonicalConcept[] {
-  const concepts = new Map<string, DerivedTagCanonicalConcept>();
+export function buildPublishedDerivedTagTranslations(
+  options: { includeOverrides?: boolean } = {},
+): DerivedTagTranslationRecord[] {
+  const includeOverrides = options.includeOverrides !== false;
 
-  for (const translation of translations) {
-    if (translation.translationStatus === "dropped") {
-      continue;
+  return DERIVED_TAG_BASE_LEGACY_TRANSLATIONS.map((baseRow): DerivedTagTranslationRecord => {
+    let row: DerivedTagTranslationRecord = structuredClone(baseRow) as DerivedTagTranslationRecord;
+    if (!includeOverrides) {
+      return row;
     }
-    const current = concepts.get(translation.canonicalConceptId);
-    if (current) {
-      continue;
-    }
-    concepts.set(translation.canonicalConceptId, {
-      id: translation.canonicalConceptId,
-      label: translation.canonicalConceptLabel,
-      schemaKind: translation.schemaKind,
-      domainId: translation.domainId || undefined,
-      operation: translation.operation || undefined,
-      primaryFacetKind: translation.primaryFacetKind || undefined,
-      primaryFacetValue: translation.primaryFacetValue || undefined,
-      secondaryFacets: translation.secondaryFacets?.length ? [...translation.secondaryFacets] : undefined,
-      text: translation.notes ? { definition: translation.notes } : undefined,
-    });
-  }
 
-  return [...concepts.values()].sort((left, right) => left.id.localeCompare(right.id));
-}
-
-function buildConceptRelations(translations: DerivedTagTranslationRecord[]): DerivedTagCanonicalConceptRelation[] {
-  const relations = new Map<string, DerivedTagCanonicalConceptRelation>();
-
-  const remediationsByDomain = new Map<string, string[]>();
-  const applicationsByDomain = new Map<string, string[]>();
-
-  for (const translation of translations) {
-    if (!translation.domainId || !translation.operation || translation.translationStatus === "dropped") {
-      continue;
-    }
-    if (translation.operation === "remediate") {
-      const current = remediationsByDomain.get(translation.domainId) ?? [];
-      current.push(translation.canonicalConceptId);
-      remediationsByDomain.set(translation.domainId, current);
-    }
-    if (translation.operation === "apply") {
-      const current = applicationsByDomain.get(translation.domainId) ?? [];
-      current.push(translation.canonicalConceptId);
-      applicationsByDomain.set(translation.domainId, current);
-    }
-  }
-
-  for (const [domainId, remediations] of remediationsByDomain.entries()) {
-    const applications = applicationsByDomain.get(domainId) ?? [];
-    for (const fromConceptId of remediations) {
-      for (const toConceptId of applications) {
-        const key = `${fromConceptId}:counteracts:${toConceptId}`;
-        relations.set(key, { fromConceptId, relation: "counteracts", toConceptId });
-      }
-    }
-  }
-
-  return [...relations.values()].sort(
+    row = applyFamilyDefaults(row, getCurrentDerivedTagFamilyTranslationDefault(familyKey(row.currentCategory, row.currentFamily)));
+    row = applyDerivedTagTranslationOverride(
+      row,
+      getCurrentDerivedTagTranslationOverride(translationKey(row.currentCategory, row.currentTag)),
+    );
+    return row;
+  }).sort(
     (left, right) =>
-      left.fromConceptId.localeCompare(right.fromConceptId) ||
-      left.relation.localeCompare(right.relation) ||
-      left.toConceptId.localeCompare(right.toConceptId),
-  );
-}
-
-function buildProjections(
-  families: DerivedTagOntologyFamily[],
-  tags: DerivedTagOntologyTag[],
-  translations: DerivedTagTranslationRecord[],
-): DerivedTagCategoryProjection[] {
-  const familyByKey = new Map<string, DerivedTagOntologyFamily>(
-    families.map((family) => [tagKey(family.category, family.family), family]),
-  );
-  const tagByKey = new Map<string, DerivedTagOntologyTag>(
-    tags.map((tag) => [tagKey(tag.category, tag.tag), tag]),
-  );
-
-  const projections: DerivedTagCategoryProjection[] = [];
-
-  for (const translation of translations) {
-    if (!translation.publishTag) {
-      continue;
-    }
-    const tag = tagByKey.get(tagKey(translation.currentCategory, translation.currentTag));
-    const family = familyByKey.get(tagKey(translation.currentCategory, translation.currentFamily));
-    if (!tag || !family) {
-      throw new Error(`Missing source ontology entry for ${translation.currentCategory}:${translation.currentFamily}:${translation.currentTag}.`);
-    }
-    projections.push({
-      conceptId: translation.canonicalConceptId,
-      category: translation.currentCategory,
-      axis: translation.projectionAxis,
-      family: translation.projectionFamily,
-      currentTag: translation.currentTag,
-      description: tag.description,
-      assignmentMode: tag.assignmentMode,
-      subcategories: family.subcategories,
-      nativeOntologyPolicy: tag.nativeOntologyPolicy,
-      appliesWhen: tag.appliesWhen,
-      doesNotApplyWhen: tag.doesNotApplyWhen,
-      positiveSignals: tag.positiveSignals,
-      negativeSignals: tag.negativeSignals,
-      adjacentTags: tag.adjacentTags,
-      compositeOfAnyTags: tag.compositeOfAnyTags,
-      variantInheritance: tag.variantInheritance,
-      translationStatus: translation.translationStatus,
-    });
-  }
-
-  return projections.sort(
-    (left, right) =>
-      left.category.localeCompare(right.category) ||
-      left.axis.localeCompare(right.axis) ||
-      left.family.localeCompare(right.family) ||
+      left.currentCategory.localeCompare(right.currentCategory) ||
+      left.currentBrowseAxis.localeCompare(right.currentBrowseAxis) ||
+      left.currentFamily.localeCompare(right.currentFamily) ||
       left.currentTag.localeCompare(right.currentTag),
   );
 }
 
-export function buildPublishedDerivedTagConceptModel(
-  ontologyByCategory: Record<DerivedTagManagedCategory, DerivedTagAuthoredCategoryOntology>,
+export function buildPublishedDerivedTagTranslationsByKey(
   options: { includeOverrides?: boolean } = {},
-): PublishedDerivedTagConceptModel {
-  const flattened = Object.values(ontologyByCategory).map((ontology) => flattenDerivedTagAuthoredCategoryOntology(ontology));
-  const families = flattened.flatMap((entry) => entry.families);
-  const tags = flattened.flatMap((entry) => entry.tags);
-  const familyByKey = new Map<string, DerivedTagOntologyFamily>(
-    families.map((family) => [tagKey(family.category, family.family), family]),
+): Map<`${SearchCategory}:${string}`, DerivedTagTranslationRecord> {
+  return new Map(
+    buildPublishedDerivedTagTranslations(options).map((translation) => [
+      translationKey(translation.currentCategory, translation.currentTag),
+      translation,
+    ] as const),
   );
-  const translations = tags.map((tag) => {
-    const family = familyByKey.get(tagKey(tag.category, tag.family));
-    if (!family) {
-      throw new Error(`Missing source family for ${tag.category}:${tag.family}.`);
-    }
-    return buildTranslationRecord(family, tag, options);
-  });
-
-  const concepts = buildCanonicalConcepts(translations);
-  const conceptById = new Map(concepts.map((concept) => [concept.id, concept]));
-  const projections = buildProjections(families, tags, translations);
-  const projectionsByTagKey = new Map(
-    projections.map((projection) => [tagKey(projection.category, projection.currentTag), projection]),
-  );
-  const translationsByTagKey = new Map(
-    translations.map((translation) => [tagKey(translation.currentCategory, translation.currentTag), translation]),
-  );
-
-  return {
-    concepts,
-    conceptById,
-    projections,
-    projectionsByTagKey,
-    translations,
-    translationsByTagKey,
-    relations: buildConceptRelations(translations),
-  };
 }
 
-export function buildProjectedDerivedTagOntologyPublication(
-  ontologyByCategory: Record<DerivedTagManagedCategory, DerivedTagAuthoredCategoryOntology>,
-  conceptModel: PublishedDerivedTagConceptModel,
-): {
-  families: DerivedTagOntologyFamily[];
-  tags: DerivedTagOntologyTag[];
-} {
-  const flattened = Object.values(ontologyByCategory).map((ontology) => flattenDerivedTagAuthoredCategoryOntology(ontology));
-  const baseFamilies = flattened.flatMap((entry) => entry.families);
-  const baseTags = flattened.flatMap((entry) => entry.tags);
-  const baseFamilyByKey = new Map(baseFamilies.map((family) => [tagKey(family.category, family.family), family]));
-  const baseTagByKey = new Map(baseTags.map((tag) => [tagKey(tag.category, tag.tag), tag]));
+export function translateLegacyDerivedTags(
+  category: SearchCategory,
+  legacyTags: string[],
+  ontology: PublishedDerivedTagOntology,
+  translations: ReadonlyMap<`${SearchCategory}:${string}`, DerivedTagTranslationRecord>,
+): string[] {
+  const mappedTags = new Set<string>();
+  for (const legacyTag of legacyTags) {
+    const translation = translations.get(translationKey(category, legacyTag));
+    if (
+      !translation ||
+      translation.translationStatus === "unmapped" ||
+      translation.translationStatus === "dropped" ||
+      !translation.publishTag
+    ) {
+      continue;
+    }
+    const normalizedTag = normalizeDerivedTag(translation.currentTag);
+    if (!ontology.tagByKey.has(translationKey(category, normalizedTag))) {
+      continue;
+    }
+    mappedTags.add(normalizedTag);
+  }
+  return [...mappedTags].sort((left, right) => left.localeCompare(right));
+}
 
-  const families = new Map<string, DerivedTagOntologyFamily>();
-  const tags: DerivedTagOntologyTag[] = [];
+export function translateLegacySeedMigrationCategories(
+  migrations: DerivedTagLegacySeedMigrationCategory[],
+  ontology: PublishedDerivedTagOntology,
+  translations: ReadonlyMap<`${SearchCategory}:${string}`, DerivedTagTranslationRecord>,
+): DerivedTagLegacySeedMigrationCategory[] {
+  type LegacySeedTag = DerivedTagLegacySeedMigrationCategory["tags"][number];
+  type LegacySeedCategoryBucket = {
+    category: SearchCategory;
+    tags: Map<string, LegacySeedTag>;
+  };
+  const translated = new Map<string, LegacySeedCategoryBucket>();
 
-  for (const projection of conceptModel.projections) {
-    const sourceTag = baseTagByKey.get(tagKey(projection.category, projection.currentTag));
-    const sourceFamily = baseFamilyByKey.get(tagKey(projection.category, projection.family));
-    const translation = conceptModel.translationsByTagKey.get(
-      tagKey(projection.category, projection.currentTag),
-    );
-    const concept = conceptModel.conceptById.get(projection.conceptId);
+  for (const migration of migrations) {
+    const categoryBucket =
+      translated.get(migration.category) ?? { category: migration.category, tags: new Map<string, LegacySeedTag>() };
 
-    if (!sourceTag || !translation || !concept) {
-      throw new Error(
-        `Missing source ontology pieces for published projection ${projection.category}:${projection.family}:${projection.currentTag}.`,
+    for (const tag of migration.tags) {
+      const [mappedTag] = translateLegacyDerivedTags(
+        migration.category,
+        [tag.tag],
+        ontology,
+        translations,
       );
+      if (!mappedTag) {
+        continue;
+      }
+
+      const existing: LegacySeedTag = categoryBucket.tags.get(mappedTag) ?? {
+        tag: mappedTag,
+        includeRecords: [],
+        excludeRecords: [],
+      };
+      existing.includeRecords = [...(existing.includeRecords ?? []), ...(tag.includeRecords ?? [])];
+      existing.excludeRecords = [...(existing.excludeRecords ?? []), ...(tag.excludeRecords ?? [])];
+      categoryBucket.tags.set(mappedTag, existing);
     }
 
-    const familyKey = tagKey(projection.category, projection.family);
-    if (!families.has(familyKey)) {
-      const fallbackFamily = sourceFamily ?? baseFamilyByKey.get(tagKey(sourceTag.category, sourceTag.family));
-      families.set(familyKey, {
-        category: projection.category as DerivedTagOntologyFamily["category"],
-        family: projection.family,
-        label: fallbackFamily?.label ?? projection.family,
-        axis: projection.axis,
-        subcategories: projection.subcategories ?? fallbackFamily?.subcategories,
-        description: fallbackFamily?.description ?? sourceTag.description,
-        variantInheritance: fallbackFamily?.variantInheritance,
-      });
-    }
-
-    tags.push({
-      ...sourceTag,
-      family: projection.family,
-      label: concept.label,
-      description: projection.description,
-      canonicalConceptId: concept.id,
-      translationStatus: projection.translationStatus,
-      schemaKind: concept.schemaKind,
-      domainId: concept.domainId,
-      operation: concept.operation,
-      primaryFacetKind: concept.primaryFacetKind,
-      primaryFacetValue: concept.primaryFacetValue,
-      secondaryFacets: concept.secondaryFacets,
-      renameNote: translation.renameNote,
-      translationNotes: translation.notes,
-    });
+    translated.set(migration.category, categoryBucket);
   }
 
-  return {
-    families: [...families.values()].sort(
-      (left, right) =>
-        left.category.localeCompare(right.category) ||
-        left.axis.localeCompare(right.axis) ||
-        left.family.localeCompare(right.family),
-    ),
-    tags: tags.sort(
-      (left, right) =>
-        left.category.localeCompare(right.category) ||
-        left.family.localeCompare(right.family) ||
-        left.tag.localeCompare(right.tag),
-    ),
-  };
+  return [...translated.values()]
+    .map((categoryBucket) => ({
+      category: categoryBucket.category,
+      tags: [...categoryBucket.tags.values()].sort((left, right) => left.tag.localeCompare(right.tag)),
+    }))
+    .filter((categoryBucket) => categoryBucket.tags.length > 0);
 }

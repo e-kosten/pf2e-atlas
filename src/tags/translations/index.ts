@@ -1,1 +1,6 @@
-export { buildProjectedDerivedTagOntologyPublication, buildPublishedDerivedTagConceptModel } from "./publication.js";
+export {
+  buildPublishedDerivedTagTranslations,
+  buildPublishedDerivedTagTranslationsByKey,
+  translateLegacyDerivedTags,
+  translateLegacySeedMigrationCategories,
+} from "./publication.js";

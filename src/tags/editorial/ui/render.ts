@@ -1,5 +1,6 @@
 import type { DerivedTagReviewDecision, DerivedTagReviewSession } from "../types.js";
 import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
+import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
 import { buildDerivedTagMigrationRecordPageTextLines } from "./review-detail-content.js";
 
@@ -27,6 +28,14 @@ function toManagedCategory(category: string): "affliction" | "creature" | "equip
   return null;
 }
 
+function renderProjectionReference(projectionId: string): string {
+  const projection = getPublishedDerivedTagOntology().conceptModel.projectionsById.get(projectionId.trim());
+  if (!projection) {
+    return projectionId;
+  }
+  return `${projection.family}.${projection.currentTag}`;
+}
+
 function renderLiveAssignments(category: string, recordKey: string): string {
   const managedCategory = toManagedCategory(category);
   if (!managedCategory) {
@@ -39,11 +48,9 @@ function renderLiveAssignments(category: string, recordKey: string): string {
     return "(none)";
   }
 
-  const renderedApplied = Object.entries(assignment.applied ?? {}).flatMap(([family, decisions]) =>
-    decisions.map((decision) => `${family}.${decision.tag}`),
-  );
-  const renderedExcluded = Object.entries(assignment.excluded ?? {}).flatMap(([family, decisions]) =>
-    decisions.map((decision) => `!${family}.${decision.tag}`),
+  const renderedApplied = (assignment.applied ?? []).map((decision) => renderProjectionReference(decision.projectionId));
+  const renderedExcluded = (assignment.excluded ?? []).map(
+    (decision) => `!${renderProjectionReference(decision.projectionId)}`,
   );
   const rendered = [...renderedApplied, ...renderedExcluded];
   return rendered.length > 0 ? rendered.join(", ") : "(none)";

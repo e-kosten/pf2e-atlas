@@ -1,5 +1,4 @@
-import { DERIVED_TAG_ONTOLOGY_BY_CATEGORY } from "../../ontology/index.js";
-import { buildPublishedDerivedTagConceptModel } from "../../translations/index.js";
+import { buildPublishedDerivedTagTranslationsByKey } from "../../translations/index.js";
 import {
   cloneDerivedTagTranslationOverride,
   normalizeDerivedTagTranslationOverride,
@@ -30,14 +29,14 @@ export function createDerivedTagTranslationReviewSession(options: {
       ...(options.categoryFilter && options.categoryFilter !== "all" ? { category: options.categoryFilter } : {}),
       ...(options.statusFilter && options.statusFilter !== "all" ? { statuses: [options.statusFilter] } : {}),
     });
-  const baseModel = buildPublishedDerivedTagConceptModel(DERIVED_TAG_ONTOLOGY_BY_CATEGORY, {
+  const baseTranslationsByKey = buildPublishedDerivedTagTranslationsByKey({
     includeOverrides: false,
   });
   const currentOverrides = getCurrentDerivedTagTranslationOverrides();
 
   const rows: DerivedTagTranslationReviewRow[] = queueItems.map((row) => {
     const key = `${row.currentCategory}:${row.currentTag}` as const;
-    const base = baseModel.translationsByTagKey.get(key);
+    const base = baseTranslationsByKey.get(key);
     if (!base) {
       throw new Error(`Missing base translation row for ${key}.`);
     }
