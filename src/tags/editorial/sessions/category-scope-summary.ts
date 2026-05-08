@@ -7,6 +7,7 @@ import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
 import type { DerivedTagManagedCategory, DerivedTagWorkbenchMode } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 export type DerivedTagCategoryScopeSummary = {
   category: DerivedTagManagedCategory;
@@ -37,7 +38,7 @@ function buildReviewQueueCategoryScopeSummary(): DerivedTagCategoryScopeSummaryS
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const assignmentCount = state.assignmentReviews[category].decisions.length;
     const exemplarCount = state.exemplarReviews[category].decisions.filter(
-      (decision) => decision.status === "needs_review",
+      (decision) => decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
     ).length;
     const queueSliceCount = queueSummary.filter((item) => item.category === category).length;
 
@@ -128,10 +129,11 @@ function buildProposalReviewCategoryScopeSummary(): DerivedTagCategoryScopeSumma
   const state = getCurrentDerivedTagAuthoredState();
   const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
     const assignmentCount = state.assignmentReviews[category].decisions.filter(
-      (decision) => decision.source === "llm",
+      (decision) => decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
     ).length;
     const exemplarCount = state.exemplarReviews[category].decisions.filter(
-      (decision) => decision.status === "needs_review" && decision.source === "llm",
+      (decision) =>
+        decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW && decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
     ).length;
 
     return {
@@ -215,19 +217,15 @@ export function summarizeDerivedTagCategoryScopes(
   db: DatabaseSync,
   mode: DerivedTagWorkbenchMode,
 ): DerivedTagCategoryScopeSummarySet {
-  if (mode === "review_queue") {
-    return buildReviewQueueCategoryScopeSummary();
-  }
-  if (mode === "legacy_seed") {
-    return buildLegacySeedCategoryScopeSummary();
-  }
-  if (mode === "exemplar_cleanup") {
-    return buildExemplarCleanupCategoryScopeSummary();
-  }
-  if (mode === "legacy_rule") {
-    return buildLegacyRuleCategoryScopeSummary(db);
-  }
-  return buildProposalReviewCategoryScopeSummary();
+  const builders: Record<DerivedTagWorkbenchMode, (db: DatabaseSync) => DerivedTagCategoryScopeSummarySet> = {
+    review_queue: buildReviewQueueCategoryScopeSummary,
+    proposal_review: buildProposalReviewCategoryScopeSummary,
+    legacy_seed: buildLegacySeedCategoryScopeSummary,
+    legacy_rule: buildLegacyRuleCategoryScopeSummary,
+    exemplar_cleanup: buildExemplarCleanupCategoryScopeSummary,
+  };
+
+  return builders[mode](db);
 }
 
 export function getManagedCategoryScopeSummary(

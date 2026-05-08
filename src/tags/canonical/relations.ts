@@ -1,25 +1,10 @@
 import type { DerivedTagCanonicalConceptRelation } from "../../domain/derived-tag-types.js";
+import { relate } from "./builders.js";
 
 export const DERIVED_TAG_CANONICAL_RELATIONS: DerivedTagCanonicalConceptRelation[] = 
 [
-  {
-    fromConceptId: "curse_remediation",
-    relation: "counteracts",
-    toConceptId: "curse_application"
-  },
-  {
-    fromConceptId: "disease_remediation",
-    relation: "counteracts",
-    toConceptId: "disease_application"
-  },
-  {
-    fromConceptId: "petrification_remediation",
-    relation: "counteracts",
-    toConceptId: "petrification_application"
-  },
-  {
-    fromConceptId: "poison_remediation",
-    relation: "counteracts",
-    toConceptId: "poison_application"
-  }
+  relate("curse_remediation", "counteracts", "curse_application"),
+  relate("disease_remediation", "counteracts", "disease_application"),
+  relate("petrification_remediation", "counteracts", "petrification_application"),
+  relate("poison_remediation", "counteracts", "poison_application"),
 ];

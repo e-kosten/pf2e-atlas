@@ -26,6 +26,7 @@ import {
 } from "../../../tui/list-detail-presentation.js";
 import { getDerivedTagTerminalTwoPaneLayoutMode } from "../../../tui/two-pane-state.js";
 import type { DerivedTagReviewSession } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 export function useDerivedTagReviewScreenController({
   rootPath,
@@ -103,15 +104,15 @@ export function useDerivedTagReviewScreenController({
 
   const requestAction = React.useCallback(
     async (actionId: DerivedTagReviewActionId) => {
-      if (actionId === "quit") {
+      if (actionId === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.QUIT) {
         completeReview(state.imported, state.session);
         return;
       }
-      if (actionId === "toggle_unresolved") {
+      if (actionId === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.TOGGLE_UNRESOLVED) {
         dispatch({ type: "toggle_unresolved" });
         return;
       }
-      if (actionId === "import") {
+      if (actionId === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.IMPORT) {
         await handleImport();
         return;
       }
@@ -122,12 +123,12 @@ export function useDerivedTagReviewScreenController({
       if (!item) {
         return;
       }
-      if (actionId === "approve") {
-        dispatch({ type: "apply_decision_status", item, status: "approved" });
-      } else if (actionId === "reject") {
-        dispatch({ type: "apply_decision_status", item, status: "rejected" });
+      if (actionId === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.APPROVE) {
+        dispatch({ type: "apply_decision_status", item, status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.APPROVED });
+      } else if (actionId === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.REJECT) {
+        dispatch({ type: "apply_decision_status", item, status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.REJECTED });
       } else {
-        dispatch({ type: "apply_decision_status", item, status: "needs_review" });
+        dispatch({ type: "apply_decision_status", item, status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW });
       }
     },
     [completeReview, handleImport, screenModel.items, state.imported, state.session],

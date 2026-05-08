@@ -11,23 +11,36 @@ import type {
   DerivedTagAssignmentMemoryCategory,
   DerivedTagAssignmentReviewCategory,
   DerivedTagReviewConfidence,
-  DerivedTagReviewSource,
-  DerivedTagReviewStatus,
 } from "../runtime/derivation/assignments.js";
 import type { DerivedTagSource } from "../runtime/publication/catalog.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import type { OntologyExplorerEntityRecord } from "../../app/ontology/entity-record.js";
 import type { DerivedTagTranslationRecord } from "../../domain/derived-tag-types.js";
 import type { DerivedTagTranslationOverride } from "../translations/tag-overrides.js";
+import type {
+  DerivedTagReviewAssignmentModeValue,
+  DerivedTagReviewDecisionKindValue,
+  DerivedTagReviewExemplarActionValue,
+  DerivedTagReviewRuleDecisionValue,
+  DerivedTagReviewResolutionStatusValue,
+  DerivedTagReviewSourceValue,
+  DerivedTagReviewStatusValue,
+} from "./review-vocabulary.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "./review-vocabulary.js";
 
 export type { DerivedTagManagedCategory } from "../manifest.js";
 
-export type DerivedTagWorkbenchMode =
-  | "review_queue"
-  | "proposal_review"
-  | "legacy_seed"
-  | "legacy_rule"
-  | "exemplar_cleanup";
+export const DERIVED_TAG_WORKBENCH = {
+  MODES: [
+    "review_queue",
+    "proposal_review",
+    "legacy_seed",
+    "legacy_rule",
+    "exemplar_cleanup",
+  ] as const,
+} as const;
+
+export type DerivedTagWorkbenchMode = (typeof DERIVED_TAG_WORKBENCH.MODES)[number];
 
 export type DerivedTagReviewSelectionSource =
   | "authored_review_queue"
@@ -38,7 +51,7 @@ export type DerivedTagReviewSelectionSource =
   | "legacy_rule"
   | "exemplar_cleanup";
 
-export type DerivedTagReviewResolutionStatus = "complete" | "needs_review";
+export type DerivedTagReviewResolutionStatus = DerivedTagReviewResolutionStatusValue;
 
 export type DerivedTagReviewSelectionReason = {
   source: DerivedTagReviewSelectionSource;
@@ -54,35 +67,35 @@ export type DerivedTagReviewSessionRecord = {
 };
 
 export type DerivedTagReviewAssignmentDecision = {
-  kind: "assignment";
+  kind: Extract<DerivedTagReviewDecisionKindValue, typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT>;
   family: string;
   tag: string;
-  mode: "include" | "exclude";
-  status: DerivedTagReviewStatus;
+  mode: DerivedTagReviewAssignmentModeValue;
+  status: DerivedTagReviewStatusValue;
   confidence?: DerivedTagReviewConfidence;
   rationale: string;
-  source?: DerivedTagReviewSource;
+  source?: DerivedTagReviewSourceValue;
 };
 
 export type DerivedTagReviewExemplarDecision = {
-  kind: "exemplar";
+  kind: Extract<DerivedTagReviewDecisionKindValue, typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR>;
   tag: string;
   polarity: DerivedTagExemplarPolarity;
-  action: "keep" | "drop";
-  status: DerivedTagReviewStatus;
+  action: DerivedTagReviewExemplarActionValue;
+  status: DerivedTagReviewStatusValue;
   confidence?: DerivedTagReviewConfidence;
   rationale: string;
-  source?: DerivedTagReviewSource;
-  currentPolarity?: DerivedTagExemplarPolarity | "none";
+  source?: DerivedTagReviewSourceValue;
+  currentPolarity?: DerivedTagExemplarPolarity | typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NONE;
 };
 
 export type DerivedTagReviewRuleDecision = {
-  kind: "rule";
+  kind: Extract<DerivedTagReviewDecisionKindValue, typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE>;
   tag: string;
-  decision: "recreate_authored" | "assignment_takeover" | "retain_legacy";
-  status: DerivedTagReviewStatus;
+  decision: DerivedTagReviewRuleDecisionValue;
+  status: DerivedTagReviewStatusValue;
   rationale: string;
-  source?: DerivedTagReviewSource;
+  source?: DerivedTagReviewSourceValue;
   authoredRules?: AuthoredDerivedTagRule[];
 };
 
@@ -136,7 +149,7 @@ export type DerivedTagReviewSessionCreateOptions = {
 };
 
 export type DerivedTagReviewQueueSummaryItem = {
-  kind: "assignment" | "exemplar";
+  kind: DerivedTagReviewDecisionKind;
   category: SearchCategory;
   family?: string;
   tag: string;
@@ -153,7 +166,10 @@ export type DerivedTagAuthoredState = {
   authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;
 };
 
-export type DerivedTagReviewDecisionKind = "assignment" | "exemplar";
+export type DerivedTagReviewDecisionKind = Extract<
+  DerivedTagReviewDecisionKindValue,
+  typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT | typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR
+>;
 
 export type DerivedTagTranslationReviewFilterStatus = "all" | "mapped" | "provisional" | "unmapped";
 

@@ -1,4 +1,5 @@
 import type { DerivedTagReviewDecision, DerivedTagReviewSession } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 export type DerivedTagMigrationReviewItem = {
   recordIndex: number;
@@ -18,7 +19,7 @@ export function getDerivedTagReviewItems(
   const items: DerivedTagMigrationReviewItem[] = [];
   session.decisions.forEach((recordDecision, recordIndex) => {
     recordDecision.decisions.forEach((decision, decisionIndex) => {
-      if (session.reviewState.unresolvedOnly && decision.status !== "needs_review") {
+      if (session.reviewState.unresolvedOnly && decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW) {
         return;
       }
       items.push({ recordIndex, decisionIndex });
@@ -36,7 +37,7 @@ export function summarizeDerivedTagReviewProgress(
     candidateRecordCount: session.manifest.recordCount,
     actionableRecordCount: actionableDecisions.length,
     resolvedActionableRecordCount: actionableDecisions.filter(
-      (recordDecision) => recordDecision.resolutionStatus === "complete",
+      (recordDecision) => recordDecision.resolutionStatus === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RESOLUTION_STATUS.COMPLETE,
     ).length,
     visibleItemCount: getDerivedTagReviewItems(session).length,
   };
@@ -57,9 +58,9 @@ export function updateDerivedTagReviewDecisionStatus(
     return next;
   }
   decision.status = status;
-  recordDecision.resolutionStatus = recordDecision.decisions.some((entry) => entry.status === "needs_review")
-    ? "needs_review"
-    : "complete";
+  recordDecision.resolutionStatus = recordDecision.decisions.some((entry) => entry.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW)
+    ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW
+    : DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RESOLUTION_STATUS.COMPLETE;
   next.reviewState.updatedAt = new Date().toISOString();
   return next;
 }

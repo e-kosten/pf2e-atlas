@@ -601,7 +601,7 @@ export function useStructuredDraftPromptActions({
       if (parsed === null) {
         return structuredDraftPromptApply(null);
       }
-      if (parsed.op === "neq") {
+      if (parsed.op === "notEq") {
         await terminal.pauseForAnyKey(
           "`!=` is not supported for this matcher. Use an exact, minimum, maximum, or range value.",
         );

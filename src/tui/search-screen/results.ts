@@ -4,6 +4,7 @@ import type { SearchScreenState } from "./state.js";
 import type { SearchScreenOrigin } from "./workflow-types.js";
 import { formatResultPosition, formatSort, getSessionBufferRange } from "./state.js";
 import type { Pf2eTerminalSearchSession } from "../search/service.js";
+import { getLookupSortPolicy } from "../search/service-options.js";
 import { clampWindowStart } from "../list-utils.js";
 import {
   buildLookupMatchTypeGroup,
@@ -13,28 +14,31 @@ import {
   formatLookupMatchTypeLabel,
 } from "../list-detail-formatting.js";
 import { buildTerminalGroupedListLines } from "../list-detail-presentation.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 
 export type SearchResultCommandId = "jumpToResult" | "sortResults" | "openEditor";
+type LookupSortPolicy = (typeof SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY)[keyof typeof SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY];
 
 export function canChangeResultSort(session: Pf2eTerminalSearchSession | null): boolean {
-  return Boolean(session && session.query.mode !== "search");
+  return Boolean(session && session.query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.SEARCH);
 }
 
 function getLookupPresentation(
   session: Pf2eTerminalSearchSession | null,
-): { policy: "tiered" | "global" } | null {
-  if (!session || session.query.mode !== "lookup") {
+): { policy: LookupSortPolicy } | null {
+  if (!session || session.query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP) {
     return null;
   }
 
+  const policy = getLookupSortPolicy(session.sort);
   return {
-    policy: session.sort.endsWith("Global") ? "global" : "tiered",
+    policy: policy ?? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED,
   };
 }
 
 function getResultLookupMatchType(
   record: Pf2eTerminalSearchSession["results"][number],
-  presentation: { policy: "tiered" | "global" } | null,
+  presentation: { policy: LookupSortPolicy } | null,
 ) {
   if (!presentation) {
     return "none" as const;

@@ -3,6 +3,7 @@ import type {
   SearchCountResult,
   SearchExplainResult,
   SearchMode,
+  SearchFusionProfile,
   SearchProfile,
   SearchResultRecord,
   SearchRecordExplanation,
@@ -16,7 +17,7 @@ import { buildFusionConfigSummary } from "./ranking.js";
 
 type HybridFusionContext = {
   profile: NonNullable<SearchExplainResult["fusionProfile"]>;
-  config: RankingConfig["hybridFusion"]["balanced"];
+  config: RankingConfig["hybridFusion"][SearchFusionProfile];
 };
 
 export type RuntimeSearchEntry = {

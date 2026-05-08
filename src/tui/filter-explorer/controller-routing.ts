@@ -21,6 +21,7 @@ import {
   resolveFilterExplorerBackNavigation,
 } from "./controller-state.js";
 import type { FilterExplorerInteractionRoute, FilterExplorerKeyContext } from "./controller-types.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerComposeDraft,
@@ -35,7 +36,7 @@ import {
 } from "./workflow-actions.js";
 
 function resolveScreenTitle(options: FilterExplorerOptions): string {
-  return options.title ?? (options.mode.kind === "compose" ? "Filter Explorer" : options.model.label);
+  return options.title ?? (options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE ? "Filter Explorer" : options.model.label);
 }
 
 export function buildFilterExplorerControllerContext(args: {
@@ -64,7 +65,7 @@ export function buildFilterExplorerControllerContext(args: {
     selectedDiscreteClause: getFilterExplorerDiscreteClause(selectedTarget, effectiveDraft),
     selectedScalarClause: getFilterExplorerScalarClause(selectedTarget, effectiveDraft),
     selectedInspectResult:
-      args.options.mode.kind === "inspect-and-open"
+      args.options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN
         ? buildFilterExplorerInspectResult(args.options.mode, currentNode, selectedTarget)
         : undefined,
     discovery: args.options.discovery,
@@ -253,7 +254,7 @@ function resolveFilterExplorerListRightBehavior(args: {
     actionTargetState: { activeTarget: "content", selectedActionIndex: 0 },
   });
 
-  if (options.mode.kind === "compose") {
+  if (options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE) {
     const composeMode = options.mode;
     const target = resolveFilterExplorerHostTarget(options.host, keyContext.currentNode);
     const canOpenTarget = Boolean(target && (target.kind !== "scalar" || composeMode.onEditScalarTarget));
@@ -303,7 +304,10 @@ function resolveFilterExplorerListRightBehavior(args: {
   if (
     inspectTarget &&
     inspectPresentation &&
-    (inspectPresentation.activationStyle === "toggle" || inspectPresentation.activationStyle === "edit") &&
+    (
+      inspectPresentation.activationStyle === FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.TOGGLE ||
+      inspectPresentation.activationStyle === FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.EDIT
+    ) &&
     options.host.activateTarget
   ) {
     return {

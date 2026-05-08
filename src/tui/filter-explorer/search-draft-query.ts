@@ -22,6 +22,7 @@ import {
   setSearchQueryPredicateFilter,
   setSearchQueryRaritySelection,
 } from "../search/query-state.js";
+import { SEARCH_FILTER_OPERATOR_VOCABULARY } from "../../domain/search-filter-operators.js";
 import type {
   Pf2eTerminalFacetField,
   Pf2eTerminalFilterExplorerInsertionResult,
@@ -190,7 +191,7 @@ function canonicalMetricOperatorToScalarOperator(
     case "eq":
       return "eq";
     case "notEq":
-      return "neq";
+      return SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ;
     case "gt":
       return "gt";
     case "gte":
@@ -219,7 +220,7 @@ function extractMetricSelectionFromPredicate(
     };
   }
 
-  if (node.op !== "notEq") {
+  if (node.op !== SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ) {
     return null;
   }
 
@@ -374,7 +375,10 @@ function buildMetricSelectionMetadataNode(
   return {
     kind: "metric",
     metric,
-    op: operator === "include" ? "eq" : "notEq",
+    op:
+      operator === "include"
+        ? SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.EQ
+        : SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ,
     value: normalizeMetricSelectionValue(value),
   };
 }
@@ -405,8 +409,8 @@ function buildMetricScalarClauseMetadataNode(key: string, clause: FilterExplorer
     case "eq":
       op = "eq";
       break;
-    case "neq":
-      op = "notEq";
+    case SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ:
+      op = SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ;
       break;
     case "gt":
       op = "gt";

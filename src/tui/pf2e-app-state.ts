@@ -13,35 +13,47 @@ import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspec
 import type { Pf2eTerminalSearchSession } from "./search/service.js";
 import { moveSelectionWrapped } from "./framework/input.js";
 
-export const PF2E_APP_ROUTE_KIND = {
-  AREAS: "areas",
-  TAG_REFINEMENT: "tag_refinement",
-  TRANSLATION_QUEUE: "translation_queue",
-  SEARCH: "search",
-  ONTOLOGY: "ontology",
-  PAGE: "page",
-  REVIEW: "review",
+export const PF2E_VOCABULARY = {
+  ROUTE: {
+    KIND: {
+      AREAS: "areas",
+      TAG_REFINEMENT: "tag_refinement",
+      TRANSLATION_QUEUE: "translation_queue",
+      SEARCH: "search",
+      ONTOLOGY: "ontology",
+      PAGE: "page",
+      REVIEW: "review",
+    },
+  },
+  AREA: {
+    ID: {
+      TAG_REFINEMENT: "tag_refinement",
+      ONTOLOGY_SEARCH: "ontology_search",
+      SEARCH: "search",
+    },
+  },
+  SEARCH: {
+    ROUTE: {
+      ENTRY_KIND: {
+        EDITOR: "editor",
+        RESULTS: "results",
+      },
+      ORIGIN_KIND: {
+        ONTOLOGY: "ontology",
+      },
+    },
+  },
 } as const;
 
-export const PF2E_APP_AREA_ID = {
-  TAG_REFINEMENT: "tag_refinement",
-  ONTOLOGY_SEARCH: "ontology_search",
-  SEARCH: "search",
-} as const;
+export const PF2E_APP_ROUTE_KIND = PF2E_VOCABULARY.ROUTE.KIND;
+export const PF2E_APP_AREA_ID = PF2E_VOCABULARY.AREA.ID;
+export const PF2E_SEARCH_ROUTE_ENTRY_KIND = PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND;
+export const PF2E_SEARCH_ROUTE_ORIGIN_KIND = PF2E_VOCABULARY.SEARCH.ROUTE.ORIGIN_KIND;
 
-export const PF2E_SEARCH_ROUTE_ENTRY_KIND = {
-  EDITOR: "editor",
-  RESULTS: "results",
-} as const;
-
-export const PF2E_SEARCH_ROUTE_ORIGIN_KIND = {
-  ONTOLOGY: "ontology",
-} as const;
-
-export type Pf2eAppAreaId = (typeof PF2E_APP_AREA_ID)[keyof typeof PF2E_APP_AREA_ID];
+export type Pf2eAppAreaId = (typeof PF2E_VOCABULARY.AREA.ID)[keyof typeof PF2E_VOCABULARY.AREA.ID];
 
 export type Pf2eOntologyRoute = {
-  kind: (typeof PF2E_APP_ROUTE_KIND)["ONTOLOGY"];
+  kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["ONTOLOGY"];
   model: OntologyDomainModel;
   initialDiscoveryMode?: SearchFilterDiscoveryMode;
   loadModelForDiscoveryMode?: (mode: SearchFilterDiscoveryMode) => Promise<OntologyDomainModel>;
@@ -49,21 +61,21 @@ export type Pf2eOntologyRoute = {
 };
 
 export type Pf2eSearchRouteOrigin = {
-  kind: (typeof PF2E_SEARCH_ROUTE_ORIGIN_KIND)["ONTOLOGY"];
+  kind: (typeof PF2E_VOCABULARY.SEARCH.ROUTE.ORIGIN_KIND)["ONTOLOGY"];
   route: Pf2eOntologyRoute;
 };
 
 export type Pf2eSearchEditorRoute = {
-  kind: (typeof PF2E_APP_ROUTE_KIND)["SEARCH"];
-  entry: (typeof PF2E_SEARCH_ROUTE_ENTRY_KIND)["EDITOR"];
+  kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["SEARCH"];
+  entry: (typeof PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND)["EDITOR"];
   initialQuery?: OntologyNodeQuery;
   initialSession?: never;
   origin?: Pf2eSearchRouteOrigin;
 };
 
 export type Pf2eSearchResultsRoute = {
-  kind: (typeof PF2E_APP_ROUTE_KIND)["SEARCH"];
-  entry: (typeof PF2E_SEARCH_ROUTE_ENTRY_KIND)["RESULTS"];
+  kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["SEARCH"];
+  entry: (typeof PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND)["RESULTS"];
   initialQuery?: never;
   initialSession: Pf2eTerminalSearchSession;
   origin?: Pf2eSearchRouteOrigin;
@@ -72,25 +84,25 @@ export type Pf2eSearchResultsRoute = {
 export type Pf2eSearchRoute = Pf2eSearchEditorRoute | Pf2eSearchResultsRoute;
 
 export type Pf2ePageRoute = {
-  kind: (typeof PF2E_APP_ROUTE_KIND)["PAGE"];
+  kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["PAGE"];
   recordKey: RecordKey;
   document: EntityPageDocument;
 };
 
 export type Pf2eTranslationQueueRoute = {
-  kind: (typeof PF2E_APP_ROUTE_KIND)["TRANSLATION_QUEUE"];
+  kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["TRANSLATION_QUEUE"];
   initialCategory?: SearchCategory;
   initialStatus?: "all" | "mapped" | "provisional" | "unmapped";
 };
 
 export type Pf2eAppRoute =
-  | { kind: (typeof PF2E_APP_ROUTE_KIND)["AREAS"] }
-  | { kind: (typeof PF2E_APP_ROUTE_KIND)["TAG_REFINEMENT"] }
+  | { kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["AREAS"] }
+  | { kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["TAG_REFINEMENT"] }
   | Pf2eTranslationQueueRoute
   | Pf2eSearchRoute
   | Pf2eOntologyRoute
   | Pf2ePageRoute
-  | { kind: (typeof PF2E_APP_ROUTE_KIND)["REVIEW"]; session: DerivedTagReviewSession };
+  | { kind: (typeof PF2E_VOCABULARY.ROUTE.KIND)["REVIEW"]; session: DerivedTagReviewSession };
 
 export type CreatePf2eDerivedTagSessionOptions = {
   category?: SearchCategory;
@@ -130,7 +142,7 @@ export function createPf2eOntologyRoute({
   snapshot?: OntologyInspectExplorerSnapshot;
 }): Pf2eOntologyRoute {
   return {
-    kind: PF2E_APP_ROUTE_KIND.ONTOLOGY,
+    kind: PF2E_VOCABULARY.ROUTE.KIND.ONTOLOGY,
     model,
     ...(initialDiscoveryMode ? { initialDiscoveryMode } : {}),
     ...(loadModelForDiscoveryMode ? { loadModelForDiscoveryMode } : {}),
@@ -146,8 +158,8 @@ export function createPf2eSearchEditorRoute({
   origin?: Pf2eSearchRouteOrigin;
 } = {}): Pf2eSearchEditorRoute {
   return {
-    kind: PF2E_APP_ROUTE_KIND.SEARCH,
-    entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.EDITOR,
+    kind: PF2E_VOCABULARY.ROUTE.KIND.SEARCH,
+    entry: PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND.EDITOR,
     ...(initialQuery ? { initialQuery } : {}),
     ...(origin ? { origin } : {}),
   };
@@ -161,8 +173,8 @@ export function createPf2eSearchResultsRoute({
   origin?: Pf2eSearchRouteOrigin;
 }): Pf2eSearchResultsRoute {
   return {
-    kind: PF2E_APP_ROUTE_KIND.SEARCH,
-    entry: PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS,
+    kind: PF2E_VOCABULARY.ROUTE.KIND.SEARCH,
+    entry: PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND.RESULTS,
     initialSession,
     ...(origin ? { origin } : {}),
   };
@@ -170,13 +182,13 @@ export function createPf2eSearchResultsRoute({
 
 export function createPf2ePageRoute(document: EntityPageDocument): Pf2ePageRoute {
   return {
-    kind: PF2E_APP_ROUTE_KIND.PAGE,
+    kind: PF2E_VOCABULARY.ROUTE.KIND.PAGE,
     recordKey: document.recordKey,
     document,
   };
 }
 
-export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS }): Pf2eAppState {
+export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: PF2E_VOCABULARY.ROUTE.KIND.AREAS }): Pf2eAppState {
   return {
     routeStack: [initialRoute],
     selectedAreaIndex: 0,
@@ -185,7 +197,7 @@ export function createPf2eAppState(initialRoute: Pf2eAppRoute = { kind: PF2E_APP
 }
 
 export function getCurrentPf2eAppRoute(state: Pf2eAppState): Pf2eAppRoute {
-  return state.routeStack[state.routeStack.length - 1] ?? { kind: PF2E_APP_ROUTE_KIND.AREAS };
+  return state.routeStack[state.routeStack.length - 1] ?? { kind: PF2E_VOCABULARY.ROUTE.KIND.AREAS };
 }
 
 export function canPopPf2eAppRoute(state: Pf2eAppState): boolean {

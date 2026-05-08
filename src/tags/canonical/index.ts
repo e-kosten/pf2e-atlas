@@ -53,8 +53,6 @@ function buildCanonicalProjections(
     }
     return {
       ...projection,
-      axis: translation.projectionAxis,
-      family: translation.projectionFamily,
       translationStatus: translation.translationStatus,
     };
   });
@@ -70,12 +68,6 @@ function buildCanonicalTags(
       throw new Error(`Missing canonical concept "${projection.conceptId}" for projection "${projection.id}".`);
     }
     const translation = translationsByKey.get(translationKey(projection.category, projection.currentTag));
-    const schemaKind = translation?.schemaKind ?? concept.schemaKind;
-    const domainId = translation?.domainId || concept.domainId;
-    const operation = translation?.operation || concept.operation;
-    const primaryFacetKind = translation?.primaryFacetKind || concept.primaryFacetKind;
-    const primaryFacetValue = translation?.primaryFacetValue || concept.primaryFacetValue;
-    const secondaryFacets = translation?.secondaryFacets ?? concept.secondaryFacets;
     return {
       category: projection.category,
       family: projection.family,
@@ -93,12 +85,12 @@ function buildCanonicalTags(
       variantInheritance: projection.variantInheritance,
       canonicalConceptId: concept.id,
       translationStatus: projection.translationStatus,
-      schemaKind,
-      domainId,
-      operation,
-      primaryFacetKind,
-      primaryFacetValue,
-      secondaryFacets,
+      schemaKind: concept.schemaKind,
+      domainId: concept.domainId,
+      operation: concept.operation,
+      primaryFacetKind: concept.primaryFacetKind,
+      primaryFacetValue: concept.primaryFacetValue,
+      secondaryFacets: concept.secondaryFacets,
       renameNote: translation?.renameNote,
       translationNotes: translation?.notes,
     };

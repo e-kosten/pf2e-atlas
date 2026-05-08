@@ -1,17 +1,5 @@
 import type { SearchFilterDiscoveryOption } from "../../domain/search-field-domains.js";
-
-export function normalizeDiscoveryTargetField(field: string): string {
-  if (field === "actorMetric" || field === "actorMetricCompare") {
-    return "actorMetrics";
-  }
-  if (field === "itemMetric" || field === "itemMetricCompare") {
-    return "itemMetrics";
-  }
-  if (field === "pack") {
-    return "packs";
-  }
-  return field;
-}
+import { normalizeSearchDiscoveryTargetField } from "../../domain/search-field-domains.js";
 
 export function mapFilterValueDiscoveryOption(entry: {
   value: string;
@@ -29,3 +17,5 @@ export function mapFilterValueDiscoveryOption(entry: {
     ...(entry.numericMax !== undefined ? { numericMax: entry.numericMax } : {}),
   };
 }
+
+export const normalizeDiscoveryTargetField = normalizeSearchDiscoveryTargetField;

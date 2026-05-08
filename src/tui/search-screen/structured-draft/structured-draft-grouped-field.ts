@@ -18,7 +18,9 @@ import {
   buildSearchFilterExplorerFieldState,
   type SearchFilterExplorerFieldState,
 } from "../filter-explorer-field-state.js";
+import { FILTER_EXPLORER_VOCABULARY } from "../../filter-explorer/types.js";
 import { getGroupedFieldChildIndexes } from "./structured-draft-grouped-paths.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
 
 export type StructuredDraftGroupedFieldSearchAdapter = {
   applyDiscoverableQueryFieldSelections(
@@ -31,52 +33,83 @@ export type StructuredDraftGroupedFieldSearchAdapter = {
 export function buildGroupedFieldSeedDiscreteClauses(
   node: SearchFilterNode | undefined,
   field: string | undefined,
-  operator: "include" | "exclude" = "include",
+  operator: (typeof FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR)[keyof typeof FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR] = FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.INCLUDE,
 ): Pf2eTerminalFilterExplorerDraft["discreteClauses"] {
   if (!node || !field) {
     return [];
   }
 
-  if (field === "pack") {
-    if (node.kind === "pack") {
+  if (field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK) {
+    if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK) {
       return [{ field, value: node.value, operator }];
     }
-    if (node.kind === "anyOf") {
+    if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
       return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
     }
-    if (node.kind === "not") {
-      return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+    if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
+      return buildGroupedFieldSeedDiscreteClauses(
+        node.child,
+        field,
+        FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.EXCLUDE,
+      );
     }
     return [];
   }
 
-  if (field === "rarity" || field === "actionCost") {
-    if (node.kind === field && node.match.kind === "eq") {
+  if (
+    field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY ||
+    field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST
+  ) {
+    if (node.kind === field && node.match.kind === SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ) {
       return [{ field, value: String(node.match.value), operator }];
     }
-    if (field === "rarity" && node.kind === "rarity" && node.match.kind === "in") {
+    if (
+      field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY &&
+      node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY &&
+      node.match.kind === SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.IN
+    ) {
       return node.match.values.map((value) => ({ field, value, operator }));
     }
-    if (field === "rarity" && node.kind === "rarity" && node.match.kind === "notIn") {
-      return node.match.values.map((value) => ({ field, value, operator: "exclude" }));
+    if (
+      field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY &&
+      node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY &&
+      node.match.kind === SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN
+    ) {
+      return node.match.values.map((value) => ({
+        field,
+        value,
+        operator: FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.EXCLUDE,
+      }));
     }
-    if (node.kind === "anyOf") {
+    if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
       return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
     }
-    if (node.kind === "not") {
-      return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+    if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
+      return buildGroupedFieldSeedDiscreteClauses(
+        node.child,
+        field,
+        FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.EXCLUDE,
+      );
     }
     return [];
   }
 
-  if (node.kind === "metadataPredicate" && node.predicate.field === field && "value" in node.predicate) {
+  if (
+    node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE &&
+    node.predicate.field === field &&
+    "value" in node.predicate
+  ) {
     return [{ field, value: String(node.predicate.value), operator }];
   }
-  if (node.kind === "anyOf") {
+  if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     return node.children.flatMap((child) => buildGroupedFieldSeedDiscreteClauses(child, field, operator));
   }
-  if (node.kind === "not") {
-    return buildGroupedFieldSeedDiscreteClauses(node.child, field, "exclude");
+  if (node.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
+    return buildGroupedFieldSeedDiscreteClauses(
+      node.child,
+      field,
+      FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.EXCLUDE,
+    );
   }
 
   return [];
@@ -110,29 +143,35 @@ export function buildGroupedFieldReplacementNodes(
   const draft = buildSearchFilterExplorerComposeDraft(fieldState);
   const discreteClauses = draft.discreteClauses.filter((clause) => clause.field === field);
 
-  if (field === "rarity") {
+  if (field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY) {
     return discreteClauses.map((clause) =>
-      clause.operator === "include"
-        ? ({ kind: "rarity", match: { kind: "eq", value: clause.value } } satisfies SearchFilterNode)
+      clause.operator === FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.INCLUDE
+        ? ({
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY,
+            match: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ, value: clause.value },
+          } satisfies SearchFilterNode)
         : ({
-            kind: "not",
-            child: { kind: "rarity", match: { kind: "eq", value: clause.value } },
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
+            child: {
+              kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY,
+              match: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ, value: clause.value },
+            },
           } satisfies SearchFilterNode),
     );
   }
 
-  if (field === "pack") {
+  if (field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK) {
     return discreteClauses.map((clause) =>
-      clause.operator === "include"
-        ? ({ kind: "pack", value: clause.value } satisfies SearchFilterNode)
+      clause.operator === FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.INCLUDE
+        ? ({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK, value: clause.value } satisfies SearchFilterNode)
         : ({
-            kind: "not",
-            child: { kind: "pack", value: clause.value },
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
+            child: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK, value: clause.value },
           } satisfies SearchFilterNode),
     );
   }
 
-  if (field === "actionCost") {
+  if (field === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST) {
     const replacementNodes: SearchFilterNode[] = [];
     for (const clause of discreteClauses) {
       const numericValue = Number.parseInt(clause.value, 10);
@@ -140,11 +179,17 @@ export function buildGroupedFieldReplacementNodes(
         continue;
       }
       replacementNodes.push(
-        clause.operator === "include"
-          ? ({ kind: "actionCost", match: { kind: "eq", value: numericValue } } satisfies SearchFilterNode)
+        clause.operator === FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.INCLUDE
+          ? ({
+              kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST,
+              match: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ, value: numericValue },
+            } satisfies SearchFilterNode)
           : ({
-              kind: "not",
-              child: { kind: "actionCost", match: { kind: "eq", value: numericValue } },
+              kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
+              child: {
+                kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST,
+                match: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ, value: numericValue },
+              },
             } satisfies SearchFilterNode),
       );
     }
@@ -154,7 +199,7 @@ export function buildGroupedFieldReplacementNodes(
   if (fieldOption.fieldType === "set") {
     return discreteClauses.flatMap((clause) => {
       const selection =
-        clause.operator === "include"
+        clause.operator === FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR.INCLUDE
           ? { include: [clause.value], exclude: [] }
           : { include: [], exclude: [clause.value] };
       const replacementNode = getSearchQueryPredicateFilter(

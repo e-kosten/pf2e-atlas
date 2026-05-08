@@ -2,6 +2,7 @@ import {
   buildAllOfFilter,
   buildScopeFilter,
   type SearchRequest,
+  SEARCH_REQUEST_VOCABULARY,
 } from "../domain/search-request-types.js";
 import type { LookupOptions } from "../domain/search-types.js";
 
@@ -13,7 +14,7 @@ export function buildSearchRequestFromTransportInput(input: SearchRequestTranspo
 
 export function buildLookupRequest(name: string, options: LookupOptions = {}): SearchRequest {
   return {
-    mode: "lookup",
+    mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
     search: {
       query: name,
     },

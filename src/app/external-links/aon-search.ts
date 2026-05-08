@@ -33,35 +33,33 @@ function normalizeFacetValues(values: readonly string[]): string[] {
   );
 }
 
-function getAonIncludeTypes(record: Pick<AonSearchRecordLike, "category" | "subcategory">): string[] {
-  const characterCreationIncludeTypes = new Set(["ancestry", "background", "class", "heritage", "deity"]);
+const AON_INCLUDE_TYPES_BY_CATEGORY: Record<SearchCategory, string[]> = {
+  creature: ["creature"],
+  spell: ["spell", "cantrip", "ritual"],
+  feat: ["feat"],
+  hazard: ["hazard"],
+  equipment: ["item"],
+  affliction: ["disease", "curse", "poison"],
+  characterCreation: [],
+  lore: [],
+  rule: [],
+};
+const AON_RULE_INCLUDE_TYPES_BY_SUBCATEGORY: Record<string, string[]> = {
+  action: ["action"],
+  condition: ["condition"],
+};
+const AON_CHARACTER_CREATION_SUBCATEGORIES = new Set(["ancestry", "background", "class", "heritage", "deity"]);
 
-  switch (record.category) {
-    case "creature":
-      return ["creature"];
-    case "spell":
-      return ["spell", "cantrip", "ritual"];
-    case "feat":
-      return ["feat"];
-    case "hazard":
-      return ["hazard"];
-    case "equipment":
-      return ["item"];
-    case "affliction":
-      return ["disease", "curse", "poison"];
-    case "rule":
-      if (record.subcategory === "action") {
-        return ["action"];
-      }
-      if (record.subcategory === "condition") {
-        return ["condition"];
-      }
-      return [];
-    case "characterCreation":
-      return record.subcategory && characterCreationIncludeTypes.has(record.subcategory) ? [record.subcategory] : [];
-    case "lore":
-      return [];
+function getAonIncludeTypes(record: Pick<AonSearchRecordLike, "category" | "subcategory">): string[] {
+  if (record.category === "rule" && record.subcategory) {
+    return AON_RULE_INCLUDE_TYPES_BY_SUBCATEGORY[record.subcategory] ?? [];
   }
+
+  if (record.category === "characterCreation" && record.subcategory) {
+    return AON_CHARACTER_CREATION_SUBCATEGORIES.has(record.subcategory) ? [record.subcategory] : [];
+  }
+
+  return AON_INCLUDE_TYPES_BY_CATEGORY[record.category];
 }
 
 function getAonIncludeRarities(rarity: string | null): string[] {

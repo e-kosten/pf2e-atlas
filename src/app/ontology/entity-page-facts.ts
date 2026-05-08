@@ -519,27 +519,25 @@ function isFeatActionRecord(record: OntologyExplorerEntityRecord): boolean {
   return record.category === "feat" || (record.category === "rule" && record.subcategory === "action");
 }
 
+const ENTITY_PAGE_RECIPE_BY_CATEGORY = {
+  spell: "spell",
+  creature: "creature",
+  equipment: "equipment",
+  feat: "featAction",
+  hazard: "hazard",
+  affliction: "fallback",
+  characterCreation: "fallback",
+  lore: "fallback",
+} as const satisfies Record<
+  "spell" | "creature" | "equipment" | "feat" | "hazard" | "affliction" | "characterCreation" | "lore",
+  Exclude<EntityPageRecipeKind, "fallback"> | "fallback"
+>;
+
 function selectEntityPageRecipe(record: OntologyExplorerEntityRecord): EntityPageRecipeKind {
-  switch (record.category) {
-    case "equipment":
-      return "equipment";
-    case "feat":
-      return "featAction";
-    case "creature":
-      return "creature";
-    case "hazard":
-      return "hazard";
-    case "affliction":
-      return "fallback";
-    case "rule":
-      return isFeatActionRecord(record) ? "featAction" : "fallback";
-    case "spell":
-      return "spell";
-    case "characterCreation":
-      return "fallback";
-    case "lore":
-      return "fallback";
+  if (record.category === "rule") {
+    return isFeatActionRecord(record) ? "featAction" : "fallback";
   }
+  return ENTITY_PAGE_RECIPE_BY_CATEGORY[record.category];
 }
 
 function buildEntityPageFactInventory(

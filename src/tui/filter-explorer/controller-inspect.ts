@@ -6,8 +6,9 @@ import { createEmptyFilterExplorerComposeDraft, isFilterExplorerScalarTarget } f
 import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import type { FilterExplorerKeyContext } from "./controller-types.js";
 import { describeFilterExplorerHostNode } from "./host-adapter.js";
+import { SEARCH_FILTER_OPERATOR_VOCABULARY } from "../../domain/search-filter-operators.js";
 import {
-  FILTER_EXPLORER_LAUNCH_INTENT,
+  FILTER_EXPLORER_VOCABULARY,
   type FilterExplorerActivationStyle,
   type FilterExplorerComposeTarget,
   type FilterExplorerInspectAndOpenMode,
@@ -20,16 +21,17 @@ import {
   type FilterExplorerQueryTarget,
   type FilterExplorerScalarClause,
 } from "./types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 
 export function resolveFilterExplorerLaunchIntent(
   mode: FilterExplorerInspectAndOpenMode,
   query: FilterExplorerQueryTarget,
 ): FilterExplorerLaunchIntent {
   if (query.request.mode !== "browse") {
-    return FILTER_EXPLORER_LAUNCH_INTENT.EDITOR;
+    return FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.EDITOR;
   }
 
-  return mode.defaultListRecordLaunchIntent ?? FILTER_EXPLORER_LAUNCH_INTENT.RESULTS;
+  return mode.defaultListRecordLaunchIntent ?? FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS;
 }
 
 export function buildFilterExplorerInspectResult(
@@ -76,18 +78,18 @@ function buildInspectScalarPredicate(
 
   if (clause.operator === "between") {
     return {
-      kind: "allOf",
+      kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF,
       children: [
         {
-          kind: "metric",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC,
           metric: metricTarget.metric,
-          op: "gte",
+          op: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.GTE,
           value: clause.min,
         },
         {
-          kind: "metric",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC,
           metric: metricTarget.metric,
-          op: "lte",
+          op: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.LTE,
           value: clause.max,
         },
       ],
@@ -96,19 +98,19 @@ function buildInspectScalarPredicate(
 
   const operator =
     clause.operator === "eq"
-      ? "eq"
-      : clause.operator === "neq"
-        ? "notEq"
+      ? SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ
+      : clause.operator === "notEq"
+        ? SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ
         : clause.operator === "gt"
-          ? "gt"
+          ? SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.GT
         : clause.operator === "gte"
-          ? "gte"
+          ? SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.GTE
           : clause.operator === "lt"
-            ? "lt"
-          : "lte";
+            ? SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.LT
+          : SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.LTE;
 
   return {
-    kind: "metric",
+    kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC,
     metric: metricTarget.metric,
     op: operator,
     value: clause.value as number,
@@ -123,7 +125,7 @@ function formatInspectScalarClauseSummary(clause: FilterExplorerScalarClause): s
   const operator =
     clause.operator === "eq"
       ? "="
-      : clause.operator === "neq"
+      : clause.operator === "notEq"
         ? "!="
         : clause.operator === "gt"
           ? ">"
@@ -159,7 +161,7 @@ export function buildCompiledFilterExplorerInspectResult(
         filter: buildAllOfFilter([request.filter, metadataFilter]),
       },
     },
-    launchIntent: FILTER_EXPLORER_LAUNCH_INTENT.RESULTS,
+    launchIntent: FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS,
   };
 }
 
@@ -182,7 +184,10 @@ function resolveFilterExplorerInspectActivationStyle(
     node: result.node,
     target: result.target,
     isFocused: true,
-  })?.activationStyle ?? (result.target?.kind === "scalar" ? "edit" : "open");
+  })?.activationStyle ??
+    (result.target?.kind === "scalar"
+      ? FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.EDIT
+      : FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.OPEN);
 }
 
 function buildFilterExplorerSelectTargetOutcome(
@@ -203,7 +208,7 @@ function openFilterExplorerInspectResultDirect(
   keyContext: FilterExplorerKeyContext,
   result: FilterExplorerInspectResult | undefined,
 ): boolean {
-  if (options.mode.kind !== "inspect-and-open" || !result) {
+  if (options.mode.kind !== FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN || !result) {
     return false;
   }
 
@@ -220,7 +225,7 @@ export function openFilterExplorerInspectResult(args: {
   const { keyContext, options, result } = args;
 
   if (
-    options.mode.kind === "inspect-and-open" &&
+    options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN &&
     result &&
     isFilterExplorerScalarTarget(result.target) &&
     options.mode.onEditScalarTarget
@@ -255,13 +260,13 @@ export function openFilterExplorerInspectQuery(args: {
 }): boolean {
   const { keyContext, options, result } = args;
 
-  if (options.mode.kind !== "inspect-and-open" || !result) {
+  if (options.mode.kind !== FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN || !result) {
     return false;
   }
 
   const snapshot = createFilterExplorerBrowserSnapshot(keyContext);
   options.onOutcome(
-    buildFilterExplorerSelectTargetOutcome(options, result, FILTER_EXPLORER_LAUNCH_INTENT.EDITOR),
+    buildFilterExplorerSelectTargetOutcome(options, result, FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.EDITOR),
     snapshot,
   );
   return true;

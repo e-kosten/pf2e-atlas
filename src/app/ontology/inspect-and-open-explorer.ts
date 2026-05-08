@@ -8,6 +8,7 @@ import type {
   OntologyNode,
   OntologyNodeQuery,
 } from "../../domain/ontology-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import type { Pf2eApplicationOntologyService } from "../ontology-service.js";
@@ -25,7 +26,7 @@ function buildOntologyQueryRecordChildren(
   }
 
   const request = query.request;
-  if (request.mode !== "browse") {
+  if (request.mode !== SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return [];
   }
 
@@ -80,17 +81,17 @@ function buildInspectMetricQuery(node: OntologyNode): OntologyNodeQuery | undefi
     return undefined;
   }
 
-  return {
-    label: `Browse records with the ${scope.metricKey} metric`,
-    request: {
-      mode: "browse",
-      filter: buildAllOfFilter([
-        buildScopeFilter(scope.category, scope.subcategory),
-        {
-          kind: "metricCompare",
-          leftMetric: scope.metricKey,
-          op: "gte",
-          rightMetric: scope.metricKey,
+    return {
+      label: `Browse records with the ${scope.metricKey} metric`,
+      request: {
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
+        filter: buildAllOfFilter([
+          buildScopeFilter(scope.category, scope.subcategory),
+          {
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE,
+            leftMetric: scope.metricKey,
+            op: "gte",
+            rightMetric: scope.metricKey,
         },
       ]),
       limit: 20,
@@ -118,7 +119,7 @@ function decorateNodeForInspectAndOpen(node: OntologyNode, dataService: Ontology
     };
   }
 
-  if (cloned.query && cloned.query.request.mode === "browse") {
+  if (cloned.query && cloned.query.request.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return {
       ...cloned,
       childSource: { kind: "lazy", load: () => Promise.resolve(buildOntologyQueryRecordChildren(dataService, cloned.query)) },

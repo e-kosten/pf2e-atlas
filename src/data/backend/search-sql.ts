@@ -4,10 +4,18 @@ import {
   normalizeActorMetricPrefix,
 } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType, normalizeItemMetricKey, normalizeItemMetricPrefix } from "../../domain/item-metrics.js";
-import { isMetadataFieldName } from "../../domain/metadata-field-catalog.js";
+import { isMetadataFieldName } from "../../domain/metadata-field-types.js";
 import { getMetadataRecordSelectClauses } from "../metadata-row-projection.js";
 import { SearchSort, type FilterValueQuery } from "../../domain/search-types.js";
-import type { NormalizedSearchFilters, SearchExecutionFilterNode } from "../../search/contracts.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
+import type {
+  NormalizedSearchFilters,
+  SearchExecutionFilterNode,
+  SearchExecutionNullableNumericMatch,
+  SearchExecutionNullableStringMatch,
+  SearchExecutionNumericMatch,
+  SearchExecutionScopeSubcategoryMatch,
+} from "../../search/contracts.js";
 import type { SqlValue } from "../sql-types.js";
 import {
   buildMetadataAtomicPredicateClause,
@@ -74,6 +82,95 @@ function buildLinkedFromClause(source: string, recordKeyExpr: string): { clause:
   };
 }
 
+const SCOPE_SUBCATEGORY_FILTER_BUILDERS = {
+  any: (categoryExpr: string, category: string): { clause: string; params: SqlValue[] } => ({
+    clause: `LOWER(${categoryExpr}) = LOWER(?)`,
+    params: [category],
+  }),
+  isNull: (categoryExpr: string, category: string, subcategoryExpr: string): { clause: string; params: SqlValue[] } => ({
+    clause: `(LOWER(${categoryExpr}) = LOWER(?) AND (${subcategoryExpr} IS NULL OR TRIM(${subcategoryExpr}) = ''))`,
+    params: [category],
+  }),
+  isNotNull: (categoryExpr: string, category: string, subcategoryExpr: string): { clause: string; params: SqlValue[] } => ({
+    clause: `(LOWER(${categoryExpr}) = LOWER(?) AND ${subcategoryExpr} IS NOT NULL AND TRIM(${subcategoryExpr}) <> '')`,
+    params: [category],
+  }),
+  eq: (
+    categoryExpr: string,
+    category: string,
+    subcategoryExpr: string,
+    subcategoryValue: string,
+  ): { clause: string; params: SqlValue[] } => ({
+    clause: `(LOWER(${categoryExpr}) = LOWER(?) AND LOWER(COALESCE(${subcategoryExpr}, '')) = LOWER(?))`,
+    params: [category, subcategoryValue],
+  }),
+} as const satisfies Record<SearchExecutionScopeSubcategoryMatch["kind"], (...args: string[]) => { clause: string; params: SqlValue[] }>;
+
+const NUMBER_MATCH_OPERATORS = {
+  eq: "=",
+  gt: ">",
+  gte: ">=",
+  lt: "<",
+  lte: "<=",
+} as const satisfies Readonly<Record<Exclude<SearchExecutionNumericMatch["kind"], "between">, string>>;
+
+function buildNumericMatchClause(
+  expression: string,
+  match: SearchExecutionNumericMatch,
+): { clause: string; params: SqlValue[] } {
+  if (match.kind === "between") {
+    return {
+      clause: `(${expression} >= ? AND ${expression} <= ?)`,
+      params: [match.min, match.max],
+    };
+  }
+  return {
+    clause: `${expression} ${NUMBER_MATCH_OPERATORS[match.kind]} ?`,
+    params: [match.value],
+  };
+}
+
+function buildNullableNumericMatchClause(
+  expression: string,
+  match: SearchExecutionNullableNumericMatch,
+): { clause: string; params: SqlValue[] } {
+  if (match.kind === "isNull") {
+    return { clause: `${expression} IS NULL`, params: [] };
+  }
+  if (match.kind === "isNotNull") {
+    return { clause: `${expression} IS NOT NULL`, params: [] };
+  }
+  return buildNumericMatchClause(expression, match as SearchExecutionNumericMatch);
+}
+
+function buildRarityMatchClause(
+  expression: string,
+  match: SearchExecutionNullableStringMatch,
+): { clause: string; params: SqlValue[] } {
+  if (match.kind === "isNull") {
+    return { clause: `${expression} IS NULL OR TRIM(${expression}) = ''`, params: [] };
+  }
+  if (match.kind === "isNotNull") {
+    return { clause: `${expression} IS NOT NULL AND TRIM(${expression}) <> ''`, params: [] };
+  }
+  if (match.kind === "in" || match.kind === "notIn") {
+    const values = match.values.filter((value) => value.length > 0);
+    if (values.length === 0) {
+      return match.kind === "in" ? { clause: "0 = 1", params: [] } : { clause: "1 = 1", params: [] };
+    }
+    const placeholders = values.map(() => "?").join(", ");
+    return {
+      clause: `LOWER(COALESCE(${expression}, '')) ${match.kind === "in" ? "IN" : "NOT IN"} (${placeholders})`,
+      params: values.map((value) => value.toLowerCase()),
+    };
+  }
+  const eqMatch = match as Extract<SearchExecutionNullableStringMatch, { kind: "eq" }>;
+  return {
+    clause: `LOWER(COALESCE(${expression}, '')) = LOWER(?)`,
+    params: [eqMatch.value],
+  };
+}
+
 function buildSearchFilterClause(
   filter: SearchExecutionFilterNode,
   context: SearchSqlFilterContext,
@@ -87,117 +184,34 @@ function buildSearchFilterClause(
         params: context.packLabelExpr ? [filter.value, filter.value] : [filter.value],
       };
     case "scope": {
-      if (filter.subcategory.kind === "any") {
-        return {
-          clause: `LOWER(${context.categoryExpr}) = LOWER(?)`,
-          params: [filter.category],
-        };
+      switch (filter.subcategory.kind) {
+        case "eq":
+          return SCOPE_SUBCATEGORY_FILTER_BUILDERS.eq(
+            context.categoryExpr,
+            filter.category,
+            context.subcategoryExpr,
+            filter.subcategory.value,
+          );
+        case "any":
+          return SCOPE_SUBCATEGORY_FILTER_BUILDERS.any(context.categoryExpr, filter.category);
+        case "isNull":
+          return SCOPE_SUBCATEGORY_FILTER_BUILDERS.isNull(context.categoryExpr, filter.category, context.subcategoryExpr);
+        case "isNotNull":
+          return SCOPE_SUBCATEGORY_FILTER_BUILDERS.isNotNull(
+            context.categoryExpr,
+            filter.category,
+            context.subcategoryExpr,
+          );
       }
-      if (filter.subcategory.kind === "isNull") {
-        return {
-          clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND (${context.subcategoryExpr} IS NULL OR TRIM(${context.subcategoryExpr}) = ''))`,
-          params: [filter.category],
-        };
-      }
-      if (filter.subcategory.kind === "isNotNull") {
-        return {
-          clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND ${context.subcategoryExpr} IS NOT NULL AND TRIM(${context.subcategoryExpr}) <> '')`,
-          params: [filter.category],
-        };
-      }
-      return {
-        clause: `(LOWER(${context.categoryExpr}) = LOWER(?) AND LOWER(COALESCE(${context.subcategoryExpr}, '')) = LOWER(?))`,
-        params: [filter.category, filter.subcategory.value],
-      };
     }
     case "level":
-      if (filter.match.kind === "eq") {
-        return { clause: `${context.levelExpr} = ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gt") {
-        return { clause: `${context.levelExpr} > ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gte") {
-        return { clause: `${context.levelExpr} >= ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lt") {
-        return { clause: `${context.levelExpr} < ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lte") {
-        return { clause: `${context.levelExpr} <= ?`, params: [filter.match.value] };
-      }
-      return {
-        clause: `(${context.levelExpr} >= ? AND ${context.levelExpr} <= ?)`,
-        params: [filter.match.min, filter.match.max],
-      };
+      return buildNumericMatchClause(context.levelExpr, filter.match);
     case "price":
-      if (filter.match.kind === "eq") {
-        return { clause: `${context.priceExpr} = ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gt") {
-        return { clause: `${context.priceExpr} > ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "gte") {
-        return { clause: `${context.priceExpr} >= ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lt") {
-        return { clause: `${context.priceExpr} < ?`, params: [filter.match.value] };
-      }
-      if (filter.match.kind === "lte") {
-        return { clause: `${context.priceExpr} <= ?`, params: [filter.match.value] };
-      }
-      return {
-        clause: `(${context.priceExpr} >= ? AND ${context.priceExpr} <= ?)`,
-        params: [filter.match.min, filter.match.max],
-      };
+      return buildNumericMatchClause(context.priceExpr, filter.match);
     case "rarity":
-      if (filter.match.kind === "isNull") {
-        return { clause: `${context.rarityExpr} IS NULL OR TRIM(${context.rarityExpr}) = ''`, params: [] };
-      }
-      if (filter.match.kind === "isNotNull") {
-        return { clause: `${context.rarityExpr} IS NOT NULL AND TRIM(${context.rarityExpr}) <> ''`, params: [] };
-      }
-      if (filter.match.kind === "in" || filter.match.kind === "notIn") {
-        const values = filter.match.values.filter((value) => value.length > 0);
-        if (values.length === 0) {
-          return filter.match.kind === "in" ? { clause: "0 = 1", params: [] } : { clause: "1 = 1", params: [] };
-        }
-        const placeholders = values.map(() => "?").join(", ");
-        return {
-          clause: `LOWER(COALESCE(${context.rarityExpr}, '')) ${filter.match.kind === "in" ? "IN" : "NOT IN"} (${placeholders})`,
-          params: values.map((value) => value.toLowerCase()),
-        };
-      }
-      return {
-        clause: `LOWER(COALESCE(${context.rarityExpr}, '')) = LOWER(?)`,
-        params: [(filter.match as Extract<typeof filter.match, { kind: "eq" }>).value],
-      };
-    case "actionCost": {
-      switch (filter.match.kind) {
-        case "isNull":
-          return { clause: `${context.actionCostExpr} IS NULL`, params: [] };
-        case "isNotNull":
-          return { clause: `${context.actionCostExpr} IS NOT NULL`, params: [] };
-        case "eq":
-          return { clause: `${context.actionCostExpr} = ?`, params: [filter.match.value] };
-        case "gt":
-          return { clause: `${context.actionCostExpr} > ?`, params: [filter.match.value] };
-        case "gte":
-          return { clause: `${context.actionCostExpr} >= ?`, params: [filter.match.value] };
-        case "lt":
-          return { clause: `${context.actionCostExpr} < ?`, params: [filter.match.value] };
-        case "lte":
-          return { clause: `${context.actionCostExpr} <= ?`, params: [filter.match.value] };
-        case "between": {
-          const params: SqlValue[] = [filter.match.min, filter.match.max];
-          return {
-            clause: `(${context.actionCostExpr} >= ? AND ${context.actionCostExpr} <= ?)`,
-            params,
-          };
-        }
-      }
-      throw new Error("Unsupported actionCost matcher.");
-    }
+      return buildRarityMatchClause(context.rarityExpr, filter.match);
+    case "actionCost":
+      return buildNullableNumericMatchClause(context.actionCostExpr, filter.match);
     case "linksTo":
       return buildLinksToClause(filter.target, context.recordKeyExpr);
     case "linkedFrom":
@@ -398,19 +412,22 @@ export function buildCandidateQuery(
   return { sql: sql.join("\n"), params };
 }
 
-function appendCandidateOrderBy(sql: string[], sort: Exclude<SearchSort, "ranked" | "random">): void {
+function appendCandidateOrderBy(
+  sql: string[],
+  sort: Exclude<SearchSort, typeof SEARCH_VOCABULARY.SORT_KIND.RANKED | typeof SEARCH_VOCABULARY.SORT_KIND.RANDOM>,
+): void {
   switch (sort) {
-    case "levelAsc":
+    case SEARCH_VOCABULARY.SORT_KIND.LEVEL_ASC:
       sql.push(
         "ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level ASC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC",
       );
       return;
-    case "levelDesc":
+    case SEARCH_VOCABULARY.SORT_KIND.LEVEL_DESC:
       sql.push(
         "ORDER BY CASE WHEN r.level IS NULL THEN 1 ELSE 0 END ASC, r.level DESC, r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC",
       );
       return;
-    case "alphabetical":
+    case SEARCH_VOCABULARY.SORT_KIND.ALPHABETICAL:
       sql.push("ORDER BY r.name COLLATE NOCASE ASC, r.pack_label COLLATE NOCASE ASC, r.id ASC");
       return;
   }
@@ -447,7 +464,7 @@ export function buildCandidateCountQuery(
 
 export function buildCandidateKeyQuery(
   filters: NormalizedSearchFilters,
-  sort?: Exclude<SearchSort, "ranked" | "random">,
+  sort?: Exclude<SearchSort, typeof SEARCH_VOCABULARY.SORT_KIND.RANKED | typeof SEARCH_VOCABULARY.SORT_KIND.RANDOM>,
   options: { recordKeys?: string[] } = {},
 ): { sql: string; params: SqlValue[] } {
   const sql = [
@@ -488,7 +505,7 @@ export function buildPagedCandidateQuery(
   includeEmbedding = false,
   options: { recordKeys?: string[] } = {},
 ): { sql: string; params: SqlValue[] } {
-  if (sort === "ranked" || sort === "random") {
+  if (sort === SEARCH_VOCABULARY.SORT_KIND.RANKED || sort === SEARCH_VOCABULARY.SORT_KIND.RANDOM) {
     throw new Error(`Paged candidate query does not support ${sort} ordering.`);
   }
 

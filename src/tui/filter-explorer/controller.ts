@@ -59,6 +59,7 @@ import {
   FILTER_EXPLORER_DEBUG_FOOTER_LINE_COUNT,
   getFilterExplorerInteractionActions,
 } from "./screen-models.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserUiState,
@@ -109,7 +110,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   const adapters = useTerminalInteractionContextAdapters();
   const terminal = useDerivedTagTerminalApp();
   const { notification, showNotification } = useTerminalListDetailNotification();
-  const composeMode = options.mode.kind === "compose" ? options.mode : null;
+  const composeMode = options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE ? options.mode : null;
   const selectionPresentation = options.host.selectionPresentation;
   const [draft, updateDraft] = useComposeSelectionState(composeMode);
   const size = useDerivedTagTerminalSize();
@@ -147,7 +148,9 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
   );
   const selectedTarget = resolveFilterExplorerHostTarget(options.host, selection.currentNode);
   const pageDocument =
-    options.mode.kind === "inspect-and-open" ? options.host.resolvePageDocument?.(selection.currentNode) ?? null : null;
+    options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN
+      ? options.host.resolvePageDocument?.(selection.currentNode) ?? null
+      : null;
   React.useEffect(() => {
     setPageInteractionState(createPageDocumentInteractionState());
   }, [pageDocument?.recordKey, selection.currentNode?.id]);
@@ -171,7 +174,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
     composeMode || selectionPresentation
       ? buildFilterExplorerComposeDetailLines({
           mode: {
-            kind: "compose",
+            kind: FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE,
             detailTitle: composeMode?.detailTitle ?? selectionPresentation?.detailTitle,
             emptySelectionText: composeMode?.emptySelectionText ?? selectionPresentation?.emptySelectionText,
             focusedClauseTitle: composeMode?.focusedClauseTitle ?? selectionPresentation?.focusedClauseTitle,
@@ -431,7 +434,7 @@ export function useFilterExplorerController(options: FilterExplorerOptions): Fil
           }
 
           const handled =
-            options.mode.kind === "inspect-and-open"
+            options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN
               ? options.host.activatePageTarget?.({
                   target,
                   controller: controllerContext,

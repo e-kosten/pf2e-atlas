@@ -1,10 +1,11 @@
-import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
-import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 import {
   DERIVED_TAG_MIGRATION_REVIEW_ACTIONS,
   type DerivedTagReviewScreenState,
 } from "./review-screen-state.js";
 import type { DerivedTagReviewSession } from "../types.js";
+import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
+import { buildDerivedTagMigrationRecordPageLines } from "./review-detail-content.js";
 import {
   buildDerivedTagTerminalActionTargetHelpLines,
   buildDerivedTagTerminalActionTargetLine,
@@ -41,10 +42,10 @@ export type DerivedTagReviewViewModel = {
 const REVIEW_LEFT_WIDTH = 46;
 
 function formatDecisionSummary(decision: DerivedTagReviewSession["decisions"][number]["decisions"][number]): string {
-  if (decision.kind === "assignment") {
+  if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT) {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
-  if (decision.kind === "exemplar") {
+  if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR) {
     return `${decision.tag} exemplar ${decision.action}`;
   }
   return `${decision.tag} ${decision.decision}`;

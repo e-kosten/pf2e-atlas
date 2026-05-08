@@ -1,14 +1,13 @@
 import { inferActorMetricValueType } from "../../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../../domain/item-metrics.js";
 import { getMetricDiscoveryGroupLabel } from "../../../domain/metric-discovery-group-label.js";
-import type { MetadataFieldName } from "../../../domain/metadata-field-types.js";
+import { isMetadataFieldName, type MetadataFieldName } from "../../../domain/metadata-field-types.js";
 import {
   describeMetadataFieldType,
   formatMetadataFieldLabel,
 } from "../../../domain/presentation-vocabulary.js";
 import { isSearchPromotedFieldDomainKey } from "../../../domain/search-field-domains.js";
 import type { SearchFilterNode } from "../../../domain/search-request-types.js";
-import { isMetadataFieldName } from "../../../domain/metadata-field-catalog.js";
 import {
   getMetadataFilterSemantics,
   type MetadataFieldSemantics,

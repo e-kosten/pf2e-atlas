@@ -2,8 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 
 import { CATEGORY_SUBCATEGORY_MAP } from "../domain/categories.js";
+import { SEARCH_DISCOVERY_NON_METADATA_FIELDS } from "../domain/search-field-domains.js";
 import type { BrowseRequest, SearchModeRequest } from "../domain/search-request-types.js";
 import { getMetadataFilterSemantics } from "../domain/metadata-field-catalog.js";
+import { SEARCH_VOCABULARY } from "../domain/search-types.js";
 import { Pf2eDataService } from "../data/service.js";
 import {
   CATEGORY_HINT_DESCRIPTION,
@@ -166,17 +168,17 @@ export function registerSearchTools(
           ],
           retrievalPatterns: [
             {
-              name: "lexical",
+              name: SEARCH_VOCABULARY.PROFILE.LEXICAL,
               description:
                 "Lexical-first retrieval for exact names, rules terms, and precise Pathfinder vocabulary. Use short exact or near-exact text.",
             },
             {
-              name: "balanced",
+              name: SEARCH_VOCABULARY.PROFILE.BALANCED,
               description:
                 "Default hybrid retrieval for broad themed search inside explicit category and subcategory boundaries. Prefer one concise phrase or sentence with concrete anchors.",
             },
             {
-              name: "concept",
+              name: SEARCH_VOCABULARY.PROFILE.CONCEPT,
               description:
                 "Semantic-forward hybrid retrieval for exploratory concept search when exact wording is less important. Prefer one or two natural-language sentences over keyword piles.",
             },
@@ -189,15 +191,15 @@ export function registerSearchTools(
           sourceCategories: vocabulary.sourceCategories,
           searchProfiles: [
             {
-              value: "lexical",
+              value: SEARCH_VOCABULARY.PROFILE.LEXICAL,
               summary: "Lexical-first exact matching with short exact or near-exact text.",
             },
             {
-              value: "balanced",
+              value: SEARCH_VOCABULARY.PROFILE.BALANCED,
               summary: "Default hybrid search for concise natural-language queries with concrete anchors.",
             },
             {
-              value: "concept",
+              value: SEARCH_VOCABULARY.PROFILE.CONCEPT,
               summary: "Semantic-forward hybrid search for exploratory natural-language concept descriptions.",
             },
           ],
@@ -216,7 +218,7 @@ export function registerSearchTools(
           },
           metadataFilters: metadataSemantics,
           filterValueDiscovery: {
-            nonMetadataFields: ["sources", "categories", "subcategories", "packs", "actorMetrics", "itemMetrics"],
+            nonMetadataFields: SEARCH_DISCOVERY_NON_METADATA_FIELDS,
             note: "pf2e_list_filter_values enumerates live values for one chosen field. Learn which metadata fields are meaningful from metadataFilters first.",
           },
           heuristicVocabulary: {

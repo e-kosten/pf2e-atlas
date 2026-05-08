@@ -1,8 +1,12 @@
 import type { DerivedTagTerminalApp } from "../framework/types.js";
 import type { SearchTerminalPromptAdapters } from "../interaction-context-adapters.js";
 import type { SearchNumericMatch } from "../../domain/search-request-types.js";
+import {
+  SEARCH_FILTER_OPERATOR_VOCABULARY,
+  type NumericOperator,
+} from "../../domain/search-filter-operators.js";
 
-export type NumericScalarOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "between";
+export type NumericScalarOperator = NumericOperator;
 
 export type NumericScalarClauseDraft =
   | {
@@ -99,7 +103,7 @@ function parseNumericScalarClauseInput(value: string): NumericScalarClauseDraft 
       prefixedMatch[1] === "="
         ? "eq"
         : prefixedMatch[1] === "!="
-          ? "neq"
+          ? "notEq"
           : prefixedMatch[1] === ">"
             ? "gt"
             : prefixedMatch[1] === ">="
@@ -133,8 +137,8 @@ export function parseLevelRangeInput(value: string): LevelRangeDraft | string {
     const min = Number.parseInt(betweenMatch[1]!, 10);
     const max = Number.parseInt(betweenMatch[2]!, 10);
     if (min === max) {
-      return { kind: "eq", value: min };
-    }
+    return { kind: "eq", value: min };
+  }
     return { kind: "between", min, max };
   }
 
@@ -175,7 +179,7 @@ export function formatNumericScalarInput(draft: NumericScalarClauseDraft | null)
   if (draft.op === "eq") {
     return String(draft.value);
   }
-  if (draft.op === "neq") {
+  if (draft.op === SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ) {
     return `!=${draft.value}`;
   }
   if (draft.op === "gt") {
@@ -208,7 +212,7 @@ function buildNumericScalarPreviewLines(currentValue: string): import("../framew
   const operatorText =
     parsed.op === "eq"
       ? `exactly ${parsed.value}`
-      : parsed.op === "neq"
+      : parsed.op === SEARCH_FILTER_OPERATOR_VOCABULARY.EQUALITY.NOT_EQ
         ? `anything except ${parsed.value}`
         : parsed.op === "gt"
           ? `greater than ${parsed.value}`

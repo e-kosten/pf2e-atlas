@@ -1109,7 +1109,7 @@ describe("pf2e terminal app", () => {
         schemaKind: "descriptive",
         projectionAxis: "support",
         projectionFamily: "support",
-        publishTag: true,
+        targetProjectionId: "spell:quickened_support",
         notes: "Still needs a final operational vs capability decision.",
       },
     ]);

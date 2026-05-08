@@ -347,7 +347,6 @@ export function buildVisibleDerivedTagOntology(ontology: PublishedDerivedTagOnto
   const visibleTranslations = ontology.conceptModel.translations.filter(
     (translation) =>
       translation.translationStatus === "mapped" &&
-      translation.publishTag &&
       visibleProjectionKeys.has(`${translation.currentCategory}:${translation.currentTag}`),
   );
   const visibleConceptIds = new Set(visibleTranslations.map((translation) => translation.canonicalConceptId));

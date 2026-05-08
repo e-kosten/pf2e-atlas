@@ -1,4 +1,5 @@
 import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../domain/categories.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import {
   buildSearchFilterDiscoveryCatalogRequest,
   type SearchFilterDiscoveryApplicability,
@@ -17,7 +18,11 @@ export function resolveContextSearchRequest(
   }
 
   const request = context.request;
-  if ((request.mode === "search" || request.mode === "lookup") && !request.filter && !request.search.query.trim()) {
+  if (
+    (request.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH || request.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP)
+    && !request.filter
+    && !request.search.query.trim()
+  ) {
     return buildSearchFilterDiscoveryCatalogRequest(context.applicability);
   }
 

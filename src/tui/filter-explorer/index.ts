@@ -1,6 +1,9 @@
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
+
 export { useFilterExplorerController } from "./controller.js";
 export { FilterExplorerScreen } from "./screen.js";
-export { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
+export { FILTER_EXPLORER_VOCABULARY } from "./types.js";
+export const FILTER_EXPLORER_LAUNCH_INTENT = FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT;
 export {
   createComposeFilterExplorerHostAdapter,
   createInspectFilterExplorerHostAdapter,

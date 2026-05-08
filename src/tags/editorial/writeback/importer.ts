@@ -30,6 +30,7 @@ import type {
   DerivedTagReviewRecordDecision,
   DerivedTagReviewSession,
 } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 function storedAssignmentIdentity(
   decision: Pick<DerivedTagAssignmentReviewDecision, "recordKey" | "family" | "tag" | "mode">,
@@ -63,16 +64,16 @@ function ensureAssignment(
 function mapAssignmentDecisionSource(
   decision: DerivedTagReviewAssignmentDecision,
 ): DerivedTagAssignmentDecisionSource {
-  if (decision.status === "auto_applied") {
+  if (decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.AUTO_APPLIED) {
     return "llm_auto";
   }
-  if (decision.source === "human") {
-    return "human";
+  if (decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN) {
+    return DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN;
   }
-  if (decision.source === "llm") {
+  if (decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM) {
     return "llm_reviewed";
   }
-  return "human";
+  return DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN;
 }
 
 function resolveProjectionIdForAssignmentDecision(
@@ -165,7 +166,7 @@ function applyLiveAssignmentDecision(
   const storedDecision = toStoredAssignmentDecision(category, recordKey, decision);
   const projectionId = storedDecision.projectionId;
 
-  if (decision.mode === "include") {
+  if (decision.mode === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.INCLUDE) {
     assignment.excluded = removeAssignmentDecision(assignment.excluded, projectionId);
     assignment.applied = upsertAssignmentDecision(assignment.applied, storedDecision);
     return;
@@ -191,7 +192,8 @@ export function applyMigrationSessionToAssignments(
   for (const recordDecision of sessionDecisions) {
     const assignmentDecisions = recordDecision.decisions.filter(
       (decision): decision is DerivedTagReviewAssignmentDecision =>
-        decision.kind === "assignment" && (decision.status === "approved" || decision.status === "auto_applied"),
+        decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT &&
+        (decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.APPROVED || decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.AUTO_APPLIED),
     );
     if (assignmentDecisions.length === 0) {
       continue;
@@ -246,11 +248,12 @@ export function applyMigrationSessionToAssignmentReviews(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is DerivedTagReviewAssignmentDecision => entry.kind === "assignment",
+      (entry): entry is DerivedTagReviewAssignmentDecision =>
+        entry.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
     )) {
       const storedDecision = toAssignmentReviewDecision(recordDecision, decision);
       const identity = storedAssignmentIdentity(storedDecision);
-      if (decision.status === "needs_review") {
+      if (decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW) {
         decisionsByIdentity.set(identity, storedDecision);
         continue;
       }
@@ -303,11 +306,12 @@ export function applyMigrationSessionToAssignmentMemory(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is DerivedTagReviewAssignmentDecision => entry.kind === "assignment",
+      (entry): entry is DerivedTagReviewAssignmentDecision =>
+        entry.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
     )) {
       const storedDecision = toAssignmentMemoryDecision(recordDecision, decision);
       const identity = memoryIdentity(storedDecision);
-      if (decision.status === "rejected") {
+      if (decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.REJECTED) {
         decisionsByIdentity.set(identity, storedDecision);
         continue;
       }
@@ -356,18 +360,21 @@ function upsertExemplarRecord(
 function applyApprovedExemplarDecision(
   exemplars: DerivedTagExemplarCategory,
   recordDecision: DerivedTagReviewRecordDecision,
-  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
+  decision: Extract<
+    DerivedTagReviewRecordDecision["decisions"][number],
+    { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR }
+  >,
 ): void {
   const exemplarSet = ensureExemplarSet(exemplars, decision.tag);
   const record = { recordKey: recordDecision.recordKey, name: recordDecision.name };
 
-  if (decision.action === "drop") {
+  if (decision.action === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP) {
     exemplarSet.positives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.positives, recordDecision.recordKey));
     exemplarSet.negatives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.negatives, recordDecision.recordKey));
     return;
   }
 
-  if (decision.polarity === "positive") {
+  if (decision.polarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE) {
     exemplarSet.positives = sortExemplarRecords(upsertExemplarRecord(exemplarSet.positives, record));
     exemplarSet.negatives = sortExemplarRecords(withoutExemplarRecord(exemplarSet.negatives, recordDecision.recordKey));
   } else {
@@ -384,11 +391,18 @@ export function applyMigrationSessionToExemplars(
 
   for (const recordDecision of sessionDecisions) {
     const exemplarDecisions = recordDecision.decisions.filter(
-      (decision): decision is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }> =>
-        decision.kind === "exemplar",
+      (
+        decision,
+      ): decision is Extract<
+        DerivedTagReviewRecordDecision["decisions"][number],
+        { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR }
+      > => decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
     );
     for (const decision of exemplarDecisions) {
-      if (decision.status !== "approved" && decision.status !== "auto_applied") {
+      if (
+        decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.APPROVED &&
+        decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.AUTO_APPLIED
+      ) {
         continue;
       }
       applyApprovedExemplarDecision(nextExemplars, recordDecision, decision);
@@ -423,21 +437,30 @@ function memoryIdentity(
 }
 
 function toProposedPolarity(
-  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
-): DerivedTagExemplarPolarity | "drop" {
-  return decision.action === "drop" ? "drop" : decision.polarity;
+  decision: Extract<
+    DerivedTagReviewRecordDecision["decisions"][number],
+    { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR }
+  >,
+): DerivedTagExemplarPolarity | typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP {
+  return decision.action === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP
+    ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP
+    : decision.polarity;
 }
 
 function toExemplarReviewDecision(
   recordDecision: DerivedTagReviewRecordDecision,
-  decision: Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }>,
+  decision: Extract<
+    DerivedTagReviewRecordDecision["decisions"][number],
+    { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR }
+  >,
 ): DerivedTagExemplarReviewDecision {
   return {
     name: recordDecision.name,
     recordKey: recordDecision.recordKey,
     tag: normalizeDerivedTag(decision.tag),
     proposedPolarity: toProposedPolarity(decision),
-    status: decision.status === "auto_applied" ? "approved" : decision.status,
+    status:
+      decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.AUTO_APPLIED ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.APPROVED : decision.status,
     rationale: decision.rationale,
     ...(decision.confidence ? { confidence: decision.confidence } : {}),
     ...(decision.source ? { source: decision.source } : {}),
@@ -456,12 +479,16 @@ export function applyMigrationSessionToExemplarReviews(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "exemplar" }> =>
-        entry.kind === "exemplar",
+      (
+        entry,
+      ): entry is Extract<
+        DerivedTagReviewRecordDecision["decisions"][number],
+        { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR }
+      > => entry.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
     )) {
       const reviewDecision = toExemplarReviewDecision(recordDecision, decision);
       const identity = exemplarReviewIdentity(reviewDecision);
-      if (decision.status === "needs_review") {
+      if (decision.status === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW) {
         decisionsByIdentity.set(identity, reviewDecision);
         continue;
       }
@@ -492,13 +519,20 @@ export function applyMigrationSessionToAuthoredRules(
 
   for (const recordDecision of sessionDecisions) {
     for (const decision of recordDecision.decisions.filter(
-      (entry): entry is Extract<DerivedTagReviewRecordDecision["decisions"][number], { kind: "rule" }> =>
-        entry.kind === "rule",
+      (
+        entry,
+      ): entry is Extract<
+        DerivedTagReviewRecordDecision["decisions"][number],
+        { kind: typeof DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE }
+      > => entry.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE,
     )) {
-      if (decision.status !== "approved" && decision.status !== "auto_applied") {
+      if (
+        decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.APPROVED &&
+        decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.AUTO_APPLIED
+      ) {
         continue;
       }
-      if (decision.decision !== "recreate_authored") {
+      if (decision.decision !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RULE_DECISION.RECREATE_AUTHORED) {
         continue;
       }
       for (const rule of decision.authoredRules ?? []) {

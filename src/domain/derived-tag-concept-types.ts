@@ -66,6 +66,22 @@ export type DerivedTagCategoryProjection = {
   translationStatus: DerivedTagTranslationStatus;
 };
 
+export type DerivedTagLegacySourceRecord = {
+  currentCategory: SearchCategory;
+  currentBrowseAxis: DerivedTagOntologyAxis;
+  currentFamily: string;
+  currentTag: string;
+  currentAssignmentMode: DerivedTagAssignmentMode;
+};
+
+export type DerivedTagTranslationMapping = {
+  source: DerivedTagLegacySourceRecord;
+  targetProjectionId?: string;
+  translationStatus: DerivedTagTranslationStatus;
+  renameNote?: string;
+  notes?: string;
+};
+
 export type DerivedTagTranslationRecord = {
   currentCategory: SearchCategory;
   currentBrowseAxis: DerivedTagOntologyAxis;
@@ -83,9 +99,9 @@ export type DerivedTagTranslationRecord = {
   secondaryFacets?: string[];
   projectionAxis: DerivedTagOntologyAxis;
   projectionFamily: string;
+  targetProjectionId?: string;
   renameNote?: string;
   notes?: string;
-  publishTag: boolean;
 };
 
 export type PublishedDerivedTagConceptModel = {

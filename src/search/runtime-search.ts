@@ -31,8 +31,10 @@ import {
 import { buildStructuredSearchEntries, matchesExcludedQuery } from "./runtime-search-structured.js";
 import type { SearchWindowSnapshot } from "./runtime-search-snapshot.js";
 import { traceAsync, traceSync } from "./trace.js";
+import { SEARCH_EXECUTION_VOCABULARY } from "./contracts.js";
 
 const LOOKUP_LEXICAL_TOP_K = 100;
+const SORT_KIND_RANKED = SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANKED;
 
 export function buildStructuredSearchSnapshot(
   normalizedFilters: NormalizedSearchFilters,
@@ -40,10 +42,10 @@ export function buildStructuredSearchSnapshot(
 ): SearchWindowSnapshot {
   const mode = resolveSearchMode(normalizedFilters, "search");
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
-  const sort = normalizedFilters.sort ?? "ranked";
+  const sort = normalizedFilters.sort ?? SORT_KIND_RANKED;
   const entries = buildStructuredSearchEntries(normalizedFilters, deps);
 
-  return createSnapshot(searchProfile, "structured", sort, entries);
+  return createSnapshot(searchProfile, SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED, sort, entries);
 }
 
 export async function buildSearchWindowSnapshot(
@@ -52,7 +54,7 @@ export async function buildSearchWindowSnapshot(
 ): Promise<SearchWindowSnapshot> {
   const mode = resolveSearchMode(normalizedFilters, "search");
   const searchProfile = resolveSearchProfile(normalizedFilters, "search", mode);
-  const sort = normalizedFilters.sort ?? "ranked";
+  const sort = normalizedFilters.sort ?? SORT_KIND_RANKED;
   const sortSeed = normalizedFilters.sortSeed ?? 0;
   const rawSemanticQuery = normalizedFilters.query?.trim() || "";
   const rawLexicalQuery = normalizedFilters.query?.trim() || normalizedFilters.nameQuery?.trim() || "";
@@ -72,7 +74,7 @@ export async function buildSearchWindowSnapshot(
     deps,
   );
 
-  if (mode === "structured") {
+  if (mode === SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED) {
     return createSnapshot(
       searchProfile,
       mode,
@@ -96,7 +98,12 @@ export async function buildSearchWindowSnapshot(
     ? deps.fetchLexicalRetrievalRows(
         normalizedFilters,
         lexicalQuery,
-        Math.max(mode === "lexical" ? LOOKUP_LEXICAL_TOP_K : (hybridFusion?.config.lexicalTopK ?? 0), candidateCount),
+        Math.max(
+          mode === SEARCH_EXECUTION_VOCABULARY.MODE.LEXICAL
+            ? LOOKUP_LEXICAL_TOP_K
+            : (hybridFusion?.config.lexicalTopK ?? 0),
+          candidateCount,
+        ),
       )
     : [];
   const lexicalRetrievedKeys = lexicalRetrievalRows.map((row) => row.recordKey);
@@ -150,7 +157,7 @@ export async function buildSearchWindowSnapshot(
       semanticRows: semanticRetrievalRows.length,
     },
     () => {
-    if (mode === "lexical") {
+    if (mode === SEARCH_EXECUTION_VOCABULARY.MODE.LEXICAL) {
       return lexicalRetrievedKeys
         .map((recordKey) => candidatesByKey.get(recordKey))
         .filter((record): record is NormalizedRecord => Boolean(record))
@@ -187,7 +194,7 @@ export async function buildSearchWindowSnapshot(
         })
         .filter(({ totalScore }) => !lexicalQuery || totalScore > 0)
         .sort((left, right) => {
-          if (sort === "ranked") {
+    if (sort === SORT_KIND_RANKED) {
             return (
               right.totalScore - left.totalScore ||
               right.lexicalRerankScore - left.lexicalRerankScore ||
@@ -275,13 +282,13 @@ export async function buildSearchWindowSnapshot(
         };
       })
       .sort((left, right) => {
-        if (sort === "ranked") {
-          return (
-            right.totalScore - left.totalScore ||
-            right.fusionScore - left.fusionScore ||
-            compareOptionalRanks(left.semanticRank, right.semanticRank) ||
-            compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
-            right.lexicalRerankScore - left.lexicalRerankScore ||
+        if (sort === SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANKED) {
+      return (
+        right.totalScore - left.totalScore ||
+        right.fusionScore - left.fusionScore ||
+        compareOptionalRanks(left.semanticRank, right.semanticRank) ||
+        compareOptionalRanks(left.lexicalRank, right.lexicalRank) ||
+        right.lexicalRerankScore - left.lexicalRerankScore ||
             sortRecords(left.record, right.record)
           );
         }
@@ -308,14 +315,17 @@ export function searchStructured(
 export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: RuntimeSearchDependencies): SearchResult {
   const limit = clampLimit(normalizedFilters.limit);
   const offset = clampOffset(normalizedFilters.offset);
-  const sort = normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
-  if (sort === "random") {
+  const sort =
+    normalizedFilters.sort === SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANKED || !normalizedFilters.sort
+      ? SEARCH_EXECUTION_VOCABULARY.SORT_KIND.ALPHABETICAL
+      : normalizedFilters.sort;
+  if (sort === SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANDOM) {
     const sortSeed = normalizedFilters.sortSeed ?? 0;
     const records = deps.fetchCandidates(normalizedFilters).map(({ record }) => record);
     records.sort((left, right) => compareRecordsForSort(left, right, sort, sortSeed));
     return createSearchResultPage({
       searchProfile: null,
-      mode: "structured",
+      mode: SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED,
       sort,
       total: records.length,
       offset,
@@ -327,7 +337,7 @@ export function listRecords(normalizedFilters: NormalizedSearchFilters, deps: Ru
   const records = deps.fetchPagedCandidates(normalizedFilters, sort, offset, limit).map(({ record }) => record);
   return createSearchResultPage({
     searchProfile: null,
-    mode: "structured",
+    mode: SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED,
     sort,
     total,
     offset,

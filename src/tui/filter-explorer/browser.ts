@@ -3,6 +3,7 @@ import { formatMetadataFieldTypeLabel } from "../../domain/presentation-vocabula
 import type { DerivedTagTerminalLine } from "../framework/types.js";
 import { moveSelection, moveSelectionWrapped } from "../framework/input.js";
 import { formatTerminalBreadcrumb } from "../list-detail-formatting.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerBrowserSelection,
   FilterExplorerBrowserSnapshot,
@@ -416,7 +417,7 @@ export function createFilterExplorerBrowserUiState(
   );
 
   return {
-    activePane: snapshot?.activePane ?? "list",
+    activePane: snapshot?.activePane ?? FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.LIST,
     browserState,
     materializedChildrenByNodeId,
     layoutMode: snapshot?.layoutMode ?? "split",

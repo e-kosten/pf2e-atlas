@@ -6,54 +6,40 @@ import { writeDerivedTagReviewSummary } from "../../editorial/writeback/review-s
 import { renderDerivedTagReviewSessionSummary } from "../../editorial/ui/render.js";
 import { writeDerivedTagReviewSession } from "../../editorial/sessions/session-store.js";
 import { buildDerivedTagReviewSession } from "../../editorial/sessions/session-builder.js";
-import type { DerivedTagWorkbenchMode } from "../../editorial/types.js";
+import { DERIVED_TAG_WORKBENCH, type DerivedTagReviewDecisionKind } from "../../editorial/types.js";
+import {
+  DERIVED_TAG_WORKBENCH_MODE_ALIASES_LIST,
+  parseDerivedTagWorkbenchMode,
+} from "../../editorial/mode-registry.js";
 import {
   parseOptionalScopedSearchSubcategoryArg,
   parseOptionalSearchCategoryArg,
 } from "../shared/search-scope-args.js";
 
-const MODES: DerivedTagWorkbenchMode[] = [
-  "review_queue",
-  "proposal_review",
-  "legacy_seed",
-  "legacy_rule",
-  "exemplar_cleanup",
-];
+const MODE_ALIASES_NOTE = DERIVED_TAG_WORKBENCH_MODE_ALIASES_LIST.join(", ");
+const DECISION_KIND_BY_TEXT = {
+  assignment: "assignment",
+  exemplar: "exemplar",
+} as const satisfies Record<string, DerivedTagReviewDecisionKind>;
 
-function parseMode(value: string | undefined): DerivedTagWorkbenchMode | undefined {
-  switch (value) {
-    case undefined:
-      return undefined;
-    case "new_tagging":
-      return "proposal_review";
-    case "review_queue":
-    case "proposal_review":
-    case "legacy_seed":
-    case "legacy_rule":
-    case "exemplar_cleanup":
-      return value;
-    default:
-      return undefined;
+function parseDecisionKind(value: string | undefined): DerivedTagReviewDecisionKind | undefined {
+  if (value === undefined) {
+    return undefined;
   }
-}
+  const parsed = DECISION_KIND_BY_TEXT[value as keyof typeof DECISION_KIND_BY_TEXT];
+  if (!parsed) {
+    throw new Error(`Expected --decision-kind to be "assignment" or "exemplar", received "${value}".`);
+  }
 
-function parseDecisionKind(value: string | undefined): "assignment" | "exemplar" | undefined {
-  switch (value) {
-    case "assignment":
-    case "exemplar":
-      return value;
-    case undefined:
-      return undefined;
-    default:
-      throw new Error(`Expected --decision-kind to be "assignment" or "exemplar", received "${value}".`);
-  }
+  return parsed;
 }
 
 function renderHelp(): string {
   return [
     "Usage: cd src/tags/cli && npm run create-derived-tag-migration-session -- --mode <mode> [options]",
     "",
-    `Modes: ${MODES.join(", ")}`,
+    `Modes: ${DERIVED_TAG_WORKBENCH.MODES.join(", ")}`,
+    ...(MODE_ALIASES_NOTE.length > 0 ? [`Aliases: ${MODE_ALIASES_NOTE}`] : []),
     "Options:",
     "  --category <category>",
     "  --subcategory <subcategory>",
@@ -73,10 +59,11 @@ async function main(): Promise<void> {
   }
 
   const args = parseCliArgs(argv);
-  const mode = parseMode(lastValue(args, "mode"));
+  const mode = parseDerivedTagWorkbenchMode(lastValue(args, "mode"));
   if (!mode) {
     throw new Error(
-      `Pass --mode with one of: ${MODES.join(", ")}. "new_tagging" remains available as a compatibility alias for "proposal_review".`,
+      `Pass --mode with one of: ${DERIVED_TAG_WORKBENCH.MODES.join(", ")}.` +
+        `${MODE_ALIASES_NOTE.length > 0 ? ` ${MODE_ALIASES_NOTE} remains available as compatibility aliases.` : ""}`,
     );
   }
 

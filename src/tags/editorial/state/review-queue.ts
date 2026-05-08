@@ -2,14 +2,15 @@ import type {
   DerivedTagExemplarReviewDecision,
   SearchCategory,
 } from "../../../domain/derived-tag-types.js";
-import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
-import type {
-  DerivedTagAssignmentReviewCategory,
+import {
   DerivedTagAssignmentReviewDecision,
+  DerivedTagAssignmentReviewCategory,
 } from "../../runtime/derivation/assignments.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
 import { compareReviewQueueItems } from "../list-sorting.js";
-import type { DerivedTagReviewDecision, DerivedTagReviewQueueSummaryItem } from "../types.js";
 import { getCurrentDerivedTagAuthoredState } from "./authored-state.js";
+import type { DerivedTagReviewDecision, DerivedTagReviewQueueSummaryItem } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 export type PendingAssignmentReviewEntry = {
   category: SearchCategory;
@@ -28,11 +29,11 @@ function flattenAssignmentReviewDecisions(
     categoryReview.decisions.map((reviewDecision) => ({
       category: categoryReview.category,
       decision: {
-        kind: "assignment" as const,
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
         family: reviewDecision.family,
         tag: reviewDecision.tag,
         mode: reviewDecision.mode,
-        status: "needs_review" as const,
+        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
         confidence: reviewDecision.confidence,
         rationale: reviewDecision.rationale,
         source: reviewDecision.source,
@@ -45,10 +46,16 @@ function flattenExemplarReviewDecisions(
   exemplarReviews: DerivedTagExemplarReviewDecision[],
 ): DerivedTagReviewDecision[] {
   return exemplarReviews.map((reviewDecision) => ({
-    kind: "exemplar" as const,
+    kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
     tag: reviewDecision.tag,
-    polarity: reviewDecision.proposedPolarity === "negative" ? "negative" : "positive",
-    action: reviewDecision.proposedPolarity === "drop" ? "drop" : "keep",
+    polarity:
+      reviewDecision.proposedPolarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+        ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+        : DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+    action:
+      reviewDecision.proposedPolarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP
+        ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP
+        : DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
     status: reviewDecision.status,
     confidence: reviewDecision.confidence,
     rationale: reviewDecision.rationale,
@@ -73,7 +80,7 @@ export function listCurrentPendingAssignmentReviews(): PendingAssignmentReviewEn
 }
 
 export function listCurrentPendingLlmAssignmentReviews(): PendingAssignmentReviewEntry[] {
-  return listCurrentPendingAssignmentReviews().filter((entry) => entry.decision.source === "llm");
+  return listCurrentPendingAssignmentReviews().filter((entry) => entry.decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM);
 }
 
 export function listCurrentPendingExemplarReviews(): PendingExemplarReviewEntry[] {
@@ -84,7 +91,7 @@ export function listCurrentPendingExemplarReviews(): PendingExemplarReviewEntry[
     [SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]
   >) {
     for (const decision of exemplarReviewCategory.decisions) {
-      if (decision.status !== "needs_review") {
+      if (decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW) {
         continue;
       }
       pending.push({ category, decision });
@@ -95,7 +102,7 @@ export function listCurrentPendingExemplarReviews(): PendingExemplarReviewEntry[
 }
 
 export function listCurrentPendingLlmExemplarReviews(): PendingExemplarReviewEntry[] {
-  return listCurrentPendingExemplarReviews().filter((entry) => entry.decision.source === "llm");
+  return listCurrentPendingExemplarReviews().filter((entry) => entry.decision.source === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM);
 }
 
 export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSummaryItem[] {
@@ -106,13 +113,18 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
   for (const { category, decision } of flattenAssignmentReviewDecisions(
     DERIVED_TAG_MANAGED_CATEGORIES.map((managedCategory) => state.assignmentReviews[managedCategory]),
   )) {
-    if (decision.kind !== "assignment") {
+    if (decision.kind !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT) {
       continue;
     }
     const confidence = decision.confidence ?? "unspecified";
-    const key = ["assignment", category, decision.family, decision.tag].join("|");
+    const key = [
+      DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
+      category,
+      decision.family,
+      decision.tag,
+    ].join("|");
     const current = counts.get(key) ?? {
-      kind: "assignment",
+      kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
       category,
       family: decision.family,
       tag: decision.tag,
@@ -130,13 +142,17 @@ export function summarizeCurrentDerivedTagReviewQueue(): DerivedTagReviewQueueSu
     [SearchCategory, { decisions: DerivedTagExemplarReviewDecision[] }]
   >) {
     for (const decision of flattenExemplarReviewDecisions(exemplarReviewCategory.decisions)) {
-      if (decision.kind !== "exemplar" || decision.status !== "needs_review") {
+      if (decision.kind !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR || decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW) {
         continue;
       }
       const confidence = decision.confidence ?? "unspecified";
-      const key = ["exemplar", category, decision.tag].join("|");
+      const key = [
+        DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
+        category,
+        decision.tag,
+      ].join("|");
       const current = counts.get(key) ?? {
-        kind: "exemplar",
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
         category,
         tag: decision.tag,
         count: 0,

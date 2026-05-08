@@ -16,6 +16,7 @@ import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type {
   DerivedTagReviewDecision,
+  DerivedTagWorkbenchMode,
   DerivedTagManagedCategory,
   DerivedTagReviewRecordDecision,
   DerivedTagReviewSelectionReason,
@@ -23,6 +24,7 @@ import type {
   DerivedTagReviewSessionCreateOptions,
   DerivedTagReviewSessionRecord,
 } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 function createSessionId(options: DerivedTagReviewSessionCreateOptions): string {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -74,7 +76,7 @@ function createDecisionIndex(
         recordKey: record.entityRecord.recordKey,
         name: record.entityRecord.name,
         category: record.entityRecord.category,
-        resolutionStatus: "needs_review",
+        resolutionStatus: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
         decisions: [],
       },
     ]),
@@ -127,27 +129,27 @@ function buildLegacySeedWorkset(
       const currentSource = record.currentSources[normalizeDerivedTag(definition.tag)] ?? "";
       if (currentSource.includes("seed_migration")) {
         decisionIndex.get(recordKey)?.decisions.push({
-          kind: "assignment",
+          kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
           family,
           tag: normalizeDerivedTag(definition.tag),
-          mode: "include",
-          status: "needs_review",
-          confidence: "medium",
+          mode: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.INCLUDE,
+          status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
+          confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
           rationale:
             "Legacy seed migration currently supplies this tag; review whether to convert it into an explicit assignment.",
-          source: "llm",
+          source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
         });
       }
       decisionIndex.get(recordKey)?.decisions.push({
-        kind: "exemplar",
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
         tag: normalizeDerivedTag(definition.tag),
-        polarity: "positive",
-        action: "keep",
-        status: "needs_review",
-        confidence: "medium",
+        polarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+        action: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
+        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
+        confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
         rationale: "Legacy seed candidate should be reviewed to decide whether it remains a true exemplar.",
-        source: "llm",
-        currentPolarity: "none",
+        source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
+        currentPolarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NONE,
       });
     }
   }
@@ -180,14 +182,14 @@ function buildReviewQueueWorkset(
 ): DerivedTagReviewSession {
   const pendingAssignments = listCurrentPendingAssignmentReviews()
     .filter((entry) => !options.category || entry.category === options.category)
-    .filter(() => !options.decisionKind || options.decisionKind === "assignment")
+        .filter(() => !options.decisionKind || options.decisionKind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT)
     .filter(
       (entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family),
     )
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const pendingExemplarReviews = listCurrentPendingExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
-    .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter(() => !options.decisionKind || options.decisionKind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR)
     .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const uniqueRecordKeys = [
@@ -216,11 +218,11 @@ function buildReviewQueueWorkset(
       note: "Existing authored assignment review entry still needs manual confirmation.",
     });
     decisionIndex.get(entry.decision.recordKey)?.decisions.push({
-      kind: "assignment",
+      kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
       family: normalizeDerivedTag(entry.decision.family),
       tag: normalizeDerivedTag(entry.decision.tag),
       mode: entry.decision.mode,
-      status: "needs_review",
+      status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
       confidence: entry.decision.confidence,
       rationale: entry.decision.rationale,
       source: entry.decision.source,
@@ -238,10 +240,13 @@ function buildReviewQueueWorkset(
       note: "Existing authored exemplar review entry still needs manual confirmation.",
     });
     decisionIndex.get(entry.decision.recordKey)?.decisions.push({
-      kind: "exemplar",
+      kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
       tag: normalizeDerivedTag(entry.decision.tag),
-      polarity: entry.decision.proposedPolarity === "negative" ? "negative" : "positive",
-      action: entry.decision.proposedPolarity === "drop" ? "drop" : "keep",
+      polarity:
+        entry.decision.proposedPolarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+          ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+          : DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+      action: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
       status: entry.decision.status,
       confidence: entry.decision.confidence,
       rationale: entry.decision.rationale,
@@ -324,15 +329,15 @@ function buildExemplarCleanupWorkset(
         note: "Current exemplar is part of an oversized exemplar set and needs review.",
       });
       decisionIndex.get(positive.recordKey)?.decisions.push({
-        kind: "exemplar",
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
         tag: normalizeDerivedTag(exemplarSet.tag),
-        polarity: "positive",
-        action: "keep",
-        status: "needs_review",
-        confidence: "medium",
+        polarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+        action: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
+        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
+        confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
         rationale: `Review whether this ${category} remains a strong positive exemplar for "${normalizeDerivedTag(exemplarSet.tag)}".`,
-        source: "llm",
-        currentPolarity: "positive",
+        source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
+        currentPolarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
       });
     }
     for (const negative of exemplarSet.negatives ?? []) {
@@ -346,15 +351,15 @@ function buildExemplarCleanupWorkset(
         note: "Current negative exemplar is part of an oversized exemplar set and needs review.",
       });
       decisionIndex.get(negative.recordKey)?.decisions.push({
-        kind: "exemplar",
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
         tag: normalizeDerivedTag(exemplarSet.tag),
-        polarity: "negative",
-        action: "keep",
-        status: "needs_review",
-        confidence: "medium",
+        polarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE,
+        action: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
+        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
+        confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
         rationale: `Review whether this ${category} remains a strong negative exemplar for "${normalizeDerivedTag(exemplarSet.tag)}".`,
-        source: "llm",
-        currentPolarity: "negative",
+        source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
+        currentPolarity: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE,
       });
     }
   }
@@ -405,18 +410,18 @@ function buildLegacyRuleWorkset(
     recordKey: record.entityRecord.recordKey,
     name: record.entityRecord.name,
     category: record.entityRecord.category,
-    resolutionStatus: "needs_review" as const,
+    resolutionStatus: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
     decisions: [
       {
-        kind: "assignment",
+        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
         family,
         tag: normalizeDerivedTag(options.tag!),
-        mode: "include" as const,
-        status: "needs_review" as const,
-        confidence: "medium" as const,
+        mode: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.INCLUDE,
+        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
+        confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
         rationale:
           "Legacy rule currently supplies this tag; review whether to replace it with an explicit assignment or a future authored rule.",
-        source: "llm" as const,
+        source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
       },
     ] satisfies DerivedTagReviewDecision[],
   }));
@@ -456,14 +461,14 @@ function buildProposalReviewWorkset(
 ): DerivedTagReviewSession {
   const pendingAssignments = listCurrentPendingLlmAssignmentReviews()
     .filter((entry) => !options.category || entry.category === options.category)
-    .filter(() => !options.decisionKind || options.decisionKind === "assignment")
+    .filter(() => !options.decisionKind || options.decisionKind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT)
     .filter(
       (entry) => !options.family || normalizeDerivedTag(entry.decision.family) === normalizeDerivedTag(options.family),
     )
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const pendingExemplarReviews = listCurrentPendingLlmExemplarReviews()
     .filter((entry) => !options.category || entry.category === options.category)
-    .filter(() => !options.decisionKind || options.decisionKind === "exemplar")
+    .filter(() => !options.decisionKind || options.decisionKind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR)
     .filter((entry) => matchesDerivedTagFamilyFilter(entry.category, entry.decision.tag, options.family))
     .filter((entry) => !options.tag || normalizeDerivedTag(entry.decision.tag) === normalizeDerivedTag(options.tag));
   const uniqueRecordKeys = [
@@ -492,14 +497,14 @@ function buildProposalReviewWorkset(
       note: "LLM-generated assignment proposal still needs manual review.",
     });
     decisionIndex.get(entry.decision.recordKey)?.decisions.push({
-      kind: "assignment",
+      kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
       family: normalizeDerivedTag(entry.decision.family),
       tag: normalizeDerivedTag(entry.decision.tag),
       mode: entry.decision.mode,
-      status: "needs_review",
+      status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
       confidence: entry.decision.confidence,
       rationale: entry.decision.rationale,
-      source: "llm",
+      source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
     });
   }
 
@@ -514,14 +519,17 @@ function buildProposalReviewWorkset(
       note: "LLM-generated exemplar proposal still needs manual review.",
     });
     decisionIndex.get(entry.decision.recordKey)?.decisions.push({
-      kind: "exemplar",
+      kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
       tag: normalizeDerivedTag(entry.decision.tag),
-      polarity: entry.decision.proposedPolarity === "negative" ? "negative" : "positive",
-      action: entry.decision.proposedPolarity === "drop" ? "drop" : "keep",
+      polarity:
+        entry.decision.proposedPolarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+          ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE
+          : DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+      action: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP,
       status: entry.decision.status,
       confidence: entry.decision.confidence,
       rationale: entry.decision.rationale,
-      source: "llm",
+      source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
       currentPolarity: entry.decision.currentPolarity,
     });
   }
@@ -551,17 +559,16 @@ export function buildDerivedTagReviewSession(
   db: DatabaseSync,
   options: DerivedTagReviewSessionCreateOptions,
 ): DerivedTagReviewSession {
-  if (options.mode === "review_queue") {
-    return buildReviewQueueWorkset(db, options);
-  }
-  if (options.mode === "legacy_seed") {
-    return buildLegacySeedWorkset(db, options);
-  }
-  if (options.mode === "exemplar_cleanup") {
-    return buildExemplarCleanupWorkset(db, options);
-  }
-  if (options.mode === "legacy_rule") {
-    return buildLegacyRuleWorkset(db, options);
-  }
-  return buildProposalReviewWorkset(db, options);
+  const builders: Record<
+    DerivedTagWorkbenchMode,
+    (db: DatabaseSync, options: DerivedTagReviewSessionCreateOptions) => DerivedTagReviewSession
+  > = {
+    review_queue: buildReviewQueueWorkset,
+    proposal_review: buildProposalReviewWorkset,
+    legacy_seed: buildLegacySeedWorkset,
+    legacy_rule: buildLegacyRuleWorkset,
+    exemplar_cleanup: buildExemplarCleanupWorkset,
+  };
+
+  return builders[options.mode](db, options);
 }

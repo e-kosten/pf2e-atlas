@@ -4,6 +4,7 @@ import { normalizeDerivedTag } from "../../runtime/matcher/shared.js";
 import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
 import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type { DerivedTagWorkbenchMode } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 export type DerivedTagActionableSessionScopeKeys = {
   familyKeys: Set<`${SearchCategory}:${string}`>;
@@ -64,7 +65,7 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
     [SearchCategory, { decisions: Array<{ family: string; tag: string; source?: string }> }]
   >) {
     for (const decision of assignmentReviews.decisions) {
-      if (decision.source !== "llm") {
+      if (decision.source !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM) {
         continue;
       }
       addFamily(keys, category, decision.family);
@@ -76,7 +77,7 @@ function buildProposalReviewScopeKeys(): DerivedTagActionableSessionScopeKeys {
     [SearchCategory, { decisions: Array<{ tag: string; status: string; source?: string }> }]
   >) {
     for (const decision of exemplarReviews.decisions) {
-      if (decision.status !== "needs_review" || decision.source !== "llm") {
+      if (decision.status !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW || decision.source !== DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM) {
         continue;
       }
       addTag(keys, category, decision.tag);
@@ -107,11 +108,16 @@ export function getActionableSessionScopeKeys(
   mode: DerivedTagWorkbenchMode,
   exemplarLimit: number | undefined,
 ): DerivedTagActionableSessionScopeKeys | null {
-  if (mode === "proposal_review") {
-    return buildProposalReviewScopeKeys();
-  }
-  if (mode === "exemplar_cleanup") {
-    return buildExemplarCleanupScopeKeys(exemplarLimit);
-  }
-  return null;
+  const builders: Record<
+    DerivedTagWorkbenchMode,
+    (exemplarLimit: number | undefined) => DerivedTagActionableSessionScopeKeys | null
+  > = {
+    review_queue: () => null,
+    proposal_review: () => buildProposalReviewScopeKeys(),
+    legacy_seed: () => null,
+    legacy_rule: () => null,
+    exemplar_cleanup: buildExemplarCleanupScopeKeys,
+  };
+
+  return builders[mode](exemplarLimit);
 }

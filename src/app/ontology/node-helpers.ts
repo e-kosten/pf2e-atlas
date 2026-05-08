@@ -1,6 +1,7 @@
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyChildSource, OntologyNode, OntologyTextLine } from "../../domain/ontology-types.js";
 import { humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import { buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { normalizeText } from "../../shared/utils.js";
 import { mapNormalizedRecordToOntologyExplorerEntityRecord } from "./entity-record.js";
@@ -117,7 +118,7 @@ export function buildNormalizedRecordNode(record: NormalizedRecord): OntologyNod
     query: {
       label: "Open exact record lookup",
       request: {
-        mode: "lookup",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
         search: {
           query: record.name,
         },

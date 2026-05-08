@@ -1,13 +1,21 @@
 import type {
+  DerivedTagCanonicalConcept,
+  DerivedTagCategoryProjection,
   DerivedTagLegacySeedMigrationCategory,
+  DerivedTagTranslationMapping,
   DerivedTagTranslationRecord,
   SearchCategory,
 } from "../../domain/derived-tag-types.js";
+import {
+  DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID,
+  DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY,
+} from "../canonical/registry.js";
 import { normalizeDerivedTag } from "../runtime/matcher/engine.js";
 import type { PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
 import { getCurrentDerivedTagFamilyTranslationDefault, getCurrentDerivedTagTranslationOverride } from "./state.js";
 import { DERIVED_TAG_BASE_LEGACY_TRANSLATIONS } from "./base-mappings.js";
 import { applyDerivedTagTranslationOverride } from "./record-utils.js";
+import type { DerivedTagTranslationOverride } from "./tag-overrides.js";
 
 function translationKey(category: SearchCategory, tag: string): `${SearchCategory}:${string}` {
   return `${category}:${normalizeDerivedTag(tag)}`;
@@ -18,21 +26,93 @@ function familyKey(category: SearchCategory, family: string): `${SearchCategory}
 }
 
 function applyFamilyDefaults(
-  row: DerivedTagTranslationRecord,
+  row: DerivedTagTranslationMapping,
   defaults: ReturnType<typeof getCurrentDerivedTagFamilyTranslationDefault>,
-): DerivedTagTranslationRecord {
+): DerivedTagTranslationMapping {
   if (!defaults) {
     return row;
   }
-  const preserveExplicitRowShape =
-    row.currentAssignmentMode === "composite" || row.schemaKind === "aggregate" || row.translationStatus === "dropped";
+  if (row.translationStatus === "dropped") {
+    return row;
+  }
   return {
     ...row,
-    ...(!preserveExplicitRowShape ? { schemaKind: defaults.schemaKind, translationStatus: defaults.translationStatus } : {}),
-    ...(!preserveExplicitRowShape && defaults.primaryFacetKind !== undefined ? { primaryFacetKind: defaults.primaryFacetKind } : {}),
-    ...(!preserveExplicitRowShape && defaults.primaryFacetValue !== undefined ? { primaryFacetValue: defaults.primaryFacetValue } : {}),
+    translationStatus: defaults.translationStatus,
     ...(defaults.notes ? { notes: [row.notes, defaults.notes].filter(Boolean).join(" ") } : {}),
   };
+}
+
+const CANONICAL_PROJECTIONS_BY_ID = new Map<string, DerivedTagCategoryProjection>(
+  Object.values(DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY).flatMap((categoryProjections) =>
+    Object.values(categoryProjections).map((projection) => [projection.id, projection] as const),
+  ),
+);
+
+function resolveTargetProjection(
+  mapping: DerivedTagTranslationMapping,
+): DerivedTagCategoryProjection | undefined {
+  return mapping.targetProjectionId ? CANONICAL_PROJECTIONS_BY_ID.get(mapping.targetProjectionId) : undefined;
+}
+
+function resolveTargetConcept(
+  projection: DerivedTagCategoryProjection | undefined,
+): DerivedTagCanonicalConcept | undefined {
+  return projection ? DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID[projection.conceptId] : undefined;
+}
+
+function hydratePublishedTranslationRecord(
+  mapping: DerivedTagTranslationMapping,
+): DerivedTagTranslationRecord {
+  const targetProjection = resolveTargetProjection(mapping);
+  const targetConcept = resolveTargetConcept(targetProjection);
+
+  return {
+    currentCategory: mapping.source.currentCategory,
+    currentBrowseAxis: mapping.source.currentBrowseAxis,
+    currentFamily: mapping.source.currentFamily,
+    currentTag: mapping.source.currentTag,
+    currentAssignmentMode: mapping.source.currentAssignmentMode,
+    translationStatus: mapping.translationStatus,
+    canonicalConceptId: targetConcept?.id ?? "",
+    canonicalConceptLabel: targetProjection?.label ?? targetConcept?.label ?? "",
+    schemaKind: targetConcept?.schemaKind ?? "descriptive",
+    ...(targetConcept?.domainId !== undefined ? { domainId: targetConcept.domainId } : {}),
+    ...(targetConcept?.operation !== undefined ? { operation: targetConcept.operation } : {}),
+    ...(targetConcept?.primaryFacetKind !== undefined ? { primaryFacetKind: targetConcept.primaryFacetKind } : {}),
+    ...(targetConcept?.primaryFacetValue !== undefined ? { primaryFacetValue: targetConcept.primaryFacetValue } : {}),
+    ...(targetConcept?.secondaryFacets !== undefined ? { secondaryFacets: targetConcept.secondaryFacets } : {}),
+    projectionAxis: targetProjection?.axis ?? mapping.source.currentBrowseAxis,
+    projectionFamily: targetProjection?.family ?? mapping.source.currentFamily,
+    ...(mapping.targetProjectionId ? { targetProjectionId: mapping.targetProjectionId } : {}),
+    ...(mapping.renameNote ? { renameNote: mapping.renameNote } : {}),
+    ...(mapping.notes ? { notes: mapping.notes } : {}),
+  };
+}
+
+function buildTranslationMappingFromPublishedRecord(
+  record: DerivedTagTranslationRecord,
+): DerivedTagTranslationMapping {
+  return {
+    source: {
+      currentAssignmentMode: record.currentAssignmentMode,
+      currentBrowseAxis: record.currentBrowseAxis,
+      currentCategory: record.currentCategory,
+      currentFamily: record.currentFamily,
+      currentTag: record.currentTag,
+    },
+    ...(record.targetProjectionId ? { targetProjectionId: record.targetProjectionId } : {}),
+    translationStatus: record.translationStatus,
+    ...(record.renameNote ? { renameNote: record.renameNote } : {}),
+    ...(record.notes ? { notes: record.notes } : {}),
+  };
+}
+
+export function buildEffectiveDerivedTagTranslationRecord(
+  base: DerivedTagTranslationRecord,
+  override: DerivedTagTranslationOverride | undefined,
+): DerivedTagTranslationRecord {
+  const mapping = buildTranslationMappingFromPublishedRecord(base);
+  return hydratePublishedTranslationRecord(applyDerivedTagTranslationOverride(mapping, override));
 }
 
 export function buildPublishedDerivedTagTranslations(
@@ -41,17 +121,22 @@ export function buildPublishedDerivedTagTranslations(
   const includeOverrides = options.includeOverrides !== false;
 
   return DERIVED_TAG_BASE_LEGACY_TRANSLATIONS.map((baseRow): DerivedTagTranslationRecord => {
-    let row: DerivedTagTranslationRecord = structuredClone(baseRow) as DerivedTagTranslationRecord;
+    let row: DerivedTagTranslationMapping = structuredClone(baseRow);
     if (!includeOverrides) {
-      return row;
+      return hydratePublishedTranslationRecord(row);
     }
 
-    row = applyFamilyDefaults(row, getCurrentDerivedTagFamilyTranslationDefault(familyKey(row.currentCategory, row.currentFamily)));
+    row = applyFamilyDefaults(
+      row,
+      getCurrentDerivedTagFamilyTranslationDefault(
+        familyKey(row.source.currentCategory, row.source.currentFamily),
+      ),
+    );
     row = applyDerivedTagTranslationOverride(
       row,
-      getCurrentDerivedTagTranslationOverride(translationKey(row.currentCategory, row.currentTag)),
+      getCurrentDerivedTagTranslationOverride(translationKey(row.source.currentCategory, row.source.currentTag)),
     );
-    return row;
+    return hydratePublishedTranslationRecord(row);
   }).sort(
     (left, right) =>
       left.currentCategory.localeCompare(right.currentCategory) ||
@@ -85,12 +170,16 @@ export function translateLegacyDerivedTags(
       !translation ||
       translation.translationStatus === "unmapped" ||
       translation.translationStatus === "dropped" ||
-      !translation.publishTag
+      !translation.targetProjectionId
     ) {
       continue;
     }
-    const normalizedTag = normalizeDerivedTag(translation.currentTag);
-    if (!ontology.tagByKey.has(translationKey(category, normalizedTag))) {
+    const targetProjection = ontology.conceptModel.projectionsById.get(translation.targetProjectionId);
+    if (!targetProjection || targetProjection.category !== category) {
+      continue;
+    }
+    const normalizedTag = normalizeDerivedTag(targetProjection.currentTag);
+    if (!ontology.tagByKey.has(translationKey(targetProjection.category, normalizedTag))) {
       continue;
     }
     mappedTags.add(normalizedTag);

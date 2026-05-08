@@ -21,8 +21,10 @@ import {
   type SearchFilterRenderOptions,
 } from "../../search/query-core.js";
 import type { SearchStructuredDraftAnchor } from "../../search/structured-draft-session.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
+import { SEARCH_VOCABULARY } from "../../../domain/search-types.js";
 
-const DEFAULT_SEARCH_PROFILE = "balanced";
+const DEFAULT_SEARCH_PROFILE = SEARCH_VOCABULARY.PROFILE.BALANCED;
 
 export type SearchQuerySummaryAnchor =
   | { kind: "mode" }
@@ -105,17 +107,17 @@ export function formatLevelRange(request: Pf2eTerminalSearchQuery): string {
   }
 
   switch (match.kind) {
-    case "eq":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.EQ:
       return `L${match.value}`;
-    case "gt":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.GT:
       return `> L${match.value}`;
-    case "gte":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.GTE:
       return `L${match.value}+`;
-    case "lt":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.LT:
       return `< L${match.value}`;
-    case "lte":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.LTE:
       return `<= L${match.value}`;
-    case "between":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.BETWEEN:
       return `L${match.min}-L${match.max}`;
   }
 }
@@ -127,7 +129,10 @@ function getVisibleRootChildren(
     return [];
   }
 
-  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+  if (
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF ||
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF
+  ) {
     return filter.children.map((child, index) => ({ node: child, path: [index] }));
   }
 
@@ -146,7 +151,9 @@ function buildFilterSummaryEntries(
 
   const rootOperator = getSearchQueryRootOperator(query);
   const rootNode: SearchFilterNode =
-    rootOperator === "anyOf" ? { kind: "anyOf", children: children.map((child) => child.node) } : { kind: "allOf", children: children.map((child) => child.node) };
+    rootOperator === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF
+      ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF, children: children.map((child) => child.node) }
+      : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children: children.map((child) => child.node) };
   return [
     {
       kind: "filterTreeRoot",
@@ -201,10 +208,10 @@ export function buildSearchQuerySummary(
         label: "Query",
         value: queryText || "(none)",
         description:
-          query.mode === "lookup"
+          query.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP
             ? "Edit the lookup text used to find near-exact record names."
             : "Edit the free-text portion of the query.",
-        visible: query.mode !== "browse",
+        visible: query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
       },
       {
         kind: "exclude",
@@ -213,7 +220,7 @@ export function buildSearchQuerySummary(
         label: "Exclude",
         value: excludeText || "(none)",
         description: "Exclude ranked-search matches containing this text.",
-        visible: query.mode === "search",
+        visible: query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
       },
       {
         kind: "profile",
@@ -222,7 +229,7 @@ export function buildSearchQuerySummary(
         label: "Profile",
         value: searchProfile ?? DEFAULT_SEARCH_PROFILE,
         description: "Choose the lexical, balanced, or concept retrieval profile used by ranked search.",
-        visible: query.mode === "search",
+        visible: query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
       },
       ...buildFilterSummaryEntries(query, renderOptions),
     ],

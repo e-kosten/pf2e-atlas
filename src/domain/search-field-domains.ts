@@ -1,4 +1,6 @@
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
+import { isMetadataFieldName } from "./metadata-field-types.js";
+import { normalizeText } from "../shared/utils.js";
 import {
   buildAllOfFilter,
   buildAnyOfFilter,
@@ -6,8 +8,9 @@ import {
   type SearchFilterNode,
   type SearchRequest,
   type SearchRequestMode,
+  SEARCH_REQUEST_VOCABULARY,
 } from "./search-request-types.js";
-import type { SearchCategoryInput, SearchSubcategoryInput } from "./search-types.js";
+import { FILTER_VALUE_FIELDS, type FilterValueField, type SearchCategoryInput, type SearchSubcategoryInput } from "./search-types.js";
 
 export type SearchValueOrderingSpec =
   | { kind: "alpha" }
@@ -40,16 +43,38 @@ export type SearchValueDomainSpec =
       ordering?: SearchValueOrderingSpec;
     };
 
-export type SearchPromotedFieldDomainKey = "rarity" | "actionCost";
+export type SearchPromotedFieldDomainKey =
+  | (typeof SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND)["RARITY"]
+  | (typeof SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND)["ACTION_COST"];
 
 export type SearchPromotedFieldDomainSpec = {
   filterKind: SearchPromotedFieldDomainKey;
   valueDomain: SearchValueDomainSpec;
 };
 
+const SEARCH_DISCOVERY_TARGET_FIELD_BY_TEXT = new Map<string, FilterValueField>(
+  FILTER_VALUE_FIELDS.map((field) => [normalizeText(field), field]),
+);
+
+SEARCH_DISCOVERY_TARGET_FIELD_BY_TEXT.set(normalizeText("actorMetric"), "actorMetrics");
+SEARCH_DISCOVERY_TARGET_FIELD_BY_TEXT.set(normalizeText("itemMetric"), "itemMetrics");
+
+export const SEARCH_DISCOVERY_NON_METADATA_FIELDS = FILTER_VALUE_FIELDS.filter(
+  (field) => !isMetadataFieldName(field),
+) as readonly FilterValueField[];
+
+export function normalizeSearchDiscoveryTargetField(field: string): FilterValueField {
+  const parsed = SEARCH_DISCOVERY_TARGET_FIELD_BY_TEXT.get(normalizeText(field));
+  if (!parsed) {
+    throw new Error(`Unknown search discovery target field "${field}".`);
+  }
+
+  return parsed;
+}
+
 export const SEARCH_PROMOTED_FIELD_DOMAINS = {
   rarity: {
-    filterKind: "rarity",
+    filterKind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY,
     valueDomain: {
       kind: "closedEnum",
       values: ["common", "uncommon", "rare", "unique"],
@@ -59,7 +84,7 @@ export const SEARCH_PROMOTED_FIELD_DOMAINS = {
     },
   },
   actionCost: {
-    filterKind: "actionCost",
+    filterKind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST,
     valueDomain: {
       kind: "boundedNumber",
       values: [0, 1, 2, 3],
@@ -74,7 +99,7 @@ export function getSearchPromotedFieldDomain(field: SearchPromotedFieldDomainKey
 }
 
 export function isSearchPromotedFieldDomainKey(value: string): value is SearchPromotedFieldDomainKey {
-  return value === "rarity" || value === "actionCost";
+  return value === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY || value === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST;
 }
 
 export function getSearchPromotedFieldValueOrdering(
@@ -117,7 +142,7 @@ function handleInvalidPromotedFieldValue(message: string, options?: NormalizePro
 }
 
 export function normalizeSearchPromotedStringValue(
-  field: "rarity",
+  field: SearchPromotedFieldDomainKey & (typeof SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND)["RARITY"],
   value: string,
   options?: NormalizePromotedFieldOptions,
 ): string | null {
@@ -135,7 +160,7 @@ export function normalizeSearchPromotedStringValue(
 }
 
 export function normalizeSearchPromotedNumberValue(
-  field: "actionCost",
+  field: SearchPromotedFieldDomainKey & (typeof SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND)["ACTION_COST"],
   value: number,
   options?: NormalizePromotedFieldOptions,
 ): number | null {
@@ -222,36 +247,36 @@ function collectDiscoveryApplicability(
   }
 
   switch (filter.kind) {
-    case "pack":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK:
       packs.add(filter.value);
       return;
-    case "scope":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE:
       addApplicabilityScope(
         scopes,
         filter.category,
-        filter.subcategory.kind === "eq"
+        filter.subcategory.kind === SEARCH_REQUEST_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND.EQ
           ? filter.subcategory.value
-          : filter.subcategory.kind === "isNull"
+          : filter.subcategory.kind === SEARCH_REQUEST_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND.IS_NULL
             ? null
             : undefined,
       );
       return;
-    case "allOf":
-    case "anyOf":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF:
       for (const child of filter.children) {
         collectDiscoveryApplicability(child, scopes, packs);
       }
       return;
-    case "metric":
-    case "level":
-    case "price":
-    case "rarity":
-    case "actionCost":
-    case "linksTo":
-    case "linkedFrom":
-    case "metadataPredicate":
-    case "metricCompare":
-    case "not":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PRICE:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LINKS_TO:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LINKED_FROM:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE:
+    case SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT:
       return;
   }
 }
@@ -284,15 +309,15 @@ export function buildSearchFilterDiscoveryApplicabilityFilter(
   applicability: SearchFilterDiscoveryApplicability,
 ): SearchFilterNode | undefined {
   return buildAllOfFilter([
-    applicability.pack ? { kind: "pack", value: applicability.pack } : undefined,
+    applicability.pack ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK, value: applicability.pack } : undefined,
     applicability.scopes.length > 0
       ? buildAnyOfFilter(
           applicability.scopes.map((scope) =>
             scope.subcategory === null
               ? ({
-                  kind: "scope",
+                  kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE,
                   category: scope.category as SearchCategoryInput,
-                  subcategory: { kind: "isNull" },
+                  subcategory: { kind: SEARCH_REQUEST_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND.IS_NULL },
                 } satisfies SearchFilterNode)
               : buildScopeFilter(
                   scope.category as SearchCategoryInput,
@@ -308,7 +333,7 @@ export function buildSearchFilterDiscoveryCatalogRequest(
   applicability: SearchFilterDiscoveryApplicability,
 ): SearchRequest {
   return {
-    mode: "browse",
+    mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
     filter: buildSearchFilterDiscoveryApplicabilityFilter(applicability),
   };
 }

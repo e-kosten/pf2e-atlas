@@ -1,5 +1,8 @@
 import type { SearchWindowPage } from "../../domain/search-types.js";
-import type { SearchRequest } from "../../domain/search-request-types.js";
+import {
+  SEARCH_REQUEST_VOCABULARY,
+  type SearchRequest,
+} from "../../domain/search-request-types.js";
 import { buildSearchRequest } from "./filter-building.js";
 import type {
   Pf2eTerminalSearchQuery,
@@ -53,9 +56,9 @@ export function buildSearchWindowFilters(
   return buildSearchRequest(query, {
     limit: options.limit,
     offset,
-    text: query.mode === "browse" ? undefined : query.search.query,
-    exclude: query.mode === "search" ? query.search.exclude : undefined,
-    searchProfile: query.mode === "search" ? query.search.profile : undefined,
+    text: query.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE ? undefined : query.search.query,
+    exclude: query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH ? query.search.exclude : undefined,
+    searchProfile: query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH ? query.search.profile : undefined,
     sort: options.sort,
     sortSeed: options.sortSeed,
   });

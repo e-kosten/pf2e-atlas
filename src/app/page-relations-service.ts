@@ -1,4 +1,5 @@
 import { buildAllOfFilter, buildScopeFilter, type SearchRequest } from "../domain/search-request-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../domain/search-request-types.js";
 import type { PageRelationGroup, PageRelationsResult, PageReferenceCollectionResult } from "../domain/page-relations-types.js";
 import type { RecordKey } from "../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
@@ -21,12 +22,12 @@ function buildIncomingGroupRequest(
   group: Pick<GroupBucket, "category" | "subcategory">,
 ): SearchRequest {
   return {
-    mode: "browse",
+    mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
     filter: buildAllOfFilter([
       buildScopeFilter(group.category, group.subcategory),
-      { kind: "linksTo", target: recordKey },
+      { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LINKS_TO, target: recordKey },
     ]),
-    sort: { kind: "alphabetical" },
+    sort: { kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL },
     limit: 50,
   };
 }

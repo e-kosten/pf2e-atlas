@@ -6,6 +6,8 @@ export type {
   DerivedTagConceptRelation,
   DerivedTagConceptSchemaKind,
   DerivedTagConceptText,
+  DerivedTagLegacySourceRecord,
+  DerivedTagTranslationMapping,
   DerivedTagTranslationRecord,
   DerivedTagTranslationStatus,
   PublishedDerivedTagConceptModel,

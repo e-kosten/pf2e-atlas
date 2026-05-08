@@ -1,6 +1,10 @@
 import { orderFilterValues, type FilterValueOrdering } from "../../domain/filter-value-ordering.js";
-import type { LookupSortSpec } from "../../domain/search-request-types.js";
+import {
+  SEARCH_REQUEST_VOCABULARY,
+  type LookupSortSpec,
+} from "../../domain/search-request-types.js";
 import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-vocabulary.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import type {
   Pf2eTerminalFacetField,
@@ -13,19 +17,33 @@ import type {
   Pf2eTerminalSearchSortOption,
 } from "./service-types.js";
 
+export const SEARCH_LOOKUP_SORT_SUFFIX = {
+  TIERED: "Tiered" as const,
+  GLOBAL: "Global" as const,
+} as const;
+
+export const SEARCH_LOOKUP_SORT_VALUES = {
+  ALPHABETICAL_TIERED: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL}${SEARCH_LOOKUP_SORT_SUFFIX.TIERED}` as const,
+  ALPHABETICAL_GLOBAL: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL}${SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL}` as const,
+  LEVEL_ASC_TIERED: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC}${SEARCH_LOOKUP_SORT_SUFFIX.TIERED}` as const,
+  LEVEL_ASC_GLOBAL: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC}${SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL}` as const,
+  LEVEL_DESC_TIERED: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC}${SEARCH_LOOKUP_SORT_SUFFIX.TIERED}` as const,
+  LEVEL_DESC_GLOBAL: `${SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC}${SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL}` as const,
+} as const;
+
 export const SEARCH_PROFILE_OPTIONS: Pf2eTerminalSearchProfileOption[] = [
   {
-    value: "balanced",
+    value: SEARCH_VOCABULARY.PROFILE.BALANCED,
     label: "Balanced",
     description: "Default hybrid retrieval for concise themed searches.",
   },
   {
-    value: "lexical",
+    value: SEARCH_VOCABULARY.PROFILE.LEXICAL,
     label: "Lexical",
     description: "Exact-wording heavy retrieval for names and precise PF2E terms.",
   },
   {
-    value: "concept",
+    value: SEARCH_VOCABULARY.PROFILE.CONCEPT,
     label: "Concept",
     description: "Semantic-forward retrieval for broader exploratory concept searches.",
   },
@@ -33,74 +51,74 @@ export const SEARCH_PROFILE_OPTIONS: Pf2eTerminalSearchProfileOption[] = [
 
 export const SEARCH_MODE_OPTIONS: Pf2eTerminalSearchModeOption[] = [
   {
-    value: "browse",
+    value: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
     label: "Browse",
     description: "Deterministic listing over structured filters with no ranking required.",
   },
   {
-    value: "search",
+    value: SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
     label: "Search",
     description: "Ranked lexical or semantic retrieval using the current search profile.",
   },
   {
-    value: "lookup",
+    value: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
     label: "Lookup",
     description: "Exact or near-exact name lookup within the current category boundaries.",
   },
 ];
 
 export const SEARCH_SORT_OPTIONS: Record<Pf2eTerminalSearchMode, Pf2eTerminalSearchSortOption[]> = {
-  browse: [
+  [SEARCH_REQUEST_VOCABULARY.MODE.BROWSE]: [
     {
-      value: "alphabetical",
+      value: SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL,
       label: "Alphabetical",
       description: "Read deterministic browse results in name order.",
     },
     {
-      value: "levelAsc",
+      value: SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC,
       label: "Level Low-High",
       description: "Read results from lowest level to highest level.",
     },
     {
-      value: "levelDesc",
+      value: SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC,
       label: "Level High-Low",
       description: "Read results from highest level to lowest level.",
     },
     {
-      value: "random",
+      value: SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM,
       label: "Random",
       description: "Shuffle browse results into a stable random session order.",
     },
   ],
-  search: [],
-  lookup: [
+  [SEARCH_REQUEST_VOCABULARY.MODE.SEARCH]: [],
+  [SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP]: [
     {
-      value: "alphabeticalTiered",
+      value: SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_TIERED,
       label: "Alphabetical (Tiered)",
       description: "Group exact, normalized, and fuzzy matches, then sort each tier alphabetically.",
     },
     {
-      value: "alphabeticalGlobal",
+      value: SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_GLOBAL,
       label: "Alphabetical (Global)",
       description: "Keep one flat alphabetical list with per-row match badges.",
     },
     {
-      value: "levelAscTiered",
+      value: SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_TIERED,
       label: "Level Low-High (Tiered)",
       description: "Group lookup matches by strength, then read each tier from lowest level to highest level.",
     },
     {
-      value: "levelAscGlobal",
+      value: SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_GLOBAL,
       label: "Level Low-High (Global)",
       description: "Keep one flat level-sorted list with per-row match badges.",
     },
     {
-      value: "levelDescTiered",
+      value: SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_TIERED,
       label: "Level High-Low (Tiered)",
       description: "Group lookup matches by strength, then read each tier from highest level to lowest level.",
     },
     {
-      value: "levelDescGlobal",
+      value: SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_GLOBAL,
       label: "Level High-Low (Global)",
       description: "Keep one flat reverse-level list with per-row match badges.",
     },
@@ -146,17 +164,17 @@ export function createFacetValueOptions(
 
 export function getDefaultSort(mode: Pf2eTerminalSearchMode): Pf2eTerminalSearchSort {
   switch (mode) {
-    case "browse":
-      return "alphabetical";
-    case "lookup":
-      return "alphabeticalTiered";
-    case "search":
-      return "ranked";
+    case SEARCH_REQUEST_VOCABULARY.MODE.BROWSE:
+      return SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL;
+    case SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP:
+      return SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_TIERED;
+    case SEARCH_REQUEST_VOCABULARY.MODE.SEARCH:
+      return SEARCH_VOCABULARY.SORT_KIND.RANKED;
   }
 }
 
 export function createSortSeed(sort: Pf2eTerminalSearchSort): number | null {
-  if (sort !== "random") {
+  if (sort !== SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM) {
     return null;
   }
 
@@ -164,44 +182,63 @@ export function createSortSeed(sort: Pf2eTerminalSearchSort): number | null {
 }
 
 export function isLookupSort(sort: Pf2eTerminalSearchSort): sort is Pf2eTerminalLookupSort {
-  return sort.endsWith("Tiered") || sort.endsWith("Global");
+  return sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.TIERED) || sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL);
 }
 
 export function buildLookupSortSpec(sort: Pf2eTerminalLookupSort): LookupSortSpec {
-  if (sort.startsWith("alphabetical")) {
-    return { kind: "alphabetical", policy: sort.endsWith("Global") ? "global" : "tiered" };
+  if (sort.startsWith(SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL)) {
+    return {
+      kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL,
+      policy: sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL)
+        ? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.GLOBAL
+        : SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED,
+    };
   }
-  if (sort.startsWith("levelAsc")) {
-    return { kind: "levelAsc", policy: sort.endsWith("Global") ? "global" : "tiered" };
+  if (sort.startsWith(SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC)) {
+    return {
+      kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC,
+      policy: sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL)
+        ? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.GLOBAL
+        : SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED,
+    };
   }
-  return { kind: "levelDesc", policy: sort.endsWith("Global") ? "global" : "tiered" };
+  return {
+    kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC,
+    policy: sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL)
+      ? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.GLOBAL
+      : SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED,
+  };
 }
 
 export function getLookupSortPolicy(sort: Pf2eTerminalSearchSort): "tiered" | "global" | null {
-  return isLookupSort(sort) ? (sort.endsWith("Global") ? "global" : "tiered") : null;
+  return isLookupSort(sort)
+    ? (sort.endsWith(SEARCH_LOOKUP_SORT_SUFFIX.GLOBAL)
+      ? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.GLOBAL
+      : SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED)
+    : null;
 }
 
 export function formatSearchSortLabel(sort: Pf2eTerminalSearchSort): string {
   switch (sort) {
-    case "ranked":
-    case "alphabetical":
-    case "random":
+    case SEARCH_VOCABULARY.SORT_KIND.RANKED:
+    case SEARCH_VOCABULARY.SORT_KIND.ALPHABETICAL:
+    case SEARCH_VOCABULARY.SORT_KIND.RANDOM:
       return formatOntologySearchVocabularyLabel(sort);
-    case "levelAsc":
+    case SEARCH_VOCABULARY.SORT_KIND.LEVEL_ASC:
       return "Level Low-High";
-    case "levelDesc":
+    case SEARCH_VOCABULARY.SORT_KIND.LEVEL_DESC:
       return "Level High-Low";
-    case "alphabeticalTiered":
+    case SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_TIERED:
       return "Alphabetical (tiered)";
-    case "alphabeticalGlobal":
+    case SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_GLOBAL:
       return "Alphabetical (global)";
-    case "levelAscTiered":
+    case SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_TIERED:
       return "Level Low-High (tiered)";
-    case "levelAscGlobal":
+    case SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_GLOBAL:
       return "Level Low-High (global)";
-    case "levelDescTiered":
+    case SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_TIERED:
       return "Level High-Low (tiered)";
-    case "levelDescGlobal":
+    case SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_GLOBAL:
       return "Level High-Low (global)";
   }
 }

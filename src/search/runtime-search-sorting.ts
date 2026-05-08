@@ -1,5 +1,6 @@
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type { SearchSort } from "../domain/search-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../domain/search-request-types.js";
 import { normalizeText } from "../shared/utils.js";
 import { scoreNameCandidate } from "./ranking.js";
 
@@ -47,17 +48,16 @@ export function compareRecordsForSort(
   sortSeed: number,
 ): number {
   switch (sort) {
-    case "levelAsc":
+    case SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC:
       return compareNullableLevel(left.level, right.level) || sortRecords(left, right);
-    case "levelDesc":
+    case SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC:
       return compareNullableLevel(right.level, left.level) || sortRecords(left, right);
-    case "random":
+    case SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM:
       return (
         hashRecordSortSeed(left.recordKey, sortSeed) - hashRecordSortSeed(right.recordKey, sortSeed) ||
         sortRecords(left, right)
       );
-    case "alphabetical":
-    case "ranked":
+    case SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL:
     default:
       return sortRecords(left, right);
   }

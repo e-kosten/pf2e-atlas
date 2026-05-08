@@ -1,7 +1,53 @@
 import type { NormalizedRecord } from "./record-types.js";
 
-export type SearchProfile = "lexical" | "balanced" | "concept";
-export type SearchSort = "ranked" | "alphabetical" | "levelAsc" | "levelDesc" | "random";
+export const SEARCH_VOCABULARY = {
+  PROFILE: {
+    LEXICAL: "lexical" as const,
+    BALANCED: "balanced" as const,
+    CONCEPT: "concept" as const,
+  },
+  SORT_KIND: {
+    RANKED: "ranked" as const,
+    ALPHABETICAL: "alphabetical" as const,
+    LEVEL_ASC: "levelAsc" as const,
+    LEVEL_DESC: "levelDesc" as const,
+    RANDOM: "random" as const,
+  },
+  MODE: {
+    STRUCTURED: "structured" as const,
+    LEXICAL: "lexical" as const,
+    HYBRID: "hybrid" as const,
+  },
+} as const;
+
+type SearchVocabulary = typeof SEARCH_VOCABULARY;
+export const SEARCH_PROFILE_VALUES = [
+  SEARCH_VOCABULARY.PROFILE.LEXICAL,
+  SEARCH_VOCABULARY.PROFILE.BALANCED,
+  SEARCH_VOCABULARY.PROFILE.CONCEPT,
+] as const;
+export const SEARCH_SORT_VALUES = [
+  SEARCH_VOCABULARY.SORT_KIND.RANKED,
+  SEARCH_VOCABULARY.SORT_KIND.ALPHABETICAL,
+  SEARCH_VOCABULARY.SORT_KIND.LEVEL_ASC,
+  SEARCH_VOCABULARY.SORT_KIND.LEVEL_DESC,
+  SEARCH_VOCABULARY.SORT_KIND.RANDOM,
+] as const;
+export const BROWSE_SEARCH_SORT_VALUES = [
+  SEARCH_VOCABULARY.SORT_KIND.ALPHABETICAL,
+  SEARCH_VOCABULARY.SORT_KIND.LEVEL_ASC,
+  SEARCH_VOCABULARY.SORT_KIND.LEVEL_DESC,
+] as const;
+export const SEARCH_MODE_VALUES = [
+  SEARCH_VOCABULARY.MODE.STRUCTURED,
+  SEARCH_VOCABULARY.MODE.LEXICAL,
+  SEARCH_VOCABULARY.MODE.HYBRID,
+] as const;
+export type SearchProfile = SearchVocabulary["PROFILE"][keyof SearchVocabulary["PROFILE"]];
+export type SearchSort = SearchVocabulary["SORT_KIND"][keyof SearchVocabulary["SORT_KIND"]];
+export type SearchFusionProfile =
+  | SearchVocabulary["PROFILE"]["BALANCED"]
+  | SearchVocabulary["PROFILE"]["CONCEPT"];
 
 export type SearchCategory =
   | "equipment"
@@ -88,7 +134,7 @@ export interface SearchScope {
   subcategories?: SearchSubcategoryInput[];
 }
 
-export type SearchMode = "structured" | "lexical" | "hybrid";
+export type SearchMode = SearchVocabulary["MODE"][keyof SearchVocabulary["MODE"]];
 
 export const FILTER_VALUE_FIELDS = [
   "traits",
@@ -263,7 +309,7 @@ export interface SearchExplainResult {
   searchProfile: SearchProfile | null;
   mode: SearchMode;
   fusionMethod: "weightedRrf" | null;
-  fusionProfile: "balanced" | "concept" | null;
+  fusionProfile: SearchFusionProfile | null;
   fusionConfig: {
     rrfK: number;
     lexicalWeight: number;

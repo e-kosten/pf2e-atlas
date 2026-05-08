@@ -4,6 +4,7 @@ import { SEARCH_CATEGORIES } from "./categories.js";
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
 import {
   METADATA_FIELD_KIND_OPERATORS,
+  isMetadataFieldName,
   type MetadataFieldName,
   type MetadataFieldNameByType,
   type MetadataFieldType,
@@ -369,10 +370,6 @@ export function getMetadataFieldCatalogEntry(field: MetadataFieldName): SearchMe
     throw new Error(`Unknown metadata field "${field}".`);
   }
   return entry;
-}
-
-export function isMetadataFieldName(field: string): field is MetadataFieldName {
-  return SEARCH_METADATA_FIELD_CATALOG_BY_NAME.has(field as MetadataFieldName);
 }
 
 export function isMetadataSetField(field: string): field is MetadataFieldNameByType<"set"> {

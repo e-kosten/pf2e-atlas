@@ -4,6 +4,7 @@ import {
   updateDerivedTagReviewDecisionStatus,
 } from "../sessions/review-session.js";
 import type { DerivedTagReviewSession } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 import {
   createDerivedTagTerminalActionTargetState,
   reduceDerivedTagTerminalActionTargetState,
@@ -42,16 +43,36 @@ export type DerivedTagReviewScreenAction =
   | { type: "toggle_unresolved" };
 
 export const DERIVED_TAG_MIGRATION_REVIEW_ACTIONS = [
-  { id: "approve", label: "Approve", description: "Mark the current review item approved." },
-  { id: "reject", label: "Reject", description: "Mark the current review item rejected." },
-  { id: "needs_review", label: "Needs Review", description: "Keep the item unresolved for later follow-up." },
   {
-    id: "toggle_unresolved",
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.APPROVE,
+    label: "Approve",
+    description: "Mark the current review item approved.",
+  },
+  {
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.REJECT,
+    label: "Reject",
+    description: "Mark the current review item rejected.",
+  },
+  {
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.NEEDS_REVIEW,
+    label: "Needs Review",
+    description: "Keep the item unresolved for later follow-up.",
+  },
+  {
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.TOGGLE_UNRESOLVED,
     label: "Toggle Unresolved",
     description: "Switch the queue between all items and unresolved-only items.",
   },
-  { id: "import", label: "Lint + Import", description: "Run import for the current session after validation." },
-  { id: "quit", label: "Quit", description: "Finish the review UI and return the current session state." },
+  {
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.IMPORT,
+    label: "Lint + Import",
+    description: "Run import for the current session after validation.",
+  },
+  {
+    id: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.UI_ACTION.QUIT,
+    label: "Quit",
+    description: "Finish the review UI and return the current session state.",
+  },
 ] as const satisfies readonly DerivedTagTerminalActionTargetOption[];
 
 export type DerivedTagReviewActionId = (typeof DERIVED_TAG_MIGRATION_REVIEW_ACTIONS)[number]["id"];

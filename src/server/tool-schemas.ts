@@ -10,6 +10,7 @@ import {
 } from "../domain/categories.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
 import type { BrowseSortSpec, SearchFilterNode } from "../domain/search-request-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../domain/search-request-types.js";
 import {
   METADATA_BOOLEAN_FIELDS,
   METADATA_ENUM_STRING_FIELDS,
@@ -18,6 +19,10 @@ import {
   METADATA_TEXT_STRING_FIELDS,
 } from "../domain/metadata-field-types.js";
 import { FILTER_VALUE_FIELDS } from "../domain/search-types.js";
+import {
+  BROWSE_SEARCH_SORT_VALUES,
+  SEARCH_PROFILE_VALUES,
+} from "../domain/search-types.js";
 import type {
   FilterValueField,
   SearchCategory,
@@ -78,7 +83,7 @@ export const searchScopeSchema: z.ZodType<SearchScope> = z
     subcategories: scope.subcategories?.filter((subcategory, index, values) => values.indexOf(subcategory) === index),
   }));
 
-export const searchProfileSchema = z.enum(["lexical", "balanced", "concept"]);
+export const searchProfileSchema = z.enum(SEARCH_PROFILE_VALUES);
 export const sourceCategorySchema = z.enum(["core", "rules", "adventure", "unknown"]);
 export const spellKindSchema = z.enum(["focus", "ritual", "cantrip"]);
 export const linksToModeSchema = z.enum(["any", "all"]);
@@ -153,10 +158,10 @@ export const metadataAtomicPredicateSchema: z.ZodType<MetadataAtomicPredicate> =
 
 export const browseSortSchema = z.union([
   buildStrictObjectSchema({
-    kind: z.enum(["alphabetical", "levelAsc", "levelDesc"]),
+    kind: z.enum(BROWSE_SEARCH_SORT_VALUES),
   }),
   buildStrictObjectSchema({
-    kind: z.literal("random"),
+    kind: z.literal(SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM),
     seed: z.number().int().optional(),
   }),
 ]) as unknown as z.ZodType<BrowseSortSpec>;
@@ -260,8 +265,10 @@ export const searchFilterSchema: z.ZodType<SearchFilterNode> = z.lazy(
 
 export const listRecordsToolInputSchema = buildStrictObjectSchema({
   mode: z
-    .literal("browse")
-    .describe('Canonical request mode for browse/list flows. This tool only accepts `mode: "browse"`.'),
+    .literal(SEARCH_REQUEST_VOCABULARY.MODE.BROWSE)
+    .describe(
+      'Canonical request mode for browse/list flows. This tool only accepts `mode: "browse"`.',
+    ),
   filter: searchFilterSchema
     .optional()
     .describe(
@@ -278,7 +285,7 @@ export const listRecordsToolInputSchema = buildStrictObjectSchema({
 
 export const searchToolInputSchema = buildStrictObjectSchema({
   mode: z
-    .literal("search")
+    .literal(SEARCH_REQUEST_VOCABULARY.MODE.SEARCH)
     .describe('Canonical request mode for ranked retrieval. This tool only accepts `mode: "search"`.'),
   search: buildStrictObjectSchema({
     query: z

@@ -3,6 +3,7 @@ import {
   getFilterExplorerScalarClause,
   isFilterExplorerScalarTarget,
 } from "./compose-state.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerComposeMode,
   FilterExplorerControllerContext,
@@ -27,7 +28,7 @@ function formatScalarClauseSummary(clause: FilterExplorerScalarClause): string {
   const operator =
     clause.operator === "eq"
       ? "="
-      : clause.operator === "neq"
+      : clause.operator === "notEq"
         ? "!="
         : clause.operator === "gt"
           ? ">"
@@ -92,13 +93,15 @@ export function createComposeFilterExplorerHostAdapter(args: {
     resolveTarget: args.resolveTarget,
     describeNode: ({ controller, node, target }) => {
       if (!target) {
-        return { activationStyle: "none" };
+        return { activationStyle: FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.NONE };
       }
 
       if (isFilterExplorerScalarTarget(target)) {
         const clause = resolveScalarClauseForNode(controller, node, target);
         return {
-          activationStyle: args.onEditScalarTarget ? "edit" : "none",
+          activationStyle: args.onEditScalarTarget
+            ? FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.EDIT
+            : FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.NONE,
           stateBadge: clause ? { kind: "custom", text: "ƒ", tone: "accent" } : { kind: "custom", text: "·", tone: "dim" },
           suffixText: controller && node && controller.browser.currentNode?.id === node.id && clause
             ? formatScalarClauseSummary(clause)
@@ -108,7 +111,7 @@ export function createComposeFilterExplorerHostAdapter(args: {
 
       const operator = controller ? getFilterExplorerDiscreteClauseOperator(target, controller.draft) : undefined;
       return {
-        activationStyle: "toggle",
+        activationStyle: FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.TOGGLE,
         stateBadge: toDiscreteStateBadge(operator),
       };
     },
@@ -128,10 +131,10 @@ export function createInspectFilterExplorerHostAdapter(args: {
     describeNode: ({ node, target }) => ({
       activationStyle:
         target?.kind === "scalar" && args.onEditScalarTarget
-          ? "edit"
+          ? FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.EDIT
           : node?.query
-            ? "open"
-            : "none",
+            ? FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.OPEN
+            : FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.NONE,
       tone: node?.kind === "field" ? "default" : undefined,
     }),
   };

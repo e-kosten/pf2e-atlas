@@ -2,10 +2,10 @@ import { DatabaseSync } from "node:sqlite";
 
 import { buildPlaceholders } from "../../data/rows.js";
 import {
-  categorySupportsSubcategory,
-  normalizeSearchCategory,
-  normalizeSearchSubcategory,
-} from "../../domain/categories.js";
+  parseSearchCategoryValue,
+  parseSearchSubcategoryForCategory,
+  parseSourceCategoryValue,
+} from "../../data/sql-row-decoding.js";
 import { SearchCategory, SearchSubcategory, SourceCategory } from "../../domain/derived-tag-types.js";
 import { normalizeText } from "../../shared/utils.js";
 
@@ -159,55 +159,27 @@ function parseStringArrayJson(value: string | null | undefined, fieldName: strin
   return result;
 }
 
-function parseDiscoveryCategory(category: string, recordKey: string): SearchCategory {
-  const normalized = normalizeSearchCategory(category);
-  if (!normalized) {
-    throw new Error(`Invalid discovery category "${category}" for "${recordKey}".`);
-  }
-
-  return normalized;
-}
-
-function parseDiscoverySubcategory(
-  category: SearchCategory,
-  subcategory: string | null,
-  recordKey: string,
-): SearchSubcategory | null {
-  if (!subcategory) {
-    return null;
-  }
-
-  const normalized = normalizeSearchSubcategory(subcategory);
-  if (!normalized) {
-    throw new Error(`Invalid discovery subcategory "${subcategory}" for "${recordKey}".`);
-  }
-  if (!categorySupportsSubcategory(category, normalized)) {
-    throw new Error(`Invalid discovery subcategory "${subcategory}" for ${category} record "${recordKey}".`);
-  }
-
-  return normalized;
-}
-
-function parseSourceCategory(sourceCategory: string, recordKey: string): SourceCategory {
-  switch (normalizeText(sourceCategory)) {
-    case "core":
-      return "core";
-    case "rules":
-      return "rules";
-    case "adventure":
-      return "adventure";
-    case "unknown":
-      return "unknown";
-    default:
-      throw new Error(`Invalid discovery source category "${sourceCategory}" for "${recordKey}".`);
-  }
-}
-
 function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceRecord[]): DiscoveryAnalysisRecord {
   const separatorIndex = row.recordKey.indexOf(":");
   const sourceKey = separatorIndex >= 0 ? row.recordKey.slice(0, separatorIndex) : row.recordKey;
   const packName = row.packName ?? sourceKey;
-  const category = parseDiscoveryCategory(row.category, row.recordKey);
+  const category = (() => {
+    try {
+      return parseSearchCategoryValue(row.category, row.recordKey);
+    } catch {
+      throw new Error(`Invalid discovery category "${row.category}"`);
+    }
+  })();
+  const subcategory = (() => {
+    try {
+      return parseSearchSubcategoryForCategory(category, row.subcategory, row.recordKey);
+    } catch (error) {
+      if (row.subcategory) {
+        throw new Error(`Invalid discovery subcategory "${row.subcategory}" for ${category} record`);
+      }
+      throw error;
+    }
+  })();
   return {
     recordKey: row.recordKey,
     sourceKey,
@@ -218,7 +190,7 @@ function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceR
     sourcePathSlice: deriveSourcePathSlice(packName, row.sourcePath),
     name: row.name,
     category,
-    subcategory: parseDiscoverySubcategory(category, row.subcategory, row.recordKey),
+    subcategory,
     variantFamilyKey: row.variantFamilyKey,
     variantBaseName: row.variantBaseName,
     variantLabel: row.variantLabel,
@@ -260,15 +232,15 @@ function loadReferencesForRecords(db: DatabaseSync, recordKeys: string[]): Map<s
   const referencesByRecordKey = new Map<string, DiscoveryReferenceRecord[]>();
   for (const row of rows) {
     const bucket = referencesByRecordKey.get(row.fromRecordKey) ?? [];
-    const targetCategory = parseDiscoveryCategory(row.targetCategory, row.targetRecordKey);
+    const targetCategory = parseSearchCategoryValue(row.targetCategory, row.targetRecordKey);
     bucket.push({
       targetRecordKey: row.targetRecordKey,
       targetName: row.targetName,
       targetCategory,
-      targetSubcategory: parseDiscoverySubcategory(targetCategory, row.targetSubcategory, row.targetRecordKey),
+      targetSubcategory: parseSearchSubcategoryForCategory(targetCategory, row.targetSubcategory, row.targetRecordKey),
       fromPackName: row.fromPackName,
       fromRecordType: row.fromRecordType,
-      fromSourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
+      fromSourceCategory: parseSourceCategoryValue(row.fromSourceCategory, row.fromRecordKey),
     });
     referencesByRecordKey.set(row.fromRecordKey, bucket);
   }

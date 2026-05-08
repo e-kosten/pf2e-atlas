@@ -4,6 +4,7 @@ import type { NormalizedSearchFilters, RuntimeSearchDependencies } from "./contr
 import { buildRerankAdjustments, sumRerankAdjustments } from "./ranking.js";
 import { compareRecordsForSort, nameScore, sortRecords } from "./runtime-search-sorting.js";
 import type { RuntimeSearchEntry } from "./runtime-search-snapshot.js";
+import { SEARCH_EXECUTION_VOCABULARY } from "./contracts.js";
 
 export function matchesExcludedQuery(searchText: string | null | undefined, excludedTokens: string[]): boolean {
   if (excludedTokens.length === 0) {
@@ -23,7 +24,7 @@ export function buildStructuredSearchEntries(
   deps: RuntimeSearchDependencies,
   excludeTokens: string[] = [],
 ): RuntimeSearchEntry[] {
-  const sort = normalizedFilters.sort ?? "ranked";
+  const sort = normalizedFilters.sort ?? SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANKED;
   const sortSeed = normalizedFilters.sortSeed ?? 0;
   const structuredRows = deps
     .fetchCandidates(normalizedFilters, excludeTokens.length > 0)
@@ -53,7 +54,7 @@ export function buildStructuredSearchEntries(
     })
     .filter(({ totalScore }) => !normalizedFilters.nameQuery || totalScore >= 0.2)
     .sort((left, right) => {
-      if (sort === "ranked") {
+      if (sort === SEARCH_EXECUTION_VOCABULARY.SORT_KIND.RANKED) {
         return right.totalScore - left.totalScore || sortRecords(left.record, right.record);
       }
       return compareRecordsForSort(left.record, right.record, sort, sortSeed);

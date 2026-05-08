@@ -36,6 +36,8 @@ import { traceAsync, traceSync } from "../../search/trace.js";
 import { createSearchRetrievalPort } from "./search-retrieval.js";
 import { Pf2eRecordCatalog } from "./record-catalog.js";
 import { Pf2eSearchWindowStore } from "./search-window-store.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
 
 type AnnotatedLookupRecord = SearchResultRecord & {
   matchType: LookupResult["matchType"];
@@ -109,7 +111,7 @@ export class Pf2eSearchBackendService {
       { field: query.field, category: query.category ?? "any" },
       () => {
         const normalizedFilters = this.normalizeRequest({
-          mode: "browse",
+          mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
           filter:
             query.scopes && query.scopes.length > 0
               ? buildAnyOfFilter(
@@ -136,7 +138,10 @@ export class Pf2eSearchBackendService {
       { field: query.field, requestMode: request.mode, category: query.category ?? "any" },
       async () => {
         const normalizedFilters = this.normalizeRequest(request);
-        validateSearchFilters(normalizedFilters, request.mode === "browse" ? "list" : "search");
+        validateSearchFilters(
+          normalizedFilters,
+          request.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE ? "list" : "search",
+        );
         const recordKeys = await this.resolveDiscoveryRecordKeys(request, normalizedFilters);
         return this.catalog.listFilterValues(query, normalizedFilters, {
           ...(recordKeys ? { recordKeys } : {}),
@@ -164,20 +169,20 @@ export class Pf2eSearchBackendService {
       limit: 1,
     });
 
-    if (normalizedRequest.mode === "browse") {
+    if (normalizedRequest.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
       const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
       validateSearchFilters(normalizedFilters, "list");
       return countStructuredSearchRuntime(normalizedFilters, runtime);
     }
 
     if (options.lexicalOnly && executionFilters.query?.trim()) {
-      executionFilters.searchProfile = "lexical";
+      executionFilters.searchProfile = SEARCH_VOCABULARY.PROFILE.LEXICAL;
     }
 
     const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
 
-    if (normalizedRequest.mode === "lookup") {
+    if (normalizedRequest.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP) {
       return countStructuredSearchRuntime(normalizedFilters, runtime);
     }
 
@@ -189,13 +194,15 @@ export class Pf2eSearchBackendService {
     const runtime = this.runtimeSearchDependencies();
     const normalizedFilters = this.normalizeRequest(normalizedRequest);
 
-    if (normalizedRequest.mode === "browse") {
+    if (normalizedRequest.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
       validateSearchFilters(normalizedFilters, "list");
       const sort =
-        normalizedFilters.sort === "ranked" || !normalizedFilters.sort ? "alphabetical" : normalizedFilters.sort;
-      const sortSeed = sort === "random" ? (normalizedFilters.sortSeed ?? 0) : null;
+        normalizedFilters.sort === SEARCH_VOCABULARY.SORT_KIND.RANKED || !normalizedFilters.sort
+          ? SEARCH_VOCABULARY.SORT_KIND.ALPHABETICAL
+          : normalizedFilters.sort;
+      const sortSeed = sort === SEARCH_VOCABULARY.SORT_KIND.RANDOM ? (normalizedFilters.sortSeed ?? 0) : null;
       const orderedRecordKeys =
-        sort === "random"
+        sort === SEARCH_VOCABULARY.SORT_KIND.RANDOM
           ? fetchCandidateRecordKeys(this.db, normalizedFilters).sort((left, right) => {
               const leftHash = hashRecordSortSeed(left, sortSeed ?? 0);
               const rightHash = hashRecordSortSeed(right, sortSeed ?? 0);
@@ -204,7 +211,7 @@ export class Pf2eSearchBackendService {
           : fetchCandidateRecordKeys(this.db, normalizedFilters, sort);
       const window = this.searchWindows.openWindow({
         kind: "recordKeys",
-        mode: "structured",
+        mode: SEARCH_VOCABULARY.MODE.STRUCTURED,
         searchProfile: null,
         sort,
         sortSeed,
@@ -216,11 +223,15 @@ export class Pf2eSearchBackendService {
 
     validateSearchFilters(normalizedFilters, "search");
     const snapshot = await buildSearchWindowSnapshot(normalizedFilters, runtime);
+    const lookupSortPolicy =
+      normalizedRequest.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP
+        ? normalizedRequest.sort?.policy ?? SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED
+        : SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED;
     const orderedRecords =
-      normalizedRequest.mode === "lookup"
+      normalizedRequest.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP
         ? (() => {
             const annotatedRecords = annotateLookupRecords(normalizedRequest.search.query, snapshot.records);
-            return (normalizedRequest.sort?.policy ?? "tiered") === "tiered"
+            return lookupSortPolicy === SEARCH_REQUEST_VOCABULARY.LOOKUP_SORT_POLICY.TIERED
               ? applyLookupTieredOrdering(annotatedRecords)
               : annotatedRecords;
           })()
@@ -253,7 +264,7 @@ export class Pf2eSearchBackendService {
     const normalizedFilters = this.normalizeExecutionFilters(executionFilters);
     validateSearchFilters(normalizedFilters, "search");
     const result = await searchRuntime(executionFilters, normalizedFilters, this.runtimeSearchDependencies());
-    if (request.mode !== "lookup") {
+    if (request.mode !== SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP) {
       return result;
     }
 
@@ -268,10 +279,12 @@ export class Pf2eSearchBackendService {
     options: LookupOptions = {},
   ): { match: NormalizedRecord | null; alternatives: NormalizedRecord[]; matchType: LookupResult["matchType"] } {
     const filters = this.normalizeRequest({
-      mode: "lookup",
+      mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
       search: { query: name },
       filter: buildAllOfFilter([
-        options.pack ? { kind: "pack", value: options.pack } : undefined,
+        options.pack
+          ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK, value: options.pack }
+          : undefined,
         options.category ? buildScopeFilter(options.category, options.subcategory ?? null) : undefined,
       ]),
       limit: 5,
@@ -292,13 +305,15 @@ export class Pf2eSearchBackendService {
         }
 
         const results = this.searchStructured({
-          mode: "lookup",
+          mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
           search: { query: query.name },
           filter: buildAllOfFilter([
-            query.pack ? { kind: "pack", value: query.pack } : undefined,
+            query.pack
+              ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK, value: query.pack }
+              : undefined,
             query.category ? buildScopeFilter(query.category, query.subcategory ?? null) : undefined,
             {
-              kind: "metadataPredicate",
+              kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
               predicate: { field: "sourceCategory", op: "eq", value: "core" },
             },
           ]),
@@ -342,7 +357,7 @@ export class Pf2eSearchBackendService {
     request: Readonly<SearchRequest>,
     normalizedFilters: ReturnType<Pf2eSearchBackendService["normalizeRequest"]>,
   ): Promise<string[] | undefined> {
-    if (request.mode === "browse") {
+    if (request.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
       return undefined;
     }
 
@@ -362,7 +377,7 @@ export class Pf2eSearchBackendService {
       "backend.resolveDiscoveryRecordKeys",
       {
         cache: "miss",
-        mode: normalizedFilters.query ? "search" : "structured",
+        mode: normalizedFilters.query ? SEARCH_REQUEST_VOCABULARY.MODE.SEARCH : SEARCH_VOCABULARY.MODE.STRUCTURED,
         profile: normalizedFilters.searchProfile ?? "default",
       },
       () =>

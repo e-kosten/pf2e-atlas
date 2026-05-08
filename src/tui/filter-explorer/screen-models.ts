@@ -15,7 +15,7 @@ import type { DerivedTagTerminalLine, DerivedTagTerminalSegment } from "../frame
 import { buildTerminalListDetailScreenModel, type TerminalListDetailScreenModel } from "../list-detail-presentation.js";
 import { buildFilterExplorerListRows } from "./browser.js";
 import { describeFilterExplorerHostNode } from "./host-adapter.js";
-import { FILTER_EXPLORER_LAUNCH_INTENT } from "./types.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type { TerminalDebugTraceSnapshot, TerminalDebugTraceSpanSnapshot } from "../debug-trace.js";
 import type {
   FilterExplorerActionEntry,
@@ -49,7 +49,7 @@ function getBackHelpText(mode: FilterExplorerMode, controller: FilterExplorerBro
     return "return to the entry list";
   }
   return isAtExitDepth(mode, controller, 0)
-    ? mode.kind === "compose"
+    ? mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE
       ? "leave the filter composer"
       : "return from the explorer"
     : "return to the previous level";
@@ -72,7 +72,7 @@ const FILTER_EXPLORER_NAVIGATION_ACTION_IDS = new Set([
 ]);
 
 function isSelectionExplorer(controller: FilterExplorerControllerContext): boolean {
-  return controller.mode.kind === "compose" || Boolean(controller.host.selectionPresentation);
+  return controller.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE || Boolean(controller.host.selectionPresentation);
 }
 
 function getCurrentActivationStyle(controller: FilterExplorerControllerContext): FilterExplorerActivationStyle {
@@ -82,7 +82,7 @@ function getCurrentActivationStyle(controller: FilterExplorerControllerContext):
       node: controller.browser.selection.currentNode,
       isFocused: true,
       controller,
-    })?.activationStyle ?? "none"
+    })?.activationStyle ?? FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.NONE
   );
 }
 
@@ -93,7 +93,8 @@ export function getFilterExplorerInteractionActions(
   const { browser } = controller;
   const pageDetailState = browser.detailInteractionState;
   if (isSelectionExplorer(controller)) {
-    const composeActionLabel = getCurrentActivationStyle(controller) === "edit" ? "edit" : "cycle";
+    const composeActionLabel =
+      getCurrentActivationStyle(controller) === FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE.EDIT ? "edit" : "cycle";
 
     if (browser.layoutMode === "detail-only") {
       return [
@@ -111,7 +112,7 @@ export function getFilterExplorerInteractionActions(
       ];
     }
 
-    if (browser.state.activePane === "list") {
+    if (browser.state.activePane === FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.LIST) {
       return [
         { id: "move", label: "select" },
         { id: "jump" },
@@ -173,7 +174,7 @@ export function getFilterExplorerInteractionActions(
       ];
     }
 
-    if (browser.state.activePane === "detail") {
+    if (browser.state.activePane === FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.DETAIL) {
       return [
         ...pageActions,
         { id: "focus", label: "pane" },
@@ -303,7 +304,7 @@ function buildFilterExplorerScalarClauseSummary(clause: FilterExplorerScalarClau
 
   const operatorLabel = {
     eq: "=",
-    neq: "!=",
+    notEq: "!=",
     gt: ">",
     gte: ">=",
     lt: "<",
@@ -552,7 +553,10 @@ export function buildFilterExplorerActionEntries(
     ...buildValueSortActionEntries(controller),
   ];
 
-  if (controller.mode.kind !== "inspect-and-open" || !controller.selectedInspectResult) {
+  if (
+    controller.mode.kind !== FILTER_EXPLORER_VOCABULARY.MODE_KIND.INSPECT_AND_OPEN ||
+    !controller.selectedInspectResult
+  ) {
     return actions;
   }
 
@@ -566,7 +570,7 @@ export function buildFilterExplorerActionEntries(
 
   return [
     ...actions,
-    ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+    ...(request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
       ? [
           {
             id: "selectTarget:default" as const,
@@ -581,18 +585,18 @@ export function buildFilterExplorerActionEntries(
       : []),
     {
       id:
-        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
           ? "selectTarget:query"
           : "selectTarget:default",
       label:
-        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+        request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
           ? "Open Search Query"
           : "Open Query",
       description: queryDescription,
       action: {
         kind: "selectTarget" as const,
         selection:
-          request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+          request.mode === "browse" && result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
             ? "query"
             : "default",
       },
@@ -746,7 +750,7 @@ function buildInspectTargetLabel(result: FilterExplorerInspectResult): string | 
 function buildInspectCommandDescription(result: FilterExplorerInspectResult): string {
   const request = result.query.request;
   const openLabel =
-    result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+    result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
       ? "Open the focused selection in results."
       : request.mode === "lookup"
         ? "Open the focused selection in lookup."
@@ -767,7 +771,7 @@ function buildInspectStatus(controller: FilterExplorerControllerContext): string
   const targetLabel = buildInspectTargetLabel(result);
   const request = result.query.request;
   const openLabel =
-    result.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS
+    result.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS
       ? "open results"
       : request.mode === "lookup"
         ? "open lookup"

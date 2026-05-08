@@ -3,10 +3,8 @@ import React from "react";
 import type { SearchCategory } from "../domain/search-types.js";
 import type { DerivedTagTranslationOverride } from "../tags/translations/tag-overrides.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../tags/manifest.js";
-import {
-  applyDerivedTagTranslationOverride,
-  cloneDerivedTagTranslationOverride,
-} from "../tags/translations/record-utils.js";
+import { cloneDerivedTagTranslationOverride } from "../tags/translations/record-utils.js";
+import { buildEffectiveDerivedTagTranslationRecord } from "../tags/translations/publication.js";
 import {
   createDerivedTagTranslationReviewSession,
   importDerivedTagTranslationReviewSession,
@@ -36,19 +34,13 @@ import { useTerminalInteractionContextAdapters } from "./interaction-context-ada
 type TranslationQueueCategoryFilter = SearchCategory | "all";
 type TranslationQueueStatusFilter = DerivedTagTranslationReviewFilterStatus;
 type TranslationEditableFieldId =
-  | "canonicalConceptLabel"
-  | "canonicalConceptId"
-  | "domainId"
-  | "operation"
-  | "primaryFacetKind"
-  | "primaryFacetValue"
-  | "projectionAxis"
-  | "projectionFamily";
+  | "targetProjectionId"
+  | "renameNote"
+  | "notes";
 type TranslationQueueActionId =
   | "cycle_category"
   | "cycle_status"
   | "set_translation_status"
-  | "set_schema_kind"
   | "edit_field"
   | "reset_row"
   | "import";
@@ -74,7 +66,7 @@ function isRowModified(row: DerivedTagTranslationReviewRow): boolean {
 
 function buildTranslationQueueMenuItems(rows: DerivedTagTranslationReviewRow[]): TranslationQueueMenuItem[] {
   return rows.map((row) => {
-    const effective = applyDerivedTagTranslationOverride(row.base, row.draftOverride);
+    const effective = buildEffectiveDerivedTagTranslationRecord(row.base, row.draftOverride);
     const modified = isRowModified(row);
     return {
       label: `${modified ? "*" : " "} [${effective.translationStatus}] ${effective.currentCategory} / ${effective.currentFamily} / ${effective.currentTag} -> ${effective.canonicalConceptLabel}`,
@@ -117,6 +109,9 @@ function buildTranslationDetailLines(args: {
     selected.effective.primaryFacetKind && selected.effective.primaryFacetValue
       ? `${selected.effective.primaryFacetKind} / ${selected.effective.primaryFacetValue}`
       : "(none)";
+  const targetProjectionLine = selected.effective.targetProjectionId ?? "(none)";
+  const targetLabelLine = selected.effective.canonicalConceptLabel || "(none)";
+  const targetIdLine = selected.effective.canonicalConceptId || "(none)";
 
   const lines: DerivedTagTerminalLine[] = [
     ...summaryLines,
@@ -130,8 +125,9 @@ function buildTranslationDetailLines(args: {
     { text: `Current assignment mode: ${selected.effective.currentAssignmentMode}`, indent: 2 },
     { text: "" },
     { text: "Proposed canonical target", tone: "section" },
-    { text: `Label: ${selected.effective.canonicalConceptLabel}`, indent: 2 },
-    { text: `ID: ${selected.effective.canonicalConceptId}`, indent: 2 },
+    { text: `Projection: ${targetProjectionLine}`, indent: 2 },
+    { text: `Label: ${targetLabelLine}`, indent: 2 },
+    { text: `ID: ${targetIdLine}`, indent: 2 },
     { text: `Schema: ${selected.effective.schemaKind}`, indent: 2 },
     { text: `Projection axis: ${selected.effective.projectionAxis}`, indent: 2 },
     { text: `Projection family: ${selected.effective.projectionFamily}`, indent: 2 },
@@ -186,14 +182,9 @@ function buildTranslationQueueActionEntries(args: {
       description: "Mark the selected row mapped, provisional, unmapped, or dropped.",
     },
     {
-      id: "set_schema_kind",
-      label: "Set Schema Kind",
-      description: "Choose descriptive, operational, or aggregate for the selected row.",
-    },
-    {
       id: "edit_field",
       label: "Edit Target Field",
-      description: "Edit the selected row's canonical/projection fields.",
+      description: "Edit the selected row's target projection id or editorial notes.",
     },
     {
       id: "reset_row",
@@ -266,7 +257,7 @@ function filterTranslationQueueRows(args: {
   statusFilter: TranslationQueueStatusFilter;
 }): DerivedTagTranslationReviewRow[] {
   return args.rows.filter((row) => {
-    const effective = applyDerivedTagTranslationOverride(row.base, row.draftOverride);
+    const effective = buildEffectiveDerivedTagTranslationRecord(row.base, row.draftOverride);
     if (args.categoryFilter !== "all" && effective.currentCategory !== args.categoryFilter) {
       return false;
     }
@@ -283,22 +274,16 @@ function fieldMetadata(field: TranslationEditableFieldId): {
   hint?: string;
 } {
   switch (field) {
-    case "canonicalConceptLabel":
-      return { title: "Canonical Label", prompt: "Canonical label", hint: "Required. Example: poison_remediation" };
-    case "canonicalConceptId":
-      return { title: "Canonical ID", prompt: "Canonical id", hint: "Required. Example: poison_remediation" };
-    case "domainId":
-      return { title: "Domain", prompt: "Domain id", hint: "Optional. Leave blank to force an empty domain." };
-    case "operation":
-      return { title: "Operation", prompt: "Operation", hint: "Optional. Leave blank to force an empty operation." };
-    case "primaryFacetKind":
-      return { title: "Primary Facet Kind", prompt: "Primary facet kind", hint: "Optional. Leave blank to force empty." };
-    case "primaryFacetValue":
-      return { title: "Primary Facet Value", prompt: "Primary facet value", hint: "Optional. Leave blank to force empty." };
-    case "projectionAxis":
-      return { title: "Projection Axis", prompt: "Projection axis", hint: "Required browse axis for the projected tag." };
-    case "projectionFamily":
-      return { title: "Projection Family", prompt: "Projection family", hint: "Required browse family for the projected tag." };
+    case "targetProjectionId":
+      return {
+        title: "Target Projection",
+        prompt: "Target projection id",
+        hint: "Use a canonical projection id like spell:anti_poison. Leave blank only for dropped/unmapped rows.",
+      };
+    case "renameNote":
+      return { title: "Rename Note", prompt: "Rename note", hint: "Optional editorial note about the canonical rename." };
+    case "notes":
+      return { title: "Editorial Notes", prompt: "Editorial notes", hint: "Optional mapping note for future review." };
   }
 }
 
@@ -308,9 +293,11 @@ function setOverrideField(
   value: string,
 ): DerivedTagTranslationOverride {
   const next = cloneDerivedTagTranslationOverride(override);
-  (
-    next as Record<TranslationEditableFieldId, DerivedTagTranslationOverride[TranslationEditableFieldId]>
-  )[field] = value as DerivedTagTranslationOverride[TranslationEditableFieldId];
+  if (value) {
+    (next as Record<TranslationEditableFieldId, string | undefined>)[field] = value;
+  } else {
+    delete (next as Partial<Record<TranslationEditableFieldId, string>>)[field];
+  }
   return next;
 }
 
@@ -418,14 +405,9 @@ export function DerivedTagTranslationQueueScreen({
         title: "Edit Translation Field",
         prompt: "Field",
         entries: [
-          { value: "canonicalConceptLabel", label: "Canonical label" },
-          { value: "canonicalConceptId", label: "Canonical id" },
-          { value: "domainId", label: "Domain" },
-          { value: "operation", label: "Operation" },
-          { value: "primaryFacetKind", label: "Primary facet kind" },
-          { value: "primaryFacetValue", label: "Primary facet value" },
-          { value: "projectionAxis", label: "Projection axis" },
-          { value: "projectionFamily", label: "Projection family" },
+          { value: "targetProjectionId", label: "Target projection" },
+          { value: "renameNote", label: "Rename note" },
+          { value: "notes", label: "Editorial notes" },
         ],
       });
       if (fieldResult.kind !== "selected") {
@@ -433,7 +415,10 @@ export function DerivedTagTranslationQueueScreen({
       }
       const field = fieldResult.value;
       const metadata = fieldMetadata(field);
-      const currentValue = String(item.effective[field] ?? "");
+      const currentValue =
+        field === "targetProjectionId"
+          ? String(item.row.draftOverride.targetProjectionId ?? item.row.base.targetProjectionId ?? "")
+          : String(item.row.draftOverride[field] ?? "");
       const input = await prompts.promptTextInput({
         title: metadata.title,
         prompt: metadata.prompt,
@@ -445,19 +430,9 @@ export function DerivedTagTranslationQueueScreen({
         return;
       }
       const nextValue = input.trim();
-      if (
-        (field === "canonicalConceptLabel" ||
-          field === "canonicalConceptId" ||
-          field === "projectionAxis" ||
-          field === "projectionFamily") &&
-        !nextValue
-      ) {
-        await terminal.pauseForAnyKey(`${metadata.title} cannot be blank.`);
-        return;
-      }
       updateRow(item.row.key, setOverrideField(item.row.draftOverride, field, nextValue));
     },
-    [prompts, terminal, updateRow],
+    [prompts, updateRow],
   );
 
   const requestStatusEdit = React.useCallback(
@@ -477,32 +452,6 @@ export function DerivedTagTranslationQueueScreen({
       }
       const nextOverride = cloneDerivedTagTranslationOverride(item.row.draftOverride);
       nextOverride.translationStatus = result.value;
-      if (result.value === "dropped") {
-        nextOverride.publishTag = false;
-      } else {
-        delete nextOverride.publishTag;
-      }
-      updateRow(item.row.key, nextOverride);
-    },
-    [prompts, updateRow],
-  );
-
-  const requestSchemaEdit = React.useCallback(
-    async (item: TranslationQueueMenuItem) => {
-      const result = await prompts.promptSelectOption<DerivedTagTranslationRecord["schemaKind"]>({
-        title: "Set Schema Kind",
-        prompt: "Schema kind",
-        entries: [
-          { value: "descriptive", label: "descriptive" },
-          { value: "operational", label: "operational" },
-          { value: "aggregate", label: "aggregate" },
-        ],
-      });
-      if (result.kind !== "selected") {
-        return;
-      }
-      const nextOverride = cloneDerivedTagTranslationOverride(item.row.draftOverride);
-      nextOverride.schemaKind = result.value;
       updateRow(item.row.key, nextOverride);
     },
     [prompts, updateRow],
@@ -598,10 +547,6 @@ export function DerivedTagTranslationQueueScreen({
         }
         if (actionId === "set_translation_status") {
           void requestStatusEdit(selectedItem);
-          return;
-        }
-        if (actionId === "set_schema_kind") {
-          void requestSchemaEdit(selectedItem);
           return;
         }
         if (actionId === "edit_field") {

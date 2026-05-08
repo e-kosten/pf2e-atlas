@@ -1,159 +1,107 @@
-import type { DerivedTagCanonicalConcept } from "../../../domain/derived-tag-types.js";
+import { buildCanonicalConceptMap, type CanonicalConceptSeed } from "../builders.js";
+import { CANONICAL_VOCABULARY } from "../vocabulary.js";
 
-export const DERIVED_TAG_AGGREGATE_CANONICAL_CONCEPTS_BY_ID: Record<string, DerivedTagCanonicalConcept> = 
-{
+const DERIVED_TAG_AGGREGATE_CANONICAL_CONCEPTS_BY_ID_SEEDS: Record<string, CanonicalConceptSeed> = {
   breaching: {
-    domainId: "barrier",
-    id: "breaching",
-    label: "breaching",
-    operation: "breach",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.BARRIER,
+    operation: CANONICAL_VOCABULARY.OPERATION.BREACH,
     text: {
-      definition: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces."
-    }
+      definition: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces.",
+    },
   },
   communication: {
-    id: "communication",
-    label: "communication",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   consultation: {
-    id: "consultation",
-    label: "consultation",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   cosmic_framework_setting: {
-    id: "cosmic_framework_setting",
-    label: "cosmic_framework_setting",
-    primaryFacetKind: "setting",
-    primaryFacetValue: "planar",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.SETTING,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.PLANAR,
   },
   displacement_application: {
-    domainId: "displacement",
-    id: "displacement_application",
-    label: "displacement_application",
-    operation: "apply",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.DISPLACEMENT,
+    operation: CANONICAL_VOCABULARY.OPERATION.APPLY,
     text: {
-      definition: "Hazard effect and countermeasure tags."
-    }
+      definition: "Hazard effect and countermeasure tags.",
+    },
   },
   elemental_plane_setting: {
-    id: "elemental_plane_setting",
-    label: "elemental_plane_setting",
-    primaryFacetKind: "setting",
-    primaryFacetValue: "planar",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.SETTING,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.PLANAR,
   },
   environmental_application: {
-    domainId: "environmental",
-    id: "environmental_application",
-    label: "environmental_application",
-    operation: "apply",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.ENVIRONMENTAL,
+    operation: CANONICAL_VOCABULARY.OPERATION.APPLY,
     text: {
-      definition: "Hazard effect and countermeasure tags."
-    }
+      definition: "Hazard effect and countermeasure tags.",
+    },
   },
   expedition: {
-    id: "expedition",
-    label: "expedition",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   guarding_hazard: {
-    id: "guarding_hazard",
-    label: "guarding_hazard",
-    primaryFacetKind: "function",
-    primaryFacetValue: "hazard_function",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.FUNCTION,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.HAZARD_FUNCTION,
   },
   lower_plane_setting: {
-    id: "lower_plane_setting",
-    label: "lower_plane_setting",
-    primaryFacetKind: "setting",
-    primaryFacetValue: "planar",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.SETTING,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.PLANAR,
   },
   movement_traversal: {
-    id: "movement_traversal",
-    label: "movement_traversal",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   perception_application: {
-    domainId: "perception",
-    id: "perception_application",
-    label: "perception_application",
-    operation: "apply",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.PERCEPTION,
+    operation: CANONICAL_VOCABULARY.OPERATION.APPLY,
     text: {
-      definition: "Hazard effect and countermeasure tags."
-    }
+      definition: "Hazard effect and countermeasure tags.",
+    },
   },
   problem_discovery: {
-    domainId: "problem",
-    id: "problem_discovery",
-    label: "problem_discovery",
-    operation: "discover",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.PROBLEM,
+    operation: CANONICAL_VOCABULARY.OPERATION.DISCOVER,
     text: {
-      definition: "Discovery-side spell tags normalize as operational discover concepts."
-    }
+      definition: "Discovery-side spell tags normalize as operational discover concepts.",
+    },
   },
   problem_resolution: {
-    domainId: "problem",
-    id: "problem_resolution",
-    label: "problem_resolution",
-    operation: "resolve",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.PROBLEM,
+    operation: CANONICAL_VOCABULARY.OPERATION.RESOLVE,
     text: {
-      definition: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces."
-    }
+      definition: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces.",
+    },
   },
   reconnaissance: {
-    id: "reconnaissance",
-    label: "reconnaissance",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   security: {
-    id: "security",
-    label: "security",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
   },
   transformation: {
-    domainId: "form",
-    id: "transformation",
-    label: "transformation",
-    operation: "transform",
-    schemaKind: "aggregate",
+    domainId: CANONICAL_VOCABULARY.DOMAIN.FORM,
+    operation: CANONICAL_VOCABULARY.OPERATION.TRANSFORM,
     text: {
-      definition: "Operational spell effects or answer paths."
-    }
+      definition: "Operational spell effects or answer paths.",
+    },
   },
   upper_plane_setting: {
-    id: "upper_plane_setting",
-    label: "upper_plane_setting",
-    primaryFacetKind: "setting",
-    primaryFacetValue: "planar",
-    schemaKind: "aggregate"
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.SETTING,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.PLANAR,
   },
   wayfinding: {
-    id: "wayfinding",
-    label: "wayfinding",
-    primaryFacetKind: "capability",
-    primaryFacetValue: "capability",
-    schemaKind: "aggregate"
-  }
+    primaryFacetKind: CANONICAL_VOCABULARY.FACET.KIND.CAPABILITY,
+    primaryFacetValue: CANONICAL_VOCABULARY.FACET.VALUE.CAPABILITY,
+  },
 };
+
+export const DERIVED_TAG_AGGREGATE_CANONICAL_CONCEPTS_BY_ID = buildCanonicalConceptMap(
+  CANONICAL_VOCABULARY.SCHEMA.KIND.AGGREGATE,
+  DERIVED_TAG_AGGREGATE_CANONICAL_CONCEPTS_BY_ID_SEEDS,
+);
