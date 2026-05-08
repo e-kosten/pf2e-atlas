@@ -10,7 +10,7 @@ import type {
   SearchPromotedFieldDomainKey,
 } from "../../domain/search-field-domains.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
-import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
+import type { FilterValueField, SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 
 export type SearchDiscoveryDataService = Pick<
   Pf2eDataService,
@@ -44,12 +44,12 @@ export type SearchSemanticsDiscoveryReader = {
   discoverFieldValues: (options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
-    field: string;
+    field: FilterValueField;
   }) => readonly SearchFilterDiscoveryOption[];
   discoverFieldValuesAsync: (options: {
     category: SearchCategory;
     subcategory: SearchSubcategory | null;
-    field: string;
+    field: FilterValueField;
   }) => Promise<readonly SearchFilterDiscoveryOption[]>;
   discoverMetricKeys: (options: {
     category: SearchCategory;
@@ -69,7 +69,7 @@ export type Pf2eApplicationSearchDiscoveryService = {
   discoverFilterValues: (request: SearchFilterDiscoveryRequest) => Promise<SearchFilterDiscoveryResult>;
   discoverCatalogFilterValues: (options: {
     applicability: SearchFilterDiscoveryApplicability;
-    target: { field: string };
+    target: { field: FilterValueField };
   }) => SearchFilterDiscoveryResult;
   discoverMetricKeys: (options: {
     applicability: SearchFilterDiscoveryApplicability;

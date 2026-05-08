@@ -14,6 +14,8 @@ import { clampWindowStart } from "../../list-utils.js";
 import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } from "../state.js";
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "../state.js";
 import type { SearchFilterRenderOptions } from "../../search/query-core.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
+import { SEARCH_VOCABULARY } from "../../../domain/search-types.js";
 export { parseLevelRangeInput } from "../../filter-explorer/scalar-editor.js";
 export {
   formatFilterSelection,
@@ -102,14 +104,14 @@ export function getExecuteAvailability(request: Pf2eTerminalSearchQuery): {
 } {
   const queryText = getSearchQueryText(request).trim();
 
-  if (request.mode === "lookup" && !queryText) {
+  if (request.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP && !queryText) {
     return {
       disabled: true,
       reason: "Unavailable until you enter a lookup name.",
     };
   }
 
-  if (request.mode === "search" && !queryText) {
+  if (request.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH && !queryText) {
     return {
       disabled: true,
       reason: "Enter search text to enable this search.",
@@ -134,7 +136,7 @@ export function formatCountSummary(countState: SearchCountState, request: Pf2eTe
     return countState.message ?? "Live count unavailable.";
   }
   if (countState.status === SEARCH_COUNT_STATUS.READY && countState.result) {
-    const noun = request.mode === "lookup" ? "candidate" : "match";
+    const noun = request.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP ? "candidate" : "match";
     return `${countState.result.total} ${noun}${countState.result.total === 1 ? "" : "es"}`;
   }
   return "Count pending";

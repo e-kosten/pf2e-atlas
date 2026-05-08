@@ -11,6 +11,7 @@ import {
   popFilterExplorerDepth,
   setFilterExplorerFilter,
 } from "./browser.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerBrowserContext,
   FilterExplorerBrowserSnapshot,
@@ -55,7 +56,7 @@ export function createFilterExplorerBrowserSnapshot(
 export function resolveFilterExplorerBackNavigation(
   context: Pick<FilterExplorerBrowserContext, "state" | "effectiveState">,
 ): FilterExplorerBackNavigationOutcome {
-  if (context.state.activePane === "detail") {
+  if (context.state.activePane === FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.DETAIL) {
     return "leave_detail";
   }
 
@@ -237,7 +238,7 @@ export function filterExplorerReducer(
       const shouldClearLoading = !action.nodeId || state.loadingChildNodeId === action.nodeId || drillSucceeded;
       return {
         ...state,
-        activePane: "list",
+        activePane: FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.LIST,
         browserState: nextBrowserState,
         loadingChildNodeId: shouldClearLoading ? undefined : state.loadingChildNodeId,
         layoutMode: "split",
@@ -248,7 +249,7 @@ export function filterExplorerReducer(
     case "pop_depth":
       return {
         ...state,
-        activePane: "list",
+        activePane: FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.LIST,
         browserState: popFilterExplorerDepth(state.browserState),
         layoutMode: "split",
         searchInput: "",

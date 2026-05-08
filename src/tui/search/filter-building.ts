@@ -1,4 +1,6 @@
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
 import type { SearchProfile, SearchSort } from "../../domain/search-types.js";
 import type { Pf2eTerminalSearchQuery } from "./service-types.js";
 import type { Pf2eTerminalSearchSort } from "./service-types.js";
@@ -19,15 +21,15 @@ export function buildSearchRequest(
   const sort =
     options.sort === undefined
       ? undefined
-      : options.sort === "random"
-        ? ({ kind: "random", seed: options.sortSeed ?? undefined } as const)
-        : options.sort === "ranked" || isLookupSort(options.sort)
+      : options.sort === SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM
+        ? ({ kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM, seed: options.sortSeed ?? undefined } as const)
+        : options.sort === SEARCH_VOCABULARY.SORT_KIND.RANKED || isLookupSort(options.sort)
           ? undefined
           : ({ kind: options.sort satisfies SearchSort } as const);
 
-  if (query.mode === "browse") {
+  if (query.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return {
-      mode: "browse",
+      mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
       filter: query.filter,
       limit: options.limit ?? query.limit,
       offset: options.offset ?? 0,
@@ -35,9 +37,9 @@ export function buildSearchRequest(
     };
   }
 
-  if (query.mode === "lookup") {
+  if (query.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP) {
     return {
-      mode: "lookup",
+      mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
       search: {
         query: options.text ?? query.search.query,
       },
@@ -49,7 +51,7 @@ export function buildSearchRequest(
   }
 
   return {
-    mode: "search",
+    mode: SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
     search: {
       query: options.text ?? query.search.query,
       ...(options.exclude ?? query.search.exclude ? { exclude: options.exclude ?? query.search.exclude } : {}),

@@ -7,6 +7,7 @@ import {
   buildAllOfFilter,
   buildAnyOfFilter,
   findSearchScopeFilter,
+  SEARCH_REQUEST_VOCABULARY,
   type SearchFilterNode,
   type SearchNumericMatch,
 } from "../../domain/search-request-types.js";
@@ -21,6 +22,7 @@ import type {
   SearchProfile,
   SearchSubcategory,
 } from "../../domain/search-types.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
 import {
   cloneNumberSelection,
   cloneStringSelection,
@@ -39,50 +41,52 @@ import type {
 } from "./service-types.js";
 
 const DEFAULT_QUERY_LIMIT = 50;
-const DEFAULT_SEARCH_PROFILE: SearchProfile = "balanced";
+const DEFAULT_SEARCH_PROFILE: SearchProfile = SEARCH_VOCABULARY.PROFILE.BALANCED;
+const SEARCH_FILTER_NODE_KIND = SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND;
+type SearchFilterNodeKind = typeof SEARCH_FILTER_NODE_KIND;
 
 function trimOptionalText(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
-type QueryRootOperator = "allOf" | "anyOf";
+type QueryRootOperator = SearchFilterNodeKind["ALL_OF"] | SearchFilterNodeKind["ANY_OF"];
 
 function hasSelectionValues<T extends number | string>(selection: Pf2eTerminalValueSelection<T>): boolean {
   return selection.include.length > 0 || selection.exclude.length > 0;
 }
 
 function extractCanonicalPredicateProjection(filter: SearchFilterNode): SearchFilterNode | null {
-  if (filter.kind === "metadataPredicate" || filter.kind === "metric" || filter.kind === "metricCompare") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE) {
     return filter;
   }
-  if (filter.kind === "not") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
     const child = extractCanonicalPredicateProjection(filter.child);
-    return child ? { kind: "not", child } : null;
+    return child ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT, child } : null;
   }
-  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     const children = filter.children
       .map((child) => extractCanonicalPredicateProjection(child))
       .filter((child): child is SearchFilterNode => Boolean(child));
-    const node = filter.kind === "allOf" ? buildAllOfFilter(children) : buildAnyOfFilter(children);
+    const node = filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF ? buildAllOfFilter(children) : buildAnyOfFilter(children);
     return node ?? null;
   }
   return null;
 }
 
 function pruneCanonicalPredicateProjection(filter: SearchFilterNode): SearchFilterNode | null {
-  if (filter.kind === "metadataPredicate" || filter.kind === "metric" || filter.kind === "metricCompare") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE) {
     return null;
   }
-  if (filter.kind === "not") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
     const child = pruneCanonicalPredicateProjection(filter.child);
-    return child ? { kind: "not", child } : null;
+    return child ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT, child } : null;
   }
-  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     const children = filter.children
       .map((child) => pruneCanonicalPredicateProjection(child))
       .filter((child): child is SearchFilterNode => Boolean(child));
-    const node = filter.kind === "allOf" ? buildAllOfFilter(children) : buildAnyOfFilter(children);
+    const node = filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF ? buildAllOfFilter(children) : buildAnyOfFilter(children);
     return node ?? null;
   }
   return filter;
@@ -90,10 +94,10 @@ function pruneCanonicalPredicateProjection(filter: SearchFilterNode): SearchFilt
 
 function isScopeDependentFilterNode(filter: SearchFilterNode): boolean {
   return (
-    filter.kind === "metadataPredicate" ||
-    filter.kind === "metric" ||
-    filter.kind === "metricCompare" ||
-    filter.kind === "actionCost"
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE ||
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC ||
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE ||
+    filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST
   );
 }
 
@@ -101,11 +105,11 @@ function pruneScopeDependentFilterNode(filter: SearchFilterNode): SearchFilterNo
   if (isScopeDependentFilterNode(filter)) {
     return null;
   }
-  if (filter.kind === "not") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
     const child = pruneScopeDependentFilterNode(filter.child);
-    return child ? { kind: "not", child } : null;
+    return child ? { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT, child } : null;
   }
-  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     const children = filter.children
       .map((child) => pruneScopeDependentFilterNode(child))
       .filter((child): child is SearchFilterNode => Boolean(child));
@@ -118,44 +122,53 @@ function pruneScopeDependentFilterNode(filter: SearchFilterNode): SearchFilterNo
 }
 
 function buildSelectionLeaf(
-  kind: "rarity" | "actionCost",
+  kind: SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"],
   value: string | number,
 ): SearchFilterNode {
-  return kind === "rarity"
+  return kind === SEARCH_FILTER_NODE_KIND["RARITY"]
     ? { kind, match: { kind: "eq", value: value as string } }
     : { kind, match: { kind: "eq", value: value as number } };
 }
 
 function buildPackLeaf(value: string): SearchFilterNode {
   return {
-    kind: "pack",
+    kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK,
     value,
   };
 }
 
 function buildSelectionFilter(
-  kind: "rarity" | "actionCost",
+  kind: SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"],
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
-  if (kind === "rarity") {
+  if (kind === SEARCH_FILTER_NODE_KIND["RARITY"]) {
     const normalizedSelection = normalizeStringSelection(selection as Pf2eTerminalValueSelection<string>);
     const includeValues = normalizedSelection.include;
     const excludeValues = normalizedSelection.exclude;
     const children: SearchFilterNode[] = [];
     if (includeValues.length === 1) {
-      children.push({ kind: "rarity", match: { kind: "eq", value: includeValues[0]! } });
+      children.push({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY, match: { kind: "eq", value: includeValues[0]! } });
     } else if (includeValues.length > 1) {
-      children.push({ kind: "rarity", match: { kind: "in", values: includeValues } });
+      children.push({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY, match: { kind: "in", values: includeValues } });
     }
     if (excludeValues.length === 1) {
-      children.push({ kind: "rarity", match: { kind: "notIn", values: [excludeValues[0]!] } });
+      children.push({
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY,
+        match: {
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN,
+          values: [excludeValues[0]!],
+        },
+      });
     } else if (excludeValues.length > 1) {
-      children.push({ kind: "rarity", match: { kind: "notIn", values: excludeValues } });
+      children.push({
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY,
+        match: { kind: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN, values: excludeValues },
+      });
     }
     if (children.length === 0) {
       return null;
     }
-    return children.length === 1 ? children[0]! : { kind: "allOf", children };
+    return children.length === 1 ? children[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children };
   }
 
   const normalizedSelection = normalizeNumberSelection(selection as Pf2eTerminalValueSelection<number>);
@@ -166,20 +179,20 @@ function buildSelectionFilter(
   if (includeChildren.length === 1) {
     children.push(includeChildren[0]!);
   } else if (includeChildren.length > 1) {
-    children.push({ kind: "anyOf", children: includeChildren });
+    children.push({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF, children: includeChildren });
   }
 
-  children.push(...excludeChildren.map((child) => ({ kind: "not", child }) satisfies SearchFilterNode));
+  children.push(...excludeChildren.map((child) => ({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT, child }) satisfies SearchFilterNode));
 
   if (children.length === 0) {
     return null;
   }
 
-  return children.length === 1 ? children[0]! : { kind: "allOf", children };
+  return children.length === 1 ? children[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children };
 }
 
 export function buildSearchFilterValueSelectionNode(
-  kind: "rarity" | "actionCost",
+  kind: SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"],
   selection: Pf2eTerminalValueSelection<string> | Pf2eTerminalValueSelection<number>,
 ): SearchFilterNode | null {
   return buildSelectionFilter(kind, selection);
@@ -196,31 +209,31 @@ export function buildSearchFilterPackSelectionNode(
   if (includeChildren.length === 1) {
     children.push(includeChildren[0]!);
   } else if (includeChildren.length > 1) {
-    children.push({ kind: "anyOf", children: includeChildren });
+    children.push({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF, children: includeChildren });
   }
 
-  children.push(...excludeChildren.map((child) => ({ kind: "not", child }) satisfies SearchFilterNode));
+  children.push(...excludeChildren.map((child) => ({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT, child }) satisfies SearchFilterNode));
 
   if (children.length === 0) {
     return null;
   }
 
-  return children.length === 1 ? children[0]! : { kind: "allOf", children };
+  return children.length === 1 ? children[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children };
 }
 
-function collectSelectionEqValues<K extends "rarity" | "actionCost">(
+function collectSelectionEqValues<K extends SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"]>(
   filter: SearchFilterNode,
   kind: K,
-): Array<K extends "rarity" ? string : number> | null {
+): Array<K extends SearchFilterNodeKind["RARITY"] ? string : number> | null {
   if (filter.kind === kind && filter.match.kind === "eq") {
-    return [filter.match.value] as Array<K extends "rarity" ? string : number>;
+    return [filter.match.value] as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>;
   }
-  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "in") {
-    return [...filter.match.values] as Array<K extends "rarity" ? string : number>;
+  if (kind === SEARCH_FILTER_NODE_KIND["RARITY"] && filter.kind === SEARCH_FILTER_NODE_KIND["RARITY"] && filter.match.kind === "in") {
+    return [...filter.match.values] as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>;
   }
 
-  if (filter.kind === "anyOf" || filter.kind === "allOf") {
-    const values: Array<K extends "rarity" ? string : number> = [];
+  if (filter.kind === SEARCH_FILTER_NODE_KIND["ANY_OF"] || filter.kind === SEARCH_FILTER_NODE_KIND["ALL_OF"]) {
+    const values: Array<K extends SearchFilterNodeKind["RARITY"] ? string : number> = [];
     for (const child of filter.children) {
       const childValues = collectSelectionEqValues(child, kind);
       if (!childValues) {
@@ -234,30 +247,34 @@ function collectSelectionEqValues<K extends "rarity" | "actionCost">(
   return null;
 }
 
-function extractSelectionFilter<K extends "rarity" | "actionCost">(
+function extractSelectionFilter<K extends SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"]>(
   filter: SearchFilterNode,
   kind: K,
-): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
+): Pf2eTerminalValueSelection<K extends SearchFilterNodeKind["RARITY"] ? string : number> | null {
   if (filter.kind === kind && filter.match.kind === "eq") {
     return {
-      include: [filter.match.value] as Array<K extends "rarity" ? string : number>,
+      include: [filter.match.value] as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>,
       exclude: [],
     };
   }
-  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "in") {
+  if (kind === SEARCH_FILTER_NODE_KIND["RARITY"] && filter.kind === SEARCH_FILTER_NODE_KIND["RARITY"] && filter.match.kind === "in") {
     return {
-      include: [...filter.match.values] as Array<K extends "rarity" ? string : number>,
+      include: [...filter.match.values] as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>,
       exclude: [],
     };
   }
-  if (kind === "rarity" && filter.kind === "rarity" && filter.match.kind === "notIn") {
+  if (
+    kind === SEARCH_FILTER_NODE_KIND["RARITY"] &&
+    filter.kind === SEARCH_FILTER_NODE_KIND["RARITY"] &&
+    filter.match.kind === SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN
+  ) {
     return {
       include: [],
-      exclude: [...filter.match.values] as Array<K extends "rarity" ? string : number>,
+      exclude: [...filter.match.values] as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>,
     };
   }
 
-  if (filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_FILTER_NODE_KIND["ANY_OF"]) {
     const values = collectSelectionEqValues(filter, kind);
     return values
       ? {
@@ -267,18 +284,22 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
       : null;
   }
 
-  if (filter.kind === "allOf") {
-    const selection: Pf2eTerminalValueSelection<K extends "rarity" ? string : number> = {
+  if (filter.kind === SEARCH_FILTER_NODE_KIND["ALL_OF"]) {
+    const selection: Pf2eTerminalValueSelection<K extends SearchFilterNodeKind["RARITY"] ? string : number> = {
       include: [],
       exclude: [],
     };
 
     for (const child of filter.children) {
-      if (kind === "rarity" && child.kind === "rarity" && child.match.kind === "notIn") {
-        selection.exclude.push(...child.match.values as Array<K extends "rarity" ? string : number>);
+      if (
+        kind === SEARCH_FILTER_NODE_KIND["RARITY"] &&
+        child.kind === SEARCH_FILTER_NODE_KIND["RARITY"] &&
+        child.match.kind === SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN
+      ) {
+        selection.exclude.push(...(child.match.values as Array<K extends SearchFilterNodeKind["RARITY"] ? string : number>));
         continue;
       }
-      if (child.kind === "not") {
+      if (child.kind === SEARCH_FILTER_NODE_KIND["NOT"]) {
         const excludedValues = collectSelectionEqValues(child.child, kind);
         if (!excludedValues) {
           return null;
@@ -298,7 +319,7 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
     return selection;
   }
 
-  if (filter.kind === "not") {
+  if (filter.kind === SEARCH_FILTER_NODE_KIND["NOT"]) {
     const excludedValues = collectSelectionEqValues(filter.child, kind);
     return excludedValues
       ? {
@@ -312,11 +333,11 @@ function extractSelectionFilter<K extends "rarity" | "actionCost">(
 }
 
 function collectPackValues(filter: SearchFilterNode): string[] | null {
-  if (filter.kind === "pack") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK) {
     return [filter.value];
   }
 
-  if (filter.kind === "anyOf" || filter.kind === "allOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF) {
     const values: string[] = [];
     for (const child of filter.children) {
       const childValues = collectPackValues(child);
@@ -332,14 +353,14 @@ function collectPackValues(filter: SearchFilterNode): string[] | null {
 }
 
 function extractPackSelection(filter: SearchFilterNode): Pf2eTerminalValueSelection<string> | null {
-  if (filter.kind === "pack") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK) {
     return {
       include: [filter.value],
       exclude: [],
     };
   }
 
-  if (filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     const values = collectPackValues(filter);
     return values
       ? {
@@ -349,14 +370,14 @@ function extractPackSelection(filter: SearchFilterNode): Pf2eTerminalValueSelect
       : null;
   }
 
-  if (filter.kind === "allOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF) {
     const selection: Pf2eTerminalValueSelection<string> = {
       include: [],
       exclude: [],
     };
 
     for (const child of filter.children) {
-      if (child.kind === "not") {
+      if (child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
         const excludedValues = collectPackValues(child.child);
         if (!excludedValues) {
           return null;
@@ -375,7 +396,7 @@ function extractPackSelection(filter: SearchFilterNode): Pf2eTerminalValueSelect
     return selection;
   }
 
-  if (filter.kind === "not") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT) {
     const excludedValues = collectPackValues(filter.child);
     return excludedValues
       ? {
@@ -391,21 +412,21 @@ function extractPackSelection(filter: SearchFilterNode): Pf2eTerminalValueSelect
 export function tryExtractSearchFilterValueSelection(
   filter: SearchFilterNode,
 ):
-  | { kind: "rarity"; selection: Pf2eTerminalValueSelection<string> }
-  | { kind: "actionCost"; selection: Pf2eTerminalValueSelection<number> }
+  | { kind: SearchFilterNodeKind["RARITY"]; selection: Pf2eTerminalValueSelection<string> }
+  | { kind: SearchFilterNodeKind["ACTION_COST"]; selection: Pf2eTerminalValueSelection<number> }
   | null {
-  const raritySelection = extractSelectionFilter(filter, "rarity");
+  const raritySelection = extractSelectionFilter(filter, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY);
   if (raritySelection && hasSelectionValues(raritySelection)) {
     return {
-      kind: "rarity",
+      kind: SEARCH_FILTER_NODE_KIND["RARITY"],
       selection: cloneStringSelection(raritySelection),
     };
   }
 
-  const actionCostSelection = extractSelectionFilter(filter, "actionCost");
+  const actionCostSelection = extractSelectionFilter(filter, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST);
   if (actionCostSelection && hasSelectionValues(actionCostSelection)) {
     return {
-      kind: "actionCost",
+      kind: SEARCH_FILTER_NODE_KIND["ACTION_COST"],
       selection: cloneNumberSelection(actionCostSelection),
     };
   }
@@ -414,7 +435,7 @@ export function tryExtractSearchFilterValueSelection(
 }
 
 function getQueryRootOperator(filter: SearchFilterNode | undefined): QueryRootOperator {
-  return filter?.kind === "anyOf" ? "anyOf" : "allOf";
+  return filter?.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF ? SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF : SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF;
 }
 
 function getTopLevelQueryChildren(filter: SearchFilterNode | undefined): SearchFilterNode[] {
@@ -422,7 +443,7 @@ function getTopLevelQueryChildren(filter: SearchFilterNode | undefined): SearchF
     return [];
   }
 
-  if (filter.kind === "allOf" || filter.kind === "anyOf") {
+  if (filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF || filter.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF) {
     return [...filter.children];
   }
 
@@ -434,7 +455,7 @@ function buildQueryFromTopLevelChildren(
   rootOperator: QueryRootOperator,
   children: SearchFilterNode[],
 ): Pf2eTerminalSearchQuery {
-  const filter = rootOperator === "anyOf" ? buildAnyOfFilter(children) : buildAllOfFilter(children);
+  const filter = rootOperator === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF ? buildAnyOfFilter(children) : buildAllOfFilter(children);
   return {
     ...query,
     ...(filter ? { filter } : { filter: undefined }),
@@ -491,7 +512,7 @@ function flattenSelectionFilterForRoot(
 
 function isTopLevelSelectionChild(
   child: SearchFilterNode,
-  kind: "rarity" | "actionCost",
+  kind: SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"],
 ): boolean {
   const selection = extractSelectionFilter(child, kind);
   return Boolean(selection && hasSelectionValues(selection));
@@ -526,14 +547,14 @@ function normalizeSearchNumericMatch(match: SearchNumericMatch): SearchNumericMa
 function buildLevelFilter(levelRange: {
   levelMin: number | null;
   levelMax: number | null;
-} | SearchNumericMatch | null): Extract<SearchFilterNode, { kind: "level" }> | null {
+} | SearchNumericMatch | null): Extract<SearchFilterNode, { kind: SearchFilterNodeKind["LEVEL"] }> | null {
   if (levelRange === null) {
     return null;
   }
 
   if (isSearchNumericMatch(levelRange)) {
     return {
-      kind: "level",
+      kind: SEARCH_FILTER_NODE_KIND["LEVEL"],
       match: normalizeSearchNumericMatch(levelRange),
     };
   }
@@ -545,9 +566,9 @@ function buildLevelFilter(levelRange: {
 
   if (levelMin !== null && levelMax !== null) {
     return levelMin === levelMax
-      ? { kind: "level", match: { kind: "eq", value: levelMin } }
+      ? { kind: SEARCH_FILTER_NODE_KIND["LEVEL"], match: { kind: "eq", value: levelMin } }
       : {
-          kind: "level",
+          kind: SEARCH_FILTER_NODE_KIND["LEVEL"],
           match: {
             kind: "between",
             min: Math.min(levelMin, levelMax),
@@ -557,15 +578,15 @@ function buildLevelFilter(levelRange: {
   }
 
   return levelMin !== null
-    ? { kind: "level", match: { kind: "gte", value: levelMin } }
-    : { kind: "level", match: { kind: "lte", value: levelMax! } };
+    ? { kind: SEARCH_FILTER_NODE_KIND["LEVEL"], match: { kind: "gte", value: levelMin } }
+    : { kind: SEARCH_FILTER_NODE_KIND["LEVEL"], match: { kind: "lte", value: levelMax! } };
 }
 
 function findTopLevelLevelFilter(
   filter: SearchFilterNode | undefined,
-): Extract<SearchFilterNode, { kind: "level" }> | null {
+): Extract<SearchFilterNode, { kind: SearchFilterNodeKind["LEVEL"] }> | null {
   for (const child of getTopLevelQueryChildren(filter)) {
-    if (child.kind === "level") {
+    if (child.kind === SEARCH_FILTER_NODE_KIND["LEVEL"]) {
       return child;
     }
   }
@@ -573,11 +594,11 @@ function findTopLevelLevelFilter(
   return null;
 }
 
-function findTopLevelSelectionFilter<K extends "rarity" | "actionCost">(
+function findTopLevelSelectionFilter<K extends SearchFilterNodeKind["RARITY"] | SearchFilterNodeKind["ACTION_COST"]>(
   filter: SearchFilterNode | undefined,
   kind: K,
-): Pf2eTerminalValueSelection<K extends "rarity" ? string : number> | null {
-  const mergedSelection: Pf2eTerminalValueSelection<K extends "rarity" ? string : number> = {
+): Pf2eTerminalValueSelection<K extends SearchFilterNodeKind["RARITY"] ? string : number> | null {
+  const mergedSelection: Pf2eTerminalValueSelection<K extends SearchFilterNodeKind["RARITY"] ? string : number> = {
     include: [],
     exclude: [],
   };
@@ -627,24 +648,24 @@ function extractQueryPredicateFilter(
     : { kind: rootOperator, children: metadataChildren };
 }
 
-export function createDefaultQuery(mode: Pf2eTerminalSearchMode = "browse"): Pf2eTerminalSearchQuery {
+export function createDefaultQuery(mode: Pf2eTerminalSearchMode = SEARCH_REQUEST_VOCABULARY.MODE.BROWSE): Pf2eTerminalSearchQuery {
   switch (mode) {
-    case "browse":
+    case SEARCH_REQUEST_VOCABULARY.MODE.BROWSE:
       return {
-        mode: "browse",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
         limit: DEFAULT_QUERY_LIMIT,
       };
-    case "lookup":
+    case SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP:
       return {
-        mode: "lookup",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
         limit: DEFAULT_QUERY_LIMIT,
         search: {
           query: "",
         },
       };
-    case "search":
+    case SEARCH_REQUEST_VOCABULARY.MODE.SEARCH:
       return {
-        mode: "search",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
         limit: DEFAULT_QUERY_LIMIT,
         search: {
           query: "",
@@ -655,7 +676,7 @@ export function createDefaultQuery(mode: Pf2eTerminalSearchMode = "browse"): Pf2
 }
 
 export function getSearchQueryText(query: Pf2eTerminalSearchQuery): string {
-  if (query.mode === "browse") {
+  if (query.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return "";
   }
 
@@ -663,18 +684,18 @@ export function getSearchQueryText(query: Pf2eTerminalSearchQuery): string {
 }
 
 export function getSearchQueryExcludeText(query: Pf2eTerminalSearchQuery): string {
-  return query.mode === "search" ? query.search.exclude ?? "" : "";
+  return query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH ? query.search.exclude ?? "" : "";
 }
 
 export function getSearchQuerySearchProfile(query: Pf2eTerminalSearchQuery): SearchProfile | null {
-  return query.mode === "search" ? (query.search.profile ?? DEFAULT_SEARCH_PROFILE) : null;
+  return query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH ? (query.search.profile ?? DEFAULT_SEARCH_PROFILE) : null;
 }
 
 export function setSearchQueryText(
   query: Pf2eTerminalSearchQuery,
   text: string,
 ): Pf2eTerminalSearchQuery {
-  if (query.mode === "browse") {
+  if (query.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return query;
   }
 
@@ -692,7 +713,7 @@ export function setSearchQueryExcludeText(
   query: Pf2eTerminalSearchQuery,
   exclude: string,
 ): Pf2eTerminalSearchQuery {
-  if (query.mode !== "search") {
+  if (query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.SEARCH) {
     return query;
   }
 
@@ -711,7 +732,7 @@ export function setSearchQuerySearchProfile(
   query: Pf2eTerminalSearchQuery,
   profile: SearchProfile,
 ): Pf2eTerminalSearchQuery {
-  if (query.mode !== "search") {
+  if (query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.SEARCH) {
     return query;
   }
 
@@ -730,7 +751,7 @@ export function getSearchQueryCategory(query: Pf2eTerminalSearchQuery): SearchCa
 
 export function getSearchQuerySubcategory(query: Pf2eTerminalSearchQuery): SearchSubcategory | null {
   const scope = findSearchScopeFilter(query.filter);
-  if (!scope || scope.subcategory.kind !== "eq") {
+  if (!scope || scope.subcategory.kind !== SEARCH_REQUEST_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND.EQ) {
     return null;
   }
 
@@ -767,11 +788,11 @@ export function getSearchQueryLevelMatch(query: Pf2eTerminalSearchQuery): Search
 }
 
 export function getSearchQueryRaritySelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
-  return normalizeStringSelection(findTopLevelSelectionFilter(query.filter, "rarity") ?? createEmptyStringSelection());
+  return normalizeStringSelection(findTopLevelSelectionFilter(query.filter, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY) ?? createEmptyStringSelection());
 }
 
 export function getSearchQueryActionCostSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<number> {
-  return normalizeNumberSelection(findTopLevelSelectionFilter(query.filter, "actionCost") ?? createEmptyNumberSelection());
+  return normalizeNumberSelection(findTopLevelSelectionFilter(query.filter, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST) ?? createEmptyNumberSelection());
 }
 
 export function getSearchQueryPackSelection(query: Pf2eTerminalSearchQuery): Pf2eTerminalValueSelection<string> {
@@ -791,11 +812,11 @@ export function setSearchQueryCategory(
   category: SearchCategory | null,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "scope");
+  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE);
   if (category) {
     children = [
       {
-        kind: "scope",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE,
         category,
         subcategory: { kind: "any" },
       },
@@ -816,10 +837,10 @@ export function setSearchQuerySubcategory(
   }
 
   const rootOperator = getQueryRootOperator(query.filter);
-  const children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "scope");
+  const children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE);
   return buildQueryFromTopLevelChildren(query, rootOperator, [
     {
-      kind: "scope",
+      kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE,
       category,
       subcategory: subcategory ? { kind: "eq", value: subcategory } : { kind: "any" },
     },
@@ -829,7 +850,7 @@ export function setSearchQuerySubcategory(
 
 export function replaceSearchQueryRootScope(
   query: Pf2eTerminalSearchQuery,
-  scope: Extract<SearchFilterNode, { kind: "scope" }> | null,
+  scope: Extract<SearchFilterNode, { kind: SearchFilterNodeKind["SCOPE"] }> | null,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
   const currentCategory = getSearchQueryCategory(query);
@@ -837,7 +858,7 @@ export function replaceSearchQueryRootScope(
   const shouldPruneScopeDependentClauses = currentCategory !== nextCategory;
   const children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
-    (child) => child.kind === "scope",
+    (child) => child.kind === SEARCH_FILTER_NODE_KIND["SCOPE"],
   )
     .map((child) => (shouldPruneScopeDependentClauses ? pruneScopeDependentFilterNode(child) : child))
     .filter((child): child is SearchFilterNode => Boolean(child));
@@ -852,10 +873,10 @@ export function setSearchQueryLevelRange(
   } | SearchNumericMatch | null,
 ): Pf2eTerminalSearchQuery {
   const rootOperator = getQueryRootOperator(query.filter);
-  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === "level");
+  let children = removeFirstMatchingTopLevelChild(getTopLevelQueryChildren(query.filter), (child) => child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL);
   const levelFilter = buildLevelFilter(levelRange);
   if (levelFilter) {
-    children = insertAfterCanonicalPrefix(children, levelFilter, (child) => child.kind === "scope");
+    children = insertAfterCanonicalPrefix(children, levelFilter, (child) => child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE);
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
 }
@@ -867,14 +888,14 @@ export function setSearchQueryRaritySelection(
   const rootOperator = getQueryRootOperator(query.filter);
   let children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
-    (child) => isTopLevelSelectionChild(child, "rarity"),
+    (child) => isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY),
   );
-  const rarityFilter = buildSelectionFilter("rarity", cloneStringSelection(selection));
+  const rarityFilter = buildSelectionFilter(SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY, cloneStringSelection(selection));
   if (rarityFilter) {
     children = insertNodesAfterCanonicalPrefix(
       children,
       flattenSelectionFilterForRoot(rarityFilter, rootOperator),
-      (child) => child.kind === "scope" || child.kind === "level",
+      (child) => child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE || child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL,
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -887,18 +908,18 @@ export function setSearchQueryActionCostSelection(
   const rootOperator = getQueryRootOperator(query.filter);
   let children = removeAllMatchingTopLevelChildren(
     getTopLevelQueryChildren(query.filter),
-    (child) => isTopLevelSelectionChild(child, "actionCost"),
+    (child) => isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST),
   );
-  const actionCostFilter = buildSelectionFilter("actionCost", cloneNumberSelection(selection));
+  const actionCostFilter = buildSelectionFilter(SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST, cloneNumberSelection(selection));
   if (actionCostFilter) {
     children = insertNodesAfterCanonicalPrefix(
       children,
       flattenSelectionFilterForRoot(actionCostFilter, rootOperator),
       (child) =>
-        child.kind === "scope" ||
-        child.kind === "level" ||
+        child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE ||
+        child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL ||
         isTopLevelPackSelectionChild(child) ||
-        isTopLevelSelectionChild(child, "rarity"),
+        isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -919,7 +940,7 @@ export function setSearchQueryPackSelection(
       children,
       flattenSelectionFilterForRoot(packFilter, rootOperator),
       (child) =>
-        child.kind === "scope" || child.kind === "level" || isTopLevelSelectionChild(child, "rarity"),
+        child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE || child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL || isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -938,11 +959,11 @@ export function setSearchQueryPredicateFilter(
       children,
       node,
       (child) =>
-        child.kind === "scope" ||
-        child.kind === "level" ||
+        child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.SCOPE ||
+        child.kind === SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.LEVEL ||
         isTopLevelPackSelectionChild(child) ||
-        isTopLevelSelectionChild(child, "rarity") ||
-        isTopLevelSelectionChild(child, "actionCost"),
+        isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.RARITY) ||
+        isTopLevelSelectionChild(child, SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST),
     );
   }
   return buildQueryFromTopLevelChildren(query, rootOperator, children);
@@ -958,8 +979,8 @@ export function isActionCostAvailableInScope(
   }
 
   return dependencies.discovery.isPromotedFieldAvailable(
-    "actionCost",
-    createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+    SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ACTION_COST,
+    createScopedSearchDiscoveryApplicability(SEARCH_REQUEST_VOCABULARY.MODE.BROWSE, category, subcategory),
   );
 }
 
@@ -981,7 +1002,7 @@ export function buildSearchFilterNodeForQueryFieldSelection(
   if (fieldSemantics.fieldType === "set") {
     const includeClauses = normalizedSelection.include.map(
       (value): SearchFilterNode => ({
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: field as MetadataSetField,
           op: "includes",
@@ -991,9 +1012,9 @@ export function buildSearchFilterNodeForQueryFieldSelection(
     );
     const excludeClauses = normalizedSelection.exclude.map(
       (value): SearchFilterNode => ({
-        kind: "not",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
         child: {
-          kind: "metadataPredicate",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
           predicate: {
             field: field as MetadataSetField,
             op: "includes",
@@ -1006,17 +1027,17 @@ export function buildSearchFilterNodeForQueryFieldSelection(
     if (includeClauses.length === 1) {
       clauses.push(includeClauses[0]!);
     } else if (includeClauses.length > 1) {
-      clauses.push({ kind: "anyOf", children: includeClauses });
+      clauses.push({ kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF, children: includeClauses });
     }
     clauses.push(...excludeClauses);
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children: clauses };
   }
 
   if (fieldSemantics.fieldType === "enumString") {
     const clauses: SearchFilterNode[] = [];
     if (normalizedSelection.include.length === 1) {
       clauses.push({
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: field as MetadataEnumStringField,
           op: "eq",
@@ -1025,20 +1046,20 @@ export function buildSearchFilterNodeForQueryFieldSelection(
       });
     } else if (normalizedSelection.include.length > 1) {
       clauses.push({
-        kind: "anyOf",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF,
         children: normalizedSelection.include.map((value) => ({
-          kind: "metadataPredicate",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
           predicate: { field: field as MetadataEnumStringField, op: "eq", value },
         })),
       });
     }
     if (normalizedSelection.exclude.length > 0) {
       clauses.push({
-        kind: "not",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
         child:
           normalizedSelection.exclude.length === 1
             ? {
-                kind: "metadataPredicate",
+                kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
                 predicate: {
                   field: field as MetadataEnumStringField,
                   op: "eq",
@@ -1046,22 +1067,22 @@ export function buildSearchFilterNodeForQueryFieldSelection(
                 },
               }
             : {
-                kind: "anyOf",
+                kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ANY_OF,
                 children: normalizedSelection.exclude.map((value) => ({
-                  kind: "metadataPredicate",
+                  kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
                   predicate: { field: field as MetadataEnumStringField, op: "eq", value },
                 })),
               },
       });
     }
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children: clauses };
   }
 
   if (fieldSemantics.fieldType === "boolean") {
     const clauses: SearchFilterNode[] = [];
     for (const value of normalizedSelection.include) {
       clauses.push({
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: field as MetadataBooleanField,
           op: "eq",
@@ -1071,9 +1092,9 @@ export function buildSearchFilterNodeForQueryFieldSelection(
     }
     for (const value of normalizedSelection.exclude) {
       clauses.push({
-        kind: "not",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.NOT,
         child: {
-          kind: "metadataPredicate",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
           predicate: {
             field: field as MetadataBooleanField,
             op: "eq",
@@ -1082,7 +1103,7 @@ export function buildSearchFilterNodeForQueryFieldSelection(
         },
       });
     }
-    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: "allOf", children: clauses };
+    return clauses.length === 0 ? null : clauses.length === 1 ? clauses[0]! : { kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.ALL_OF, children: clauses };
   }
 
   return null;
@@ -1092,17 +1113,17 @@ export function normalizeSearchQuery(query: Pf2eTerminalSearchQuery): Pf2eTermin
   const limit = query.limit ?? DEFAULT_QUERY_LIMIT;
 
   switch (query.mode) {
-    case "browse":
+    case SEARCH_REQUEST_VOCABULARY.MODE.BROWSE:
       return {
-        mode: "browse",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
         limit,
         offset: query.offset,
         filter: query.filter,
         sort: query.sort,
       };
-    case "lookup":
+    case SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP:
       return {
-        mode: "lookup",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
         limit,
         offset: query.offset,
         filter: query.filter,
@@ -1111,10 +1132,10 @@ export function normalizeSearchQuery(query: Pf2eTerminalSearchQuery): Pf2eTermin
           query: query.search.query.trim(),
         },
       };
-    case "search": {
+    case SEARCH_REQUEST_VOCABULARY.MODE.SEARCH: {
       const exclude = trimOptionalText(query.search.exclude);
       return {
-        mode: "search",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.SEARCH,
         limit,
         offset: query.offset,
         filter: query.filter,

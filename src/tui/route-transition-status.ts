@@ -1,18 +1,24 @@
 import type { DerivedTagTerminalLine, DerivedTagTerminalSegment, DerivedTagTerminalTone } from "./framework/types.js";
 
-export const ROUTE_TRANSITION_STATUS_KIND = {
-  PENDING: "pending",
-  ERROR: "error",
+export const ROUTE_TRANSITION_VOCABULARY = {
+  STATUS: {
+    KIND: {
+      PENDING: "pending",
+      ERROR: "error",
+    },
+  },
 } as const;
+
+export const ROUTE_TRANSITION_STATUS_KIND = ROUTE_TRANSITION_VOCABULARY.STATUS.KIND;
 
 export type RouteTransitionStatus =
   | {
-      kind: (typeof ROUTE_TRANSITION_STATUS_KIND)["PENDING"];
+      kind: (typeof ROUTE_TRANSITION_VOCABULARY.STATUS.KIND)["PENDING"];
       message: string;
       frame?: number;
     }
   | {
-      kind: (typeof ROUTE_TRANSITION_STATUS_KIND)["ERROR"];
+      kind: (typeof ROUTE_TRANSITION_VOCABULARY.STATUS.KIND)["ERROR"];
       message: string;
     };
 
@@ -32,7 +38,7 @@ function buildRouteTransitionIndicatorSegments(frame: number): DerivedTagTermina
 }
 
 export function buildRouteTransitionStatusBody(status: RouteTransitionStatus): DerivedTagTerminalLine[] {
-  if (status.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+  if (status.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING) {
     const frame = status.frame ?? 0;
     return [
       {
@@ -52,7 +58,7 @@ export function buildRouteTransitionStatusBody(status: RouteTransitionStatus): D
 
 export function buildRouteTransitionStatusFooter(status: RouteTransitionStatus): DerivedTagTerminalLine[] {
   return [
-    status.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING
+    status.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING
       ? {
           text: `Loading next view | ${status.message}`,
           segments: [
@@ -72,7 +78,7 @@ export function buildRouteTransitionStatusFooter(status: RouteTransitionStatus):
 }
 
 export function buildRouteTransitionStatusFooterLine(status: RouteTransitionStatus): DerivedTagTerminalLine {
-  if (status.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+  if (status.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING) {
     return {
       text: `Loading next view | ${status.message}`,
       segments: [

@@ -1,6 +1,7 @@
 import type { DerivedTagOntologyFamily } from "../../domain/derived-tag-types.js";
+import { buildCanonicalOntologyFamilies, type CanonicalFamilySeed } from "./builders.js";
 
-export const DERIVED_TAG_CANONICAL_FAMILIES: DerivedTagOntologyFamily[] = 
+const DERIVED_TAG_CANONICAL_FAMILY_SEEDS: CanonicalFamilySeed[] =
 [
   {
     axis: "behavior",
@@ -687,3 +688,7 @@ export const DERIVED_TAG_CANONICAL_FAMILIES: DerivedTagOntologyFamily[] =
     label: "wayfinding"
   }
 ];
+
+export const DERIVED_TAG_CANONICAL_FAMILIES: DerivedTagOntologyFamily[] = buildCanonicalOntologyFamilies(
+  DERIVED_TAG_CANONICAL_FAMILY_SEEDS,
+);

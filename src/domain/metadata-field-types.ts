@@ -68,6 +68,14 @@ export const METADATA_BOOLEAN_FIELDS = [
   "isComplex",
 ] as const;
 
+export const METADATA_FIELDS = [
+  ...METADATA_SET_FIELDS,
+  ...METADATA_ENUM_STRING_FIELDS,
+  ...METADATA_TEXT_STRING_FIELDS,
+  ...METADATA_NUMBER_FIELDS,
+  ...METADATA_BOOLEAN_FIELDS,
+] as const;
+
 export type MetadataSetField = (typeof METADATA_SET_FIELDS)[number];
 export type MetadataEnumStringField = (typeof METADATA_ENUM_STRING_FIELDS)[number];
 export type MetadataTextStringField = (typeof METADATA_TEXT_STRING_FIELDS)[number];
@@ -81,6 +89,8 @@ export type MetadataFieldName =
   | MetadataNumberField
   | MetadataBooleanField;
 
+const METADATA_FIELD_NAMES = new Set<MetadataFieldName>(METADATA_FIELDS);
+
 export type MetadataFieldNameByTypeMap = {
   set: MetadataSetField;
   enumString: MetadataEnumStringField;
@@ -90,3 +100,7 @@ export type MetadataFieldNameByTypeMap = {
 };
 
 export type MetadataFieldNameByType<FieldType extends MetadataFieldType> = MetadataFieldNameByTypeMap[FieldType];
+
+export function isMetadataFieldName(field: string): field is MetadataFieldName {
+  return METADATA_FIELD_NAMES.has(field as MetadataFieldName);
+}

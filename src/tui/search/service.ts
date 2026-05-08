@@ -13,6 +13,7 @@ import {
   describeMetadataFieldType,
   formatMetadataFieldLabel,
 } from "../../domain/presentation-vocabulary.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type {
   SearchCategory,
   SearchSubcategory,
@@ -297,7 +298,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       createFacetValueOptions(
         dependencies.discovery
           .discoverCatalogFilterValues({
-            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            applicability: createScopedSearchDiscoveryApplicability(SEARCH_REQUEST_VOCABULARY.MODE.BROWSE, category, subcategory),
             target: { field },
           })
           .options.map((entry) => ({
@@ -314,7 +315,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       createFacetValueOptions(
         dependencies.discovery
           .discoverCatalogFilterValues({
-            applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+            applicability: createScopedSearchDiscoveryApplicability(SEARCH_REQUEST_VOCABULARY.MODE.BROWSE, category, subcategory),
             target: { field: "rarity" },
           })
           .options.map((entry) => ({
@@ -330,7 +331,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         ? createFacetValueOptions(
             dependencies.discovery
               .discoverCatalogFilterValues({
-                applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+                applicability: createScopedSearchDiscoveryApplicability(SEARCH_REQUEST_VOCABULARY.MODE.BROWSE, category, subcategory),
                 target: { field: "actionCost" },
               })
               .options.map((entry) => ({
@@ -401,7 +402,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     normalizeQuery: (query) => normalizeServiceQuery(query),
     countQuery: (query) => {
       const normalizedQuery = normalizeServiceQuery(query);
-      if (normalizedQuery.mode === "lookup") {
+      if (normalizedQuery.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP) {
         if (!normalizedQuery.search.query) {
           return Promise.resolve({
             searchProfile: null,
@@ -418,7 +419,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
         );
       }
 
-      if (normalizedQuery.mode === "browse" || !normalizedQuery.search.query) {
+      if (normalizedQuery.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE || !normalizedQuery.search.query) {
         return dependencies.countRecords(buildSearchRequest(normalizedQuery, { limit: 1 }));
       }
 
@@ -438,7 +439,7 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
     executeQuery: async (query, options = {}) => {
       const normalizedQuery = normalizeServiceQuery(query);
       const sort = options.sort ?? getDefaultSort(normalizedQuery.mode);
-      const sortSeed = sort === "random" ? createSortSeed(sort) : null;
+      const sortSeed = sort === SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM ? createSortSeed(sort) : null;
       const limit = options.limit ?? normalizedQuery.limit ?? DEFAULT_QUERY_LIMIT;
       const result = await dependencies.openSearchWindow(
         buildSearchWindowFilters(normalizedQuery, {
@@ -480,12 +481,12 @@ export function createPf2eTerminalSearchService(dependencies: SearchServiceDepen
       return Promise.resolve(replaceSearchSessionWindowPage(session, result));
     },
     changeSort: async (session, sort) => {
-      if (session.query.mode === "search") {
+      if (session.query.mode === SEARCH_REQUEST_VOCABULARY.MODE.SEARCH) {
         return session;
       }
 
       dependencies.closeSearchWindow(session.windowId);
-      const sortSeed = sort === "random" ? createSortSeed(sort) : null;
+      const sortSeed = sort === SEARCH_REQUEST_VOCABULARY.SORT_KIND.RANDOM ? createSortSeed(sort) : null;
       const result = await dependencies.openSearchWindow(
         buildSearchWindowFilters(session.query, {
           sort,

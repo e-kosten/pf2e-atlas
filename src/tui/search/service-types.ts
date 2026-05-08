@@ -7,6 +7,7 @@ import type {
   SearchVocabularyResult,
 } from "../../data/vocabulary.js";
 import type { SearchFilterNode, SearchRequest } from "../../domain/search-request-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type { NormalizedRecord } from "../../domain/record-types.js";
 import type { OntologyNodeQuery } from "../../domain/ontology-types.js";
 import type { SearchFilterDiscoveryMode } from "../../domain/search-field-domains.js";
@@ -22,6 +23,8 @@ import type {
   SearchSubcategory,
   SearchWindowPage,
 } from "../../domain/search-types.js";
+import { SEARCH_VOCABULARY } from "../../domain/search-types.js";
+import { SEARCH_LOOKUP_SORT_VALUES } from "./service-options.js";
 import type {
   FilterExplorerComposeDraft,
 } from "../filter-explorer/types.js";
@@ -84,16 +87,17 @@ export type Pf2eTerminalQueryField =
   | Pf2eTerminalMetricQueryField
   | Pf2eTerminalSyntheticQueryField;
 
-export type Pf2eTerminalSearchMode = "browse" | "search" | "lookup";
-export type Pf2eTerminalBrowseSort = "alphabetical" | "levelAsc" | "levelDesc" | "random";
-export type Pf2eTerminalSearchModeSort = "ranked";
+export type Pf2eTerminalSearchMode = SearchRequest["mode"];
+type Pf2eTerminalSortKind = typeof SEARCH_REQUEST_VOCABULARY.SORT_KIND;
+export type Pf2eTerminalBrowseSort = Pf2eTerminalSortKind[keyof Pf2eTerminalSortKind];
+export type Pf2eTerminalSearchModeSort = typeof SEARCH_VOCABULARY.SORT_KIND.RANKED;
 export type Pf2eTerminalLookupSort =
-  | "alphabeticalTiered"
-  | "alphabeticalGlobal"
-  | "levelAscTiered"
-  | "levelAscGlobal"
-  | "levelDescTiered"
-  | "levelDescGlobal";
+  | typeof SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_TIERED
+  | typeof SEARCH_LOOKUP_SORT_VALUES.ALPHABETICAL_GLOBAL
+  | typeof SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_TIERED
+  | typeof SEARCH_LOOKUP_SORT_VALUES.LEVEL_ASC_GLOBAL
+  | typeof SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_TIERED
+  | typeof SEARCH_LOOKUP_SORT_VALUES.LEVEL_DESC_GLOBAL;
 export type Pf2eTerminalSearchSort = Pf2eTerminalBrowseSort | Pf2eTerminalSearchModeSort | Pf2eTerminalLookupSort;
 export type Pf2eTerminalLookupMatchType = LookupResult["matchType"];
 export type Pf2eTerminalSearchResultRecord = SearchResultRecord;

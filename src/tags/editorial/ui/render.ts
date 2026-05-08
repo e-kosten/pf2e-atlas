@@ -3,14 +3,15 @@ import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
 import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import { getDerivedTagReviewItems, summarizeDerivedTagReviewProgress } from "../sessions/review-session.js";
 import { buildDerivedTagMigrationRecordPageTextLines } from "./review-detail-content.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 function describeDecision(decision: DerivedTagReviewDecision): string {
-  if (decision.kind === "assignment") {
+  if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT) {
     return `${decision.family}.${decision.tag} ${decision.mode}`;
   }
-  if (decision.kind === "exemplar") {
+  if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR) {
     const current = decision.currentPolarity ? ` from ${decision.currentPolarity}` : "";
-    return `${decision.tag} exemplar${current} -> ${decision.action === "drop" ? "drop" : decision.polarity}`;
+    return `${decision.tag} exemplar${current} -> ${decision.action === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP : decision.polarity}`;
   }
   return `${decision.tag} rule ${decision.decision}`;
 }
@@ -65,7 +66,10 @@ function renderAssignmentMemory(category: string, recordKey: string): string {
   const state = getCurrentDerivedTagAuthoredState();
   const decisions = state.assignmentMemory[managedCategory].decisions
     .filter((decision) => decision.recordKey === recordKey)
-    .map((decision) => `${decision.mode === "exclude" ? "!" : ""}${decision.family}.${decision.tag}`);
+    .map(
+      (decision) =>
+        `${decision.mode === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.EXCLUDE ? "!" : ""}${decision.family}.${decision.tag}`,
+    );
 
   return decisions.length > 0 ? decisions.join(", ") : "(none)";
 }

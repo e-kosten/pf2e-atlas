@@ -1,4 +1,5 @@
 import type { OntologyDomainModel, OntologyNode } from "../../domain/ontology-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import { buildAllOfFilter, buildScopeFilter } from "../../domain/search-request-types.js";
 import {
   type DerivedTagOntologyExplorerCategoryNode,
@@ -31,7 +32,7 @@ function buildRecordNode(recordNode: DerivedTagOntologyExplorerRecordNode): Onto
     query: {
       label: "Open exact record lookup",
       request: {
-        mode: "lookup",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP,
         search: {
           query: recordNode.record.name,
         },
@@ -118,11 +119,11 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
     query: {
       label: "List records with this derived tag",
       request: {
-        mode: "browse",
+        mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
         filter: buildAllOfFilter([
           buildScopeFilter(tag.category, tag.subcategories?.length === 1 ? (tag.subcategories[0] ?? null) : null),
           {
-            kind: "metadataPredicate",
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
             predicate: { field: "derivedTags", op: "includes", value: tag.tag },
           },
         ]),

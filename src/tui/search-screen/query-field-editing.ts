@@ -171,7 +171,7 @@ export function useSearchQueryFieldEditing({
       if (!nextClause) {
         return null;
       }
-      if (nextClause.op === "neq") {
+      if (nextClause.op === "notEq") {
         return undefined;
       }
       return nextClause.op === "between"

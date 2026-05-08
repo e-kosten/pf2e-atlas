@@ -1,4 +1,4 @@
-import type { DerivedTagTranslationRecord } from "../../domain/derived-tag-types.js";
+import type { DerivedTagTranslationMapping } from "../../domain/derived-tag-types.js";
 import type { DerivedTagTranslationOverride } from "./tag-overrides.js";
 
 function cloneOverrideValue<T>(value: T): T {
@@ -14,9 +14,9 @@ export function mergeDerivedTagTranslationNotes(
 }
 
 export function applyDerivedTagTranslationOverride(
-  base: DerivedTagTranslationRecord,
+  base: DerivedTagTranslationMapping,
   override: DerivedTagTranslationOverride | undefined,
-): DerivedTagTranslationRecord {
+): DerivedTagTranslationMapping {
   if (!override) {
     return structuredClone(base);
   }
@@ -24,7 +24,7 @@ export function applyDerivedTagTranslationOverride(
   const merged = {
     ...structuredClone(base),
     ...cloneOverrideValue(override),
-  } satisfies DerivedTagTranslationRecord;
+  } satisfies DerivedTagTranslationMapping;
   merged.notes = mergeDerivedTagTranslationNotes(base.notes, override.notes);
   return merged;
 }

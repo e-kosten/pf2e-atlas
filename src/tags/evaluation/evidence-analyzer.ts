@@ -233,23 +233,22 @@ function collectFeatureSupport(
   return support;
 }
 
+const EVIDENCE_KIND_BY_FEATURE_TYPE = {
+  nameTokens: "nameToken",
+  namePhrases: "namePhrase",
+  descriptionTokens: "descriptionToken",
+  descriptionPhrases: "descriptionPhrase",
+  traits: "trait",
+  references: "reference",
+} as const satisfies Record<
+  "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
+  DiscoveryEvidenceKind
+>;
+
 function evidenceKindForFeatureType(
   featureType: "nameTokens" | "namePhrases" | "descriptionTokens" | "descriptionPhrases" | "traits" | "references",
 ): DiscoveryEvidenceKind {
-  switch (featureType) {
-    case "nameTokens":
-      return "nameToken";
-    case "namePhrases":
-      return "namePhrase";
-    case "descriptionTokens":
-      return "descriptionToken";
-    case "descriptionPhrases":
-      return "descriptionPhrase";
-    case "traits":
-      return "trait";
-    case "references":
-      return "reference";
-  }
+  return EVIDENCE_KIND_BY_FEATURE_TYPE[featureType];
 }
 
 function evidenceKindWeight(kind: DiscoveryEvidenceKind): number {

@@ -25,6 +25,8 @@ import type {
   DerivedTagReviewStatus,
 } from "../../runtime/derivation/assignments.js";
 import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
+import { DERIVED_TAG_WORKBENCH } from "../types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
 type LegacyDerivedTagReviewSessionRecord = {
   recordKey: string;
@@ -44,14 +46,6 @@ type LegacyDerivedTagReviewSessionRecord = {
 
 type JsonObject = Record<string, unknown>;
 
-const MIGRATION_MODES: readonly DerivedTagWorkbenchMode[] = [
-  "review_queue",
-  "proposal_review",
-  "legacy_seed",
-  "legacy_rule",
-  "exemplar_cleanup",
-];
-const MIGRATION_RESOLUTION_STATUSES: readonly DerivedTagReviewResolutionStatus[] = ["complete", "needs_review"];
 const MIGRATION_SELECTION_SOURCES: readonly DerivedTagReviewSelectionSource[] = [
   "authored_review_queue",
   "authored_exemplar_review_queue",
@@ -61,14 +55,22 @@ const MIGRATION_SELECTION_SOURCES: readonly DerivedTagReviewSelectionSource[] = 
   "legacy_rule",
   "exemplar_cleanup",
 ];
-const REVIEW_STATUSES: readonly DerivedTagReviewStatus[] = ["auto_applied", "needs_review", "approved", "rejected"];
-const REVIEW_CONFIDENCES: readonly DerivedTagReviewConfidence[] = ["high", "medium", "low"];
-const REVIEW_SOURCES: readonly DerivedTagReviewSource[] = ["human", "llm"];
-const EXEMPLAR_POLARITIES: readonly DerivedTagExemplarPolarity[] = ["positive", "negative"];
-const DECISION_KINDS = ["assignment", "exemplar", "rule"] as const;
-const ASSIGNMENT_MODES = ["include", "exclude"] as const;
-const EXEMPLAR_ACTIONS = ["keep", "drop"] as const;
-const RULE_DECISIONS = ["recreate_authored", "assignment_takeover", "retain_legacy"] as const;
+const REVIEW_CONFIDENCES: readonly DerivedTagReviewConfidence[] = DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCES;
+const MIGRATION_RESOLUTION_STATUSES: readonly DerivedTagReviewResolutionStatus[] = DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RESOLUTION_STATUSES;
+const REVIEW_STATUSES: readonly DerivedTagReviewStatus[] = DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUSES;
+const REVIEW_SOURCES = [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN, DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM] as const;
+const DECISION_KINDS = [
+  DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
+  DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR,
+  DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE,
+] as const;
+const REVIEW_ASSIGNMENT_MODES = DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODES;
+const EXEMPLAR_ACTIONS = [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.KEEP, DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP] as const;
+const RULE_DECISIONS = DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RULE_DECISIONS;
+const EXEMPLAR_POLARITIES: readonly DerivedTagExemplarPolarity[] = [
+  DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.POSITIVE,
+  DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NEGATIVE,
+];
 const DERIVED_TAG_SOURCES: readonly DerivedTagSource[] = [
   "authored_rule",
   "legacy_rule",
@@ -217,7 +219,7 @@ function parseSource(value: unknown, context: string): DerivedTagSource {
 }
 
 function parseMigrationMode(value: unknown, context: string): DerivedTagWorkbenchMode {
-  return parseLiteral(value, MIGRATION_MODES, context);
+  return parseLiteral(value, DERIVED_TAG_WORKBENCH.MODES, context);
 }
 
 function parseMigrationResolutionStatus(value: unknown, context: string): DerivedTagReviewResolutionStatus {
@@ -398,14 +400,11 @@ function parseMigrationDecision(
   context: string,
 ): DerivedTagReviewRecordDecision["decisions"][number] {
   const parsed = expectObject(value, context);
-  const kind = expectString(parsed.kind, `${context}.kind`);
-  if (!DECISION_KINDS.includes(kind as (typeof DECISION_KINDS)[number])) {
-    throw new Error(`Expected ${context}.kind to be a valid migration decision kind.`);
-  }
+  const kind = parseLiteral(parsed.kind, DECISION_KINDS, `${context}.kind`);
 
   switch (kind) {
-    case "assignment": {
-      const mode = parseLiteral(parsed.mode, ASSIGNMENT_MODES, `${context}.mode`);
+    case DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT: {
+      const mode = parseLiteral(parsed.mode, REVIEW_ASSIGNMENT_MODES, `${context}.mode`);
       return {
         kind,
         family: expectString(parsed.family, `${context}.family`),
@@ -417,14 +416,14 @@ function parseMigrationDecision(
         source: parseReviewSource(parsed.source, `${context}.source`),
       };
     }
-    case "exemplar": {
+    case DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR: {
       const action = parseLiteral(parsed.action, EXEMPLAR_ACTIONS, `${context}.action`);
 
       const currentPolarity =
         parsed.currentPolarity === undefined
           ? undefined
-          : parsed.currentPolarity === "none"
-            ? "none"
+          : parsed.currentPolarity === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NONE
+            ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_POLARITY.NONE
             : parseExemplarPolarity(parsed.currentPolarity, `${context}.currentPolarity`);
 
       return {
@@ -439,7 +438,7 @@ function parseMigrationDecision(
         ...(currentPolarity !== undefined ? { currentPolarity } : {}),
       };
     }
-    case "rule": {
+    case DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE: {
       const decision = parseLiteral(parsed.decision, RULE_DECISIONS, `${context}.decision`);
 
       return {

@@ -18,6 +18,8 @@ import {
   setSearchQuerySearchProfile,
   setSearchQueryText,
 } from "../../search/query-state.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
+import { SEARCH_VOCABULARY } from "../../../domain/search-types.js";
 import type { SearchWorkspaceEntry } from "./workspace.js";
 import { useSearchStructuredEditorActions } from "../structured-editor-actions.js";
 import type {
@@ -65,18 +67,19 @@ export function useSearchWorkspaceActions({
   structuredEditorSession: SearchStructuredEditorSession | null;
 } {
   const editQueryText = React.useCallback(async () => {
-    if (state.query.mode === "browse") {
+    if (state.query.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
       return;
     }
 
     const queryText = await prompts.promptTextInput({
-      title: state.query.mode === "lookup" ? "Lookup Text" : "Search Text",
+      title: state.query.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP ? "Lookup Text" : "Search Text",
       prompt:
-        state.query.mode === "lookup"
+        state.query.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP
           ? "Enter an exact or near-exact record name."
           : "Enter search text for the current query.",
       defaultValue: getSearchQueryText(state.query),
-      hint: state.query.mode === "lookup" ? "Example: Raise Shield" : "Example: ghost ship captain",
+      hint:
+        state.query.mode === SEARCH_REQUEST_VOCABULARY.MODE.LOOKUP ? "Example: Raise Shield" : "Example: ghost ship captain",
       presentation: "overlay",
     });
 
@@ -88,7 +91,7 @@ export function useSearchWorkspaceActions({
   }, [applyQueryUpdate, prompts, state.query]);
 
   const editExcludeText = React.useCallback(async () => {
-    if (state.query.mode !== "search") {
+    if (state.query.mode !== SEARCH_REQUEST_VOCABULARY.MODE.SEARCH) {
       return;
     }
 
@@ -142,7 +145,7 @@ export function useSearchWorkspaceActions({
         label: option.label,
         description: option.description,
       })),
-      selectedValue: getSearchQuerySearchProfile(state.query) ?? "balanced",
+      selectedValue: getSearchQuerySearchProfile(state.query) ?? SEARCH_VOCABULARY.PROFILE.BALANCED,
       presentation: "overlay",
     });
 

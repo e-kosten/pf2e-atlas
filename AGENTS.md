@@ -54,6 +54,25 @@ When writing or editing docs, prefer statements of current behavior and current 
 
 This codebase is TypeScript on Node.js with ESM (`"type": "module"`). Follow existing style: 2-space indentation, semicolons, double quotes, and small focused modules. Use descriptive file names such as `search-expansion.ts` and `refresh-index.ts`. Prefer `camelCase` for functions and variables, `PascalCase` for classes and types, and `SCREAMING_SNAKE_CASE` for constants. ESLint and Prettier are configured in-repo; run the relevant lint/format checks instead of relying on convention alone.
 
+When adding shared enum-like domains, use nested namespace-style constant vocabularies and derive types from them so consumers compile against canonical literals. Keep each constant set in one home and prefer direct namespaced access over flat repetition:
+
+```ts
+export const REVIEW_VOCABULARY = {
+  REVIEW: {
+    SOURCE: {
+      HUMAN: "human",
+      AI: "ai",
+    },
+    STATUS: {
+      NEEDS_REVIEW: "needs_review",
+      APPROVED: "approved",
+    },
+  },
+} as const;
+```
+
+Use `typeof`/indexed access to define unions from those constants, and use constant members at call sites instead of raw string literals. Avoid flat, repetitive names like `SCOPE_SOURCE_HUMAN`; prefer `REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN`. Prefer direct replacement over compatibility shims when refactoring to this shape.
+
 When you introduce or consolidate a shared abstraction that other code should route through, add or extend lint rules to enforce that boundary once the abstraction is stable enough to be mandatory. Do not leave new shared pathways as convention-only if they are intended to replace lower-level direct usage.
 
 ## Testing Guidelines

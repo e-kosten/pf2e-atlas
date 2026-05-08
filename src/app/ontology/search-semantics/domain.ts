@@ -12,7 +12,10 @@ import { formatOntologySearchVocabularyLabel } from "../../../domain/presentatio
 import type { DerivedTagCatalogEntry } from "../../../domain/record-types.js";
 import { findSearchScopeFilter } from "../../../domain/search-request-types.js";
 import type { SearchRequest } from "../../../domain/search-request-types.js";
-import type { SearchFilterDiscoveryMode } from "../../../domain/search-field-domains.js";
+import {
+  normalizeSearchDiscoveryTargetField,
+  SearchFilterDiscoveryMode,
+} from "../../../domain/search-field-domains.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import { readMetadataGlossaryArtifact } from "../../../data/metadata-glossary.js";
 import type { Pf2eApplicationSearchDiscoveryService, SearchDiscoveryField } from "../../search-discovery/service.js";
@@ -360,19 +363,6 @@ function getPreparedSearchFilterExplorerCountLabel(mode: SearchFilterDiscoveryMo
   return mode === "matching" ? "Matching records" : "Applicable records";
 }
 
-function normalizePreparedTargetField(field: string): string {
-  if (field === "actorMetric" || field === "actorMetricCompare") {
-    return "actorMetrics";
-  }
-  if (field === "itemMetric" || field === "itemMetricCompare") {
-    return "itemMetrics";
-  }
-  if (field === "pack") {
-    return "packs";
-  }
-  return field;
-}
-
 export async function buildPreparedSearchFilterExplorerDomain(
   config: { indexPath: string },
   dataService: SearchSemanticsDataService,
@@ -389,7 +379,7 @@ export async function buildPreparedSearchFilterExplorerDomain(
   }
 
   const targetFields = options.targetFields
-    ? new Set(options.targetFields.map((field) => normalizePreparedTargetField(field)))
+    ? new Set(options.targetFields.map((field) => normalizeSearchDiscoveryTargetField(field)))
     : null;
   const preparedReader = await discoveryService.prepareSearchSemanticsReader(options.request, options.discoveryMode, {
     targetFields: options.targetFields,

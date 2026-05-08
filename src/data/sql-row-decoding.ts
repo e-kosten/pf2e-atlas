@@ -5,8 +5,9 @@ import {
   normalizeSearchCategory,
   normalizeSearchSubcategory,
 } from "../domain/categories.js";
-import type { SourceCategory } from "../domain/record-types.js";
+import type { SourceCategory, VariantSource } from "../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
+import { normalizeText } from "../shared/utils.js";
 
 export function parseSearchCategoryValue(value: string, context: string): SearchCategory {
   const normalized = normalizeSearchCategory(value);
@@ -43,19 +44,39 @@ export function parseSearchSubcategoryForCategory(
   return normalized;
 }
 
+const SOURCE_CATEGORY_BY_TEXT = {
+  core: "core",
+  rules: "rules",
+  adventure: "adventure",
+  unknown: "unknown",
+} as const satisfies Record<string, SourceCategory>;
+
+const VARIANT_SOURCE_BY_TEXT = {
+  baseitem: "baseItem",
+  slug: "slug",
+  namepattern: "namePattern",
+  sourcepath: "sourcePath",
+  composite: "composite",
+  none: "none",
+} as const satisfies Record<string, VariantSource>;
+
 export function parseSourceCategoryValue(value: string, context: string): SourceCategory {
-  switch (value) {
-    case "core":
-      return "core";
-    case "rules":
-      return "rules";
-    case "adventure":
-      return "adventure";
-    case "unknown":
-      return "unknown";
-    default:
-      throw new Error(`Invalid source category "${value}" for ${context}.`);
+  const normalized = normalizeText(value);
+  const parsed = SOURCE_CATEGORY_BY_TEXT[normalized as keyof typeof SOURCE_CATEGORY_BY_TEXT];
+  if (!parsed) {
+    throw new Error(`Invalid source category "${value}" for ${context}.`);
   }
+
+  return parsed;
+}
+
+export function parseVariantSourceValue(value: string | null | undefined, context: string): VariantSource {
+  const parsed = VARIANT_SOURCE_BY_TEXT[normalizeText(value ?? "none") as keyof typeof VARIANT_SOURCE_BY_TEXT];
+  if (!parsed) {
+    throw new Error(`Invalid variant source "${value}" for ${context}.`);
+  }
+
+  return parsed;
 }
 
 export function parseStringArrayJson(value: string | null | undefined, fieldName: string, context: string): string[] {

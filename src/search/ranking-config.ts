@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { pathExists } from "../shared/fs.js";
 import type { RankingConfigStatus } from "../domain/search-types.js";
+import { SEARCH_VOCABULARY } from "../domain/search-types.js";
 
 export interface RankingConfig {
   lexicalChannels: {
@@ -199,7 +200,7 @@ function validateRankingConfig(config: RankingConfig): RankingConfig {
     throw new Error("hybridFusion.rrfK must be a positive integer.");
   }
 
-  for (const profile of ["balanced", "concept"] as const) {
+  for (const profile of [SEARCH_VOCABULARY.PROFILE.BALANCED, SEARCH_VOCABULARY.PROFILE.CONCEPT] as const) {
     const fusionProfile = config.hybridFusion[profile];
     if (fusionProfile.lexicalWeight < 0 || fusionProfile.semanticWeight < 0) {
       throw new Error(`hybridFusion.${profile} weights must be non-negative.`);

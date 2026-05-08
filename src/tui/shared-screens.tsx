@@ -31,7 +31,7 @@ import {
 import {
   appendRouteTransitionFooterLine,
   getRouteTransitionFooterLineCount,
-  ROUTE_TRANSITION_STATUS_KIND,
+  ROUTE_TRANSITION_VOCABULARY,
   buildRouteTransitionStatusBody,
   buildRouteTransitionStatusFooter,
   type RouteTransitionStatus,
@@ -66,7 +66,7 @@ export function TerminalBusyScreen({
   return (
     <TerminalRouteTransitionScreen
       title={title}
-      status={{ kind: ROUTE_TRANSITION_STATUS_KIND.PENDING, message, frame: 0 }}
+      status={{ kind: ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING, message, frame: 0 }}
     />
   );
 }
@@ -238,7 +238,7 @@ export function TerminalMenuScreen<TItem extends TerminalMenuScreenItem>({
       }),
     ],
     onRoute: ({ menu }) => {
-      if (transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+      if (transitionStatus?.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING) {
         return;
       }
       if (menu.interactionAction?.id === "back" || menu.interactionAction?.id === "quit") {
@@ -359,7 +359,7 @@ export function TerminalActionMenuScreen<TItem extends TerminalMenuScreenItem, T
       }),
     ],
     onRoute: ({ actionTarget, menu }) => {
-      if (transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+      if (transitionStatus?.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING) {
         return;
       }
       if (actionTarget.actionTargetIntent?.kind === "toggle_target") {

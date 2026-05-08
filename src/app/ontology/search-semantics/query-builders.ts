@@ -7,7 +7,12 @@ import type {
   MetadataTextStringField,
 } from "../../../domain/metadata-field-types.js";
 import type { OntologyNode } from "../../../domain/ontology-types.js";
-import { buildAllOfFilter, buildScopeFilter, type SearchFilterNode } from "../../../domain/search-request-types.js";
+import {
+  SEARCH_REQUEST_VOCABULARY,
+  buildAllOfFilter,
+  buildScopeFilter,
+  type SearchFilterNode,
+} from "../../../domain/search-request-types.js";
 import type { SearchRequest } from "../../../domain/search-request-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../../domain/search-types.js";
 import { normalizeText } from "../../../shared/utils.js";
@@ -21,7 +26,7 @@ export function buildSearchSemanticsMetadataQuery(
   return {
     label,
     request: {
-      mode: "browse",
+      mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
       filter: buildAllOfFilter([buildScopeFilter(category, subcategory), filter]),
       limit: 20,
     },
@@ -36,7 +41,7 @@ export function buildSearchSemanticsScopeQuery(
   return {
     label,
     request: {
-      mode: "browse",
+      mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
       filter: buildScopeFilter(category, subcategory),
       limit: 20,
     },
@@ -72,7 +77,7 @@ export function buildDerivedTagQuery(
   label: string,
 ): NonNullable<OntologyNode["query"]> {
   return buildSearchSemanticsMetadataQuery(category, subcategory, label, {
-    kind: "metadataPredicate",
+    kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
     predicate: {
       field: "derivedTags",
       op: "includes",
@@ -93,7 +98,7 @@ export function buildPackValueQuery(
     subcategory,
     label,
     {
-      kind: "pack",
+      kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK,
       value: packValue,
     },
     matchingRequest,
@@ -137,26 +142,28 @@ export function buildMetricInspectQuery(
   metricLabel: string,
 ): OntologyNode["query"] {
   return buildSearchSemanticsMetadataQuery(category, subcategory, `Browse records with ${metricLabel}`, {
-    kind: "metricCompare",
+    kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE,
     leftMetric: metricKey,
     op: "gte",
     rightMetric: metricKey,
   });
 }
 
+const ONTOLOGY_BOOLEAN_VALUE_BY_TEXT = {
+  true: true,
+  yes: true,
+  y: true,
+  "1": true,
+  on: true,
+  false: false,
+  no: false,
+  n: false,
+  "0": false,
+  off: false,
+} as const satisfies Record<string, boolean>;
+
 function parseOntologyBooleanValue(value: string): boolean | undefined {
-  switch (normalizeText(value)) {
-    case "true":
-    case "yes":
-    case "1":
-      return true;
-    case "false":
-    case "no":
-    case "0":
-      return false;
-    default:
-      return undefined;
-  }
+  return ONTOLOGY_BOOLEAN_VALUE_BY_TEXT[normalizeText(value) as keyof typeof ONTOLOGY_BOOLEAN_VALUE_BY_TEXT];
 }
 
 export function buildMetadataValueQuery(
@@ -166,7 +173,7 @@ export function buildMetadataValueQuery(
   switch (fieldSemantics.fieldType) {
     case "set":
       return {
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: fieldSemantics.field as MetadataSetField,
           op: "includes",
@@ -175,7 +182,7 @@ export function buildMetadataValueQuery(
       };
     case "enumString":
       return {
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: fieldSemantics.field as MetadataEnumStringField,
           op: "eq",
@@ -184,7 +191,7 @@ export function buildMetadataValueQuery(
       };
     case "text":
       return {
-        kind: "metadataPredicate",
+        kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
         predicate: {
           field: fieldSemantics.field as MetadataTextStringField,
           op: "eq",
@@ -195,7 +202,7 @@ export function buildMetadataValueQuery(
       const numericValue = Number(value);
       return Number.isFinite(numericValue)
         ? {
-            kind: "metadataPredicate",
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
             predicate: {
               field: fieldSemantics.field as MetadataNumberField,
               op: "eq",
@@ -209,7 +216,7 @@ export function buildMetadataValueQuery(
       return booleanValue === undefined
         ? undefined
         : {
-            kind: "metadataPredicate",
+            kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
             predicate: {
               field: fieldSemantics.field as MetadataBooleanField,
               op: "eq",
@@ -225,10 +232,24 @@ function buildMetricScalarMetadataQuery(
   valueType: "text" | "boolean",
   value: string,
 ): SearchFilterNode {
+  if (valueType === "boolean") {
+    const booleanValue = parseOntologyBooleanValue(value);
+    if (booleanValue === undefined) {
+      throw new Error(`Unsupported boolean metric value "${value}".`);
+    }
+
+    return {
+      kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC,
+      metric,
+      op: "eq",
+      value: booleanValue,
+    };
+  }
+
   return {
-    kind: "metric",
+    kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METRIC,
     metric,
     op: "eq",
-    value: valueType === "boolean" ? value === "true" : value,
+    value,
   };
 }

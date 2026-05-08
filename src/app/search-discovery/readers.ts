@@ -1,6 +1,7 @@
 import { normalizeSearchCategory, normalizeSearchSubcategory } from "../../domain/categories.js";
 import { createSearchFilterDiscoveryContext } from "../../domain/search-field-domains.js";
 import type { SearchFilterDiscoveryMode, SearchFilterDiscoveryOption } from "../../domain/search-field-domains.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type { SearchRequest } from "../../domain/search-request-types.js";
 import type { FilterValueField, SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import { createScopedSearchDiscoveryApplicability } from "./applicability.js";
@@ -19,20 +20,32 @@ export function createCatalogSearchSemanticsReader(options: {
     mode: "catalog",
     discoverFieldValues: ({ category, subcategory, field }) =>
       valueResolver.discoverCatalogFilterValues({
-        applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+        applicability: createScopedSearchDiscoveryApplicability(
+          SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
+          category,
+          subcategory,
+        ),
         target: { field },
       }).options,
     discoverFieldValuesAsync: ({ category, subcategory, field }) =>
       Promise.resolve(
         valueResolver.discoverCatalogFilterValues({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          applicability: createScopedSearchDiscoveryApplicability(
+            SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
+            category,
+            subcategory,
+          ),
           target: { field },
         }).options,
       ),
     discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
       Promise.resolve(
         metricCatalog.discoverMetricKeys({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          applicability: createScopedSearchDiscoveryApplicability(
+            SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
+            category,
+            subcategory,
+          ),
           metricField,
           metricPrefix,
         }),
@@ -40,7 +53,11 @@ export function createCatalogSearchSemanticsReader(options: {
     discoverMetricValues: ({ category, subcategory, metricField, metricKey }) =>
       Promise.resolve(
         metricCatalog.discoverMetricValues({
-          applicability: createScopedSearchDiscoveryApplicability("browse", category, subcategory),
+          applicability: createScopedSearchDiscoveryApplicability(
+            SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
+            category,
+            subcategory,
+          ),
           metricField,
           metricKey,
         }),
@@ -78,16 +95,16 @@ export async function prepareSearchSemanticsReader(options: {
   }
   const preparedScope = scope;
 
-  const targetFields = options.targetFields
+  const targetFields: Set<FilterValueField> | null = options.targetFields
     ? new Set(options.targetFields.map((field) => normalizeDiscoveryTargetField(field)))
     : null;
   const fieldValuesByField = new Map<string, readonly SearchFilterDiscoveryOption[]>();
   const fieldValuePromisesByField = new Map<string, Promise<readonly SearchFilterDiscoveryOption[]>>();
-  const eagerlyDiscoveredField = targetFields
+  const eagerlyDiscoveredField: FilterValueField | null = targetFields
     ? targetFields.size === 1
-      ? targetFields.values().next().value
+      ? targetFields.values().next().value ?? null
       : null
-    : "derivedTags";
+    : normalizeDiscoveryTargetField("derivedTags");
   const eagerFields = options
     .getScopedMetadataFields(scope)
     .filter((field) => field.discoverable)
@@ -108,11 +125,11 @@ export async function prepareSearchSemanticsReader(options: {
     return category === preparedScope.category && (subcategory ?? null) === preparedScope.subcategory;
   }
 
-  function includesTargetField(field: string): boolean {
+  function includesTargetField(field: FilterValueField): boolean {
     return !targetFields || targetFields.has(field);
   }
 
-  function loadFieldValues(field: string): Promise<readonly SearchFilterDiscoveryOption[]> {
+  function loadFieldValues(field: FilterValueField): Promise<readonly SearchFilterDiscoveryOption[]> {
     const cached = fieldValuesByField.get(field);
     if (cached) {
       return Promise.resolve(cached);
@@ -144,11 +161,21 @@ export async function prepareSearchSemanticsReader(options: {
   return {
     scope: preparedScope,
     mode: options.mode,
-    discoverFieldValues: ({ category, subcategory, field }) =>
+    discoverFieldValues: ({ category, subcategory, field }: { category: SearchCategory; subcategory: SearchSubcategory | null; field: FilterValueField }) =>
       matchesScope(category, subcategory) && includesTargetField(field) ? (fieldValuesByField.get(field) ?? []) : [],
-    discoverFieldValuesAsync: ({ category, subcategory, field }) =>
+    discoverFieldValuesAsync: ({ category, subcategory, field }: { category: SearchCategory; subcategory: SearchSubcategory | null; field: FilterValueField }) =>
       matchesScope(category, subcategory) && includesTargetField(field) ? loadFieldValues(field) : Promise.resolve([]),
-    discoverMetricKeys: ({ category, subcategory, metricField, metricPrefix }) =>
+    discoverMetricKeys: ({
+      category,
+      subcategory,
+      metricField,
+      metricPrefix,
+    }: {
+      category: SearchCategory;
+      subcategory: SearchSubcategory | null;
+      metricField: "actorMetrics" | "itemMetrics";
+      metricPrefix?: string;
+    }) =>
       matchesScope(category, subcategory) && includesTargetField(metricField)
         ? options.discoverFieldOptions({
             mode: options.mode,
@@ -157,7 +184,17 @@ export async function prepareSearchSemanticsReader(options: {
             metricPrefix,
           })
         : Promise.resolve([]),
-    discoverMetricValues: ({ category, subcategory, metricField, metricKey }) =>
+    discoverMetricValues: ({
+      category,
+      subcategory,
+      metricField,
+      metricKey,
+    }: {
+      category: SearchCategory;
+      subcategory: SearchSubcategory | null;
+      metricField: "actorMetrics" | "itemMetrics";
+      metricKey: string;
+    }) =>
       matchesScope(category, subcategory) && includesTargetField(metricField)
         ? options.discoverFieldOptions({
             mode: options.mode,

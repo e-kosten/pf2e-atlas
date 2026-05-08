@@ -1,190 +1,90 @@
-import type { DerivedTagConceptSchemaKind, DerivedTagTranslationStatus } from "../../domain/derived-tag-types.js";
+import type { DerivedTagTranslationStatus } from "../../domain/derived-tag-types.js";
 
 export type DerivedTagFamilyTranslationDefaults = {
-  schemaKind: DerivedTagConceptSchemaKind;
   translationStatus: DerivedTagTranslationStatus;
-  primaryFacetKind?: string;
-  primaryFacetValue?: string;
   notes?: string;
 };
 
-export const DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS = new Map<string, DerivedTagFamilyTranslationDefaults>();
-
-function setFamilies(keys: string[], config: DerivedTagFamilyTranslationDefaults): void {
-  for (const key of keys) {
-    DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS.set(key, config);
-  }
-}
-
-setFamilies(
-  ["affliction:impact", "affliction:physiology_override", "affliction:metaphysical_profile"],
-  { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "effect", primaryFacetValue: "effect_profile", notes: "Effect/state descriptors." },
-);
-setFamilies(["affliction:pathogenesis"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "pathogenesis",
-  primaryFacetValue: "pathogenesis",
-  notes: "Disease-pattern descriptors.",
-});
-setFamilies(["affliction:epidemiological_profile"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "response_demand",
-  primaryFacetValue: "response_demand",
-  notes: "Heterogeneous browse family; rows split across response_demand, delivery, and theme.",
-});
-setFamilies(["affliction:response_profile"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "response_demand",
-  primaryFacetValue: "response_demand",
-  notes: "Response-side pressure family with approved operational exceptions.",
-});
-setFamilies(["affliction:behavioral_override"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "behavior_override",
-  primaryFacetValue: "behavior_override",
-});
-setFamilies(["affliction:delivery_profile"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "delivery",
-  primaryFacetValue: "delivery_profile",
-});
-setFamilies(["affliction:progression_profile"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "progression",
-  primaryFacetValue: "progression_profile",
-});
-setFamilies(["affliction:resolution_profile"], {
-  schemaKind: "operational",
-  translationStatus: "mapped",
-  notes: "Answer-path concepts.",
-});
-
-setFamilies(["creature:habitat_setting"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "setting", primaryFacetValue: "habitat" });
-setFamilies(["creature:site_setting"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "setting", primaryFacetValue: "site" });
-setFamilies(["creature:regional_setting"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "setting",
-  primaryFacetValue: "regional",
-  notes: "Approved primary setting shape.",
-});
-setFamilies(["creature:planar_setting"], { schemaKind: "descriptive", translationStatus: "provisional", primaryFacetKind: "setting", primaryFacetValue: "planar" });
-setFamilies(["creature:genre_motif", "creature:story_motif", "creature:visual_motif"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "theme",
-  primaryFacetValue: "theme",
-});
-setFamilies(["creature:bound_object"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "creature_family",
-  primaryFacetValue: "bound_object_family",
-});
-setFamilies(["creature:combat_role"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "role", primaryFacetValue: "tactical" });
-setFamilies(["creature:cohort_role", "creature:scene_role", "creature:social_role"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "role",
-  primaryFacetValue: "role",
-});
-setFamilies(["creature:ontology_cluster"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "creature_family",
-  primaryFacetValue: "creature_family",
-});
-setFamilies(["creature:casting_profile"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "capability",
-  primaryFacetValue: "casting_profile",
-});
-setFamilies(["creature:corruption_profile"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "theme", primaryFacetValue: "corruption" });
-setFamilies(["creature:threat_profile"], {
-  schemaKind: "operational",
-  translationStatus: "mapped",
-  notes: "Heterogeneous operational family split row-by-row across application/control/creation/sustain/call/infiltration.",
-});
-
-setFamilies(
-  ["equipment:consumable_role", "equipment:party_role", "equipment:play_pattern", "equipment:access_system", "equipment:defense_profile"],
-  { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "capability", primaryFacetValue: "capability" },
-);
-setFamilies(["equipment:delivery_profile"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "delivery", primaryFacetValue: "delivery_profile" });
-setFamilies(["equipment:impact"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "effect", primaryFacetValue: "effect_profile" });
-setFamilies(["equipment:offensive_profile", "equipment:access_bypass", "equipment:anti_magic", "equipment:breaching", "equipment:resolution", "equipment:restraint"], {
-  schemaKind: "operational",
-  translationStatus: "provisional",
-  notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces.",
-});
-setFamilies(["equipment:function"], {
-  schemaKind: "operational",
-  translationStatus: "mapped",
-  notes: "Heterogeneous browse family split across remediation, support operations, and capability concepts.",
-});
-setFamilies(["equipment:ammunition_payload"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "delivery",
-  primaryFacetValue: "payload",
-  notes: "Payload rows reuse delivery semantics, with targeting specialization overrides.",
-});
-setFamilies(["equipment:carry_logistics", "equipment:communication", "equipment:crafting_support", "equipment:expedition", "equipment:infiltration", "equipment:movement_traversal", "equipment:reconnaissance", "equipment:security"], {
-  schemaKind: "descriptive",
-  translationStatus: "provisional",
-  primaryFacetKind: "capability",
-  primaryFacetValue: "capability",
-});
-
-setFamilies(["hazard:attack_vector", "hazard:environmental_danger", "hazard:forced_position", "hazard:impact", "hazard:perception_control", "hazard:countermeasure_profile"], {
-  schemaKind: "operational",
-  translationStatus: "provisional",
-  notes: "Hazard effect and countermeasure tags.",
-});
-setFamilies(["hazard:function"], {
-  schemaKind: "descriptive",
-  translationStatus: "provisional",
-  primaryFacetKind: "function",
-  primaryFacetValue: "hazard_function",
-});
-setFamilies(["hazard:haunt_manifestation"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "theme", primaryFacetValue: "haunt_manifestation" });
-setFamilies(["hazard:mechanism"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "mechanism",
-  primaryFacetValue: "mechanism",
-});
-setFamilies(["hazard:problem_shape"], {
-  schemaKind: "descriptive",
-  translationStatus: "mapped",
-  primaryFacetKind: "challenge_structure",
-  primaryFacetValue: "challenge_structure",
-});
-setFamilies(["hazard:setting"], { schemaKind: "descriptive", translationStatus: "mapped", primaryFacetKind: "setting", primaryFacetValue: "site" });
-
-setFamilies(["spell:control", "spell:impact", "spell:influence", "spell:summoning", "spell:support", "spell:transformation", "spell:access_bypass", "spell:resolution"], {
-  schemaKind: "operational",
-  translationStatus: "provisional",
-  notes: "Operational spell effects or answer paths.",
-});
-setFamilies(["spell:communication", "spell:consultation", "spell:expedition", "spell:infiltration", "spell:reconnaissance", "spell:security", "spell:sensory_support", "spell:teleportation", "spell:wayfinding"], {
-  schemaKind: "descriptive",
-  translationStatus: "provisional",
-  primaryFacetKind: "capability",
-  primaryFacetValue: "capability",
-});
-setFamilies(["spell:revelation"], {
-  schemaKind: "operational",
-  translationStatus: "provisional",
-  notes: "Discovery-side spell tags normalize as operational discover concepts.",
-});
+export const DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS = new Map<string, DerivedTagFamilyTranslationDefaults>([
+  ["affliction:behavioral_override", { translationStatus: "mapped" }],
+  ["affliction:delivery_profile", { translationStatus: "mapped" }],
+  ["affliction:epidemiological_profile", { translationStatus: "mapped", notes: "Heterogeneous browse family; rows split across response_demand, delivery, and theme." }],
+  ["affliction:impact", { translationStatus: "mapped", notes: "Effect/state descriptors." }],
+  ["affliction:metaphysical_profile", { translationStatus: "mapped", notes: "Effect/state descriptors." }],
+  ["affliction:pathogenesis", { translationStatus: "mapped", notes: "Disease-pattern descriptors." }],
+  ["affliction:physiology_override", { translationStatus: "mapped", notes: "Effect/state descriptors." }],
+  ["affliction:progression_profile", { translationStatus: "mapped" }],
+  ["affliction:resolution_profile", { translationStatus: "mapped", notes: "Answer-path concepts." }],
+  ["affliction:response_profile", { translationStatus: "mapped", notes: "Response-side pressure family with approved operational exceptions." }],
+  ["creature:bound_object", { translationStatus: "mapped" }],
+  ["creature:casting_profile", { translationStatus: "mapped" }],
+  ["creature:cohort_role", { translationStatus: "mapped" }],
+  ["creature:combat_role", { translationStatus: "mapped" }],
+  ["creature:corruption_profile", { translationStatus: "mapped" }],
+  ["creature:genre_motif", { translationStatus: "mapped" }],
+  ["creature:habitat_setting", { translationStatus: "mapped" }],
+  ["creature:ontology_cluster", { translationStatus: "mapped" }],
+  ["creature:planar_setting", { translationStatus: "provisional" }],
+  ["creature:regional_setting", { translationStatus: "mapped", notes: "Approved primary setting shape." }],
+  ["creature:scene_role", { translationStatus: "mapped" }],
+  ["creature:site_setting", { translationStatus: "mapped" }],
+  ["creature:social_role", { translationStatus: "mapped" }],
+  ["creature:story_motif", { translationStatus: "mapped" }],
+  ["creature:threat_profile", { translationStatus: "mapped", notes: "Heterogeneous operational family split row-by-row across application/control/creation/sustain/call/infiltration." }],
+  ["creature:visual_motif", { translationStatus: "mapped" }],
+  ["equipment:access_bypass", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:access_system", { translationStatus: "mapped" }],
+  ["equipment:ammunition_payload", { translationStatus: "mapped", notes: "Payload rows reuse delivery semantics, with targeting specialization overrides." }],
+  ["equipment:anti_magic", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:breaching", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:carry_logistics", { translationStatus: "provisional" }],
+  ["equipment:communication", { translationStatus: "provisional" }],
+  ["equipment:consumable_role", { translationStatus: "mapped" }],
+  ["equipment:crafting_support", { translationStatus: "provisional" }],
+  ["equipment:defense_profile", { translationStatus: "mapped" }],
+  ["equipment:delivery_profile", { translationStatus: "mapped" }],
+  ["equipment:expedition", { translationStatus: "provisional" }],
+  ["equipment:function", { translationStatus: "mapped", notes: "Heterogeneous browse family split across remediation, support operations, and capability concepts." }],
+  ["equipment:impact", { translationStatus: "mapped" }],
+  ["equipment:infiltration", { translationStatus: "provisional" }],
+  ["equipment:movement_traversal", { translationStatus: "provisional" }],
+  ["equipment:offensive_profile", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:party_role", { translationStatus: "mapped" }],
+  ["equipment:play_pattern", { translationStatus: "mapped" }],
+  ["equipment:reconnaissance", { translationStatus: "provisional" }],
+  ["equipment:resolution", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:restraint", { translationStatus: "provisional", notes: "Actionable answer/effect concepts; family-level shape still needs refinement in some spaces." }],
+  ["equipment:security", { translationStatus: "provisional" }],
+  ["hazard:attack_vector", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:countermeasure_profile", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:environmental_danger", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:forced_position", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:function", { translationStatus: "provisional" }],
+  ["hazard:haunt_manifestation", { translationStatus: "mapped" }],
+  ["hazard:impact", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:mechanism", { translationStatus: "mapped" }],
+  ["hazard:perception_control", { translationStatus: "provisional", notes: "Hazard effect and countermeasure tags." }],
+  ["hazard:problem_shape", { translationStatus: "mapped" }],
+  ["hazard:setting", { translationStatus: "mapped" }],
+  ["spell:access_bypass", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:communication", { translationStatus: "provisional" }],
+  ["spell:consultation", { translationStatus: "provisional" }],
+  ["spell:control", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:expedition", { translationStatus: "provisional" }],
+  ["spell:impact", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:infiltration", { translationStatus: "provisional" }],
+  ["spell:influence", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:reconnaissance", { translationStatus: "provisional" }],
+  ["spell:resolution", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:revelation", { translationStatus: "provisional", notes: "Discovery-side spell tags normalize as operational discover concepts." }],
+  ["spell:security", { translationStatus: "provisional" }],
+  ["spell:sensory_support", { translationStatus: "provisional" }],
+  ["spell:summoning", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:support", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:teleportation", { translationStatus: "provisional" }],
+  ["spell:transformation", { translationStatus: "provisional", notes: "Operational spell effects or answer paths." }],
+  ["spell:wayfinding", { translationStatus: "provisional" }],
+]);
 
 export function getDerivedTagFamilyTranslationDefaults(key: string): DerivedTagFamilyTranslationDefaults | undefined {
   return DERIVED_TAG_FAMILY_TRANSLATION_DEFAULTS.get(key);

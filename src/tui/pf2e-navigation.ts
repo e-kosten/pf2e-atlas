@@ -10,14 +10,9 @@ import {
 import { formatDerivedTagWorkbenchModeLabel } from "../tags/editorial-ui.js";
 import type { Pf2eTerminalAppServices } from "./app-services.js";
 import type { OntologyInspectExplorerSnapshot } from "./ontology-explorer/inspect-screen.js";
+import { ROUTE_TRANSITION_VOCABULARY, type RouteTransitionStatus } from "./route-transition-status.js";
 import {
-  ROUTE_TRANSITION_STATUS_KIND,
-  type RouteTransitionStatus,
-} from "./route-transition-status.js";
-import {
-  PF2E_APP_AREA_ID,
-  PF2E_APP_ROUTE_KIND,
-  PF2E_SEARCH_ROUTE_ORIGIN_KIND,
+  PF2E_VOCABULARY,
   canPopPf2eAppRoute,
   createPf2eAppState,
   createPf2eOntologyRoute,
@@ -76,10 +71,16 @@ function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
   return typeof value === "object" && value !== null && "then" in value;
 }
 
-export const PF2E_ONTOLOGY_SEARCH_INTENT_KIND = {
-  EDITOR: "editor",
-  RESULTS: "results",
+export const PF2E_NAVIGATION_VOCABULARY = {
+  ONTOLOGY_SEARCH: {
+    INTENT_KIND: {
+      EDITOR: "editor",
+      RESULTS: "results",
+    },
+  },
 } as const;
+
+export const PF2E_ONTOLOGY_SEARCH_INTENT_KIND = PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND;
 
 export const PF2E_NAVIGATION_MESSAGE = {
   OPENING_SEARCH_SEMANTICS: "Opening Search Semantics...",
@@ -92,12 +93,12 @@ export const PF2E_NAVIGATION_MESSAGE = {
 
 export type Pf2eOntologySearchNavigationIntent =
   | {
-      kind: (typeof PF2E_ONTOLOGY_SEARCH_INTENT_KIND)["EDITOR"];
+      kind: (typeof PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND)["EDITOR"];
       query: OntologyNodeQuery;
       snapshot: OntologyInspectExplorerSnapshot;
     }
   | {
-      kind: (typeof PF2E_ONTOLOGY_SEARCH_INTENT_KIND)["RESULTS"];
+      kind: (typeof PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND)["RESULTS"];
       query: OntologyNodeQuery;
       snapshot: OntologyInspectExplorerSnapshot;
     };
@@ -118,12 +119,12 @@ function buildOntologySearchCommit({
     snapshot: intent.snapshot,
   });
   const origin = {
-    kind: PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY,
+    kind: PF2E_VOCABULARY.SEARCH.ROUTE.ORIGIN_KIND.ONTOLOGY,
     route: preparedOntologyRoute,
   } as const;
 
   const searchRoute =
-    intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+    intent.kind === PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND.RESULTS
       ? createPf2eSearchResultsRoute({
           initialSession: initialSession!,
           origin,
@@ -174,7 +175,7 @@ function buildReviewRouteCommit(session: DerivedTagReviewSession): Pf2eNavigatio
   return {
     kind: "push",
     route: {
-      kind: PF2E_APP_ROUTE_KIND.REVIEW,
+      kind: PF2E_VOCABULARY.ROUTE.KIND.REVIEW,
       session,
     },
   };
@@ -192,7 +193,7 @@ function waitForTransitionStatusPaint(): Promise<void> {
 }
 
 export function usePf2eNavigation({
-  initialRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS },
+  initialRoute = { kind: PF2E_VOCABULARY.ROUTE.KIND.AREAS },
   onExit,
   rootPath,
   services,
@@ -246,7 +247,7 @@ export function usePf2eNavigation({
     }
 
     return {
-      kind: ROUTE_TRANSITION_STATUS_KIND.PENDING,
+      kind: ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING,
       message: transitionMessage,
       frame: transitionFrame,
     };
@@ -381,15 +382,15 @@ export function usePf2eNavigation({
 
   const openArea = React.useCallback(
     (areaId: Pf2eAppAreaId) => {
-      if (areaId === PF2E_APP_AREA_ID.ONTOLOGY_SEARCH) {
+      if (areaId === PF2E_VOCABULARY.AREA.ID.ONTOLOGY_SEARCH) {
         openOntologyBrowser();
         return;
       }
 
       void runRouteTransition({
         prepare: () => {
-          if (areaId === PF2E_APP_AREA_ID.TAG_REFINEMENT) {
-            return { kind: "push", route: { kind: PF2E_APP_ROUTE_KIND.TAG_REFINEMENT } };
+          if (areaId === PF2E_VOCABULARY.AREA.ID.TAG_REFINEMENT) {
+            return { kind: "push", route: { kind: PF2E_VOCABULARY.ROUTE.KIND.TAG_REFINEMENT } };
           }
           return { kind: "push", route: createPf2eSearchEditorRoute() };
         },
@@ -401,20 +402,20 @@ export function usePf2eNavigation({
   const openOntologySearch = React.useCallback(
     (intent: Pf2eOntologySearchNavigationIntent) => {
       const currentRoute = getCurrentPf2eAppRoute(state);
-      if (currentRoute.kind !== PF2E_APP_ROUTE_KIND.ONTOLOGY) {
+      if (currentRoute.kind !== PF2E_VOCABULARY.ROUTE.KIND.ONTOLOGY) {
         return;
       }
 
       void runRouteTransition({
         message:
-          intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+          intent.kind === PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND.RESULTS
             ? getOntologyResultLoadingMessage(intent.query)
             : undefined,
         prepare: async () => {
           return buildOntologySearchCommit({
             ontologyRoute: currentRoute,
             intent,
-            ...(intent.kind === PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS
+            ...(intent.kind === PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND.RESULTS
               ? {
                   initialSession: await services.user.search.executeQuery(
                     services.user.search.createQueryFromOntologyQuery(intent.query),
@@ -434,7 +435,7 @@ export function usePf2eNavigation({
   const openOntologySearchEditor = React.useCallback(
     (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => {
       openOntologySearch({
-        kind: PF2E_ONTOLOGY_SEARCH_INTENT_KIND.EDITOR,
+        kind: PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND.EDITOR,
         query,
         snapshot,
       });
@@ -445,7 +446,7 @@ export function usePf2eNavigation({
   const openOntologySearchResults = React.useCallback(
     (query: OntologyNodeQuery, snapshot: OntologyInspectExplorerSnapshot) => {
       openOntologySearch({
-        kind: PF2E_ONTOLOGY_SEARCH_INTENT_KIND.RESULTS,
+        kind: PF2E_NAVIGATION_VOCABULARY.ONTOLOGY_SEARCH.INTENT_KIND.RESULTS,
         query,
         snapshot,
       });
@@ -456,7 +457,7 @@ export function usePf2eNavigation({
   const openSearchResults = React.useCallback(
     (query: SearchRequest) => {
       const currentRoute = getCurrentPf2eAppRoute(state);
-      const origin = currentRoute.kind === PF2E_APP_ROUTE_KIND.SEARCH ? currentRoute.origin : undefined;
+      const origin = currentRoute.kind === PF2E_VOCABULARY.ROUTE.KIND.SEARCH ? currentRoute.origin : undefined;
 
       void runRouteTransition({
         message: PF2E_NAVIGATION_MESSAGE.OPENING_SEARCH_RESULTS,
@@ -543,7 +544,7 @@ export function usePf2eNavigation({
       dispatch({
         type: "push_route",
         route: {
-          kind: PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE,
+          kind: PF2E_VOCABULARY.ROUTE.KIND.TRANSLATION_QUEUE,
           ...(options?.initialCategory ? { initialCategory: options.initialCategory } : {}),
           initialStatus: options?.initialStatus ?? "provisional",
         },
@@ -556,9 +557,9 @@ export function usePf2eNavigation({
     (searchRoute: Extract<Pf2eAppRoute, { kind: "search" }>) => {
       void runRouteTransition({
         prepare: () => {
-          if (searchRoute.origin?.kind === PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY) {
+          if (searchRoute.origin?.kind === PF2E_VOCABULARY.SEARCH.ROUTE.ORIGIN_KIND.ONTOLOGY) {
             const previousRoute = state.routeStack[state.routeStack.length - 2];
-            if (previousRoute?.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY) {
+            if (previousRoute?.kind === PF2E_VOCABULARY.ROUTE.KIND.ONTOLOGY) {
               return { kind: "pop" };
             }
             return { kind: "replace", route: searchRoute.origin.route };

@@ -16,6 +16,7 @@ import {
 import type { NormalizedSearchFilters } from "../search/contracts.js";
 import { buildPlaceholders, CandidateRow, ReferenceEdgeRow, sqliteRowCount } from "./rows.js";
 import type { LexicalRetrievalRow, SemanticRetrievalRow } from "../search/ranking.js";
+import { SEARCH_VOCABULARY } from "../domain/search-types.js";
 import type { SearchSort } from "../domain/search-types.js";
 import { normalizeText } from "../shared/utils.js";
 
@@ -79,7 +80,7 @@ export function fetchCandidateCount(
 export function fetchCandidateRecordKeys(
   db: DatabaseSync,
   filters: NormalizedSearchFilters,
-  sort?: Exclude<SearchSort, "ranked" | "random">,
+  sort?: Exclude<SearchSort, typeof SEARCH_VOCABULARY.SORT_KIND.RANKED | typeof SEARCH_VOCABULARY.SORT_KIND.RANDOM>,
   options: { recordKeys?: string[] } = {},
 ): string[] {
   const { sql, params } = buildCandidateKeyQuery(filters, sort, options);

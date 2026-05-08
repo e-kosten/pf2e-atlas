@@ -3,6 +3,7 @@ import { inferActorMetricValueType } from "../../domain/actor-metrics.js";
 import { inferItemMetricValueType } from "../../domain/item-metrics.js";
 import { getMetricQueryFieldLabel } from "../../domain/metric-discovery-group-label.js";
 import { formatMetadataFieldLabel, humanizeOntologySearchIdentifier } from "../../domain/presentation-vocabulary.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import type { SearchCategory } from "../../domain/search-types.js";
 
 export type SearchFilterPresentationAliasStyle = "compact" | "tree";
@@ -556,7 +557,7 @@ function formatSearchNullableMatch(match: Extract<SearchFilterNode, { kind: "rar
       return humanizeOntologySearchIdentifier(String(match.value));
     case "in":
       return match.values.map((value) => humanizeOntologySearchIdentifier(value)).join(", ");
-    case "notIn":
+    case SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND.NOT_IN:
       return `not ${match.values.map((value) => humanizeOntologySearchIdentifier(value)).join(", ")}`;
     case "gt":
       return `> ${match.value}`;

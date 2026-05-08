@@ -57,13 +57,10 @@ function renderFamilyDefaultsFile(
     .join("\n");
 
   return [
-    'import type { DerivedTagConceptSchemaKind, DerivedTagTranslationStatus } from "../../domain/derived-tag-types.js";',
+    'import type { DerivedTagTranslationStatus } from "../../domain/derived-tag-types.js";',
     "",
     "export type DerivedTagFamilyTranslationDefaults = {",
-    "  schemaKind: DerivedTagConceptSchemaKind;",
     "  translationStatus: DerivedTagTranslationStatus;",
-    "  primaryFacetKind?: string;",
-    "  primaryFacetValue?: string;",
     "  notes?: string;",
     "};",
     "",

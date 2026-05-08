@@ -9,13 +9,13 @@ import type { PageReferenceEdge } from "../domain/page-relations-types.js";
 import type { RuleReferenceEdge } from "../domain/rule-types.js";
 import type { ActorMetricMap } from "../domain/actor-metrics.js";
 import type { ItemMetricMap } from "../domain/item-metrics.js";
-import {
-  categorySupportsSubcategory,
-  normalizeSearchCategory,
-  normalizeSearchSubcategory,
-} from "../domain/categories.js";
 import { METADATA_ROW_PROJECTIONS } from "./metadata-row-projection.js";
-import { normalizeText } from "../shared/utils.js";
+import {
+  parseSearchCategoryValue,
+  parseSearchSubcategoryForCategory,
+  parseSourceCategoryValue,
+  parseVariantSourceValue,
+} from "./sql-row-decoding.js";
 
 export type CandidateRow = {
   recordKey: string;
@@ -219,70 +219,6 @@ function parseMetricsJson(
   return metrics;
 }
 
-function parseCategory(category: string, recordKey: string): SearchCategory {
-  const normalized = normalizeSearchCategory(category);
-  if (!normalized) {
-    throw new Error(`Invalid row category "${category}" for "${recordKey}".`);
-  }
-
-  return normalized;
-}
-
-function parseSubcategory(
-  category: SearchCategory,
-  subcategory: string | null,
-  recordKey: string,
-): SearchSubcategory | null {
-  if (!subcategory) {
-    return null;
-  }
-
-  const normalized = normalizeSearchSubcategory(subcategory);
-  if (!normalized) {
-    throw new Error(`Invalid row subcategory "${subcategory}" for "${recordKey}".`);
-  }
-  if (!categorySupportsSubcategory(category, normalized)) {
-    throw new Error(`Invalid row subcategory "${subcategory}" for ${category} record "${recordKey}".`);
-  }
-
-  return normalized;
-}
-
-function parseSourceCategory(sourceCategory: string, recordKey: string): SourceCategory {
-  switch (normalizeText(sourceCategory)) {
-    case "core":
-      return "core";
-    case "rules":
-      return "rules";
-    case "adventure":
-      return "adventure";
-    case "unknown":
-      return "unknown";
-    default:
-      throw new Error(`Invalid row source category "${sourceCategory}" for "${recordKey}".`);
-  }
-}
-
-function parseVariantSource(variantSource: string | null | undefined, recordKey: string): VariantSource {
-  const resolved = variantSource ?? "none";
-  switch (resolved) {
-    case "baseItem":
-      return "baseItem";
-    case "slug":
-      return "slug";
-    case "namePattern":
-      return "namePattern";
-    case "sourcePath":
-      return "sourcePath";
-    case "composite":
-      return "composite";
-    case "none":
-      return "none";
-    default:
-      throw new Error(`Invalid row variant source "${resolved}" for "${recordKey}".`);
-  }
-}
-
 function parseRawRecordJson(rawJson: string | null | undefined, recordKey: string): Record<string, unknown> {
   if (!rawJson) {
     return {};
@@ -324,9 +260,29 @@ function extractMetadataValuesFromRow(row: CandidateRow): Partial<NormalizedReco
 }
 
 export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | null = null): NormalizedRecord {
-  const category = parseCategory(row.category, row.recordKey);
+  const category = parseSearchCategoryValue(row.category, row.recordKey);
   const resolvedRaw = raw ?? parseRawRecordJson(row.rawJson, row.recordKey);
   const metadata = extractMetadataValuesFromRow(row);
+  const subcategory = (() => {
+    try {
+      return parseSearchSubcategoryForCategory(category, row.subcategory, row.recordKey);
+    } catch (error) {
+      if (row.subcategory) {
+        throw new Error(`Invalid row subcategory "${row.subcategory}" for ${category} record`);
+      }
+      throw error;
+    }
+  })();
+  const variantSource = (() => {
+    try {
+      return parseVariantSourceValue(row.variantSource, row.recordKey);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(error.message.replace("Invalid variant source", "Invalid row variant source"));
+      }
+      throw error;
+    }
+  })();
   return {
     recordKey: row.recordKey,
     id: row.id,
@@ -334,7 +290,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     normalizedName: row.normalizedName,
     type: row.type,
     category,
-    subcategory: parseSubcategory(category, row.subcategory, row.recordKey),
+    subcategory,
     packName: row.packName,
     packLabel: row.packLabel,
     documentType: row.documentType,
@@ -343,7 +299,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
     descriptionSnippet: row.descriptionSnippet,
     folderId: row.folderId,
     variantConfidence: row.variantConfidence,
-    variantSource: parseVariantSource(row.variantSource, row.recordKey),
+    variantSource,
     sourcePath: row.sourcePath,
     ...metadata,
     isUnique: Boolean(row.isUnique),
@@ -373,7 +329,7 @@ export function edgeRowToReferenceEdge(
     sourcePackName: row.fromPackName,
     sourceRecordType: row.fromRecordType,
     sourceDocumentType: row.fromDocumentType,
-    sourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
+    sourceCategory: parseSourceCategoryValue(row.fromSourceCategory, row.fromRecordKey),
   };
 }
 
@@ -391,7 +347,7 @@ export function edgeRowToPageReferenceEdge(
     sourcePackName: row.fromPackName,
     sourceRecordType: row.fromRecordType,
     sourceDocumentType: row.fromDocumentType,
-    sourceCategory: parseSourceCategory(row.fromSourceCategory, row.fromRecordKey),
+    sourceCategory: parseSourceCategoryValue(row.fromSourceCategory, row.fromRecordKey),
   };
 }
 

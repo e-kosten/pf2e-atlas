@@ -57,9 +57,9 @@ function renderTranslationOverrideFile(
     .join("\n");
 
   return [
-    'import type { DerivedTagTranslationRecord } from "../../domain/derived-tag-types.js";',
+    'import type { DerivedTagTranslationMapping } from "../../domain/derived-tag-types.js";',
     "",
-    "export type DerivedTagTranslationOverride = Partial<DerivedTagTranslationRecord>;",
+    'export type DerivedTagTranslationOverride = Partial<Pick<DerivedTagTranslationMapping, "targetProjectionId" | "translationStatus" | "renameNote" | "notes">>;',
     "",
     "export const DERIVED_TAG_TRANSLATION_OVERRIDES = new Map<string, DerivedTagTranslationOverride>([",
     renderedEntries,
@@ -81,4 +81,3 @@ export async function writeDerivedTagTranslationOverrides(
   await writeFile(outputPath, renderTranslationOverrideFile(overrides), "utf8");
   setCurrentDerivedTagTranslationOverrides(overrides);
 }
-

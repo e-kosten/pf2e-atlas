@@ -25,7 +25,7 @@ import {
   type TerminalInteractionContextRoute,
 } from "./interaction-context-router.js";
 import {
-  ROUTE_TRANSITION_STATUS_KIND,
+  ROUTE_TRANSITION_VOCABULARY,
   appendRouteTransitionFooterLine,
   getRouteTransitionFooterLineCount,
   type RouteTransitionStatus,
@@ -412,7 +412,7 @@ export function useTerminalListDetailInteractionRouter(options: {
         : []),
     ],
     onRoute: (routes) => {
-      if (options.transitionStatus?.kind === ROUTE_TRANSITION_STATUS_KIND.PENDING) {
+      if (options.transitionStatus?.kind === ROUTE_TRANSITION_VOCABULARY.STATUS.KIND.PENDING) {
         return;
       }
 

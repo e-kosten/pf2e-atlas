@@ -3,6 +3,7 @@ import { formatOntologySearchVocabularyLabel } from "../../domain/presentation-v
 import type { MetadataSetField } from "../../domain/metadata-field-types.js";
 import type { PageRelationsResult } from "../../domain/page-relations-types.js";
 import type { RecordKey } from "../../domain/record-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../domain/search-request-types.js";
 import { buildAllOfFilter, buildScopeFilter, type SearchRequest } from "../../domain/search-request-types.js";
 import { buildAonSearchLink } from "../external-links/aon-search.js";
 import type { OntologyExplorerEntityRecord } from "./entity-record.js";
@@ -116,9 +117,9 @@ function buildIdentityLine(record: OntologyExplorerEntityRecord): string {
 
 function buildBrowseRequest(filter: SearchRequest["filter"]): SearchRequest {
   return {
-    mode: "browse",
+    mode: SEARCH_REQUEST_VOCABULARY.MODE.BROWSE,
     filter,
-    sort: { kind: "alphabetical" },
+    sort: { kind: SEARCH_REQUEST_VOCABULARY.SORT_KIND.ALPHABETICAL },
     limit: 50,
   };
 }
@@ -131,7 +132,10 @@ function buildPackTarget(record: OntologyExplorerEntityRecord): EntityPageTarget
   return {
     kind: "searchPivot",
     label: `Pack: ${packName}`,
-    request: buildBrowseRequest({ kind: "pack", value: packName }),
+    request: buildBrowseRequest({
+      kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.PACK,
+      value: packName,
+    }),
   };
 }
 
@@ -194,7 +198,7 @@ function buildMetadataPivotTarget(
       buildAllOfFilter([
         buildScopeFilter(record.category),
         {
-          kind: "metadataPredicate",
+          kind: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE,
           predicate: { field: spec.field, op: "includes", value },
         },
       ]),
@@ -521,6 +525,18 @@ function buildFallbackRecipeSections(context: EntityPageRecipeBuildContext): voi
   push(createDetailsSection(context));
 }
 
+const ENTITY_PAGE_RECIPE_SECTION_BUILDERS: Record<
+  EntityPageRecipeKind,
+  (context: EntityPageRecipeBuildContext) => void
+> = {
+  spell: buildSpellRecipeSections,
+  creature: buildCreatureRecipeSections,
+  equipment: buildEquipmentRecipeSections,
+  featAction: buildFeatActionRecipeSections,
+  hazard: buildHazardRecipeSections,
+  fallback: buildFallbackRecipeSections,
+};
+
 function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<string>): EntityPageSection[] {
   const sections: EntityPageSection[] = [];
   const consumedFactKeys = new Set<string>();
@@ -535,27 +551,8 @@ function buildRecipeSections(input: PreparedEntityPageInput, seenFacts: Set<stri
     seenFacts,
     push,
   };
-
-  switch (input.recipe) {
-    case "spell":
-      buildSpellRecipeSections(context);
-      break;
-    case "creature":
-      buildCreatureRecipeSections(context);
-      break;
-    case "equipment":
-      buildEquipmentRecipeSections(context);
-      break;
-    case "featAction":
-      buildFeatActionRecipeSections(context);
-      break;
-    case "hazard":
-      buildHazardRecipeSections(context);
-      break;
-    case "fallback":
-      buildFallbackRecipeSections(context);
-      break;
-  }
+  const buildRecipeSectionsForRecord = ENTITY_PAGE_RECIPE_SECTION_BUILDERS[input.recipe];
+  buildRecipeSectionsForRecord(context);
 
   push(createTargetSection("references", "references", "References", input.references));
   push(createTargetSection("backlinks", "backlinks", "Referenced By", input.referencedBy));

@@ -724,7 +724,6 @@ describe("derived tag ontology", () => {
     ).toEqual(
       matcherObjectContaining({
         translationStatus: "dropped",
-        publishTag: false,
       }),
     );
     expect(

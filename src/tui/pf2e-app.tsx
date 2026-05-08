@@ -8,9 +8,7 @@ import { PF2E_APP_AREAS, PF2E_TERMINAL_TITLE } from "./app-areas.js";
 import { Pf2eTerminalAppServicesProvider } from "./app-service-context.js";
 import { loadPf2eTerminalAppServices, type Pf2eTerminalAppServices } from "./app-services.js";
 import {
-  PF2E_APP_ROUTE_KIND,
-  PF2E_SEARCH_ROUTE_ENTRY_KIND,
-  PF2E_SEARCH_ROUTE_ORIGIN_KIND,
+  PF2E_VOCABULARY,
   type Pf2eAppRoute,
 } from "./pf2e-app-state.js";
 import { AreaMenuScreen } from "./area-menu-screen.js";
@@ -18,7 +16,7 @@ import { EntityPageScreen } from "./entity-page-screen.js";
 import {
   OntologyInspectScreen,
 } from "./ontology-explorer/inspect-screen.js";
-import { FILTER_EXPLORER_LAUNCH_INTENT, type FilterExplorerSelectTargetOutcome } from "./filter-explorer/index.js";
+import { FILTER_EXPLORER_VOCABULARY, type FilterExplorerSelectTargetOutcome } from "./filter-explorer/index.js";
 import { SearchScreen } from "./search-screen/screen.js";
 import { TerminalBusyScreen, TerminalMessageScreen } from "./shared-screens.js";
 import { createTerminalInteractionContextAdapters } from "./interaction-context-adapters.js";
@@ -42,7 +40,7 @@ function StartupErrorScreen({ message, onExit }: { message: string; onExit: () =
 export function Pf2eTerminalApp({
   rootPath,
   onExit,
-  initialRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS } satisfies Pf2eAppRoute,
+  initialRoute = { kind: PF2E_VOCABULARY.ROUTE.KIND.AREAS } satisfies Pf2eAppRoute,
   services,
 }: {
   rootPath: string;
@@ -92,7 +90,7 @@ export function Pf2eTerminalApp({
       snapshot: Parameters<typeof navigation.openOntologySearchEditor>[1],
     ) => {
       const intent = outcome.queryIntent;
-      if (intent.launchIntent === FILTER_EXPLORER_LAUNCH_INTENT.RESULTS) {
+      if (intent.launchIntent === FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT.RESULTS) {
         navigation.openOntologySearchResults(intent.query, snapshot);
         return;
       }
@@ -165,7 +163,7 @@ export function Pf2eTerminalApp({
   );
 
   let screen: React.JSX.Element;
-  if (route.kind === PF2E_APP_ROUTE_KIND.ONTOLOGY) {
+  if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.ONTOLOGY) {
     screen = (
       <OntologyInspectScreen
         routeData={{
@@ -180,7 +178,7 @@ export function Pf2eTerminalApp({
         transitionStatus={transitionStatus}
       />
     );
-  } else if (route.kind === PF2E_APP_ROUTE_KIND.REVIEW) {
+  } else if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.REVIEW) {
     screen = (
       <DerivedTagReviewScreen
         rootPath={rootPath}
@@ -188,7 +186,7 @@ export function Pf2eTerminalApp({
         onComplete={navigation.backOrExit}
       />
     );
-  } else if (route.kind === PF2E_APP_ROUTE_KIND.TRANSLATION_QUEUE) {
+  } else if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.TRANSLATION_QUEUE) {
     screen = (
       <DerivedTagTranslationQueueScreen
         items={translationQueueItems}
@@ -199,7 +197,7 @@ export function Pf2eTerminalApp({
         transitionStatus={transitionStatus}
       />
     );
-  } else if (route.kind === PF2E_APP_ROUTE_KIND.PAGE) {
+  } else if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.PAGE) {
     screen = (
       <EntityPageScreen
         document={route.document}
@@ -208,10 +206,10 @@ export function Pf2eTerminalApp({
         transitionStatus={transitionStatus}
       />
     );
-  } else if (route.kind === PF2E_APP_ROUTE_KIND.SEARCH) {
-    const origin = route.origin?.kind === PF2E_SEARCH_ROUTE_ORIGIN_KIND.ONTOLOGY ? "ontology" : "app";
+  } else if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.SEARCH) {
+    const origin = route.origin?.kind === PF2E_VOCABULARY.SEARCH.ROUTE.ORIGIN_KIND.ONTOLOGY ? "ontology" : "app";
     screen =
-      route.entry === PF2E_SEARCH_ROUTE_ENTRY_KIND.RESULTS ? (
+      route.entry === PF2E_VOCABULARY.SEARCH.ROUTE.ENTRY_KIND.RESULTS ? (
         <SearchScreen
           key={`results:${route.initialSession.windowId}`}
           entry="results"
@@ -232,7 +230,7 @@ export function Pf2eTerminalApp({
           onBack={() => navigation.returnFromSearch(route)}
         />
       );
-  } else if (route.kind === PF2E_APP_ROUTE_KIND.TAG_REFINEMENT) {
+  } else if (route.kind === PF2E_VOCABULARY.ROUTE.KIND.TAG_REFINEMENT) {
     screen = (
       <TagRefinementMenuScreen
         selectedIndex={state.tagRefinementSelectedIndex}
@@ -274,7 +272,7 @@ export function Pf2eTerminalBootstrap({
   rootPath,
   argv,
   onExit,
-  initialRoute = { kind: PF2E_APP_ROUTE_KIND.AREAS } satisfies Pf2eAppRoute,
+  initialRoute = { kind: PF2E_VOCABULARY.ROUTE.KIND.AREAS } satisfies Pf2eAppRoute,
   loadServices = loadPf2eTerminalAppServices,
 }: {
   rootPath: string;

@@ -6,6 +6,7 @@ import type {
   SearchSort,
   SearchSubcategory,
 } from "../domain/search-types.js";
+import { SEARCH_VOCABULARY } from "../domain/search-types.js";
 import type { NormalizedRecord } from "../domain/record-types.js";
 import type { RecordKey } from "../domain/record-types.js";
 import type { RankingConfig } from "./ranking-config.js";
@@ -13,47 +14,63 @@ import type { LexicalRetrievalRow, SemanticRetrievalRow } from "./ranking.js";
 import type { MetadataAtomicPredicate } from "../domain/search-filter-metadata.js";
 import type { MetricOperator, NumericMetricOperator } from "../domain/search-filter-operators.js";
 import type { SearchTraceSink } from "./trace.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../domain/search-request-types.js";
+
+export const SEARCH_EXECUTION_VOCABULARY = {
+  PROFILE: SEARCH_VOCABULARY.PROFILE,
+  SORT_KIND: SEARCH_VOCABULARY.SORT_KIND,
+  MODE: SEARCH_VOCABULARY.MODE,
+  FILTER_NODE_KIND: SEARCH_REQUEST_VOCABULARY.FILTER_NODE_KIND,
+  SCOPE_SUBCATEGORY_MATCH_KIND: SEARCH_REQUEST_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND,
+  FILTER_MATCH_KIND: SEARCH_REQUEST_VOCABULARY.FILTER_MATCH_KIND,
+} as const;
+
+type SearchExecutionFilterNodeKind = typeof SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND;
+type SearchExecutionScopeSubcategoryMatchKind = typeof SEARCH_EXECUTION_VOCABULARY.SCOPE_SUBCATEGORY_MATCH_KIND;
+type SearchExecutionFilterMatchKind = typeof SEARCH_EXECUTION_VOCABULARY.FILTER_MATCH_KIND;
 
 export type SearchExecutionScopeSubcategoryMatch =
-  | { kind: "any" }
-  | { kind: "eq"; value: SearchSubcategory }
-  | { kind: "isNull" }
-  | { kind: "isNotNull" };
+  | { kind: SearchExecutionScopeSubcategoryMatchKind["ANY"] }
+  | { kind: SearchExecutionScopeSubcategoryMatchKind["EQ"]; value: SearchSubcategory }
+  | { kind: SearchExecutionScopeSubcategoryMatchKind["IS_NULL"] }
+  | { kind: SearchExecutionScopeSubcategoryMatchKind["IS_NOT_NULL"] };
 
 export type SearchExecutionNumericMatch =
-  | { kind: "eq"; value: number }
-  | { kind: "gt"; value: number }
-  | { kind: "gte"; value: number }
-  | { kind: "lt"; value: number }
-  | { kind: "lte"; value: number }
-  | { kind: "between"; min: number; max: number };
+  | { kind: SearchExecutionFilterMatchKind["EQ"]; value: number }
+  | { kind: SearchExecutionFilterMatchKind["GT"]; value: number }
+  | { kind: SearchExecutionFilterMatchKind["GTE"]; value: number }
+  | { kind: SearchExecutionFilterMatchKind["LT"]; value: number }
+  | { kind: SearchExecutionFilterMatchKind["LTE"]; value: number }
+  | { kind: SearchExecutionFilterMatchKind["BETWEEN"]; min: number; max: number };
 
-export type SearchExecutionNullableNumericMatch = SearchExecutionNumericMatch | { kind: "isNull" | "isNotNull" };
+export type SearchExecutionNullableNumericMatch =
+  | SearchExecutionNumericMatch
+  | { kind: SearchExecutionFilterMatchKind["IS_NULL"] | SearchExecutionFilterMatchKind["IS_NOT_NULL"] };
 export type SearchExecutionNullableStringMatch =
-  | { kind: "eq"; value: string }
-  | { kind: "in"; values: string[] }
-  | { kind: "notIn"; values: string[] }
-  | { kind: "isNull" | "isNotNull" };
+  | { kind: SearchExecutionFilterMatchKind["EQ"]; value: string }
+  | { kind: SearchExecutionFilterMatchKind["IN"]; values: string[] }
+  | { kind: SearchExecutionFilterMatchKind["NOT_IN"]; values: string[] }
+  | { kind: SearchExecutionFilterMatchKind["IS_NULL"] | SearchExecutionFilterMatchKind["IS_NOT_NULL"] };
 
 export type SearchExecutionFilterNode =
-  | { kind: "pack"; value: string }
+  | { kind: SearchExecutionFilterNodeKind["PACK"]; value: string }
   | {
-      kind: "scope";
+      kind: SearchExecutionFilterNodeKind["SCOPE"];
       category: SearchCategory;
       subcategory: SearchExecutionScopeSubcategoryMatch;
     }
-  | { kind: "level"; match: SearchExecutionNumericMatch }
-  | { kind: "price"; match: SearchExecutionNumericMatch }
-  | { kind: "rarity"; match: SearchExecutionNullableStringMatch }
-  | { kind: "actionCost"; match: SearchExecutionNullableNumericMatch }
-  | { kind: "linksTo"; target: RecordKey }
-  | { kind: "linkedFrom"; source: RecordKey }
-  | { kind: "metadataPredicate"; predicate: MetadataAtomicPredicate }
-  | { kind: "metric"; metric: string; op: MetricOperator; value: string | number | boolean }
-  | { kind: "metricCompare"; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
-  | { kind: "anyOf"; children: SearchExecutionFilterNode[] }
-  | { kind: "allOf"; children: SearchExecutionFilterNode[] }
-  | { kind: "not"; child: SearchExecutionFilterNode };
+  | { kind: SearchExecutionFilterNodeKind["LEVEL"]; match: SearchExecutionNumericMatch }
+  | { kind: SearchExecutionFilterNodeKind["PRICE"]; match: SearchExecutionNumericMatch }
+  | { kind: SearchExecutionFilterNodeKind["RARITY"]; match: SearchExecutionNullableStringMatch }
+  | { kind: SearchExecutionFilterNodeKind["ACTION_COST"]; match: SearchExecutionNullableNumericMatch }
+  | { kind: SearchExecutionFilterNodeKind["LINKS_TO"]; target: RecordKey }
+  | { kind: SearchExecutionFilterNodeKind["LINKED_FROM"]; source: RecordKey }
+  | { kind: SearchExecutionFilterNodeKind["METADATA_PREDICATE"]; predicate: MetadataAtomicPredicate }
+  | { kind: SearchExecutionFilterNodeKind["METRIC"]; metric: string; op: MetricOperator; value: string | number | boolean }
+  | { kind: SearchExecutionFilterNodeKind["METRIC_COMPARE"]; leftMetric: string; op: NumericMetricOperator; rightMetric: string }
+  | { kind: SearchExecutionFilterNodeKind["ANY_OF"]; children: SearchExecutionFilterNode[] }
+  | { kind: SearchExecutionFilterNodeKind["ALL_OF"]; children: SearchExecutionFilterNode[] }
+  | { kind: SearchExecutionFilterNodeKind["NOT"]; child: SearchExecutionFilterNode };
 
 export interface SearchExecutionFilters {
   searchProfile?: SearchProfile;

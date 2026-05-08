@@ -1,4 +1,5 @@
 import type { SearchRequest } from "../../domain/search-request-types.js";
+import type { NumericOperator } from "../../domain/search-filter-operators.js";
 import type { EntityPageTarget } from "../../app/ontology/entity-page.js";
 import type {
   OntologyChildPresentation,
@@ -21,10 +22,8 @@ import type { RouteTransitionStatus } from "../route-transition-status.js";
 import type { TerminalListDetailNotification } from "../list-detail-presentation.js";
 import type { Pf2eTerminalDebugTraceService, TerminalDebugTraceSnapshot } from "../debug-trace.js";
 
-export type FilterExplorerModeKind = "inspect-and-open" | "compose";
 export type FilterExplorerLineTone = DerivedTagTerminalTone;
 export type FilterExplorerDomainId = string;
-export type FilterExplorerActivationStyle = "open" | "toggle" | "edit" | "none";
 
 export type FilterExplorerModeSwitchOption<TMode extends string = string> = {
   readonly value: TMode;
@@ -44,8 +43,6 @@ export type FilterExplorerDiscoveryState<TMode extends string = string> = {
   readonly onModeChange?: FilterExplorerModeChangeHandler<TMode>;
 };
 
-export type FilterExplorerValueSortMode = "semantic" | "frequency";
-
 export type FilterExplorerValueSortState = {
   readonly mode: FilterExplorerValueSortMode;
   readonly supportsFrequency: boolean | ((nodes: readonly FilterExplorerNode[]) => boolean);
@@ -59,13 +56,55 @@ export type FilterExplorerQueryTarget = {
   readonly request: Readonly<SearchRequest>;
 };
 
-export const FILTER_EXPLORER_LAUNCH_INTENT = {
-  EDITOR: "editor",
-  RESULTS: "results",
+export const FILTER_EXPLORER_VOCABULARY = {
+  MODE_KIND: {
+    INSPECT_AND_OPEN: "inspect-and-open",
+    COMPOSE: "compose",
+  },
+  ACTIVATION_STYLE: {
+    OPEN: "open",
+    TOGGLE: "toggle",
+    EDIT: "edit",
+    NONE: "none",
+  },
+  VALUE_SORT_MODE: {
+    SEMANTIC: "semantic",
+    FREQUENCY: "frequency",
+  },
+  BROWSER_ACTIVE_PANE: {
+    LIST: "list",
+    DETAIL: "detail",
+  },
+  DETAIL_TARGET_ACTION_ID: {
+    OPEN: "open",
+    PREVIEW: "preview",
+  },
+  DETAIL_PAGE_INTERACTION_KIND: {
+    NONE: "none",
+    SECTION: "section",
+    TARGET: "target",
+  },
+  LAUNCH: {
+    INTENT: {
+      EDITOR: "editor",
+      RESULTS: "results",
+    },
+  },
+  DISCRETE_CLAUSE_OPERATOR: {
+    INCLUDE: "include",
+    EXCLUDE: "exclude",
+  },
 } as const;
 
+export type FilterExplorerActivationStyle =
+  (typeof FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE)[keyof typeof FILTER_EXPLORER_VOCABULARY.ACTIVATION_STYLE];
+export type FilterExplorerValueSortMode =
+  (typeof FILTER_EXPLORER_VOCABULARY.VALUE_SORT_MODE)[keyof typeof FILTER_EXPLORER_VOCABULARY.VALUE_SORT_MODE];
+export type FilterExplorerModeKind =
+  (typeof FILTER_EXPLORER_VOCABULARY.MODE_KIND)[keyof typeof FILTER_EXPLORER_VOCABULARY.MODE_KIND];
+
 export type FilterExplorerLaunchIntent =
-  (typeof FILTER_EXPLORER_LAUNCH_INTENT)[keyof typeof FILTER_EXPLORER_LAUNCH_INTENT];
+  (typeof FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT)[keyof typeof FILTER_EXPLORER_VOCABULARY.LAUNCH.INTENT];
 
 export type FilterExplorerQueryOpenIntent = {
   readonly query: FilterExplorerQueryTarget;
@@ -159,7 +198,7 @@ export type FilterExplorerBrowserState = {
 export type FilterExplorerMaterializedChildren = ReadonlyMap<string, readonly FilterExplorerNode[]>;
 
 export type FilterExplorerBrowserUiState = {
-  activePane: "list" | "detail";
+  activePane: (typeof FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE)[keyof typeof FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE];
   browserState: FilterExplorerBrowserState;
   loadingChildNodeId?: string;
   materializedChildrenByNodeId: FilterExplorerMaterializedChildren;
@@ -200,11 +239,12 @@ export type FilterExplorerBrowserContext = {
   focusedPageSection?: PageDocumentSectionModel | null;
   selectedPageTarget?: PageDocumentTargetNode | null;
   detailInteractionState: FilterExplorerDetailPageInteractionState;
-  detailTargetActionId?: "open" | "preview" | null;
+  detailTargetActionId?: (typeof FILTER_EXPLORER_VOCABULARY.DETAIL_TARGET_ACTION_ID)[keyof typeof FILTER_EXPLORER_VOCABULARY.DETAIL_TARGET_ACTION_ID] | null;
 };
 
-export type FilterExplorerScalarOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "between";
-export type FilterExplorerDiscreteClauseOperator = "include" | "exclude";
+export type FilterExplorerScalarOperator = NumericOperator;
+export type FilterExplorerDiscreteClauseOperator =
+  (typeof FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR)[keyof typeof FILTER_EXPLORER_VOCABULARY.DISCRETE_CLAUSE_OPERATOR];
 
 export type FilterExplorerDiscreteClause = {
   field: string;
@@ -267,17 +307,17 @@ export type FilterExplorerInspectResult = {
 };
 
 export type FilterExplorerDetailPageInteractionState =
-  | { kind: "none" }
+  | { kind: (typeof FILTER_EXPLORER_VOCABULARY.DETAIL_PAGE_INTERACTION_KIND)["NONE"] }
   | {
-      kind: "section";
+      kind: (typeof FILTER_EXPLORER_VOCABULARY.DETAIL_PAGE_INTERACTION_KIND)["SECTION"];
       canEnterTargets: boolean;
     }
   | {
-      kind: "target";
+      kind: (typeof FILTER_EXPLORER_VOCABULARY.DETAIL_PAGE_INTERACTION_KIND)["TARGET"];
     };
 
 export type FilterExplorerInspectAndOpenMode = {
-  kind: "inspect-and-open";
+  kind: (typeof FILTER_EXPLORER_VOCABULARY.MODE_KIND)["INSPECT_AND_OPEN"];
   onEditScalarTarget?: (
     request: FilterExplorerScalarEditRequest,
   ) => Promise<FilterExplorerScalarClause | null | undefined> | FilterExplorerScalarClause | null | undefined;
@@ -285,7 +325,7 @@ export type FilterExplorerInspectAndOpenMode = {
 };
 
 export type FilterExplorerComposeMode = {
-  kind: "compose";
+  kind: (typeof FILTER_EXPLORER_VOCABULARY.MODE_KIND)["COMPOSE"];
   draft?: FilterExplorerComposeDraft;
   initialDraft?: FilterExplorerComposeDraft;
   onDraftChange?: (draft: FilterExplorerComposeDraft) => void;

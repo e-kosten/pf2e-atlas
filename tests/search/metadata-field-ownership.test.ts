@@ -59,7 +59,7 @@ describe("metadata field ownership", () => {
 
   it("keeps SQLite FTS syntax out of search modules", () => {
     const searchFiles = listFiles(path.join(REPO_ROOT, "src/search")).filter((file) => file.endsWith(".ts"));
-    const ftsTerms = /ftsQuery|buildFtsQuery|MATCH|records_fts|"\$"|\*"\)/;
+    const ftsTerms = /ftsQuery|buildFtsQuery|\bMATCH\b|records_fts|"\$"|\*"\)/;
     const offenders = searchFiles
       .map((file) => ({
         file: path.relative(REPO_ROOT, file),

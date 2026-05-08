@@ -7,6 +7,7 @@ import type {
   SearchRecordExplanation,
 } from "../domain/search-types.js";
 import type { RankingConfig } from "./ranking-config.js";
+import { SEARCH_EXECUTION_VOCABULARY } from "./contracts.js";
 import type { SearchExecutionFilters } from "./contracts.js";
 import { normalizeText } from "../shared/utils.js";
 import { bigramDice } from "./primitives.js";
@@ -216,20 +217,23 @@ export function scoreNameCandidate(query: string, normalizedName: string): numbe
 
 export function resolveSearchMode(filters: SearchExecutionFilters, context: "list" | "search"): SearchMode {
   if (context === "search") {
-    if (filters.searchProfile === "lexical") {
-      return filters.query?.trim() ? "lexical" : "structured";
+    if (filters.searchProfile === SEARCH_EXECUTION_VOCABULARY.PROFILE.LEXICAL) {
+      return filters.query?.trim() ? SEARCH_EXECUTION_VOCABULARY.PROFILE.LEXICAL : SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED;
     }
 
-    if (filters.searchProfile === "balanced" || filters.searchProfile === "concept") {
-      return filters.query?.trim() ? "hybrid" : "structured";
+    if (
+      filters.searchProfile === SEARCH_EXECUTION_VOCABULARY.PROFILE.BALANCED ||
+      filters.searchProfile === SEARCH_EXECUTION_VOCABULARY.PROFILE.CONCEPT
+    ) {
+      return filters.query?.trim() ? SEARCH_EXECUTION_VOCABULARY.MODE.HYBRID : SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED;
     }
   }
 
   if (context === "search" && filters.query?.trim()) {
-    return "hybrid";
+    return SEARCH_EXECUTION_VOCABULARY.MODE.HYBRID;
   }
 
-  return "structured";
+  return SEARCH_EXECUTION_VOCABULARY.MODE.STRUCTURED;
 }
 
 export function hasStructuredFilterSignal(filters: SearchExecutionFilters): boolean {
@@ -239,22 +243,22 @@ export function hasStructuredFilterSignal(filters: SearchExecutionFilters): bool
     }
 
     switch (filter.kind) {
-      case "pack":
-      case "scope":
-      case "level":
-      case "price":
-      case "rarity":
-      case "actionCost":
-      case "linksTo":
-      case "linkedFrom":
-      case "metadataPredicate":
-      case "metric":
-      case "metricCompare":
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.PACK:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.SCOPE:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.LEVEL:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.PRICE:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.RARITY:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.ACTION_COST:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.LINKS_TO:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.LINKED_FROM:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.METADATA_PREDICATE:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.METRIC:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.METRIC_COMPARE:
         return true;
-      case "anyOf":
-      case "allOf":
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.ANY_OF:
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.ALL_OF:
         return filter.children.some((child) => hasFilterNodeSignal(child));
-      case "not":
+      case SEARCH_EXECUTION_VOCABULARY.FILTER_NODE_KIND.NOT:
         return hasFilterNodeSignal(filter.child);
     }
   };
@@ -276,15 +280,15 @@ export function resolveSearchProfile(
       return filters.searchProfile;
     }
 
-    if (mode === "hybrid") {
-      return "balanced";
+    if (mode === SEARCH_EXECUTION_VOCABULARY.MODE.HYBRID) {
+      return SEARCH_EXECUTION_VOCABULARY.PROFILE.BALANCED;
     }
 
-    return "lexical";
+    return SEARCH_EXECUTION_VOCABULARY.PROFILE.LEXICAL;
   }
 
   if (filters.nameQuery?.trim()) {
-    return "lexical";
+    return SEARCH_EXECUTION_VOCABULARY.PROFILE.LEXICAL;
   }
 
   return null;
@@ -295,19 +299,19 @@ export function resolveHybridFusionProfile(
   mode: SearchMode,
   rankingConfig: RankingConfig,
 ): { profile: HybridFusionProfileName; config: HybridFusionProfile } | null {
-  if (mode !== "hybrid") {
+  if (mode !== SEARCH_EXECUTION_VOCABULARY.MODE.HYBRID) {
     return null;
   }
 
-  if (searchProfile === "concept") {
+  if (searchProfile === SEARCH_EXECUTION_VOCABULARY.PROFILE.CONCEPT) {
     return {
-      profile: "concept",
+      profile: SEARCH_EXECUTION_VOCABULARY.PROFILE.CONCEPT,
       config: rankingConfig.hybridFusion.concept,
     };
   }
 
   return {
-    profile: "balanced",
+    profile: SEARCH_EXECUTION_VOCABULARY.PROFILE.BALANCED,
     config: rankingConfig.hybridFusion.balanced,
   };
 }

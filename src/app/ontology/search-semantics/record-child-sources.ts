@@ -1,4 +1,5 @@
 import type { OntologyNode } from "../../../domain/ontology-types.js";
+import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
 import { buildNormalizedRecordNode } from "../node-helpers.js";
 import type { SearchSemanticsRecordsDataService } from "./types.js";
 
@@ -11,7 +12,7 @@ export function buildQueryRecordChildren(
   }
 
   const request = query.request;
-  if (request.mode !== "browse") {
+  if (request.mode !== SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return [];
   }
 
@@ -26,7 +27,7 @@ async function buildQueryRecordChildrenAsync(
     return [];
   }
 
-  if (query.request.mode === "browse") {
+  if (query.request.mode === SEARCH_REQUEST_VOCABULARY.MODE.BROWSE) {
     return buildQueryRecordChildren(dataService, query);
   }
 

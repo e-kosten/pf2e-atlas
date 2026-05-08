@@ -11,6 +11,7 @@ import { createFilterExplorerBrowserSnapshot } from "./controller-state.js";
 import {
   buildFilterExplorerHelpLines,
 } from "./screen-models.js";
+import { FILTER_EXPLORER_VOCABULARY } from "./types.js";
 import type {
   FilterExplorerActionEntry,
   FilterExplorerBrowserContext,
@@ -72,9 +73,9 @@ export function openComposeScalarEditor(
 
 export function shouldExitAtRootDepth(options: FilterExplorerOptions, keyContext: FilterExplorerKeyContext): boolean {
   return (
-    options.mode.kind === "compose" &&
+    options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE &&
     options.exitAtRootDepth === true &&
-    keyContext.state.activePane === "list" &&
+    keyContext.state.activePane === FILTER_EXPLORER_VOCABULARY.BROWSER_ACTIVE_PANE.LIST &&
     keyContext.effectiveState.depth === (options.rootDepth ?? 0)
   );
 }
@@ -97,7 +98,7 @@ export function handleFilterExplorerAction(args: {
     return true;
   }
 
-  if (action.id === "cycle" && options.mode.kind === "compose") {
+  if (action.id === "cycle" && options.mode.kind === FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE) {
     const target = context.selectedTarget;
     return (
       openComposeScalarEditor(options.mode, target, draft, updateDraft) ||
@@ -107,7 +108,7 @@ export function handleFilterExplorerAction(args: {
 
   if (
     action.id === "cycle" &&
-    options.mode.kind !== "compose" &&
+    options.mode.kind !== FILTER_EXPLORER_VOCABULARY.MODE_KIND.COMPOSE &&
     context.selectedTarget &&
     options.host.activateTarget
   ) {

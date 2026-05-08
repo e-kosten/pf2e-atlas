@@ -4,7 +4,7 @@ import {
   getCurrentDerivedTagFamilyTranslationDefaults,
   getCurrentDerivedTagTranslationOverrides,
 } from "../../translations/state.js";
-import { applyDerivedTagTranslationOverride } from "../../translations/record-utils.js";
+import { buildEffectiveDerivedTagTranslationRecord } from "../../translations/publication.js";
 import {
   isEmptyDerivedTagTranslationOverride,
   normalizeDerivedTagTranslationOverride,
@@ -22,10 +22,7 @@ function overridesEqual(
 }
 
 const FAMILY_DEFAULT_FIELDS = [
-  "schemaKind",
   "translationStatus",
-  "primaryFacetKind",
-  "primaryFacetValue",
 ] as const satisfies ReadonlyArray<keyof DerivedTagFamilyTranslationDefaults>;
 
 function buildFamilyKey(row: Pick<DerivedTagTranslationRecord, "currentCategory" | "currentFamily">): string {
@@ -34,10 +31,7 @@ function buildFamilyKey(row: Pick<DerivedTagTranslationRecord, "currentCategory"
 
 function pickFamilyDefaultsFromRow(row: DerivedTagTranslationRecord): DerivedTagFamilyTranslationDefaults {
   return {
-    schemaKind: row.schemaKind,
     translationStatus: row.translationStatus,
-    ...(row.primaryFacetKind ? { primaryFacetKind: row.primaryFacetKind } : {}),
-    ...(row.primaryFacetValue ? { primaryFacetValue: row.primaryFacetValue } : {}),
   };
 }
 
@@ -45,17 +39,14 @@ function familyDefaultsEqual(
   left: DerivedTagFamilyTranslationDefaults,
   right: DerivedTagFamilyTranslationDefaults,
 ): boolean {
-  return overridesEqual(left, right);
+  return left.translationStatus === right.translationStatus;
 }
 
 function normalizeFamilyDefaults(
   defaults: DerivedTagFamilyTranslationDefaults,
 ): DerivedTagFamilyTranslationDefaults {
   return {
-    schemaKind: defaults.schemaKind,
     translationStatus: defaults.translationStatus,
-    ...(defaults.primaryFacetKind ? { primaryFacetKind: defaults.primaryFacetKind } : {}),
-    ...(defaults.primaryFacetValue ? { primaryFacetValue: defaults.primaryFacetValue } : {}),
     ...(defaults.notes ? { notes: defaults.notes } : {}),
   };
 }
@@ -94,14 +85,20 @@ export async function importDerivedTagTranslationReviewSession(
   }
 
   for (const [familyKey, rows] of rowsByFamily.entries()) {
-    const effectiveRows = rows.map((row) => applyDerivedTagTranslationOverride(row.base, row.draftOverride));
+    const effectiveRows = rows.map((row) => buildEffectiveDerivedTagTranslationRecord(row.base, row.draftOverride));
     const firstDefaults = pickFamilyDefaultsFromRow(effectiveRows[0]!);
     if (!effectiveRows.every((row) => familyDefaultsEqual(pickFamilyDefaultsFromRow(row), firstDefaults))) {
       continue;
     }
     const currentDefaults = nextFamilyDefaults.get(familyKey);
     if (!currentDefaults || !familyDefaultsEqual(currentDefaults, firstDefaults)) {
-      nextFamilyDefaults.set(familyKey, normalizeFamilyDefaults(firstDefaults));
+      nextFamilyDefaults.set(
+        familyKey,
+        normalizeFamilyDefaults({
+          ...firstDefaults,
+          ...(currentDefaults?.notes ? { notes: currentDefaults.notes } : {}),
+        }),
+      );
     }
 
     for (let index = 0; index < rows.length; index += 1) {

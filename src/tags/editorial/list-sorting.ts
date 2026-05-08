@@ -1,7 +1,8 @@
-import type { SearchCategory } from "../../domain/derived-tag-types.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
+import type { SearchCategory } from "../../domain/derived-tag-types.js";
 import type { DerivedTagManagedCategory } from "../manifest.js";
 import type { DerivedTagReviewQueueSummaryItem } from "./types.js";
+import { DERIVED_TAG_REVIEW_VOCABULARY } from "./review-vocabulary.js";
 
 export { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 
@@ -15,15 +16,15 @@ const managedCategoryRank = new Map(
 );
 
 const reviewQueueKindPriority = new Map<DerivedTagReviewQueueSummaryItem["kind"], number>([
-  ["assignment", 0],
-  ["exemplar", 1],
+  [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT, 0],
+  [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR, 1],
 ]);
 
 const reviewQueueConfidencePriority = new Map<DerivedTagReviewQueueSummaryItem["confidence"], number>([
   ["mixed", 0],
-  ["low", 1],
-  ["medium", 2],
-  ["high", 3],
+  [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.LOW, 1],
+  [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM, 2],
+  [DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.HIGH, 3],
   ["unspecified", 4],
 ]);
 
