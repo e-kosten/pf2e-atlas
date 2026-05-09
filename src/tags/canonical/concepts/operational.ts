@@ -1,7 +1,7 @@
 import { buildCanonicalConceptMap, type CanonicalConceptSeed } from "../builders.js";
 import { CANONICAL_VOCABULARY } from "../vocabulary.js";
 
-const DERIVED_TAG_OPERATIONAL_CANONICAL_CONCEPTS_BY_ID_SEEDS: Record<string, CanonicalConceptSeed> = {
+const operationalConceptSeeds: Record<string, CanonicalConceptSeed> = {
   acid_application: {
     domainId: CANONICAL_VOCABULARY.DOMAIN.ACID,
     operation: CANONICAL_VOCABULARY.OPERATION.APPLY,
@@ -772,5 +772,5 @@ const DERIVED_TAG_OPERATIONAL_CANONICAL_CONCEPTS_BY_ID_SEEDS: Record<string, Can
 
 export const DERIVED_TAG_OPERATIONAL_CANONICAL_CONCEPTS_BY_ID = buildCanonicalConceptMap(
   CANONICAL_VOCABULARY.SCHEMA.KIND.OPERATIONAL,
-  DERIVED_TAG_OPERATIONAL_CANONICAL_CONCEPTS_BY_ID_SEEDS,
+  operationalConceptSeeds,
 );

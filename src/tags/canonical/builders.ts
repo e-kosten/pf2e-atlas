@@ -14,6 +14,7 @@ import type {
   DerivedTagOntologyFamily,
 } from "../../domain/record-types.js";
 import { CANONICAL_VOCABULARY } from "./vocabulary.js";
+import type { CanonicalFacet } from "./facets.js";
 
 export type SchemaKind = (typeof CANONICAL_VOCABULARY.SCHEMA.KIND)[keyof typeof CANONICAL_VOCABULARY.SCHEMA.KIND];
 
@@ -26,6 +27,39 @@ export type CanonicalConceptDescriptor = Omit<DerivedTagCanonicalConcept, "schem
 export type CanonicalConceptSeed = Omit<CanonicalConceptDescriptor, "schemaKind"> & {
   schemaKind?: SchemaKind;
 };
+
+export type FacetlessConceptSeed = Omit<CanonicalConceptSeed, "primaryFacetKind" | "primaryFacetValue">;
+
+export function defineFacetConcepts(
+  primaryFacet: CanonicalFacet,
+  concepts: Record<string, FacetlessConceptSeed>,
+): Record<string, CanonicalConceptSeed> {
+  return Object.fromEntries(
+    Object.entries(concepts).map(([id, concept]) => [
+      id,
+      {
+        ...concept,
+        primaryFacetKind: primaryFacet.kind,
+        primaryFacetValue: primaryFacet.value,
+      },
+    ]),
+  ) as Record<string, CanonicalConceptSeed>;
+}
+
+export function mergeCanonicalConceptSeeds(
+  seeds: readonly Record<string, CanonicalConceptSeed>[],
+): Record<string, CanonicalConceptSeed> {
+  const merged: Record<string, CanonicalConceptSeed> = {};
+  for (const seed of seeds) {
+    for (const [id, concept] of Object.entries(seed)) {
+      if (merged[id] !== undefined) {
+        throw new Error(`Duplicate canonical concept id while merging seeds: ${id}`);
+      }
+      merged[id] = concept;
+    }
+  }
+  return merged;
+}
 
 export function defineDescriptiveConcept(args: {
   id: string;
@@ -119,9 +153,7 @@ export type CanonicalFamilySeed = Omit<DerivedTagOntologyFamily, "label"> & {
   label?: string;
 };
 
-export function buildCanonicalOntologyFamilies(
-  families: CanonicalFamilySeed[],
-): DerivedTagOntologyFamily[] {
+export function buildCanonicalOntologyFamilies(families: CanonicalFamilySeed[]): DerivedTagOntologyFamily[] {
   return families.map((family) => ({
     ...family,
     label: family.label ?? family.family,
