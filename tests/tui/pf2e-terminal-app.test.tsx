@@ -1102,7 +1102,6 @@ describe("pf2e terminal app", () => {
         currentBrowseAxis: "support",
         currentFamily: "support",
         currentTag: "quickened_support",
-        currentAssignmentMode: "hybrid",
         translationStatus: "provisional",
         canonicalConceptId: "quickened_support",
         canonicalConceptLabel: "quickened_support",

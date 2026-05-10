@@ -1,4 +1,4 @@
-import type { DerivedTagAssignmentMode, DerivedTagOntologyAxis } from "./record-types.js";
+import type { DerivedTagOntologyAxis } from "./record-types.js";
 import type { SearchCategory, SearchSubcategory } from "./search-types.js";
 
 export type DerivedTagConceptSchemaKind = "descriptive" | "operational" | "aggregate";
@@ -53,7 +53,7 @@ export type DerivedTagCategoryProjection = {
   currentTag: string;
   label?: string;
   description: string;
-  assignmentMode: DerivedTagAssignmentMode;
+  isComposite?: boolean;
   subcategories?: SearchSubcategory[];
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
   appliesWhen?: string[];
@@ -71,7 +71,6 @@ export type DerivedTagLegacySourceRecord = {
   currentBrowseAxis: DerivedTagOntologyAxis;
   currentFamily: string;
   currentTag: string;
-  currentAssignmentMode: DerivedTagAssignmentMode;
 };
 
 export type DerivedTagTranslationMapping = {
@@ -87,7 +86,6 @@ export type DerivedTagTranslationRecord = {
   currentBrowseAxis: DerivedTagOntologyAxis;
   currentFamily: string;
   currentTag: string;
-  currentAssignmentMode: DerivedTagAssignmentMode;
   translationStatus: DerivedTagTranslationStatus;
   canonicalConceptId: string;
   canonicalConceptLabel: string;

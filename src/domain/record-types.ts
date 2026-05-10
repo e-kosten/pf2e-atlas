@@ -90,7 +90,6 @@ export interface DerivedTagLegacySeedMigrationCategory {
 
 export type SourceCategory = "core" | "rules" | "adventure" | "unknown";
 export type VariantSource = "baseItem" | "slug" | "namePattern" | "sourcePath" | "composite" | "none";
-export type DerivedTagAssignmentMode = "deterministic" | "editorial" | "hybrid" | "composite";
 export type DerivedTagOntologyCategory = "equipment" | "creature" | "hazard" | "affliction" | "spell";
 export interface DerivedTagOntologyAxisByCategory {
   equipment: "legacy" | "utility" | "party_role" | "item_mechanical" | "effect";
@@ -118,7 +117,7 @@ export interface DerivedTagOntologyTag {
   tag: string;
   label?: string;
   description: string;
-  assignmentMode: DerivedTagAssignmentMode;
+  isComposite?: boolean;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
   appliesWhen?: string[];
   doesNotApplyWhen?: string[];
@@ -143,7 +142,7 @@ export interface DerivedTagCatalogTag {
   value: string;
   label?: string;
   description?: string;
-  assignmentMode?: DerivedTagAssignmentMode;
+  isComposite?: boolean;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
   appliesWhen?: string[];
   doesNotApplyWhen?: string[];
@@ -169,7 +168,7 @@ export interface DerivedTagCatalogEntry {
   label?: string;
   axis: DerivedTagOntologyAxis;
   description: string;
-  assignmentMode?: DerivedTagAssignmentMode;
+  isComposite?: boolean;
   tags: DerivedTagCatalogTag[];
   variantInheritance?: boolean;
 }

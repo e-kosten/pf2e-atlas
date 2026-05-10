@@ -271,7 +271,6 @@ function buildTagSelectOptions(
           { text: `Family: ${tag.family}` },
           { text: `Axis: ${resolvedFamily?.axis ?? "(unknown)"}` },
           { text: `Scope: ${resolvedFamily?.subcategories?.join(", ") ?? "(all subcategories)"}` },
-          { text: `Assignment mode: ${tag.assignmentMode}` },
         ],
       } satisfies DerivedTagTerminalSelectOption<string>;
     });

@@ -122,7 +122,6 @@ function buildTranslationDetailLines(args: {
     { text: `Current category: ${selected.effective.currentCategory}`, indent: 2 },
     { text: `Current axis: ${selected.effective.currentBrowseAxis}`, indent: 2 },
     { text: `Current family: ${selected.effective.currentFamily}`, indent: 2 },
-    { text: `Current assignment mode: ${selected.effective.currentAssignmentMode}`, indent: 2 },
     { text: "" },
     { text: "Proposed canonical target", tone: "section" },
     { text: `Projection: ${targetProjectionLine}`, indent: 2 },

@@ -55,7 +55,6 @@ export type DerivedTagLabels = {
   axisLabel: string;
   tagLabel: string;
   familyScopeLabel: string;
-  assignmentModeLabel: string;
 };
 
 function humanizeMetricSegment(segment: string): string {
@@ -167,10 +166,5 @@ export function getDerivedTagLabels(
     axisLabel: formatOntologySearchVocabularyLabel(familyEntry.axis),
     tagLabel: tag.label ? formatOntologySearchVocabularyLabel(tag.label) : formatOntologySearchVocabularyLabel(tag.value),
     familyScopeLabel: formatDerivedTagFamilyScopeLabel(familyEntry),
-    assignmentModeLabel: tag.assignmentMode
-      ? formatOntologySearchVocabularyLabel(tag.assignmentMode)
-      : familyEntry.assignmentMode
-        ? formatOntologySearchVocabularyLabel(familyEntry.assignmentMode)
-        : "(unspecified)",
   };
 }

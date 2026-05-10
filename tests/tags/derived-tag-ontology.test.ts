@@ -18,8 +18,22 @@ function matcherArrayContaining(values: unknown[]): unknown {
   return expect.arrayContaining(values);
 }
 
+function normalizeLegacyAssignmentMode(value: Record<string, unknown>): Record<string, unknown> {
+  if (!("assignmentMode" in value)) {
+    return value;
+  }
+  const { assignmentMode, ...rest } = value;
+  if (assignmentMode === "composite") {
+    return {
+      ...rest,
+      isComposite: true,
+    };
+  }
+  return rest;
+}
+
 function matcherObjectContaining(value: Record<string, unknown>): unknown {
-  return expect.objectContaining(value);
+  return expect.objectContaining(normalizeLegacyAssignmentMode(value));
 }
 
 function matcherStringContaining(value: string): unknown {
@@ -27,7 +41,7 @@ function matcherStringContaining(value: string): unknown {
 }
 
 describe("derived tag ontology", () => {
-  it("publishes unique category-scoped families and tags with assignment modes", () => {
+  it("publishes unique category-scoped families and tags", () => {
     const familiesByCategory = new Map<string, Set<string>>();
     const tagsByCategory = new Map<string, Map<string, string>>();
 
@@ -39,7 +53,6 @@ describe("derived tag ontology", () => {
     }
 
     for (const tag of getCurrentDerivedTagOntologyTags()) {
-      expect(tag.assignmentMode).toBeDefined();
       const categoryTags = tagsByCategory.get(tag.category) ?? new Map<string, string>();
       const existingFamily = categoryTags.get(tag.tag);
       if (existingFamily) {

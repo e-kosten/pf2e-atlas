@@ -71,7 +71,6 @@ function hydratePublishedTranslationRecord(
     currentBrowseAxis: mapping.source.currentBrowseAxis,
     currentFamily: mapping.source.currentFamily,
     currentTag: mapping.source.currentTag,
-    currentAssignmentMode: mapping.source.currentAssignmentMode,
     translationStatus: mapping.translationStatus,
     canonicalConceptId: targetConcept?.id ?? "",
     canonicalConceptLabel: targetProjection?.label ?? targetConcept?.label ?? "",
@@ -94,7 +93,6 @@ function buildTranslationMappingFromPublishedRecord(
 ): DerivedTagTranslationMapping {
   return {
     source: {
-      currentAssignmentMode: record.currentAssignmentMode,
       currentBrowseAxis: record.currentBrowseAxis,
       currentCategory: record.currentCategory,
       currentFamily: record.currentFamily,

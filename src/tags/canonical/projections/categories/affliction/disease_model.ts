@@ -1,15 +1,12 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const afflictionDiseaseModelProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.AFFLICTION.DISEASE_MODEL_DELIVERY_PROFILE, {
     contact_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Spread by touch, skin contact, slime, ooze, or another surface-level transfer mechanism.",
     },
     dreamborne_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Spread through sleep, nightmares, dreaming contact, or other oneiric pathways.",
       appliesWhen: [
         "The affliction is contracted or transmitted through dreams, sleep, shared nightmares, or oneiric contact.",
@@ -22,19 +19,15 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["nightmare_torment", "inhaled_exposure"],
     },
     ingested_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Spread by swallowing contaminated food, drink, medicine, or another consumed substance.",
     },
     inhaled_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Spread through smoke, breath, spores, vapor, dust, or another inhaled medium.",
     },
     injury_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Spread through bites, stings, punctures, or other blood-entering injury vectors.",
     },
     waterborne_exposure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Spread through tainted water, drowning contact, flood exposure, or cursed immersion.",
       appliesWhen: [
         "Contaminated water, immersion, flood contact, or cursed liquid exposure is central to how victims contract the affliction.",
@@ -49,7 +42,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.AFFLICTION.DISEASE_MODEL_EPIDEMIOLOGICAL_PROFILE, {
     carrier_vector: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Spread through vermin, insects, bites, stings, or other living disease vectors.",
       appliesWhen: [
         "The affliction's spread is materially tied to rats, mosquitoes, parasites, infected animals, or other living carriers.",
@@ -62,7 +54,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["injury_exposure", "waterborne_exposure"],
     },
     community_outbreak: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Framed around camp-, village-, ship-, monastery-, or settlement-scale spread rather than one isolated victim.",
       appliesWhen: [
@@ -76,14 +67,12 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["epidemic_pestilence", "carrier_vector"],
     },
     epidemic_pestilence: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "A named plague-, fever-, pox-, or pestilence-style disease with explicit outbreak or contagion framing.",
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.AFFLICTION.DISEASE_MODEL_PATHOGENESIS, {
     bestial_transformation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Defined by animalistic mutation, feral reshaping, or a cursed slide into beastlike behavior and form.",
       appliesWhen: [
@@ -97,7 +86,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["transformative_corruption", "violence_compulsion"],
     },
     blood_rot: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Defined by corrupted blood, blackened veins, hemorrhagic poisoning, or other blood-borne bodily collapse.",
       appliesWhen: [
@@ -111,16 +99,13 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["hemorrhagic_failure", "physical_debilitation"],
     },
     fungal_growth: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Defined by fungal bloom, spores, mycelial takeover, or mushroom-like growths spreading through the body.",
     },
     infestation_implant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Defined by eggs, larvae, spores, parasites, or other host-colonizing implantation.",
     },
     petrifying_corruption: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Defined by calcification, ossification, stone-turning, or gradual bodily hardening toward an inert form.",
       appliesWhen: [
@@ -134,13 +119,11 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["petrification", "cumulative_transformation"],
     },
     rot_decay: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Defined by bodily rot, necrosis, blight, mummification, or similar physical decay.",
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.AFFLICTION.DISEASE_MODEL_PROGRESSION_PROFILE, {
     cumulative_transformation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Affliction whose stages progressively rewrite the victim into a visibly altered or corrupted form.",
       appliesWhen: [
         "The stage-by-stage march toward a changed body is a major reason to retrieve the affliction.",
@@ -153,7 +136,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["transformative_corruption", "petrifying_corruption"],
     },
     delayed_onset: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Affliction whose symptoms, danger, or full transformation emerge after a notable delay rather than immediately.",
       appliesWhen: [
@@ -167,7 +149,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["recurrent_flare", "cumulative_transformation"],
     },
     recurrent_flare: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Affliction that subsides and returns in episodes, repeating attacks, or cyclical symptom spikes.",
       appliesWhen: [
         "The affliction is naturally retrieved because symptoms repeatedly subside and then surge back in cycles, attacks, or flare-ups.",
@@ -180,7 +161,6 @@ export const afflictionDiseaseModelProjectionFamilies = [
       adjacentTags: ["delayed_onset", "terminal_collapse"],
     },
     terminal_collapse: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Affliction explicitly framed around catastrophic bodily failure, death, or a final ruinous end state if unchecked.",
       appliesWhen: [

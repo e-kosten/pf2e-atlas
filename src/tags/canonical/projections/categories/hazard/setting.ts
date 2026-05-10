@@ -1,21 +1,17 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const hazardSettingProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.HAZARD.SETTING_SETTING, {
     aquatic_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with flooded chambers, rivers, docks, ships, reefs, or underwater spaces.",
     },
     battlefield_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with siegeworks, trenches, killing grounds, war engines, or other battlefield scenes.",
     },
     bridge_passage_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with bridges, chokepoints, gates, stairwells, or forced passage bottlenecks.",
       appliesWhen: [
@@ -29,7 +25,6 @@ export const hazardSettingProjectionFamilies = [
       adjacentTags: ["threshold_lockdown", "forced_movement"],
     },
     dungeon_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with dungeon corridors, chambers, trapped passages, or underground complexes.",
       appliesWhen: [
@@ -43,7 +38,6 @@ export const hazardSettingProjectionFamilies = [
       adjacentTags: ["tomb_hazard", "temple_hazard"],
     },
     temple_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Hazard strongly associated with shrines, sanctums, cathedrals, monasteries, or consecrated sites.",
       appliesWhen: [
         "Sacred architecture, ritual sanctums, or faith-site defense is central to the hazard's scene identity.",
@@ -56,7 +50,6 @@ export const hazardSettingProjectionFamilies = [
       adjacentTags: ["dungeon_hazard", "appeasement_countermeasure"],
     },
     tomb_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Hazard strongly associated with tombs, barrows, mausoleums, crypts, or burial defenses.",
       appliesWhen: [
         "Burial sites, funerary wards, grave robbing countermeasures, or undead-rest protections are central to the hazard.",
@@ -69,12 +62,10 @@ export const hazardSettingProjectionFamilies = [
       adjacentTags: ["dungeon_hazard", "temple_hazard"],
     },
     urban_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with civic districts, alleys, rooftops, sewers, shops, or other built urban spaces.",
     },
     wilderness_hazard: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard strongly associated with forests, trails, camps, ruins in the wild, or other outdoor expedition scenes.",
     },

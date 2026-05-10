@@ -5,7 +5,6 @@ import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 export const spellUtilityProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_ACCESS_BYPASS, {
     barrier_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Gets a creature through a blocked threshold, wall, seal, force barrier, or magical ward that otherwise prevents passage.",
       appliesWhen: [
@@ -20,7 +19,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     lock_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Opens locks, sealed containers, secured doors, or similar closed access points through magic rather than physical lockpicking.",
       appliesWhen: [
@@ -35,7 +33,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     mechanism_manipulation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Precisely triggers, moves, holds, or operates levers, buttons, switches, pressure plates, locks, or similar scene mechanisms.",
       appliesWhen: [
@@ -50,7 +47,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     trap_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Disarms, suppresses, safely triggers, or helps bypass a trap, warded threshold, or similar trapped access problem.",
       appliesWhen: [
@@ -67,7 +63,7 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_COMMUNICATION, {
     communication: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad communication umbrella for spells used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
       adjacentTags: ["signaling", "telepathic_communication", "message_delivery", "translation_support"],
@@ -75,23 +71,19 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     message_delivery: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Sends, stores, or relays actual content across time or distance.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     signaling: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps draw attention, mark a location, or coordinate allies.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     telepathic_communication: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creates direct mind-to-mind communication, silent tactical coordination, or psychic speech between creatures.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     translation_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Bridges spoken or written language barriers through translation, comprehension, deciphering, or magically shared understanding.",
       appliesWhen: [
@@ -108,7 +100,7 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_CONSULTATION, {
     consultation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad consultation umbrella for spells used to seek cosmic answers, diagnose mysteries, or gain non-sensory divinatory guidance.",
       adjacentTags: ["lore_consultation", "problem_diagnosis", "omen_guidance"],
@@ -116,21 +108,18 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     lore_consultation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Provides interpretive insight, shared knowledge, or focused understanding about a subject, clue, history, or magical situation.",
       adjacentTags: ["truth_reveal", "problem_diagnosis"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     omen_guidance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Asks for omens, directional guidance, or advisory insight about the best course of action, likely outcome, or strategic choice.",
       adjacentTags: ["lore_consultation", "wayfinding"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     problem_diagnosis: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Helps determine what hidden magical, spiritual, cursed, or otherwise obscure problem is actually affecting a target, site, or situation.",
       adjacentTags: ["curse_revelation", "magic_detection"],
@@ -139,12 +128,10 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_EXPEDITION, {
     aquatic_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps with swimming, underwater breathing, water-surface travel, or other aquatic movement.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     environmental_adaptation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Helps creatures endure hostile climates, thin air, smoke, pressure, vacuum, or other expedition-grade environmental extremes.",
       appliesWhen: [
@@ -159,7 +146,7 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     expedition: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad expedition umbrella for spells used for routefinding, travel-ready movement, shelter, sustainment, aquatic operations, and hostile-environment survival.",
       adjacentTags: ["navigation", "field_shelter", "environmental_adaptation"],
@@ -175,7 +162,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     field_shelter: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Creates shelter, refuge, or a protected resting place in the field.",
       appliesWhen: [
         "The spell is naturally retrieved to create a campsite refuge, safe resting place, or expedition shelter in hostile territory.",
@@ -189,46 +175,39 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     flight: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Grants flying movement, sustained aerial travel, or practical airborne maneuvering.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     mobility: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Helps move faster, gain movement modes, or traverse terrain more effectively.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     navigation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Helps orient, guide a route, or identify a destination's direction.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     sustenance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Provides food, water, rations, or practical nourishment for travel and survival.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_INFILTRATION, {
     disguise: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps alter appearance or impersonate another identity.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     infiltration: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description: "Broad infiltration umbrella for quiet-entry, disguise, and covert social-passing spells.",
       adjacentTags: ["stealth_support", "disguise", "social_infiltration"],
       compositeOfAnyTags: ["stealth_support", "disguise", "social_infiltration"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     social_infiltration: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps blend into a group or pass under social scrutiny.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     stealth_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Helps move quietly, avoid notice, suppress noisy presence, or otherwise support covert entry and low-profile movement.",
       appliesWhen: [
@@ -245,7 +224,7 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_RECONNAISSANCE, {
     reconnaissance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad scouting umbrella for spells that gather remote information, extend senses, or track a target from afar.",
       adjacentTags: ["scouting", "tracking", "scouting_summons"],
@@ -253,12 +232,10 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     scouting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Helps observe at a distance, extend senses, or locate a target.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     tracking: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Locates a specific creature, object, or destination, or follows a supernatural trail toward it.",
       appliesWhen: [
         "The spell is naturally retrieved to find a named target, trace a quarry, or point the caster toward a specific creature, object, or place.",
@@ -274,7 +251,6 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_RESOLUTION, {
     contamination_cleanup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Cleanses tainted residue, neutralizes corrupted ground, removes lingering pollution, or purifies a contaminated space.",
       adjacentTags: ["quarantine_containment", "source_cleanup"],
@@ -282,7 +258,6 @@ export const spellUtilityProjectionFamilies = [
     },
     curse_removal: {
       concept: "curse_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Breaks, removes, or counteracts curses as a direct answer path rather than only suppressing symptoms.",
       adjacentTags: ["exorcism", "sanctification"],
@@ -291,7 +266,6 @@ export const spellUtilityProjectionFamilies = [
     exorcism: {
       concept: "hostile_presence_expulsion",
       label: "exorcism",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Banishes, expels, or spiritually drives out a hostile spirit, possession, haunt, or invading supernatural presence.",
       adjacentTags: ["curse_removal", "sanctification"],
@@ -299,7 +273,6 @@ export const spellUtilityProjectionFamilies = [
     },
     quarantine_containment: {
       concept: "outbreak_containment",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Helps isolate victims, secure a dangerous area, or impose protective boundaries that stop spread while the problem is being solved.",
       adjacentTags: ["protective_ward", "contamination_cleanup"],
@@ -307,7 +280,7 @@ export const spellUtilityProjectionFamilies = [
     },
     resolution: {
       concept: "problem_resolution",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad resolution umbrella for spells that break curses, expel hostile presences, contain spread, purify contamination, or solve a supernatural problem at its source.",
       adjacentTags: ["curse_removal", "exorcism", "ritual_appeasement", "source_cleanup"],
@@ -324,7 +297,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     ritual_appeasement: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Ends a supernatural problem through offerings, restitution, funerary respect, ritual observance, or otherwise satisfying a spiritual demand rather than expelling the presence outright.",
       adjacentTags: ["sanctification", "exorcism"],
@@ -333,14 +305,12 @@ export const spellUtilityProjectionFamilies = [
     sanctification: {
       concept: "sacred_taint_sanctification",
       label: "sanctification",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Consecrates, hallowes, purifies, or spiritually cleanses a creature, object, or site to solve a malign supernatural problem.",
       adjacentTags: ["ritual_appeasement", "exorcism", "protective_ward"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     source_cleanup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Neutralizes, destroys, seals, or cleans up the cursed object, infected origin, corrupted site, or anchored source driving the problem.",
       adjacentTags: ["source_revelation", "contamination_cleanup"],
@@ -348,7 +318,6 @@ export const spellUtilityProjectionFamilies = [
     },
     source_revelation: {
       concept: "source_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Reveals the hidden source, curse anchor, carrier, infected origin, or spreading point of a supernatural or outbreak problem.",
       adjacentTags: ["problem_diagnosis", "source_cleanup"],
@@ -358,13 +327,11 @@ export const spellUtilityProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_REVELATION, {
     curse_revelation: {
       concept: "curse_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Identifies curses, spiritual corruption, or other malign supernatural bindings on a target.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     hazard_revelation: {
       concept: "hazard_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Reveals hidden traps, secret wards, concealed passage dangers, or other obscured environmental threats.",
       appliesWhen: [
@@ -380,19 +347,17 @@ export const spellUtilityProjectionFamilies = [
     },
     invisibility_reveal: {
       concept: "invisibility_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Exposes invisible, hidden, concealed, or magically obscured creatures and objects.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     magic_detection: {
       concept: "magic_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Reveals magical auras, spell presence, active effects, or other supernatural signatures.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     revelation: {
       concept: "problem_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad reveal umbrella for spells that detect magic, uncover deceptions, expose invisible threats, or identify hidden supernatural problems.",
       adjacentTags: ["magic_detection", "truth_reveal", "hazard_revelation"],
@@ -407,7 +372,6 @@ export const spellUtilityProjectionFamilies = [
     },
     truth_reveal: {
       concept: "truth_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Forces honesty, exposes lies, or reveals disguised, false, or hidden truths.",
       appliesWhen: [
         "The spell's retrieval value comes from exposing deception, forcing truthful answers, or stripping away false presentation.",
@@ -423,7 +387,6 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_SECURITY, {
     alarm: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Alerts you or others when a watched area, threshold, or ward is crossed.",
       appliesWhen: [
         "The spell is naturally retrieved to warn about intrusion, threshold crossing, tampering, or unwanted entry.",
@@ -437,7 +400,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     scrying_protection: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Blocks magical observation, remote viewing, divinatory surveillance, or other information leakage from a protected target or space.",
       appliesWhen: [
@@ -452,7 +414,7 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     security: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad security umbrella for spells that warn about intrusion, protect private spaces, or harden a target against magical observation and interference.",
       adjacentTags: ["alarm", "scrying_protection", "protective_ward"],
@@ -462,14 +424,12 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_SENSORY_SUPPORT, {
     illumination: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Produces practical light that brightens darkness, reveals an area, or lets creatures see more clearly.",
       adjacentTags: ["senses_support", "line_of_sight_control"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     senses_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Enhances vision or other senses through darkvision, see invisible, sharpened perception, scent, or similar perceptual upgrades.",
       adjacentTags: ["scouting", "invisibility_reveal"],
@@ -478,7 +438,6 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_TELEPORTATION, {
     extraction_teleport: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Teleports a creature out of danger, through restraints, or away from immediate threat pressure.",
       appliesWhen: [
         "The spell is naturally retrieved as an escape, rescue, or anti-capture tool rather than only a movement spell.",
@@ -492,7 +451,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     long_range_teleport: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Teleports creatures across major overland distances, settlements, or remote destinations.",
       appliesWhen: [
         "The spell is naturally retrieved for strategic travel, relocation, or bypassing long routes.",
@@ -506,7 +464,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     planar_travel: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Moves creatures between planes, through planar routes, or into extraplanar destinations.",
       appliesWhen: [
         "Crossing into another plane, demiplane, or extraplanar route is central to the spell's retrieval value.",
@@ -520,7 +477,6 @@ export const spellUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     short_range_teleport: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Teleports a creature across a short tactical distance, usually within the same scene or encounter area.",
       appliesWhen: [
@@ -537,7 +493,7 @@ export const spellUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.UTILITY_WAYFINDING, {
     wayfinding: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad route-and-destination umbrella for spells that orient travel, locate a target destination, or bypass distance through strategic movement magic.",
       adjacentTags: ["navigation", "tracking", "long_range_teleport"],

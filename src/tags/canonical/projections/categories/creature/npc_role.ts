@@ -1,11 +1,9 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const creatureNpcRoleProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.NPC_ROLE_SCENE_ROLE, {
     captive_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Immediate-scenario prisoner, hostage, detained witness, sacrifice target, or other constrained figure whose scene value comes from being held or imperiled.",
       appliesWhen: [
@@ -19,7 +17,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["guardian_npc", "civic_npc"],
     },
     civic_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Fits the civic or social fabric of a scene and usually isn't the primary monster answer.",
       appliesWhen: [
         "The creature belongs to the civic, domestic, institutional, or everyday social fabric of the scene.",
@@ -33,7 +30,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "enforcer_npc"],
     },
     enforcer_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Scene-slot fight-first humanoid adversary such as a soldier, bandit, mercenary, or other overt martial enforcer.",
       appliesWhen: [
@@ -49,7 +45,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["authority_npc", "civic_npc"],
     },
     escort_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Immediate-scenario escort, courier companion, guide-on-mission, ward mover, or other figure whose scene value is accompanying or moving someone through danger.",
       appliesWhen: [
@@ -63,7 +58,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["guide_npc", "guardian_npc"],
     },
     guardian_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Immediate-scenario guard, jailer, doorkeeper, bodyguard, or other posted protector whose scene value is physically holding or protecting a person, threshold, or place.",
       appliesWhen: [
@@ -77,7 +71,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["enforcer_npc", "watcher_npc"],
     },
     infiltrator_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Scene-slot spy, saboteur, replacer, or quiet-entry specialist whose immediate scenario value comes from infiltration more than a straight fight.",
       appliesWhen: [
@@ -91,7 +84,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["enforcer_npc", "criminal_npc"],
     },
     watcher_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Immediate-scenario lookout, sentry, observer, or patrol-point watcher whose scene value is warning, spotting, or noticing intruders.",
       appliesWhen: [
@@ -107,7 +99,6 @@ export const creatureNpcRoleProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.NPC_ROLE_SOCIAL_ROLE, {
     artisan_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a smith, craftsperson, builder, artisan, or other maker-facing role-holder tied to production or skilled labor.",
       appliesWhen: [
@@ -121,7 +112,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["merchant_npc", "profession_npc"],
     },
     authority_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as an officer, magistrate, noble, administrator, or other figure of formal social authority.",
       appliesWhen: [
@@ -136,7 +126,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "civic_npc"],
     },
     criminal_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a thief, smuggler, assassin, gang operative, fence, or other explicitly underworld-coded role.",
       appliesWhen: [
@@ -150,7 +139,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["enforcer_npc", "infiltrator_npc"],
     },
     guide_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a scout, tracker, ferryman, caravan guide, wilderness pathfinder, or other route-leading specialist.",
       appliesWhen: [
@@ -164,7 +152,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "rural_setting"],
     },
     healer_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a physician, battlefield medic, herbalist, chirurgeon, caretaker, or other explicitly healing-facing role-holder.",
       appliesWhen: [
@@ -178,7 +165,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["scholar_npc", "religious_npc"],
     },
     merchant_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Presented as a trader, broker, shopkeeper, caravan factor, or other commerce-facing role-holder.",
       appliesWhen: [
         "Trade, selling, bargaining, or inventory-handling is central to the creature's world-facing identity.",
@@ -191,7 +177,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "civic_npc"],
     },
     performer_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Presented as a musician, actor, dancer, herald, jester, or other entertainment-facing role-holder.",
       appliesWhen: [
         "Performance, spectacle, or entertainment labor is central to the creature's world-facing identity.",
@@ -204,7 +189,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "carnival_show"],
     },
     profession_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Role-defined NPC such as a captain, guard, merchant, priest, or commoner.",
       appliesWhen: [
         "The creature is primarily presented through a social role, job, office, or profession label.",
@@ -218,7 +202,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["authority_npc", "merchant_npc"],
     },
     religious_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a priest, shrine keeper, cult officiant, monastic figure, or other explicitly religious role-holder.",
       appliesWhen: [
@@ -232,7 +215,6 @@ export const creatureNpcRoleProjectionFamilies = [
       adjacentTags: ["profession_npc", "temple_setting"],
     },
     scholar_npc: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Presented as a sage, researcher, teacher, archivist, alchemist, or other knowledge-centered role-holder.",
       appliesWhen: [

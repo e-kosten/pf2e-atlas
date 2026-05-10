@@ -43,7 +43,7 @@ describe("derived tag ontology publication and composition", () => {
       tag: "transformation",
       description: "Spells that alter a target's body or form.",
       compositeOfAnyTags: ["battle_form", "animal_form"],
-      assignmentMode: "composite",
+      isComposite: true,
       adjacentTags: ["battle_form", "animal_form"],
     },
     {
@@ -51,21 +51,18 @@ describe("derived tag ontology publication and composition", () => {
       family: "transformation",
       tag: "battle_form",
       description: "Combat-oriented form change.",
-      assignmentMode: "deterministic",
     },
     {
       category: "spell",
       family: "transformation",
       tag: "animal_form",
       description: "Animal or beast shapechange.",
-      assignmentMode: "deterministic",
     },
     {
       category: "equipment",
       family: "ammunition_payload",
       tag: "elemental_payload",
       description: "Deals elemental payload damage.",
-      assignmentMode: "deterministic",
     },
   ];
 
@@ -80,16 +77,14 @@ describe("derived tag ontology publication and composition", () => {
           tags: matcherArrayContaining([
             matcherObjectContaining({
               value: "transformation",
-              assignmentMode: "composite",
+              isComposite: true,
               compositeOfAnyTags: ["battle_form", "animal_form"],
             }),
             matcherObjectContaining({
               value: "battle_form",
-              assignmentMode: "deterministic",
             }),
             matcherObjectContaining({
               value: "animal_form",
-              assignmentMode: "deterministic",
             }),
           ]),
         }),

@@ -8,7 +8,6 @@ import type {
   DerivedTagConceptRelation,
 } from "../../domain/derived-tag-types.js";
 import type {
-  DerivedTagAssignmentMode,
   DerivedTagOntologyAxis,
   DerivedTagOntologyCategory,
   DerivedTagOntologyFamily,
@@ -266,7 +265,7 @@ export function defineProjection<C extends DerivedTagOntologyCategory>(
   args: {
     axis: DerivedTagOntologyAxis<C>;
     family: string;
-    assignmentMode: DerivedTagAssignmentMode;
+    isComposite?: boolean;
     description: string;
     legacyTag?: string;
     label?: string;
@@ -292,7 +291,7 @@ export function defineProjection<C extends DerivedTagOntologyCategory>(
     currentTag,
     label: args.label ?? conceptId,
     description: args.description,
-    assignmentMode: args.assignmentMode,
+    ...(args.isComposite !== undefined ? { isComposite: args.isComposite } : {}),
     ...(args.subcategories ? { subcategories: [...args.subcategories] } : {}),
     ...(args.nativeOntologyPolicy ? { nativeOntologyPolicy: args.nativeOntologyPolicy } : {}),
     ...(args.appliesWhen ? { appliesWhen: [...args.appliesWhen] } : {}),

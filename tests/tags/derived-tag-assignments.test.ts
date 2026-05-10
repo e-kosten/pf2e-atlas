@@ -44,42 +44,37 @@ const assignmentTags: DerivedTagOntologyTag[] = [
     family: "infiltration",
     tag: "disguise",
     description: "Alters appearance.",
-    assignmentMode: "deterministic",
   },
   {
     category: "equipment",
     family: "infiltration",
     tag: "social_infiltration",
     description: "Blends into social spaces.",
-    assignmentMode: "deterministic",
   },
   {
     category: "equipment",
     family: "security",
     tag: "alarm",
     description: "Warns of intruders.",
-    assignmentMode: "deterministic",
   },
   {
     category: "equipment",
     family: "reconnaissance",
     tag: "scouting",
     description: "Supports observation and recon.",
-    assignmentMode: "deterministic",
   },
   {
     category: "equipment",
     family: "reconnaissance",
     tag: "tracking",
     description: "Supports following and relocating targets.",
-    assignmentMode: "deterministic",
   },
   {
     category: "equipment",
     family: "reconnaissance",
     tag: "reconnaissance",
     description: "Broad scouting umbrella.",
-    assignmentMode: "composite",
+    isComposite: true,
     compositeOfAnyTags: ["scouting", "tracking"],
   },
 ];
@@ -88,7 +83,7 @@ function buildTestConceptModel(tags: DerivedTagOntologyTag[]): PublishedDerivedT
   const concepts = tags.map((tag) => ({
     id: `${tag.category}:${tag.tag}`,
     label: tag.tag,
-    schemaKind: tag.assignmentMode === "composite" ? ("aggregate" as const) : ("descriptive" as const),
+    schemaKind: tag.isComposite ? ("aggregate" as const) : ("descriptive" as const),
   }));
   const projections = tags.map((tag) => ({
     id: `${tag.category}:${tag.tag}`,
@@ -99,7 +94,7 @@ function buildTestConceptModel(tags: DerivedTagOntologyTag[]): PublishedDerivedT
     currentTag: tag.tag,
     label: tag.label,
     description: tag.description,
-    assignmentMode: tag.assignmentMode,
+    isComposite: tag.isComposite,
     compositeOfAnyTags: tag.compositeOfAnyTags,
     translationStatus: "mapped" as const,
   }));

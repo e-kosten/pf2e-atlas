@@ -169,7 +169,7 @@ function buildCanonicalTags(
       tag: projection.currentTag,
       label: projection.label,
       description: projection.description,
-      assignmentMode: projection.assignmentMode,
+      ...(projection.isComposite !== undefined ? { isComposite: projection.isComposite } : {}),
       nativeOntologyPolicy: projection.nativeOntologyPolicy,
       appliesWhen: projection.appliesWhen,
       doesNotApplyWhen: projection.doesNotApplyWhen,

@@ -5,7 +5,6 @@ import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 export const spellInfluenceProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.INFLUENCE_INFLUENCE, {
     charm_influence: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Wins cooperation through friendliness, fascination, admiration, or magically altered social regard.",
       appliesWhen: [
@@ -20,7 +19,6 @@ export const spellInfluenceProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     compulsion_control: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Forces scripted behavior, movement, or obedience against a target's normal will.",
       appliesWhen: [
         "The spell explicitly pressures the target into doing something, moving somewhere, or obeying a commanded pattern.",
@@ -34,7 +32,6 @@ export const spellInfluenceProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     domination: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Seizes sustained control over a target's actions, body, or tactical decision-making.",
       appliesWhen: [
         "The spell grants ongoing, high-authority control over what the target does rather than just one compelled action.",
@@ -48,7 +45,6 @@ export const spellInfluenceProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     emotion_control: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Directly manipulates fear, calm, rage, love, despair, or other emotional states.",
       appliesWhen: [
         "The spell is naturally retrieved for changing a creature's feelings, morale, or emotional volatility.",
@@ -62,7 +58,6 @@ export const spellInfluenceProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     memory_manipulation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Edits, suppresses, restores, or rewrites memories, recollection, and remembered events.",
       appliesWhen: [
         "The spell is naturally retrieved for altering what a target remembers, forgets, or believes it experienced.",
@@ -76,7 +71,6 @@ export const spellInfluenceProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     sleep_magic: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Puts creatures to sleep, into magical slumber, or into a similarly enforced dormant state.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
