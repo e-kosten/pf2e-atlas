@@ -253,7 +253,8 @@ The important architectural split is:
 
 - `ontology/` still owns the current category-local authored tag definitions
 - `canonical/concepts/` owns global concept meaning
-- `canonical/projections/concepts/` owns category projections grouped by concept id, with alias tags declared only where the published tag differs from the concept id
+- `canonical/projections/concepts/` owns concept-centered projection declarations, grouped by schema kind and then by facet kind or operation so editors work in bounded files aligned to the concept vocabulary
+- `canonical/projections/by-category/` owns derived category-indexed projection views for runtime and call sites that need category maps
 - `translations/` owns current-row translation state and overrides
 - `runtime/publication/` compiles the projection-backed published ontology used by derivation and the explorer surfaces
 
