@@ -151,32 +151,48 @@ export type CanonicalProjectionSeed = Omit<
 
 export type CanonicalProjectionByTag = Record<string, CanonicalProjectionSeed>;
 
-export type ConceptProjectionSeed = Omit<
+export type CategoryProjectionFamilyDescriptor<C extends DerivedTagManagedCategory = DerivedTagManagedCategory> = {
+  category: C;
+  axis: DerivedTagOntologyAxis<C>;
+  family: string;
+};
+
+export type CategoryProjectionSeed = Omit<
   CanonicalProjectionSeed,
-  "category" | "conceptId" | "currentTag"
+  "axis" | "category" | "conceptId" | "currentTag" | "family"
 > & {
-  tag?: string;
+  concept?: string;
 };
 
-export type ConceptProjectionSeedByCategory = Partial<
-  Record<DerivedTagManagedCategory, ConceptProjectionSeed | ConceptProjectionSeed[]>
->;
+export type CategoryProjectionTagSeeds = Record<string, CategoryProjectionSeed | CategoryProjectionSeed[]>;
 
-export type ConceptProjectionDeclaration = {
-  conceptId: string;
-  projections: ConceptProjectionSeedByCategory;
+export type CategoryProjectionFamilyBlock<C extends DerivedTagManagedCategory = DerivedTagManagedCategory> = {
+  descriptor: CategoryProjectionFamilyDescriptor<C>;
+  tags: CategoryProjectionTagSeeds;
 };
 
-export function defineConceptProjections(
-  conceptId: string,
-  projections: ConceptProjectionSeedByCategory,
-): ConceptProjectionDeclaration {
-  return { conceptId, projections };
+export type CategoryProjectionDeclaration<C extends DerivedTagManagedCategory = DerivedTagManagedCategory> = {
+  category: C;
+  families: readonly CategoryProjectionFamilyBlock<C>[];
+};
+
+export function projectionFamily<C extends DerivedTagManagedCategory>(
+  descriptor: CategoryProjectionFamilyDescriptor<C>,
+  tags: CategoryProjectionTagSeeds,
+): CategoryProjectionFamilyBlock<C> {
+  return { descriptor, tags };
+}
+
+export function defineCategoryProjections<C extends DerivedTagManagedCategory>(
+  category: C,
+  families: readonly CategoryProjectionFamilyBlock<C>[],
+): CategoryProjectionDeclaration<C> {
+  return { category, families };
 }
 
 export function buildProjectionRecordsByCategory(
   conceptsById: Record<string, DerivedTagCanonicalConcept>,
-  declarations: readonly ConceptProjectionDeclaration[],
+  declarations: readonly CategoryProjectionDeclaration[],
 ): Record<DerivedTagManagedCategory, Record<string, DerivedTagCategoryProjection>> {
   const recordsByCategory = Object.fromEntries(
     DERIVED_TAG_MANAGED_CATEGORIES.map((category) => [category, {}]),
@@ -184,41 +200,48 @@ export function buildProjectionRecordsByCategory(
   const seenProjectionIds = new Set<string>();
 
   for (const declaration of declarations) {
-    if (!conceptsById[declaration.conceptId]) {
-      throw new Error(`Canonical projection declaration references unknown concept "${declaration.conceptId}".`);
+    if (!DERIVED_TAG_MANAGED_CATEGORIES.includes(declaration.category)) {
+      throw new Error(`Canonical projection declaration uses unmanaged category "${declaration.category}".`);
     }
 
-    for (const [category, seedOrSeeds] of Object.entries(declaration.projections)) {
-      if (!DERIVED_TAG_MANAGED_CATEGORIES.includes(category as DerivedTagManagedCategory)) {
+    const categoryRecords = recordsByCategory[declaration.category];
+    for (const familyBlock of declaration.families) {
+      if (familyBlock.descriptor.category !== declaration.category) {
         throw new Error(
-          `Canonical projection declaration for "${declaration.conceptId}" uses unmanaged category "${category}".`,
+          `Canonical projection family "${familyBlock.descriptor.category}:${familyBlock.descriptor.axis}:${familyBlock.descriptor.family}" does not belong in ${declaration.category} projections.`,
         );
       }
 
-      const managedCategory = category as DerivedTagManagedCategory;
-      for (const seed of Array.isArray(seedOrSeeds) ? seedOrSeeds : [seedOrSeeds]) {
-        const currentTag = seed.tag ?? declaration.conceptId;
-        const projectionId = seed.id ?? `${managedCategory}:${currentTag}`;
-        if (seenProjectionIds.has(projectionId)) {
-          throw new Error(`Duplicate canonical projection id while building projections: ${projectionId}`);
-        }
-        seenProjectionIds.add(projectionId);
+      for (const [currentTag, seedOrSeeds] of Object.entries(familyBlock.tags)) {
+        for (const seed of Array.isArray(seedOrSeeds) ? seedOrSeeds : [seedOrSeeds]) {
+          const conceptId = seed.concept ?? currentTag;
+          if (!conceptsById[conceptId]) {
+            throw new Error(`Canonical projection declaration references unknown concept "${conceptId}".`);
+          }
 
-        const categoryRecords = recordsByCategory[managedCategory];
-        if (categoryRecords[currentTag]) {
-          throw new Error(`Duplicate canonical projection tag "${managedCategory}:${currentTag}".`);
-        }
+          const projectionId = seed.id ?? `${declaration.category}:${currentTag}`;
+          if (seenProjectionIds.has(projectionId)) {
+            throw new Error(`Duplicate canonical projection id while building projections: ${projectionId}`);
+          }
+          seenProjectionIds.add(projectionId);
 
-        const { tag: _tag, id: _id, ...projectionSeed } = seed;
-        categoryRecords[currentTag] = {
-          ...projectionSeed,
-          id: projectionId,
-          category: managedCategory,
-          conceptId: declaration.conceptId,
-          currentTag,
-          label: seed.label ?? declaration.conceptId,
-          translationStatus: seed.translationStatus ?? CANONICAL_VOCABULARY.TRANSLATION.STATUS.MAPPED,
-        } as DerivedTagCategoryProjection;
+          if (categoryRecords[currentTag]) {
+            throw new Error(`Duplicate canonical projection tag "${declaration.category}:${currentTag}".`);
+          }
+
+          const { concept: _concept, id: _id, ...projectionSeed } = seed;
+          categoryRecords[currentTag] = {
+            ...projectionSeed,
+            axis: familyBlock.descriptor.axis,
+            family: familyBlock.descriptor.family,
+            id: projectionId,
+            category: declaration.category,
+            conceptId,
+            currentTag,
+            label: seed.label ?? conceptId,
+            translationStatus: seed.translationStatus ?? CANONICAL_VOCABULARY.TRANSLATION.STATUS.MAPPED,
+          } as DerivedTagCategoryProjection;
+        }
       }
     }
   }

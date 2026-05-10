@@ -245,7 +245,7 @@ The future derived-tag ontology shape has live bridge layers under `src/tags/can
 Those layers own:
 
 - canonical concept definitions
-- concept-centered projection declarations that preserve category-specific axis/family browsing
+- category-first projection declarations that group tags by category, axis, and family while mapping each live tag to a canonical concept
 - translation records keyed to the current tag rows
 - translation status (`mapped`, `provisional`, `unmapped`, `dropped`)
 
@@ -253,8 +253,8 @@ The important architectural split is:
 
 - `ontology/` still owns the current category-local authored tag definitions
 - `canonical/concepts/` owns global concept meaning
-- `canonical/projections/concepts/` owns concept-centered projection declarations, grouped by schema kind and then by facet kind or operation so editors work in bounded files aligned to the concept vocabulary
-- `canonical/projections/by-category/` owns derived category-indexed projection views for runtime and call sites that need category maps
+- `canonical/projections/families.ts` owns canonical category/axis/family pairings
+- `canonical/projections/categories/` owns projection authoring, grouped as category folders with axis files and family blocks; tag keys default to matching concept ids, and aliases declare `concept` only when the live tag differs from the canonical concept
 - `translations/` owns current-row translation state and overrides
 - `runtime/publication/` compiles the projection-backed published ontology used by derivation and the explorer surfaces
 
