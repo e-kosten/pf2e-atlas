@@ -356,7 +356,16 @@ const EDITORIAL_WORKBENCH_PROMPT_BOUNDARY_RESTRICTIONS = [
 
 export default defineConfig(
   {
-    ignores: [".cache/**", ".codex/**", "coverage/**", "dist/**", "node_modules/**", "scratch/**", "vendor/pf2e/**"],
+    ignores: [
+      ".cache/**",
+      ".codex/**",
+      ".worktrees/**",
+      "coverage/**",
+      "dist/**",
+      "node_modules/**",
+      "scratch/**",
+      "vendor/pf2e/**",
+    ],
   },
   {
     files: ["**/*.{js,mjs,cjs,ts,tsx}"],
