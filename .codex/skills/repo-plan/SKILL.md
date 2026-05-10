@@ -25,7 +25,7 @@ This skill is specifically about how planning should happen here. It is not a ge
    If the plan introduces a new durable follow-up or architectural intent, add or refine a backlog item once the shape is clear.
 5. Keep planning uncommitted.
    Do not commit while the task is still in planning. The plan file is a working artifact.
-6. Move tracked implementation edits to a dedicated `/tmp` git worktree once the plan is stable enough to execute.
+6. Move tracked implementation edits to a dedicated `<repo-root>/.worktrees` git worktree once the plan is stable enough to execute.
 
 ## What the Plan Must Contain
 
@@ -85,7 +85,7 @@ Use this boundary strictly:
   - editing tracked source files for implementation
   - mixing implementation changes into the shared checkout
 
-Once the shape is clear and tracked implementation is about to begin, create a dedicated worktree under `/tmp`.
+Once the shape is clear and tracked implementation is about to begin, create a dedicated worktree under `<repo-root>/.worktrees`.
 
 ## Required Plan Sections
 

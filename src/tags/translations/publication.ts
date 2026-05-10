@@ -10,8 +10,8 @@ import {
   DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID,
   DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY,
 } from "../canonical/registry.js";
-import { normalizeDerivedTag } from "../runtime/matcher/engine.js";
 import type { PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
+import { normalizeDerivedTag } from "../runtime/matcher/engine.js";
 import { getCurrentDerivedTagFamilyTranslationDefault, getCurrentDerivedTagTranslationOverride } from "./state.js";
 import { DERIVED_TAG_BASE_LEGACY_TRANSLATIONS } from "./base-mappings.js";
 import { applyDerivedTagTranslationOverride } from "./record-utils.js";
@@ -115,17 +115,28 @@ export function buildEffectiveDerivedTagTranslationRecord(
   return hydratePublishedTranslationRecord(applyDerivedTagTranslationOverride(mapping, override));
 }
 
-export function buildPublishedDerivedTagTranslations(
-  options: { includeOverrides?: boolean } = {},
-): DerivedTagTranslationRecord[] {
-  const includeOverrides = options.includeOverrides !== false;
+export function buildBaseDerivedTagTranslations(): DerivedTagTranslationRecord[] {
+  return DERIVED_TAG_BASE_LEGACY_TRANSLATIONS.map((row) => hydratePublishedTranslationRecord(structuredClone(row))).sort(
+    (left, right) =>
+      left.currentCategory.localeCompare(right.currentCategory) ||
+      left.currentBrowseAxis.localeCompare(right.currentBrowseAxis) ||
+      left.currentFamily.localeCompare(right.currentFamily) ||
+      left.currentTag.localeCompare(right.currentTag),
+  );
+}
 
-  return DERIVED_TAG_BASE_LEGACY_TRANSLATIONS.map((baseRow): DerivedTagTranslationRecord => {
-    let row: DerivedTagTranslationMapping = structuredClone(baseRow);
-    if (!includeOverrides) {
-      return hydratePublishedTranslationRecord(row);
-    }
+export function buildBaseDerivedTagTranslationsByKey(): Map<`${SearchCategory}:${string}`, DerivedTagTranslationRecord> {
+  return new Map(
+    buildBaseDerivedTagTranslations().map((translation) => [
+      translationKey(translation.currentCategory, translation.currentTag),
+      translation,
+    ] as const),
+  );
+}
 
+export function buildPublishedDerivedTagTranslations(): DerivedTagTranslationRecord[] {
+  return buildBaseDerivedTagTranslations().map((baseRow): DerivedTagTranslationRecord => {
+    let row: DerivedTagTranslationMapping = buildTranslationMappingFromPublishedRecord(baseRow);
     row = applyFamilyDefaults(
       row,
       getCurrentDerivedTagFamilyTranslationDefault(
@@ -146,11 +157,9 @@ export function buildPublishedDerivedTagTranslations(
   );
 }
 
-export function buildPublishedDerivedTagTranslationsByKey(
-  options: { includeOverrides?: boolean } = {},
-): Map<`${SearchCategory}:${string}`, DerivedTagTranslationRecord> {
+export function buildPublishedDerivedTagTranslationsByKey(): Map<`${SearchCategory}:${string}`, DerivedTagTranslationRecord> {
   return new Map(
-    buildPublishedDerivedTagTranslations(options).map((translation) => [
+    buildPublishedDerivedTagTranslations().map((translation) => [
       translationKey(translation.currentCategory, translation.currentTag),
       translation,
     ] as const),

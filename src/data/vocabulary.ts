@@ -1,8 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 
 import {
-  PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
+  getCurrentPublicDerivedTagOntologyFamilies,
+  getCurrentPublicDerivedTagOntologyTags,
   groupDerivedTagOntology,
 } from "../tags/runtime.js";
 import type {
@@ -73,10 +73,12 @@ type RawCategoryValueCountRow = {
   count: number | bigint;
 };
 
-const DERIVED_TAG_CATALOG = groupDerivedTagOntology({
-  families: PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  tags: PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
-});
+function getCurrentPublicDerivedTagOntologyCatalog(): ReturnType<typeof groupDerivedTagOntology> {
+  return groupDerivedTagOntology({
+    families: getCurrentPublicDerivedTagOntologyFamilies(),
+    tags: getCurrentPublicDerivedTagOntologyTags(),
+  });
+}
 
 function parseValueCountRows(rows: RawValueCountRow[], context: string): Array<{ value: string; count: number }> {
   return rows.map((row) => ({
@@ -204,6 +206,7 @@ export function getSearchSemanticsBootstrapSummary(
 ): SearchSemanticsBootstrapSummaryResult {
   const traitLimit = normalizeTraitLimitPerCategory(options.traitLimitPerCategory);
   const categories = getSearchCategorySummary(db).categories;
+  const publicOntologyTags = getCurrentPublicDerivedTagOntologyTags();
   const subcategoryCountsByCategory = groupCategoryCountRows(
     parseCategorySubcategoryCountRows(
       db
@@ -251,17 +254,16 @@ export function getSearchSemanticsBootstrapSummary(
           ORDER BY r.category ASC, count DESC, value ASC
         `,
         )
-        .all() as RawCategoryValueCountRow[],
+      .all() as RawCategoryValueCountRow[],
       "search vocabulary derived tag",
     ),
     traitLimit,
-  )
-    .map(({ category, values }) => ({
-      category,
-      tags: values.filter((entry) =>
-        PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === category && tag.tag === entry.value),
-      ),
-    }))
+  ).map(({ category, values }) => ({
+    category,
+    tags: values.filter((entry) =>
+      publicOntologyTags.some((tag) => tag.category === category && tag.tag === entry.value),
+    ),
+  }))
     .filter((entry) => entry.tags.length > 0);
 
   return {
@@ -269,7 +271,7 @@ export function getSearchSemanticsBootstrapSummary(
     subcategoryCountsByCategory,
     commonTraitsByCategory,
     commonDerivedTagsByCategory,
-    derivedTagCatalog: DERIVED_TAG_CATALOG,
+    derivedTagCatalog: getCurrentPublicDerivedTagOntologyCatalog(),
   };
 }
 
@@ -278,6 +280,8 @@ export function getSearchVocabulary(
   options: { traitLimitPerCategory?: number } = {},
 ): SearchVocabularyResult {
   const summary = getSearchSemanticsBootstrapSummary(db, options);
+  const publicOntologyFamilies = getCurrentPublicDerivedTagOntologyFamilies();
+  const publicOntologyTags = getCurrentPublicDerivedTagOntologyTags();
   const subcategories = parseSubcategoryCountRows(
     db
       .prepare(
@@ -397,8 +401,8 @@ export function getSearchVocabulary(
     sourceCategories,
     commonTraitsByCategory: summary.commonTraitsByCategory,
     commonDerivedTagsByCategory: summary.commonDerivedTagsByCategory,
-    derivedTagOntologyFamilies: PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
-    derivedTagOntologyTags: PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
+    derivedTagOntologyFamilies: publicOntologyFamilies,
+    derivedTagOntologyTags: publicOntologyTags,
     derivedTagCatalog: summary.derivedTagCatalog,
   };
 }

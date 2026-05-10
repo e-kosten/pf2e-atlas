@@ -1,4 +1,4 @@
-import { buildPublishedDerivedTagTranslationsByKey } from "../../translations/index.js";
+import { buildBaseDerivedTagTranslationsByKey } from "../../translations/index.js";
 import {
   cloneDerivedTagTranslationOverride,
   normalizeDerivedTagTranslationOverride,
@@ -29,9 +29,7 @@ export function createDerivedTagTranslationReviewSession(options: {
       ...(options.categoryFilter && options.categoryFilter !== "all" ? { category: options.categoryFilter } : {}),
       ...(options.statusFilter && options.statusFilter !== "all" ? { statuses: [options.statusFilter] } : {}),
     });
-  const baseTranslationsByKey = buildPublishedDerivedTagTranslationsByKey({
-    includeOverrides: false,
-  });
+  const baseTranslationsByKey = buildBaseDerivedTagTranslationsByKey();
   const currentOverrides = getCurrentDerivedTagTranslationOverrides();
 
   const rows: DerivedTagTranslationReviewRow[] = queueItems.map((row) => {

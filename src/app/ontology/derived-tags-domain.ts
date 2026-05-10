@@ -98,7 +98,6 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       },
       { text: `Live canonical records: ${tag.liveRecordCount}` },
       { text: `Record pages: ${tag.records.length}` },
-      { text: `Authored rules: ${tag.authoredRuleCount}` },
       { text: `Exemplars: +${tag.exemplarPositiveCount} / -${tag.exemplarNegativeCount}` },
       {
         text: `Legacy seed migrations: ${tag.legacyMigrationDefinitionCount} definitions across ${tag.legacyMigrationRecordCount} records`,

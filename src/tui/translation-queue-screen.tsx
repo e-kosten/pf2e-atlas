@@ -1,13 +1,13 @@
 import React from "react";
 
 import type { SearchCategory } from "../domain/search-types.js";
-import type { DerivedTagTranslationOverride } from "../tags/translations/tag-overrides.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../tags/manifest.js";
-import { cloneDerivedTagTranslationOverride } from "../tags/translations/record-utils.js";
-import { buildEffectiveDerivedTagTranslationRecord } from "../tags/translations/publication.js";
 import {
   createDerivedTagTranslationReviewSession,
+  buildEffectiveDerivedTagTranslationRecord,
+  cloneDerivedTagTranslationOverride,
   importDerivedTagTranslationReviewSession,
+  type DerivedTagTranslationOverride,
   writeDerivedTagTranslationReviewSession,
 } from "../tags/editorial.js";
 import type {

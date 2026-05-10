@@ -13,7 +13,7 @@ function describeDecision(decision: DerivedTagReviewDecision): string {
     const current = decision.currentPolarity ? ` from ${decision.currentPolarity}` : "";
     return `${decision.tag} exemplar${current} -> ${decision.action === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP ? DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.EXEMPLAR_ACTION.DROP : decision.polarity}`;
   }
-  return `${decision.tag} rule ${decision.decision}`;
+  throw new Error(`Unsupported decision kind: ${(decision as { kind: string }).kind}`);
 }
 
 function toManagedCategory(category: string): "affliction" | "creature" | "equipment" | "hazard" | "spell" | null {

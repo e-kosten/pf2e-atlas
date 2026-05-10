@@ -8,3 +8,4 @@ vendor/pf2e/
 *.swp
 *.swo
 scratch/
+.worktrees/

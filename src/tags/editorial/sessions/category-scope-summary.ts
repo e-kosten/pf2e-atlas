@@ -4,8 +4,7 @@ import type { SearchCategory } from "../../../domain/derived-tag-types.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES, expectDerivedTagManagedCategory } from "../../manifest.js";
 import { listDerivedTagLegacySeedMigrations } from "../../runtime/derivation/api.js";
 import { getCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
-import { loadDerivedTagMigrationRecords } from "./record-loader.js";
-import { deriveCurrentTagSources, summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
+import { summarizeCurrentDerivedTagReviewQueue } from "../state/runtime-state.js";
 import type { DerivedTagManagedCategory, DerivedTagWorkbenchMode } from "../types.js";
 import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
 
@@ -160,59 +159,6 @@ function buildProposalReviewCategoryScopeSummary(): DerivedTagCategoryScopeSumma
   };
 }
 
-function buildLegacyRuleCategoryScopeSummary(db: DatabaseSync): DerivedTagCategoryScopeSummarySet {
-  const counts = DERIVED_TAG_MANAGED_CATEGORIES.map((category) => {
-    const records = loadDerivedTagMigrationRecords(db, { category });
-    const legacyRuleTags = new Set<string>();
-    let legacyRuleRecordCount = 0;
-
-    for (const record of records) {
-      const entityRecord = record.entityRecord;
-      const currentSources = deriveCurrentTagSources({
-        recordKey: entityRecord.recordKey,
-        name: entityRecord.name,
-        category: entityRecord.category,
-        subcategory: entityRecord.subcategory,
-        descriptionText: entityRecord.descriptionText,
-        blurbText: entityRecord.blurbText,
-        traits: entityRecord.traits,
-        families: entityRecord.families,
-        references: record.references,
-      });
-      const matchedTags = Object.entries(currentSources)
-        .filter(([, source]) => source.includes("legacy_rule"))
-        .map(([tag]) => tag);
-
-      if (matchedTags.length > 0) {
-        legacyRuleRecordCount += 1;
-        for (const tag of matchedTags) {
-          legacyRuleTags.add(tag);
-        }
-      }
-    }
-
-    return {
-      category,
-      legacyRuleRecordCount,
-      legacyRuleTagCount: legacyRuleTags.size,
-    };
-  });
-
-  return {
-    allCategoriesDetailLines: [
-      `${sum(counts.map((entry) => entry.legacyRuleRecordCount))} legacy-rule records`,
-      `${sum(counts.map((entry) => entry.legacyRuleTagCount))} legacy-rule tags`,
-    ],
-    categories: counts.map((entry) => ({
-      category: entry.category,
-      detailLines: [
-        `${entry.legacyRuleRecordCount} legacy-rule record${entry.legacyRuleRecordCount === 1 ? "" : "s"}`,
-        `${entry.legacyRuleTagCount} legacy-rule tag${entry.legacyRuleTagCount === 1 ? "" : "s"}`,
-      ],
-    })),
-  };
-}
-
 export function summarizeDerivedTagCategoryScopes(
   db: DatabaseSync,
   mode: DerivedTagWorkbenchMode,
@@ -221,7 +167,6 @@ export function summarizeDerivedTagCategoryScopes(
     review_queue: buildReviewQueueCategoryScopeSummary,
     proposal_review: buildProposalReviewCategoryScopeSummary,
     legacy_seed: buildLegacySeedCategoryScopeSummary,
-    legacy_rule: buildLegacyRuleCategoryScopeSummary,
     exemplar_cleanup: buildExemplarCleanupCategoryScopeSummary,
   };
 

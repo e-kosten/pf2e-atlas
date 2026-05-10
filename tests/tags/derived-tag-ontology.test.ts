@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 import {
-  DERIVED_TAG_ONTOLOGY_CONCEPTS,
-  DERIVED_TAG_ONTOLOGY_FAMILIES,
-  DERIVED_TAG_ONTOLOGY_TAGS,
-  DERIVED_TAG_ONTOLOGY_TRANSLATIONS,
-  PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES,
-  PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS,
+  getCurrentDerivedTagOntologyConcepts,
+  getCurrentDerivedTagOntologyFamilies,
+  getCurrentDerivedTagOntologyTags,
+  getCurrentDerivedTagOntologyTranslations,
+  getCurrentPublicDerivedTagOntologyFamilies,
+  getCurrentPublicDerivedTagOntologyTags,
 } from "../../src/tags/runtime.js";
 
 function matcherAnyString(): unknown {
@@ -31,14 +31,14 @@ describe("derived tag ontology", () => {
     const familiesByCategory = new Map<string, Set<string>>();
     const tagsByCategory = new Map<string, Map<string, string>>();
 
-    for (const family of DERIVED_TAG_ONTOLOGY_FAMILIES) {
+    for (const family of getCurrentDerivedTagOntologyFamilies()) {
       const categoryFamilies = familiesByCategory.get(family.category) ?? new Set<string>();
       expect(categoryFamilies.has(family.family)).toBe(false);
       categoryFamilies.add(family.family);
       familiesByCategory.set(family.category, categoryFamilies);
     }
 
-    for (const tag of DERIVED_TAG_ONTOLOGY_TAGS) {
+    for (const tag of getCurrentDerivedTagOntologyTags()) {
       expect(tag.assignmentMode).toBeDefined();
       const categoryTags = tagsByCategory.get(tag.category) ?? new Map<string, string>();
       const existingFamily = categoryTags.get(tag.tag);
@@ -50,7 +50,7 @@ describe("derived tag ontology", () => {
       tagsByCategory.set(tag.category, categoryTags);
     }
 
-    for (const tag of DERIVED_TAG_ONTOLOGY_TAGS) {
+    for (const tag of getCurrentDerivedTagOntologyTags()) {
       const categoryTags = tagsByCategory.get(tag.category) ?? new Map<string, string>();
       for (const adjacentTag of tag.adjacentTags ?? []) {
         expect(categoryTags.has(adjacentTag)).toBe(true);
@@ -62,7 +62,7 @@ describe("derived tag ontology", () => {
   });
 
   it("keeps explicit composite tags and only derives grouped catalog views at the boundary", () => {
-    const spellTransformation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellTransformation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "transformation",
     );
     expect(spellTransformation).toEqual(
@@ -72,7 +72,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["battle_form", "animal_form", "elemental_form"],
       }),
     );
-    const spellReconnaissance = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellReconnaissance = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "reconnaissance",
     );
     expect(spellReconnaissance).toEqual(
@@ -82,7 +82,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["scouting", "tracking", "scouting_summons"],
       }),
     );
-    const spellRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellRevelation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "revelation",
     );
     expect(spellRevelation).toEqual(
@@ -98,7 +98,7 @@ describe("derived tag ontology", () => {
         ],
       }),
     );
-    const spellWayfinding = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellWayfinding = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "wayfinding",
     );
     expect(spellWayfinding).toEqual(
@@ -108,7 +108,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["navigation", "tracking", "long_range_teleport", "planar_travel"],
       }),
     );
-    const spellSecurity = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "security");
+    const spellSecurity = getCurrentDerivedTagOntologyTags().find((tag) => tag.category === "spell" && tag.tag === "security");
     expect(spellSecurity).toEqual(
       matcherObjectContaining({
         family: "security",
@@ -116,7 +116,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["alarm", "scrying_protection", "protective_ward", "countermagic"],
       }),
     );
-    const spellConsultation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellConsultation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "consultation",
     );
     expect(spellConsultation).toEqual(
@@ -126,7 +126,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["lore_consultation", "problem_diagnosis", "omen_guidance"],
       }),
     );
-    const spellLockBypass = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellLockBypass = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "lock_bypass",
     );
     expect(spellLockBypass).toEqual(
@@ -139,7 +139,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellMechanismManipulation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellMechanismManipulation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "mechanism_manipulation",
     );
     expect(spellMechanismManipulation).toEqual(
@@ -152,7 +152,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const equipmentStealthSupport = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentStealthSupport = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "stealth_support",
     );
     expect(equipmentStealthSupport).toEqual(
@@ -161,7 +161,7 @@ describe("derived tag ontology", () => {
         assignmentMode: "deterministic",
       }),
     );
-    const spellStealthSupport = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellStealthSupport = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "stealth_support",
     );
     expect(spellStealthSupport).toEqual(
@@ -174,7 +174,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellInfiltration = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellInfiltration = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "infiltration",
     );
     expect(spellInfiltration).toEqual(
@@ -184,7 +184,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["stealth_support", "disguise", "social_infiltration"],
       }),
     );
-    const equipmentBarrierBypass = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentBarrierBypass = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "barrier_bypass",
     );
     expect(equipmentBarrierBypass).toEqual(
@@ -193,7 +193,7 @@ describe("derived tag ontology", () => {
         assignmentMode: "deterministic",
       }),
     );
-    const equipmentMechanismManipulation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentMechanismManipulation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "mechanism_manipulation",
     );
     expect(equipmentMechanismManipulation).toEqual(
@@ -202,7 +202,7 @@ describe("derived tag ontology", () => {
         assignmentMode: "deterministic",
       }),
     );
-    const equipmentReconnaissance = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentReconnaissance = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "reconnaissance",
     );
     expect(equipmentReconnaissance).toEqual(
@@ -212,7 +212,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["scouting", "illumination", "surveillance_recording", "tracking", "anti_tracking"],
       }),
     );
-    const equipmentSecurity = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentSecurity = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "security",
     );
     expect(equipmentSecurity).toEqual(
@@ -222,7 +222,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["alarm", "scrying_protection", "tamper_evidence"],
       }),
     );
-    const equipmentBurstDamage = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentBurstDamage = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "burst_damage",
     );
     expect(equipmentBurstDamage).toEqual(
@@ -232,7 +232,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["crowd_clearing", "persistent_damage"],
       }),
     );
-    const scoutSupport = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const scoutSupport = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "scout_support",
     );
     expect(scoutSupport).toEqual(
@@ -241,7 +241,7 @@ describe("derived tag ontology", () => {
         assignmentMode: "hybrid",
       }),
     );
-    const shieldSupport = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const shieldSupport = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "shield_support",
     );
     expect(shieldSupport).toEqual(
@@ -250,7 +250,7 @@ describe("derived tag ontology", () => {
         assignmentMode: "hybrid",
       }),
     );
-    const cursebreakingResolution = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const cursebreakingResolution = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "affliction" && tag.tag === "cursebreaking_resolution",
     );
     expect(cursebreakingResolution).toEqual(
@@ -260,7 +260,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["countermagic_resolution", "ritual_appeasement_resolution"],
       }),
     );
-    const spellResolution = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellResolution = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "resolution",
     );
     expect(spellResolution).toEqual(
@@ -279,7 +279,7 @@ describe("derived tag ontology", () => {
         ],
       }),
     );
-    const spellCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellCommunication = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "communication",
     );
     expect(spellCommunication).toEqual(
@@ -289,7 +289,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["signaling", "telepathic_communication", "message_delivery", "translation_support"],
       }),
     );
-    const equipmentResolution = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentResolution = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "resolution",
     );
     expect(equipmentResolution).toEqual(
@@ -307,7 +307,7 @@ describe("derived tag ontology", () => {
         ],
       }),
     );
-    const fungalInfested = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const fungalInfested = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "creature" && tag.tag === "fungal_infested",
     );
     expect(fungalInfested).toEqual(
@@ -318,7 +318,7 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const urbanSetting = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const urbanSetting = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "creature" && tag.tag === "urban_setting",
     );
     expect(urbanSetting).toEqual(
@@ -331,7 +331,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["small_settlement_setting", "fortress_setting"],
       }),
     );
-    const organizedUndeadSocietySetting = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const organizedUndeadSocietySetting = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "creature" && tag.tag === "organized_undead_society_setting",
     );
     expect(organizedUndeadSocietySetting).toEqual(
@@ -344,7 +344,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const gothicHorrorLandSetting = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const gothicHorrorLandSetting = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "creature" && tag.tag === "gothic_horror_land_setting",
     );
     expect(gothicHorrorLandSetting).toEqual(
@@ -355,7 +355,7 @@ describe("derived tag ontology", () => {
         description: matcherStringContaining("Ustalav"),
       }),
     );
-    const truthReveal = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
+    const truthReveal = getCurrentDerivedTagOntologyTags().find((tag) => tag.category === "spell" && tag.tag === "truth_reveal");
     expect(truthReveal).toEqual(
       matcherObjectContaining({
         family: "revelation",
@@ -366,7 +366,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellTracking = DERIVED_TAG_ONTOLOGY_TAGS.find((tag) => tag.category === "spell" && tag.tag === "tracking");
+    const spellTracking = getCurrentDerivedTagOntologyTags().find((tag) => tag.category === "spell" && tag.tag === "tracking");
     expect(spellTracking).toEqual(
       matcherObjectContaining({
         family: "reconnaissance",
@@ -377,7 +377,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const hazardRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const hazardRevelation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "hazard_revelation",
     );
     expect(hazardRevelation).toEqual(
@@ -390,7 +390,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const proceduralBypass = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const proceduralBypass = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "procedural_bypass",
     );
     expect(proceduralBypass).toEqual(
@@ -403,7 +403,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellExpedition = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellExpedition = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "expedition",
     );
     expect(spellExpedition).toEqual(
@@ -421,7 +421,7 @@ describe("derived tag ontology", () => {
         ],
       }),
     );
-    const hazardSourceTracing = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const hazardSourceTracing = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "source_tracing",
     );
     expect(hazardSourceTracing).toEqual(
@@ -434,7 +434,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const contaminationCleanupCountermeasure = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const contaminationCleanupCountermeasure = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "contamination_cleanup_countermeasure",
     );
     expect(contaminationCleanupCountermeasure).toEqual(
@@ -447,7 +447,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const environmentalHazard = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const environmentalHazard = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "environmental_hazard",
     );
     expect(environmentalHazard).toEqual(
@@ -457,7 +457,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: matcherArrayContaining(["fire_hazard", "contamination_hazard", "cursefield_hazard"]),
       }),
     );
-    const perceptionHazard = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const perceptionHazard = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "perception_hazard",
     );
     expect(perceptionHazard).toEqual(
@@ -467,7 +467,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["navigation_disruption", "illusion_assault", "false_safe_route"],
       }),
     );
-    const guardingHazard = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const guardingHazard = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "hazard" && tag.tag === "guarding_hazard",
     );
     expect(guardingHazard).toEqual(
@@ -477,7 +477,7 @@ describe("derived tag ontology", () => {
         compositeOfAnyTags: ["alarm", "barrier_lockdown", "sentinel_guardian"],
       }),
     );
-    const crewMember = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const crewMember = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "creature" && tag.tag === "crew_member",
     );
     expect(crewMember).toEqual(
@@ -488,22 +488,22 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const habitatFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find(
+    const habitatFamily = getCurrentDerivedTagOntologyFamilies().find(
       (family) => family.category === "creature" && family.family === "habitat_setting",
     );
     expect(habitatFamily?.description).toContain("habitat tags");
-    const combatRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find(
+    const combatRoleFamily = getCurrentDerivedTagOntologyFamilies().find(
       (family) => family.category === "creature" && family.family === "combat_role",
     );
     expect(combatRoleFamily?.description).toContain("encounter assembly");
-    const cohortRoleFamily = DERIVED_TAG_ONTOLOGY_FAMILIES.find(
+    const cohortRoleFamily = getCurrentDerivedTagOntologyFamilies().find(
       (family) => family.category === "creature" && family.family === "cohort_role",
     );
     expect(cohortRoleFamily?.description).toContain("roster-construction");
 
     const groupedCatalog = groupDerivedTagOntology({
-      families: DERIVED_TAG_ONTOLOGY_FAMILIES,
-      tags: DERIVED_TAG_ONTOLOGY_TAGS,
+      families: getCurrentDerivedTagOntologyFamilies(),
+      tags: getCurrentDerivedTagOntologyTags(),
     });
     const groupedTransformation = groupedCatalog.find(
       (entry) => entry.category === "spell" && entry.family === "transformation",
@@ -679,7 +679,7 @@ describe("derived tag ontology", () => {
   });
 
   it("publishes canonical concept metadata and translation records alongside stable tag ids", () => {
-    const poisonRemediation = DERIVED_TAG_ONTOLOGY_CONCEPTS.find((concept) => concept.id === "poison_remediation");
+    const poisonRemediation = getCurrentDerivedTagOntologyConcepts().find((concept) => concept.id === "poison_remediation");
     expect(poisonRemediation).toEqual(
       matcherObjectContaining({
         id: "poison_remediation",
@@ -690,7 +690,7 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const spellAntiPoison = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellAntiPoison = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "anti_poison",
     );
     expect(spellAntiPoison).toEqual(
@@ -706,7 +706,7 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const spellRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellRevelation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "revelation",
     );
     expect(spellRevelation).toEqual(
@@ -718,7 +718,7 @@ describe("derived tag ontology", () => {
     );
 
     expect(
-      DERIVED_TAG_ONTOLOGY_TRANSLATIONS.find(
+      getCurrentDerivedTagOntologyTranslations().find(
         (translation) => translation.currentCategory === "equipment" && translation.currentTag === "beneficial",
       ),
     ).toEqual(
@@ -727,26 +727,26 @@ describe("derived tag ontology", () => {
       }),
     );
     expect(
-      DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "equipment" && tag.tag === "beneficial"),
+      getCurrentDerivedTagOntologyTags().some((tag) => tag.category === "equipment" && tag.tag === "beneficial"),
     ).toBe(false);
   });
 
   it("publishes a settled-only public ontology surface", () => {
-    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES.length).toBeGreaterThan(0);
-    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.length).toBeGreaterThan(0);
-    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.every((tag) => tag.translationStatus === "mapped")).toBe(true);
-    expect(PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "spell")).toBe(false);
+    expect(getCurrentPublicDerivedTagOntologyFamilies().length).toBeGreaterThan(0);
+    expect(getCurrentPublicDerivedTagOntologyTags().length).toBeGreaterThan(0);
+    expect(getCurrentPublicDerivedTagOntologyTags().every((tag) => tag.translationStatus === "mapped")).toBe(true);
+    expect(getCurrentPublicDerivedTagOntologyTags().some((tag) => tag.category === "spell")).toBe(false);
     expect(
-      PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "affliction" && tag.tag === "community_outbreak"),
+      getCurrentPublicDerivedTagOntologyTags().some((tag) => tag.category === "affliction" && tag.tag === "community_outbreak"),
     ).toBe(true);
     expect(
-      PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS.some((tag) => tag.category === "equipment" && tag.tag === "anti_poison"),
+      getCurrentPublicDerivedTagOntologyTags().some((tag) => tag.category === "equipment" && tag.tag === "anti_poison"),
     ).toBe(true);
   });
 
   it("publishes creature family and tag hierarchy through the canonical runtime surface", () => {
-    const creatureFamilies = DERIVED_TAG_ONTOLOGY_FAMILIES.filter((family) => family.category === "creature");
-    const creatureTags = DERIVED_TAG_ONTOLOGY_TAGS.filter((tag) => tag.category === "creature");
+    const creatureFamilies = getCurrentDerivedTagOntologyFamilies().filter((family) => family.category === "creature");
+    const creatureTags = getCurrentDerivedTagOntologyTags().filter((tag) => tag.category === "creature");
 
     expect(
       creatureFamilies.find((family) => family.family === "habitat_setting")?.description,
@@ -930,7 +930,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const telepathicCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const telepathicCommunication = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "telepathic_communication",
     );
     expect(telepathicCommunication).toEqual(
@@ -943,7 +943,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const equipmentTranslationSupport = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentTranslationSupport = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "translation_support",
     );
     expect(equipmentTranslationSupport).toEqual(
@@ -956,7 +956,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellTelepathicCommunication = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellTelepathicCommunication = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "telepathic_communication",
     );
     expect(spellTelepathicCommunication).toEqual(
@@ -966,7 +966,7 @@ describe("derived tag ontology", () => {
         description: matcherStringContaining("mind-to-mind communication"),
       }),
     );
-    const spellAntiPoison = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellAntiPoison = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "anti_poison",
     );
     expect(spellAntiPoison).toEqual(
@@ -976,7 +976,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["affliction_cleanup", "anti_disease"],
       }),
     );
-    const spellRitualAppeasement = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellRitualAppeasement = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "ritual_appeasement",
     );
     expect(spellRitualAppeasement).toEqual(
@@ -986,7 +986,7 @@ describe("derived tag ontology", () => {
         adjacentTags: ["sanctification", "exorcism"],
       }),
     );
-    const equipmentSourceRevelation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentSourceRevelation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "source_revelation",
     );
     expect(equipmentSourceRevelation).toEqual(
@@ -999,7 +999,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const equipmentRitualAppeasement = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentRitualAppeasement = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "ritual_appeasement",
     );
     expect(equipmentRitualAppeasement).toEqual(
@@ -1012,7 +1012,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const equipmentEnvironmentalAdaptation = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const equipmentEnvironmentalAdaptation = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "equipment" && tag.tag === "environmental_adaptation",
     );
     expect(equipmentEnvironmentalAdaptation).toEqual(
@@ -1025,7 +1025,7 @@ describe("derived tag ontology", () => {
         ]),
       }),
     );
-    const spellScryingProtection = DERIVED_TAG_ONTOLOGY_TAGS.find(
+    const spellScryingProtection = getCurrentDerivedTagOntologyTags().find(
       (tag) => tag.category === "spell" && tag.tag === "scrying_protection",
     );
     expect(spellScryingProtection).toEqual(
@@ -1039,8 +1039,8 @@ describe("derived tag ontology", () => {
       }),
     );
 
-    const creatureRuntimeFamilies = DERIVED_TAG_ONTOLOGY_FAMILIES.filter((family) => family.category === "creature");
-    const creatureRuntimeTags = DERIVED_TAG_ONTOLOGY_TAGS.filter((tag) => tag.category === "creature");
+    const creatureRuntimeFamilies = getCurrentDerivedTagOntologyFamilies().filter((family) => family.category === "creature");
+    const creatureRuntimeTags = getCurrentDerivedTagOntologyTags().filter((tag) => tag.category === "creature");
     expect(creatureRuntimeFamilies).toContainEqual(
       matcherObjectContaining({
         category: "creature",

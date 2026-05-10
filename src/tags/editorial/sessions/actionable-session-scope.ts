@@ -115,7 +115,6 @@ export function getActionableSessionScopeKeys(
     review_queue: () => null,
     proposal_review: () => buildProposalReviewScopeKeys(),
     legacy_seed: () => null,
-    legacy_rule: () => null,
     exemplar_cleanup: buildExemplarCleanupScopeKeys,
   };
 

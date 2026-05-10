@@ -22,6 +22,6 @@ export const PF2E_APP_AREAS: Pf2eTopLevelArea[] = [
     audience: "dev",
     label: "Tag Refinement",
     description:
-      "Review authored queue items and create AI proposal, legacy-seed, legacy-rule, and exemplar-cleanup sessions.",
+      "Review authored queue items and create AI proposal, legacy-seed, and exemplar-cleanup sessions.",
   },
 ];

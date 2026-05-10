@@ -73,21 +73,6 @@ export function lintDerivedTagReviewSession(session: DerivedTagReviewSession): v
             `Migration session exemplar tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
           );
         }
-      } else {
-        const ontologyTag = ontology.tagByKey.get(`${decisionRecord.category}:${normalizeDerivedTag(decision.tag)}`);
-        if (!ontologyTag) {
-          throw new Error(
-            `Migration session rule tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
-          );
-        }
-        if (
-          decision.decision === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.RULE_DECISION.RECREATE_AUTHORED &&
-          (!decision.authoredRules || decision.authoredRules.length === 0)
-        ) {
-          throw new Error(
-            `Migration session rule decision for "${decisionRecord.recordKey}" must include authoredRules when recreating an authored rule.`,
-          );
-        }
       }
     }
 

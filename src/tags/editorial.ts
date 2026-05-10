@@ -27,6 +27,9 @@ export {
   readDerivedTagTranslationReviewSession,
   writeDerivedTagTranslationReviewSession,
 } from "./editorial/sessions/translation-session-store.js";
+export { buildEffectiveDerivedTagTranslationRecord } from "./translations/publication.js";
+export { cloneDerivedTagTranslationOverride } from "./translations/record-utils.js";
+export { type DerivedTagTranslationOverride } from "./translations/tag-overrides.js";
 export { writeDerivedTagReviewSummary } from "./editorial/writeback/review-summary.js";
 export { importDerivedTagTranslationReviewSession } from "./editorial/writeback/translation-session-importer.js";
 export type {

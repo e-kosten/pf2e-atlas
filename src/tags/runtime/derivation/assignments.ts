@@ -1,9 +1,6 @@
 import type { DerivedTagCategoryProjection, SearchCategory } from "../../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../../shared/utils.js";
 import { DERIVED_TAG_ASSIGNMENTS } from "../../assignments/index.js";
-import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
-import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../../reviews/assignment-memory/index.js";
-import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../../reviews/assignment-reviews/index.js";
 import { normalizeDerivedTag } from "../matcher/engine.js";
 import type { PublishedDerivedTagOntology } from "../publication/catalog.js";
 
@@ -88,14 +85,6 @@ type DerivedTagAssignmentRecordSummary = {
 };
 
 const RAW_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = DERIVED_TAG_ASSIGNMENTS;
-
-const RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS: DerivedTagAssignmentReviewGroup[] = [
-  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY[category]),
-];
-
-const RAW_DERIVED_TAG_ASSIGNMENT_MEMORY: DerivedTagAssignmentMemoryGroup[] = [
-  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY[category]),
-];
 
 type NormalizedProjectionDecisionMap = Map<string, DerivedTagAssignmentDecision>;
 
@@ -294,7 +283,7 @@ function memoryIdentity(
 
 export function buildDerivedTagPendingAssignmentViews(
   ontology: PublishedDerivedTagOntology,
-  groups: DerivedTagAssignmentReviewGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS,
+  groups: DerivedTagAssignmentReviewGroup[] = [],
 ): DerivedTagPendingAssignmentView[] {
   const seenDecisionKeys = new Set<string>();
   const pendingByRecord = new Map<string, DerivedTagPendingAssignmentView>();
@@ -350,7 +339,7 @@ export function buildDerivedTagPendingAssignmentViews(
 
 export function validateDerivedTagAssignmentMemory(
   ontology: PublishedDerivedTagOntology,
-  groups: DerivedTagAssignmentMemoryGroup[] = RAW_DERIVED_TAG_ASSIGNMENT_MEMORY,
+  groups: DerivedTagAssignmentMemoryGroup[] = [],
 ): void {
   const seenDecisionKeys = new Set<string>();
 

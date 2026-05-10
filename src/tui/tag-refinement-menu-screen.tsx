@@ -21,7 +21,6 @@ type TagRefinementCommandId =
   | "review_all"
   | "translation_queue"
   | "legacy_seed"
-  | "legacy_rule"
   | "exemplar_cleanup"
   | "proposal_review";
 
@@ -58,7 +57,6 @@ export function buildTagRefinementMenuItems(
   });
   menuItems.push(
     { kind: "create_mode", label: "Create legacy-seed review session", mode: "legacy_seed" },
-    { kind: "create_mode", label: "Create legacy-rule review session", mode: "legacy_rule" },
     { kind: "create_mode", label: "Create exemplar-cleanup review session", mode: "exemplar_cleanup" },
     { kind: "create_mode", label: "Create AI proposal review session", mode: "proposal_review" },
     { kind: "back", label: "Back to top level" },
@@ -117,11 +115,6 @@ function buildTagRefinementActionEntries(
       id: "legacy_seed",
       label: "Create Legacy-Seed Review Session",
       description: "Start a custom legacy-seed review session.",
-    },
-    {
-      id: "legacy_rule",
-      label: "Create Legacy-Rule Review Session",
-      description: "Start a custom legacy-rule review session.",
     },
     {
       id: "exemplar_cleanup",

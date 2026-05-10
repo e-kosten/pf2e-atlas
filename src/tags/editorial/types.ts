@@ -1,8 +1,8 @@
 import type {
-  AuthoredDerivedTagRule,
   DerivedTagExemplarCategory,
   DerivedTagExemplarPolarity,
   DerivedTagExemplarReviewCategory,
+  AuthoredDerivedTagRule,
   SearchCategory,
   SearchSubcategory,
 } from "../../domain/derived-tag-types.js";
@@ -35,7 +35,6 @@ export const DERIVED_TAG_WORKBENCH = {
     "review_queue",
     "proposal_review",
     "legacy_seed",
-    "legacy_rule",
     "exemplar_cleanup",
   ] as const,
 } as const;

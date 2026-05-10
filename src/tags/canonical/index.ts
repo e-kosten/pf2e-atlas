@@ -2,6 +2,8 @@ import type {
   DerivedTagCanonicalConcept,
   DerivedTagCategoryProjection,
   DerivedTagOntologyTag,
+  DerivedTagOntologyFamily,
+  SearchCategory,
   PublishedDerivedTagConceptModel,
 } from "../../domain/derived-tag-types.js";
 import {
@@ -10,14 +12,107 @@ import {
   DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY,
   DERIVED_TAG_CANONICAL_RELATIONS,
 } from "./registry.js";
-import { publishDerivedTagOntology, type PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
+import { type PublishedDerivedTagOntology } from "../runtime/publication/catalog.js";
 import { buildPublishedDerivedTagTranslations } from "../translations/publication.js";
+import { normalizeDerivedTag } from "../runtime/matcher/engine.js";
+import {
+  getCurrentDerivedTagFamilyTranslationDefaultsRevision,
+  getCurrentDerivedTagTranslationOverridesRevision,
+} from "../translations/state.js";
+
+type OntologyFamilyKey = `${SearchCategory}:${string}`;
+type OntologyTagKey = `${SearchCategory}:${string}`;
+
+function familyKey(category: SearchCategory, family: string): OntologyFamilyKey {
+  return `${category}:${normalizeDerivedTag(family)}`;
+}
+
+function tagKey(category: SearchCategory, tag: string): OntologyTagKey {
+  return `${category}:${normalizeDerivedTag(tag)}`;
+}
+
+function buildTagsByFamilyKey(tags: DerivedTagOntologyTag[]): Map<OntologyFamilyKey, DerivedTagOntologyTag[]> {
+  const tagsByFamilyKey = new Map<OntologyFamilyKey, DerivedTagOntologyTag[]>();
+
+  for (const tag of tags) {
+    const key = familyKey(tag.category, tag.family);
+    const current = tagsByFamilyKey.get(key) ?? [];
+    current.push(tag);
+    tagsByFamilyKey.set(key, current);
+  }
+
+  return tagsByFamilyKey;
+}
+
+function publishDerivedTagOntology(
+  families: DerivedTagOntologyFamily[],
+  tags: DerivedTagOntologyTag[],
+  conceptModel: PublishedDerivedTagConceptModel,
+): PublishedDerivedTagOntology {
+  const familyByKey = new Map<OntologyFamilyKey, DerivedTagOntologyFamily>();
+  const tagByKey = new Map<OntologyTagKey, DerivedTagOntologyTag>();
+
+  for (const family of families) {
+    const normalizedFamilyKey = familyKey(family.category, family.family);
+    if (familyByKey.has(normalizedFamilyKey)) {
+      throw new Error(
+        `Duplicate derived tag family "${normalizeDerivedTag(family.family)}" in category "${family.category}".`,
+      );
+    }
+    familyByKey.set(normalizedFamilyKey, family);
+  }
+
+  for (const tag of tags) {
+    const normalizedTagKey = tagKey(tag.category, tag.tag);
+    const normalizedFamilyKey = familyKey(tag.category, tag.family);
+    if (!familyByKey.has(normalizedFamilyKey)) {
+      throw new Error(
+        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" references unknown family "${normalizeDerivedTag(
+          tag.family,
+        )}".`,
+      );
+    }
+    if (tagByKey.has(normalizedTagKey)) {
+      const existing = tagByKey.get(normalizedTagKey)!;
+      throw new Error(
+        `Derived tag "${normalizeDerivedTag(tag.tag)}" in category "${tag.category}" belongs to both "${normalizeDerivedTag(
+          existing.family,
+        )}" and "${normalizeDerivedTag(tag.family)}".`,
+      );
+    }
+    tagByKey.set(normalizedTagKey, tag);
+  }
+
+  for (const tag of tags) {
+    for (const adjacentTag of tag.adjacentTags ?? []) {
+      if (!tagByKey.has(tagKey(tag.category, adjacentTag))) {
+        throw new Error(`Derived tag "${tag.tag}" in category "${tag.category}" references unknown adjacent tag "${adjacentTag}".`);
+      }
+    }
+    for (const childTag of tag.compositeOfAnyTags ?? []) {
+      if (!tagByKey.has(tagKey(tag.category, childTag))) {
+        throw new Error(
+          `Derived tag "${tag.tag}" in category "${tag.category}" references unknown composite child "${childTag}".`,
+        );
+      }
+    }
+  }
+
+  return {
+    families,
+    tags,
+    conceptModel,
+    familyByKey,
+    tagByKey,
+    tagsByFamilyKey: buildTagsByFamilyKey(tags),
+  };
+}
 
 function conceptSort(left: DerivedTagCanonicalConcept, right: DerivedTagCanonicalConcept): number {
   return left.id.localeCompare(right.id);
 }
 
-export const DERIVED_TAG_CANONICAL_CONCEPTS = Object.values(DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID).sort(conceptSort);
+const DERIVED_TAG_CANONICAL_CONCEPTS = Object.values(DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID).sort(conceptSort);
 const CANONICAL_CONCEPTS_BY_ID = DERIVED_TAG_CANONICAL_CONCEPTS_BY_ID;
 
 const GENERATED_CANONICAL_PROJECTIONS = Object.values(DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY)
@@ -125,27 +220,33 @@ function buildCanonicalOntology(): PublishedDerivedTagOntology {
   return publishDerivedTagOntology(DERIVED_TAG_CANONICAL_FAMILIES, tags, conceptModel);
 }
 
-export const DERIVED_TAG_CANONICAL_TRANSLATIONS = buildPublishedDerivedTagTranslations();
-const TRANSLATIONS_BY_KEY = buildTranslationsByKey(DERIVED_TAG_CANONICAL_TRANSLATIONS);
+type CanonicalOntologyCache = {
+  familyDefaultsRevision: number;
+  translationRevision: number;
+  ontology: PublishedDerivedTagOntology;
+};
 
-export const DERIVED_TAG_CANONICAL_PROJECTIONS = buildCanonicalProjections(TRANSLATIONS_BY_KEY);
+let cachedCanonicalOntology: CanonicalOntologyCache | null = null;
 
-export const DERIVED_TAG_CANONICAL_CONCEPT_MODEL: PublishedDerivedTagConceptModel = buildCanonicalConceptModel(
-  DERIVED_TAG_CANONICAL_PROJECTIONS,
-  DERIVED_TAG_CANONICAL_TRANSLATIONS,
-);
-
-export const DERIVED_TAG_CANONICAL_TAGS: DerivedTagOntologyTag[] = buildCanonicalTags(
-  DERIVED_TAG_CANONICAL_PROJECTIONS,
-  TRANSLATIONS_BY_KEY,
-);
-
-export const DERIVED_TAG_CANONICAL_ONTOLOGY: PublishedDerivedTagOntology = publishDerivedTagOntology(
-  DERIVED_TAG_CANONICAL_FAMILIES,
-  DERIVED_TAG_CANONICAL_TAGS,
-  DERIVED_TAG_CANONICAL_CONCEPT_MODEL,
-);
+export function getDerivedTagCanonicalConcepts(): readonly DerivedTagCanonicalConcept[] {
+  return DERIVED_TAG_CANONICAL_CONCEPTS;
+}
 
 export function getDerivedTagCanonicalOntology(): PublishedDerivedTagOntology {
-  return buildCanonicalOntology();
+  const familyDefaultsRevision = getCurrentDerivedTagFamilyTranslationDefaultsRevision();
+  const translationRevision = getCurrentDerivedTagTranslationOverridesRevision();
+
+  if (
+    !cachedCanonicalOntology ||
+    cachedCanonicalOntology.familyDefaultsRevision !== familyDefaultsRevision ||
+    cachedCanonicalOntology.translationRevision !== translationRevision
+  ) {
+    cachedCanonicalOntology = {
+      familyDefaultsRevision,
+      translationRevision,
+      ontology: buildCanonicalOntology(),
+    };
+  }
+
+  return cachedCanonicalOntology.ontology;
 }

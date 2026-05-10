@@ -17,8 +17,12 @@ import type {
   DerivedTagWorkbenchMode,
   DerivedTagReviewResolutionStatus,
 } from "../types.js";
-import type { SearchCategory, SearchSubcategory } from "../../../domain/derived-tag-types.js";
-import type { DerivedTagExemplarPolarity, AuthoredDerivedTagRule } from "../../../domain/derived-tag-types.js";
+import type {
+  AuthoredDerivedTagRule,
+  DerivedTagExemplarPolarity,
+  SearchCategory,
+  SearchSubcategory,
+} from "../../../domain/derived-tag-types.js";
 import type {
   DerivedTagReviewConfidence,
   DerivedTagReviewSource,
@@ -27,22 +31,6 @@ import type {
 import type { DerivedTagSource } from "../../runtime/publication/catalog.js";
 import { DERIVED_TAG_WORKBENCH } from "../types.js";
 import { DERIVED_TAG_REVIEW_VOCABULARY } from "../review-vocabulary.js";
-
-type LegacyDerivedTagReviewSessionRecord = {
-  recordKey: string;
-  name: string;
-  category: SearchCategory;
-  subcategory: SearchSubcategory | null;
-  packName: string;
-  level: number | null;
-  traits: string[];
-  families: string[];
-  currentDerivedTags: string[];
-  currentSources: DerivedTagReviewSessionRecord["currentSources"];
-  descriptionText: string | null;
-  blurbText: string | null;
-  selectionReasons: DerivedTagReviewSessionRecord["selectionReasons"];
-};
 
 type JsonObject = Record<string, unknown>;
 
@@ -74,13 +62,13 @@ const EXEMPLAR_POLARITIES: readonly DerivedTagExemplarPolarity[] = [
 const DERIVED_TAG_SOURCES: readonly DerivedTagSource[] = [
   "authored_rule",
   "legacy_rule",
-  "seed_migration",
-  "assignment",
   "authored_rule+legacy_rule",
   "authored_rule+seed_migration",
   "authored_rule+assignment",
   "legacy_rule+seed_migration",
   "legacy_rule+assignment",
+  "seed_migration",
+  "assignment",
   "seed_migration+assignment",
   "authored_rule+legacy_rule+seed_migration",
   "authored_rule+legacy_rule+assignment",
@@ -254,6 +242,13 @@ function parseExemplarPolarity(value: unknown, context: string): DerivedTagExemp
   return parseLiteral(value, EXEMPLAR_POLARITIES, context);
 }
 
+function parseCurrentSources(value: unknown, context: string): Record<string, DerivedTagSource> {
+  const parsed = expectObject(value, context);
+  return Object.fromEntries(
+    Object.entries(parsed).map(([key, sourceValue]) => [key, parseSource(sourceValue, `${context}.${key}`)]),
+  );
+}
+
 function parseOptionalAuthoredRules(value: unknown, context: string): AuthoredDerivedTagRule[] | undefined {
   if (value === undefined) {
     return undefined;
@@ -261,13 +256,6 @@ function parseOptionalAuthoredRules(value: unknown, context: string): AuthoredDe
 
   const rules = expectArray(value, context).map((entry, index) => expectObject(entry, `${context}[${index}]`));
   return rules as unknown as AuthoredDerivedTagRule[];
-}
-
-function parseCurrentSources(value: unknown, context: string): Record<string, DerivedTagSource> {
-  const parsed = expectObject(value, context);
-  return Object.fromEntries(
-    Object.entries(parsed).map(([key, sourceValue]) => [key, parseSource(sourceValue, `${context}.${key}`)]),
-  );
 }
 
 function parseSelectionReason(value: unknown, context: string): DerivedTagReviewSelectionReason {
@@ -283,6 +271,22 @@ function parseSelectionReason(value: unknown, context: string): DerivedTagReview
 function parseSelectionReasons(value: unknown, context: string): DerivedTagReviewSelectionReason[] {
   return expectArray(value, context).map((entry, index) => parseSelectionReason(entry, `${context}[${index}]`));
 }
+
+type LegacyDerivedTagReviewSessionRecord = {
+  recordKey: string;
+  name: string;
+  category: SearchCategory;
+  subcategory: SearchSubcategory | null;
+  packName: string;
+  level: number | null;
+  traits: string[];
+  families: string[];
+  currentDerivedTags: string[];
+  currentSources: DerivedTagReviewSessionRecord["currentSources"];
+  descriptionText: string | null;
+  blurbText: string | null;
+  selectionReasons: DerivedTagReviewSessionRecord["selectionReasons"];
+};
 
 function parseEntityRecord(value: unknown, context: string): DerivedTagReviewSessionRecord["entityRecord"] {
   const parsed = expectObject(value, context);
@@ -591,8 +595,8 @@ export async function readDerivedTagReviewSession(
   return {
     manifest: parseSessionManifest(parseSessionJson(manifestRaw, "manifest.json"), "manifest.json"),
     records: parseJsonLines(recordsRaw, "records.jsonl", (line, lineContext) =>
-      parseSessionRecord(line, lineContext),
-    ).map((record) => normalizeSessionRecord(record)),
+      normalizeSessionRecord(parseSessionRecord(line, lineContext)),
+    ),
     decisions: parseJsonLines(decisionsRaw, "decisions.jsonl", (line, lineContext) =>
       parseRecordDecision(line, lineContext),
     ),

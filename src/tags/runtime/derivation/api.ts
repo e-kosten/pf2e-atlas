@@ -1,38 +1,38 @@
 import { uniqueSorted } from "../../../shared/utils.js";
+import {
+  type DerivedTagCanonicalConcept,
+  type DerivedTagLegacySeedMigrationCategory,
+} from "../../../domain/derived-tag-types.js";
 import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../../exemplars/index.js";
 import { DERIVED_TAG_ASSIGNMENTS } from "../../assignments/index.js";
-import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../../legacy-rules/index.js";
 import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../../legacy-seed-migrations/index.js";
-import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../../manifest.js";
 import {
-  DERIVED_TAG_CANONICAL_CONCEPTS,
-  DERIVED_TAG_CANONICAL_ONTOLOGY,
-} from "../../canonical/index.js";
-import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY, compileAuthoredDerivedTagRules } from "../../rules/index.js";
+  DERIVED_TAG_REGISTRATION_CATEGORIES,
+} from "../../manifest.js";
+import { getDerivedTagCanonicalOntology } from "../../canonical/index.js";
 import {
   buildPublishedDerivedTagTranslations,
   buildPublishedDerivedTagTranslationsByKey,
-  translateLegacyDerivedTags,
-  translateLegacySeedMigrationCategories,
 } from "../../translations/index.js";
+import {
+  getCurrentDerivedTagFamilyTranslationDefaultsRevision,
+  getCurrentDerivedTagTranslationOverridesRevision,
+} from "../../translations/state.js";
 import { getLegacyDerivedTagFamilyAliases } from "../compat/family-compatibility.js";
 import {
   buildDerivedTagExplicitAssignmentIndex,
-  createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
+  type AuthoredDerivedTagAssignment,
 } from "./assignments.js";
-import { deriveRecordTagsFromRules, normalizeDerivedTag, type DerivedTagContext } from "../matcher/engine.js";
+import { normalizeDerivedTag, type DerivedTagContext } from "../matcher/engine.js";
 import {
   buildVisibleDerivedTagOntology,
-  buildDerivedTagLegacySeedMigrationIndex,
-  deriveCatalogTagDerivation,
   listConfiguredDerivedTagLegacySeedMigrations,
   resolveLegacySeedMigrationRecordKeys,
+  type DerivedTagDerivation,
   type DerivedTagLegacySeedMigrationDefinition,
   type PublishedDerivedTagOntology,
-  type DerivedTagDerivation,
 } from "../publication/catalog.js";
-import { DERIVED_TAG_SEED_LOOKUP } from "../publication/catalog-seed-records.js";
 import {
   publishDerivedTagExemplars,
   resolveDerivedTagExemplarRecordKeys,
@@ -40,84 +40,178 @@ import {
   type PublishedDerivedTagExemplars,
   type PublishedDerivedTagExemplarSet,
 } from "../publication/exemplars.js";
+import {
+  buildDerivedTagRuntimeArtifacts,
+  deriveRecordTagDerivationFromRuntime,
+  type DerivedTagRuntimeArtifacts,
+} from "./runtime-builder.js";
 
-export { normalizeDerivedTag } from "../matcher/engine.js";
 export { groupDerivedTagOntology } from "../publication/catalog.js";
+export { normalizeDerivedTag } from "../matcher/engine.js";
 
-const LEGACY_DERIVED_TAG_RULES = [
-  ...DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_LEGACY_RULES_BY_CATEGORY[category]),
-];
-const AUTHORED_DERIVED_TAG_RULES = [
-  ...DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY[category]),
-];
+type DerivedTagRuntimeAuthoringInputs = {
+  explicitAssignments?: AuthoredDerivedTagAssignment[];
+};
 
-const DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = DERIVED_TAG_CANONICAL_ONTOLOGY;
-const PUBLIC_DERIVED_TAG_ONTOLOGY: PublishedDerivedTagOntology = buildVisibleDerivedTagOntology(DERIVED_TAG_CANONICAL_ONTOLOGY);
-export const DERIVED_TAG_ONTOLOGY_FAMILIES = DERIVED_TAG_ONTOLOGY.families;
-export const DERIVED_TAG_ONTOLOGY_TAGS = DERIVED_TAG_ONTOLOGY.tags;
-export const PUBLIC_DERIVED_TAG_ONTOLOGY_FAMILIES = PUBLIC_DERIVED_TAG_ONTOLOGY.families;
-export const PUBLIC_DERIVED_TAG_ONTOLOGY_TAGS = PUBLIC_DERIVED_TAG_ONTOLOGY.tags;
-export const DERIVED_TAG_ONTOLOGY_CONCEPTS = DERIVED_TAG_CANONICAL_CONCEPTS;
-export const DERIVED_TAG_ONTOLOGY_TRANSLATIONS = buildPublishedDerivedTagTranslations();
-const DERIVED_TAG_TRANSLATIONS_BY_KEY = buildPublishedDerivedTagTranslationsByKey();
-const COMPILED_AUTHORED_DERIVED_TAG_RULES = compileAuthoredDerivedTagRules(
-  DERIVED_TAG_ONTOLOGY,
-  AUTHORED_DERIVED_TAG_RULES,
-);
-const DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX = buildDerivedTagLegacySeedMigrationIndex(
-  DERIVED_TAG_ONTOLOGY,
-  DERIVED_TAG_SEED_LOOKUP,
-  translateLegacySeedMigrationCategories(
-    DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => {
-      const migration = DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY[category];
-      return migration ? [migration] : [];
-    }),
-    DERIVED_TAG_ONTOLOGY,
-    DERIVED_TAG_TRANSLATIONS_BY_KEY,
-  ),
-);
-const DERIVED_TAG_EXEMPLARS: PublishedDerivedTagExemplars = publishDerivedTagExemplars(
-  DERIVED_TAG_ONTOLOGY,
-  DERIVED_TAG_REGISTRATION_CATEGORIES.map((category) => DERIVED_TAG_EXEMPLARS_BY_CATEGORY[category]),
-);
-const DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX = createDerivedTagExplicitAssignmentIndex(DERIVED_TAG_ONTOLOGY);
+type DerivedTagRuntimeAuthoringRules = {
+  explicitAssignments: AuthoredDerivedTagAssignment[];
+};
+
+const DERIVED_TAG_DEFAULT_RUNTIME_AUTHORING: DerivedTagRuntimeAuthoringRules = {
+  explicitAssignments: [...DERIVED_TAG_ASSIGNMENTS],
+};
+const DERIVED_TAG_LEGACY_SEED_MIGRATION_CATEGORIES: DerivedTagLegacySeedMigrationCategory[] =
+  DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => {
+    const migration = DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY[category];
+    return migration ? [migration] : [];
+  });
+
+let derivedTagRuntimeCache:
+  | {
+      familyDefaultsRevision: number;
+      translationRevision: number;
+      runtime: DerivedTagRuntimeArtifacts;
+    }
+  | null = null;
+
+let derivedTagExemplarsCache:
+  | {
+      familyDefaultsRevision: number;
+      translationRevision: number;
+      exemplars: PublishedDerivedTagExemplars;
+    }
+  | null = null;
+
+function buildCurrentDerivedTagRuntimeInputs(inputs: DerivedTagRuntimeAuthoringInputs = {}): DerivedTagRuntimeArtifacts {
+  const ontology = getDerivedTagCanonicalOntology();
+  const visibleOntology = buildVisibleDerivedTagOntology(ontology);
+  const legacyTranslations = buildPublishedDerivedTagTranslations();
+  const legacyTranslationsByKey = buildPublishedDerivedTagTranslationsByKey();
+  const explicitAssignments = buildDerivedTagExplicitAssignmentIndex(
+    ontology,
+    inputs.explicitAssignments ?? DERIVED_TAG_DEFAULT_RUNTIME_AUTHORING.explicitAssignments,
+  );
+
+  return buildDerivedTagRuntimeArtifacts({
+    ontology,
+    visibleOntology,
+    legacyTranslations,
+    legacyTranslationsByKey,
+    explicitAssignments,
+    legacySeedMigrationCategories: DERIVED_TAG_LEGACY_SEED_MIGRATION_CATEGORIES,
+  });
+}
+
+export function buildDerivedTagRuntimeArtifactsFromAuthoredState(
+  inputs: DerivedTagRuntimeAuthoringInputs,
+): DerivedTagRuntimeArtifacts {
+  return buildCurrentDerivedTagRuntimeInputs({
+    explicitAssignments: inputs.explicitAssignments,
+  });
+}
+
+function getCurrentDerivedTagRuntime(): DerivedTagRuntimeArtifacts {
+  const familyDefaultsRevision = getCurrentDerivedTagFamilyTranslationDefaultsRevision();
+  const translationRevision = getCurrentDerivedTagTranslationOverridesRevision();
+
+  if (
+    !derivedTagRuntimeCache ||
+    derivedTagRuntimeCache.familyDefaultsRevision !== familyDefaultsRevision ||
+    derivedTagRuntimeCache.translationRevision !== translationRevision
+  ) {
+    derivedTagRuntimeCache = {
+      familyDefaultsRevision,
+      translationRevision,
+      runtime: buildCurrentDerivedTagRuntimeInputs(),
+    };
+  }
+
+  return derivedTagRuntimeCache.runtime;
+}
+
+export function getCurrentDerivedTagPublishedRuntime(): DerivedTagRuntimeArtifacts {
+  return getCurrentDerivedTagRuntime();
+}
+
+export function getCurrentDerivedTagOntology(): PublishedDerivedTagOntology {
+  return getCurrentDerivedTagPublishedRuntime().ontology;
+}
+
+export function getCurrentPublicDerivedTagOntology(): PublishedDerivedTagOntology {
+  return getCurrentDerivedTagPublishedRuntime().visibleOntology;
+}
+
+export function getCurrentDerivedTagOntologyFamilies(): PublishedDerivedTagOntology["families"] {
+  return getCurrentDerivedTagOntology().families;
+}
+
+export function getCurrentDerivedTagOntologyTags(): PublishedDerivedTagOntology["tags"] {
+  return getCurrentDerivedTagOntology().tags;
+}
+
+export function getCurrentPublicDerivedTagOntologyFamilies(): PublishedDerivedTagOntology["families"] {
+  return getCurrentPublicDerivedTagOntology().families;
+}
+
+export function getCurrentPublicDerivedTagOntologyTags(): PublishedDerivedTagOntology["tags"] {
+  return getCurrentPublicDerivedTagOntology().tags;
+}
+
+export function getCurrentDerivedTagOntologyConcepts(): readonly DerivedTagCanonicalConcept[] {
+  return getCurrentDerivedTagOntology().conceptModel.concepts;
+}
+export function getCurrentDerivedTagOntologyTranslations(): DerivedTagRuntimeArtifacts["legacyTranslations"] {
+  return getCurrentDerivedTagPublishedRuntime().legacyTranslations;
+}
+export function getCurrentDerivedTagOntologyTranslationByKey(): ReadonlyMap<
+  `${string}:${string}`,
+  DerivedTagRuntimeArtifacts["legacyTranslations"][number]
+> {
+  return getCurrentDerivedTagPublishedRuntime().legacyTranslationsByKey;
+}
+
+function getCurrentDerivedTagExemplars(): PublishedDerivedTagExemplars {
+  const familyDefaultsRevision = getCurrentDerivedTagFamilyTranslationDefaultsRevision();
+  const translationRevision = getCurrentDerivedTagTranslationOverridesRevision();
+
+  if (
+    !derivedTagExemplarsCache ||
+    derivedTagExemplarsCache.familyDefaultsRevision !== familyDefaultsRevision ||
+    derivedTagExemplarsCache.translationRevision !== translationRevision
+  ) {
+    derivedTagExemplarsCache = {
+      familyDefaultsRevision,
+      translationRevision,
+      exemplars: publishDerivedTagExemplars(
+        getCurrentDerivedTagOntology(),
+        DERIVED_TAG_REGISTRATION_CATEGORIES.map((category) => DERIVED_TAG_EXEMPLARS_BY_CATEGORY[category]),
+      ),
+    };
+  }
+
+  return derivedTagExemplarsCache.exemplars;
+}
 
 export function deriveRecordTags(input: DerivedTagContext): string[] {
   return deriveRecordTagDerivation(input).tags;
 }
 
 export function deriveRecordTagDerivation(input: DerivedTagContext): DerivedTagDerivation {
-  const authoredRuleTags = deriveRecordTagsFromRules(COMPILED_AUTHORED_DERIVED_TAG_RULES, input);
-  const legacyRuleTags = translateLegacyDerivedTags(
-    input.category,
-    deriveRecordTagsFromRules(LEGACY_DERIVED_TAG_RULES, input),
-    DERIVED_TAG_ONTOLOGY,
-    DERIVED_TAG_TRANSLATIONS_BY_KEY,
-  );
-  return deriveCatalogTagDerivation(
-    DERIVED_TAG_ONTOLOGY,
-    input,
-    {
-      authoredRuleTags,
-      legacyRuleTags,
-    },
-    DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX,
-    DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX,
-  );
+  return deriveRecordTagDerivationFromRuntime(getCurrentDerivedTagRuntime(), input);
 }
 
 export function getDerivedTagExemplarRecordKeys(
   tag: string,
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
-  return resolveDerivedTagExemplarRecordKeys(DERIVED_TAG_EXEMPLARS, normalizeDerivedTag(tag), scope);
+  return resolveDerivedTagExemplarRecordKeys(getCurrentDerivedTagExemplars(), normalizeDerivedTag(tag), scope);
 }
 
 export function getDerivedTagExemplars(
   tag: string,
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): PublishedDerivedTagExemplarSet[] {
-  return DERIVED_TAG_EXEMPLARS.exemplars
+  return getCurrentDerivedTagExemplars().exemplars
     .filter((entry) => entry.tag === normalizeDerivedTag(tag))
     .filter((entry) => !scope.category || entry.category === scope.category);
 }
@@ -125,25 +219,31 @@ export function getDerivedTagExemplars(
 export function listDerivedTagLegacySeedMigrations(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): DerivedTagLegacySeedMigrationDefinition[] {
-  return listConfiguredDerivedTagLegacySeedMigrations(DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX, scope);
+  return listConfiguredDerivedTagLegacySeedMigrations(getCurrentDerivedTagRuntime().legacySeedMigrations, scope);
 }
 
 export function getDerivedTagLegacySeedMigrationRecordKeys(
   tag: string,
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
-  return resolveLegacySeedMigrationRecordKeys(DERIVED_TAG_LEGACY_SEED_MIGRATION_INDEX, normalizeDerivedTag(tag), scope);
+  return resolveLegacySeedMigrationRecordKeys(
+    getCurrentDerivedTagRuntime().legacySeedMigrations,
+    normalizeDerivedTag(tag),
+    scope,
+  );
 }
 
 export function getDerivedTagFamilyTags(
   family: string,
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
+  const runtime = getCurrentDerivedTagRuntime();
+  const ontology = runtime.ontology;
   const normalizedFamily = normalizeDerivedTag(family);
   const requestedFamilies = new Set<string>([normalizedFamily]);
   const tags = new Set<string>();
 
-  for (const ontologyFamily of DERIVED_TAG_ONTOLOGY.families) {
+  for (const ontologyFamily of ontology.families) {
     for (const alias of getLegacyDerivedTagFamilyAliases(ontologyFamily.category, normalizedFamily)) {
       requestedFamilies.add(alias);
     }
@@ -162,7 +262,7 @@ export function getDerivedTagFamilyTags(
       continue;
     }
     const familyKey = `${ontologyFamily.category}:${normalizeDerivedTag(ontologyFamily.family)}` as const;
-    for (const tag of DERIVED_TAG_ONTOLOGY.tagsByFamilyKey.get(familyKey) ?? []) {
+    for (const tag of ontology.tagsByFamilyKey.get(familyKey) ?? []) {
       tags.add(normalizeDerivedTag(tag.tag));
     }
   }
@@ -183,14 +283,15 @@ export function getDerivedTagFamilyTags(
 export function getVariantInheritableTags(
   scope: { category?: DerivedTagContext["category"]; subcategory?: DerivedTagContext["subcategory"] } = {},
 ): string[] {
+  const ontology = getCurrentDerivedTagRuntime().ontology;
   const tags = new Set<string>();
 
-  for (const tag of DERIVED_TAG_ONTOLOGY.tags) {
+  for (const tag of ontology.tags) {
     if (scope.category && tag.category !== scope.category) {
       continue;
     }
     const familyKey = `${tag.category}:${normalizeDerivedTag(tag.family)}` as const;
-    const family = DERIVED_TAG_ONTOLOGY.familyByKey.get(familyKey);
+    const family = ontology.familyByKey.get(familyKey);
     if (!family) {
       continue;
     }
@@ -214,14 +315,18 @@ export function validateConfiguredDerivedTagAssignments(
 ): void {
   const recordSummaries = [...records];
   const recordPacks = new Set(recordSummaries.map((record) => record.recordKey.split(":")[0]));
+  const runtime = getCurrentDerivedTagRuntime();
   const assignmentsForIndexedPacks = DERIVED_TAG_ASSIGNMENTS.filter((assignment) =>
     recordPacks.has(assignment.recordKey.split(":")[0]),
   );
   const recordBackedAssignmentIndex = buildDerivedTagExplicitAssignmentIndex(
-    DERIVED_TAG_ONTOLOGY,
+    runtime.ontology,
     assignmentsForIndexedPacks,
     recordSummaries,
   );
   validateDerivedTagExplicitAssignmentsAgainstRecords(recordSummaries, recordBackedAssignmentIndex);
-  validateDerivedTagExemplarsAgainstRecords(recordSummaries, DERIVED_TAG_EXEMPLARS);
+  validateDerivedTagExemplarsAgainstRecords(recordSummaries, getCurrentDerivedTagExemplars());
 }
+
+export type { DerivedTagDerivation };
+export { deriveRecordTagDerivationFromRuntime };

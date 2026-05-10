@@ -42,7 +42,6 @@ export type DerivedTagOntologyExplorerTagNode = {
   compositeOfAnyTags?: string[];
   variantInheritance?: boolean;
   liveRecordCount: number;
-  authoredRuleCount: number;
   exemplarPositiveCount: number;
   exemplarNegativeCount: number;
   legacyMigrationDefinitionCount: number;
@@ -183,23 +182,6 @@ function buildRecordFilterText(tag: string, record: OntologyExplorerEntityRecord
     .toLowerCase();
 }
 
-function buildAuthoredRuleCounts(
-  state: ReturnType<typeof getCurrentDerivedTagAuthoredState>,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-
-  for (const [category, rules] of Object.entries(state.authoredRules) as Array<
-    [SearchCategory, (typeof state.authoredRules)[keyof typeof state.authoredRules]]
-  >) {
-    for (const rule of rules) {
-      const key = `${category}:${normalizeDerivedTag(rule.tag)}`;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-  }
-
-  return counts;
-}
-
 function buildExemplarCounts(
   state: ReturnType<typeof getCurrentDerivedTagAuthoredState>,
 ): Map<string, { positive: number; negative: number }> {
@@ -277,7 +259,6 @@ export function buildDerivedTagOntologyExplorerModel(
   const familyCounts = mapFromCountRecord(data.familyCounts);
   const categoryCounts = new Map(Object.entries(data.categoryCounts) as Array<[SearchCategory, number]>);
   const recordNodesByTagKey = buildRecordNodesByTagKey(new Map(Object.entries(data.recordsByTagKey)));
-  const authoredRuleCounts = buildAuthoredRuleCounts(authoredState);
   const exemplarCounts = buildExemplarCounts(authoredState);
   const legacyMigrationCounts = buildLegacyMigrationCounts();
 
@@ -319,7 +300,6 @@ export function buildDerivedTagOntologyExplorerModel(
             compositeOfAnyTags: tag.compositeOfAnyTags,
             variantInheritance: tag.variantInheritance,
             liveRecordCount: tagCounts.get(tagKey) ?? 0,
-            authoredRuleCount: authoredRuleCounts.get(tagKey) ?? 0,
             exemplarPositiveCount: exemplars.positive,
             exemplarNegativeCount: exemplars.negative,
             legacyMigrationDefinitionCount: migrations.definitions,

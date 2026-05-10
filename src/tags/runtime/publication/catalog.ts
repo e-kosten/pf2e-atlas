@@ -16,10 +16,10 @@ import { normalizeDerivedTag } from "../matcher/engine.js";
 
 type PrimaryDerivedTagSource = "authored_rule" | "legacy_rule" | "seed_migration" | "assignment";
 export type DerivedTagSource =
-  | "authored_rule"
-  | "legacy_rule"
   | "seed_migration"
   | "assignment"
+  | "authored_rule"
+  | "legacy_rule"
   | "authored_rule+legacy_rule"
   | "authored_rule+seed_migration"
   | "authored_rule+assignment"

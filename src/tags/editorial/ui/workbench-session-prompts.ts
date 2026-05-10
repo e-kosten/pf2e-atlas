@@ -464,7 +464,7 @@ export async function promptDerivedTagWorkbenchSessionOptions(
   db: DatabaseSync,
   mode: DerivedTagWorkbenchMode,
 ): Promise<DerivedTagWorkbenchSessionOptions | undefined> {
-  const requireCategory = mode === "legacy_rule";
+  const requireCategory = false;
   const categorySelection = await promptCategory(prompts, db, mode, requireCategory);
   if (categorySelection === undefined) {
     return undefined;
@@ -499,7 +499,7 @@ export async function promptDerivedTagWorkbenchSessionOptions(
     subcategory,
     family,
     exemplarLimit,
-    mode === "legacy_rule",
+    false,
   );
   if (tagSelection === undefined) {
     return undefined;

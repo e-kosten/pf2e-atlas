@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { groupDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
-import { DERIVED_TAG_ONTOLOGY_FAMILIES, DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/runtime.js";
+import {
+  getCurrentDerivedTagOntologyFamilies,
+  getCurrentDerivedTagOntologyTags,
+} from "../../src/tags/runtime.js";
 
 function anyString(): unknown {
   return expect.any(String);
@@ -19,8 +22,8 @@ describe("derived tag catalog", () => {
   it("publishes a compact derived-tag catalog", () => {
     expect(
       groupDerivedTagOntology({
-        families: DERIVED_TAG_ONTOLOGY_FAMILIES,
-        tags: DERIVED_TAG_ONTOLOGY_TAGS,
+        families: getCurrentDerivedTagOntologyFamilies(),
+        tags: getCurrentDerivedTagOntologyTags(),
       }),
     ).toEqual(
       arrayContaining([

@@ -262,7 +262,12 @@ export function buildDerivedTagFamilyNodes(options: {
   derivedTagCatalogByCategory: ReadonlyMap<SearchCategory, readonly DerivedTagCatalogEntry[]>;
   buildDerivedTagFamilyNode: DerivedTagFamilyNodeBuilder;
 }): OntologyNode[] {
-  return (options.derivedTagCatalogByCategory.get(options.category) ?? [])
+  const entries = options.derivedTagCatalogByCategory.get(options.category) ?? [];
+  const sortedEntries = [...entries].sort((left, right) => {
+    return (left.subcategories?.length ?? 0) - (right.subcategories?.length ?? 0);
+  });
+
+  return sortedEntries
     .map((entry) => options.buildDerivedTagFamilyNode(options.category, options.subcategory, entry, options.idPrefix))
     .filter((node): node is OntologyNode => Boolean(node));
 }

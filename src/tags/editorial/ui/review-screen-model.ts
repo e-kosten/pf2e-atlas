@@ -48,7 +48,7 @@ function formatDecisionSummary(decision: DerivedTagReviewSession["decisions"][nu
   if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.EXEMPLAR) {
     return `${decision.tag} exemplar ${decision.action}`;
   }
-  return `${decision.tag} ${decision.decision}`;
+  return `Unsupported decision kind: ${(decision as { kind: string }).kind}`;
 }
 
 function clampWindowStart(selectedIndex: number, itemCount: number, visibleCount: number): number {

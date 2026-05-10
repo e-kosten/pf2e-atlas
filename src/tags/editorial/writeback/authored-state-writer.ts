@@ -2,7 +2,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type {
-  AuthoredDerivedTagRule,
   DerivedTagExemplarCategory,
   DerivedTagExemplarReviewCategory,
 } from "../../../domain/derived-tag-types.js";
@@ -27,14 +26,12 @@ const CATEGORY_FILE_PATHS = Object.fromEntries(
     category,
     {
       exemplar: path.join("src", "tags", "exemplars", `${category}.ts`),
-      authoredRule: path.join("src", "tags", "rules", `${category}.ts`),
     },
   ]),
 ) as Record<
   DerivedTagManagedCategory,
   {
     exemplar: string;
-    authoredRule: string;
   }
 >;
 
@@ -202,16 +199,6 @@ function renderExemplarFile(category: DerivedTagManagedCategory, exemplars: Deri
   ].join("\n");
 }
 
-function renderAuthoredRuleFile(category: DerivedTagManagedCategory, rules: AuthoredDerivedTagRule[]): string {
-  const exportName = `${getCategoryExportPrefix(category)}_AUTHORED_DERIVED_TAG_RULES`;
-  return [
-    'import type { AuthoredDerivedTagRule } from "../../domain/derived-tag-types.js";',
-    "",
-    `export const ${exportName}: AuthoredDerivedTagRule[] = ${renderTsValue(rules)};`,
-    "",
-  ].join("\n");
-}
-
 function renderAssignmentReviewRegistryFile(
   assignmentReviews: DerivedTagManagedRegistry<DerivedTagAssignmentReviewCategory>,
 ): string {
@@ -273,16 +260,10 @@ export async function writeDerivedTagAuthoredState(
   for (const category of categories) {
     const files = CATEGORY_FILE_PATHS[category];
     await mkdir(path.dirname(path.join(rootPath, files.exemplar)), { recursive: true });
-    await mkdir(path.dirname(path.join(rootPath, files.authoredRule)), { recursive: true });
 
     await writeFile(
       path.join(rootPath, files.exemplar),
       renderExemplarFile(category, state.exemplars[category]),
-      "utf8",
-    );
-    await writeFile(
-      path.join(rootPath, files.authoredRule),
-      renderAuthoredRuleFile(category, state.authoredRules[category]),
       "utf8",
     );
   }

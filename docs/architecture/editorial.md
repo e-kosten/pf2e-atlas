@@ -12,7 +12,7 @@ For broader project layering, read [overview.md](./overview.md) and [boundaries.
 
 `src/tags/` exists to support a human-in-the-loop editorial workflow around derived tags:
 
-- define the authored ontology and explainable rules
+- define the authored ontology and explicit assignments
 - define canonical concept/projection/translation ownership for the future ontology shape
 - carry explicit assignments, exemplars, and durable review registries
 - inspect the live indexed corpus for missing, over-broad, or repeatedly rejected coverage
@@ -21,18 +21,18 @@ For broader project layering, read [overview.md](./overview.md) and [boundaries.
 
 This subsystem is partly runtime infrastructure and partly editorial tooling. The runtime portion publishes the canonical derived-tag model used by indexing and record derivation. The editorial portion clones that authored state, builds review sessions, lets humans resolve them, and writes the approved state back to disk.
 
-When evaluating the long-term shape of `src/tags/`, treat `legacy-rules/` and `legacy-seed-migrations/` as transitional placeholders only. They preserve old rule coverage while that content is migrated into the authored model; they are not the desired steady-state owner directories.
+When evaluating the long-term shape of `src/tags/`, treat `legacy-rules/` and `legacy-seed-migrations/` as transitional placeholders only. They keep legacy-based matching compatibility available only for bridge ingestion, and should not become the source of new authored behavior in the steady-state model.
 
 ## Subsystem Shape
 
 ```mermaid
 flowchart LR
-  authored["ontology/, rules/, assignments/, exemplars/<br/>authored derived-tag source"]
+  authored["ontology/, assignments/, exemplars/<br/>authored derived-tag source"]
   translations["translations/<br/>canonical concepts, projections,<br/>translation records"]
   reviews["reviews/<br/>assignment reviews, memory, exemplar reviews,<br/>reviewed discovery negatives"]
   runtimePub["runtime/publication/<br/>publish ontology, exemplars, legacy seed indexes"]
   runtimeDerive["runtime/derivation/<br/>explicit assignments and final derivation API"]
-  runtimeMatch["runtime/matcher/<br/>rule matcher and normalization"]
+  runtimeMatch["runtime/matcher/<br/>legacy-match bridge and normalization"]
   runtimeCompat["runtime/compat/<br/>compatibility helpers only"]
   discovery["discovery/<br/>candidate mining and cohort discovery"]
   evaluation["evaluation/<br/>evidence, gaps, movement"]
@@ -100,7 +100,6 @@ type DerivedTagAuthoredState = {
   assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
   exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;
   exemplarReviews: Record<DerivedTagManagedCategory, DerivedTagExemplarReviewCategory>;
-  authoredRules: Record<DerivedTagManagedCategory, AuthoredDerivedTagRule[]>;
 };
 
 type DerivedTagReviewSession = {
@@ -154,13 +153,6 @@ type DerivedTagReviewDecision =
       action: "keep" | "drop";
       status: DerivedTagReviewStatus;
       rationale: string;
-    }
-  | {
-      kind: "rule";
-      tag: string;
-      decision: "recreate_authored" | "assignment_takeover" | "retain_legacy";
-      status: DerivedTagReviewStatus;
-      rationale: string;
     };
 ```
 
@@ -174,18 +166,18 @@ The important split is:
 
 | Area | Owns | Consumes | Produces |
 | --- | --- | --- | --- |
-| `ontology/`, `rules/`, `assignments/`, `exemplars/` | Authored ontology, authored rules, pack-organized explicit overrides, curated teaching sets | Shared manifest, record keys, and domain contracts | The durable inputs the runtime and writeback flows operate on |
+| `ontology/`, `assignments/`, `exemplars/` | Authored ontology, pack-organized explicit overrides, curated teaching sets | Shared manifest, record keys, and domain contracts | The durable inputs the runtime and writeback flows operate on |
 | `translations/` | Canonical concepts, category projections, concept relations, and current-tag translation records | Authored ontology families/tags plus canonical concept policy | The live bridge from current ontology ownership into the concept/projection model |
 | `reviews/` | Pending assignment reviews, prior assignment memory, pending exemplar reviews, reviewed discovery negatives | Current editorial policy and managed categories | Durable review registries used by session building, discovery filtering, and writeback |
 | `runtime/publication/` | Published ontology catalogs, exemplar publication, legacy seed publication, source catalogs | Authored ontology, exemplars, seed definitions | Flattened runtime registries and source-aware publication helpers |
 | `runtime/derivation/` | Explicit assignment index, final tag derivation API, runtime-level assignment views | Published ontology, matcher outputs, review registries, legacy inputs | `deriveRecordTags`, source-aware derivations, pending-assignment views |
-| `runtime/matcher/` | Rule matching engine, text/reference matching, tag normalization | Authored and legacy rules | Rule-match outputs reusable by derivation |
+| `runtime/matcher/` | Legacy-match bridge and text/reference matching, tag normalization | Legacy mapping inputs and domain matcher context | Matcher outputs that can be consumed by derivation where migration requires legacy support |
 | `runtime/compat/` | Legacy family alias compatibility only | Published runtime vocabulary | Compatibility helpers for old family names; not primary runtime ownership |
-| `discovery/` | Cohort mining, semantic clustering, family-gap discovery, discovery record decoding | Live SQLite index, embeddings, runtime helpers, reviewed discovery registries | Candidate cohorts and discovery artifacts suggesting possible new rules or assignments |
+| `discovery/` | Cohort mining, semantic clustering, family-gap discovery, discovery record decoding | Live SQLite index, embeddings, runtime helpers, reviewed discovery registries | Candidate cohorts and discovery artifacts suggesting possible new assignments |
 | `evaluation/` | Evidence analysis, gap evaluation, movement comparison | Discovery artifacts, live index state, runtime exemplar and family lookups | Decision-support reports for editorial review |
 | `editorial/state/` | Mutable cloned authored state and published working-state summaries | Authored imports, published runtime registries, review registries | Session-safe working state, queue summaries, workbench ontology snapshots |
 | `editorial/sessions/` | Record loading, actionable scope summaries, session building, session persistence | Editorial state, runtime publication, live index records, review registries | Review sessions and persisted scratch artifacts |
-| `editorial/writeback/` | Session linting and import into authored files | Editorial working state, approved sessions | On-disk updates to authored assignments, rules, exemplars, and review registries |
+| `editorial/writeback/` | Session linting and import into authored files | Editorial working state, approved sessions | On-disk updates to authored assignments, exemplars, and review registries |
 | `editorial/ui/` | Review screen model/state, review controller, workbench prompts and controller | Session services, writeback services, app-composed storage/runtime services | Interactive review and workbench flows |
 | `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, `cli/shared/` | Grouped offline entrypoints plus shared scope parsing | Discovery, evaluation, editorial session/writeback services, config/index opening | Human-readable reports, session artifacts, and the workbench launcher |
 
@@ -212,7 +204,7 @@ Owns the runtime assembly that turns publication outputs into final derivation b
 
 ### `runtime/matcher/`
 
-Owns explainable rule matching:
+Owns legacy-route explainable matching:
 
 - text, trait, family, and reference matching
 - normalized matcher inputs
@@ -226,7 +218,7 @@ Owns compatibility helpers that keep older family names usable during migration.
 
 The durable editorial inputs now come from two different places:
 
-- authored truth in `ontology/`, `rules/`, `assignments/`, and `exemplars/`
+- authored truth in `ontology/`, `assignments/`, and `exemplars/`
 - review truth in `reviews/`
 
 `reviews/` is not scratch space. It is durable authored input with its own ownership:
@@ -267,7 +259,7 @@ Discovery and evaluation still provide the evidence loop around the runtime, but
 `discovery/` answers questions like:
 
 - which untagged records cluster near the current exemplars?
-- which cohorts look ruleable versus manual-only?
+- which cohorts show strong evidence versus manual-only?
 - which records were already reviewed negative for a family and should be excluded or audited by reason bucket?
 
 `evaluation/` converts those signals into decision support:
@@ -296,7 +288,7 @@ This split keeps sessions from mutating imported modules in place while still le
 
 Owns session construction and persistence:
 
-- `session-builder.ts` builds review sessions from review queues, exemplar cleanup, proposal review, legacy seed migration, or legacy rule takeover worksets
+- `session-builder.ts` builds review sessions from review queues, exemplar cleanup, proposal review, or legacy seed migration
 - `record-loader.ts` loads the indexed record slices needed for those sessions
 - `review-session.ts` owns review-item and progress calculations
 - `session-store.ts` owns persisted scratch-session JSON artifacts
@@ -308,7 +300,7 @@ Owns the only path that mutates authored files from session decisions:
 
 - `authored-state-writer.ts` owns authored-file path selection, TypeScript serialization, and registry writeback
 - `linter.ts` validates a session before import
-- `importer.ts` applies approved session decisions back into pack-organized authored assignments, rules, exemplars, and review registries
+- `importer.ts` applies approved session decisions back into pack-organized authored assignments, exemplars, and review registries
 
 Writeback consumes the session output from `editorial/sessions/` and the mutable authored state from `editorial/state/`; it should remain the only owner of source-file mutation logic.
 
@@ -327,7 +319,7 @@ Owns the interactive review/workbench surface:
 
 The CLI files under `src/tags/cli/` are grouped by the services they drive:
 
-- `cli/discovery/` runs candidate-mining workflows such as ruleable cohorts, semantic candidates, and untagged-cohort discovery
+- `cli/discovery/` runs candidate-mining workflows such as semantic candidates and untagged-cohort discovery
 - `cli/evaluation/` runs evidence, gap, and movement reports
 - `cli/editorial/` creates sessions, reviews/imports sessions, summarizes review queues, and launches the migration workbench
 - `cli/shared/` owns shared scope parsing through `search-scope-args.ts`
@@ -368,13 +360,13 @@ The current codebase already encodes several intended boundaries:
 - discovery and evaluation can recommend changes, but `editorial/writeback/` owns writeback into authored files
 - TUI workbench composition flows through `src/tui/app-services.ts`, not direct feature-level imports of editorial internals
 
-Those rules are documented in `docs/architecture/boundaries.md` and reinforced by ESLint restrictions where the shared abstraction is already considered stable.
+Those boundaries are documented in `docs/architecture/boundaries.md` and reinforced by ESLint restrictions where the shared abstraction is already considered stable.
 
 ## End-To-End Editorial Flow
 
 The steady-state maintenance loop now looks like this:
 
-1. Editors maintain authored ontology, rules, assignments, exemplars, and review registries in `src/tags/`, with durable review inputs under `src/tags/reviews/`.
+1. Editors maintain authored ontology, assignments, exemplars, and review registries in `src/tags/`, with durable review inputs under `src/tags/reviews/`.
 2. `runtime/publication/`, `runtime/matcher/`, and `runtime/derivation/` publish those inputs into the canonical derivation model used during indexing and derived-tag lookup.
 3. Discovery and evaluation inspect the current SQLite index and embeddings, using review registries to suppress or audit already reviewed negatives.
 4. `editorial/state/` clones the authored truth into a mutable working state and republishes queue summaries and workbench views from that current snapshot.

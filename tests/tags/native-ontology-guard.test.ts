@@ -11,11 +11,13 @@ import {
   HAZARD_LEGACY_DERIVED_TAG_RULES,
   SPELL_LEGACY_DERIVED_TAG_RULES,
 } from "../../src/tags/legacy-rules/index.js";
-import { DERIVED_TAG_ONTOLOGY_TAGS } from "../../src/tags/runtime.js";
+import { getCurrentDerivedTagOntologyTags } from "../../src/tags/runtime.js";
 import { cleanupCreatedRoots, createFixture } from "../helpers/pf2e-service-fixture.js";
 import { loadTestService } from "../helpers/pf2e-fixture.js";
 
-const DERIVED_TAG_ONTOLOGY = DERIVED_TAG_ONTOLOGY_TAGS;
+function getDerivedTagOntology() {
+  return getCurrentDerivedTagOntologyTags();
+}
 
 const LEGACY_DERIVED_TAG_RULES = [
   ...EQUIPMENT_LEGACY_DERIVED_TAG_RULES,
@@ -65,7 +67,7 @@ describe("derived tag native ontology guard", () => {
   });
 
   it("rejects distinct-required tags that only have native-ontology positive evidence", () => {
-    const policyRows = buildCatalogTagRows(DERIVED_TAG_ONTOLOGY);
+    const policyRows = buildCatalogTagRows(getDerivedTagOntology());
     const violations: string[] = [];
 
     for (const row of policyRows) {
@@ -138,7 +140,7 @@ describe("derived tag native ontology guard", () => {
         traitSets.set(key, bucket);
       }
 
-      const policyRows = buildCatalogTagRows(DERIVED_TAG_ONTOLOGY);
+      const policyRows = buildCatalogTagRows(getDerivedTagOntology());
       const violations: string[] = [];
 
       for (const row of policyRows) {

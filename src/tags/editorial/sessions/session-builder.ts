@@ -15,7 +15,6 @@ import {
 import { loadDerivedTagMigrationRecords } from "./record-loader.js";
 import { deriveCurrentTagSources, getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type {
-  DerivedTagReviewDecision,
   DerivedTagWorkbenchMode,
   DerivedTagManagedCategory,
   DerivedTagReviewRecordDecision,
@@ -385,76 +384,6 @@ function buildExemplarCleanupWorkset(
   };
 }
 
-function buildLegacyRuleWorkset(
-  db: DatabaseSync,
-  options: DerivedTagReviewSessionCreateOptions,
-): DerivedTagReviewSession {
-  if (!options.category || !options.tag) {
-    throw new Error("Legacy rule sessions require both --category and --tag.");
-  }
-
-  const candidates = loadDerivedTagMigrationRecords(db, {
-    category: options.category,
-    subcategory: options.subcategory,
-    requireTag: options.tag,
-    limit: options.limit,
-  })
-    .map(toSessionRecord)
-    .filter((record) => {
-      const source = record.currentSources[normalizeDerivedTag(options.tag!)] ?? "";
-      return source.includes("legacy_rule");
-    });
-
-  const family = resolveTagFamily(options.category, options.tag);
-  const decisions = candidates.map((record) => ({
-    recordKey: record.entityRecord.recordKey,
-    name: record.entityRecord.name,
-    category: record.entityRecord.category,
-    resolutionStatus: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
-    decisions: [
-      {
-        kind: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.ASSIGNMENT,
-        family,
-        tag: normalizeDerivedTag(options.tag!),
-        mode: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.INCLUDE,
-        status: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.STATUS.NEEDS_REVIEW,
-        confidence: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.CONFIDENCE.MEDIUM,
-        rationale:
-          "Legacy rule currently supplies this tag; review whether to replace it with an explicit assignment or a future authored rule.",
-        source: DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.LLM,
-      },
-    ] satisfies DerivedTagReviewDecision[],
-  }));
-  for (const record of candidates) {
-    appendSelectionReason(record, {
-      source: "legacy_rule",
-      family,
-      tag: options.tag,
-      note: "Current live tag source includes a legacy rule.",
-    });
-  }
-
-  return {
-    manifest: {
-      id: createSessionId(options),
-      mode: options.mode,
-      category: options.category,
-      subcategory: options.subcategory,
-      family: options.family,
-      tag: options.tag,
-      createdAt: new Date().toISOString(),
-      recordCount: candidates.length,
-    },
-    records: candidates,
-    decisions,
-    reviewState: {
-      currentIndex: 0,
-      unresolvedOnly: true,
-      updatedAt: new Date().toISOString(),
-    },
-  };
-}
-
 function buildProposalReviewWorkset(
   db: DatabaseSync,
   options: DerivedTagReviewSessionCreateOptions,
@@ -566,7 +495,6 @@ export function buildDerivedTagReviewSession(
     review_queue: buildReviewQueueWorkset,
     proposal_review: buildProposalReviewWorkset,
     legacy_seed: buildLegacySeedWorkset,
-    legacy_rule: buildLegacyRuleWorkset,
     exemplar_cleanup: buildExemplarCleanupWorkset,
   };
 

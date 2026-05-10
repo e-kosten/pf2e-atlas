@@ -14,17 +14,17 @@ Choose the worktree root from the current session's writable roots, not from gen
 Default for this repo:
 
 ```text
-/tmp/pathfinder-mcp-worktrees
+<repo-root>/.worktrees
 ```
 
 Before creating a worktree:
 
 - inspect the active permissions instructions for writable roots
-- choose an existing allowed root, preferring `/tmp/pathfinder-mcp-worktrees`
-- use a deterministic child path such as `/tmp/pathfinder-mcp-worktrees/<task-slug>`
-- do not use `/tmp/<task>` when `/tmp` itself is not the writable root
+- prefer `<repo-root>/.worktrees` when writable
+- if that path is unavailable, use an allowed writable root from environment instructions with the same deterministic shape
+- use a deterministic child path such as `<repo-root>/.worktrees/<task-slug>` (or the fallback root equivalent)
 - do not use symlink-resolved alternates such as `/private/tmp/...`
-- if the chosen path is not under an allowed writable root, stop before running `git worktree add`
+- if the chosen path is not under an allowed root, stop before running `git worktree add`
 
 State the chosen worktree path in a short update before editing tracked files.
 
@@ -35,19 +35,19 @@ Create implementation branches from the shared main checkout, but do all tracked
 Use serialized git write commands:
 
 ```bash
-git worktree add -b <branch> /tmp/pathfinder-mcp-worktrees/<task-slug> main
+git worktree add -b <branch> <repo-root>/.worktrees/<task-slug> main
 ```
 
 Then verify:
 
 ```bash
-git -C /tmp/pathfinder-mcp-worktrees/<task-slug> status --short --branch
+git -C <repo-root>/.worktrees/<task-slug> status --short --branch
 ```
 
 If `package.json` and `package-lock.json` match the main checkout, symlink dependencies inside the allowed worktree root:
 
 ```bash
-ln -s /Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/node_modules /tmp/pathfinder-mcp-worktrees/<task-slug>/node_modules
+ln -s /path/to/repo/node_modules <repo-root>/.worktrees/<task-slug>/node_modules
 ```
 
 If a command tries to write outside the allowed root or asks for approval, treat that as a root-selection bug first. Do not keep working in the wrong location.
