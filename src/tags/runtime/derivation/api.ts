@@ -1,5 +1,6 @@
 import { uniqueSorted } from "../../../shared/utils.js";
 import { DERIVED_TAG_EXEMPLARS_BY_CATEGORY } from "../../exemplars/index.js";
+import { DERIVED_TAG_ASSIGNMENTS } from "../../assignments/index.js";
 import { DERIVED_TAG_LEGACY_RULES_BY_CATEGORY } from "../../legacy-rules/index.js";
 import { DERIVED_TAG_LEGACY_SEED_MIGRATIONS_BY_CATEGORY } from "../../legacy-seed-migrations/index.js";
 import { DERIVED_TAG_REGISTRATION_CATEGORIES } from "../../manifest.js";
@@ -16,6 +17,7 @@ import {
 } from "../../translations/index.js";
 import { getLegacyDerivedTagFamilyAliases } from "../compat/family-compatibility.js";
 import {
+  buildDerivedTagExplicitAssignmentIndex,
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
 } from "./assignments.js";
@@ -210,6 +212,16 @@ export function getVariantInheritableTags(
 export function validateConfiguredDerivedTagAssignments(
   records: Iterable<{ recordKey: string; name: string; category: DerivedTagContext["category"] }>,
 ): void {
-  validateDerivedTagExplicitAssignmentsAgainstRecords(records, DERIVED_TAG_EXPLICIT_ASSIGNMENT_INDEX);
-  validateDerivedTagExemplarsAgainstRecords(records, DERIVED_TAG_EXEMPLARS);
+  const recordSummaries = [...records];
+  const recordPacks = new Set(recordSummaries.map((record) => record.recordKey.split(":")[0]));
+  const assignmentsForIndexedPacks = DERIVED_TAG_ASSIGNMENTS.filter((assignment) =>
+    recordPacks.has(assignment.recordKey.split(":")[0]),
+  );
+  const recordBackedAssignmentIndex = buildDerivedTagExplicitAssignmentIndex(
+    DERIVED_TAG_ONTOLOGY,
+    assignmentsForIndexedPacks,
+    recordSummaries,
+  );
+  validateDerivedTagExplicitAssignmentsAgainstRecords(recordSummaries, recordBackedAssignmentIndex);
+  validateDerivedTagExemplarsAgainstRecords(recordSummaries, DERIVED_TAG_EXEMPLARS);
 }

@@ -18,7 +18,6 @@ import type {
   DerivedTagAssignmentReviewCategory,
 } from "../../runtime/derivation/assignments.js";
 import { setCurrentDerivedTagAuthoredState } from "../state/authored-state.js";
-import { getPublishedDerivedTagOntology } from "../state/runtime-state.js";
 import type { DerivedTagAuthoredState } from "../types.js";
 
 type DerivedTagManagedRegistry<T> = Record<DerivedTagManagedCategory, T>;
@@ -27,7 +26,6 @@ const CATEGORY_FILE_PATHS = Object.fromEntries(
   DERIVED_TAG_MANAGED_CATEGORIES.map((category) => [
     category,
     {
-      assignment: path.join("src", "tags", "assignments", `${category}.ts`),
       exemplar: path.join("src", "tags", "exemplars", `${category}.ts`),
       authoredRule: path.join("src", "tags", "rules", `${category}.ts`),
     },
@@ -35,7 +33,6 @@ const CATEGORY_FILE_PATHS = Object.fromEntries(
 ) as Record<
   DerivedTagManagedCategory,
   {
-    assignment: string;
     exemplar: string;
     authoredRule: string;
   }
@@ -95,40 +92,30 @@ function getCategoryExportPrefix(category: DerivedTagManagedCategory): string {
   return getDerivedTagCategoryManifestEntry(category).exportPrefix;
 }
 
-function getCategoryProjectionMapExportName(category: DerivedTagManagedCategory): string {
-  return `${getCategoryExportPrefix(category)}_DERIVED_TAG_CANONICAL_PROJECTIONS_BY_TAG`;
+function getPackExportName(packName: string): string {
+  return `${packName.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_DERIVED_TAG_ASSIGNMENTS`;
 }
 
-function renderAssignmentDecision(
-  category: DerivedTagManagedCategory,
-  decision: DerivedTagAssignmentDecision,
-  level: number,
-): string {
-  const ontology = getPublishedDerivedTagOntology();
-  const projection = ontology.conceptModel.projectionsById.get(decision.projectionId);
-  if (!projection) {
-    throw new Error(`Cannot render assignment decision for unknown projection "${decision.projectionId}".`);
+function getPackName(recordKey: string): string {
+  const packName = recordKey.split(":")[0];
+  if (!packName) {
+    throw new Error(`Cannot render assignment for record key without pack name: "${recordKey}".`);
   }
-  if (projection.category !== category) {
-    throw new Error(
-      `Cannot render assignment decision for projection "${decision.projectionId}" into "${category}" assignments.`,
-    );
-  }
+  return packName;
+}
 
-  const projectionExpression = `${getCategoryProjectionMapExportName(category)}[${JSON.stringify(projection.currentTag)}].id`;
+function renderAssignmentDecision(decision: DerivedTagAssignmentDecision, level: number): string {
   const lines = [
-    `${indent(level)}{`,
-    `${indent(level + 1)}projectionId: ${projectionExpression},`,
+    `${indent(level)}tag(${JSON.stringify(decision.tag)}, {`,
     `${indent(level + 1)}source: ${JSON.stringify(decision.source)},`,
     ...(decision.confidence ? [`${indent(level + 1)}confidence: ${JSON.stringify(decision.confidence)},`] : []),
     `${indent(level + 1)}rationale: ${JSON.stringify(decision.rationale)},`,
-    `${indent(level)}}`,
+    `${indent(level)}})`,
   ];
   return lines.join("\n");
 }
 
 function renderAssignmentDecisionList(
-  category: DerivedTagManagedCategory,
   decisions: DerivedTagAssignmentDecision[] | undefined,
   level: number,
 ): string | undefined {
@@ -136,44 +123,71 @@ function renderAssignmentDecisionList(
     return undefined;
   }
   const rendered = decisions
-    .map((decision) => renderAssignmentDecision(category, decision, level + 1))
+    .map((decision) => renderAssignmentDecision(decision, level + 1))
     .join(",\n");
   return `[\n${rendered}\n${indent(level)}]`;
 }
 
 function renderAssignmentFile(
-  category: DerivedTagManagedCategory,
+  packName: string,
   assignments: AuthoredDerivedTagAssignment[],
 ): string {
-  const exportName = `${getCategoryExportPrefix(category)}_DERIVED_TAG_ASSIGNMENTS`;
-  const projectionImportName = getCategoryProjectionMapExportName(category);
+  const exportName = getPackExportName(packName);
   const renderedAssignments =
     assignments.length === 0
-      ? "[]"
-      : `[\n${assignments
+      ? "{}"
+      : `{\n${assignments
           .map((assignment) => {
             const lines = [
-              `${indent(1)}{`,
+              `${indent(1)}${JSON.stringify(assignment.recordKey)}: {`,
               `${indent(2)}name: ${JSON.stringify(assignment.name)},`,
-              `${indent(2)}recordKey: ${JSON.stringify(assignment.recordKey)},`,
             ];
-            const applied = renderAssignmentDecisionList(category, assignment.applied, 2);
+            const applied = renderAssignmentDecisionList(assignment.applied, 2);
             if (applied) {
               lines.push(`${indent(2)}applied: ${applied},`);
             }
-            const excluded = renderAssignmentDecisionList(category, assignment.excluded, 2);
+            const excluded = renderAssignmentDecisionList(assignment.excluded, 2);
             if (excluded) {
               lines.push(`${indent(2)}excluded: ${excluded},`);
             }
             lines.push(`${indent(1)}}`);
             return lines.join("\n");
           })
-          .join(",\n")}\n]`;
+          .join(",\n")}\n}`;
+  return [
+    'import { defineAssignments, tag } from "../builders.js";',
+    "",
+    `export const ${exportName} = defineAssignments(${renderedAssignments});`,
+    "",
+  ].join("\n");
+}
+
+function groupAssignmentsByPack(
+  assignments: AuthoredDerivedTagAssignment[],
+): Map<string, AuthoredDerivedTagAssignment[]> {
+  const grouped = new Map<string, AuthoredDerivedTagAssignment[]>();
+  for (const assignment of assignments) {
+    const packName = getPackName(assignment.recordKey);
+    const packAssignments = grouped.get(packName) ?? [];
+    packAssignments.push(assignment);
+    grouped.set(packName, packAssignments);
+  }
+  return grouped;
+}
+
+function renderAssignmentIndexFile(packNames: string[]): string {
+  const imports = packNames.map((packName) => {
+    const exportName = getPackExportName(packName);
+    return `import { ${exportName} } from "./packs/${packName}.js";`;
+  });
+  const spreads = packNames.map((packName) => `  ...${getPackExportName(packName)},`);
   return [
     'import type { AuthoredDerivedTagAssignment } from "../runtime/derivation/assignments.js";',
-    `import { ${projectionImportName} } from "../canonical/projections/${category}.js";`,
+    ...imports,
     "",
-    `export const ${exportName}: AuthoredDerivedTagAssignment[] = ${renderedAssignments};`,
+    "export const DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = [",
+    ...spreads,
+    "];",
     "",
   ].join("\n");
 }
@@ -239,17 +253,28 @@ export async function writeDerivedTagAuthoredState(
   state: DerivedTagAuthoredState,
   categories: DerivedTagManagedCategory[],
 ): Promise<void> {
+  const assignmentsByPack = groupAssignmentsByPack(state.assignments);
+  const packNames = [...assignmentsByPack.keys()].sort();
+  for (const [packName, assignments] of assignmentsByPack) {
+    const assignmentFile = path.join("src", "tags", "assignments", "packs", `${packName}.ts`);
+    await mkdir(path.dirname(path.join(rootPath, assignmentFile)), { recursive: true });
+    await writeFile(
+      path.join(rootPath, assignmentFile),
+      renderAssignmentFile(packName, assignments),
+      "utf8",
+    );
+  }
+  await writeFile(
+    path.join(rootPath, "src", "tags", "assignments", "index.ts"),
+    renderAssignmentIndexFile(packNames),
+    "utf8",
+  );
+
   for (const category of categories) {
     const files = CATEGORY_FILE_PATHS[category];
-    await mkdir(path.dirname(path.join(rootPath, files.assignment)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.exemplar)), { recursive: true });
     await mkdir(path.dirname(path.join(rootPath, files.authoredRule)), { recursive: true });
 
-    await writeFile(
-      path.join(rootPath, files.assignment),
-      renderAssignmentFile(category, state.assignments[category]),
-      "utf8",
-    );
     await writeFile(
       path.join(rootPath, files.exemplar),
       renderExemplarFile(category, state.exemplars[category]),

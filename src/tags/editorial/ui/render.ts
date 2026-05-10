@@ -29,10 +29,10 @@ function toManagedCategory(category: string): "affliction" | "creature" | "equip
   return null;
 }
 
-function renderProjectionReference(projectionId: string): string {
-  const projection = getPublishedDerivedTagOntology().conceptModel.projectionsById.get(projectionId.trim());
+function renderTagReference(category: string, tag: string): string {
+  const projection = getPublishedDerivedTagOntology().conceptModel.projectionsByTagKey.get(`${category}:${tag.trim()}`);
   if (!projection) {
-    return projectionId;
+    return tag;
   }
   return `${projection.family}.${projection.currentTag}`;
 }
@@ -44,14 +44,14 @@ function renderLiveAssignments(category: string, recordKey: string): string {
   }
 
   const state = getCurrentDerivedTagAuthoredState();
-  const assignment = state.assignments[managedCategory].find((entry) => entry.recordKey === recordKey);
+  const assignment = state.assignments.find((entry) => entry.recordKey === recordKey);
   if (!assignment) {
     return "(none)";
   }
 
-  const renderedApplied = (assignment.applied ?? []).map((decision) => renderProjectionReference(decision.projectionId));
+  const renderedApplied = (assignment.applied ?? []).map((decision) => renderTagReference(managedCategory, decision.tag));
   const renderedExcluded = (assignment.excluded ?? []).map(
-    (decision) => `!${renderProjectionReference(decision.projectionId)}`,
+    (decision) => `!${renderTagReference(managedCategory, decision.tag)}`,
   );
   const rendered = [...renderedApplied, ...renderedExcluded];
   return rendered.length > 0 ? rendered.join(", ") : "(none)";

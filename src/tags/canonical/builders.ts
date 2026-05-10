@@ -13,6 +13,8 @@ import type {
   DerivedTagOntologyCategory,
   DerivedTagOntologyFamily,
 } from "../../domain/record-types.js";
+import type { DerivedTagManagedCategory } from "../manifest.js";
+import { DERIVED_TAG_MANAGED_CATEGORIES } from "../manifest.js";
 import { CANONICAL_VOCABULARY } from "./vocabulary.js";
 import type { CanonicalFacet } from "./facets.js";
 
@@ -148,6 +150,81 @@ export type CanonicalProjectionSeed = Omit<
 };
 
 export type CanonicalProjectionByTag = Record<string, CanonicalProjectionSeed>;
+
+export type ConceptProjectionSeed = Omit<
+  CanonicalProjectionSeed,
+  "category" | "conceptId" | "currentTag"
+> & {
+  tag?: string;
+};
+
+export type ConceptProjectionSeedByCategory = Partial<
+  Record<DerivedTagManagedCategory, ConceptProjectionSeed | ConceptProjectionSeed[]>
+>;
+
+export type ConceptProjectionDeclaration = {
+  conceptId: string;
+  projections: ConceptProjectionSeedByCategory;
+};
+
+export function defineConceptProjections(
+  conceptId: string,
+  projections: ConceptProjectionSeedByCategory,
+): ConceptProjectionDeclaration {
+  return { conceptId, projections };
+}
+
+export function buildProjectionRecordsByCategory(
+  conceptsById: Record<string, DerivedTagCanonicalConcept>,
+  declarations: readonly ConceptProjectionDeclaration[],
+): Record<DerivedTagManagedCategory, Record<string, DerivedTagCategoryProjection>> {
+  const recordsByCategory = Object.fromEntries(
+    DERIVED_TAG_MANAGED_CATEGORIES.map((category) => [category, {}]),
+  ) as Record<DerivedTagManagedCategory, Record<string, DerivedTagCategoryProjection>>;
+  const seenProjectionIds = new Set<string>();
+
+  for (const declaration of declarations) {
+    if (!conceptsById[declaration.conceptId]) {
+      throw new Error(`Canonical projection declaration references unknown concept "${declaration.conceptId}".`);
+    }
+
+    for (const [category, seedOrSeeds] of Object.entries(declaration.projections)) {
+      if (!DERIVED_TAG_MANAGED_CATEGORIES.includes(category as DerivedTagManagedCategory)) {
+        throw new Error(
+          `Canonical projection declaration for "${declaration.conceptId}" uses unmanaged category "${category}".`,
+        );
+      }
+
+      const managedCategory = category as DerivedTagManagedCategory;
+      for (const seed of Array.isArray(seedOrSeeds) ? seedOrSeeds : [seedOrSeeds]) {
+        const currentTag = seed.tag ?? declaration.conceptId;
+        const projectionId = seed.id ?? `${managedCategory}:${currentTag}`;
+        if (seenProjectionIds.has(projectionId)) {
+          throw new Error(`Duplicate canonical projection id while building projections: ${projectionId}`);
+        }
+        seenProjectionIds.add(projectionId);
+
+        const categoryRecords = recordsByCategory[managedCategory];
+        if (categoryRecords[currentTag]) {
+          throw new Error(`Duplicate canonical projection tag "${managedCategory}:${currentTag}".`);
+        }
+
+        const { tag: _tag, id: _id, ...projectionSeed } = seed;
+        categoryRecords[currentTag] = {
+          ...projectionSeed,
+          id: projectionId,
+          category: managedCategory,
+          conceptId: declaration.conceptId,
+          currentTag,
+          label: seed.label ?? declaration.conceptId,
+          translationStatus: seed.translationStatus ?? CANONICAL_VOCABULARY.TRANSLATION.STATUS.MAPPED,
+        } as DerivedTagCategoryProjection;
+      }
+    }
+  }
+
+  return recordsByCategory;
+}
 
 export type CanonicalFamilySeed = Omit<DerivedTagOntologyFamily, "label"> & {
   label?: string;

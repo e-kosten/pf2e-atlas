@@ -21,8 +21,11 @@ export function parseDerivedTagWorkbenchMode(value: string | undefined): Derived
     return undefined;
   }
 
-  return (
-    DERIVED_TAG_WORKBENCH_MODE_ALIASES[normalized as keyof typeof DERIVED_TAG_WORKBENCH_MODE_ALIASES] ??
-    (DERIVED_TAG_WORKBENCH_MODE_SET.has(normalized as DerivedTagWorkbenchMode) ? (normalized as DerivedTagWorkbenchMode) : undefined)
-  );
+  if (normalized in DERIVED_TAG_WORKBENCH_MODE_ALIASES) {
+    return DERIVED_TAG_WORKBENCH_MODE_ALIASES[normalized as keyof typeof DERIVED_TAG_WORKBENCH_MODE_ALIASES];
+  }
+
+  return DERIVED_TAG_WORKBENCH_MODE_SET.has(normalized as DerivedTagWorkbenchMode)
+    ? (normalized as DerivedTagWorkbenchMode)
+    : undefined;
 }

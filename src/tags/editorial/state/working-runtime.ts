@@ -8,10 +8,7 @@ import {
   translateLegacyDerivedTags,
   translateLegacySeedMigrationCategories,
 } from "../../translations/index.js";
-import {
-  buildDerivedTagExplicitAssignmentIndex,
-  type AuthoredDerivedTagAssignment,
-} from "../../runtime/derivation/assignments.js";
+import { buildDerivedTagExplicitAssignmentIndex } from "../../runtime/derivation/assignments.js";
 import { deriveRecordTagsFromRules, type DerivedTagContext, type DerivedTagRule } from "../../runtime/matcher/engine.js";
 import { DERIVED_TAG_SEED_LOOKUP } from "../../runtime/publication/catalog-seed-records.js";
 import {
@@ -27,11 +24,6 @@ import {
   getCurrentDerivedTagFamilyTranslationDefaultsRevision,
   getCurrentDerivedTagTranslationOverridesRevision,
 } from "../../translations/state.js";
-
-type DerivedTagAssignmentGroup = {
-  category: (typeof DERIVED_TAG_REGISTRATION_CATEGORIES)[number];
-  assignments: AuthoredDerivedTagAssignment[];
-};
 
 type DerivedTagWorkingRuntime = {
   authoredRules: DerivedTagRule[];
@@ -64,13 +56,7 @@ function buildCurrentDerivedTagWorkingRuntime(): DerivedTagWorkingRuntime {
   const legacyRules = DERIVED_TAG_REGISTRATION_CATEGORIES.flatMap((category) => DERIVED_TAG_LEGACY_RULES_BY_CATEGORY[category]);
   const explicitAssignments = buildDerivedTagExplicitAssignmentIndex(
     ontology,
-    DERIVED_TAG_REGISTRATION_CATEGORIES.map(
-      (category) =>
-        ({
-          category,
-          assignments: state.assignments[category],
-        }) satisfies DerivedTagAssignmentGroup,
-    ),
+    state.assignments,
   );
   const legacySeedMigrations = buildDerivedTagLegacySeedMigrationIndex(
     ontology,

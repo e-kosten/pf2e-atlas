@@ -95,7 +95,7 @@ These are the smallest real shapes that express the editorial architecture's dur
 
 ```ts
 type DerivedTagAuthoredState = {
-  assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
+  assignments: AuthoredDerivedTagAssignment[];
   assignmentReviews: Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;
   assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
   exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;
@@ -174,7 +174,7 @@ The important split is:
 
 | Area | Owns | Consumes | Produces |
 | --- | --- | --- | --- |
-| `ontology/`, `rules/`, `assignments/`, `exemplars/` | Authored ontology, authored rules, explicit overrides, curated teaching sets | Shared manifest and domain contracts | The durable inputs the runtime and writeback flows operate on |
+| `ontology/`, `rules/`, `assignments/`, `exemplars/` | Authored ontology, authored rules, pack-organized explicit overrides, curated teaching sets | Shared manifest, record keys, and domain contracts | The durable inputs the runtime and writeback flows operate on |
 | `translations/` | Canonical concepts, category projections, concept relations, and current-tag translation records | Authored ontology families/tags plus canonical concept policy | The live bridge from current ontology ownership into the concept/projection model |
 | `reviews/` | Pending assignment reviews, prior assignment memory, pending exemplar reviews, reviewed discovery negatives | Current editorial policy and managed categories | Durable review registries used by session building, discovery filtering, and writeback |
 | `runtime/publication/` | Published ontology catalogs, exemplar publication, legacy seed publication, source catalogs | Authored ontology, exemplars, seed definitions | Flattened runtime registries and source-aware publication helpers |
@@ -240,19 +240,21 @@ Callers should import that reviewed-discovery registry from `src/tags/reviews/di
 
 ## Concept / Projection Translation Layer
 
-The future derived-tag ontology shape now has a live bridge layer under `src/tags/translations/`.
+The future derived-tag ontology shape has live bridge layers under `src/tags/canonical/` and `src/tags/translations/`.
 
-That layer owns:
+Those layers own:
 
-- canonical concept definitions published from the current ontology
-- category projections that preserve long-term axis/family browsing
+- canonical concept definitions
+- concept-centered projection declarations that preserve category-specific axis/family browsing
 - translation records keyed to the current tag rows
 - translation status (`mapped`, `provisional`, `unmapped`, `dropped`)
 
 The important architectural split is:
 
 - `ontology/` still owns the current category-local authored tag definitions
-- `translations/` owns how those current tags map into the future concept/projection model
+- `canonical/concepts/` owns global concept meaning
+- `canonical/projections/concepts/` owns category projections grouped by concept id, with alias tags declared only where the published tag differs from the concept id
+- `translations/` owns current-row translation state and overrides
 - `runtime/publication/` compiles the projection-backed published ontology used by derivation and the explorer surfaces
 
 The current implementation exposes translation rows through editorial/runtime state and a dedicated TUI translation-review route. That route is a row-centric session workflow over current-tag translation records with category and translation-status filters; it persists review artifacts under `scratch/translation-sessions/`, imports them explicitly back into `src/tags/translations/`, and can promote uniform family-wide row changes into authored family defaults. It is intentionally separate from the older record-review session flow because translation review is keyed to ontology rows, not record sets.
@@ -305,7 +307,7 @@ Owns the only path that mutates authored files from session decisions:
 
 - `authored-state-writer.ts` owns authored-file path selection, TypeScript serialization, and registry writeback
 - `linter.ts` validates a session before import
-- `importer.ts` applies approved session decisions back into authored assignments, rules, exemplars, and review registries
+- `importer.ts` applies approved session decisions back into pack-organized authored assignments, rules, exemplars, and review registries
 
 Writeback consumes the session output from `editorial/sessions/` and the mutable authored state from `editorial/state/`; it should remain the only owner of source-file mutation logic.
 

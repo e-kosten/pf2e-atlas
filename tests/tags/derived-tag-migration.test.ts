@@ -43,17 +43,8 @@ import {
   toggleDerivedTagReviewUnresolvedOnly,
   updateDerivedTagReviewDecisionStatus,
 } from "../../src/tags/editorial/sessions/review-session.js";
-import { getDerivedTagCanonicalOntology } from "../../src/tags/canonical/index.js";
 import { moveSelection } from "../../src/tui/terminal-ui.js";
 import type { DerivedTagReviewSession } from "../../src/tags/editorial/types.js";
-
-function projectionId(category: SearchCategory, tag: string): string {
-  const projection = getDerivedTagCanonicalOntology().conceptModel.projectionsByTagKey.get(`${category}:${tag}`);
-  if (!projection) {
-    throw new Error(`Missing canonical projection for ${category}:${tag} in test fixture.`);
-  }
-  return projection.id;
-}
 
 function createEntityRecord(
   overrides: Partial<OntologyExplorerEntityRecord> &
@@ -203,7 +194,7 @@ describe("derived tag migration tooling", () => {
         recordKey: "equipment:bell",
         applied: [
           {
-            projectionId: projectionId("equipment", "alarm"),
+            tag: "alarm",
             source: "llm_reviewed",
             confidence: "high",
             rationale: "Confirmed by review.",
@@ -262,7 +253,7 @@ describe("derived tag migration tooling", () => {
         recordKey: "equipment:mask",
         applied: [
           {
-            projectionId: projectionId("equipment", "social_infiltration"),
+            tag: "social_infiltration",
             source: "llm_auto",
             confidence: "high",
             rationale: "High-confidence direct tagging call.",
@@ -702,13 +693,13 @@ describe("derived tag migration tooling", () => {
 
     try {
       const nextState = structuredClone(initialState);
-      nextState.assignments.equipment = [
+      nextState.assignments = [
         {
           name: "Plain Widget",
           recordKey: "equipment:plain-widget",
           applied: [
             {
-              projectionId: projectionId("equipment", "social_infiltration"),
+              tag: "social_infiltration",
               source: "human",
               rationale: "Confirmed during migration review.",
             },
@@ -757,9 +748,7 @@ describe("derived tag migration tooling", () => {
 
       await writeDerivedTagAuthoredState(tempRoot, nextState, ["equipment"]);
 
-      expect(getCurrentDerivedTagAuthoredState().assignments.equipment).toEqual(
-        nextState.assignments.equipment,
-      );
+      expect(getCurrentDerivedTagAuthoredState().assignments).toEqual(nextState.assignments);
       expect(getCurrentDerivedTagAuthoredState().assignmentReviews.equipment).toEqual(
         nextState.assignmentReviews.equipment,
       );

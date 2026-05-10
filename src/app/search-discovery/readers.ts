@@ -142,7 +142,7 @@ export async function prepareSearchSemanticsReader(options: {
       .discoverFieldOptions({
         mode: options.mode,
         context,
-        field: field as FilterValueField,
+        field,
       })
       .then((discoveredOptions) => {
         fieldValuesByField.set(field, discoveredOptions);

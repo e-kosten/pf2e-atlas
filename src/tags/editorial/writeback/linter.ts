@@ -73,7 +73,7 @@ export function lintDerivedTagReviewSession(session: DerivedTagReviewSession): v
             `Migration session exemplar tag "${decision.tag}" for "${decisionRecord.recordKey}" does not exist in the ontology.`,
           );
         }
-      } else if (decision.kind === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.DECISION_KIND.RULE) {
+      } else {
         const ontologyTag = ontology.tagByKey.get(`${decisionRecord.category}:${normalizeDerivedTag(decision.tag)}`);
         if (!ontologyTag) {
           throw new Error(

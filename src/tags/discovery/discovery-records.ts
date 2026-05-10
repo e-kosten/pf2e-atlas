@@ -175,7 +175,7 @@ function toDiscoveryRecord(row: LoadedRecordRow, references: DiscoveryReferenceR
       return parseSearchSubcategoryForCategory(category, row.subcategory, row.recordKey);
     } catch (error) {
       if (row.subcategory) {
-        throw new Error(`Invalid discovery subcategory "${row.subcategory}" for ${category} record`);
+        throw new Error(`Invalid discovery subcategory "${row.subcategory}" for ${category} record`, { cause: error });
       }
       throw error;
     }

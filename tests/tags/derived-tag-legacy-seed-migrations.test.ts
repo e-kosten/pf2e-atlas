@@ -155,22 +155,17 @@ describe("derived tag legacy seed migrations", () => {
     ]);
     const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(ontology, [
       {
-        category: "equipment",
-        assignments: [
+        name: "Mask",
+        recordKey: "equipment:mask",
+        excluded: [
           {
-            name: "Mask",
-            recordKey: "equipment:mask",
-            excluded: [
-              {
-                projectionId: "equipment:disguise",
-                source: "human",
-                rationale: "This record is being intentionally suppressed during review.",
-              },
-            ],
+            tag: "disguise",
+            source: "human",
+            rationale: "This record is being intentionally suppressed during review.",
           },
         ],
       },
-    ]);
+    ], [{ recordKey: "equipment:mask", name: "Mask", category: "equipment" }]);
 
     const derivation = deriveCatalogTagDerivation(
       ontology,

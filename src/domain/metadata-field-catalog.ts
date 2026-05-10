@@ -4,7 +4,6 @@ import { SEARCH_CATEGORIES } from "./categories.js";
 import type { FilterValueOrdering } from "./filter-value-ordering.js";
 import {
   METADATA_FIELD_KIND_OPERATORS,
-  isMetadataFieldName,
   type MetadataFieldName,
   type MetadataFieldNameByType,
   type MetadataFieldType,

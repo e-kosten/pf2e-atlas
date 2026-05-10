@@ -15,9 +15,5 @@ const ONTOLOGY_DOMAIN_SUMMARIES: Record<OntologyDomainId, OntologyDomainSummary>
 
 export function getOntologyDomainSummary(id: OntologyDomainId): OntologyDomainSummary {
   const summary = ONTOLOGY_DOMAIN_SUMMARIES[id];
-  if (!summary) {
-    throw new Error(`Unknown ontology domain: ${String(id)}`);
-  }
-
   return { ...summary };
 }

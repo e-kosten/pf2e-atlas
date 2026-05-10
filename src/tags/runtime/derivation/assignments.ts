@@ -1,6 +1,6 @@
 import type { DerivedTagCategoryProjection, SearchCategory } from "../../../domain/derived-tag-types.js";
 import { uniqueSorted } from "../../../shared/utils.js";
-import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../../assignments/index.js";
+import { DERIVED_TAG_ASSIGNMENTS } from "../../assignments/index.js";
 import { DERIVED_TAG_MANAGED_CATEGORIES } from "../../manifest.js";
 import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../../reviews/assignment-memory/index.js";
 import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../../reviews/assignment-reviews/index.js";
@@ -16,7 +16,7 @@ export type DerivedTagReviewSource = "human" | "llm";
 export type DerivedTagAssignmentDecisionSource = "human" | "llm_auto" | "llm_reviewed";
 
 export type DerivedTagAssignmentDecision = {
-  projectionId: string;
+  tag: string;
   source: DerivedTagAssignmentDecisionSource;
   confidence?: DerivedTagReviewConfidence;
   rationale: string;
@@ -61,16 +61,11 @@ export type DerivedTagAssignmentMemoryCategory = {
   decisions: DerivedTagAssignmentMemoryDecision[];
 };
 
-type DerivedTagAssignmentGroup = {
-  category: SearchCategory;
-  assignments: AuthoredDerivedTagAssignment[];
-};
-
 type DerivedTagAssignmentReviewGroup = DerivedTagAssignmentReviewCategory;
 type DerivedTagAssignmentMemoryGroup = DerivedTagAssignmentMemoryCategory;
 
 export type DerivedTagExplicitAssignment = {
-  category: SearchCategory;
+  category?: SearchCategory;
   name: string;
   includeTags: string[];
   excludeTags: string[];
@@ -92,12 +87,7 @@ type DerivedTagAssignmentRecordSummary = {
   category: SearchCategory;
 };
 
-const RAW_DERIVED_TAG_ASSIGNMENTS: DerivedTagAssignmentGroup[] = [
-  ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => ({
-    category,
-    assignments: DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY[category],
-  })),
-];
+const RAW_DERIVED_TAG_ASSIGNMENTS: AuthoredDerivedTagAssignment[] = DERIVED_TAG_ASSIGNMENTS;
 
 const RAW_DERIVED_TAG_ASSIGNMENT_REVIEWS: DerivedTagAssignmentReviewGroup[] = [
   ...DERIVED_TAG_MANAGED_CATEGORIES.map((category) => DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY[category]),
@@ -116,7 +106,7 @@ function createEmptyProjectionDecisionMap(): NormalizedProjectionDecisionMap {
 function normalizeAssignmentDecision(decision: DerivedTagAssignmentDecision): DerivedTagAssignmentDecision {
   return {
     ...decision,
-    projectionId: decision.projectionId.trim(),
+    tag: normalizeDerivedTag(decision.tag),
   };
 }
 
@@ -124,27 +114,29 @@ function renderProjectionTag(projection: DerivedTagCategoryProjection): string {
   return `${normalizeDerivedTag(projection.family)}.${normalizeDerivedTag(projection.currentTag)}`;
 }
 
-function validateProjectionReference(
+function validateProjectionTagReference(
   fieldName: string,
   category: SearchCategory,
   recordKey: string,
-  projectionId: string,
-  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+  tag: string,
+  ontology: PublishedDerivedTagOntology,
 ): DerivedTagCategoryProjection {
-  const projection = projectionsById.get(projectionId);
-  if (!projection) {
+  const normalizedTag = normalizeDerivedTag(tag);
+  const ontologyTag = ontology.tagByKey.get(`${category}:${normalizedTag}`);
+  if (!ontologyTag) {
     throw new Error(
-      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" does not exist in category "${category}".`,
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not exist in category "${category}".`,
     );
   }
-  if (projection.category !== category) {
+  const projection = ontology.conceptModel.projectionsByTagKey.get(`${category}:${normalizedTag}`);
+  if (!projection) {
     throw new Error(
-      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" belongs to category "${projection.category}", not "${category}".`,
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" is missing a canonical projection in category "${category}".`,
     );
   }
   if (projection.assignmentMode === "composite") {
     throw new Error(
-      `Derived tag ${fieldName} projection "${projectionId}" for "${recordKey}" cannot target composite tag "${projection.currentTag}"; assign one of its child tags instead.`,
+      `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" cannot target composite tag "${projection.currentTag}"; assign one of its child tags instead.`,
     );
   }
   return projection;
@@ -155,7 +147,7 @@ function normalizeProjectionAssignments(
   category: SearchCategory,
   fieldName: "applied" | "excluded",
   recordKey: string,
-  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+  ontology: PublishedDerivedTagOntology,
 ): NormalizedProjectionDecisionMap {
   const normalizedAssignments = createEmptyProjectionDecisionMap();
   if (!decisions) {
@@ -164,19 +156,19 @@ function normalizeProjectionAssignments(
 
   for (const rawDecision of decisions) {
     const normalizedDecision = normalizeAssignmentDecision(rawDecision);
-    const projection = validateProjectionReference(
+    const projection = validateProjectionTagReference(
       `assignment ${fieldName}`,
       category,
       recordKey,
-      normalizedDecision.projectionId,
-      projectionsById,
+      normalizedDecision.tag,
+      ontology,
     );
-    if (normalizedAssignments.has(normalizedDecision.projectionId)) {
+    if (normalizedAssignments.has(projection.id)) {
       throw new Error(
         `Derived tag assignment ${fieldName} for "${recordKey}" repeats "${renderProjectionTag(projection)}".`,
       );
     }
-    normalizedAssignments.set(normalizedDecision.projectionId, normalizedDecision);
+    normalizedAssignments.set(projection.id, normalizedDecision);
   }
 
   return normalizedAssignments;
@@ -201,7 +193,7 @@ function flattenNormalizedAssignments(
 function normalizeAssignment(
   assignment: AuthoredDerivedTagAssignment,
   category: SearchCategory,
-  projectionsById: PublishedDerivedTagOntology["conceptModel"]["projectionsById"],
+  ontology: PublishedDerivedTagOntology,
 ): {
   includeDecisions: NormalizedProjectionDecisionMap;
   excludeDecisions: NormalizedProjectionDecisionMap;
@@ -211,19 +203,19 @@ function normalizeAssignment(
     category,
     "applied",
     assignment.recordKey,
-    projectionsById,
+    ontology,
   );
   const excludeDecisions = normalizeProjectionAssignments(
     assignment.excluded,
     category,
     "excluded",
     assignment.recordKey,
-    projectionsById,
+    ontology,
   );
 
   for (const projectionId of uniqueSorted([...includeDecisions.keys()])) {
     if (excludeDecisions.has(projectionId)) {
-      const projection = projectionsById.get(projectionId);
+      const projection = ontology.conceptModel.projectionsById.get(projectionId);
       const renderedTarget = projection ? renderProjectionTag(projection) : projectionId;
       throw new Error(
         `Derived tag assignment for "${assignment.recordKey}" places "${renderedTarget}" in both applied and excluded.`,
@@ -385,26 +377,56 @@ export function validateDerivedTagAssignmentMemory(
 
 export function buildDerivedTagExplicitAssignmentIndex(
   ontology: PublishedDerivedTagOntology,
-  groups: DerivedTagAssignmentGroup[] = RAW_DERIVED_TAG_ASSIGNMENTS,
+  assignments: AuthoredDerivedTagAssignment[] = RAW_DERIVED_TAG_ASSIGNMENTS,
+  records: Iterable<DerivedTagAssignmentRecordSummary> = [],
+  options: { requireCompleteRecordCoverage?: boolean } = {},
 ): DerivedTagExplicitAssignmentIndex {
   const projectionsById = ontology.conceptModel.projectionsById;
+  const recordsByKey = new Map<string, DerivedTagAssignmentRecordSummary>();
+  for (const record of records) {
+    recordsByKey.set(record.recordKey, record);
+  }
   const assignmentsByRecordKey = new Map<string, DerivedTagExplicitAssignment>();
 
-  for (const group of groups) {
-    for (const assignment of group.assignments) {
-      if (assignmentsByRecordKey.has(assignment.recordKey)) {
-        throw new Error(`Duplicate explicit derived tag assignment for "${assignment.recordKey}".`);
-      }
-
-      const normalizedAssignment = normalizeAssignment(assignment, group.category, projectionsById);
-
-      assignmentsByRecordKey.set(assignment.recordKey, {
-        category: group.category,
-        name: assignment.name,
-        includeTags: flattenNormalizedAssignments(normalizedAssignment.includeDecisions, projectionsById),
-        excludeTags: flattenNormalizedAssignments(normalizedAssignment.excludeDecisions, projectionsById),
-      });
+  for (const assignment of assignments) {
+    if (assignmentsByRecordKey.has(assignment.recordKey)) {
+      throw new Error(`Duplicate explicit derived tag assignment for "${assignment.recordKey}".`);
     }
+
+    const record = recordsByKey.get(assignment.recordKey);
+    if (recordsByKey.size > 0 && !record && options.requireCompleteRecordCoverage) {
+      throw new Error(`Cannot resolve explicit derived tag assignment category for "${assignment.recordKey}".`);
+    }
+    if (record && record.name !== assignment.name) {
+      throw new Error(
+        `Explicit derived tag assignment for "${assignment.recordKey}" expected name "${assignment.name}" but resolved canonical name "${record.name}".`,
+      );
+    }
+
+    if (!record) {
+      const includeTags = uniqueSorted((assignment.applied ?? []).map((decision) => normalizeDerivedTag(decision.tag)));
+      const excludeTags = uniqueSorted((assignment.excluded ?? []).map((decision) => normalizeDerivedTag(decision.tag)));
+      if (includeTags.length === 0 && excludeTags.length === 0) {
+        throw new Error(
+          `Derived tag assignment for "${assignment.recordKey}" must include at least one applied or excluded tag.`,
+        );
+      }
+      assignmentsByRecordKey.set(assignment.recordKey, {
+        name: assignment.name,
+        includeTags,
+        excludeTags,
+      });
+      continue;
+    }
+
+    const normalizedAssignment = normalizeAssignment(assignment, record.category, ontology);
+
+    assignmentsByRecordKey.set(assignment.recordKey, {
+      category: record.category,
+      name: assignment.name,
+      includeTags: flattenNormalizedAssignments(normalizedAssignment.includeDecisions, projectionsById),
+      excludeTags: flattenNormalizedAssignments(normalizedAssignment.excludeDecisions, projectionsById),
+    });
   }
 
   return { assignmentsByRecordKey };
@@ -424,6 +446,9 @@ export function validateDerivedTagExplicitAssignmentsAgainstRecords(
     if (!record) {
       continue;
     }
+    if (!assignment.category) {
+      continue;
+    }
     if (record.category !== assignment.category) {
       throw new Error(
         `Explicit derived tag assignment for "${recordKey}" expected category "${assignment.category}" but resolved record category "${record.category}".`,
@@ -439,6 +464,7 @@ export function validateDerivedTagExplicitAssignmentsAgainstRecords(
 
 export function createDerivedTagExplicitAssignmentIndex(
   ontology: PublishedDerivedTagOntology,
+  records: Iterable<DerivedTagAssignmentRecordSummary> = [],
 ): DerivedTagExplicitAssignmentIndex {
-  return buildDerivedTagExplicitAssignmentIndex(ontology, RAW_DERIVED_TAG_ASSIGNMENTS);
+  return buildDerivedTagExplicitAssignmentIndex(ontology, RAW_DERIVED_TAG_ASSIGNMENTS, records);
 }

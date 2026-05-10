@@ -604,7 +604,7 @@ export function deriveCatalogTagDerivation(
     }
 
     const explicitAssignment = explicitAssignmentIndex?.assignmentsByRecordKey.get(input.recordKey);
-    if (explicitAssignment && explicitAssignment.category === input.category) {
+    if (explicitAssignment && (!explicitAssignment.category || explicitAssignment.category === input.category)) {
       for (const tag of explicitAssignment.includeTags) {
         addPrimarySource(sourceSets, tag, "assignment");
       }

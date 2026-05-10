@@ -76,7 +76,7 @@ function mapAssignmentDecisionSource(
   return DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN;
 }
 
-function resolveProjectionIdForAssignmentDecision(
+function validateTagForAssignmentDecision(
   category: SearchCategory,
   recordKey: string,
   decision: Pick<DerivedTagReviewAssignmentDecision, "family" | "tag">,
@@ -100,7 +100,7 @@ function resolveProjectionIdForAssignmentDecision(
       `Could not resolve assignment projection for "${recordKey}" because "${category}:${normalizedTag}" has no canonical projection.`,
     );
   }
-  return projection.id;
+  return projection.currentTag;
 }
 
 function toStoredAssignmentDecision(
@@ -109,7 +109,7 @@ function toStoredAssignmentDecision(
   decision: DerivedTagReviewAssignmentDecision,
 ): DerivedTagAssignmentDecision {
   return {
-    projectionId: resolveProjectionIdForAssignmentDecision(category, recordKey, decision),
+    tag: validateTagForAssignmentDecision(category, recordKey, decision),
     source: mapAssignmentDecisionSource(decision),
     rationale: decision.rationale,
     ...(decision.confidence ? { confidence: decision.confidence } : {}),
@@ -118,13 +118,14 @@ function toStoredAssignmentDecision(
 
 function removeAssignmentDecision(
   decisions: DerivedTagAssignmentDecision[] | undefined,
-  projectionId: string,
+  tag: string,
 ): DerivedTagAssignmentDecision[] | undefined {
   if (!decisions) {
     return undefined;
   }
 
-  const filtered = decisions.filter((entry) => entry.projectionId.trim() !== projectionId);
+  const normalizedTag = normalizeDerivedTag(tag);
+  const filtered = decisions.filter((entry) => normalizeDerivedTag(entry.tag) !== normalizedTag);
   return filtered.length > 0 ? filtered : undefined;
 }
 
@@ -132,8 +133,9 @@ function upsertAssignmentDecision(
   decisions: DerivedTagAssignmentDecision[] | undefined,
   decision: DerivedTagAssignmentDecision,
 ): DerivedTagAssignmentDecision[] {
-  const filtered = (decisions ?? []).filter((entry) => entry.projectionId.trim() !== decision.projectionId.trim());
-  return [...filtered, decision].sort((left, right) => left.projectionId.localeCompare(right.projectionId));
+  const normalizedTag = normalizeDerivedTag(decision.tag);
+  const filtered = (decisions ?? []).filter((entry) => normalizeDerivedTag(entry.tag) !== normalizedTag);
+  return [...filtered, decision].sort((left, right) => normalizeDerivedTag(left.tag).localeCompare(normalizeDerivedTag(right.tag)));
 }
 
 function sortAssignmentDecisions(
@@ -144,8 +146,8 @@ function sortAssignmentDecisions(
   }
 
   return decisions
-    .map((decision) => ({ ...decision, projectionId: decision.projectionId.trim() }))
-    .sort((left, right) => left.projectionId.localeCompare(right.projectionId));
+    .map((decision) => ({ ...decision, tag: normalizeDerivedTag(decision.tag) }))
+    .sort((left, right) => left.tag.localeCompare(right.tag));
 }
 
 function cleanAssignment(assignment: AuthoredDerivedTagAssignment): AuthoredDerivedTagAssignment | null {
@@ -164,15 +166,15 @@ function applyLiveAssignmentDecision(
   decision: DerivedTagReviewAssignmentDecision,
 ): void {
   const storedDecision = toStoredAssignmentDecision(category, recordKey, decision);
-  const projectionId = storedDecision.projectionId;
+  const currentTag = storedDecision.tag;
 
   if (decision.mode === DERIVED_TAG_REVIEW_VOCABULARY.REVIEW.ASSIGNMENT_MODE.INCLUDE) {
-    assignment.excluded = removeAssignmentDecision(assignment.excluded, projectionId);
+    assignment.excluded = removeAssignmentDecision(assignment.excluded, currentTag);
     assignment.applied = upsertAssignmentDecision(assignment.applied, storedDecision);
     return;
   }
 
-  assignment.applied = removeAssignmentDecision(assignment.applied, projectionId);
+  assignment.applied = removeAssignmentDecision(assignment.applied, currentTag);
   assignment.excluded = upsertAssignmentDecision(assignment.excluded, storedDecision);
 }
 
@@ -567,13 +569,16 @@ function applySessionToState(
   session: DerivedTagReviewSession,
 ): DerivedTagAuthoredState {
   const nextState = structuredClone(state);
+  const relevantSessionDecisions = session.decisions.filter((decision) =>
+    categoriesTouchedBySession(session).includes(toManagedCategory(decision.category)),
+  );
+  nextState.assignments = applyMigrationSessionToAssignments(
+    nextState.assignments,
+    relevantSessionDecisions,
+  );
 
   for (const category of categoriesTouchedBySession(session)) {
     const relevantDecisions = session.decisions.filter((decision) => decision.category === category);
-    nextState.assignments[category] = applyMigrationSessionToAssignments(
-      nextState.assignments[category],
-      relevantDecisions,
-    );
     nextState.assignmentReviews[category] = applyMigrationSessionToAssignmentReviews(
       nextState.assignmentReviews[category],
       relevantDecisions,

@@ -2,7 +2,6 @@ import type {
   NormalizedRecord,
   RecordKey,
   SourceCategory,
-  VariantSource,
 } from "../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../domain/search-types.js";
 import type { PageReferenceEdge } from "../domain/page-relations-types.js";
@@ -268,7 +267,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
       return parseSearchSubcategoryForCategory(category, row.subcategory, row.recordKey);
     } catch (error) {
       if (row.subcategory) {
-        throw new Error(`Invalid row subcategory "${row.subcategory}" for ${category} record`);
+        throw new Error(`Invalid row subcategory "${row.subcategory}" for ${category} record`, { cause: error });
       }
       throw error;
     }
@@ -278,7 +277,7 @@ export function rowToRecord(row: CandidateRow, raw: Record<string, unknown> | nu
       return parseVariantSourceValue(row.variantSource, row.recordKey);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(error.message.replace("Invalid variant source", "Invalid row variant source"));
+        throw new Error(error.message.replace("Invalid variant source", "Invalid row variant source"), { cause: error });
       }
       throw error;
     }

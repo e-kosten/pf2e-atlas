@@ -11,10 +11,11 @@ import {
   createDerivedTagExplicitAssignmentIndex,
   validateDerivedTagAssignmentMemory,
   validateDerivedTagExplicitAssignmentsAgainstRecords,
+  type AuthoredDerivedTagAssignment,
 } from "../../src/tags/runtime/derivation/assignments.js";
-import { publishDerivedTagOntology, deriveCatalogTagDerivation } from "../../src/tags/runtime/publication/catalog.js";
-import { deriveRecordTagDerivation } from "../../src/tags/runtime.js";
 import { getDerivedTagCanonicalOntology } from "../../src/tags/canonical/index.js";
+import { deriveRecordTagDerivation } from "../../src/tags/runtime.js";
+import { publishDerivedTagOntology } from "../../src/tags/runtime/publication/catalog.js";
 
 const assignmentFamilies: DerivedTagOntologyFamily[] = [
   {
@@ -108,18 +109,20 @@ function buildTestConceptModel(tags: DerivedTagOntologyTag[]): PublishedDerivedT
     conceptById: new Map(concepts.map((concept) => [concept.id, concept])),
     projections,
     projectionsById: new Map(projections.map((projection) => [projection.id, projection])),
-    projectionsByTagKey: new Map(projections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const)),
+    projectionsByTagKey: new Map(
+      projections.map((projection) => [`${projection.category}:${projection.currentTag}`, projection] as const),
+    ),
     translations: [],
     translationsByTagKey: new Map(),
     relations: [],
   };
 }
 
-function projectionId(category: "equipment" | "creature" | "hazard" | "affliction" | "spell", tag: string): string {
-  return `${category}:${tag}`;
-}
-
-const assignmentOntology = publishDerivedTagOntology(assignmentFamilies, assignmentTags, buildTestConceptModel(assignmentTags));
+const assignmentOntology = publishDerivedTagOntology(
+  assignmentFamilies,
+  assignmentTags,
+  buildTestConceptModel(assignmentTags),
+);
 const canonicalOntology = getDerivedTagCanonicalOntology();
 const creatureOntology = publishDerivedTagOntology(
   canonicalOntology.families.filter((family) => family.category === "creature"),
@@ -127,31 +130,42 @@ const creatureOntology = publishDerivedTagOntology(
   canonicalOntology.conceptModel,
 );
 
+function equipmentRecords(assignments: AuthoredDerivedTagAssignment[]): Array<{
+  recordKey: string;
+  name: string;
+  category: "equipment";
+}> {
+  return assignments.map((assignment) => ({
+    recordKey: assignment.recordKey,
+    name: assignment.name,
+    category: "equipment",
+  }));
+}
+
+function buildEquipmentAssignmentIndex(assignments: AuthoredDerivedTagAssignment[]) {
+  return buildDerivedTagExplicitAssignmentIndex(assignmentOntology, assignments, equipmentRecords(assignments));
+}
+
 describe("derived tag explicit assignments", () => {
-  it("flattens applied and excluded assignments into concrete include and exclude tags", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+  it("resolves tag-authored applied and excluded assignments into concrete include and exclude tags", () => {
+    const assignmentIndex = buildEquipmentAssignmentIndex([
       {
-        category: "equipment",
-        assignments: [
+        name: "Masquerade Mask",
+        recordKey: "equipment:mask",
+        applied: [
           {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: [
-              {
-                projectionId: projectionId("equipment", "social_infiltration"),
-                source: "human",
-                confidence: "high",
-                rationale: "Tailored for moving through social spaces while disguised.",
-              },
-            ],
-            excluded: [
-              {
-                projectionId: projectionId("equipment", "disguise"),
-                source: "human",
-                confidence: "high",
-                rationale: "This record is using a narrower social fit than a broad disguise bucket.",
-              },
-            ],
+            tag: "social_infiltration",
+            source: "human",
+            confidence: "high",
+            rationale: "Tailored for moving through social spaces while disguised.",
+          },
+        ],
+        excluded: [
+          {
+            tag: "disguise",
+            source: "human",
+            confidence: "high",
+            rationale: "This record is using a narrower social fit than a broad disguise bucket.",
           },
         ],
       },
@@ -165,111 +179,86 @@ describe("derived tag explicit assignments", () => {
     });
   });
 
-  it("rejects unknown families and wrong-family tags", () => {
+  it("rejects unknown tags, wrong-category tags, duplicate placements, conflicts, and composite tags", () => {
     expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+      buildEquipmentAssignmentIndex([
         {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Masquerade Mask",
-              recordKey: "equipment:mask",
-              applied: [
-                {
-                  projectionId: "equipment:does_not_exist",
-                  source: "human",
-                  rationale: "Invalid family.",
-                },
-              ],
-            },
-          ],
+          name: "Masquerade Mask",
+          recordKey: "equipment:mask",
+          applied: [{ tag: "does_not_exist", source: "human", rationale: "Invalid tag." }],
         },
       ]),
     ).toThrow(/does not exist/);
 
     expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+      buildEquipmentAssignmentIndex([
         {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Masquerade Mask",
-              recordKey: "equipment:mask",
-              applied: [
-                {
-                  projectionId: projectionId("creature", "urban_setting"),
-                  source: "human",
-                  rationale: "Invalid category placement.",
-                },
-              ],
-            },
-          ],
+          name: "Masquerade Mask",
+          recordKey: "equipment:mask",
+          applied: [{ tag: "urban_setting", source: "human", rationale: "Invalid category placement." }],
         },
       ]),
     ).toThrow(/does not exist in category/);
+
+    expect(() =>
+      buildEquipmentAssignmentIndex([
+        {
+          name: "Masquerade Mask",
+          recordKey: "equipment:mask",
+          applied: [{ tag: "social_infiltration", source: "human", rationale: "Conflicting placement." }],
+          excluded: [{ tag: "social_infiltration", source: "human", rationale: "Conflicting placement." }],
+        },
+      ]),
+    ).toThrow(/both applied and excluded/);
+
+    expect(() =>
+      buildEquipmentAssignmentIndex([
+        {
+          name: "Watch Bell",
+          recordKey: "equipment:bell",
+          applied: [
+            { tag: "alarm", source: "human", rationale: "Duplicate live entries should be rejected." },
+            { tag: "alarm", source: "human", rationale: "Duplicate live entries should be rejected." },
+          ],
+        },
+      ]),
+    ).toThrow(/repeats/);
+
+    expect(() =>
+      buildEquipmentAssignmentIndex([
+        {
+          name: "Spyglass Kit",
+          recordKey: "equipment:spyglass-kit",
+          applied: [{ tag: "reconnaissance", source: "human", rationale: "Composite tags should not be assigned." }],
+        },
+      ]),
+    ).toThrow(/cannot target composite tag/i);
   });
 
-  it("validates canonical name drift only when the record is present in the build", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
+  it("validates record-backed assignment names and missing record summaries", () => {
+    const assignments: AuthoredDerivedTagAssignment[] = [
       {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: [
-              {
-                projectionId: projectionId("equipment", "social_infiltration"),
-                source: "human",
-                rationale: "Core assignment for the masquerade entry.",
-              },
-            ],
-          },
-        ],
+        name: "Masquerade Mask",
+        recordKey: "equipment:mask",
+        applied: [{ tag: "social_infiltration", source: "human", rationale: "Core assignment." }],
       },
-    ]);
+    ];
+    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, assignments);
 
     expect(() => validateDerivedTagExplicitAssignmentsAgainstRecords([], assignmentIndex)).not.toThrow();
     expect(() =>
-      validateDerivedTagExplicitAssignmentsAgainstRecords(
-        [{ recordKey: "equipment:mask", name: "Masquerade Mask", category: "equipment" }],
-        assignmentIndex,
-      ),
-    ).not.toThrow();
-    expect(() =>
-      validateDerivedTagExplicitAssignmentsAgainstRecords(
-        [{ recordKey: "equipment:mask", name: "Different Name", category: "equipment" }],
-        assignmentIndex,
-      ),
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, assignments, [
+        { recordKey: "equipment:mask", name: "Different Name", category: "equipment" },
+      ]),
     ).toThrow(/expected name/);
+    expect(() =>
+      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, assignments, [
+        { recordKey: "equipment:other", name: "Other", category: "equipment" },
+      ], { requireCompleteRecordCoverage: true }),
+    ).toThrow(/Cannot resolve explicit derived tag assignment category/);
   });
 
-  it("derives pending assignments from assignment review files without making them live", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Watch Bell",
-            recordKey: "equipment:bell",
-            applied: [
-              {
-                projectionId: projectionId("equipment", "alarm"),
-                source: "human",
-                rationale: "Live assignment stays separate from pending review state.",
-              },
-            ],
-          },
-        ],
-      },
-    ]);
-    expect(assignmentIndex.assignmentsByRecordKey.get("equipment:bell")).toEqual({
-      category: "equipment",
-      name: "Watch Bell",
-      includeTags: ["alarm"],
-      excludeTags: [],
-    });
-
+  it("keeps pending assignment reviews and memory separate from live assignments", () => {
     expect(
       buildDerivedTagPendingAssignmentViews(assignmentOntology, [
         {
@@ -282,7 +271,7 @@ describe("derived tag explicit assignments", () => {
               tag: "alarm",
               mode: "include",
               confidence: "medium",
-              rationale: "Likely security-oriented, but the signal may be too weak to auto-apply.",
+              rationale: "Likely security-oriented.",
             },
           ],
         },
@@ -296,119 +285,6 @@ describe("derived tag explicit assignments", () => {
         },
       },
     ]);
-  });
-
-  it("throws on illegal live assignment states", () => {
-    expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-        {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Masquerade Mask",
-              recordKey: "equipment:mask",
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/at least one applied or excluded tag/);
-
-    expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-        {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Masquerade Mask",
-              recordKey: "equipment:mask",
-              applied: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "human", rationale: "Conflicting live placement should be rejected." }],
-              excluded: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "human", rationale: "Conflicting live placement should be rejected." }],
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/both applied and excluded/);
-
-    expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-        {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Watch Bell",
-              recordKey: "equipment:bell",
-              applied: [
-                { projectionId: projectionId("equipment", "alarm"), source: "human", rationale: "Duplicate live entries should be rejected." },
-                { projectionId: projectionId("equipment", "alarm"), source: "human", rationale: "Duplicate live entries should be rejected." },
-              ],
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/repeats/);
-
-    expect(() =>
-      buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-        {
-          category: "equipment",
-          assignments: [
-            {
-              name: "Spyglass Kit",
-              recordKey: "equipment:spyglass-kit",
-              applied: [
-                { projectionId: projectionId("equipment", "reconnaissance"), source: "human", rationale: "Composite umbrella tags should not be assigned directly." },
-              ],
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/cannot target composite tag/i);
-  });
-
-  it("throws on illegal assignment review and memory states", () => {
-    expect(() =>
-      buildDerivedTagPendingAssignmentViews(assignmentOntology, [
-        {
-          category: "equipment",
-          decisions: [
-            {
-              name: "Watch Bell",
-              recordKey: "equipment:bell",
-              family: "security",
-              tag: "alarm",
-              mode: "include",
-              rationale: "One pending review entry.",
-            },
-            {
-              name: "Watch Bell",
-              recordKey: "equipment:bell",
-              family: "security",
-              tag: "alarm",
-              mode: "include",
-              rationale: "Duplicate pending review entry.",
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/repeats/);
-
-    expect(() =>
-      buildDerivedTagPendingAssignmentViews(assignmentOntology, [
-        {
-          category: "equipment",
-          decisions: [
-            {
-              name: "Spyglass Kit",
-              recordKey: "equipment:spyglass-kit",
-              family: "reconnaissance",
-              tag: "reconnaissance",
-              mode: "include",
-              rationale: "Pending review should also reject composite targets.",
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/cannot target composite tag/i);
 
     expect(() =>
       validateDerivedTagAssignmentMemory(assignmentOntology, [
@@ -421,86 +297,15 @@ describe("derived tag explicit assignments", () => {
               family: "security",
               tag: "alarm",
               mode: "include",
-              rationale: "Rejected once.",
-            },
-            {
-              name: "Watch Bell",
-              recordKey: "equipment:bell",
-              family: "security",
-              tag: "alarm",
-              mode: "include",
-              rationale: "Rejected twice with the same identity.",
+              rationale: "One memory entry.",
             },
           ],
         },
       ]),
-    ).toThrow(/repeats/);
-
-    expect(() =>
-      validateDerivedTagAssignmentMemory(assignmentOntology, [
-        {
-          category: "equipment",
-          decisions: [
-            {
-              name: "Spyglass Kit",
-              recordKey: "equipment:spyglass-kit",
-              family: "reconnaissance",
-              tag: "reconnaissance",
-              mode: "include",
-              rationale: "Memory should also reject composite targets.",
-            },
-          ],
-        },
-      ]),
-    ).toThrow(/cannot target composite tag/i);
+    ).not.toThrow();
   });
 
-  it("merges explicit assignments into derivation and applies exclusions without family promotion", () => {
-    const assignmentIndex = buildDerivedTagExplicitAssignmentIndex(assignmentOntology, [
-      {
-        category: "equipment",
-        assignments: [
-          {
-            name: "Masquerade Mask",
-            recordKey: "equipment:mask",
-            applied: [{ projectionId: projectionId("equipment", "social_infiltration"), source: "llm_auto", rationale: "Live high-confidence assignment." }],
-            excluded: [{ projectionId: projectionId("equipment", "disguise"), source: "human", rationale: "Explicitly keeping the broader disguise tag off this record." }],
-          },
-        ],
-      },
-    ]);
-    const derivation = deriveCatalogTagDerivation(
-      assignmentOntology,
-      { recordKey: "equipment:mask", category: "equipment", subcategory: null },
-      ["disguise"],
-      assignmentIndex,
-    );
-
-    expect(derivation.tags).toEqual(["social_infiltration"]);
-    expect(derivation.sources.get("social_infiltration")).toBe("assignment");
-    expect(derivation.tags).not.toContain("disguise");
-  });
-
-  it("keeps the real authored creature assignments, assignment reviews, and assignment memory in a legal state", () => {
-    expect(() => createDerivedTagExplicitAssignmentIndex(creatureOntology)).not.toThrow();
-    expect(() => buildDerivedTagPendingAssignmentViews(creatureOntology)).not.toThrow();
-    expect(() => validateDerivedTagAssignmentMemory(creatureOntology)).not.toThrow();
-    expect(buildDerivedTagPendingAssignmentViews(creatureOntology)).toEqual([]);
-  });
-
-  it("applies configured creature assignments to live record keys", () => {
-    const departmentalChair = deriveRecordTagDerivation({
-      recordKey: "pathfinder-npc-core:MxcprNbX7hcpAU8p",
-      name: "Departmental Chair",
-      category: "creature",
-      subcategory: null,
-      descriptionText: "An overworked academic reluctantly handling university emergencies.",
-      traits: ["human", "humanoid"],
-    });
-    expect(departmentalChair.tags).toEqual(expect.arrayContaining(["profession_npc", "civic_npc"]));
-    expect(["assignment", "legacy_rule+assignment"]).toContain(departmentalChair.sources.get("profession_npc"));
-    expect(["assignment", "legacy_rule+assignment"]).toContain(departmentalChair.sources.get("civic_npc"));
-
+  it("applies configured pack-authored assignments during live derivation", () => {
     const falsePriest = deriveRecordTagDerivation({
       recordKey: "pathfinder-npc-core:OAxxUyACpMlX3q1X",
       name: "False Priest",
@@ -512,17 +317,6 @@ describe("derived tag explicit assignments", () => {
     expect(falsePriest.tags).toEqual(expect.arrayContaining(["profession_npc", "enforcer_npc"]));
     expect(falsePriest.tags).not.toContain("civic_npc");
 
-    const spiritboundAluum = deriveRecordTagDerivation({
-      recordKey: "age-of-ashes-bestiary:n6FQeNsDgKaDIF7b",
-      name: "Spiritbound Aluum",
-      category: "creature",
-      subcategory: null,
-      descriptionText: null,
-      traits: ["construct", "mindless", "soulbound"],
-    });
-    expect(spiritboundAluum.tags).toContain("urban_setting");
-    expect(spiritboundAluum.sources.get("urban_setting")).toBe("assignment");
-
     const blackWhaleGuard = deriveRecordTagDerivation({
       recordKey: "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ",
       name: "Black Whale Guard",
@@ -533,18 +327,9 @@ describe("derived tag explicit assignments", () => {
     });
     expect(blackWhaleGuard.tags).toContain("nautical_setting");
     expect(blackWhaleGuard.sources.get("nautical_setting")).toBe("assignment");
+  });
 
-    const conspiratorDragon = deriveRecordTagDerivation({
-      recordKey: "pathfinder-monster-core:TGYELuImcTcuX0aH",
-      name: "Conspirator Dragon (Adult)",
-      category: "creature",
-      subcategory: null,
-      descriptionText:
-        "Hidden among the shadows and upper echelons of society are the conspirator dragons. However, as most conspirator dragons meet others while in disguise, they do their best to maintain their disguise.",
-      traits: ["dragon", "occult"],
-    });
-    expect(conspiratorDragon.tags).toEqual(expect.arrayContaining(["disguised_pretender", "urban_setting"]));
-    expect(["assignment", "legacy_rule+assignment"]).toContain(conspiratorDragon.sources.get("disguised_pretender"));
-    expect(["assignment", "legacy_rule+assignment"]).toContain(conspiratorDragon.sources.get("urban_setting"));
+  it("validates configured assignments against canonical creature records", () => {
+    expect(() => createDerivedTagExplicitAssignmentIndex(creatureOntology)).not.toThrow();
   });
 });

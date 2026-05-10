@@ -26,12 +26,11 @@ function parseDecisionKind(value: string | undefined): DerivedTagReviewDecisionK
   if (value === undefined) {
     return undefined;
   }
-  const parsed = DECISION_KIND_BY_TEXT[value as keyof typeof DECISION_KIND_BY_TEXT];
-  if (!parsed) {
+  if (!(value in DECISION_KIND_BY_TEXT)) {
     throw new Error(`Expected --decision-kind to be "assignment" or "exemplar", received "${value}".`);
   }
 
-  return parsed;
+  return DECISION_KIND_BY_TEXT[value as keyof typeof DECISION_KIND_BY_TEXT];
 }
 
 function renderHelp(): string {

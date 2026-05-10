@@ -62,21 +62,20 @@ const VARIANT_SOURCE_BY_TEXT = {
 
 export function parseSourceCategoryValue(value: string, context: string): SourceCategory {
   const normalized = normalizeText(value);
-  const parsed = SOURCE_CATEGORY_BY_TEXT[normalized as keyof typeof SOURCE_CATEGORY_BY_TEXT];
-  if (!parsed) {
+  if (!(normalized in SOURCE_CATEGORY_BY_TEXT)) {
     throw new Error(`Invalid source category "${value}" for ${context}.`);
   }
 
-  return parsed;
+  return SOURCE_CATEGORY_BY_TEXT[normalized as keyof typeof SOURCE_CATEGORY_BY_TEXT];
 }
 
 export function parseVariantSourceValue(value: string | null | undefined, context: string): VariantSource {
-  const parsed = VARIANT_SOURCE_BY_TEXT[normalizeText(value ?? "none") as keyof typeof VARIANT_SOURCE_BY_TEXT];
-  if (!parsed) {
+  const normalized = normalizeText(value ?? "none");
+  if (!(normalized in VARIANT_SOURCE_BY_TEXT)) {
     throw new Error(`Invalid variant source "${value}" for ${context}.`);
   }
 
-  return parsed;
+  return VARIANT_SOURCE_BY_TEXT[normalized as keyof typeof VARIANT_SOURCE_BY_TEXT];
 }
 
 export function parseStringArrayJson(value: string | null | undefined, fieldName: string, context: string): string[] {

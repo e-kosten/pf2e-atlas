@@ -1,4 +1,4 @@
-import { DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY } from "../../assignments/index.js";
+import { DERIVED_TAG_ASSIGNMENTS } from "../../assignments/index.js";
 import { DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY } from "../../reviews/assignment-memory/index.js";
 import { DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY } from "../../reviews/assignment-reviews/index.js";
 import { DERIVED_TAG_AUTHORED_RULES_BY_CATEGORY } from "../../rules/index.js";
@@ -21,7 +21,7 @@ function cloneManagedRegistry<T>(registry: DerivedTagManagedRegistry<T>): Derive
 
 function buildImportedDerivedTagAuthoredState(): DerivedTagAuthoredState {
   return {
-    assignments: cloneManagedRegistry(DERIVED_TAG_ASSIGNMENTS_BY_CATEGORY),
+    assignments: clone(DERIVED_TAG_ASSIGNMENTS),
     assignmentReviews: cloneManagedRegistry(DERIVED_TAG_ASSIGNMENT_REVIEWS_BY_CATEGORY),
     assignmentMemory: cloneManagedRegistry(DERIVED_TAG_ASSIGNMENT_MEMORY_BY_CATEGORY),
     exemplars: cloneManagedRegistry(DERIVED_TAG_EXEMPLARS_BY_CATEGORY),

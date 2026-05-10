@@ -158,7 +158,7 @@ export type DerivedTagReviewQueueSummaryItem = {
 };
 
 export type DerivedTagAuthoredState = {
-  assignments: Record<DerivedTagManagedCategory, AuthoredDerivedTagAssignment[]>;
+  assignments: AuthoredDerivedTagAssignment[];
   assignmentReviews: Record<DerivedTagManagedCategory, DerivedTagAssignmentReviewCategory>;
   assignmentMemory: Record<DerivedTagManagedCategory, DerivedTagAssignmentMemoryCategory>;
   exemplars: Record<DerivedTagManagedCategory, DerivedTagExemplarCategory>;

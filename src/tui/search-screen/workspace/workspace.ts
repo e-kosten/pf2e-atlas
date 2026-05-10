@@ -15,7 +15,6 @@ import { SEARCH_COUNT_STATUS, type SearchCountState, type SearchScreenState } fr
 import { formatCount, formatResultPosition, formatSort, getSessionBufferRange } from "../state.js";
 import type { SearchFilterRenderOptions } from "../../search/query-core.js";
 import { SEARCH_REQUEST_VOCABULARY } from "../../../domain/search-request-types.js";
-import { SEARCH_VOCABULARY } from "../../../domain/search-types.js";
 export { parseLevelRangeInput } from "../../filter-explorer/scalar-editor.js";
 export {
   formatFilterSelection,

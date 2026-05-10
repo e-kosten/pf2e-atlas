@@ -203,6 +203,7 @@ function buildSearchFilterClause(
             context.subcategoryExpr,
           );
       }
+      // fallthrough
     }
     case "level":
       return buildNumericMatchClause(context.levelExpr, filter.match);

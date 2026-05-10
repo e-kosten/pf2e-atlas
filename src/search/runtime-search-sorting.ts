@@ -1,5 +1,5 @@
 import type { NormalizedRecord } from "../domain/record-types.js";
-import type { SearchSort } from "../domain/search-types.js";
+import { SEARCH_VOCABULARY, type SearchSort } from "../domain/search-types.js";
 import { SEARCH_REQUEST_VOCABULARY } from "../domain/search-request-types.js";
 import { normalizeText } from "../shared/utils.js";
 import { scoreNameCandidate } from "./ranking.js";
@@ -48,6 +48,8 @@ export function compareRecordsForSort(
   sortSeed: number,
 ): number {
   switch (sort) {
+    case SEARCH_VOCABULARY.SORT_KIND.RANKED:
+      return sortRecords(left, right);
     case SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_ASC:
       return compareNullableLevel(left.level, right.level) || sortRecords(left, right);
     case SEARCH_REQUEST_VOCABULARY.SORT_KIND.LEVEL_DESC:

@@ -62,11 +62,10 @@ export function parseResolvedExemplarMatchType(
   matchedBy: string | null | undefined,
   recordKey: string,
 ): "recordKey" | "name" | "alias" {
-  const normalizedKey = (matchedBy ?? "recordKey") as keyof typeof RESOLVED_EXEMPLAR_MATCH_TYPE_BY_TEXT;
-  const parsed = RESOLVED_EXEMPLAR_MATCH_TYPE_BY_TEXT[normalizedKey];
-  if (!parsed) {
+  const normalizedKey = matchedBy ?? "recordKey";
+  if (!(normalizedKey in RESOLVED_EXEMPLAR_MATCH_TYPE_BY_TEXT)) {
     throw new Error(`Invalid exemplar match type "${matchedBy}" for "${recordKey}".`);
   }
 
-  return parsed;
+  return RESOLVED_EXEMPLAR_MATCH_TYPE_BY_TEXT[normalizedKey as keyof typeof RESOLVED_EXEMPLAR_MATCH_TYPE_BY_TEXT];
 }
