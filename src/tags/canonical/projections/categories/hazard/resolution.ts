@@ -6,7 +6,6 @@ export const hazardResolutionProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.HAZARD.RESOLUTION_COUNTERMEASURE_PROFILE, {
     appeasement_countermeasure: {
       concept: "ritual_appeasement",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best resolved through offerings, ritual respect, social appeasement, or meeting a spiritual demand.",
       appliesWhen: [
@@ -22,7 +21,6 @@ export const hazardResolutionProjectionFamilies = [
     },
     contamination_cleanup_countermeasure: {
       concept: "contamination_cleanup",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best resolved through decontamination, purification, cleansing residue, or scrubbing the hazardous space back to safety.",
       appliesWhen: [
@@ -39,7 +37,6 @@ export const hazardResolutionProjectionFamilies = [
     dispel_countermeasure: {
       concept: "active_magic_counteraction",
       label: "countermagic",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Hazard meaningfully invites counteract, dispel, or magical suppression as a core answer path.",
       appliesWhen: [
         "A user would plausibly retrieve the hazard because anti-magic answers are central to resolving it.",
@@ -55,7 +52,6 @@ export const hazardResolutionProjectionFamilies = [
     exorcism_countermeasure: {
       concept: "hostile_presence_expulsion",
       label: "exorcism",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best resolved through banishment, exorcism, consecration, or another spirit-cleansing answer.",
       appliesWhen: [
@@ -70,7 +66,6 @@ export const hazardResolutionProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     physical_disarm: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard meaningfully invites physical mechanism tampering, disassembly, or trigger-blocking as the core answer path.",
       appliesWhen: [
@@ -85,7 +80,6 @@ export const hazardResolutionProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     procedural_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best bypassed through the right route, timing, command phrase, ritual sequence, or other correct procedure rather than direct disarm.",
       appliesWhen: [
@@ -101,7 +95,6 @@ export const hazardResolutionProjectionFamilies = [
     },
     quarantine_containment_countermeasure: {
       concept: "outbreak_containment",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best managed by isolating victims, sealing off the site, or imposing containment boundaries that stop spread while the danger is being handled.",
       appliesWhen: [
@@ -117,7 +110,6 @@ export const hazardResolutionProjectionFamilies = [
     },
     source_cleanup_countermeasure: {
       concept: "source_cleanup",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard best resolved by locating and neutralizing the cursed source, leaking node, corrupted remains, or other origin driving the dangerous field.",
       appliesWhen: [

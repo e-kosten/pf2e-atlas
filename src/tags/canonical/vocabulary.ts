@@ -223,14 +223,6 @@ export const CANONICAL_VOCABULARY = {
       SPECIALIZES: "specializes",
     },
   },
-  ASSIGNMENT: {
-    MODE: {
-      DETERMINISTIC: "deterministic",
-      EDITORIAL: "editorial",
-      HYBRID: "hybrid",
-      COMPOSITE: "composite",
-    },
-  },
   TRANSLATION: {
     STATUS: {
       MAPPED: "mapped",
@@ -261,8 +253,6 @@ export type OperationId =
 export type DomainId = (typeof CANONICAL_VOCABULARY.DOMAIN)[keyof typeof CANONICAL_VOCABULARY.DOMAIN] | (string & {});
 
 export type RelationId = (typeof CANONICAL_VOCABULARY.RELATION.KINDS)[keyof typeof CANONICAL_VOCABULARY.RELATION.KINDS] | (string & {});
-
-export type AssignmentModeId = (typeof CANONICAL_VOCABULARY.ASSIGNMENT.MODE)[keyof typeof CANONICAL_VOCABULARY.ASSIGNMENT.MODE];
 
 export type TranslationStatus =
   (typeof CANONICAL_VOCABULARY.TRANSLATION.STATUS)[keyof typeof CANONICAL_VOCABULARY.TRANSLATION.STATUS];
@@ -323,4 +313,3 @@ export function defineFamilies<
     ]),
   ) as { readonly [K in keyof T]: FamilyToken<C> };
 }
-

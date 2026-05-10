@@ -1,4 +1,3 @@
-import type { DerivedTagAssignmentMode } from "../../domain/record-types.js";
 import type { SearchCategory, SearchSubcategory } from "../../domain/search-types.js";
 import {
   compareDisplayText,
@@ -32,7 +31,6 @@ export type DerivedTagOntologyExplorerTagNode = {
   tag: string;
   label: string;
   description: string;
-  assignmentMode: DerivedTagAssignmentMode;
   nativeOntologyPolicy?: "distinct_required" | "aggregates_native_signals";
   appliesWhen?: string[];
   doesNotApplyWhen?: string[];
@@ -290,7 +288,6 @@ export function buildDerivedTagOntologyExplorerModel(
             tag: tag.tag,
             label: tag.label ?? tag.tag,
             description: tag.description,
-            assignmentMode: tag.assignmentMode,
             nativeOntologyPolicy: tag.nativeOntologyPolicy,
             appliesWhen: tag.appliesWhen,
             doesNotApplyWhen: tag.doesNotApplyWhen,

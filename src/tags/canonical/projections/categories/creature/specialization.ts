@@ -1,21 +1,17 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const creatureSpecializationProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SPECIALIZATION_CASTING_PROFILE, {
     arcane_spellcaster: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature whose spellcasting is substantially framed through arcane traditions, wizardry, runes, or similarly arcane technique.",
     },
     divine_spellcaster: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature whose spellcasting is substantially framed through divine prayer, sacred miracles, or deity-facing magic.",
     },
     dragon_spellcaster: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Dragon or archdragon variant with an explicit spellcaster stat block or named spellcaster presentation.",
       appliesWhen: [
@@ -29,17 +25,14 @@ export const creatureSpecializationProjectionFamilies = [
       adjacentTags: ["arcane_spellcaster", "ritualist_creature"],
     },
     occult_spellcaster: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature whose spellcasting is substantially framed through occult lore, spirits, emotion, dreams, or esoteric mental power.",
     },
     primal_spellcaster: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature whose spellcasting is substantially framed through nature, elemental power, druidic force, or instinctive primal magic.",
     },
     ritualist_creature: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly associated with ritual casting, ceremonial magic, or extended occult or divine preparations.",
       appliesWhen: [
@@ -55,43 +48,36 @@ export const creatureSpecializationProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SPECIALIZATION_CORRUPTION_PROFILE, {
     blight_tainted: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by ecological blight, withering nature, corrupted groves, or land-sickened wilderness.",
       adjacentTags: ["wasteland_setting", "body_horror"],
     },
     cursewarped: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by curse-driven distortion, doom-warping, or being transformed into its current state by a curse.",
       adjacentTags: ["curse_threat", "cursed_transformation"],
     },
     fungal_infested: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by mycelium, spores, mushroom overgrowth, or fungus-driven bodily infestation.",
       adjacentTags: ["disease_vector", "body_horror"],
     },
     nightmare_tainted: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by dream corruption, sleep-haunting influence, or oneiric pollution leaking into the waking world.",
       adjacentTags: ["dream_nightmare", "dreamlands_setting"],
     },
     parasite_ridden: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by hosting burrowing larvae, parasitic colonies, implanted broods, or other invasive life within the body.",
       adjacentTags: ["spawn_creator", "plaguebearing"],
     },
     plaguebearing: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by carrying, spreading, or embodying pestilence, fever, or outbreak-causing corruption.",
       adjacentTags: ["disease_vector", "parasite_ridden"],
     },
     void_tainted: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Creature strongly defined by void corruption, cosmic hollowness, or metaphysical pollution that feels alien, cold, or reality-thinning.",
       adjacentTags: ["cosmic_dread", "forbidden_knowledge"],
@@ -99,13 +85,11 @@ export const creatureSpecializationProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SPECIALIZATION_ONTOLOGY_CLUSTER, {
     sinspawn_family: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Groups sinspawn and close runelord-bred sinspawn offshoots into one retrieval bucket.",
       nativeOntologyPolicy: "aggregates_native_signals",
     },
     undead_adjacent: {
       concept: "undead_family",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Groups undead and closely undead-coded native signals into one retrieval bucket.",
       nativeOntologyPolicy: "aggregates_native_signals",
     },

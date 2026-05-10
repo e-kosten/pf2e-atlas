@@ -82,7 +82,7 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       ...(tag.adjacentTags ?? []),
       ...(tag.compositeOfAnyTags ?? []),
     ),
-    listLabel: `${tag.label} | ${tag.assignmentMode} | ${tag.liveRecordCount} live records`,
+    listLabel: `${tag.label} | ${tag.liveRecordCount} live records`,
     detailTitle: "Tag Details",
     detailLines: [
       { text: tag.label, tone: "section" },
@@ -91,7 +91,6 @@ function buildTagNode(tag: DerivedTagOntologyExplorerTagNode): OntologyNode {
       { text: `Category: ${tag.category}` },
       { text: `Family: ${tag.family}` },
       { text: `Scope: ${tag.subcategories?.join(", ") ?? "(all subcategories)"}` },
-      { text: `Assignment mode: ${tag.assignmentMode}` },
       { text: `Native ontology policy: ${tag.nativeOntologyPolicy ?? "(none)"}` },
       {
         text: `Variant inheritance override: ${tag.variantInheritance === undefined ? "(inherit family setting)" : tag.variantInheritance ? "yes" : "no"}`,

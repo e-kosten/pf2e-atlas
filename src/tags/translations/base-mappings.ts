@@ -4,7 +4,6 @@ import { DERIVED_TAG_CANONICAL_PROJECTIONS_BY_CATEGORY } from "../canonical/regi
 const EXTRA_LEGACY_TRANSLATIONS: DerivedTagTranslationMapping[] = [
   {
     source: {
-      currentAssignmentMode: "deterministic",
       currentBrowseAxis: "effect",
       currentCategory: "equipment",
       currentFamily: "function",
@@ -31,7 +30,6 @@ export function buildBaseLegacyDerivedTagTranslations(): DerivedTagTranslationMa
     .map(
       (projection): DerivedTagTranslationMapping => ({
         source: {
-          currentAssignmentMode: projection.assignmentMode,
           currentBrowseAxis: projection.axis,
           currentCategory: projection.category,
           currentFamily: projection.family,

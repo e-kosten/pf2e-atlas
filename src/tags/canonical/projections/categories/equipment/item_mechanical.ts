@@ -1,61 +1,50 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const equipmentItemMechanicalProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.ITEM_MECHANICAL_ACCESS_SYSTEM, {
     ammo_management: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Magazines or related gear that manage repeating-weapon ammunition or reload workflow.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "ammo", "armor", "weapon"],
     },
     extradimensional_storage: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Provides bag-of-holding-style storage through extradimensional or magically expanded space.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "ammo", "armor", "weapon"],
     },
     weapon_staging: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Holsters, sheaths, scabbards, or bandoliers that stage weapons for quick draw or organized carry.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "ammo", "armor", "weapon"],
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.ITEM_MECHANICAL_AMMUNITION_PAYLOAD, {
     creature_bane: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Tailored ammunition for a selected creature type or trait.",
       subcategories: ["ammo"],
     },
     elemental_payload: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Ammunition that delivers an elemental or reagent-based payload on impact.",
       subcategories: ["ammo"],
     },
     explosive_payload: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Ammunition that detonates or scatters area damage on impact.",
       subcategories: ["ammo"],
     },
     spell_payload: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Ammunition that delivers, casts, or imposes a spell effect on hit.",
       subcategories: ["ammo"],
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.ITEM_MECHANICAL_DEFENSE_PROFILE, {
     ally_cover: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Provides cover or upgraded cover to nearby allies.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "shield"],
     },
     fall_protection: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Reduces falling harm, cushions impact, or protects against vertical movement accidents and collapse.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "shield"],
     },
     hazard_shielding: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Protects against environmental hazards, area effects, or other damaging exposures.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "shield"],
       appliesWhen: [
@@ -69,7 +58,6 @@ export const equipmentItemMechanicalProjectionFamilies = [
       adjacentTags: ["projectile_defense", "magic_protection"],
     },
     projectile_defense: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Intercepts, redirects, or absorbs ranged attacks and projectiles.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "shield"],
     },

@@ -5,27 +5,23 @@ import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 export const equipmentUtilityProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_ACCESS_BYPASS, {
     barrier_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps get through barred windows, grates, force screens, or other blocked passage without relying on brute-force breaching.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     lock_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps open locks or bypass secured entry points.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     mechanism_manipulation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps operate levers, latches, panels, pressure surfaces, or similar scene mechanisms from a safer or more advantageous position.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     trap_bypass: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps disarm, disable, or get past traps.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -35,7 +31,6 @@ export const equipmentUtilityProjectionFamilies = [
     countermagic: {
       concept: "active_magic_counteraction",
       label: "countermagic",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Counteracts, dispels, suppresses, or shuts down magic.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       appliesWhen: [
@@ -50,7 +45,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     magic_protection: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Protects the user or target against hostile magical effects.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       appliesWhen: [
@@ -67,13 +61,12 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_BREACHING, {
     barrier_breaking: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Designed to tear through walls, barricades, ice, webs, or other physical obstructions.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     breaching: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad force-entry umbrella for equipment used to break doors, barriers, fortifications, or route-blocking structures.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
@@ -82,13 +75,11 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     demolition: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Designed for blasting, collapsing, or otherwise violently dismantling structures and obstacles.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     door_breaching: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps force doors, shutters, gates, or similar entry points open by strength, impact, or destructive entry.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
@@ -104,14 +95,12 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     excavation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps dig, cut through earth or stone, or otherwise open a route by excavation or practical earth-moving work.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     siege_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports attacking gates, fortifications, vehicles, or other larger hardened targets.",
       subcategories: ["gear", "kit", "consumable", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -119,7 +108,6 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_CARRY_LOGISTICS, {
     carry_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps stow, carry, or organize equipment.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -127,7 +115,7 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_COMMUNICATION, {
     communication: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad communication umbrella for equipment used to signal allies, relay messages, bridge language barriers, or coordinate silently.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -136,19 +124,16 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     message_delivery: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Sends, stores, or relays actual content across time or distance.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     signaling: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps draw attention, mark a location, or coordinate allies.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     telepathic_communication: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Enables silent mind-to-mind coordination, psychic speech, or communication that bypasses normal hearing.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -164,7 +149,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     translation_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Bridges language barriers through translation, deciphering, script interpretation, or speech-understanding aids.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -182,13 +166,11 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_CRAFTING_SUPPORT, {
     alchemical_crafting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports alchemical preparation, formula work, reagent handling, or crafting-related field setup.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     forgery_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports document falsification, seal imitation, signature copying, or bureaucratic deception.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
       appliesWhen: [
@@ -203,19 +185,16 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     medical_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports first aid, diagnosis, treatment, or ongoing medical care outside direct magical healing.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     repair_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports item repair, patchwork, upkeep, or restoring damaged gear and structures.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     ritual_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Supports ritual casting, ceremonial setup, circles, offerings, or other extended magical preparation.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -231,7 +210,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     writing_recordkeeping: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports note-taking, mapmaking, copying text, archival work, or durable information storage.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -239,13 +217,11 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_EXPEDITION, {
     aquatic_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps with swimming, underwater breathing, flotation, water-surface travel, or watercraft use.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     camp_setup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports campsite creation, resting infrastructure, shelter setup, or extended overland staging.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
       appliesWhen: [
@@ -260,7 +236,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     environmental_adaptation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps travelers endure extreme weather, thin air, smoke, pressure, or other dangerous environmental exposure.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
@@ -276,7 +251,7 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     expedition: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad expedition umbrella for travel gear, camp support, sustainment, mounts, aquatic operations, and hostile-environment endurance.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
@@ -292,19 +267,16 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     mounted_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports mounted combat, rider control, saddle use, or mount-specific loadouts.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     survival: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Supports wilderness travel, shelter, or long-term field use.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     sustenance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Provides food, feed, water, or other practical nourishment for travel and survival.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "shield", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -312,25 +284,22 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_INFILTRATION, {
     concealable: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Easy to hide on the person or carry discreetly.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     concealment: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps obscure a creature, item, or area from sight or make it harder to perceive.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     disguise: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps alter appearance or impersonate another identity.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     infiltration: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad infiltration umbrella for quiet-entry, discreet-carry, disguise, and covert-passing equipment.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -339,13 +308,11 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     social_infiltration: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps blend into a group or pass under social scrutiny.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     stealth_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps move quietly, avoid notice, muffle noise, or otherwise support covert entry and low-profile movement.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -354,19 +321,17 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_MOVEMENT_TRAVERSAL, {
     climbing: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps climb, rappel, or navigate vertical obstacles.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     mobility: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Improves movement or traversal flexibility.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     movement_traversal: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad movement-and-travel umbrella for equipment that solves climbing, routefinding, repositioning, or transport problems.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
@@ -375,13 +340,11 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     navigation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps track direction, route, or position.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     transport: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps move creatures or cargo from place to place.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -389,19 +352,17 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_RECONNAISSANCE, {
     anti_tracking: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps hide your trail, mask scent, or make pursuit harder.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     illumination: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Produces or improves light in dark environments.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     reconnaissance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad recon umbrella for equipment used to scout, illuminate, record evidence, track targets, or frustrate pursuit.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
@@ -410,13 +371,11 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     scouting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps observe, survey, or reconnoiter an area.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     surveillance_recording: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Captures, stores, or replays images, sound, or other evidence for later review.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       appliesWhen: [
@@ -431,7 +390,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     tracking: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps follow trails, mark a target, or relocate something later.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -439,7 +397,6 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_RESOLUTION, {
     contamination_cleanup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps neutralize tainted residue, clean corrupted surfaces, purify contaminated supplies, or scrub a dangerous site back to safety.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -448,7 +405,6 @@ export const equipmentUtilityProjectionFamilies = [
     },
     curse_removal: {
       concept: "curse_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps remove, break, or counteract curses as a direct answer path rather than only easing symptoms.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -457,7 +413,6 @@ export const equipmentUtilityProjectionFamilies = [
     },
     quarantine_containment: {
       concept: "outbreak_containment",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps isolate victims, secure contaminated areas, or impose practical containment procedures that stop spread while treatment proceeds.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -466,7 +421,7 @@ export const equipmentUtilityProjectionFamilies = [
     },
     resolution: {
       concept: "problem_resolution",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad resolution umbrella for equipment used to break curses, sanctify places, contain spread, clean contamination, or solve a problem at its source.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -489,7 +444,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     ritual_appeasement: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Supports offerings, restitution, funerary observance, or appeasement ceremonies used to satisfy a spirit, haunt, curse, or sacred demand without directly expelling it.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -507,7 +461,6 @@ export const equipmentUtilityProjectionFamilies = [
     sanctification: {
       concept: "sacred_taint_sanctification",
       label: "sanctification",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Supports hallowing, consecration, spiritual purification, or cleansing rites applied to a creature, object, or site.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -523,7 +476,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     source_cleanup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps find, remove, neutralize, or safely dispose of the cursed object, infected material, corrupted remains, or other source driving the problem.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -532,7 +484,6 @@ export const equipmentUtilityProjectionFamilies = [
     },
     source_revelation: {
       concept: "source_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Helps identify the cursed anchor, contaminated material, infected origin, hidden carrier, or other source driving the problem before cleanup begins.",
       subcategories: ["gear", "backpack", "kit", "consumable"],
@@ -550,13 +501,11 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_RESTRAINT, {
     restraint_capture: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps capture, bind, or keep a target restrained.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     restraint_escape: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Helps break free from grabs, restraints, or similar immobilizing holds.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable", "armor", "weapon"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
@@ -564,13 +513,11 @@ export const equipmentUtilityProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.EQUIPMENT.UTILITY_SECURITY, {
     alarm: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Alerts you or others when a watched area, threshold, or device is triggered.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     scrying_protection: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description:
         "Blocks magical observation, remote viewing, or information leakage through divination-like effects.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -586,7 +533,7 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     security: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Broad security umbrella for gear that warns about intrusion, blocks magical spying, or reveals after-the-fact interference.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
@@ -595,7 +542,6 @@ export const equipmentUtilityProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     tamper_evidence: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Makes intrusion, opening, theft, or interference easier to notice after the fact.",
       subcategories: ["gear", "backpack", "kit", "vehicle", "consumable"],
       appliesWhen: [

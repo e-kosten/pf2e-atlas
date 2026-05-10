@@ -5,43 +5,33 @@ import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 export const creatureSettingProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SETTING_HABITAT_SETTING, {
     aquatic_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with open water, underwater spaces, or aquatic environments.",
     },
     arctic_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with snow, ice, tundra, or frozen reaches.",
     },
     canyon_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with canyons, gorges, mesas, or badlands.",
     },
     coastal_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with coasts, shores, reefs, or littoral edges.",
     },
     desert_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with dunes, sand, or arid wastes.",
     },
     forest_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with forests, jungles, groves, or briar-choked wilds.",
     },
     freshwater_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with rivers, lakes, ponds, streams, springs, or other inland waters.",
     },
     island_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with islands, archipelagos, or isolated isles.",
     },
     jungle_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with jungles, rainforests, or dense tropical canopies.",
     },
     mountain_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Strongly associated with cliffs, peaks, passes, or rocky heights.",
       appliesWhen: [
         "Mountain terrain is a recurring habitat or encounter frame.",
@@ -54,59 +44,48 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["underground_setting", "sky_setting"],
     },
     plains_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with open plains, grasslands, prairies, or savannas.",
     },
     sky_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with open skies, storm clouds, or high-altitude aerial habitats.",
     },
     swamp_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with bogs, marshes, fens, or mires.",
     },
     underground_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with caves, tunnels, crypts, or subterranean spaces.",
     },
     volcanic_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with volcanoes, calderas, lava, or magma.",
     },
     wasteland_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with barren wastes, blasted wastelands, or desolate badlands.",
     },
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SETTING_PLANAR_SETTING, {
     abaddon_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Abaddon, daemons, or soul-devouring lower-planar wastelands.",
       nativeOntologyPolicy: "aggregates_native_signals",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     abyss_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with the Abyss, demon realms, or qlippoth-infested outer rifts.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     astral_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Astral Plane scenes, silver-void travel, or stable portal routes.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     axis_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Axis, the Eternal City, or its lawful planar order.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     boneyard_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with the Boneyard, psychopomp duties, or soul-processing afterlife scenes.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     cosmic_framework_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description:
         "Strongly associated with the cosmic framework planes of Axis, the Boneyard, and the Maelstrom, which govern order, judgment, and transformative change.",
       nativeOntologyPolicy: "aggregates_native_signals",
@@ -115,13 +94,12 @@ export const creatureSettingProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     dreamlands_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Dreamlands, Leng-linked dream roads, or iconic denizens that dwell there.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     elemental_plane_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description: "Strongly associated with one of the elemental planes of Fire, Air, Water, or Earth.",
       nativeOntologyPolicy: "aggregates_native_signals",
       adjacentTags: [
@@ -139,33 +117,28 @@ export const creatureSettingProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     elysium_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Elysium, azatas, or freedom-driven celestial heroism.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     ethereal_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Ethereal Plane, its native wildlife, or recurring hunting and travel routes through it.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     first_world_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with the First World, fey realms, or thin-boundary crossings into that plane.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     heaven_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Heaven, archon hosts, or ordered celestial service.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     hell_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Hell, devil hosts, or infernal hierarchy.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     lower_plane_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description: "Strongly associated with the lower planes of Hell, the Abyss, or Abaddon.",
       nativeOntologyPolicy: "aggregates_native_signals",
       adjacentTags: ["hell_setting", "abyss_setting", "abaddon_setting"],
@@ -173,46 +146,39 @@ export const creatureSettingProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     maelstrom_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with the Maelstrom, proteans, or its chaotic planar fringes.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     nirvana_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with Nirvana, enlightened celestials, or benevolent contemplative service.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     plane_of_air_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Plane of Air, its native denizens, or its endless winds and cloud realms.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     plane_of_earth_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Plane of Earth, its native denizens, or its crystal caverns and stonebound realms.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     plane_of_fire_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Plane of Fire, its native denizens, or its infernal-bright cityscapes and battlefields.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     plane_of_water_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Plane of Water, its native denizens, or its endless seas and oceanic realms.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     shadow_plane_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with the Shadow Plane or the Plane of Shadow.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     upper_plane_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.COMPOSITE,
+isComposite: true,
       description: "Strongly associated with the upper planes of Heaven, Nirvana, or Elysium.",
       nativeOntologyPolicy: "aggregates_native_signals",
       adjacentTags: ["heaven_setting", "nirvana_setting", "elysium_setting"],
@@ -222,7 +188,6 @@ export const creatureSettingProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SETTING_REGIONAL_SETTING, {
     alien_technology_wasteland_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with alien technology, robots, mutants, strange metal ruins, and science-fantasy wastelands. In Golarion, this primarily corresponds to Numeria.",
       appliesWhen: [
@@ -236,12 +201,10 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["magic_blight_wasteland_setting", "animated_object"],
     },
     darklands_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Darklands as a civilization-bearing underworld macro-region rather than generic underground terrain or one cave network.",
     },
     demonic_scar_frontier_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with demon-scarred frontiers, reclaimed homelands, abyss-tainted wilderness, and recovery after planar catastrophe. In Golarion, this primarily corresponds to the Sarkoris Scar.",
       appliesWhen: [
@@ -255,7 +218,6 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["battlefield_setting", "void_tainted"],
     },
     gothic_horror_land_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with Gothic-horror lands of mist, superstition, graveyard dread, cursed nobility, and classic night monsters. In Golarion, this primarily corresponds to Ustalav.",
       appliesWhen: [
@@ -269,7 +231,6 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["graveyard_setting", "folk_horror"],
     },
     magic_blight_wasteland_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with arcane devastation, dead-magic pockets, wild-magic scars, magical storms, and survival in a magically broken wasteland. In Golarion, this primarily corresponds to the Mana Wastes.",
       appliesWhen: [
@@ -283,12 +244,10 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["alien_technology_wasteland_setting", "wasteland_setting"],
     },
     mwangi_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with the Mwangi Expanse, its jungle polities, and Mwangi-rooted regional framing that materially affects creature planning and retrieval.",
     },
     organized_undead_society_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with organized undead societies, corpse labor, necromantic bureaucracy, and courtly undead institutions. In Golarion, this primarily corresponds to Geb.",
       appliesWhen: [
@@ -302,12 +261,10 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["undead_war_torn_region_setting", "urban_setting"],
     },
     tian_xia_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with Tian Xia and its major cultural subregions, where Tian-rooted regional framing materially affects creature planning and retrieval.",
     },
     undead_war_torn_region_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with undead occupation, shattered crusader lands, haunted battlefields, refugee pressure, and ruined strongholds under deathless siege. In Golarion, this primarily corresponds to the Gravelands.",
       appliesWhen: [
@@ -323,12 +280,10 @@ export const creatureSettingProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.SETTING_SITE_SETTING, {
     battlefield_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with battlefields, war zones, organized military deployments, or mass-combat scenes.",
     },
     fortress_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with castles, fortresses, citadels, watchtowers, or other fortified encounter sites.",
       appliesWhen: [
@@ -342,19 +297,15 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["urban_setting", "temple_setting"],
     },
     graveyard_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with cemeteries, tombs, barrows, or burial grounds.",
     },
     nautical_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with ships, sailors, wrecks, or harbors.",
     },
     ruins_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with ancient ruins or derelict structures.",
     },
     rural_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with farms, pastures, croplands, countryside routes, mills, or other agricultural rural encounter scenes.",
       appliesWhen: [
@@ -368,7 +319,6 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["small_settlement_setting", "plains_setting"],
     },
     small_settlement_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with villages, hamlets, small towns, or other low-density community settlements.",
       appliesWhen: [
@@ -382,11 +332,9 @@ export const creatureSettingProjectionFamilies = [
       adjacentTags: ["urban_setting", "rural_setting"],
     },
     temple_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with temples, shrines, monasteries, or other sacred encounter sites.",
     },
     urban_setting: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with urban encounter scenes such as cities, streets, alleys, dense buildings, markets, or sewers.",
       appliesWhen: [

@@ -1,59 +1,49 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const creatureEncounterProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.ENCOUNTER_COHORT_ROLE, {
     court_entourage: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as part of a courtly retinue, noble household, ceremonial train, or political chamber roster around a central authority figure.",
       adjacentTags: ["authority_npc", "courtly_pageantry"],
     },
     crew_member: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as part of a ship crew, dock crew, wreck complement, or other nautical working roster that belongs together in one scene.",
       adjacentTags: ["nautical_setting", "escort_npc"],
     },
     criminal_cell: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as part of a gang, smuggling ring, burglary team, or other underworld roster that functions through a small coordinated cell.",
       adjacentTags: ["criminal_npc", "infiltrator_npc"],
     },
     cult_member: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as one member of a ritual circle, hidden sect, temple conspiracy, or other cultic roster built around shared devotion or doctrine.",
       adjacentTags: ["religious_npc", "ritualist_creature"],
     },
     guardian_retinue: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as one member of a posted defense roster around a leader, relic, sanctum, or protected threshold rather than as an independent threat.",
       adjacentTags: ["guardian_npc", "defender_combatant"],
     },
     infestation_member: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as one body in a swarm-like infestation, burrowing colony, parasite outbreak, or other many-body nuisance roster.",
       adjacentTags: ["parasite_ridden", "plaguebearing"],
     },
     pack_hunter: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved because the creature hunts as part of a pack, coordinated ambush group, or pursuit cluster rather than as a solitary predator.",
       adjacentTags: ["ambusher_combatant", "skirmisher_combatant"],
     },
     patrol_member: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as part of a watch patrol, sentry route, street sweep, border detail, or other recurring patrol formation.",
       adjacentTags: ["watcher_npc", "urban_setting"],
     },
     warband_member: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Naturally retrieved as one body in a raiding party, battle line, war camp, or other organized hostile fighting band.",
       adjacentTags: ["commander_combatant", "battlefield_setting"],
@@ -61,7 +51,6 @@ export const creatureEncounterProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.ENCOUNTER_COMBAT_ROLE, {
     ambusher_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Built around stealth openings, surprise rounds, sudden strike pressure, or hidden attack vectors.",
       appliesWhen: [
         "The creature is naturally retrieved for hidden approach, surprise attack, trapdoor positioning, or burst from concealment.",
@@ -74,7 +63,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["skirmisher_combatant", "brute_combatant"],
     },
     artillery_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to pressure targets from range through volleys, spell barrages, breath attacks, or other standoff offense.",
       appliesWhen: [
@@ -88,7 +76,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["harrier_combatant", "controller_combatant", "support_combatant"],
     },
     brute_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to pressure the front line through durability, direct damage, and straightforward melee threat.",
       appliesWhen: [
@@ -102,7 +89,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["defender_combatant", "artillery_combatant"],
     },
     commander_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to coordinate allies round to round through leadership, tactics, or command-driven positioning.",
       appliesWhen: [
@@ -116,7 +102,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["support_combatant", "reinforcement_threat"],
     },
     controller_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to reshape the battlefield through debuffs, forced movement, terrain control, or other tactical denial.",
       appliesWhen: [
@@ -130,7 +115,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["support_combatant", "artillery_combatant"],
     },
     defender_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to hold space, intercept attacks, bodyguard allies, or punish passage through a defended line.",
       appliesWhen: [
@@ -144,13 +128,11 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["brute_combatant", "commander_combatant"],
     },
     harrier_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to chip away from safety through repeated ranged harassment, flyby pressure, or evasive standoff attacks that force pursuit.",
       adjacentTags: ["skirmisher_combatant", "artillery_combatant"],
     },
     skirmisher_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Built around mobility, repositioning, hit-and-run pressure, or opportunistic strikes.",
       appliesWhen: [
         "The creature's retrieval value comes from darting movement, flanking, repositioning, or repeated opportunistic attacks.",
@@ -163,7 +145,6 @@ export const creatureEncounterProjectionFamilies = [
       adjacentTags: ["ambusher_combatant", "controller_combatant"],
     },
     support_combatant: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Built to heal, buff, protect, command, or otherwise enable allied creatures more than acting as the primary damage source.",
       appliesWhen: [
@@ -180,53 +161,44 @@ export const creatureEncounterProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.ENCOUNTER_THREAT_PROFILE, {
     ambush_grabber: {
       concept: "ambush_grab",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Captures prey through grabbing, constriction, swallowing whole, webbing, or drag-off ambush tactics.",
     },
     curse_threat: {
       concept: "curse_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by curses, doom effects, or other lingering supernatural afflictions imposed on victims.",
     },
     death_burst_threat: {
       concept: "death_burst",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by explosive death effects, cursed aftermath, or punishing consequences when the creature is dropped.",
     },
     disease_vector: {
       concept: "disease_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by spreading disease, curse-plague conditions, or infectious aftermath beyond immediate damage.",
     },
     infiltration_threat: {
       concept: "infiltration",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by disguise, replacement, infiltration, or remaining embedded among victims before the danger fully reveals itself.",
       adjacentTags: ["disguised_pretender", "possession_threat"],
     },
     life_drain_threat: {
       concept: "life_drain_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Threat defined by draining blood, vitality, life force, or souls from victims.",
     },
     petrification_threat: {
       concept: "petrification_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Threat defined by petrifying victims or turning them to stone.",
     },
     poison_threat: {
       concept: "poison_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Threat defined by venom, toxic excretions, poisoned weapons, or other recurring poison delivery.",
     },
     possession_threat: {
       concept: "possession_application",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Can possess, body-snatch, or take control of a victim from within.",
       appliesWhen: [
         "Use when entering, riding, replacing, or controlling a host body is a major reason to retrieve the creature.",
@@ -240,19 +212,16 @@ export const creatureEncounterProjectionFamilies = [
     },
     prey_control_threat: {
       concept: "prey_control",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by holding prey in place through grabs, constriction, webbing, swallowing, or other ongoing body-control pressure.",
       adjacentTags: ["ambush_grabber", "terrain_control_threat"],
     },
     regeneration_threat: {
       concept: "regeneration",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Regenerates or requires special suppression or finishing countermeasures.",
     },
     reinforcement_threat: {
       concept: "reinforcement",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by materially changing encounter structure through added bodies, activated subordinates, or sharply elevated allied creatures.",
       appliesWhen: [
@@ -267,12 +236,10 @@ export const creatureEncounterProjectionFamilies = [
     },
     spawn_creator: {
       concept: "spawn_creation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Creates additional threats through infestation, spawn-making, conversion, or implanted offspring.",
     },
     terrain_control_threat: {
       concept: "terrain_control",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Threat defined by webs, walls, zones, hazards, or other space-shaping control that changes battlefield movement.",
     },

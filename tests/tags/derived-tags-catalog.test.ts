@@ -32,7 +32,7 @@ describe("derived tag catalog", () => {
           family: "movement_traversal",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "movement_traversal", assignmentMode: "composite" }),
+            objectContaining({ value: "movement_traversal", isComposite: true }),
             objectContaining({ value: "navigation", description: anyString() }),
             objectContaining({ value: "transport", description: anyString() }),
           ]),
@@ -53,7 +53,7 @@ describe("derived tag catalog", () => {
           family: "reconnaissance",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "reconnaissance", assignmentMode: "composite" }),
+            objectContaining({ value: "reconnaissance", isComposite: true }),
             objectContaining({ value: "scouting", description: anyString() }),
             objectContaining({ value: "surveillance_recording", description: anyString() }),
           ]),
@@ -87,7 +87,7 @@ describe("derived tag catalog", () => {
           family: "breaching",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "breaching", assignmentMode: "composite" }),
+            objectContaining({ value: "breaching", isComposite: true }),
             objectContaining({ value: "door_breaching", description: anyString() }),
             objectContaining({ value: "barrier_breaking", description: anyString() }),
           ]),
@@ -97,7 +97,7 @@ describe("derived tag catalog", () => {
           family: "resolution",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "resolution", assignmentMode: "composite" }),
+            objectContaining({ value: "resolution", isComposite: true }),
             objectContaining({ value: "curse_removal", description: anyString() }),
             objectContaining({ value: "sanctification", description: anyString() }),
             objectContaining({ value: "ritual_appeasement", description: anyString() }),
@@ -150,7 +150,7 @@ describe("derived tag catalog", () => {
           axis: "utility",
           tags: arrayContaining([
             objectContaining({ value: "stealth_support", description: anyString() }),
-            objectContaining({ value: "infiltration", assignmentMode: "composite" }),
+            objectContaining({ value: "infiltration", isComposite: true }),
           ]),
         }),
         objectContaining({
@@ -158,7 +158,7 @@ describe("derived tag catalog", () => {
           family: "consultation",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "consultation", assignmentMode: "composite" }),
+            objectContaining({ value: "consultation", isComposite: true }),
             objectContaining({ value: "lore_consultation", description: anyString() }),
             objectContaining({ value: "problem_diagnosis", description: anyString() }),
           ]),
@@ -168,7 +168,7 @@ describe("derived tag catalog", () => {
           family: "communication",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "communication", assignmentMode: "composite" }),
+            objectContaining({ value: "communication", isComposite: true }),
             objectContaining({ value: "telepathic_communication", description: anyString() }),
             objectContaining({ value: "message_delivery", description: anyString() }),
             objectContaining({ value: "translation_support", description: anyString() }),
@@ -179,7 +179,7 @@ describe("derived tag catalog", () => {
           family: "expedition",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "expedition", assignmentMode: "composite" }),
+            objectContaining({ value: "expedition", isComposite: true }),
             objectContaining({ value: "field_shelter", description: anyString() }),
             objectContaining({ value: "environmental_adaptation", description: anyString() }),
           ]),
@@ -189,7 +189,7 @@ describe("derived tag catalog", () => {
           family: "resolution",
           axis: "utility",
           tags: arrayContaining([
-            objectContaining({ value: "resolution", assignmentMode: "composite" }),
+            objectContaining({ value: "resolution", isComposite: true }),
             objectContaining({ value: "curse_removal", description: anyString() }),
             objectContaining({ value: "ritual_appeasement", description: anyString() }),
             objectContaining({ value: "source_revelation", description: anyString() }),
@@ -202,7 +202,7 @@ describe("derived tag catalog", () => {
           axis: "utility",
           tags: arrayContaining([
             objectContaining({ value: "truth_reveal", description: anyString() }),
-            objectContaining({ value: "revelation", assignmentMode: "composite" }),
+            objectContaining({ value: "revelation", isComposite: true }),
           ]),
         }),
         objectContaining({
@@ -211,7 +211,7 @@ describe("derived tag catalog", () => {
           axis: "utility",
           tags: arrayContaining([
             objectContaining({ value: "alarm", description: anyString() }),
-            objectContaining({ value: "security", assignmentMode: "composite" }),
+            objectContaining({ value: "security", isComposite: true }),
           ]),
         }),
         objectContaining({
@@ -250,7 +250,7 @@ describe("derived tag catalog", () => {
           family: "function",
           axis: "encounter",
           tags: arrayContaining([
-            objectContaining({ value: "guarding_hazard", assignmentMode: "composite" }),
+            objectContaining({ value: "guarding_hazard", isComposite: true }),
             objectContaining({ value: "zone_denial", description: anyString() }),
             objectContaining({ value: "sentinel_guardian", description: anyString() }),
             objectContaining({ value: "forced_separation_hazard", description: anyString() }),
@@ -274,7 +274,7 @@ describe("derived tag catalog", () => {
           family: "environmental_danger",
           axis: "effect",
           tags: arrayContaining([
-            objectContaining({ value: "environmental_hazard", assignmentMode: "composite" }),
+            objectContaining({ value: "environmental_hazard", isComposite: true }),
             objectContaining({ value: "contamination_hazard", description: anyString() }),
             objectContaining({ value: "blight_hazard", description: anyString() }),
           ]),
@@ -284,7 +284,7 @@ describe("derived tag catalog", () => {
           family: "perception_control",
           axis: "effect",
           tags: arrayContaining([
-            objectContaining({ value: "perception_hazard", assignmentMode: "composite" }),
+            objectContaining({ value: "perception_hazard", isComposite: true }),
             objectContaining({ value: "false_safe_route", description: anyString() }),
           ]),
         }),

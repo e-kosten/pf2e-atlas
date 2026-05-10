@@ -5,20 +5,17 @@ import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 export const spellSupportProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.SPELL.SUPPORT_SUPPORT, {
     affliction_cleanup: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Cleanses, cures, neutralizes, or removes disease, poison, curse, or similar afflictions.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     anti_bleed: {
       concept: "bleed_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Staunches bleeding, ends persistent bleed damage, or closes wounds that keep draining a target.",
       adjacentTags: ["healing_support", "condition_support"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     anti_confusion: {
       concept: "confusion_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Ends confusion, steadies a disordered mind, or protects a target from confusion-like mental unraveling.",
       adjacentTags: ["condition_support", "anti_fear"],
@@ -26,7 +23,6 @@ export const spellSupportProjectionFamilies = [
     },
     anti_disease: {
       concept: "disease_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Cures disease, counteracts infections, or protects a target against plague, fever, and similar disease effects.",
       adjacentTags: ["affliction_cleanup", "anti_poison"],
@@ -34,14 +30,12 @@ export const spellSupportProjectionFamilies = [
     },
     anti_fear: {
       concept: "fear_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Counters frightened or fear effects, bolsters courage, or protects a target against fear.",
       adjacentTags: ["condition_support", "anti_confusion"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     anti_paralysis: {
       concept: "paralysis_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Ends paralysis, restores bodily function, or frees a target from magic or afflictions that leave it unable to move.",
       adjacentTags: ["condition_support", "escape_support"],
@@ -49,51 +43,42 @@ export const spellSupportProjectionFamilies = [
     },
     anti_petrification: {
       concept: "petrification_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Prevents, reverses, or counteracts petrification and other turn-to-stone effects.",
       adjacentTags: ["affliction_cleanup", "condition_support"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     anti_poison: {
       concept: "poison_remediation",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Cures poison, counters toxic afflictions, or protects a target against venom and similar poisoning effects.",
       adjacentTags: ["affliction_cleanup", "anti_disease"],
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     condition_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Delays, suppresses, or removes afflictions and conditions.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     death_prevention: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Prevents death, stabilizes the dying, or brings a creature back from the brink.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     eidolon_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Directly benefits an eidolon or the summoner-eidolon bond.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     escape_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Helps a creature slip away, break free, flee, or evade pursuit.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     healing_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Directly restores hit points or accelerates recovery.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     initiative_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Improves initiative, pre-combat readiness, or the party's opening tempo before the first turn.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     protective_ward: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Places a ward, sanctuary, shield, or protective boundary.",
       appliesWhen: [
         "The spell is naturally retrieved as a defensive ward, sanctuary, or protective boundary rather than only a resistance buff.",
@@ -107,17 +92,14 @@ export const spellSupportProjectionFamilies = [
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     quickened_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Grants extra actions, quickened condition benefits, or similar action-economy acceleration.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     resistance_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Grants resistance or immunity against energy, damage, or hazards.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },
     temporary_hp_support: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Grants temporary Hit Points or similar buffer protection instead of restoring lost Hit Points.",
       translationStatus: CANONICAL_VOCABULARY.TRANSLATION.STATUS.PROVISIONAL,
     },

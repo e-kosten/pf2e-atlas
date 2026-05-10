@@ -199,7 +199,6 @@ export function createDerivedTagFamilyNodeBuilder(options: {
                 { text: `Family: ${labels.familyLabel}` },
                 { text: `Axis: ${labels.axisLabel}` },
                 { text: `Family scope: ${labels.familyScopeLabel}` },
-                { text: `Assignment mode: ${labels.assignmentModeLabel}` },
                 { text: `Live canonical records: ${tagEntry.liveRecordCount}` },
                 { text: "Press Enter or o to open the full matching set in the shared result reader." },
               ]

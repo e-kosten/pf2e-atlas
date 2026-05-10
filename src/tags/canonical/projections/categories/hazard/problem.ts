@@ -1,29 +1,24 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const hazardProblemProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.HAZARD.PROBLEM_PROBLEM_SHAPE, {
     endurance_pressure: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard whose main prep problem is surviving repeated exposure long enough to finish the scene rather than landing one clean solve immediately.",
     },
     layered_resolution: {
       concept: "multi_stage_resolution",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard that asks the party to solve multiple linked pieces rather than one single disable check or obvious answer.",
     },
     observation_first: {
       concept: "observation_driven",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard that rewards careful watching, clue gathering, or reading the environment before a safe approach becomes obvious.",
     },
     source_tracing: {
       concept: "source_discovery",
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard whose real puzzle is locating the hidden anchor, leak point, cursed source, contamination engine, or origin node before a clean solution becomes possible.",
       appliesWhen: [
@@ -37,7 +32,6 @@ export const hazardProblemProjectionFamilies = [
       adjacentTags: ["observation_first", "source_cleanup_countermeasure"],
     },
     timing_window: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Hazard that is best handled by acting during the right cycle, opening, lull, or repeating timing pattern.",
     },

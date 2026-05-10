@@ -1,19 +1,15 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const creaturePresentationProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.PRESENTATION_BOUND_OBJECT, {
     animated_object: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with animated objects, furniture, tools, or other constructed items.",
     },
     animated_statue: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with animated statues, effigies, idols, or monuments.",
     },
     possessed_object: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with an inhabiting spirit or curse animating an otherwise mundane object or suit of equipment.",
       appliesWhen: [
@@ -29,7 +25,6 @@ export const creaturePresentationProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.PRESENTATION_GENRE_MOTIF, {
     body_horror: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with warped anatomy, invasive flesh transformation, surgical grotesquerie, or visceral physical corruption.",
       appliesWhen: [
@@ -43,11 +38,9 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["stitched_horror", "disease_vector"],
     },
     carnival_show: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with carnivals, circuses, clowns, jesters, or sideshow-style presentation.",
     },
     cosmic_dread: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with void vastness, star-born dread, incomprehensible revelation, or insignificance before the cosmos.",
       appliesWhen: [
@@ -61,7 +54,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["astral_setting", "dream_nightmare"],
     },
     dream_nightmare: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with dreams, nightmares, sleep-haunting, surreal unreality, or subconscious dread.",
       appliesWhen: [
@@ -75,7 +67,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["dreamlands_setting", "cosmic_dread"],
     },
     folk_horror: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with rural superstition, old customs, harvest dread, village taboos, or uncanny folklore menace.",
       appliesWhen: [
@@ -89,7 +80,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["rural_setting", "funerary_mourning"],
     },
     industrial_grotesque: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with smoke, gears, furnaces, exploitation, mutilating machinery, or dehumanizing industrial corruption.",
       appliesWhen: [
@@ -103,7 +93,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["body_horror", "urban_setting"],
     },
     innocence_twisted: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with childish innocence, nursery imagery, or comforting domestic symbols turned uncanny, cruel, or threatening.",
       appliesWhen: [
@@ -117,7 +106,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["living_toy", "carnival_show"],
     },
     maritime_superstition: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with cursed voyages, sea omens, sailor folklore, drowned portents, or nautical dread shaped by legend and taboo.",
       appliesWhen: [
@@ -131,7 +119,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["nautical_setting", "folk_horror"],
     },
     predatory_seduction: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with deliberate luring, honey-trap menace, erotic predation, or invitation used explicitly as a hunting tactic.",
       appliesWhen: [
@@ -145,7 +132,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["seductive_temptation", "disguised_pretender"],
     },
     seductive_temptation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with allure, seduction, dangerous invitation, or temptation into vice, doom, or compromise.",
       appliesWhen: [
@@ -159,7 +145,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["disguised_pretender", "courtly_pageantry"],
     },
     trickster_mischief: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with pranks, capricious humor, gleeful sabotage, or explicit trickster behavior.",
       appliesWhen: [
@@ -175,7 +160,6 @@ export const creaturePresentationProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.PRESENTATION_STORY_MOTIF, {
     ancestral_legacy: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with bloodline burdens, inherited duty, dynastic memory, haunting lineage, or the weight of family legacy.",
       appliesWhen: [
@@ -189,7 +173,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["prophecy_omen", "courtly_pageantry"],
     },
     apocalypse_ruin: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with end-times, civilizational collapse, world-ending omen, or the sense that the creature heralds broad unraveling.",
       appliesWhen: [
@@ -203,7 +186,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["cosmic_dread", "prophecy_omen"],
     },
     corrupted_sacred: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with profaned sanctity, fallen holiness, blasphemous devotion, or sacred imagery twisted into menace.",
       appliesWhen: [
@@ -217,7 +199,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["ritual_ceremony", "religious_npc"],
     },
     courtly_pageantry: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with nobles, heraldry, formal spectacle, masquerade grandeur, or ceremonial court presentation.",
       appliesWhen: [
@@ -231,7 +212,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["authority_npc", "mask_motif"],
     },
     cursed_transformation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with involuntary metamorphosis, curse-driven loss of self, or identity eroded by becoming something else.",
       appliesWhen: [
@@ -245,7 +225,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["body_horror", "ancestral_legacy"],
     },
     decadence_decline: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with faded luxury, aristocratic rot, opulent ruin, or beauty collapsing into moral and material decay.",
       appliesWhen: [
@@ -259,7 +238,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["courtly_pageantry", "revelry_excess"],
     },
     disguised_pretender: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with false identities, impersonation, infiltration, shapeshifting, or replacement.",
       appliesWhen: [
@@ -273,7 +251,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["faceless_horror", "mask_motif"],
     },
     forbidden_knowledge: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with taboo lore, dangerous revelation, blasphemous truth, or learning that should not be uncovered.",
       appliesWhen: [
@@ -287,7 +264,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["occult_conspiracy", "cosmic_dread"],
     },
     funerary_mourning: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with grief, funeral rites, mourning processions, memorial haunting, or death-ritual solemnity.",
       appliesWhen: [
@@ -301,7 +277,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["ritual_ceremony", "mask_motif"],
     },
     obsession_fixation: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with compulsive pursuit, jealous fixation, collecting mania, perfectionism, or a single consuming desire.",
       appliesWhen: [
@@ -315,7 +290,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["forbidden_knowledge", "predatory_seduction"],
     },
     occult_conspiracy: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with secret circles, hidden masters, esoteric cabals, or ritual networks manipulating events from the shadows.",
       appliesWhen: [
@@ -329,7 +303,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["paranoia_surveillance", "forbidden_knowledge"],
     },
     paranoia_surveillance: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with hidden watchers, constant scrutiny, being monitored, or the collapse of trust under observation.",
       appliesWhen: [
@@ -343,7 +316,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["occult_conspiracy", "disguised_pretender"],
     },
     prophecy_omen: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with foretelling, omen-bearing, apocalyptic signs, destiny, or a creature's role as a herald of what is to come.",
       appliesWhen: [
@@ -357,7 +329,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["apocalypse_ruin", "ancestral_legacy"],
     },
     revelry_excess: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with feasts, drunken revels, riotous celebration, gluttony, or ecstatic overindulgence.",
       appliesWhen: [
@@ -371,7 +342,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["carnival_show", "seductive_temptation"],
     },
     ritual_ceremony: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with rites, sacrifices, processions, ceremonial observance, or cultic staging as a scene identity.",
       appliesWhen: [
@@ -385,7 +355,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["religious_npc", "ritualist_creature"],
     },
     seasonal_festival: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with solstice rites, harvest festivals, holiday customs, masked processions, or recurring calendar-bound celebration.",
       appliesWhen: [
@@ -399,7 +368,6 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["revelry_excess", "folk_horror"],
     },
     vengeful_tragedy: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Strongly associated with betrayal, grief, injustice, or a sorrowful wrong returning as vengeance.",
       appliesWhen: [
         "The creature is framed around betrayal, mourning, loss, or an unresolved wrong curdling into vengeance.",
@@ -414,7 +382,6 @@ export const creaturePresentationProjectionFamilies = [
   }),
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.CREATURE.PRESENTATION_VISUAL_MOTIF, {
     faceless_horror: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description: "Strongly associated with missing, hidden, stolen, or featureless faces.",
       appliesWhen: [
         "Missing, stolen, hidden, or featureless faces are central to the creature's horror identity.",
@@ -427,16 +394,13 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["disguised_pretender", "mask_motif"],
     },
     living_artwork: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with paintings, graffiti, murals, portraits, or other artworks brought to life.",
     },
     living_toy: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description: "Strongly associated with dolls, puppets, mannequins, or other animated playthings.",
     },
     mask_motif: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.EDITORIAL,
       description:
         "Strongly associated with masks, veils, ceremonial face-coverings, or deliberately obscured presentation.",
       appliesWhen: [
@@ -450,12 +414,10 @@ export const creaturePresentationProjectionFamilies = [
       adjacentTags: ["disguised_pretender", "faceless_horror"],
     },
     mirror_motif: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with mirrors, reflections, duplicated selves, or reflective surfaces as a core visual or horror identity.",
     },
     stitched_horror: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Strongly associated with sutures, patchwork flesh, sewn bodies, or visibly assembled corpse craftsmanship.",
     },

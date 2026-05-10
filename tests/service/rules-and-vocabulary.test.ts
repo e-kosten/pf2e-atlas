@@ -207,7 +207,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "creature" &&
           tag.family === "site_setting" &&
           tag.tag === "urban_setting" &&
-          tag.assignmentMode === "editorial",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -216,7 +216,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "affliction" &&
           tag.family === "response_profile" &&
           tag.tag === "outbreak_management" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -225,7 +225,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "affliction" &&
           tag.family === "resolution_profile" &&
           tag.tag === "cursebreaking_resolution" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -234,7 +234,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "creature" &&
           tag.family === "corruption_profile" &&
           tag.tag === "fungal_infested" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -243,7 +243,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "equipment" &&
           tag.family === "function" &&
           tag.tag === "anti_poison" &&
-          tag.assignmentMode === "deterministic",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -252,7 +252,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "equipment" &&
           tag.family === "party_role" &&
           tag.tag === "scout_support" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -261,7 +261,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "equipment" &&
           tag.family === "play_pattern" &&
           tag.tag === "shield_support" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -270,7 +270,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "hazard" &&
           tag.family === "problem_shape" &&
           tag.tag === "source_tracing" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
     expect(
@@ -279,7 +279,7 @@ describe("Pf2eDataService / Rules and Vocabulary", () => {
           tag.category === "hazard" &&
           tag.family === "mechanism" &&
           tag.tag === "planar_breach" &&
-          tag.assignmentMode === "hybrid",
+          tag.isComposite !== true,
       ),
     ).toBe(true);
 

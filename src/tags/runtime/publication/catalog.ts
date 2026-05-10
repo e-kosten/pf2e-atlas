@@ -450,19 +450,19 @@ export function groupDerivedTagOntology(
       const key = familyKey(family.category, family.family);
       const tags = tagsByFamilyKey.get(key) ?? [];
 
-      return {
-        category: family.category,
-        subcategories: family.subcategories,
-        family: family.family,
-        label: family.label,
-        axis: family.axis,
-        description: family.description,
-        variantInheritance: family.variantInheritance,
-        tags: tags.map((tag) => ({
-          value: tag.tag,
-          label: tag.label,
-          description: tag.description,
-          assignmentMode: tag.assignmentMode,
+    return {
+      category: family.category,
+      subcategories: family.subcategories,
+      family: family.family,
+      label: family.label,
+      axis: family.axis,
+      description: family.description,
+      variantInheritance: family.variantInheritance,
+      tags: tags.map((tag) => ({
+        value: tag.tag,
+        label: tag.label,
+        description: tag.description,
+          ...(tag.isComposite !== undefined ? { isComposite: tag.isComposite } : {}),
           nativeOntologyPolicy: tag.nativeOntologyPolicy,
           appliesWhen: tag.appliesWhen,
           doesNotApplyWhen: tag.doesNotApplyWhen,

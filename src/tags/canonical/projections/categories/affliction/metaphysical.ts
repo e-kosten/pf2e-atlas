@@ -1,11 +1,9 @@
 import { projectionFamily, type CategoryProjectionFamilyBlock } from "../../../builders.js";
 import { CANONICAL_PROJECTION_FAMILIES } from "../../families.js";
-import { CANONICAL_VOCABULARY } from "../../../vocabulary.js";
 
 export const afflictionMetaphysicalProjectionFamilies = [
   projectionFamily(CANONICAL_PROJECTION_FAMILIES.AFFLICTION.METAPHYSICAL_METAPHYSICAL_PROFILE, {
     curse_marking: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Brands the victim with a curse mark, doom sign, inherited hex, or similarly explicit supernatural stigma.",
       appliesWhen: [
@@ -19,11 +17,9 @@ export const afflictionMetaphysicalProjectionFamilies = [
       adjacentTags: ["void_soul_corruption", "soul_binding"],
     },
     nightmare_torment: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Centers on nightmares, dream-torment, or similarly sleep-haunting affliction framing.",
     },
     possession_seed: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Plants an invading spirit, hostile presence, or takeover-ready metaphysical foothold inside the victim.",
       appliesWhen: [
@@ -37,7 +33,6 @@ export const afflictionMetaphysicalProjectionFamilies = [
       adjacentTags: ["compulsion", "soul_binding"],
     },
     soul_binding: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.HYBRID,
       description:
         "Pins, traps, anchors, or otherwise entangles the victim's soul with an object, oath, place, or hostile power.",
       appliesWhen: [
@@ -51,7 +46,6 @@ export const afflictionMetaphysicalProjectionFamilies = [
       adjacentTags: ["curse_marking", "possession_seed"],
     },
     void_soul_corruption: {
-      assignmentMode: CANONICAL_VOCABULARY.ASSIGNMENT.MODE.DETERMINISTIC,
       description: "Attacks life force or the bond between body and soul through void or deathly corruption.",
     },
   }),

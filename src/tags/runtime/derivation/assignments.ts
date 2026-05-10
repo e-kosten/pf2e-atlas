@@ -123,7 +123,7 @@ function validateProjectionTagReference(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" is missing a canonical projection in category "${category}".`,
     );
   }
-  if (projection.assignmentMode === "composite") {
+  if (projection.isComposite) {
     throw new Error(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" cannot target composite tag "${projection.currentTag}"; assign one of its child tags instead.`,
     );
@@ -245,7 +245,7 @@ function validateReviewTagReference(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" does not belong to family "${family}" in category "${category}".`,
     );
   }
-  if (ontologyTag.assignmentMode === "composite") {
+  if (ontologyTag.isComposite) {
     throw new Error(
       `Derived tag ${fieldName} tag "${tag}" for "${recordKey}" cannot target composite tag "${ontologyTag.tag}"; assign one of its child tags instead.`,
     );
