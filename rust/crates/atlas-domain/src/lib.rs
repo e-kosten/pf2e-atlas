@@ -7,6 +7,7 @@ pub mod detail;
 pub mod metadata;
 pub mod record;
 pub mod record_key;
+pub mod rule_graph;
 pub mod search_request;
 
 pub use categories::{Category, Subcategory};
@@ -22,6 +23,11 @@ pub use record::{
     TextStatus,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
+pub use rule_graph::{
+    ReferenceDirection, ReferenceEdge, ReferenceRelationship, ReferenceSource, RemasterLink,
+    RemasterLinkSource, RuleContextRequest, RuleContextResult, RuleGraphCollectionResult,
+    RuleGraphRequest, RuleGraphResult,
+};
 pub use search_request::{
     BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, NullableNumericMatch,
     NullableStringMatch, NumericMatch, ScalarValue, ScopeSubcategoryMatch, SearchFilterNode,
