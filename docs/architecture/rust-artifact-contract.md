@@ -70,13 +70,13 @@ Validation diagnostics are grouped by contract family:
 
 ## Adjacent Manifest
 
-`adjacent_manifest_path` is reserved for a JSON manifest that can carry larger provenance, source file inventories, report locations, and non-runtime artifact references. Runtime startup validation only requires the relative path metadata during phase one; manifest schema validation lands when Rust ingest starts writing artifacts.
+`adjacent_manifest_path` is reserved for a JSON manifest that can carry larger provenance, source file inventories, report locations, and non-runtime artifact references. Runtime startup validation requires only the relative path metadata. Manifest schema validation belongs to a later ingest slice that writes and validates the adjacent manifest as a real artifact.
 
 ## Runtime Table Families
 
 The Rust artifact contract extends beyond `artifact_metadata` once Rust ingest starts writing artifacts. The current TypeScript index is the parity inventory, but the Rust artifact should treat table families as generated projections over typed ingest/domain models rather than as ad hoc row bags.
 
-Required runtime table families for the first Rust-written artifact are:
+Required runtime table families for Rust-written artifacts are:
 
 | Family | Tables | Purpose |
 | --- | --- | --- |

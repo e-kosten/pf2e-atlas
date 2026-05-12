@@ -7,6 +7,7 @@ TypeScript and Python may remain useful for exploratory analysis, parity compari
 ## Layout
 
 - `crates/atlas-domain`: shared Rust contracts and vocabulary.
+- `crates/atlas-ingest`: Foundry source loading, normalized ingest records, and SQLite artifact writing.
 - `crates/atlas-index`: index/artifact opening and validation.
 - `crates/atlas-cli`: the local `atlas` command surface.
 
@@ -30,6 +31,14 @@ cargo run -p atlas-cli -- validate-index --index ../.cache/pf2e-index.sqlite --j
 ```
 
 Current TypeScript-built indexes are expected to report a legacy-contract diagnostic until the Rust artifact contract is implemented by the index builder.
+
+The first Rust writer behavior is:
+
+```bash
+cargo run -p atlas-cli -- build-index --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json
+```
+
+The current writer is a minimal Phase 3 slice. It loads Foundry packs and records, normalizes canonical record keys and names, maps basic category/subcategory values, and writes `artifact_metadata`, `packs`, `records`, and `records_fts`. Full corpus parity, side tables, reference edges, aliases, derived tags, embeddings, and manifest schema validation remain later ingest/index slices.
 
 ## Artifact Validation Diagnostics
 

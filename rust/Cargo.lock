@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-domain",
  "atlas-index",
+ "atlas-ingest",
  "rusqlite",
  "serde_json",
 ]
@@ -26,6 +27,18 @@ version = "0.1.0"
 dependencies = [
  "atlas-domain",
  "rusqlite",
+ "thiserror",
+]
+
+[[package]]
+name = "atlas-ingest"
+version = "0.1.0"
+dependencies = [
+ "atlas-domain",
+ "atlas-index",
+ "rusqlite",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

@@ -23,13 +23,14 @@ This changes the target from "Rust runtime over artifacts prepared elsewhere" to
 
 Adopt a Rust-centered runtime migration with CLI first, Ratatui second, and MCP only as optional compatibility.
 
-The first Rust implementation lives under `rust/` as a separate workspace inside this repository. It starts with only the crates needed for the foundation slice:
+The Rust implementation lives under `rust/` as a separate workspace inside this repository. It includes only crates that have active implementation slices:
 
 - `atlas-domain` owns shared Rust contracts and typed runtime vocabulary.
+- `atlas-ingest` owns Foundry source loading, normalized ingest records, and SQLite artifact writing.
 - `atlas-index` owns artifact/index opening and startup validation.
 - `atlas-cli` owns the local `atlas` command surface.
 
-Future crates such as search, ingest, TUI, and MCP should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.
+Future crates such as search, embedding, TUI, and MCP should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.
 
 Rust is the target owner for deterministic Foundry ingest, normalized records, source signatures, SQLite table writes, artifact metadata, lookup/search runtime behavior, CLI output contracts, and the Ratatui workbench. Exploratory discovery, clustering, evaluation reports, and parity harnesses may remain in Python, Node, or TypeScript while they are still research or migration aids.
 

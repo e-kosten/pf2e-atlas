@@ -2,6 +2,7 @@
 members = [
   "crates/atlas-cli",
   "crates/atlas-domain",
+  "crates/atlas-ingest",
   "crates/atlas-index",
 ]
 resolver = "3"
@@ -14,6 +15,7 @@ rust-version = "1.95"
 
 [workspace.dependencies]
 atlas-domain = { path = "crates/atlas-domain" }
+atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
