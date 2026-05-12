@@ -30,6 +30,9 @@ cargo build --workspace
 - Do not add placeholder crates. Add a crate only when its first real slice lands.
 - Do not let Rust CLI command names imply new product capability during parity phases. Each command should map to an
   existing MCP tool, current tag/editorial script, or an explicitly documented new product decision.
+- Treat the current TypeScript runtime as the behavior baseline, not as proof that its names, table shapes, or type
+  boundaries are the best long-term design. When an implementation slice exposes a weak or ambiguous TypeScript
+  decision, pause and present the tradeoff, or ask for input, instead of silently copying it.
 - Keep runtime artifacts and deterministic ingest moving toward Rust ownership. Python, Node, and TypeScript are acceptable for exploratory analysis, parity harnesses, and temporary migration scripts.
 - If a slice exposes a major architecture decision not covered by ADR 0017, add or update an ADR before continuing.
 

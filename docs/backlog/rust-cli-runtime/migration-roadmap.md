@@ -53,6 +53,12 @@ Move toward a Rust-centered local runtime architecture:
 
 The expected end state is not a language rewrite for its own sake. The expected end state is a stricter local architecture where invalid runtime states, incomplete search/filter variants, and ad hoc workflow bypasses are harder to express.
 
+The current TypeScript implementation is the parity baseline for behavior, but it is not automatically the best design
+for Rust. Migration slices should preserve product semantics while remaining willing to rename, split, type, or reshape
+weak inherited contracts. When an implementation choice depends on whether to preserve an existing TypeScript shape or
+adapt it to a stronger Rust model, agents should surface the options and ask for input rather than defaulting to either
+copying or rewriting by instinct.
+
 ## Motivation
 
 ### Local agent workflows favor CLI plus skills
