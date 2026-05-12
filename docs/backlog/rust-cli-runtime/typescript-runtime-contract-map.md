@@ -19,7 +19,7 @@ Primary TypeScript sources:
 
 - `src/data/schema.ts`: SQLite schema, index version, table/index inventory.
 - `src/data/indexing/build-index.ts`: index build stage order.
-- `src/data/indexing/catalog-writer.ts`: metadata, pack rows, alias rows, legacy-link rows, metric catalogs.
+- `src/data/indexing/catalog-writer.ts`: metadata, pack rows, alias rows, remaster bridge rows, metric catalogs.
 - `src/data/indexing/record-writer.ts`: records, traits, derived tags, side-data tables, references, FTS rows.
 - `src/data/indexing/embedding-writer.ts`: reusable embedding blobs and sqlite-vec rows.
 - `src/data/index-types.ts`: normalized ingest/write model.
@@ -40,7 +40,7 @@ Primary TypeScript sources:
 | `packs` | Pack labels, document types, source paths, counts | parity | `atlas-index` read model, `atlas-ingest` writer | Required for pack filtering, display, schema discovery, and source parity. |
 | `records` | Canonical normalized record row plus raw JSON and search flags | rust redesign | `atlas-domain` record types, `atlas-index` row loading, `atlas-ingest` writer | Preserve field meaning, but model Rust rows as typed structs rather than stringly row bags. |
 | `record_aliases` | Variant/name lookup aliases | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. |
-| `record_legacy_links` | Canonical-to-legacy record-key bridges | transitional | `atlas-index` migration reader, `atlas-ingest` optional writer | Keep only if needed for parity; do not make it a first-class long-term lookup concept. |
+| `record_legacy_links` | Premaster-to-remaster record bridges extracted from remaster journals and migration aliases | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest` | Preserve the domain concept, but name/model it as `remaster_links` or edition links in Rust rather than a generic legacy compatibility bucket. |
 | `record_traits` | Normalized trait rows | parity | `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for trait filters and value discovery. |
 | `record_derived_tags` | Normalized derived-tag rows | parity | `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for read-only tag filtering before editorial migration. |
 | `actor_records` | Actor-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for creature/hazard discovery and filters. |
@@ -76,10 +76,10 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | `record_embeddings` duplicates many filter columns already present in `records`/side tables | Useful for sqlite-vec partition filtering, but can drift from source rows | Treat vector filter columns as generated projection data. Rust writer should derive them from typed records in one function and validation should detect mismatched row counts/keys. |
 | Sentinel values in sqlite-vec partition columns use empty string and `-1` | Necessary for vec metadata constraints, but semantically lossy | Hide sentinels behind `atlas-index` vector-row projection helpers. Domain/search code should never see sentinel values as real metadata. |
 | `reference_edges` has generic reference rows but no explicit relationship enum beyond source/target and text | Adequate for current `linksTo`/`linkedFrom`, but may blur rules, page links, aliases, and generated references later | Add a Rust relationship/source-kind enum before expanding graph behavior. Preserve current `references` semantics for parity, but leave room for typed relationship classes. |
-| `record_legacy_links` is a real table beside canonical aliases | Useful during canonicalization, but can become a permanent second identity system | Keep as transitional. Rust lookup should prefer canonical keys and aliases; legacy links require an explicit retention decision before TypeScript retirement. |
+| Current TS `record_legacy_links` is a real table beside canonical aliases | The concept is useful for PF2E remaster navigation, but the current name makes it sound like generic compatibility | Keep the concept as `remaster_links` or edition links. Rust lookup should prefer canonical keys and aliases, while record detail can expose explicit remaster bridge relationships. |
 | Search canonicality is stored as `is_search_canonical` | Necessary for variants/generated records, but easy to misuse | Model canonicality as a typed search visibility policy, not just a boolean. Decide whether generated afflictions, variants, and aliases need separate policy states. |
 | FTS text is stored as `search_text` on `records` and repeated in `records_fts` | Practical for ranking/debugging, but duplicated | Keep for first parity. Rust writer should generate both from a single search-text artifact and validate row-key coverage. |
-| Detail/output vocabulary differs between current TS (`minimal`, `standard`, `full`) and roadmap (`compact`, `full`, `answerable`) | Output contract drift can leak into CLI docs and tests | Decide naming in Phase 2 before implementing lookup output. Prefer agent-facing `compact`, `full`, `answerable` if CLI is the primary surface, with TS names only as compatibility aliases if needed. |
+| Detail/output vocabulary differs between current TS (`minimal`, `standard`, `full`) and roadmap draft (`compact`, `full`, `answerable`) | Output contract drift can leak into CLI docs and tests; `answerable` is not a current runtime concept | Do not add `answerable` as a generic detail level. Decide whether Rust uses `compact` as the renamed `minimal`, then keep `standard` and `full` unless a concrete simplification removes one. |
 
 ### Rust Type Principles For The Migration
 
@@ -95,7 +95,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 
 Before Phase 2 is complete:
 
-- Decide the `RecordDetail` / `compact` / `answerable` vocabulary.
+- Decide whether Rust detail vocabulary is `compact`, `standard`, `full` or keeps TS names `minimal`, `standard`, `full`.
 - Decide which text columns are required for compact lookup versus full record output.
 - Decide which TypeScript string aliases remain accepted CLI inputs.
 
@@ -105,7 +105,7 @@ Before Phase 3 writer work starts:
 - Decide which JSON array columns are durable versus generated presentation caches.
 - Decide whether boolean and enum-like columns get SQLite `CHECK` constraints, row-loader validation, or both.
 - Decide the vector-row projection/sentinel contract.
-- Decide legacy-link retention criteria.
+- Model the current TS remaster bridge table as `remaster_links` or edition links and preserve premaster-to-remaster navigation semantics.
 
 Before Phase 7 discovery starts:
 
@@ -121,12 +121,12 @@ Before Phase 7 discovery starts:
 | Write packs | `catalog-writer.ts` | Pack writer | `atlas-ingest` | parity |
 | Normalize records | `record-normalization.ts` and helpers | Boundary parse to typed ingest model | `atlas-ingest` using `atlas-domain` value types | rust redesign |
 | Assign families | `family-assignment.ts` | Family/variant assignment | `atlas-ingest` initially, possibly later `atlas-search` for reusable semantics | parity |
-| Resolve references, aliases, legacy links | `reference-resolution.ts` | Reference/alias resolver | `atlas-ingest` | parity plus transitional legacy links |
+| Resolve references, aliases, remaster links | `reference-resolution.ts` | Reference/alias/remaster-link resolver | `atlas-ingest` | parity with Rust naming/model cleanup |
 | Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated record policy | `atlas-ingest` | parity |
 | Build writable model | `record-write-model.ts` | Typed writer model | `atlas-ingest` | rust redesign |
 | Write records, side data, FTS, references | `record-writer.ts` | Table writers with typed row inputs | `atlas-ingest` | parity |
 | Generate/reuse embeddings | `embedding-writer.ts` | Embedding writer and reusable vector loader | `atlas-embedding` + `atlas-ingest` | parity |
-| Write alias and legacy-link rows | `catalog-writer.ts` | Alias writer, optional legacy-link writer | `atlas-ingest` | parity/transitional |
+| Write alias and remaster-link rows | `catalog-writer.ts` | Alias writer and remaster-link writer | `atlas-ingest` | parity with Rust naming/model cleanup |
 | Populate metric catalogs | `catalog-writer.ts` | Metric catalog writer | `atlas-ingest` | parity |
 
 Rust implementation should keep the stage order mostly intact until parity is proven. The crate/module layout can differ, but the source-to-artifact data dependencies should remain explicit.
@@ -140,7 +140,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | `SearchSubcategory` and aliases | `Subcategory` enum plus input alias parser | `atlas-domain` | rust redesign | Preserve canonical values and accepted aliases. |
 | `SourceCategory` | `SourceCategory` enum | `atlas-domain` | parity | Values: `core`, `rules`, `adventure`, `unknown`. |
 | `VariantSource` | `VariantSource` enum | `atlas-domain` | parity | Keep until variant parity is classified. |
-| `RecordDetail` | CLI detail enum | `atlas-domain` or `atlas-cli` if surface-only | rust redesign | Current TS values are `minimal`, `standard`, `full`; Rust roadmap also calls for `compact`, `full`, `answerable`. Resolve naming before output stabilization. |
+| `RecordDetail` | CLI detail enum | `atlas-domain` or `atlas-cli` if surface-only | rust redesign | Current TS values are `minimal`, `standard`, `full`. `standard` is current full record content minus `sourcePath`; `full` adds source provenance. Do not add `answerable` as a generic detail level. |
 | `NormalizedRecord` | `RecordSummary`, `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
 | `SearchRequest` | tagged enum: browse/search/lookup | `atlas-domain` | parity | Preserve mode semantics and JSON shape where CLI accepts canonical request JSON. |
 | `SearchFilterNode` | recursive enum | `atlas-domain` | parity | Exhaustive matching should force downstream search handling. |
@@ -170,12 +170,35 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 
 Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help.
 
+## Product Surface Parity Map
+
+The Rust CLI can use different command names, but Phase 5 through Phase 10 should map to the current product surface
+instead of inventing PF2E capability. Any command that does not map to one of these rows needs a backlog or ADR decision
+before it becomes part of the durable CLI contract.
+
+| Current product surface | Current behavior | Rust parity target |
+| --- | --- | --- |
+| `pf2e_lookup` | Best matching record by name with optional pack/category/subcategory hints and alternatives | `atlas lookup` or equivalent exact-name lookup command. |
+| `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch lookup command or a stable JSON input mode for `atlas lookup`. |
+| `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | Record-key lookup command; raw JSON remains debug/parity-only unless typed fields are missing. |
+| `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch record-key lookup with current detail semantics. |
+| `pf2e_list_packs` | Pack list, labels, document types, record counts, and startup warnings | Pack list command if CLI replaces the full MCP discovery surface. |
+| `pf2e_get_pack_metadata` | Metadata for one pack by name or label | Pack metadata command if pack discovery remains user-facing. |
+| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search` with the same query/profile/exclude/filter semantics. |
+| `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas browse` or `atlas list` with the same filter, sort, and pagination semantics. |
+| `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Search/schema discovery command such as `atlas schema search-filters`. |
+| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. |
+| `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Rule-context command that returns context only; it should not synthesize an answer. |
+| `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | Graph command over record keys with outgoing/backlink controls. |
+| `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |
+| `src/tags/cli/**` scripts | Derived-tag discovery, evaluation, migration session, review, import, lint, and queue summary workflows | Tag CLI commands should preserve existing workflow semantics first. Names such as `tags review next` are only placeholders unless mapped to an existing script or approved as a new workflow. |
+
 ## Compatibility And Retirement Decisions
 
 | TS concept | Rust decision |
 | --- | --- |
 | `metadata` table | Transitional legacy diagnostic only. |
-| `record_legacy_links` | Transitional parity input; keep only while lookup/reference parity needs it. |
+| Current TS remaster bridge table | Preserve as `remaster_links` or edition links with explicit premaster-to-remaster semantics. |
 | broad raw `raw_json` storage | Keep for initial parity/debugging; do not make Rust runtime behavior depend on arbitrary JSON paths where typed rows exist. |
 | legacy derived-tag matcher and seed migration paths | Transitional comparison/input only; read-only derived-tag runtime should prefer published/current authored model. |
 | MCP server tool schema as primary product contract | Retired as primary; optional compatibility only after CLI plus skill is proven. |
@@ -247,7 +270,7 @@ Each later phase should update a durable parity note with source revision, comma
 - invalid option exit code
 - missing index exit code
 - incompatible artifact exit code
-- stale source diagnostic once real source comparison is implemented
+- source-signature mismatch diagnostic when an expected signature is provided
 - compact default output size check
 
 ## Phase-Gate Rules
@@ -257,3 +280,4 @@ Each later phase should update a durable parity note with source revision, comma
 - Phase 4 embedding work must preserve MiniLM compatibility unless a new ADR changes the baseline.
 - Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract.
 - Phase 13 retirement cannot start until each parity fixture group has a recorded pass, accepted difference, or explicit deferred defect.
+- Source freshness validation should stay lightweight: compare against an expected source signature when supplied, but do not add a broad full-artifact validator that effectively reloads the source corpus.
