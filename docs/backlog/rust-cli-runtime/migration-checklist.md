@@ -88,6 +88,36 @@ Acceptance:
 - The current TypeScript index still produces a clear legacy-contract diagnostic.
 - No vector-extension load is required for metadata validation.
 
+## Phase 1.5: TypeScript Runtime Inventory And Rust Contract Mapping
+
+Goal: derive the Rust contract surface from the current TypeScript runtime before broad domain types, ingest writers, or search/discovery commands are implemented.
+
+- [ ] Inventory current TypeScript SQLite tables and identify which runtime commands or discovery flows depend on each table.
+- [ ] Inventory current TypeScript indexing stages and map them to planned Rust writer stages.
+- [ ] Map current TypeScript record, category, subcategory, metadata, metric, request, filter, search, lookup, rule-graph, and output shapes to planned Rust contracts.
+- [ ] Classify each mapped contract as:
+  - [ ] parity requirement
+  - [ ] deliberate Rust redesign
+  - [ ] transitional compatibility input
+  - [ ] retired/non-goal
+- [ ] Identify JSON blob fields that should remain JSON for parity and fields that should become typed Rust structures or side-table rows.
+- [ ] Identify legacy, compatibility, or bridge paths that Rust should not preserve as first-class runtime concepts.
+- [ ] Define crate ownership for each mapped contract across `atlas-domain`, `atlas-index`, future `atlas-ingest`, future `atlas-search`, future `atlas-tags`, and surface crates.
+- [ ] Define the first parity fixture set for each later capability gate:
+  - [ ] lookup and record presentation
+  - [ ] rule graph and rule context
+  - [ ] schema/filter discovery
+  - [ ] search and browse
+  - [ ] derived-tag runtime
+  - [ ] CLI output contracts
+- [ ] Update or add a Rust artifact contract document for runtime tables beyond `artifact_metadata` before Phase 3 writer work starts.
+
+Acceptance:
+- Every Phase 2 domain type traces to a current TypeScript contract, a deliberate Rust-only contract, or an explicit non-goal.
+- Every Phase 3 table/write task traces to a current runtime dependency or an explicit accepted difference.
+- Later phases cannot introduce new artifact, table, or output-contract dependencies without updating the contract map.
+- The mapping is concrete enough for follow-up agents to implement Phase 2 and Phase 3 slices without rediscovering current TypeScript runtime shape from scratch.
+
 ## Phase 2: Rust Domain Model
 
 Goal: define the typed runtime vocabulary that later ingest, index, search, CLI, and TUI crates share.
