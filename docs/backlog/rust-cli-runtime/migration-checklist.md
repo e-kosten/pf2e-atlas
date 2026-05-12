@@ -197,9 +197,9 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Generate metric key/value catalogs from `record_metrics`.
 - [ ] Write aliases.
 - [ ] Write remaster links preserving current premaster-to-remaster bridge behavior.
-- [ ] Write actor side-data.
-- [ ] Write item side-data.
-- [ ] Write spell side-data.
+- [x] Write actor side-data.
+- [x] Write item side-data.
+- [x] Write spell side-data.
 - [ ] Revisit derived-tag assignments late in the migration after a dedicated design pass.
 - [ ] Generate source signatures from source paths and per-record hashes.
 - [x] Add a small fixture ingest test.

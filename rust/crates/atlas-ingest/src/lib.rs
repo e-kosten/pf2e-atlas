@@ -100,6 +100,9 @@ pub struct LoadedRecord {
     pub activation_time: Option<NormalizedTime>,
     pub duration: Option<NormalizedTime>,
     pub metrics: Vec<MetricRow>,
+    pub actor_data: Option<ActorSideData>,
+    pub item_data: Option<ItemSideData>,
+    pub spell_data: Option<SpellSideData>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
     pub description_text: Option<String>,
@@ -108,6 +111,47 @@ pub struct LoadedRecord {
     pub text_status: TextStatus,
     pub search_text_projection: String,
     pub raw_json: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActorSideData {
+    pub size: Option<String>,
+    pub languages: Vec<String>,
+    pub speed_types: Vec<String>,
+    pub senses: Vec<String>,
+    pub immunities: Vec<String>,
+    pub resistances: Vec<String>,
+    pub weaknesses: Vec<String>,
+    pub disable_text: Option<String>,
+    pub disable_skills: Vec<String>,
+    pub is_complex: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ItemSideData {
+    pub system_category: Option<String>,
+    pub system_base_item: Option<String>,
+    pub system_group: Option<String>,
+    pub system_usage: Option<String>,
+    pub price_cp: Option<i64>,
+    pub bulk_value: Option<f64>,
+    pub hands_requirement: Option<String>,
+    pub damage_types: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpellSideData {
+    pub traditions: Vec<String>,
+    pub spell_kinds: Vec<String>,
+    pub range_text: Option<String>,
+    pub range_value: Option<f64>,
+    pub target_text: Option<String>,
+    pub area_type: Option<String>,
+    pub area_value: Option<f64>,
+    pub save_type: Option<String>,
+    pub sustained: bool,
+    pub basic_save: bool,
+    pub damage_types: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -360,6 +404,20 @@ fn normalize_record(
         .as_deref()
         .and_then(normalize_time_text);
     let metrics = extract_metrics(&raw, &manifest_pack.document_type, &record_type);
+    let actor_data =
+        (manifest_pack.document_type == "Actor").then(|| extract_actor_side_data(&raw));
+    let item_data = (manifest_pack.document_type == "Item").then(|| {
+        extract_item_side_data(
+            &raw,
+            system_category.clone(),
+            system_base_item.clone(),
+            system_group.clone(),
+            system_usage.clone(),
+            price_cp,
+        )
+    });
+    let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
+        .then(|| extract_spell_side_data(&raw, &traits));
     let publication_title = pointer_string(&raw, "/system/publication/title");
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
     let description_text =
@@ -403,6 +461,9 @@ fn normalize_record(
         activation_time,
         duration,
         metrics,
+        actor_data,
+        item_data,
+        spell_data,
         publication_title,
         publication_remaster,
         description_text: description_text.clone(),
@@ -584,6 +645,146 @@ fn canonical_time_unit(value: &str) -> Option<TimeUnit> {
     }
 }
 
+fn string_array_at_pointer(raw: &Value, pointer: &str) -> Vec<String> {
+    let mut values = raw
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(normalize_text)
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn extract_speed_types(raw: &Value) -> Vec<String> {
+    let mut values = vec!["land".to_string()];
+    if let Some(other_speeds) = raw
+        .pointer("/system/attributes/speed/otherSpeeds")
+        .and_then(Value::as_array)
+    {
+        values.extend(
+            other_speeds
+                .iter()
+                .filter_map(|speed| normalized_pointer_string(speed, "/type")),
+        );
+    }
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn extract_sense_types(raw: &Value) -> Vec<String> {
+    let mut values = raw
+        .pointer("/system/perception/senses")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|sense| normalized_pointer_string(sense, "/type"))
+        .map(|value| slugify_metric_segment(&value).replace('_', " "))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn typed_collection(raw: &Value, pointer: &str) -> Vec<String> {
+    let mut values = raw
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| normalized_pointer_string(entry, "/type"))
+        .collect::<Vec<_>>();
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn parse_bulk_value(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) if text == "L" => Some(0.1),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
+        _ => None,
+    }
+}
+
+fn parse_hands_requirement(usage: &str) -> Option<String> {
+    if usage.contains("held-in-two-hands") {
+        Some("two_hands".to_string())
+    } else if usage.contains("held-in-one-plus-hands") {
+        Some("one_plus_hands".to_string())
+    } else if usage.contains("held-in-one-hand") {
+        Some("one_hand".to_string())
+    } else {
+        None
+    }
+}
+
+fn extract_damage_types(raw: &Value) -> Vec<String> {
+    let mut values = Vec::new();
+    if let Some(value) = normalized_pointer_string(raw, "/system/damage/damageType") {
+        values.push(value);
+    }
+    if let Some(entries) = raw
+        .pointer("/system/damageRolls")
+        .and_then(Value::as_object)
+    {
+        values.extend(
+            entries
+                .values()
+                .filter_map(|entry| normalized_pointer_string(entry, "/damageType")),
+        );
+    }
+    if let Some(entries) = raw.pointer("/system/damage").and_then(Value::as_object) {
+        values.extend(
+            entries
+                .values()
+                .filter_map(|entry| normalized_pointer_string(entry, "/type")),
+        );
+    }
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn extract_disable_skills(raw: &Value) -> Vec<String> {
+    let Some(markup) = pointer_string(raw, "/system/details/disable") else {
+        return Vec::new();
+    };
+    let mut skills = Vec::new();
+    for skill in [
+        "acrobatics",
+        "arcana",
+        "athletics",
+        "crafting",
+        "deception",
+        "diplomacy",
+        "intimidation",
+        "medicine",
+        "nature",
+        "occultism",
+        "performance",
+        "religion",
+        "society",
+        "stealth",
+        "survival",
+        "thievery",
+    ] {
+        if markup.to_lowercase().contains(skill) {
+            skills.push(skill.to_string());
+        }
+    }
+    skills.sort();
+    skills.dedup();
+    skills
+}
+
 fn extract_metrics(raw: &Value, document_type: &str, record_type: &str) -> Vec<MetricRow> {
     let metrics = match document_type {
         "Actor" => extract_actor_metrics(raw),
@@ -603,6 +804,70 @@ fn dedupe_metrics(metrics: Vec<MetricRow>) -> Vec<MetricRow> {
     }
     deduped.reverse();
     deduped
+}
+
+fn extract_actor_side_data(raw: &Value) -> ActorSideData {
+    let disable_text =
+        pointer_string(raw, "/system/details/disable").map(|value| strip_markup(&value));
+    ActorSideData {
+        size: normalized_pointer_string(raw, "/system/traits/size/value"),
+        languages: string_array_at_pointer(raw, "/system/details/languages/value"),
+        speed_types: extract_speed_types(raw),
+        senses: extract_sense_types(raw),
+        immunities: typed_collection(raw, "/system/attributes/immunities"),
+        resistances: typed_collection(raw, "/system/attributes/resistances"),
+        weaknesses: typed_collection(raw, "/system/attributes/weaknesses"),
+        disable_text,
+        disable_skills: extract_disable_skills(raw),
+        is_complex: pointer_bool(raw, "/system/details/isComplex").unwrap_or(false),
+    }
+}
+
+fn extract_item_side_data(
+    raw: &Value,
+    system_category: Option<String>,
+    system_base_item: Option<String>,
+    system_group: Option<String>,
+    system_usage: Option<String>,
+    price_cp: Option<i64>,
+) -> ItemSideData {
+    ItemSideData {
+        system_category,
+        system_base_item,
+        system_group,
+        system_usage: system_usage.clone(),
+        price_cp,
+        bulk_value: raw.pointer("/system/bulk/value").and_then(parse_bulk_value),
+        hands_requirement: system_usage.as_deref().and_then(parse_hands_requirement),
+        damage_types: extract_damage_types(raw),
+    }
+}
+
+fn extract_spell_side_data(raw: &Value, traits: &[String]) -> SpellSideData {
+    SpellSideData {
+        traditions: string_array_at_pointer(raw, "/system/traits/traditions"),
+        spell_kinds: ["focus", "ritual", "cantrip"]
+            .into_iter()
+            .filter(|kind| traits.iter().any(|value| value == kind))
+            .map(str::to_string)
+            .collect(),
+        range_text: normalized_pointer_string(raw, "/system/range/value"),
+        range_value: first_number_like_at_paths(
+            raw,
+            &[
+                "/system/range/value",
+                "/system/range/increment",
+                "/system/area/value",
+            ],
+        ),
+        target_text: pointer_string(raw, "/system/target/value").map(|value| strip_markup(&value)),
+        area_type: normalized_pointer_string(raw, "/system/area/type"),
+        area_value: number_like_at_pointer(raw, "/system/area/value"),
+        save_type: normalized_pointer_string(raw, "/system/defense/save/statistic"),
+        sustained: pointer_bool(raw, "/system/duration/sustained").unwrap_or(false),
+        basic_save: pointer_bool(raw, "/system/defense/save/basic").unwrap_or(false),
+        damage_types: extract_damage_types(raw),
+    }
 }
 
 fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
@@ -1200,6 +1465,50 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               PRIMARY KEY (metric_domain, record_family, metric_key, value)
             );
 
+            CREATE TABLE actor_records (
+              record_key TEXT PRIMARY KEY,
+              size TEXT,
+              languages_json TEXT NOT NULL,
+              speed_types_json TEXT NOT NULL,
+              senses_json TEXT NOT NULL,
+              immunities_json TEXT NOT NULL,
+              resistances_json TEXT NOT NULL,
+              weaknesses_json TEXT NOT NULL,
+              disable_text TEXT,
+              disable_skills_json TEXT NOT NULL,
+              is_complex INTEGER NOT NULL,
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
+            CREATE TABLE item_records (
+              record_key TEXT PRIMARY KEY,
+              system_category TEXT,
+              system_base_item TEXT,
+              system_group TEXT,
+              system_usage TEXT,
+              price_cp INTEGER,
+              bulk_value REAL,
+              hands_requirement TEXT,
+              damage_types_json TEXT NOT NULL,
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
+            CREATE TABLE spell_records (
+              record_key TEXT PRIMARY KEY,
+              traditions_json TEXT NOT NULL,
+              spell_kinds_json TEXT NOT NULL,
+              range_text TEXT,
+              range_value REAL,
+              target_text TEXT,
+              area_type TEXT,
+              area_value REAL,
+              save_type TEXT,
+              sustained INTEGER NOT NULL,
+              basic_save INTEGER NOT NULL,
+              damage_types_json TEXT NOT NULL,
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
             CREATE VIRTUAL TABLE records_fts USING fts5(
               record_key UNINDEXED,
               name,
@@ -1352,6 +1661,30 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_actor = connection
+        .prepare(
+            "INSERT INTO actor_records (
+              record_key, size, languages_json, speed_types_json, senses_json, immunities_json,
+              resistances_json, weaknesses_json, disable_text, disable_skills_json, is_complex
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_item = connection
+        .prepare(
+            "INSERT INTO item_records (
+              record_key, system_category, system_base_item, system_group, system_usage, price_cp,
+              bulk_value, hands_requirement, damage_types_json
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_spell = connection
+        .prepare(
+            "INSERT INTO spell_records (
+              record_key, traditions_json, spell_kinds_json, range_text, range_value, target_text,
+              area_type, area_value, save_type, sustained, basic_save, damage_types_json
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
         .prepare("INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -1419,6 +1752,56 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 .execute((record.key.to_string(), trait_value.as_str()))
                 .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         }
+        if let Some(actor_data) = &record.actor_data {
+            insert_actor
+                .execute(params![
+                    record.key.to_string(),
+                    actor_data.size.as_deref(),
+                    json_array(&actor_data.languages)?,
+                    json_array(&actor_data.speed_types)?,
+                    json_array(&actor_data.senses)?,
+                    json_array(&actor_data.immunities)?,
+                    json_array(&actor_data.resistances)?,
+                    json_array(&actor_data.weaknesses)?,
+                    actor_data.disable_text.as_deref(),
+                    json_array(&actor_data.disable_skills)?,
+                    i64::from(actor_data.is_complex),
+                ])
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
+        if let Some(item_data) = &record.item_data {
+            insert_item
+                .execute(params![
+                    record.key.to_string(),
+                    item_data.system_category.as_deref(),
+                    item_data.system_base_item.as_deref(),
+                    item_data.system_group.as_deref(),
+                    item_data.system_usage.as_deref(),
+                    item_data.price_cp,
+                    item_data.bulk_value,
+                    item_data.hands_requirement.as_deref(),
+                    json_array(&item_data.damage_types)?,
+                ])
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
+        if let Some(spell_data) = &record.spell_data {
+            insert_spell
+                .execute(params![
+                    record.key.to_string(),
+                    json_array(&spell_data.traditions)?,
+                    json_array(&spell_data.spell_kinds)?,
+                    spell_data.range_text.as_deref(),
+                    spell_data.range_value,
+                    spell_data.target_text.as_deref(),
+                    spell_data.area_type.as_deref(),
+                    spell_data.area_value,
+                    spell_data.save_type.as_deref(),
+                    i64::from(spell_data.sustained),
+                    i64::from(spell_data.basic_save),
+                    json_array(&spell_data.damage_types)?,
+                ])
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
         for metric in &record.metrics {
             let (value_type, number_value, text_value, bool_value) =
                 metric_value_parts(&metric.value);
@@ -1468,6 +1851,11 @@ fn metric_value_parts(
             Some(i64::from(*boolean)),
         ),
     }
+}
+
+fn json_array(values: &[String]) -> Result<String, IngestError> {
+    serde_json::to_string(values)
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
 }
 
 fn metric_domain_label(domain: MetricDomain) -> &'static str {
