@@ -2,6 +2,14 @@
 
 use serde::Serialize;
 
+pub mod categories;
+pub mod detail;
+pub mod record_key;
+
+pub use categories::{Category, Subcategory};
+pub use detail::DetailLevel;
+pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
+
 pub const ARTIFACT_METADATA_TABLE: &str = "artifact_metadata";
 pub const LEGACY_METADATA_TABLE: &str = "metadata";
 pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-artifact/v1";
