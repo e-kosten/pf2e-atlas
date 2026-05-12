@@ -28,6 +28,19 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "output": index_path.display().to_string(),
             "pack_count": 1,
             "record_count": 1,
+            "diagnostics": {
+                "taxonomy": {
+                    "folder_records": 0,
+                    "glossary_records": 0
+                },
+                "variants": {
+                    "parenthetical_records": 0,
+                    "suffix_records": 0,
+                    "creature_blurb_records": 0,
+                    "creature_suffix_records": 0,
+                    "exact_base_records": 0
+                }
+            },
             "skipped_record_count": 0,
             "skipped_records": [],
             "warnings": []
