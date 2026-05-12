@@ -31,6 +31,7 @@ The shortest useful mental model is:
 - `src/tags/reviews/` owns durable review registries and reviewed discovery state
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
+- `docs/architecture/rust-artifact-contract.md` owns the first Rust SQLite artifact contract and validation diagnostic families
 - `src/search/filters/` owns execution-time metadata normalization, validation, and record-level matching; public metadata field semantics stay in `src/domain/metadata-field-catalog.ts`
 - `src/data/backend/search-sql.ts` and `src/data/backend/metadata-search-sql.ts` own SQL-facing filter assembly and metadata predicate SQL construction
 - `src/data/metadata-row-projection.ts` owns metadata row selection and hydration mapping for normalized records

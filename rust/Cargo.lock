@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-domain",
  "atlas-index",
+ "rusqlite",
  "serde_json",
 ]
 

@@ -4,8 +4,15 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use atlas_domain::{
-    ARTIFACT_METADATA_TABLE, ArtifactMetadataSummary, ArtifactValidationReport,
-    LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
+    ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
+    ArtifactValidationReport, EXPECTED_CONTENT_HASH_ALGORITHM, EXPECTED_EMBEDDING_DIMENSIONS,
+    EXPECTED_EMBEDDING_DISTANCE_METRIC, EXPECTED_EMBEDDING_DOCUMENT_PREFIX,
+    EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID, EXPECTED_EMBEDDING_MODEL_REVISION,
+    EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
+    EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
+    EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND,
+    LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS, ValidationCode, artifact_metadata_keys,
 };
 use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
@@ -45,19 +52,40 @@ pub fn validate_index(
         .filter(|key| {
             metadata
                 .get(**key)
-                .is_none_or(|value| value.trim().is_empty())
+                .is_none_or(|value| is_missing_value(key, value))
         })
         .map(|key| (*key).to_string())
         .collect::<Vec<_>>();
 
-    if missing_keys.is_empty() {
-        Ok(ArtifactValidationReport::ok(index, summary))
-    } else {
-        Ok(ArtifactValidationReport::missing_required_metadata(
+    if !missing_keys.is_empty() {
+        return Ok(ArtifactValidationReport::missing_required_metadata(
             index,
             summary,
             missing_keys,
+        ));
+    }
+
+    let diagnostics = validate_metadata_values(&metadata);
+    if diagnostics.is_empty() {
+        Ok(ArtifactValidationReport::ok(index, summary))
+    } else {
+        Ok(ArtifactValidationReport::incompatible_metadata(
+            index,
+            summary,
+            diagnostics,
         ))
+    }
+}
+
+fn is_missing_value(key: &str, value: &str) -> bool {
+    if matches!(
+        key,
+        artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX
+            | artifact_metadata_keys::EMBEDDING_QUERY_PREFIX
+    ) {
+        false
+    } else {
+        value.trim().is_empty()
     }
 }
 
@@ -114,11 +142,293 @@ fn read_metadata(
 
 fn summarize_metadata(metadata: &BTreeMap<String, String>) -> ArtifactMetadataSummary {
     ArtifactMetadataSummary {
-        artifact_contract_version: metadata.get("artifact_contract_version").cloned(),
-        schema_version: metadata.get("schema_version").cloned(),
-        source_signature: metadata.get("source_signature").cloned(),
-        embedding_model_id: metadata.get("embedding_model_id").cloned(),
-        embedding_dimensions: metadata.get("embedding_dimensions").cloned(),
+        artifact_contract_version: metadata
+            .get(artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION)
+            .cloned(),
+        schema_version: metadata
+            .get(artifact_metadata_keys::SCHEMA_VERSION)
+            .cloned(),
+        source_kind: metadata.get(artifact_metadata_keys::SOURCE_KIND).cloned(),
+        source_signature: metadata
+            .get(artifact_metadata_keys::SOURCE_SIGNATURE)
+            .cloned(),
+        source_record_count: metadata
+            .get(artifact_metadata_keys::SOURCE_RECORD_COUNT)
+            .cloned(),
+        content_hash_algorithm: metadata
+            .get(artifact_metadata_keys::CONTENT_HASH_ALGORITHM)
+            .cloned(),
+        embedding_provider_family: metadata
+            .get(artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY)
+            .cloned(),
+        embedding_model_id: metadata
+            .get(artifact_metadata_keys::EMBEDDING_MODEL_ID)
+            .cloned(),
+        embedding_model_revision: metadata
+            .get(artifact_metadata_keys::EMBEDDING_MODEL_REVISION)
+            .cloned(),
+        embedding_tokenizer_id: metadata
+            .get(artifact_metadata_keys::EMBEDDING_TOKENIZER_ID)
+            .cloned(),
+        embedding_pooling: metadata
+            .get(artifact_metadata_keys::EMBEDDING_POOLING)
+            .cloned(),
+        embedding_normalization: metadata
+            .get(artifact_metadata_keys::EMBEDDING_NORMALIZATION)
+            .cloned(),
+        embedding_dimensions: metadata
+            .get(artifact_metadata_keys::EMBEDDING_DIMENSIONS)
+            .cloned(),
+        embedding_dtype: metadata
+            .get(artifact_metadata_keys::EMBEDDING_DTYPE)
+            .cloned(),
+        embedding_distance_metric: metadata
+            .get(artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC)
+            .cloned(),
+        embedding_document_prefix: metadata
+            .get(artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX)
+            .cloned(),
+        embedding_query_prefix: metadata
+            .get(artifact_metadata_keys::EMBEDDING_QUERY_PREFIX)
+            .cloned(),
+        fts_tokenizer: metadata.get(artifact_metadata_keys::FTS_TOKENIZER).cloned(),
+        adjacent_manifest_path: metadata
+            .get(artifact_metadata_keys::ADJACENT_MANIFEST_PATH)
+            .cloned(),
+    }
+}
+
+fn validate_metadata_values(
+    metadata: &BTreeMap<String, String>,
+) -> Vec<ArtifactValidationDiagnostic> {
+    let mut diagnostics = Vec::new();
+    require_value(
+        metadata,
+        artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
+        ARTIFACT_CONTRACT_VERSION,
+        ValidationCode::UnsupportedContractVersion,
+        ArtifactContractFamily::Contract,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::SCHEMA_VERSION,
+        ARTIFACT_SCHEMA_VERSION,
+        ValidationCode::UnsupportedSchemaVersion,
+        ArtifactContractFamily::Schema,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::SOURCE_KIND,
+        EXPECTED_SOURCE_KIND,
+        ValidationCode::InvalidSourceMetadata,
+        ArtifactContractFamily::Source,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::CONTENT_HASH_ALGORITHM,
+        EXPECTED_CONTENT_HASH_ALGORITHM,
+        ValidationCode::InvalidSourceMetadata,
+        ArtifactContractFamily::Source,
+        &mut diagnostics,
+    );
+    require_positive_usize(
+        metadata,
+        artifact_metadata_keys::SOURCE_RECORD_COUNT,
+        ValidationCode::InvalidSourceMetadata,
+        ArtifactContractFamily::Source,
+        &mut diagnostics,
+    );
+    require_source_signature(metadata, &mut diagnostics);
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
+        EXPECTED_EMBEDDING_PROVIDER_FAMILY,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_MODEL_ID,
+        EXPECTED_EMBEDDING_MODEL_ID,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_MODEL_REVISION,
+        EXPECTED_EMBEDDING_MODEL_REVISION,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
+        EXPECTED_EMBEDDING_TOKENIZER_ID,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_POOLING,
+        EXPECTED_EMBEDDING_POOLING,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_NORMALIZATION,
+        EXPECTED_EMBEDDING_NORMALIZATION,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_DIMENSIONS,
+        EXPECTED_EMBEDDING_DIMENSIONS,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_DTYPE,
+        EXPECTED_EMBEDDING_DTYPE,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC,
+        EXPECTED_EMBEDDING_DISTANCE_METRIC,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX,
+        EXPECTED_EMBEDDING_DOCUMENT_PREFIX,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
+        EXPECTED_EMBEDDING_QUERY_PREFIX,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::FTS_TOKENIZER,
+        EXPECTED_FTS_TOKENIZER,
+        ValidationCode::FtsMismatch,
+        ArtifactContractFamily::Fts,
+        &mut diagnostics,
+    );
+    require_manifest_path(metadata, &mut diagnostics);
+    diagnostics
+}
+
+fn require_value(
+    metadata: &BTreeMap<String, String>,
+    key: &str,
+    expected: &str,
+    code: ValidationCode,
+    family: ArtifactContractFamily,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let actual = metadata.get(key).map(String::as_str).unwrap_or_default();
+    if actual != expected {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code,
+            family,
+            message: format!("metadata key `{key}` has an unsupported value"),
+            key: Some(key.to_string()),
+            expected: Some(expected.to_string()),
+            actual: Some(actual.to_string()),
+        });
+    }
+}
+
+fn require_positive_usize(
+    metadata: &BTreeMap<String, String>,
+    key: &str,
+    code: ValidationCode,
+    family: ArtifactContractFamily,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let actual = metadata.get(key).map(String::as_str).unwrap_or_default();
+    let is_positive = actual
+        .parse::<usize>()
+        .map(|value| value > 0)
+        .unwrap_or(false);
+    if !is_positive {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code,
+            family,
+            message: format!("metadata key `{key}` must be a positive integer"),
+            key: Some(key.to_string()),
+            expected: Some("positive integer".to_string()),
+            actual: Some(actual.to_string()),
+        });
+    }
+}
+
+fn require_source_signature(
+    metadata: &BTreeMap<String, String>,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let key = artifact_metadata_keys::SOURCE_SIGNATURE;
+    let actual = metadata.get(key).map(String::as_str).unwrap_or_default();
+    if actual == "stale" || actual.starts_with("stale:") {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code: ValidationCode::StaleSourceSignature,
+            family: ArtifactContractFamily::Source,
+            message: "source signature marks this artifact as stale".to_string(),
+            key: Some(key.to_string()),
+            expected: Some("current source signature".to_string()),
+            actual: Some(actual.to_string()),
+        });
+    } else if !actual.starts_with("foundry-pf2e:") {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code: ValidationCode::InvalidSourceMetadata,
+            family: ArtifactContractFamily::Source,
+            message: "source signature must identify a Foundry PF2E source snapshot".to_string(),
+            key: Some(key.to_string()),
+            expected: Some("foundry-pf2e:<signature>".to_string()),
+            actual: Some(actual.to_string()),
+        });
+    }
+}
+
+fn require_manifest_path(
+    metadata: &BTreeMap<String, String>,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let key = artifact_metadata_keys::ADJACENT_MANIFEST_PATH;
+    let actual = metadata.get(key).map(String::as_str).unwrap_or_default();
+    if actual.trim().is_empty() || actual.contains('\0') || Path::new(actual).is_absolute() {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code: ValidationCode::ManifestMismatch,
+            family: ArtifactContractFamily::Manifest,
+            message: "adjacent manifest path must be a relative artifact path".to_string(),
+            key: Some(key.to_string()),
+            expected: Some("relative path".to_string()),
+            actual: Some(actual.to_string()),
+        });
     }
 }
 
@@ -127,7 +437,10 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use atlas_domain::{ValidationCode, ValidationStatus};
+    use atlas_domain::{
+        ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_EMBEDDING_MODEL_ID,
+        ValidationCode, ValidationStatus, artifact_metadata_keys,
+    };
     use rusqlite::Connection;
 
     use super::validate_index;
@@ -141,7 +454,10 @@ mod tests {
 
         assert_eq!(report.status, ValidationStatus::Ok);
         assert_eq!(report.code, ValidationCode::Ok);
-        assert_eq!(report.artifact_contract_version.as_deref(), Some("0.1.0"));
+        assert_eq!(
+            report.artifact_contract_version.as_deref(),
+            Some(ARTIFACT_CONTRACT_VERSION)
+        );
         fs::remove_file(path)?;
         Ok(())
     }
@@ -170,25 +486,183 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn reports_missing_required_metadata_key() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("missing-key");
+        create_contract_database_without(&path, artifact_metadata_keys::EMBEDDING_DTYPE)?;
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::MissingRequiredMetadata);
+        assert_eq!(
+            report.missing_keys,
+            vec![artifact_metadata_keys::EMBEDDING_DTYPE.to_string()]
+        );
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("stale-source");
+        create_contract_database_with_override(
+            &path,
+            artifact_metadata_keys::SOURCE_SIGNATURE,
+            "stale:fixture",
+        )?;
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::StaleSourceSignature);
+        assert_eq!(report.diagnostics.len(), 1);
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("embedding-mismatch");
+        create_contract_database_with_override(
+            &path,
+            artifact_metadata_keys::EMBEDDING_MODEL_ID,
+            "BAAI/bge-small-en-v1.5",
+        )?;
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
+        assert_eq!(
+            report.diagnostics[0].key.as_deref(),
+            Some(artifact_metadata_keys::EMBEDDING_MODEL_ID)
+        );
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("unsupported-schema");
+        create_contract_database_with_override(&path, artifact_metadata_keys::SCHEMA_VERSION, "2")?;
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
     fn create_contract_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let connection = Connection::open(path)?;
         connection.execute(
             "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
             [],
         )?;
-        for (key, value) in [
-            ("artifact_contract_version", "0.1.0"),
-            ("schema_version", "1"),
-            ("source_signature", "fixture:test"),
-            ("embedding_model_id", "Xenova/all-MiniLM-L12-v2"),
-            ("embedding_dimensions", "384"),
-        ] {
+        insert_contract_metadata(&connection, None)?;
+        Ok(())
+    }
+
+    fn create_contract_database_without(
+        path: &PathBuf,
+        omitted_key: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(path)?;
+        connection.execute(
+            "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+            [],
+        )?;
+        for (key, value) in valid_metadata_entries() {
+            if key != omitted_key {
+                connection.execute(
+                    "INSERT INTO artifact_metadata (key, value) VALUES (?1, ?2)",
+                    [key, value],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn create_contract_database_with_override(
+        path: &PathBuf,
+        override_key: &str,
+        override_value: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(path)?;
+        connection.execute(
+            "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+            [],
+        )?;
+        insert_contract_metadata(&connection, Some((override_key, override_value)))?;
+        Ok(())
+    }
+
+    fn insert_contract_metadata(
+        connection: &Connection,
+        override_entry: Option<(&str, &str)>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for (key, mut value) in valid_metadata_entries() {
+            if let Some((override_key, override_value)) = override_entry
+                && key == override_key
+            {
+                value = override_value;
+            }
             connection.execute(
                 "INSERT INTO artifact_metadata (key, value) VALUES (?1, ?2)",
                 [key, value],
             )?;
         }
         Ok(())
+    }
+
+    fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
+        vec![
+            (
+                artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
+                ARTIFACT_CONTRACT_VERSION,
+            ),
+            (
+                artifact_metadata_keys::SCHEMA_VERSION,
+                ARTIFACT_SCHEMA_VERSION,
+            ),
+            (artifact_metadata_keys::SOURCE_KIND, "foundry-pf2e"),
+            (
+                artifact_metadata_keys::SOURCE_SIGNATURE,
+                "foundry-pf2e:fixture",
+            ),
+            (artifact_metadata_keys::SOURCE_RECORD_COUNT, "3"),
+            (artifact_metadata_keys::CONTENT_HASH_ALGORITHM, "sha256"),
+            (
+                artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
+                "transformers-js-minilm",
+            ),
+            (
+                artifact_metadata_keys::EMBEDDING_MODEL_ID,
+                EXPECTED_EMBEDDING_MODEL_ID,
+            ),
+            (artifact_metadata_keys::EMBEDDING_MODEL_REVISION, "main"),
+            (
+                artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
+                EXPECTED_EMBEDDING_MODEL_ID,
+            ),
+            (artifact_metadata_keys::EMBEDDING_POOLING, "mean"),
+            (artifact_metadata_keys::EMBEDDING_NORMALIZATION, "l2"),
+            (artifact_metadata_keys::EMBEDDING_DIMENSIONS, "384"),
+            (artifact_metadata_keys::EMBEDDING_DTYPE, "f32"),
+            (artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC, "cosine"),
+            (artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX, ""),
+            (artifact_metadata_keys::EMBEDDING_QUERY_PREFIX, ""),
+            (
+                artifact_metadata_keys::FTS_TOKENIZER,
+                "unicode61 remove_diacritics 2",
+            ),
+            (
+                artifact_metadata_keys::ADJACENT_MANIFEST_PATH,
+                "manifest.json",
+            ),
+        ]
     }
 
     fn temp_db_path(name: &str) -> PathBuf {
