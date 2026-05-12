@@ -1,10 +1,10 @@
 # Rust CLI Runtime Migration Roadmap
 
 Status: in_progress  
-Design state: design in progress  
-Priority: later  
+Design state: staged implementation foundation  
+Priority: active  
 Owner: unassigned  
-Last reviewed: 2026-05-06
+Last reviewed: 2026-05-12
 
 ## Problem
 
@@ -18,11 +18,11 @@ The actual operating model is narrower and more local:
 - many workflows are better expressed as procedure plus compact command output than as broad MCP tool schemas
 - the current guardrails still allow agents to land incomplete or transitional TypeScript changes and call them done
 
-That raises a durable architectural question: should the long-term runtime be a Rust local toolchain, with CLI and TUI as the primary surfaces, Python retained for offline ingest and ML experimentation, and MCP demoted to an optional compatibility mode?
+The spike set has answered the durable direction question: the long-term core should be a Rust local toolchain, with CLI and TUI as the primary surfaces, deterministic ingest/index building moving to Rust, exploratory analysis kept adjacent, and MCP demoted to an optional compatibility mode.
 
 ## Desired Outcome
 
-Evaluate and, if justified by prototypes, move toward a Rust-centered local runtime architecture:
+Move toward a Rust-centered local runtime architecture:
 
 - Rust owns the runtime core:
   - domain contracts
@@ -34,13 +34,20 @@ Evaluate and, if justified by prototypes, move toward a Rust-centered local runt
   - CLI
   - TUI
   - optional MCP mode
-- Python or Node remains available for offline preparation:
+- Rust also owns deterministic offline preparation once parity work catches up:
   - Foundry PF2E ingest
-  - bulk document embedding generation
-  - clustering and discovery experiments
-  - evaluation reports
+  - normalized record construction
+  - source signatures
+  - SQLite table writes
+  - embedding identity and artifact metadata
   - index artifact production
-- the prepared SQLite index and adjacent JSON/JSONL artifacts become explicit versioned contracts between prep tooling and the Rust runtime
+- Python, Node, or TypeScript remain available for exploratory and transitional work:
+  - clustering and discovery experiments
+  - search-quality evaluation reports
+  - review queues
+  - parity comparison harnesses
+  - migration-only scripts
+- the prepared SQLite index and adjacent JSON/JSONL artifacts become explicit versioned contracts owned by the Rust core path once migration parity is reached
 - agent integration prioritizes CLI commands plus Codex skills over MCP as the default local workflow
 - MCP remains possible as `atlas mcp` only if it is useful as a thin compatibility surface over the same Rust runtime
 
@@ -74,16 +81,16 @@ Rust would not automatically prevent poor agent work, but it can raise the floor
 
 This is especially relevant because the current TypeScript codebase already has many documentation and lint guardrails, yet still requires substantial review pressure to prevent half-migrations and convention-only architecture.
 
-### Python offline helpers are low-cost if they stay out of runtime
+### Exploratory helpers are low-cost if they stay out of runtime
 
-Using Python for offline ingest and ML does not create the same architecture cost as splitting the live runtime:
+Using Python, Node, or TypeScript for exploratory analysis does not create the same architecture cost as splitting the live runtime:
 
 - the artifact boundary is durable and testable
 - the runtime can validate schema, source, and embedding identity before startup
-- Python can use the stronger NLP/data ecosystem without putting Python packaging in the runtime path
-- bulk embedding generation, clustering, and discovery evaluation remain easier to iterate outside the Rust binary
+- fast-changing clustering, discovery, and evaluation reports can iterate outside the Rust binary
+- migration parity scripts can compare Rust output to the existing TypeScript runtime while the cutover is underway
 
-The important constraint is that Python writes versioned artifacts. It should not become a live query-embedding sidecar unless Rust query embedding proves unworkable.
+The important constraint is that these helpers do not become the owner of canonical runtime artifacts. Deterministic Foundry ingest, normalized record construction, source signatures, SQLite table writes, and artifact metadata should move to Rust. A Python or Node query sidecar is not part of the target architecture; Rust query embeddings have been shown viable for the current MiniLM model.
 
 ## Target Shape
 
@@ -108,19 +115,18 @@ A plausible Rust workspace shape:
 
 Exact crate names can change. The important split is that CLI, TUI, and MCP are surfaces over one runtime core, not competing implementations.
 
-### Prep tooling
+### Artifact and prep ownership
 
-Offline prep can remain TypeScript initially or move to Python if that improves ML/data iteration:
+Deterministic prep should move to Rust as the runtime stabilizes:
 
 - parse and normalize the vendored Foundry PF2E checkout
 - build the SQLite index
 - generate document embeddings
 - compute semantic input hashes
 - write embedding identity metadata
-- run discovery, clustering, and evaluation workflows
-- emit review queues and reports
+- emit runtime-required metadata and validation diagnostics
 
-The prep side must treat the index schema and embedding manifest as public contracts, not incidental implementation details.
+The canonical-ingest spike did not find a Rust-specific blocker for this ownership. Python, Node, and TypeScript may still produce adjacent exploratory artifacts while they are research outputs, but runtime-required artifacts should be versioned, validated, and Rust-owned.
 
 ### Agent-facing CLI surface
 
@@ -194,11 +200,11 @@ Using a different engine at ingest and runtime is acceptable only if the produce
 ## Non-Goals
 
 - Do not start with a full rewrite.
-- Do not introduce a Python runtime query sidecar unless Rust query embedding has been prototyped and rejected.
+- Do not introduce a Python runtime query sidecar; Rust query embeddings are viable for the first MiniLM migration baseline.
 - Do not keep MCP as the architectural center if the product remains local-only.
 - Do not create parallel TypeScript and Rust runtime cores with mixed feature ownership.
 - Do not use Rust as a thin wrapper over the existing Node runtime; that would preserve the current architecture cost while adding another language.
-- Do not migrate ingest first unless the runtime artifact contract has already been designed.
+- Do not migrate full ingest before the runtime artifact contract and validation shell exist.
 - Do not treat a compatibility bridge as progress toward the end state unless it removes an old path in the same slice.
 
 ## Open Questions
@@ -206,64 +212,43 @@ Using a different engine at ingest and runtime is acceptable only if the produce
 - Which embedding model should become the long-term cross-language contract?
   - Current default is `Xenova/all-MiniLM-L12-v2`.
   - Candidate upgrade path includes BGE-family models such as `BAAI/bge-small-en-v1.5`.
-- Can Rust query embedding match ingest embeddings closely enough for current semantic search quality?
-- Should document embedding generation use Python `fastembed`, Python `sentence-transformers`, TypeScript `@huggingface/transformers`, or the same Rust embedding stack as runtime?
-- Is a Rust TUI meant to fully replace the Ink workbench, or should the first milestone be CLI-only?
+- Should the first Rust document-embedding writer keep MiniLM only, or also prepare a BGE comparison artifact?
+- Which Ratatui workbench workflows should land before retiring the Ink workbench?
 - Which current MCP tools should have first-class CLI equivalents before any runtime migration begins?
 - Which derived-tag editorial workflows are stable enough to model as Rust state machines now?
 - Does the optional `atlas mcp` mode need the official Rust MCP SDK, or is MCP no longer worth preserving locally?
 
 ## Research Dependencies
 
-This migration is design-in-progress and should not move into implementation until the research spikes in this folder produce enough evidence to choose the runtime and retrieval architecture.
+This migration is in staged implementation. The first foundation slice records the ADR and creates the Rust workspace, then later slices move capability ownership behind explicit parity gates.
 
-Required decision inputs:
+Spike findings:
 
-- [Rust query embedding spike](./spikes/rust-query-embedding.md)
-- [Search quality bakeoff spike](./spikes/search-quality-bakeoff.md)
-- [Tantivy lexical search spike](./spikes/tantivy-lexical-search.md)
-- [LanceDB retrieval store spike](./spikes/lancedb-retrieval-store.md)
-- [Rust CLI agent surface spike](./spikes/rust-cli-agent-surface.md)
-- [Rust TUI state machine spike](./spikes/rust-tui-state-machine.md)
-- [Artifact contract spike](./spikes/artifact-contract.md)
-- [Canonical ingest ownership spike](./spikes/canonical-ingest-ownership.md)
-- [Optional MCP compatibility spike](./spikes/optional-mcp-compatibility.md)
+- [Rust query embedding spike](./spikes/rust-query-embedding.md): keep MiniLM for the first Rust embedding provider; Rust vectors match the TypeScript provider for sampled queries.
+- [Search quality bakeoff spike](./spikes/search-quality-bakeoff.md): keep a SQLite-centered hybrid retrieval baseline; defer Tantivy, LanceDB, better models, and heavyweight rerankers.
+- [Tantivy lexical search spike](./spikes/tantivy-lexical-search.md): deferred before first migration baseline.
+- [LanceDB retrieval store spike](./spikes/lancedb-retrieval-store.md): do not add LanceDB as a parallel retrieval database for the current PF2E runtime.
+- [Rust CLI agent surface spike](./spikes/rust-cli-agent-surface.md): continue CLI plus skill as the primary local agent-surface direction, with schema/facet discovery and support shaping still required.
+- [Rust TUI state machine spike](./spikes/rust-tui-state-machine.md): Ratatui is viable after the CLI/runtime shell.
+- [Artifact contract spike](./spikes/artifact-contract.md): keep a versioned SQLite runtime contract with adjacent JSON/JSONL artifacts for non-runtime reports.
+- [Canonical ingest ownership spike](./spikes/canonical-ingest-ownership.md): continue toward Rust ownership of deterministic ingest and artifact/index building.
+- [Optional MCP compatibility spike](./spikes/optional-mcp-compatibility.md): still pending; MCP should not block the Rust runtime migration.
 
-The first implementation plan should explicitly summarize the outcomes of these spikes, name the chosen retrieval stack, and identify any rejected alternatives that remain future options.
+Implementation plans should cite ADR 0017, name the relevant capability gate, and identify any rejected alternatives that remain future options.
 
 ## Suggested Work Breakdown
 
-### Phase 1: Decision Prototypes
+### Phase 1: Rust Workspace And Artifact Validation Foundation
 
-1. Build a standalone Rust query-embedding prototype.
-   - Use the same current model contract if feasible.
-   - Also test a likely upgrade candidate such as a BGE small/base model.
-   - Compare vector dimensions, normalization, runtime latency, startup latency, and packaging footprint.
-   - Add fixture comparisons against the current TypeScript embedding provider.
-
-2. Build a standalone Rust SQLite/vector-search prototype.
-   - Open a small prepared SQLite fixture.
-   - Run FTS search, vector search, and hybrid ranking.
-   - Validate `sqlite-vec` or the chosen vector extension on the target development machines.
-   - Measure top-k query latency and index-open latency.
-
-3. Build a minimal Rust CLI prototype.
-   - Implement `lookup`, `search`, and `rule-context` against a fixture or existing index.
-   - Return stable compact JSON.
-   - Exercise commands from Codex with a small local skill draft.
-
-4. Build a minimal Rust TUI state-machine spike.
-   - Implement one list/detail search result screen and one modal/prompt flow.
-   - Use explicit enum state and transition functions.
-   - Compare development friction against the current Ink workflow.
-
-5. Record a decision.
-   - If prototypes pass, add an ADR for Rust runtime plus Python/offline prep.
-   - If prototypes fail, record which constraints blocked the migration and which parts remain useful for the Node architecture.
+1. Add ADR 0017 for the Rust-owned deterministic core, CLI-first surface, Ratatui sequencing, and optional MCP rule.
+2. Create the `rust/` workspace with `atlas-domain`, `atlas-index`, and `atlas-cli`.
+3. Add standard Rust validation commands: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `cargo build --workspace`.
+4. Implement `atlas validate-index --index <path> --json`.
+5. Make current TypeScript-built indexes report a clear legacy-contract diagnostic until the Rust artifact contract is written by the index builder.
 
 ### Phase 2: Artifact Contract
 
-1. Define the versioned SQLite runtime contract.
+1. Implement the versioned SQLite runtime contract.
    - schema version
    - source signature
    - embedding identity
@@ -286,12 +271,10 @@ The first implementation plan should explicitly summarize the outcomes of these 
 
 ### Phase 3: Rust Runtime Skeleton
 
-1. Create a Rust workspace in a branch or experimental directory.
-2. Implement domain contracts without importing Node runtime concepts.
-3. Implement index opening and metadata validation.
-4. Implement typed lookup by canonical key and by name.
-5. Implement record presentation models separate from CLI/TUI rendering.
-6. Add tests around stale index, missing embedding provider, and schema mismatch errors.
+1. Implement domain contracts without importing Node runtime concepts.
+2. Implement typed lookup by canonical key and by name.
+3. Implement record presentation models separate from CLI/TUI rendering.
+4. Add tests around stale index, missing embedding provider, and schema mismatch errors.
 
 ### Phase 4: Search Runtime
 
@@ -338,7 +321,7 @@ The first implementation plan should explicitly summarize the outcomes of these 
 
 ### Phase 8: Migration And Retirement
 
-1. Run Rust and TypeScript runtimes side by side against the same prepared index.
+1. Run Rust and TypeScript runtimes side by side against the same vendored source revision and prepared artifact contract.
 2. Compare representative lookup/search/rule/tag workflows.
 3. Freeze new runtime feature work in TypeScript once Rust parity is sufficient.
 4. Retire or archive the Node MCP/TUI runtime only after the CLI/TUI replacement is complete.
