@@ -12,8 +12,8 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, MetricDomain,
-    MetricValueType, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus,
-    TimeKind, TimeUnit, artifact_metadata_keys,
+    MetricValueType, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
+    RemasterLinkSource, TextStatus, TimeKind, TimeUnit, artifact_metadata_keys,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
@@ -57,6 +57,7 @@ pub struct SourceLoad {
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
     pub references: Vec<ReferenceEdge>,
+    pub remaster_links: Vec<RemasterLink>,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
 }
@@ -131,6 +132,14 @@ pub struct ReferenceEdge {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemasterLink {
+    pub remaster_record_key: RecordKey,
+    pub legacy_record_key: RecordKey,
+    pub source: RemasterLinkSource,
+    pub source_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActorSideData {
     pub size: Option<String>,
     pub languages: Vec<String>,
@@ -192,6 +201,14 @@ pub struct NormalizedTime {
     pub duration_value: Option<i64>,
     pub duration_unit: Option<TimeUnit>,
     pub text: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct RecordReferenceIndex {
+    by_key: BTreeMap<String, LoadedRecord>,
+    by_pack_id: BTreeMap<(String, String), RecordKey>,
+    by_pack_name: BTreeMap<(String, String), Vec<RecordKey>>,
+    by_name: BTreeMap<String, Vec<RecordKey>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -301,12 +318,15 @@ pub fn load_foundry_source(
         }
     }
 
-    let references = resolve_reference_edges(&records);
+    let reference_index = build_record_reference_index(&records);
+    let references = resolve_reference_edges(&records, &reference_index);
+    let remaster_links = resolve_remaster_links(&records, &reference_index, source_root);
 
     Ok(SourceLoad {
         packs,
         records,
         references,
+        remaster_links,
         skipped_records,
         warnings,
     })
@@ -532,26 +552,38 @@ fn classify_record(document_type: &str, record_type: &str) -> Option<RecordFamil
     }
 }
 
-fn resolve_reference_edges(records: &[LoadedRecord]) -> Vec<ReferenceEdge> {
-    let mut records_by_pack_id = BTreeMap::new();
-    let mut records_by_pack_name = BTreeMap::<(String, String), Vec<RecordKey>>::new();
+fn build_record_reference_index(records: &[LoadedRecord]) -> RecordReferenceIndex {
+    let mut index = RecordReferenceIndex::default();
     for record in records {
-        records_by_pack_id.insert(
+        index.by_key.insert(record.key.to_string(), record.clone());
+        index.by_pack_id.insert(
             (
                 record.pack_name.as_str().to_string(),
                 record.id.as_str().to_string(),
             ),
             record.key.clone(),
         );
-        records_by_pack_name
+        index
+            .by_pack_name
             .entry((
                 record.pack_name.as_str().to_string(),
                 record.normalized_name.clone(),
             ))
             .or_default()
             .push(record.key.clone());
+        index
+            .by_name
+            .entry(record.normalized_name.clone())
+            .or_default()
+            .push(record.key.clone());
     }
+    index
+}
 
+fn resolve_reference_edges(
+    records: &[LoadedRecord],
+    index: &RecordReferenceIndex,
+) -> Vec<ReferenceEdge> {
     let mut seen = BTreeSet::new();
     let mut references = Vec::new();
     for record in records {
@@ -560,10 +592,12 @@ fn resolve_reference_edges(records: &[LoadedRecord]) -> Vec<ReferenceEdge> {
             else {
                 continue;
             };
-            let to_record_key = records_by_pack_id
+            let to_record_key = index
+                .by_pack_id
                 .get(&(pack_name.clone(), locator.clone()))
                 .or_else(|| {
-                    records_by_pack_name
+                    index
+                        .by_pack_name
                         .get(&(pack_name, normalize_text(&locator)))
                         .and_then(|matches| {
                             if matches.len() == 1 {
@@ -616,6 +650,432 @@ fn reference_pack_and_locator(raw_target: &str) -> Option<(String, String)> {
         return Some((parts.get(1)?.to_string(), parts.last()?.to_string()));
     }
     None
+}
+
+fn resolve_record_key(
+    pack_name: Option<&str>,
+    locator_or_name: &str,
+    index: &RecordReferenceIndex,
+) -> Option<RecordKey> {
+    let normalized = normalize_text(locator_or_name);
+    if normalized.is_empty() {
+        return None;
+    }
+
+    if let Some(pack_name) = pack_name {
+        if let Some(record_key) = index
+            .by_pack_id
+            .get(&(pack_name.to_string(), locator_or_name.to_string()))
+        {
+            return Some(record_key.clone());
+        }
+
+        let matches = index
+            .by_pack_name
+            .get(&(pack_name.to_string(), normalized.clone()))?;
+        return (matches.len() == 1).then(|| matches[0].clone());
+    }
+
+    let matches = index.by_name.get(&normalized)?;
+    (matches.len() == 1).then(|| matches[0].clone())
+}
+
+fn record_by_key<'a>(
+    index: &'a RecordReferenceIndex,
+    record_key: &RecordKey,
+) -> Option<&'a LoadedRecord> {
+    index.by_key.get(&record_key.to_string())
+}
+
+fn resolve_remaster_links(
+    records: &[LoadedRecord],
+    index: &RecordReferenceIndex,
+    source_root: &Path,
+) -> Vec<RemasterLink> {
+    let mut links = Vec::new();
+    for record in records {
+        if record.foundry_document_type != "JournalEntry"
+            || record.normalized_name != "remaster changes"
+        {
+            continue;
+        }
+
+        links.extend(extract_remaster_journal_links(record, index));
+    }
+
+    links.extend(extract_migration_remaster_links(source_root, index));
+    dedupe_remaster_links(links)
+}
+
+fn extract_remaster_journal_links(
+    record: &LoadedRecord,
+    index: &RecordReferenceIndex,
+) -> Vec<RemasterLink> {
+    let Ok(raw) = serde_json::from_str::<Value>(&record.raw_json) else {
+        return Vec::new();
+    };
+    let Some(pages) = raw.pointer("/pages").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+
+    let mut links = Vec::new();
+    for page in pages {
+        let page_name = pointer_string(page, "/name").unwrap_or_else(|| "journal-page".to_string());
+        let Some(content) = pointer_string(page, "/text/content") else {
+            continue;
+        };
+
+        if page_name == "Remaster Changes" {
+            for list_item in html_elements(&content, "li") {
+                let targets = resolve_journal_targets(&list_item, index);
+                if targets.len() != 1 {
+                    continue;
+                }
+                let plain = html_text(&list_item);
+                let old_segment = split_remaster_intro_alias_segment(&plain);
+                for alias_text in split_alias_list_text(&old_segment) {
+                    add_remaster_link(
+                        &mut links,
+                        &targets[0],
+                        &alias_text,
+                        RemasterLinkSource::RemasterJournal,
+                        &format!("journal:{page_name}"),
+                        index,
+                    );
+                }
+            }
+        }
+
+        for row in html_elements(&content, "tr") {
+            let cells = html_cells(&row);
+            if cells.len() < 2 {
+                continue;
+            }
+            let status_cell = if cells.len() >= 4 {
+                &cells[2]
+            } else {
+                "Renamed"
+            };
+            let status = normalize_text(&html_text(status_cell));
+            if !matches!(status.as_str(), "renamed" | "merged" | "replaced") {
+                continue;
+            }
+
+            let old_cell = &cells[0];
+            let new_cell = cells.last().expect("row should have at least two cells");
+            let targets = resolve_journal_targets(new_cell, index);
+            if targets.is_empty() {
+                continue;
+            }
+
+            if targets.len() == 1 {
+                let Some(old_name) = resolve_alias_source_name(old_cell, index) else {
+                    continue;
+                };
+                add_remaster_link(
+                    &mut links,
+                    &targets[0],
+                    &old_name,
+                    RemasterLinkSource::RemasterJournal,
+                    &format!("journal:{page_name}"),
+                    index,
+                );
+                continue;
+            }
+
+            let old_text = html_text(old_cell);
+            let Some(grouped_aliases) = expand_grouped_alias_text(&old_text, targets.len()) else {
+                continue;
+            };
+            for (alias_text, target) in grouped_aliases.iter().zip(targets.iter()) {
+                add_remaster_link(
+                    &mut links,
+                    target,
+                    alias_text,
+                    RemasterLinkSource::RemasterJournal,
+                    &format!("journal:{page_name}"),
+                    index,
+                );
+            }
+        }
+    }
+
+    links
+}
+
+fn extract_migration_remaster_links(
+    source_root: &Path,
+    index: &RecordReferenceIndex,
+) -> Vec<RemasterLink> {
+    let migration_root = source_root.join("src/module/migration/migrations");
+    let Ok(entries) = fs::read_dir(migration_root) else {
+        return Vec::new();
+    };
+
+    let mut paths = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "ts"))
+        .collect::<Vec<_>>();
+    paths.sort();
+
+    let mut links = Vec::new();
+    for path in paths {
+        let Ok(source) = fs::read_to_string(path) else {
+            continue;
+        };
+        for (legacy_name, remaster_name) in migration_rename_pairs(&source) {
+            let Some(remaster_record_key) = resolve_record_key(None, &remaster_name, index) else {
+                continue;
+            };
+            add_remaster_link(
+                &mut links,
+                &remaster_record_key,
+                &legacy_name,
+                RemasterLinkSource::Migration,
+                "src/module/migration/migrations",
+                index,
+            );
+        }
+    }
+
+    links
+}
+
+fn add_remaster_link(
+    links: &mut Vec<RemasterLink>,
+    remaster_record_key: &RecordKey,
+    legacy_name: &str,
+    source: RemasterLinkSource,
+    source_ref: &str,
+    index: &RecordReferenceIndex,
+) {
+    let Some(legacy_record_key) = resolve_record_key(None, legacy_name, index) else {
+        return;
+    };
+    if legacy_record_key == *remaster_record_key {
+        return;
+    }
+
+    let Some(remaster_record) = record_by_key(index, remaster_record_key) else {
+        return;
+    };
+    let Some(legacy_record) = record_by_key(index, &legacy_record_key) else {
+        return;
+    };
+    if !remaster_record.publication_remaster || legacy_record.publication_remaster {
+        return;
+    }
+
+    links.push(RemasterLink {
+        remaster_record_key: remaster_record_key.clone(),
+        legacy_record_key,
+        source,
+        source_ref: source_ref.to_string(),
+    });
+}
+
+fn dedupe_remaster_links(links: Vec<RemasterLink>) -> Vec<RemasterLink> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for link in links {
+        let key = (
+            link.remaster_record_key.to_string(),
+            link.legacy_record_key.to_string(),
+            remaster_link_source_label(link.source),
+            link.source_ref.clone(),
+        );
+        if seen.insert(key) {
+            deduped.push(link);
+        }
+    }
+    deduped.sort_by(|left, right| {
+        (
+            left.remaster_record_key.to_string(),
+            left.legacy_record_key.to_string(),
+            remaster_link_source_label(left.source),
+            left.source_ref.as_str(),
+        )
+            .cmp(&(
+                right.remaster_record_key.to_string(),
+                right.legacy_record_key.to_string(),
+                remaster_link_source_label(right.source),
+                right.source_ref.as_str(),
+            ))
+    });
+    deduped
+}
+
+fn resolve_journal_targets(cell_html: &str, index: &RecordReferenceIndex) -> Vec<RecordKey> {
+    let candidates = extract_reference_candidates_from_text(cell_html);
+    if candidates.is_empty() {
+        let plain = html_text(cell_html);
+        return resolve_record_key(None, &plain, index)
+            .into_iter()
+            .collect();
+    }
+
+    let mut targets = Vec::new();
+    for candidate in candidates {
+        let Some((pack_name, locator)) = reference_pack_and_locator(&candidate.raw_target) else {
+            continue;
+        };
+        let Some(record_key) = resolve_record_key(Some(&pack_name), &locator, index) else {
+            continue;
+        };
+        if record_by_key(index, &record_key)
+            .is_some_and(|record| record.foundry_document_type != "JournalEntry")
+        {
+            targets.push(record_key);
+        }
+    }
+    targets
+}
+
+fn resolve_alias_source_name(cell_html: &str, index: &RecordReferenceIndex) -> Option<String> {
+    let direct_text = html_text(cell_html);
+    if !direct_text.is_empty() && !cell_html.contains("@UUID[") {
+        return Some(direct_text);
+    }
+
+    let candidate = extract_reference_candidates_from_text(cell_html)
+        .into_iter()
+        .next()?;
+    let (pack_name, locator) = reference_pack_and_locator(&candidate.raw_target)?;
+    let record_key = resolve_record_key(Some(&pack_name), &locator, index)?;
+    record_by_key(index, &record_key).map(|record| record.name.clone())
+}
+
+fn split_remaster_intro_alias_segment(plain_text: &str) -> String {
+    for delimiter in [
+        " are merged into ",
+        " is merged into ",
+        " are now ",
+        " is now ",
+    ] {
+        if let Some((segment, _)) = plain_text.split_once(delimiter) {
+            return segment.trim().to_string();
+        }
+    }
+    plain_text.trim().to_string()
+}
+
+fn split_alias_list_text(value: &str) -> Vec<String> {
+    value
+        .replace(" and ", ", ")
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn expand_grouped_alias_text(alias_text: &str, expected_count: usize) -> Option<Vec<String>> {
+    let open = alias_text.rfind('(')?;
+    let close = alias_text.rfind(')')?;
+    if close <= open {
+        return None;
+    }
+    let base_name = alias_text[..open].trim();
+    let variants = split_alias_list_text(&alias_text[open + 1..close]);
+    if base_name.is_empty() || variants.len() != expected_count {
+        return None;
+    }
+    Some(
+        variants
+            .into_iter()
+            .map(|variant| format!("{base_name} ({variant})"))
+            .collect(),
+    )
+}
+
+fn migration_rename_pairs(source: &str) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    let mut rest = source;
+    while let Some(start) = rest.find("Rename all uses and mentions of \"") {
+        rest = &rest[start + "Rename all uses and mentions of \"".len()..];
+        let Some(old_end) = rest.find('"') else {
+            break;
+        };
+        let legacy_name = rest[..old_end].trim().to_string();
+        rest = &rest[old_end + 1..];
+        let Some(to_start) = rest.find(" to \"") else {
+            continue;
+        };
+        rest = &rest[to_start + " to \"".len()..];
+        let Some(new_end) = rest.find('"') else {
+            break;
+        };
+        let remaster_name = rest[..new_end].trim().to_string();
+        rest = &rest[new_end + 1..];
+        if !legacy_name.is_empty() && !remaster_name.is_empty() {
+            pairs.push((legacy_name, remaster_name));
+        }
+    }
+    pairs
+}
+
+fn html_cells(row_html: &str) -> Vec<String> {
+    let mut cells = html_elements(row_html, "td");
+    cells.extend(html_elements(row_html, "th"));
+    cells
+}
+
+fn html_elements(html: &str, tag_name: &str) -> Vec<String> {
+    let lower = html.to_lowercase();
+    let open_prefix = format!("<{tag_name}");
+    let close_tag = format!("</{tag_name}>");
+    let mut elements = Vec::new();
+    let mut offset = 0;
+    while let Some(open_relative) = lower[offset..].find(&open_prefix) {
+        let open = offset + open_relative;
+        let Some(open_end_relative) = lower[open..].find('>') else {
+            break;
+        };
+        let content_start = open + open_end_relative + 1;
+        let Some(close_relative) = lower[content_start..].find(&close_tag) else {
+            break;
+        };
+        let close = content_start + close_relative;
+        elements.push(html[content_start..close].to_string());
+        offset = close + close_tag.len();
+    }
+    elements
+}
+
+fn html_text(value: &str) -> String {
+    let mut output = String::new();
+    let mut in_tag = false;
+    let mut chars = value.chars().peekable();
+    while let Some(character) = chars.next() {
+        match character {
+            '<' => in_tag = true,
+            '>' => {
+                in_tag = false;
+                output.push(' ');
+            }
+            '@' if !in_tag && chars.peek().is_some_and(|next| *next == 'U') => {
+                for next in chars.by_ref() {
+                    if next == ']' {
+                        break;
+                    }
+                }
+                if chars.peek().is_some_and(|next| *next == '{') {
+                    let _ = chars.next();
+                    for display in chars.by_ref() {
+                        if display == '}' {
+                            break;
+                        }
+                        output.push(display);
+                    }
+                }
+                output.push(' ');
+            }
+            _ if !in_tag => output.push(character),
+            _ => {}
+        }
+    }
+    output.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn extract_reference_candidates(raw: &Value) -> Vec<ReferenceCandidate> {
@@ -1529,6 +1989,7 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records)?;
     write_reference_edges(&transaction, &source.references)?;
+    write_remaster_links(&transaction, &source.remaster_links)?;
     write_metric_catalogs(&transaction)?;
     transaction
         .commit()
@@ -1622,6 +2083,16 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               PRIMARY KEY (from_record_key, to_record_key, reference_text),
               FOREIGN KEY (from_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
               FOREIGN KEY (to_record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
+            CREATE TABLE remaster_links (
+              remaster_record_key TEXT NOT NULL,
+              legacy_record_key TEXT NOT NULL,
+              source_kind TEXT NOT NULL CHECK (source_kind IN ('remaster_journal', 'migration')),
+              source_ref TEXT NOT NULL,
+              PRIMARY KEY (remaster_record_key, legacy_record_key, source_kind, source_ref),
+              FOREIGN KEY (remaster_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
+              FOREIGN KEY (legacy_record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
 
             CREATE TABLE record_metrics (
@@ -2045,6 +2516,31 @@ fn write_reference_edges(
     Ok(())
 }
 
+fn write_remaster_links(
+    connection: &Connection,
+    remaster_links: &[RemasterLink],
+) -> Result<(), IngestError> {
+    let mut insert_link = connection
+        .prepare(
+            "INSERT OR IGNORE INTO remaster_links (
+              remaster_record_key, legacy_record_key, source_kind, source_ref
+            ) VALUES (?1, ?2, ?3, ?4)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+
+    for link in remaster_links {
+        insert_link
+            .execute((
+                link.remaster_record_key.to_string(),
+                link.legacy_record_key.to_string(),
+                remaster_link_source_label(link.source),
+                link.source_ref.as_str(),
+            ))
+            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    }
+    Ok(())
+}
+
 fn metric_value_parts(
     value: &MetricValue,
 ) -> (&'static str, Option<f64>, Option<&str>, Option<i64>) {
@@ -2087,6 +2583,13 @@ fn metric_value_type_label(value_type: MetricValueType) -> &'static str {
         MetricValueType::Number => "number",
         MetricValueType::Text => "text",
         MetricValueType::Boolean => "boolean",
+    }
+}
+
+fn remaster_link_source_label(source: RemasterLinkSource) -> &'static str {
+    match source {
+        RemasterLinkSource::RemasterJournal => "remaster_journal",
+        RemasterLinkSource::Migration => "migration",
     }
 }
 
