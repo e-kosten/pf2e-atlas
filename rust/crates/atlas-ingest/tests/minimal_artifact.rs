@@ -16,6 +16,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
 
     assert_eq!(source.packs.len(), 4);
     assert_eq!(source.records.len(), 5);
+    assert_eq!(source.references.len(), 2);
     assert!(source.skipped_records.is_empty());
     assert!(source.warnings.is_empty());
 
@@ -33,6 +34,25 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         treat_wounds.description_text.as_deref(),
         Some("You spend 10 minutes treating one injured living creature.")
     );
+    assert_eq!(
+        source.references[0].from_record_key.to_string(),
+        "actions:testAction0001"
+    );
+    assert_eq!(
+        source.references[0].to_record_key.to_string(),
+        "spells:testSpell0001"
+    );
+    assert_eq!(source.references[0].display_text.as_deref(), Some("Heal"));
+    assert_eq!(
+        source.references[0].reference_text,
+        "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}"
+    );
+    assert!(source.references.iter().any(|reference| {
+        reference.from_record_key.to_string() == "actions:testAction0002"
+            && reference.to_record_key.to_string() == "spells:testSpell0001"
+            && reference.display_text.as_deref() == Some("Heal Spell")
+            && reference.reference_text == "@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}"
+    }));
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -167,6 +187,15 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM item_records", [], |row| row.get(0))?;
     let spell_side_count: usize =
         connection.query_row("SELECT COUNT(*) FROM spell_records", [], |row| row.get(0))?;
+    let reference_edge_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM reference_edges", [], |row| row.get(0))?;
+    let (reference_to, reference_display, reference_text): (String, String, String) = connection
+        .query_row(
+            "SELECT to_record_key, display_text, reference_text
+             FROM reference_edges WHERE from_record_key = 'actions:testAction0001'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
     let (
         action_count,
         action_price,
@@ -288,6 +317,13 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(actor_side_count, 1);
     assert_eq!(item_side_count, 4);
     assert_eq!(spell_side_count, 1);
+    assert_eq!(reference_edge_count, 2);
+    assert_eq!(reference_to, "spells:testSpell0001");
+    assert_eq!(reference_display, "Heal");
+    assert_eq!(
+        reference_text,
+        "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}"
+    );
     assert_eq!(action_count, 1);
     assert_eq!(action_price, 30);
     assert_eq!(action_usage, "held-in-one-hand");
@@ -354,6 +390,12 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             "usage": { "value": "held-in-one-hand" },
             "price": { "value": { "sp": 3 } },
             "publication": { "title": "Player Core", "remaster": true },
+            "rules": [
+              {
+                "key": "Note",
+                "text": "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.missingSpell]{Missing}"
+              }
+            ],
             "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
           }
         }"#,
@@ -366,6 +408,12 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "action",
           "system": {
             "traits": { "value": ["auditory", "concentrate", "emotion", "fear", "mental"] },
+            "rules": [
+              {
+                "key": "Note",
+                "text": "@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}"
+              }
+            ],
             "description": { "value": "<p>Use Intimidation to frighten a creature.</p>" }
           }
         }"#,
