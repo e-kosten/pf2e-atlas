@@ -185,7 +185,8 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Extract selected direct `system_*` projections.
 - [x] Preserve raw price JSON and normalize `price_cp`.
 - [x] Normalize activation time separately from effect/spell duration.
-- [ ] Extract aliases and variant names.
+- [x] Extract source-backed aliases from remaster journals, migration rename files, and embedded compendium sources.
+- [ ] Extract variant names.
 - [x] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.
 - [x] Write `packs`.
@@ -195,7 +196,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write record traits.
 - [x] Write unified `record_metrics` with actor/item metric domains.
 - [x] Generate metric key/value catalogs from `record_metrics`.
-- [ ] Write aliases.
+- [x] Write aliases.
 - [x] Write remaster links preserving current premaster-to-remaster bridge behavior.
 - [x] Write actor side-data.
 - [x] Write item side-data.
