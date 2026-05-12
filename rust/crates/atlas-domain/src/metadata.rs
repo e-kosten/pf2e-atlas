@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum MetadataSetField {
     Traits,
-    Families,
+    TaxonomyFamilies,
     DerivedTags,
     Traditions,
     SpellKinds,
@@ -22,18 +22,17 @@ pub enum MetadataSetField {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetadataEnumStringField {
-    SourceCategory,
+    PublicationFamily,
     Size,
     Usage,
-    WeaponGroup,
-    ArmorGroup,
-    ItemCategory,
+    SystemGroup,
+    FoundryRecordType,
     BaseItem,
     SaveType,
     AreaType,
     DurationUnit,
     Rarity,
-    VariantFamilyKey,
+    VariantGroupKey,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -63,7 +62,6 @@ pub enum MetadataNumberField {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetadataBooleanField {
-    HasDescription,
     PublicationRemaster,
     Sustained,
     BasicSave,

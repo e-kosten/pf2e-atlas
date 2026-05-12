@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_domain::{Category, ValidationStatus};
+use atlas_domain::{RecordFamily, ValidationStatus};
 use atlas_index::validate_index;
 use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact, load_foundry_source};
 use rusqlite::Connection;
@@ -26,8 +26,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         .expect("action record should load");
     assert_eq!(treat_wounds.name, "Treat Wounds");
     assert_eq!(treat_wounds.normalized_name, "treat wounds");
-    assert_eq!(treat_wounds.category, Category::Rule);
-    assert_eq!(treat_wounds.record_type, "action");
+    assert_eq!(treat_wounds.record_family, RecordFamily::Rule);
+    assert_eq!(treat_wounds.foundry_record_type, "action");
     assert_eq!(treat_wounds.traits, vec!["exploration", "healing"]);
     assert_eq!(
         treat_wounds.description_text.as_deref(),
@@ -144,8 +144,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM records", [], |row| row.get(0))?;
     let fts_count: usize =
         connection.query_row("SELECT COUNT(*) FROM records_fts", [], |row| row.get(0))?;
-    let spell_category: String = connection.query_row(
-        "SELECT category FROM records WHERE record_key = 'spells:testSpell0001'",
+    let spell_record_family: String = connection.query_row(
+        "SELECT record_family FROM records WHERE record_key = 'spells:testSpell0001'",
         [],
         |row| row.get(0),
     )?;
@@ -153,7 +153,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(pack_count, 2);
     assert_eq!(record_count, 3);
     assert_eq!(fts_count, 3);
-    assert_eq!(spell_category, "spell");
+    assert_eq!(spell_record_family, "spell");
 
     drop(connection);
     fs::remove_dir_all(root)?;

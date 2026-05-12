@@ -4,14 +4,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use atlas_domain::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION, Category,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
     EXPECTED_CONTENT_HASH_ALGORITHM, EXPECTED_EMBEDDING_DIMENSIONS,
     EXPECTED_EMBEDDING_DISTANCE_METRIC, EXPECTED_EMBEDDING_DOCUMENT_PREFIX,
     EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID, EXPECTED_EMBEDDING_MODEL_REVISION,
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, PackName,
-    RecordId, RecordKey, SourceCategory, TextStatus, artifact_metadata_keys,
+    PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus, artifact_metadata_keys,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
@@ -80,20 +80,19 @@ pub struct LoadedRecord {
     pub id: RecordId,
     pub name: String,
     pub normalized_name: String,
-    pub category: Category,
+    pub record_family: RecordFamily,
     pub pack_name: PackName,
     pub pack_label: String,
-    pub document_type: String,
-    pub record_type: String,
+    pub foundry_document_type: String,
+    pub foundry_record_type: String,
     pub traits: Vec<String>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
     pub description_text: Option<String>,
-    pub has_description: bool,
-    pub source_category: SourceCategory,
+    pub publication_family: PublicationFamily,
     pub source_path: String,
     pub text_status: TextStatus,
-    pub search_text: String,
+    pub search_text_projection: String,
     pub raw_json: String,
 }
 
@@ -294,7 +293,16 @@ fn normalize_record(
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
     let normalized_name = normalize_text(&name);
-    let category = classify_record(&manifest_pack.document_type, &record_type);
+    let record_family =
+        classify_record(&manifest_pack.document_type, &record_type).ok_or_else(|| {
+            normalization_error(
+                path,
+                &format!(
+                    "unsupported Foundry record taxonomy: {}|{}",
+                    manifest_pack.document_type, record_type
+                ),
+            )
+        })?;
     let traits = extract_traits(&raw);
     let publication_title = pointer_string(&raw, "/system/publication/title");
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
@@ -311,7 +319,7 @@ fn normalize_record(
         .unwrap_or(path)
         .to_string_lossy()
         .to_string();
-    let search_text = create_search_text(&name, description_text.as_deref(), &traits);
+    let search_text_projection = create_search_text(&name, description_text.as_deref(), &traits);
     let raw_json = serde_json::to_string(&raw).map_err(|error| {
         normalization_error(path, &format!("raw JSON serialization failed: {error}"))
     })?;
@@ -321,20 +329,19 @@ fn normalize_record(
         id,
         name,
         normalized_name,
-        category,
+        record_family,
         pack_name: pack_name.clone(),
         pack_label: manifest_pack.label.clone(),
-        document_type: manifest_pack.document_type.clone(),
-        record_type,
+        foundry_document_type: manifest_pack.document_type.clone(),
+        foundry_record_type: record_type,
         traits,
         publication_title,
         publication_remaster,
         description_text: description_text.clone(),
-        has_description: description_text.is_some(),
-        source_category: SourceCategory::Unknown,
+        publication_family: PublicationFamily::Unknown,
         source_path,
         text_status,
-        search_text,
+        search_text_projection,
         raw_json,
     })
 }
@@ -346,17 +353,31 @@ fn normalization_error(path: &Path, message: &str) -> IngestError {
     }
 }
 
-fn classify_record(document_type: &str, record_type: &str) -> Category {
+fn classify_record(document_type: &str, record_type: &str) -> Option<RecordFamily> {
     match (document_type, record_type) {
-        ("Actor", "hazard") => Category::Hazard,
-        ("Actor", _) => Category::Creature,
-        ("Item", "action" | "condition" | "effect") => Category::Rule,
-        ("Item", "spell") => Category::Spell,
-        ("Item", "feat") => Category::Feat,
-        ("Item", "ancestry" | "background" | "class" | "heritage") => Category::CharacterCreation,
-        ("Item", "weapon" | "armor" | "shield" | "consumable") => Category::Equipment,
-        ("JournalEntry", _) | ("JournalEntryPage", _) => Category::Lore,
-        _ => Category::Lore,
+        ("Actor", "npc") => Some(RecordFamily::Creature),
+        ("Actor", "character") => Some(RecordFamily::Character),
+        ("Actor", "familiar") => Some(RecordFamily::Companion),
+        ("Actor", "army") => Some(RecordFamily::Army),
+        ("Actor", "hazard") => Some(RecordFamily::Hazard),
+        ("Actor", "vehicle") => Some(RecordFamily::Vehicle),
+        (
+            "Item",
+            "ammo" | "armor" | "backpack" | "consumable" | "equipment" | "kit" | "shield"
+            | "treasure" | "weapon",
+        ) => Some(RecordFamily::Equipment),
+        ("Item", "feat") => Some(RecordFamily::Feat),
+        ("Item", "spell") => Some(RecordFamily::Spell),
+        ("Item", "action" | "condition" | "effect") => Some(RecordFamily::Rule),
+        ("Item", "ancestry" | "background" | "class" | "heritage") => {
+            Some(RecordFamily::CharacterOption)
+        }
+        ("Item", "deity") | ("JournalEntry", _) | ("JournalEntryPage", _) => {
+            Some(RecordFamily::Lore)
+        }
+        ("Macro", "script") | ("RollTable", _) => Some(RecordFamily::Tooling),
+        ("Item", "campaignFeature") => Some(RecordFamily::CampaignFeature),
+        _ => None,
     }
 }
 
@@ -471,11 +492,11 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               id TEXT NOT NULL,
               name TEXT NOT NULL,
               normalized_name TEXT NOT NULL,
-              category TEXT NOT NULL,
+              record_family TEXT NOT NULL,
               pack_name TEXT NOT NULL,
               pack_label TEXT NOT NULL,
-              document_type TEXT NOT NULL,
-              record_type TEXT NOT NULL,
+              foundry_document_type TEXT NOT NULL,
+              foundry_record_type TEXT NOT NULL,
               level INTEGER,
               rarity TEXT,
               traits_json TEXT NOT NULL,
@@ -484,12 +505,11 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               publication_remaster INTEGER NOT NULL,
               description_text TEXT,
               blurb_text TEXT,
-              has_description INTEGER NOT NULL,
               description_snippet TEXT,
-              source_category TEXT NOT NULL,
+              publication_family TEXT NOT NULL,
               folder_id TEXT,
-              families_json TEXT NOT NULL,
-              variant_family_key TEXT,
+              taxonomy_families_json TEXT NOT NULL,
+              variant_group_key TEXT,
               variant_base_name TEXT,
               variant_label TEXT,
               variant_axes_json TEXT NOT NULL,
@@ -498,14 +518,14 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               source_path TEXT NOT NULL,
               is_unique INTEGER NOT NULL,
               is_search_canonical INTEGER NOT NULL,
-              search_text TEXT NOT NULL,
+              search_text_projection TEXT NOT NULL,
               raw_json TEXT NOT NULL
             );
 
             CREATE VIRTUAL TABLE records_fts USING fts5(
               record_key UNINDEXED,
               name,
-              search_text
+              search_text_projection
             );
             ",
         )
@@ -632,16 +652,16 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
     let mut insert_record = connection
         .prepare(
             "INSERT INTO records (
-              record_key, id, name, normalized_name, category, pack_name, pack_label, document_type, record_type,
+              record_key, id, name, normalized_name, record_family, pack_name, pack_label, foundry_document_type, foundry_record_type,
               level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, blurb_text,
-              has_description, description_snippet, source_category, folder_id, families_json, variant_family_key, variant_base_name,
+              description_snippet, publication_family, folder_id, taxonomy_families_json, variant_group_key, variant_base_name,
               variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_unique, is_search_canonical,
-              search_text, raw_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)",
+              search_text_projection, raw_json
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
-        .prepare("INSERT INTO records_fts (record_key, name, search_text) VALUES (?1, ?2, ?3)")
+        .prepare("INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for record in records {
@@ -653,11 +673,11 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.id.as_str(),
                 record.name.as_str(),
                 record.normalized_name.as_str(),
-                record.category.as_str(),
+                record.record_family.as_str(),
                 record.pack_name.as_str(),
                 record.pack_label.as_str(),
-                record.document_type.as_str(),
-                record.record_type.as_str(),
+                record.foundry_document_type.as_str(),
+                record.foundry_record_type.as_str(),
                 Option::<i64>::None,
                 Option::<String>::None,
                 traits_json,
@@ -666,9 +686,8 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 i64::from(record.publication_remaster),
                 record.description_text.as_deref(),
                 Option::<String>::None,
-                i64::from(record.has_description),
                 record.description_text.as_deref(),
-                source_category_label(record.source_category),
+                publication_family_label(record.publication_family),
                 Option::<String>::None,
                 "[]",
                 Option::<String>::None,
@@ -680,7 +699,7 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.source_path.as_str(),
                 0_i64,
                 1_i64,
-                record.search_text.as_str(),
+                record.search_text_projection.as_str(),
                 record.raw_json.as_str(),
             ])
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -688,19 +707,19 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
             .execute((
                 record.key.to_string(),
                 record.name.as_str(),
-                record.search_text.as_str(),
+                record.search_text_projection.as_str(),
             ))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
-fn source_category_label(source_category: SourceCategory) -> &'static str {
-    match source_category {
-        SourceCategory::Core => "core",
-        SourceCategory::Rules => "rules",
-        SourceCategory::Adventure => "adventure",
-        SourceCategory::Unknown => "unknown",
+fn publication_family_label(publication_family: PublicationFamily) -> &'static str {
+    match publication_family {
+        PublicationFamily::Core => "core",
+        PublicationFamily::Rules => "rules",
+        PublicationFamily::Adventure => "adventure",
+        PublicationFamily::Unknown => "unknown",
     }
 }
 
@@ -722,4 +741,58 @@ pub fn read_artifact_counts(path: &Path) -> Result<(usize, usize), IngestError> 
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
         .unwrap_or_default();
     Ok((pack_count, record_count))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_complete_foundry_document_type_taxonomy() {
+        let cases = [
+            ("Actor", "npc", RecordFamily::Creature),
+            ("Actor", "character", RecordFamily::Character),
+            ("Actor", "familiar", RecordFamily::Companion),
+            ("Actor", "army", RecordFamily::Army),
+            ("Actor", "hazard", RecordFamily::Hazard),
+            ("Actor", "vehicle", RecordFamily::Vehicle),
+            ("Item", "ammo", RecordFamily::Equipment),
+            ("Item", "armor", RecordFamily::Equipment),
+            ("Item", "backpack", RecordFamily::Equipment),
+            ("Item", "consumable", RecordFamily::Equipment),
+            ("Item", "equipment", RecordFamily::Equipment),
+            ("Item", "kit", RecordFamily::Equipment),
+            ("Item", "shield", RecordFamily::Equipment),
+            ("Item", "treasure", RecordFamily::Equipment),
+            ("Item", "weapon", RecordFamily::Equipment),
+            ("Item", "feat", RecordFamily::Feat),
+            ("Item", "spell", RecordFamily::Spell),
+            ("Item", "action", RecordFamily::Rule),
+            ("Item", "condition", RecordFamily::Rule),
+            ("Item", "effect", RecordFamily::Rule),
+            ("Item", "ancestry", RecordFamily::CharacterOption),
+            ("Item", "background", RecordFamily::CharacterOption),
+            ("Item", "class", RecordFamily::CharacterOption),
+            ("Item", "heritage", RecordFamily::CharacterOption),
+            ("Item", "deity", RecordFamily::Lore),
+            ("JournalEntry", "JournalEntry", RecordFamily::Lore),
+            ("Macro", "script", RecordFamily::Tooling),
+            ("RollTable", "RollTable", RecordFamily::Tooling),
+            ("Item", "campaignFeature", RecordFamily::CampaignFeature),
+        ];
+
+        for (document_type, record_type, expected) in cases {
+            assert_eq!(
+                classify_record(document_type, record_type),
+                Some(expected),
+                "{document_type}|{record_type}"
+            );
+        }
+    }
+
+    #[test]
+    fn leaves_unknown_foundry_taxonomy_for_skip_reporting() {
+        assert_eq!(classify_record("Actor", "mystery"), None);
+        assert_eq!(classify_record("Item", "mystery"), None);
+    }
 }
