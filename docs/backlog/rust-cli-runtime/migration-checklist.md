@@ -128,14 +128,14 @@ Acceptance:
 
 Goal: define the typed runtime vocabulary that later ingest, index, search, CLI, and TUI crates share.
 
-- [ ] Add `RecordKey` with pack and record id parsing.
-- [ ] Add category and subcategory vocabularies.
+- [x] Add `RecordKey` with pack and record id parsing.
+- [x] Add category and subcategory vocabularies.
 - [ ] Add rarity, level, action-cost, and source/publication primitives.
 - [ ] Add canonical record summary type.
-- [ ] Add detail-level vocabulary:
-  - [ ] compact
-  - [ ] standard
-  - [ ] full
+- [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
+  - [x] minimal
+  - [x] standard
+  - [x] full
 - [ ] Add internal text availability/parsing status vocabulary for row loading and diagnostics, not as a new
   user-facing answerability capability:
   - [ ] resolved
