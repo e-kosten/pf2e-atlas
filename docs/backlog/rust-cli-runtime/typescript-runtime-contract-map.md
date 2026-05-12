@@ -44,7 +44,7 @@ Primary TypeScript sources:
 | `record_aliases` | Variant/name lookup aliases | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. |
 | `record_legacy_links` | Premaster-to-remaster record bridges extracted from remaster journals and migration aliases | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest` | Preserve the domain concept, but name/model it as `remaster_links` or edition links in Rust rather than a generic legacy compatibility bucket. |
 | `record_traits` | Normalized trait rows | parity | `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for trait filters and value discovery. |
-| `record_derived_tags` | Normalized derived-tag rows | parity | `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for read-only tag filtering before editorial migration. |
+| `record_derived_tags` | Normalized derived-tag rows | deferred redesign | Later `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Derived tags are intentionally deferred until late in the Rust migration. The surface is large and needs a separate design pass because `record_family`, explicit source axes, and retired subcategory semantics change the long-term tag model. |
 | `actor_records` | Actor-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for creature/hazard discovery and filters. |
 | `actor_metrics` | Actor metric predicates and discovery | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Required for metric filters and dynamic metric discovery. |
 | `item_records` | Item/equipment side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for item metadata filters and discovery. |
@@ -57,7 +57,7 @@ Primary TypeScript sources:
 | `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `linksTo`, `linkedFrom`, graph, and rule context. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
-Required Phase 3 writer outputs are therefore broader than the current checklist's first table list. The writer plan must cover `packs`, side tables, metric catalogs, embeddings/vector linkage, and derived-tag rows, not only `records`, `records_fts`, and `reference_edges`.
+Required Phase 3 writer outputs are therefore broader than the current checklist's first table list. The writer plan must cover `packs`, side tables, metric catalogs, and embeddings/vector linkage, not only `records`, `records_fts`, and `reference_edges`. Derived-tag rows are excluded from Phase 3 until the late-migration redesign pass.
 
 ## Foundational DB And Type Design Review
 
@@ -158,7 +158,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
 | `RuleReferenceEdge` and graph results | `ReferenceEdge`, graph request/result structs, rule-context request/result structs | `atlas-domain` | parity semantics, Rust-owned shape | Required for rule graph and rule context. Record-reference edges stay separate from remaster same-concept bridges. |
 | `record_legacy_links` rows | `RemasterLink` | `atlas-domain` | rust redesign | Represents premaster/remaster records that are conceptually the same record across edition state. Direction is `remaster` to `legacy`, preserving current TS canonical-to-legacy behavior. Source is currently `remaster_journal` or `migration`; do not model renamed/merged/replaced subtypes until ingest preserves that distinction. |
-| derived-tag ontology/runtime types | runtime tag model and filtered row model | `atlas-tags` with shared ids in `atlas-domain` | rust redesign | Do not port high-churn editorial state before read-only runtime consumption. |
+| derived-tag ontology/runtime types | redesigned tag model and filtered row model | Later `atlas-tags` with shared ids in `atlas-domain` if retained | deferred redesign | Do not port derived tags during Phase 3. Revisit them late after `record_family`, explicit source axes, and search/discovery shape have stabilized. |
 
 ## Filter And Discovery Contract Map
 
@@ -167,7 +167,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 - field vocabulary from `FILTER_VALUE_FIELDS`
 - metadata field kind/operator compatibility
 - category scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
-- traits, families, derived tags, and variant axes
+- traits, taxonomy families, and variant axes; derived tags return only after the late redesign pass
 - spell traditions and spell kinds
 - item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
 - actor fields such as size, languages, speeds, senses, immunities, resistances, weaknesses, disable skills, and complexity

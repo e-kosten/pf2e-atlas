@@ -149,11 +149,50 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
+    let trait_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM record_traits", [], |row| row.get(0))?;
+    let (
+        action_count,
+        action_price,
+        action_usage,
+        action_activation_kind,
+        action_activation_actions,
+    ): (i64, i64, String, String, i64) = connection.query_row(
+        "SELECT system_actions_value, price_cp, system_usage, activation_time_kind, activation_time_actions
+         FROM records WHERE record_key = 'actions:testAction0001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+    )?;
+    let (spell_time, spell_activation_kind, spell_activation_duration_value, spell_activation_duration_unit, spell_duration, spell_duration_unit): (
+        String,
+        String,
+        i64,
+        String,
+        i64,
+        String,
+    ) = connection.query_row(
+        "SELECT system_time_value, activation_time_kind, activation_time_duration_value, activation_time_duration_unit, duration_value, duration_unit
+         FROM records WHERE record_key = 'spells:testSpell0001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+    )?;
 
     assert_eq!(pack_count, 2);
     assert_eq!(record_count, 3);
     assert_eq!(fts_count, 3);
     assert_eq!(spell_record_family, "spell");
+    assert_eq!(trait_count, 9);
+    assert_eq!(action_count, 1);
+    assert_eq!(action_price, 30);
+    assert_eq!(action_usage, "held-in-one-hand");
+    assert_eq!(action_activation_kind, "actions");
+    assert_eq!(action_activation_actions, 1);
+    assert_eq!(spell_time, "1 minute");
+    assert_eq!(spell_activation_kind, "duration");
+    assert_eq!(spell_activation_duration_value, 1);
+    assert_eq!(spell_activation_duration_unit, "minute");
+    assert_eq!(spell_duration, 10);
+    assert_eq!(spell_duration_unit, "minute");
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -180,6 +219,9 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "action",
           "system": {
             "traits": { "value": ["healing", "exploration"] },
+            "actions": { "value": 1 },
+            "usage": { "value": "held-in-one-hand" },
+            "price": { "value": { "sp": 3 } },
             "publication": { "title": "Player Core", "remaster": true },
             "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
           }
@@ -205,6 +247,8 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "spell",
           "system": {
             "traits": { "value": ["healing", "vitality"] },
+            "time": { "value": "1 minute" },
+            "duration": { "value": "10 minutes" },
             "publication": { "title": "Player Core" },
             "description": { "value": "<p>You channel vital energy.</p>" }
           }
