@@ -48,6 +48,7 @@ pub struct BuildArtifactReport {
     pub output_path: PathBuf,
     pub pack_count: usize,
     pub record_count: usize,
+    pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
 }
@@ -59,8 +60,20 @@ pub struct SourceLoad {
     pub references: Vec<ReferenceEdge>,
     pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,
+    pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IngestDiagnostics {
+    pub taxonomy_folder_records: usize,
+    pub taxonomy_glossary_records: usize,
+    pub variant_parenthetical_records: usize,
+    pub variant_suffix_records: usize,
+    pub variant_creature_blurb_records: usize,
+    pub variant_creature_suffix_records: usize,
+    pub variant_exact_base_records: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -244,7 +257,17 @@ struct VariantCandidate {
     label: Option<String>,
     axes: Vec<String>,
     source: &'static str,
+    diagnostic_source: VariantDiagnosticSource,
     confidence: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariantDiagnosticSource {
+    Parenthetical,
+    Suffix,
+    CreatureBlurb,
+    CreatureSuffix,
+    ExactBase,
 }
 
 #[derive(Debug, Deserialize)]
@@ -282,6 +305,7 @@ pub fn build_minimal_artifact(
         output_path: options.output_path,
         pack_count: source.packs.len(),
         record_count: source.records.len(),
+        diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,
         warnings: source.warnings,
     })
@@ -307,6 +331,7 @@ pub fn load_foundry_source(
     let mut records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
+    let mut diagnostics = IngestDiagnostics::default();
 
     for manifest_pack in manifest.packs {
         let resolved_path = resolve_pack_path(source_root, &manifest_pack);
@@ -363,8 +388,8 @@ pub fn load_foundry_source(
     }
 
     let reference_index = build_record_reference_index(&records);
-    assign_taxonomy_families(&mut records, &packs, &reference_index);
-    assign_variant_groups(&mut records, &reference_index);
+    assign_taxonomy_families(&mut records, &packs, &reference_index, &mut diagnostics);
+    assign_variant_groups(&mut records, &reference_index, &mut diagnostics);
     let references = resolve_reference_edges(&records, &reference_index);
     let aliases = resolve_record_aliases(&records, &reference_index, source_root);
     let remaster_links = resolve_remaster_links(&records, &reference_index, source_root);
@@ -375,6 +400,7 @@ pub fn load_foundry_source(
         references,
         aliases,
         remaster_links,
+        diagnostics,
         skipped_records,
         warnings,
     })
@@ -432,6 +458,9 @@ fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), Inges
         } else if path
             .extension()
             .is_some_and(|extension| extension == "json")
+            && path
+                .file_name()
+                .is_none_or(|file_name| file_name != "_folders.json")
         {
             paths.push(path);
         }
@@ -648,18 +677,22 @@ fn assign_taxonomy_families(
     records: &mut [LoadedRecord],
     packs: &[LoadedPack],
     index: &RecordReferenceIndex,
+    diagnostics: &mut IngestDiagnostics,
 ) {
     let folder_families = load_folder_family_maps(packs);
     let glossary_families = build_glossary_family_map(records);
 
     for record in records {
         let mut families = BTreeSet::new();
+        let mut assigned_from_folder = false;
+        let mut assigned_from_glossary = false;
         if let Some(folder_id) = &record.folder_id
             && let Some(folder_family) =
                 folder_families.get(&(record.pack_name.as_str().to_string(), folder_id.clone()))
             && should_keep_folder_family(record.pack_name.as_str(), folder_family)
         {
             families.insert(folder_family.clone());
+            assigned_from_folder = true;
         }
 
         for candidate in &record.reference_candidates {
@@ -675,10 +708,13 @@ fn assign_taxonomy_families(
             };
             if let Some(family) = glossary_families.get(&record_key.to_string()) {
                 families.insert(family.clone());
+                assigned_from_glossary = true;
             }
         }
 
         record.taxonomy_families = families.into_iter().collect();
+        diagnostics.taxonomy_folder_records += usize::from(assigned_from_folder);
+        diagnostics.taxonomy_glossary_records += usize::from(assigned_from_glossary);
     }
 }
 
@@ -786,7 +822,11 @@ fn normalize_family_name(value: &str) -> Option<String> {
     (!family.is_empty()).then_some(family)
 }
 
-fn assign_variant_groups(records: &mut [LoadedRecord], index: &RecordReferenceIndex) {
+fn assign_variant_groups(
+    records: &mut [LoadedRecord],
+    index: &RecordReferenceIndex,
+    diagnostics: &mut IngestDiagnostics,
+) {
     let mut candidates_by_group = BTreeMap::<String, Vec<(usize, VariantCandidate)>>::new();
     let mut base_names_by_group = BTreeMap::<String, String>::new();
     let known_creature_base_names = known_creature_variant_base_names(records);
@@ -819,6 +859,7 @@ fn assign_variant_groups(records: &mut [LoadedRecord], index: &RecordReferenceIn
                     label: None,
                     axes: Vec::new(),
                     source: "composite",
+                    diagnostic_source: VariantDiagnosticSource::ExactBase,
                     confidence: 0.62,
                 },
             ));
@@ -862,6 +903,23 @@ fn assign_variant_groups(records: &mut [LoadedRecord], index: &RecordReferenceIn
             .fold(0.0_f64, f64::max);
 
         for (member_index, candidate) in members {
+            match candidate.diagnostic_source {
+                VariantDiagnosticSource::Parenthetical => {
+                    diagnostics.variant_parenthetical_records += 1;
+                }
+                VariantDiagnosticSource::Suffix => {
+                    diagnostics.variant_suffix_records += 1;
+                }
+                VariantDiagnosticSource::CreatureBlurb => {
+                    diagnostics.variant_creature_blurb_records += 1;
+                }
+                VariantDiagnosticSource::CreatureSuffix => {
+                    diagnostics.variant_creature_suffix_records += 1;
+                }
+                VariantDiagnosticSource::ExactBase => {
+                    diagnostics.variant_exact_base_records += 1;
+                }
+            }
             let record = &mut records[member_index];
             record.variant_group_key = Some(group_key.clone());
             record.variant_base_name = Some(base_name.clone());
@@ -920,6 +978,7 @@ fn parse_parenthetical_variant_candidate(name: &str) -> Option<VariantCandidate>
         label: Some(labels.join(", ")),
         axes: infer_variant_axes(&labels),
         source: "namePattern",
+        diagnostic_source: VariantDiagnosticSource::Parenthetical,
         confidence: 0.6,
     })
 }
@@ -956,6 +1015,7 @@ fn parse_trailing_suffix_variant_candidate(name: &str) -> Option<VariantCandidat
         label: Some(label),
         axes,
         source: "namePattern",
+        diagnostic_source: VariantDiagnosticSource::Suffix,
         confidence: 0.74,
     })
 }
@@ -1025,6 +1085,7 @@ fn parse_creature_blurb_variant_candidate(
             label,
             axes: infer_variant_axes(&cleaned_labels),
             source: "composite",
+            diagnostic_source: VariantDiagnosticSource::CreatureBlurb,
             confidence: 0.86,
         });
     }
@@ -1069,6 +1130,7 @@ fn parse_creature_suffix_variant_candidate(
             label: Some(record.name.clone()),
             axes: vec!["other".to_string()],
             source: "namePattern",
+            diagnostic_source: VariantDiagnosticSource::CreatureSuffix,
             confidence: 0.68,
         });
     }

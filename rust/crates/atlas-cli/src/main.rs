@@ -58,6 +58,19 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             "output": report.output_path.display().to_string(),
             "pack_count": report.pack_count,
             "record_count": report.record_count,
+            "diagnostics": {
+                "taxonomy": {
+                    "folder_records": report.diagnostics.taxonomy_folder_records,
+                    "glossary_records": report.diagnostics.taxonomy_glossary_records,
+                },
+                "variants": {
+                    "parenthetical_records": report.diagnostics.variant_parenthetical_records,
+                    "suffix_records": report.diagnostics.variant_suffix_records,
+                    "creature_blurb_records": report.diagnostics.variant_creature_blurb_records,
+                    "creature_suffix_records": report.diagnostics.variant_creature_suffix_records,
+                    "exact_base_records": report.diagnostics.variant_exact_base_records,
+                }
+            },
             "skipped_record_count": report.skipped_records.len(),
             "skipped_records": skipped_records,
             "warnings": report.warnings,
@@ -72,6 +85,16 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             report.record_count,
             report.pack_count,
             report.output_path.display()
+        );
+        eprintln!(
+            "diagnostics: taxonomy folder={} glossary={} variants parenthetical={} suffix={} creature_blurb={} creature_suffix={} exact_base={}",
+            report.diagnostics.taxonomy_folder_records,
+            report.diagnostics.taxonomy_glossary_records,
+            report.diagnostics.variant_parenthetical_records,
+            report.diagnostics.variant_suffix_records,
+            report.diagnostics.variant_creature_blurb_records,
+            report.diagnostics.variant_creature_suffix_records,
+            report.diagnostics.variant_exact_base_records
         );
         for skipped_record in &report.skipped_records {
             eprintln!(

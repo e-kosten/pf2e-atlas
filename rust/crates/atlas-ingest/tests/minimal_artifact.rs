@@ -220,6 +220,13 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
     write_family_fixture_source(&root)?;
 
     let source = load_foundry_source(&root, None)?;
+    assert!(source.skipped_records.is_empty());
+    assert!(source.warnings.is_empty());
+    assert_eq!(source.diagnostics.taxonomy_folder_records, 1);
+    assert_eq!(source.diagnostics.taxonomy_glossary_records, 1);
+    assert_eq!(source.diagnostics.variant_parenthetical_records, 4);
+    assert_eq!(source.diagnostics.variant_creature_blurb_records, 1);
+    assert_eq!(source.diagnostics.variant_exact_base_records, 0);
     let bosun = source
         .records
         .iter()
