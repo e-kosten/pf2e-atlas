@@ -4,7 +4,9 @@ Status: active contract input
 Feeds: [migration-checklist.md](./migration-checklist.md) Phase 1.5
 Last reviewed: 2026-05-12
 
-This document maps the current TypeScript runtime shape to the Rust migration contract surface. It is not a promise to copy TypeScript module structure. It is the parity inventory that Phase 2 domain work, Phase 3 ingest/index work, and later lookup/search/discovery slices must either preserve deliberately or retire explicitly.
+This document maps the current TypeScript runtime shape to the Rust migration contract surface. It is not a promise to copy TypeScript module structure, names, table design, or type boundaries. It is the parity inventory that Phase 2 domain work, Phase 3 ingest/index work, and later lookup/search/discovery slices must either preserve deliberately, redesign with user-visible parity, or retire explicitly.
+
+Current TypeScript behavior is the first compatibility baseline, not the final design authority. Follow-up agents should challenge inherited shapes when they look underspecified, stringly typed, over-broad, duplicated, or mismatched with Rust ownership. If the right Rust path is not obvious, the expected behavior is to present a short set of viable approaches and ask for input before hardening the contract.
 
 ## Classification Vocabulary
 
