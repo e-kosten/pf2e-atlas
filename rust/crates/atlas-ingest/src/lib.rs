@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -10,9 +11,9 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID, EXPECTED_EMBEDDING_MODEL_REVISION,
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
-    EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, PackName,
-    PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus, TimeKind, TimeUnit,
-    artifact_metadata_keys,
+    EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, MetricDomain,
+    MetricValueType, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus,
+    TimeKind, TimeUnit, artifact_metadata_keys,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
@@ -51,7 +52,7 @@ pub struct BuildArtifactReport {
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SourceLoad {
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
@@ -75,7 +76,7 @@ pub struct LoadedPack {
     pub record_count: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LoadedRecord {
     pub key: RecordKey,
     pub id: RecordId,
@@ -98,6 +99,7 @@ pub struct LoadedRecord {
     pub price_cp: Option<i64>,
     pub activation_time: Option<NormalizedTime>,
     pub duration: Option<NormalizedTime>,
+    pub metrics: Vec<MetricRow>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
     pub description_text: Option<String>,
@@ -106,6 +108,20 @@ pub struct LoadedRecord {
     pub text_status: TextStatus,
     pub search_text_projection: String,
     pub raw_json: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricRow {
+    pub domain: MetricDomain,
+    pub key: String,
+    pub value: MetricValue,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MetricValue {
+    Number(f64),
+    Text(String),
+    Boolean(bool),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -343,6 +359,7 @@ fn normalize_record(
     let duration = system_duration_value
         .as_deref()
         .and_then(normalize_time_text);
+    let metrics = extract_metrics(&raw, &manifest_pack.document_type, &record_type);
     let publication_title = pointer_string(&raw, "/system/publication/title");
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
     let description_text =
@@ -385,6 +402,7 @@ fn normalize_record(
         price_cp,
         activation_time,
         duration,
+        metrics,
         publication_title,
         publication_remaster,
         description_text: description_text.clone(),
@@ -566,6 +584,435 @@ fn canonical_time_unit(value: &str) -> Option<TimeUnit> {
     }
 }
 
+fn extract_metrics(raw: &Value, document_type: &str, record_type: &str) -> Vec<MetricRow> {
+    let metrics = match document_type {
+        "Actor" => extract_actor_metrics(raw),
+        "Item" => extract_item_metrics(raw, record_type),
+        _ => Vec::new(),
+    };
+    dedupe_metrics(metrics)
+}
+
+fn dedupe_metrics(metrics: Vec<MetricRow>) -> Vec<MetricRow> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for metric in metrics.into_iter().rev() {
+        if seen.insert((metric.domain, metric.key.clone())) {
+            deduped.push(metric);
+        }
+    }
+    deduped.reverse();
+    deduped
+}
+
+fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
+    let mut metrics = Vec::new();
+
+    for ability_key in ["str", "dex", "con", "int", "wis", "cha"] {
+        add_metric_number(
+            &mut metrics,
+            MetricDomain::Actor,
+            &format!("ability.{ability_key}.mod"),
+            first_number_at_paths(
+                raw,
+                &[
+                    &format!("/system/abilities/{ability_key}/mod"),
+                    &format!("/system/abilities/{ability_key}/modifier"),
+                ],
+            ),
+        );
+    }
+
+    add_metric_number(
+        &mut metrics,
+        MetricDomain::Actor,
+        "perception.mod",
+        first_number_at_paths(
+            raw,
+            &[
+                "/system/perception/mod",
+                "/system/perception/modifier",
+                "/system/perception/value",
+            ],
+        ),
+    );
+    add_metric_number(
+        &mut metrics,
+        MetricDomain::Actor,
+        "ac.value",
+        number_at_pointer(raw, "/system/attributes/ac/value"),
+    );
+    add_metric_number(
+        &mut metrics,
+        MetricDomain::Actor,
+        "hardness.value",
+        number_at_pointer(raw, "/system/attributes/hardness"),
+    );
+
+    for (metric_key, pointer) in [
+        ("hp.value", "/system/attributes/hp/value"),
+        ("hp.max", "/system/attributes/hp/max"),
+        ("hp.bt", "/system/attributes/hp/brokenThreshold"),
+        ("hp.bt", "/system/attributes/hp/broken"),
+        ("hp.bt", "/system/attributes/hp/bt"),
+    ] {
+        if metrics.iter().any(|metric| metric.key == metric_key) {
+            continue;
+        }
+        add_metric_number(
+            &mut metrics,
+            MetricDomain::Actor,
+            metric_key,
+            number_at_pointer(raw, pointer),
+        );
+    }
+
+    let save_values = extract_save_metrics(raw, &mut metrics);
+    add_best_worst_save_metrics(&mut metrics, &save_values);
+    extract_skill_metrics(raw, &mut metrics);
+    extract_speed_metrics(raw, &mut metrics);
+    extract_sense_metrics(raw, &mut metrics);
+    extract_stealth_metrics(raw, &mut metrics);
+    metrics
+}
+
+fn extract_save_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) -> Vec<(&'static str, f64)> {
+    let mut save_values = Vec::new();
+    let Some(saves) = raw.pointer("/system/saves").and_then(Value::as_object) else {
+        return save_values;
+    };
+
+    for (raw_key, value) in saves {
+        let Some(save_key) = normalize_save_key(raw_key) else {
+            continue;
+        };
+        let save_value =
+            first_number_at_paths(value, &["/mod", "/modifier", "/value", "/totalModifier"]);
+        if let Some(number) = save_value {
+            add_metric_number(
+                metrics,
+                MetricDomain::Actor,
+                &format!("save.{save_key}.mod"),
+                Some(number),
+            );
+            save_values.push((save_key, number));
+        }
+    }
+
+    save_values
+}
+
+fn add_best_worst_save_metrics(metrics: &mut Vec<MetricRow>, save_values: &[(&'static str, f64)]) {
+    let Some((best_save, _)) = save_values
+        .iter()
+        .max_by(|left, right| left.1.total_cmp(&right.1))
+    else {
+        return;
+    };
+    let Some((worst_save, _)) = save_values
+        .iter()
+        .min_by(|left, right| left.1.total_cmp(&right.1))
+    else {
+        return;
+    };
+
+    metrics.push(MetricRow {
+        domain: MetricDomain::Actor,
+        key: "save.best".to_string(),
+        value: MetricValue::Text((*best_save).to_string()),
+    });
+    metrics.push(MetricRow {
+        domain: MetricDomain::Actor,
+        key: "save.worst".to_string(),
+        value: MetricValue::Text((*worst_save).to_string()),
+    });
+}
+
+fn extract_skill_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+    let Some(skills) = raw.pointer("/system/skills").and_then(Value::as_object) else {
+        return;
+    };
+
+    for (raw_key, value) in skills {
+        let skill_key = slugify_metric_segment(raw_key);
+        if skill_key.is_empty() {
+            continue;
+        }
+        add_metric_number(
+            metrics,
+            MetricDomain::Actor,
+            &format!("skill.{skill_key}.mod"),
+            first_number_at_paths(value, &["/mod", "/modifier", "/value"]),
+        );
+        if let Some(rank) = number_at_pointer(value, "/rank") {
+            add_metric_number(
+                metrics,
+                MetricDomain::Actor,
+                &format!("skill.{skill_key}.rank"),
+                Some(rank),
+            );
+            metrics.push(MetricRow {
+                domain: MetricDomain::Actor,
+                key: format!("skill.{skill_key}.proficient"),
+                value: MetricValue::Boolean(rank >= 1.0),
+            });
+        }
+    }
+}
+
+fn extract_speed_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+    add_metric_number(
+        metrics,
+        MetricDomain::Actor,
+        "speed.land.value",
+        number_like_at_pointer(raw, "/system/attributes/speed/value"),
+    );
+
+    let Some(other_speeds) = raw
+        .pointer("/system/attributes/speed/otherSpeeds")
+        .and_then(Value::as_array)
+    else {
+        return;
+    };
+
+    for speed in other_speeds {
+        let speed_type = pointer_string(speed, "/type")
+            .map(|value| slugify_metric_segment(&value))
+            .unwrap_or_default();
+        if speed_type.is_empty() {
+            continue;
+        }
+        add_metric_number(
+            metrics,
+            MetricDomain::Actor,
+            &format!("speed.{speed_type}.value"),
+            number_like_at_pointer(speed, "/value"),
+        );
+    }
+}
+
+fn extract_sense_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+    let Some(senses) = raw
+        .pointer("/system/perception/senses")
+        .and_then(Value::as_array)
+    else {
+        return;
+    };
+
+    for sense in senses {
+        let sense_type = pointer_string(sense, "/type")
+            .map(|value| slugify_metric_segment(&value))
+            .unwrap_or_default();
+        if sense_type.is_empty() {
+            continue;
+        }
+        add_metric_number(
+            metrics,
+            MetricDomain::Actor,
+            &format!("sense.{sense_type}.range"),
+            number_like_at_pointer(sense, "/range"),
+        );
+    }
+}
+
+fn extract_stealth_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+    let stealth_mod = first_number_at_paths(
+        raw,
+        &[
+            "/system/attributes/stealth/value",
+            "/system/attributes/stealth/mod",
+            "/system/attributes/stealth/modifier",
+        ],
+    );
+    add_metric_number(metrics, MetricDomain::Actor, "stealth.mod", stealth_mod);
+    add_metric_number(
+        metrics,
+        MetricDomain::Actor,
+        "stealth.dc",
+        number_at_pointer(raw, "/system/attributes/stealth/dc")
+            .or_else(|| stealth_mod.map(|value| value + 10.0)),
+    );
+}
+
+fn extract_item_metrics(raw: &Value, record_type: &str) -> Vec<MetricRow> {
+    let mut metrics = Vec::new();
+    match slugify_metric_segment(record_type).as_str() {
+        "weapon" => {
+            add_metric_number(
+                &mut metrics,
+                MetricDomain::Item,
+                "weapon.range_increment",
+                first_number_like_at_paths(
+                    raw,
+                    &[
+                        "/system/range/increment",
+                        "/system/range/value",
+                        "/system/range",
+                    ],
+                ),
+            );
+            add_metric_number(
+                &mut metrics,
+                MetricDomain::Item,
+                "weapon.reload",
+                first_number_like_at_paths(raw, &["/system/reload/value", "/system/reload"]),
+            );
+            add_metric_number(
+                &mut metrics,
+                MetricDomain::Item,
+                "weapon.damage_dice",
+                number_at_pointer(raw, "/system/damage/dice"),
+            );
+            add_metric_number(
+                &mut metrics,
+                MetricDomain::Item,
+                "weapon.damage_die_faces",
+                damage_die_faces(raw.pointer("/system/damage/die")),
+            );
+        }
+        "armor" => {
+            for (metric_key, pointer) in [
+                ("armor.ac_bonus", "/system/acBonus"),
+                ("armor.dex_cap", "/system/dexCap"),
+                ("armor.strength", "/system/strength"),
+                ("armor.check_penalty", "/system/checkPenalty"),
+                ("armor.speed_penalty", "/system/speedPenalty"),
+            ] {
+                add_metric_number(
+                    &mut metrics,
+                    MetricDomain::Item,
+                    metric_key,
+                    number_at_pointer(raw, pointer),
+                );
+            }
+        }
+        "shield" => {
+            for (metric_key, pointer) in [
+                ("shield.ac_bonus", "/system/acBonus"),
+                ("shield.hardness", "/system/hardness"),
+                ("shield.hp", "/system/hp/value"),
+                ("shield.hp", "/system/hp/max"),
+                ("shield.bt", "/system/hp/brokenThreshold"),
+                ("shield.bt", "/system/hp/broken"),
+                ("shield.bt", "/system/hp/bt"),
+            ] {
+                if metrics.iter().any(|metric| metric.key == metric_key) {
+                    continue;
+                }
+                add_metric_number(
+                    &mut metrics,
+                    MetricDomain::Item,
+                    metric_key,
+                    number_at_pointer(raw, pointer),
+                );
+            }
+        }
+        _ => {}
+    }
+    metrics
+}
+
+fn add_metric_number(
+    metrics: &mut Vec<MetricRow>,
+    domain: MetricDomain,
+    key: &str,
+    value: Option<f64>,
+) {
+    let Some(value) = value.filter(|value| value.is_finite()) else {
+        return;
+    };
+    metrics.push(MetricRow {
+        domain,
+        key: key.to_string(),
+        value: MetricValue::Number(value),
+    });
+}
+
+fn first_number_at_paths(raw: &Value, pointers: &[&str]) -> Option<f64> {
+    pointers
+        .iter()
+        .find_map(|pointer| number_at_pointer(raw, pointer))
+}
+
+fn first_number_like_at_paths(raw: &Value, pointers: &[&str]) -> Option<f64> {
+    pointers
+        .iter()
+        .find_map(|pointer| number_like_at_pointer(raw, pointer))
+}
+
+fn number_at_pointer(raw: &Value, pointer: &str) -> Option<f64> {
+    raw.pointer(pointer).and_then(value_as_f64)
+}
+
+fn number_like_at_pointer(raw: &Value, pointer: &str) -> Option<f64> {
+    raw.pointer(pointer).and_then(parse_numeric_like_value)
+}
+
+fn value_as_f64(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
+        _ => None,
+    }
+}
+
+fn parse_numeric_like_value(value: &Value) -> Option<f64> {
+    if let Some(number) = value_as_f64(value) {
+        return Some(number);
+    }
+    let Value::String(text) = value else {
+        return None;
+    };
+    let mut buffer = String::new();
+    for character in text.chars() {
+        if character.is_ascii_digit() || character == '.' || character == '-' {
+            buffer.push(character);
+        } else if !buffer.is_empty() {
+            break;
+        }
+    }
+    buffer.parse::<f64>().ok()
+}
+
+fn damage_die_faces(value: Option<&Value>) -> Option<f64> {
+    match value? {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) => text
+            .trim()
+            .strip_prefix('d')
+            .or_else(|| text.trim().strip_prefix('D'))
+            .and_then(|faces| faces.parse::<f64>().ok()),
+        _ => None,
+    }
+}
+
+fn normalize_save_key(value: &str) -> Option<&'static str> {
+    match slugify_metric_segment(value).as_str() {
+        "fort" | "fortitude" => Some("fort"),
+        "ref" | "reflex" => Some("ref"),
+        "will" => Some("will"),
+        _ => None,
+    }
+}
+
+fn slugify_metric_segment(value: &str) -> String {
+    let mut output = String::new();
+    let mut last_was_separator = false;
+    for character in value.trim().to_lowercase().chars() {
+        if character.is_ascii_alphanumeric() {
+            output.push(character);
+            last_was_separator = false;
+        } else if !last_was_separator && !output.is_empty() {
+            output.push('_');
+            last_was_separator = true;
+        }
+    }
+    while output.ends_with('_') {
+        output.pop();
+    }
+    output
+}
+
 fn extract_traits(raw: &Value) -> Vec<String> {
     let mut traits = raw
         .pointer("/system/traits/value")
@@ -635,6 +1082,7 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
     write_artifact_metadata(&transaction, source.records.len())?;
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records)?;
+    write_metric_catalogs(&transaction)?;
     transaction
         .commit()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
@@ -717,6 +1165,39 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               trait TEXT NOT NULL,
               PRIMARY KEY (record_key, trait),
               FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
+            CREATE TABLE record_metrics (
+              record_key TEXT NOT NULL,
+              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
+              metric_key TEXT NOT NULL,
+              value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
+              number_value REAL,
+              text_value TEXT,
+              bool_value INTEGER,
+              PRIMARY KEY (record_key, metric_domain, metric_key),
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
+            CREATE TABLE metric_key_catalog (
+              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
+              record_family TEXT NOT NULL,
+              namespace_prefix TEXT NOT NULL,
+              metric_key TEXT NOT NULL,
+              value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
+              catalog_count INTEGER NOT NULL,
+              numeric_min REAL,
+              numeric_max REAL,
+              PRIMARY KEY (metric_domain, record_family, metric_key)
+            );
+
+            CREATE TABLE metric_value_catalog (
+              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
+              record_family TEXT NOT NULL,
+              metric_key TEXT NOT NULL,
+              value TEXT NOT NULL,
+              catalog_count INTEGER NOT NULL,
+              PRIMARY KEY (metric_domain, record_family, metric_key, value)
             );
 
             CREATE VIRTUAL TABLE records_fts USING fts5(
@@ -864,6 +1345,13 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
     let mut insert_trait = connection
         .prepare("INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_metric = connection
+        .prepare(
+            "INSERT INTO record_metrics (
+              record_key, metric_domain, metric_key, value_type, number_value, text_value, bool_value
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
         .prepare("INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -931,6 +1419,21 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 .execute((record.key.to_string(), trait_value.as_str()))
                 .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         }
+        for metric in &record.metrics {
+            let (value_type, number_value, text_value, bool_value) =
+                metric_value_parts(&metric.value);
+            insert_metric
+                .execute(params![
+                    record.key.to_string(),
+                    metric_domain_label(metric.domain),
+                    metric.key.as_str(),
+                    value_type,
+                    number_value,
+                    text_value,
+                    bool_value,
+                ])
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
         insert_fts
             .execute((
                 record.key.to_string(),
@@ -940,6 +1443,105 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+fn metric_value_parts(
+    value: &MetricValue,
+) -> (&'static str, Option<f64>, Option<&str>, Option<i64>) {
+    match value {
+        MetricValue::Number(number) => (
+            metric_value_type_label(MetricValueType::Number),
+            Some(*number),
+            None,
+            None,
+        ),
+        MetricValue::Text(text) => (
+            metric_value_type_label(MetricValueType::Text),
+            None,
+            Some(text.as_str()),
+            None,
+        ),
+        MetricValue::Boolean(boolean) => (
+            metric_value_type_label(MetricValueType::Boolean),
+            None,
+            None,
+            Some(i64::from(*boolean)),
+        ),
+    }
+}
+
+fn metric_domain_label(domain: MetricDomain) -> &'static str {
+    match domain {
+        MetricDomain::Actor => "actor",
+        MetricDomain::Item => "item",
+    }
+}
+
+fn metric_value_type_label(value_type: MetricValueType) -> &'static str {
+    match value_type {
+        MetricValueType::Number => "number",
+        MetricValueType::Text => "text",
+        MetricValueType::Boolean => "boolean",
+    }
+}
+
+fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
+    connection
+        .execute_batch(
+            "
+            INSERT INTO metric_key_catalog (
+              metric_domain,
+              record_family,
+              namespace_prefix,
+              metric_key,
+              value_type,
+              catalog_count,
+              numeric_min,
+              numeric_max
+            )
+            SELECT
+              rm.metric_domain,
+              r.record_family,
+              CASE
+                WHEN instr(rm.metric_key, '.') > 0 THEN substr(rm.metric_key, 1, instr(rm.metric_key, '.'))
+                ELSE ''
+              END AS namespace_prefix,
+              rm.metric_key,
+              rm.value_type,
+              COUNT(*) AS catalog_count,
+              CASE WHEN rm.value_type = 'number' THEN MIN(rm.number_value) ELSE NULL END AS numeric_min,
+              CASE WHEN rm.value_type = 'number' THEN MAX(rm.number_value) ELSE NULL END AS numeric_max
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_search_canonical = 1
+            GROUP BY rm.metric_domain, r.record_family, namespace_prefix, rm.metric_key, rm.value_type;
+
+            INSERT INTO metric_value_catalog (
+              metric_domain,
+              record_family,
+              metric_key,
+              value,
+              catalog_count
+            )
+            SELECT
+              rm.metric_domain,
+              r.record_family,
+              rm.metric_key,
+              CASE
+                WHEN rm.value_type = 'text' THEN rm.text_value
+                WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+                ELSE NULL
+              END AS value,
+              COUNT(*) AS catalog_count
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_search_canonical = 1
+              AND rm.value_type IN ('text', 'boolean')
+              AND value IS NOT NULL
+            GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value;
+            ",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
 }
 
 fn time_kind_label(kind: TimeKind) -> &'static str {

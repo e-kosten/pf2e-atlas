@@ -19,8 +19,8 @@ pub use metadata::{
     OrderingOperator, StringOperator, TextOperator,
 };
 pub use record::{
-    ActionCost, Level, Publication, PublicationFamily, Rarity, RecordSummary, SourceProvenance,
-    TextStatus, TimeKind, TimeUnit,
+    ActionCost, Level, MetricDomain, MetricValueType, Publication, PublicationFamily, Rarity,
+    RecordSummary, SourceProvenance, TextStatus, TimeKind, TimeUnit,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 pub use rule_graph::{
