@@ -5,7 +5,7 @@ This folder tracks the design-in-progress roadmap and decision spikes for a poss
 ## Current State
 
 - [Migration roadmap](./migration-roadmap.md)
-  Design-in-progress backlog item for a Rust runtime with CLI and TUI as primary local surfaces, optional MCP compatibility, and offline prep tooling kept separate when useful.
+  Active staged backlog item for a Rust runtime with CLI and TUI as primary local surfaces, Rust-owned deterministic ingest/index artifacts, optional MCP compatibility, and non-core exploratory tooling kept adjacent.
 
 ## Search And Retrieval Spikes
 
@@ -30,7 +30,7 @@ This folder tracks the design-in-progress roadmap and decision spikes for a poss
 ## Follow-Up Decision Spikes
 
 - [Canonical ingest ownership](./spikes/canonical-ingest-ownership.md)
-  Decide whether canonical ingest/index build belongs in Rust while Python remains for exploratory analysis.
+  Decided that canonical ingest/index build should move toward Rust ownership while Python/Node remain useful for exploratory analysis and parity tooling.
 - [Optional MCP compatibility](./spikes/optional-mcp-compatibility.md)
   Decide whether `atlas mcp` is worth preserving after CLI plus skills are proven.
 
