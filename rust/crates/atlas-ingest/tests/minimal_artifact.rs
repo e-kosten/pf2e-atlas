@@ -161,6 +161,12 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM metric_value_catalog", [], |row| {
             row.get(0)
         })?;
+    let actor_side_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM actor_records", [], |row| row.get(0))?;
+    let item_side_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM item_records", [], |row| row.get(0))?;
+    let spell_side_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM spell_records", [], |row| row.get(0))?;
     let (
         action_count,
         action_price,
@@ -226,15 +232,62 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
+    let (actor_size, actor_languages, actor_speed_types, actor_senses): (
+        String,
+        String,
+        String,
+        String,
+    ) = connection.query_row(
+        "SELECT size, languages_json, speed_types_json, senses_json
+         FROM actor_records WHERE record_key = 'bestiary:testActor0001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
+    let (item_group, item_bulk, item_hands, item_damage_types): (String, f64, String, String) =
+        connection.query_row(
+            "SELECT system_group, bulk_value, hands_requirement, damage_types_json
+             FROM item_records WHERE record_key = 'equipment:testWeapon0001'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+    let (
+        spell_traditions,
+        spell_kinds,
+        spell_range_text,
+        spell_range_value,
+        spell_target_text,
+        spell_save_type,
+        spell_basic_save,
+        spell_damage_types,
+    ): (String, String, String, f64, String, String, i64, String) = connection.query_row(
+        "SELECT traditions_json, spell_kinds_json, range_text, range_value, target_text, save_type, basic_save, damage_types_json
+         FROM spell_records WHERE record_key = 'spells:testSpell0001'",
+        [],
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+                row.get(7)?,
+            ))
+        },
+    )?;
 
     assert_eq!(pack_count, 4);
     assert_eq!(record_count, 5);
     assert_eq!(fts_count, 5);
     assert_eq!(spell_record_family, "spell");
-    assert_eq!(trait_count, 12);
+    assert_eq!(trait_count, 13);
     assert_eq!(metric_count, 20);
     assert!(metric_key_catalog_count >= 20);
     assert!(metric_value_catalog_count >= 3);
+    assert_eq!(actor_side_count, 1);
+    assert_eq!(item_side_count, 4);
+    assert_eq!(spell_side_count, 1);
     assert_eq!(action_count, 1);
     assert_eq!(action_price, 30);
     assert_eq!(action_usage, "held-in-one-hand");
@@ -251,6 +304,22 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(weapon_damage_faces, 8.0);
     assert_eq!(actor_catalog_count, 1);
     assert_eq!(save_best_catalog_value, "ref");
+    assert_eq!(actor_size, "small");
+    assert_eq!(actor_languages, "[\"goblin\"]");
+    assert_eq!(actor_speed_types, "[\"climb\",\"land\"]");
+    assert_eq!(actor_senses, "[\"darkvision\"]");
+    assert_eq!(item_group, "bow");
+    assert_eq!(item_bulk, 2.0);
+    assert_eq!(item_hands, "two_hands");
+    assert_eq!(item_damage_types, "[\"piercing\"]");
+    assert_eq!(spell_traditions, "[\"divine\",\"primal\"]");
+    assert_eq!(spell_kinds, "[\"cantrip\"]");
+    assert_eq!(spell_range_text, "30 feet");
+    assert_eq!(spell_range_value, 30.0);
+    assert_eq!(spell_target_text, "1 willing creature");
+    assert_eq!(spell_save_type, "fortitude");
+    assert_eq!(spell_basic_save, 1);
+    assert_eq!(spell_damage_types, "[\"vitality\"]");
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -308,9 +377,13 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "name": "Heal",
           "type": "spell",
           "system": {
-            "traits": { "value": ["healing", "vitality"] },
+            "traits": { "value": ["healing", "vitality", "cantrip"], "traditions": ["divine", "primal"] },
             "time": { "value": "1 minute" },
             "duration": { "value": "10 minutes" },
+            "range": { "value": "30 feet" },
+            "target": { "value": "<p>1 willing creature</p>" },
+            "defense": { "save": { "statistic": "fortitude", "basic": true } },
+            "damage": { "main": { "type": "vitality" } },
             "publication": { "title": "Player Core" },
             "description": { "value": "<p>You channel vital energy.</p>" }
           }
@@ -323,7 +396,8 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "name": "Goblin Scout",
           "type": "npc",
           "system": {
-            "traits": { "value": ["goblin", "humanoid"] },
+            "traits": { "value": ["goblin", "humanoid"], "size": { "value": "small" } },
+            "details": { "languages": { "value": ["goblin"] } },
             "abilities": { "dex": { "mod": 4 } },
             "perception": { "mod": 7, "senses": [{ "type": "darkvision", "range": 60 }] },
             "attributes": {
@@ -351,9 +425,12 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "weapon",
           "system": {
             "traits": { "value": ["deadly-d10"] },
+            "group": "bow",
+            "usage": { "value": "held-in-two-hands" },
+            "bulk": { "value": 2 },
             "range": { "increment": 100 },
             "reload": { "value": 0 },
-            "damage": { "dice": 1, "die": "d8" },
+            "damage": { "dice": 1, "die": "d8", "damageType": "piercing" },
             "description": { "value": "<p>A ranged weapon.</p>" }
           }
         }"#,
