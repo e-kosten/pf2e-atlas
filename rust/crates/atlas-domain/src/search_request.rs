@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::metadata::{MetadataPredicate, MetricOperator, NumericMetricOperator};
-use crate::{Category, RecordKey};
+use crate::{RecordFamily, RecordKey};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
@@ -94,7 +94,7 @@ pub enum SearchFilterNode {
         value: String,
     },
     Scope {
-        category: Category,
+        record_family: RecordFamily,
     },
     Level {
         #[serde(rename = "match")]
@@ -201,7 +201,7 @@ mod tests {
             filter: Some(SearchFilterNode::AllOf {
                 children: vec![
                     SearchFilterNode::Scope {
-                        category: Category::Spell,
+                        record_family: RecordFamily::Spell,
                     },
                     SearchFilterNode::MetadataPredicate {
                         predicate: MetadataPredicate::Set {

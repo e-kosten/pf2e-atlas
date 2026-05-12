@@ -38,7 +38,7 @@ The first Rust writer behavior is:
 cargo run -p atlas-cli -- build-index --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json
 ```
 
-The current writer is a minimal Phase 3 slice. It loads Foundry packs and records, normalizes canonical record keys and names, maps basic top-level category values, preserves Foundry `document_type` and `record_type` as explicit source axes, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, and `records_fts`. Full corpus parity, side tables, reference edges, aliases, derived tags, embeddings, and manifest schema validation remain later ingest/index slices.
+The current writer is a minimal Phase 3 slice. It loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, and `records_fts`. Full corpus parity, side tables, reference edges, aliases, derived tags, embeddings, and manifest schema validation remain later ingest/index slices.
 
 ## Artifact Validation Diagnostics
 

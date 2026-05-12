@@ -82,10 +82,10 @@ Required runtime table families for Rust-written artifacts are:
 | --- | --- | --- |
 | Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
 | Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
-| Records | `records` | Canonical normalized record identity, classification, presentation text, source facts, variant facts, search visibility, generated search text, and raw JSON for parity/debugging. |
+| Records | `records` | Canonical normalized record identity, derived `record_family`, presentation text, source facts, variant facts, search visibility, generated search text projection, and raw JSON for parity/debugging. |
 | Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. |
 | Filterable row projections | `record_traits`, `record_derived_tags`, actor/item/spell side tables | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
-| Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by category, explicit type axes, and metric namespace. |
+| Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by record family, explicit type axes, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. |
 | Lexical search | `records_fts` | SQLite FTS5 index over canonical record name and search text. |
 | Embeddings and vector search | `embeddings`, `record_embeddings` | Reusable vector blobs with semantic input hashes plus sqlite-vec rows and vector-side filter projections. |
@@ -98,7 +98,8 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 
 - `RecordKey` values are serialized as `pack:id`, but Rust runtime code should use a parsed `RecordKey` newtype.
 - Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
-- Closed vocabularies such as top-level category, source category, search visibility policy, metric value type, variant source, and source-backed type axes should be validated by row loaders and represented as enums or validated newtypes in Rust.
+- Closed vocabularies such as `record_family`, publication family, search visibility policy, metric value type, variant source, and source-backed type axes should be validated by row loaders and represented as enums or validated newtypes in Rust.
+- `record_family` is an Atlas-derived product grouping from Foundry `document_type` plus record `type`. Raw source identity remains available separately as `foundry_document_type` and `foundry_record_type`.
 - The Rust artifact does not have a generic `subcategory` scope. Former TypeScript subcategory use cases are represented as explicit metadata/filter axes when they come from source fields or useful collapsed signals, and as trait filters when they are entirely trait-derived.
 - Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
 - Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.

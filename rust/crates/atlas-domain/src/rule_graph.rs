@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{RecordKey, RecordSummary, SourceCategory};
+use crate::{PublicationFamily, RecordKey, RecordSummary};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -19,9 +19,9 @@ pub enum ReferenceRelationship {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceSource {
     pub pack_name: String,
-    pub record_type: String,
-    pub document_type: String,
-    pub category: SourceCategory,
+    pub foundry_record_type: String,
+    pub foundry_document_type: String,
+    pub publication_family: PublicationFamily,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,9 +118,9 @@ mod tests {
             relationship: ReferenceRelationship::References,
             source: ReferenceSource {
                 pack_name: "actions".to_string(),
-                record_type: "action".to_string(),
-                document_type: "Item".to_string(),
-                category: SourceCategory::Core,
+                foundry_record_type: "action".to_string(),
+                foundry_document_type: "Item".to_string(),
+                publication_family: PublicationFamily::Core,
             },
         };
 

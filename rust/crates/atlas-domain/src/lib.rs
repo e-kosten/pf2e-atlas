@@ -10,7 +10,7 @@ pub mod record_key;
 pub mod rule_graph;
 pub mod search_request;
 
-pub use categories::Category;
+pub use categories::RecordFamily;
 pub use detail::DetailLevel;
 pub use metadata::{
     BooleanOperator, CollectionOperator, EqualityOperator, MetadataBooleanField,
@@ -19,7 +19,7 @@ pub use metadata::{
     OrderingOperator, StringOperator, TextOperator,
 };
 pub use record::{
-    ActionCost, Level, Publication, Rarity, RecordSummary, SourceCategory, SourceProvenance,
+    ActionCost, Level, Publication, PublicationFamily, Rarity, RecordSummary, SourceProvenance,
     TextStatus,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
