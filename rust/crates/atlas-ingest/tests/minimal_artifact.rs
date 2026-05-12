@@ -14,8 +14,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
 
     let source = load_foundry_source(&root, None)?;
 
-    assert_eq!(source.packs.len(), 2);
-    assert_eq!(source.records.len(), 3);
+    assert_eq!(source.packs.len(), 4);
+    assert_eq!(source.records.len(), 5);
     assert!(source.skipped_records.is_empty());
     assert!(source.warnings.is_empty());
 
@@ -57,7 +57,7 @@ fn reports_all_skipped_records_without_aborting_source_load()
 
     let source = load_foundry_source(&root, None)?;
 
-    assert_eq!(source.records.len(), 3);
+    assert_eq!(source.records.len(), 5);
     assert_eq!(source.skipped_records.len(), 2);
     assert!(
         source
@@ -129,13 +129,13 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         manifest_path: None,
     })?;
 
-    assert_eq!(report.pack_count, 2);
-    assert_eq!(report.record_count, 3);
+    assert_eq!(report.pack_count, 4);
+    assert_eq!(report.record_count, 5);
     assert!(report.skipped_records.is_empty());
 
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
-    assert_eq!(validation.source_record_count.as_deref(), Some("3"));
+    assert_eq!(validation.source_record_count.as_deref(), Some("5"));
 
     let connection = Connection::open(&output_path)?;
     let pack_count: usize =
@@ -151,6 +151,16 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     )?;
     let trait_count: usize =
         connection.query_row("SELECT COUNT(*) FROM record_traits", [], |row| row.get(0))?;
+    let metric_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM record_metrics", [], |row| row.get(0))?;
+    let metric_key_catalog_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM metric_key_catalog", [], |row| {
+            row.get(0)
+        })?;
+    let metric_value_catalog_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM metric_value_catalog", [], |row| {
+            row.get(0)
+        })?;
     let (
         action_count,
         action_price,
@@ -176,12 +186,55 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
     )?;
+    let goblin_ac: f64 = connection.query_row(
+        "SELECT number_value FROM record_metrics
+         WHERE record_key = 'bestiary:testActor0001'
+           AND metric_domain = 'actor'
+           AND metric_key = 'ac.value'",
+        [],
+        |row| row.get(0),
+    )?;
+    let goblin_best_save: String = connection.query_row(
+        "SELECT text_value FROM record_metrics
+         WHERE record_key = 'bestiary:testActor0001'
+           AND metric_domain = 'actor'
+           AND metric_key = 'save.best'",
+        [],
+        |row| row.get(0),
+    )?;
+    let weapon_damage_faces: f64 = connection.query_row(
+        "SELECT number_value FROM record_metrics
+         WHERE record_key = 'equipment:testWeapon0001'
+           AND metric_domain = 'item'
+           AND metric_key = 'weapon.damage_die_faces'",
+        [],
+        |row| row.get(0),
+    )?;
+    let actor_catalog_count: usize = connection.query_row(
+        "SELECT catalog_count FROM metric_key_catalog
+         WHERE metric_domain = 'actor'
+           AND record_family = 'creature'
+           AND metric_key = 'ac.value'",
+        [],
+        |row| row.get(0),
+    )?;
+    let save_best_catalog_value: String = connection.query_row(
+        "SELECT value FROM metric_value_catalog
+         WHERE metric_domain = 'actor'
+           AND record_family = 'creature'
+           AND metric_key = 'save.best'",
+        [],
+        |row| row.get(0),
+    )?;
 
-    assert_eq!(pack_count, 2);
-    assert_eq!(record_count, 3);
-    assert_eq!(fts_count, 3);
+    assert_eq!(pack_count, 4);
+    assert_eq!(record_count, 5);
+    assert_eq!(fts_count, 5);
     assert_eq!(spell_record_family, "spell");
-    assert_eq!(trait_count, 9);
+    assert_eq!(trait_count, 12);
+    assert_eq!(metric_count, 20);
+    assert!(metric_key_catalog_count >= 20);
+    assert!(metric_value_catalog_count >= 3);
     assert_eq!(action_count, 1);
     assert_eq!(action_price, 30);
     assert_eq!(action_usage, "held-in-one-hand");
@@ -193,6 +246,11 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_activation_duration_unit, "minute");
     assert_eq!(spell_duration, 10);
     assert_eq!(spell_duration_unit, "minute");
+    assert_eq!(goblin_ac, 17.0);
+    assert_eq!(goblin_best_save, "ref");
+    assert_eq!(weapon_damage_faces, 8.0);
+    assert_eq!(actor_catalog_count, 1);
+    assert_eq!(save_best_catalog_value, "ref");
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -202,12 +260,16 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(root.join("packs/actions"))?;
     fs::create_dir_all(root.join("packs/spells"))?;
+    fs::create_dir_all(root.join("packs/bestiary"))?;
+    fs::create_dir_all(root.join("packs/equipment"))?;
     fs::write(
         root.join("module.json"),
         r#"{
           "packs": [
             { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" },
-            { "name": "spells", "label": "Spells", "type": "Item", "path": "packs/spells" }
+            { "name": "spells", "label": "Spells", "type": "Item", "path": "packs/spells" },
+            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" },
+            { "name": "equipment", "label": "Equipment", "type": "Item", "path": "packs/equipment" }
           ]
         }"#,
     )?;
@@ -251,6 +313,48 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             "duration": { "value": "10 minutes" },
             "publication": { "title": "Player Core" },
             "description": { "value": "<p>You channel vital energy.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/goblin.json"),
+        r#"{
+          "_id": "testActor0001",
+          "name": "Goblin Scout",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["goblin", "humanoid"] },
+            "abilities": { "dex": { "mod": 4 } },
+            "perception": { "mod": 7, "senses": [{ "type": "darkvision", "range": 60 }] },
+            "attributes": {
+              "ac": { "value": 17 },
+              "hp": { "value": 16, "max": 16 },
+              "speed": { "value": 25, "otherSpeeds": [{ "type": "climb", "value": 10 }] }
+            },
+            "saves": {
+              "fortitude": { "mod": 5 },
+              "reflex": { "mod": 8 },
+              "will": { "mod": 4 }
+            },
+            "skills": {
+              "stealth": { "mod": 9, "rank": 1 }
+            },
+            "description": { "value": "<p>A small scout.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/equipment/longbow.json"),
+        r#"{
+          "_id": "testWeapon0001",
+          "name": "Longbow",
+          "type": "weapon",
+          "system": {
+            "traits": { "value": ["deadly-d10"] },
+            "range": { "increment": 100 },
+            "reload": { "value": 0 },
+            "damage": { "dice": 1, "die": "d8" },
+            "description": { "value": "<p>A ranged weapon.</p>" }
           }
         }"#,
     )?;

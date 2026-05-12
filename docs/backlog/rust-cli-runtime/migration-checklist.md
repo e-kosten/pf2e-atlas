@@ -193,6 +193,8 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write `records_fts`.
 - [ ] Write `reference_edges`.
 - [x] Write record traits.
+- [x] Write unified `record_metrics` with actor/item metric domains.
+- [x] Generate metric key/value catalogs from `record_metrics`.
 - [ ] Write aliases.
 - [ ] Write remaster links preserving current premaster-to-remaster bridge behavior.
 - [ ] Write actor side-data.
