@@ -82,9 +82,9 @@ Required runtime table families for Rust-written artifacts are:
 | --- | --- | --- |
 | Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
 | Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
-| Records | `records` | Canonical normalized record identity, derived `record_family`, presentation text, source facts, variant facts, search visibility, generated search text projection, and raw JSON for parity/debugging. |
+| Records | `records` | Canonical normalized record identity, derived `record_family`, presentation text, source facts, selected direct `system_*` projections, normalized price/time facts, variant facts, search visibility, generated search text projection, and raw JSON for parity/debugging. |
 | Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. |
-| Filterable row projections | `record_traits`, `record_derived_tags`, actor/item/spell side tables | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
+| Filterable row projections | `record_traits`, actor/item/spell side tables; later `record_derived_tags` after the derived-tag redesign | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
 | Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by record family, explicit type axes, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. |
 | Lexical search | `records_fts` | SQLite FTS5 index over canonical record name and search text. |
@@ -100,11 +100,13 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 - Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
 - Closed vocabularies such as `record_family`, publication family, search visibility policy, metric value type, variant source, and source-backed type axes should be validated by row loaders and represented as enums or validated newtypes in Rust.
 - `record_family` is an Atlas-derived product grouping from Foundry `document_type` plus record `type`. Raw source identity remains available separately as `foundry_document_type` and `foundry_record_type`.
+- Direct Foundry `system.*` projections use `system_*` names. Atlas-derived fields stay unprefixed, such as `price_cp`, `activation_time_*`, and `duration_*`.
+- Activation time is the normalized "how long it takes to do/cast/use this" field family. Spell or effect duration remains a separate normalized field family because it means how long the effect lasts after activation.
 - The Rust artifact does not have a generic `subcategory` scope. Former TypeScript subcategory use cases are represented as explicit metadata/filter axes when they come from source fields or useful collapsed signals, and as trait filters when they are entirely trait-derived.
 - Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
 - Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
 - Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source.
-- Generated projections such as `records_fts`, `record_embeddings`, metric catalogs, aliases, and derived-tag rows must be written from typed source models and covered by row-count/key-coverage validation.
+- Generated projections such as `records_fts`, `record_embeddings`, metric catalogs, and aliases must be written from typed source models and covered by row-count/key-coverage validation. Derived-tag rows are intentionally deferred until a later design pass.
 - sqlite-vec sentinel values for nullable filter columns must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
 - Premaster-to-remaster bridges should be modeled as `remaster_links` or edition links, not as generic legacy compatibility. Canonical Rust lookup should be based on `RecordKey` and aliases, while record detail can expose explicit remaster bridge relationships.
 
@@ -116,7 +118,7 @@ Metadata validation must remain available without loading `sqlite-vec`. Once Rus
 - vector table capability checks only when a command needs vector search
 - source-signature comparison only when the caller supplies an expected source signature or equivalent already-computed value
 
-Do not add a broad full-artifact validator by default. Recomputing source freshness, row-domain coverage, generated catalog coverage, and vector coverage can approach the cost and complexity of rebuilding or reloading the source corpus. Prefer lightweight startup validation plus targeted writer/parity tests for generated projections such as FTS rows, vector rows, metric catalogs, aliases, derived-tag rows, and remaster links.
+Do not add a broad full-artifact validator by default. Recomputing source freshness, row-domain coverage, generated catalog coverage, and vector coverage can approach the cost and complexity of rebuilding or reloading the source corpus. Prefer lightweight startup validation plus targeted writer/parity tests for generated projections such as FTS rows, vector rows, metric catalogs, aliases, and remaster links.
 
 ## Extension Loading
 

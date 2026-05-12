@@ -182,6 +182,9 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Extract publication/source metadata.
 - [x] Report skipped source records with path and reason during ingest.
 - [x] Keep `army` actors as a separate `record_family` rather than folding them into `creature`.
+- [x] Extract selected direct `system_*` projections.
+- [x] Preserve raw price JSON and normalize `price_cp`.
+- [x] Normalize activation time separately from effect/spell duration.
 - [ ] Extract aliases and variant names.
 - [ ] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.
@@ -189,13 +192,13 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write `records`.
 - [x] Write `records_fts`.
 - [ ] Write `reference_edges`.
-- [ ] Write record traits.
+- [x] Write record traits.
 - [ ] Write aliases.
 - [ ] Write remaster links preserving current premaster-to-remaster bridge behavior.
 - [ ] Write actor side-data.
 - [ ] Write item side-data.
 - [ ] Write spell side-data.
-- [ ] Write derived-tag assignments needed at runtime.
+- [ ] Revisit derived-tag assignments late in the migration after a dedicated design pass.
 - [ ] Generate source signatures from source paths and per-record hashes.
 - [x] Add a small fixture ingest test.
 - [ ] Add a full-corpus analysis command that reports counts without writing the full artifact.
@@ -343,23 +346,20 @@ Acceptance:
 
 ## Phase 10: Derived Tags And Editorial Runtime
 
-Goal: move runtime tag consumption before moving high-churn editorial workflows.
+Goal: redesign derived tags after the core Rust record, search, discovery, and TUI model is stable.
 
-- [ ] Define Rust derived-tag runtime types.
-- [ ] Load published ontology.
-- [ ] Load assignments.
-- [ ] Load rules if deterministic matching remains runtime-visible.
-- [ ] Load exemplars if needed for runtime display or evaluation.
-- [ ] Load review registries only if needed by runtime commands.
-- [ ] Implement tag filters in search.
-- [ ] Implement tag list/discovery commands that match current derived-tag discovery and evaluation workflows unless a
-  separate product decision changes those workflows.
-- [ ] Add parity tests for current derived-tag assignments.
+- [ ] Reconsider the derived-tag product model against `record_family`, explicit source axes, and retired subcategory semantics.
+- [ ] Decide which derived-tag concepts remain runtime filter axes, which become authored taxonomy, and which retire.
+- [ ] Define Rust derived-tag runtime types only after that model is accepted.
+- [ ] Load published ontology and assignments if they remain part of the accepted runtime model.
+- [ ] Load rules, exemplars, and review registries only if they are still needed by runtime commands.
+- [ ] Implement tag filters and discovery commands against the redesigned model.
+- [ ] Add parity or accepted-difference tests for retained current derived-tag assignments.
 - [ ] Defer high-churn candidate discovery and clustering until runtime tag consumption is stable.
 
 Acceptance:
-- Rust search can filter and present current derived tags.
-- The TypeScript tag runtime is no longer required for read-only lookup/search surfaces.
+- The retained derived-tag surface has an accepted Rust design.
+- Rust search can filter and present retained derived-tag concepts without depending on the TypeScript tag runtime.
 
 ## Phase 11: Ratatui Workbench
 

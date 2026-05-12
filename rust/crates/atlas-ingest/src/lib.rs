@@ -11,7 +11,8 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, PackName,
-    PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus, artifact_metadata_keys,
+    PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus, TimeKind, TimeUnit,
+    artifact_metadata_keys,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
@@ -86,6 +87,17 @@ pub struct LoadedRecord {
     pub foundry_document_type: String,
     pub foundry_record_type: String,
     pub traits: Vec<String>,
+    pub system_category: Option<String>,
+    pub system_group: Option<String>,
+    pub system_base_item: Option<String>,
+    pub system_usage: Option<String>,
+    pub system_price_json: Option<String>,
+    pub system_actions_value: Option<i64>,
+    pub system_time_value: Option<String>,
+    pub system_duration_value: Option<String>,
+    pub price_cp: Option<i64>,
+    pub activation_time: Option<NormalizedTime>,
+    pub duration: Option<NormalizedTime>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
     pub description_text: Option<String>,
@@ -94,6 +106,15 @@ pub struct LoadedRecord {
     pub text_status: TextStatus,
     pub search_text_projection: String,
     pub raw_json: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizedTime {
+    pub kind: TimeKind,
+    pub actions: Option<i64>,
+    pub duration_value: Option<i64>,
+    pub duration_unit: Option<TimeUnit>,
+    pub text: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -304,6 +325,24 @@ fn normalize_record(
             )
         })?;
     let traits = extract_traits(&raw);
+    let system_category = normalized_pointer_string(&raw, "/system/category");
+    let system_group = normalized_pointer_string(&raw, "/system/group");
+    let system_base_item = normalized_pointer_string(&raw, "/system/baseItem");
+    let system_usage = normalized_pointer_string(&raw, "/system/usage/value");
+    let system_price_json = raw
+        .pointer("/system/price/value")
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(|error| normalization_error(path, &format!("price JSON failed: {error}")))?;
+    let system_actions_value = pointer_i64(&raw, "/system/actions/value");
+    let system_time_value = normalized_pointer_string(&raw, "/system/time/value");
+    let system_duration_value = normalized_pointer_string(&raw, "/system/duration/value");
+    let price_cp = normalize_price_cp(raw.pointer("/system/price/value"));
+    let activation_time =
+        normalize_activation_time(system_actions_value, system_time_value.as_deref());
+    let duration = system_duration_value
+        .as_deref()
+        .and_then(normalize_time_text);
     let publication_title = pointer_string(&raw, "/system/publication/title");
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
     let description_text =
@@ -335,6 +374,17 @@ fn normalize_record(
         foundry_document_type: manifest_pack.document_type.clone(),
         foundry_record_type: record_type,
         traits,
+        system_category,
+        system_group,
+        system_base_item,
+        system_usage,
+        system_price_json,
+        system_actions_value,
+        system_time_value,
+        system_duration_value,
+        price_cp,
+        activation_time,
+        duration,
         publication_title,
         publication_remaster,
         description_text: description_text.clone(),
@@ -389,8 +439,131 @@ fn pointer_string(raw: &Value, pointer: &str) -> Option<String> {
     raw.pointer(pointer)?.as_str().map(str::to_string)
 }
 
+fn normalized_pointer_string(raw: &Value, pointer: &str) -> Option<String> {
+    pointer_string(raw, pointer).and_then(|value| {
+        let normalized = value.trim();
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized.to_string())
+        }
+    })
+}
+
 fn pointer_bool(raw: &Value, pointer: &str) -> Option<bool> {
     raw.pointer(pointer)?.as_bool()
+}
+
+fn pointer_i64(raw: &Value, pointer: &str) -> Option<i64> {
+    raw.pointer(pointer)?.as_i64()
+}
+
+fn normalize_price_cp(value: Option<&Value>) -> Option<i64> {
+    let object = value?.as_object()?;
+    let platinum = object.get("pp").and_then(Value::as_i64).unwrap_or(0);
+    let gold = object.get("gp").and_then(Value::as_i64).unwrap_or(0);
+    let silver = object.get("sp").and_then(Value::as_i64).unwrap_or(0);
+    let copper = object.get("cp").and_then(Value::as_i64).unwrap_or(0);
+    let total = platinum * 1000 + gold * 100 + silver * 10 + copper;
+    (total > 0).then_some(total)
+}
+
+fn normalize_activation_time(
+    system_actions_value: Option<i64>,
+    system_time_value: Option<&str>,
+) -> Option<NormalizedTime> {
+    if let Some(actions) = system_actions_value {
+        return Some(NormalizedTime {
+            kind: TimeKind::Actions,
+            actions: Some(actions),
+            duration_value: None,
+            duration_unit: None,
+            text: actions.to_string(),
+        });
+    }
+    system_time_value.and_then(normalize_time_text)
+}
+
+fn normalize_time_text(value: &str) -> Option<NormalizedTime> {
+    let text = value.trim();
+    if text.is_empty() {
+        return None;
+    }
+
+    let normalized = normalize_text(text);
+    if let Ok(actions) = normalized.parse::<i64>() {
+        return Some(NormalizedTime {
+            kind: TimeKind::Actions,
+            actions: Some(actions),
+            duration_value: None,
+            duration_unit: None,
+            text: text.to_string(),
+        });
+    }
+
+    match normalized.as_str() {
+        "free" | "free action" => {
+            return Some(time_with_kind(TimeKind::Free, text));
+        }
+        "reaction" => {
+            return Some(time_with_kind(TimeKind::Reaction, text));
+        }
+        _ => {}
+    }
+
+    if let Some((duration_value, duration_unit)) = parse_duration_unit(&normalized) {
+        return Some(NormalizedTime {
+            kind: TimeKind::Duration,
+            actions: None,
+            duration_value: Some(duration_value),
+            duration_unit: Some(duration_unit),
+            text: text.to_string(),
+        });
+    }
+
+    let kind = if normalized.contains(" to ")
+        || normalized.contains(" or ")
+        || normalized.contains("varies")
+        || normalized.contains("variable")
+    {
+        TimeKind::Variable
+    } else {
+        TimeKind::Other
+    };
+    Some(time_with_kind(kind, text))
+}
+
+fn time_with_kind(kind: TimeKind, text: &str) -> NormalizedTime {
+    NormalizedTime {
+        kind,
+        actions: None,
+        duration_value: None,
+        duration_unit: None,
+        text: text.to_string(),
+    }
+}
+
+fn parse_duration_unit(value: &str) -> Option<(i64, TimeUnit)> {
+    let mut parts = value.split_whitespace();
+    let amount = parts.next()?.parse::<i64>().ok()?;
+    let unit = canonical_time_unit(parts.next()?)?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((amount, unit))
+}
+
+fn canonical_time_unit(value: &str) -> Option<TimeUnit> {
+    match value.trim_end_matches('s') {
+        "round" => Some(TimeUnit::Round),
+        "minute" => Some(TimeUnit::Minute),
+        "hour" => Some(TimeUnit::Hour),
+        "day" => Some(TimeUnit::Day),
+        "week" => Some(TimeUnit::Week),
+        "month" => Some(TimeUnit::Month),
+        "year" => Some(TimeUnit::Year),
+        _ => None,
+    }
 }
 
 fn extract_traits(raw: &Value) -> Vec<String> {
@@ -500,7 +673,24 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               level INTEGER,
               rarity TEXT,
               traits_json TEXT NOT NULL,
-              derived_tags_json TEXT NOT NULL,
+              system_category TEXT,
+              system_group TEXT,
+              system_base_item TEXT,
+              system_usage TEXT,
+              system_price_json TEXT,
+              system_actions_value INTEGER,
+              system_time_value TEXT,
+              system_duration_value TEXT,
+              price_cp INTEGER,
+              activation_time_kind TEXT,
+              activation_time_actions INTEGER,
+              activation_time_duration_value INTEGER,
+              activation_time_duration_unit TEXT,
+              activation_time_text TEXT,
+              duration_kind TEXT,
+              duration_value INTEGER,
+              duration_unit TEXT,
+              duration_text TEXT,
               publication_title TEXT,
               publication_remaster INTEGER NOT NULL,
               description_text TEXT,
@@ -520,6 +710,13 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               is_search_canonical INTEGER NOT NULL,
               search_text_projection TEXT NOT NULL,
               raw_json TEXT NOT NULL
+            );
+
+            CREATE TABLE record_traits (
+              record_key TEXT NOT NULL,
+              trait TEXT NOT NULL,
+              PRIMARY KEY (record_key, trait),
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
 
             CREATE VIRTUAL TABLE records_fts USING fts5(
@@ -653,12 +850,19 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
         .prepare(
             "INSERT INTO records (
               record_key, id, name, normalized_name, record_family, pack_name, pack_label, foundry_document_type, foundry_record_type,
-              level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, blurb_text,
+              level, rarity, traits_json, system_category, system_group, system_base_item, system_usage, system_price_json,
+              system_actions_value, system_time_value, system_duration_value, price_cp,
+              activation_time_kind, activation_time_actions, activation_time_duration_value, activation_time_duration_unit, activation_time_text,
+              duration_kind, duration_value, duration_unit, duration_text,
+              publication_title, publication_remaster, description_text, blurb_text,
               description_snippet, publication_family, folder_id, taxonomy_families_json, variant_group_key, variant_base_name,
               variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_unique, is_search_canonical,
               search_text_projection, raw_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49)",
         )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_trait = connection
+        .prepare("INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
         .prepare("INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)")
@@ -667,6 +871,8 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
     for record in records {
         let traits_json = serde_json::to_string(&record.traits)
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        let activation_time = record.activation_time.as_ref();
+        let duration = record.duration.as_ref();
         insert_record
             .execute(params![
                 record.key.to_string(),
@@ -681,7 +887,24 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 Option::<i64>::None,
                 Option::<String>::None,
                 traits_json,
-                "[]",
+                record.system_category.as_deref(),
+                record.system_group.as_deref(),
+                record.system_base_item.as_deref(),
+                record.system_usage.as_deref(),
+                record.system_price_json.as_deref(),
+                record.system_actions_value,
+                record.system_time_value.as_deref(),
+                record.system_duration_value.as_deref(),
+                record.price_cp,
+                activation_time.map(|time| time_kind_label(time.kind)),
+                activation_time.and_then(|time| time.actions),
+                activation_time.and_then(|time| time.duration_value),
+                activation_time.and_then(|time| time.duration_unit.map(time_unit_label)),
+                activation_time.map(|time| time.text.as_str()),
+                duration.map(|time| time_kind_label(time.kind)),
+                duration.and_then(|time| time.duration_value),
+                duration.and_then(|time| time.duration_unit.map(time_unit_label)),
+                duration.map(|time| time.text.as_str()),
                 record.publication_title.as_deref(),
                 i64::from(record.publication_remaster),
                 record.description_text.as_deref(),
@@ -703,6 +926,11 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.raw_json.as_str(),
             ])
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        for trait_value in &record.traits {
+            insert_trait
+                .execute((record.key.to_string(), trait_value.as_str()))
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
         insert_fts
             .execute((
                 record.key.to_string(),
@@ -712,6 +940,29 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+fn time_kind_label(kind: TimeKind) -> &'static str {
+    match kind {
+        TimeKind::Actions => "actions",
+        TimeKind::Free => "free",
+        TimeKind::Reaction => "reaction",
+        TimeKind::Duration => "duration",
+        TimeKind::Variable => "variable",
+        TimeKind::Other => "other",
+    }
+}
+
+fn time_unit_label(unit: TimeUnit) -> &'static str {
+    match unit {
+        TimeUnit::Round => "round",
+        TimeUnit::Minute => "minute",
+        TimeUnit::Hour => "hour",
+        TimeUnit::Day => "day",
+        TimeUnit::Week => "week",
+        TimeUnit::Month => "month",
+        TimeUnit::Year => "year",
+    }
 }
 
 fn publication_family_label(publication_family: PublicationFamily) -> &'static str {

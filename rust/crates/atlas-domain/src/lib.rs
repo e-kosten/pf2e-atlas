@@ -20,7 +20,7 @@ pub use metadata::{
 };
 pub use record::{
     ActionCost, Level, Publication, PublicationFamily, Rarity, RecordSummary, SourceProvenance,
-    TextStatus,
+    TextStatus, TimeKind, TimeUnit,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 pub use rule_graph::{

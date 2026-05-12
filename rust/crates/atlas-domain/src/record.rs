@@ -26,6 +26,29 @@ pub enum ActionCost {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum TimeKind {
+    Actions,
+    Free,
+    Reaction,
+    Duration,
+    Variable,
+    Other,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeUnit {
+    Round,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PublicationFamily {
     Core,
     Rules,
