@@ -21,15 +21,15 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
 
     assert!(build_output.status.success());
     let build_json: Value = serde_json::from_slice(&build_output.stdout)?;
-    assert_eq!(
-        build_json,
-        json!({
-            "status": "ok",
-            "output": index_path.display().to_string(),
-            "pack_count": 1,
-            "record_count": 1,
-            "warnings": []
-        })
+    assert_eq!(build_json["status"], json!("ok"));
+    assert_eq!(build_json["output"], index_path.display().to_string());
+    assert_eq!(build_json["pack_count"], 1);
+    assert_eq!(build_json["record_count"], 1);
+    assert_eq!(build_json["warnings"], json!([]));
+    assert!(
+        build_json["source_signature"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("foundry-pf2e:") && value.len() == 77)
     );
 
     let validate_output = run_atlas(&index_path)?;
@@ -38,6 +38,10 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     let validate_json: Value = serde_json::from_slice(&validate_output.stdout)?;
     assert_eq!(validate_json["status"], "ok");
     assert_eq!(validate_json["source_record_count"], "1");
+    assert_eq!(
+        validate_json["source_signature"],
+        build_json["source_signature"]
+    );
 
     fs::remove_dir_all(root)?;
     Ok(())
