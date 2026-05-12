@@ -46,6 +46,7 @@ pub struct BuildArtifactReport {
     pub output_path: PathBuf,
     pub pack_count: usize,
     pub record_count: usize,
+    pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
 }
 
@@ -53,7 +54,14 @@ pub struct BuildArtifactReport {
 pub struct SourceLoad {
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
+    pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkippedRecord {
+    pub path: PathBuf,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +125,7 @@ pub fn build_minimal_artifact(
         output_path: options.output_path,
         pack_count: source.packs.len(),
         record_count: source.records.len(),
+        skipped_records: source.skipped_records,
         warnings: source.warnings,
     })
 }
@@ -139,10 +148,11 @@ pub fn load_foundry_source(
     let manifest = parse_manifest(&manifest_path)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
+    let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
 
     for manifest_pack in manifest.packs {
-        let resolved_path = source_root.join(manifest_pack.path.trim_start_matches('/'));
+        let resolved_path = resolve_pack_path(source_root, &manifest_pack);
         if !resolved_path.is_dir() {
             warnings.push(format!(
                 "Skipping pack {}: {} is not a readable directory.",
@@ -159,10 +169,26 @@ pub fn load_foundry_source(
         let record_start = records.len();
 
         for path in paths {
-            let raw = read_json_record(&path)?;
+            let raw = match read_json_record(&path) {
+                Ok(raw) => raw,
+                Err(error) => {
+                    skipped_records.push(SkippedRecord {
+                        path: path.clone(),
+                        reason: error.to_string(),
+                    });
+                    warnings.push(error.to_string());
+                    continue;
+                }
+            };
             match normalize_record(&manifest_pack, &pack_name, &path, source_root, raw) {
                 Ok(record) => records.push(record),
-                Err(error) => warnings.push(error.to_string()),
+                Err(error) => {
+                    skipped_records.push(SkippedRecord {
+                        path: path.clone(),
+                        reason: error.to_string(),
+                    });
+                    warnings.push(error.to_string());
+                }
             }
         }
 
@@ -182,8 +208,26 @@ pub fn load_foundry_source(
     Ok(SourceLoad {
         packs,
         records,
+        skipped_records,
         warnings,
     })
+}
+
+fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {
+    let declared_path = manifest_pack.path.trim_start_matches('/');
+    let direct = source_root.join(declared_path);
+    if direct.is_dir() {
+        return direct;
+    }
+
+    if let Some(pack_directory) = Path::new(declared_path).file_name() {
+        let namespaced = source_root.join("packs").join("pf2e").join(pack_directory);
+        if namespaced.is_dir() {
+            return namespaced;
+        }
+    }
+
+    direct
 }
 
 fn default_manifest_path(source_root: &Path) -> PathBuf {

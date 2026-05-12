@@ -85,7 +85,7 @@ Required runtime table families for Rust-written artifacts are:
 | Records | `records` | Canonical normalized record identity, classification, presentation text, source facts, variant facts, search visibility, generated search text, and raw JSON for parity/debugging. |
 | Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. |
 | Filterable row projections | `record_traits`, `record_derived_tags`, actor/item/spell side tables | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
-| Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by category/subcategory and metric namespace. |
+| Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by category, explicit type axes, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. |
 | Lexical search | `records_fts` | SQLite FTS5 index over canonical record name and search text. |
 | Embeddings and vector search | `embeddings`, `record_embeddings` | Reusable vector blobs with semantic input hashes plus sqlite-vec rows and vector-side filter projections. |
@@ -98,7 +98,8 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 
 - `RecordKey` values are serialized as `pack:id`, but Rust runtime code should use a parsed `RecordKey` newtype.
 - Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
-- Closed vocabularies such as category, subcategory, source category, search visibility policy, metric value type, and variant source should be validated by row loaders and represented as enums or validated newtypes in Rust.
+- Closed vocabularies such as top-level category, source category, search visibility policy, metric value type, variant source, and source-backed type axes should be validated by row loaders and represented as enums or validated newtypes in Rust.
+- Do not promote TypeScript `subcategory` into the durable Rust scope model. Former subcategory use cases should be represented as explicit metadata/filter axes when they come from source fields or useful collapsed signals, and as trait filters when they are entirely trait-derived.
 - Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
 - Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
 - Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source.

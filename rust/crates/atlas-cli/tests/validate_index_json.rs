@@ -28,6 +28,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "output": index_path.display().to_string(),
             "pack_count": 1,
             "record_count": 1,
+            "skipped_record_count": 0,
+            "skipped_records": [],
             "warnings": []
         })
     );

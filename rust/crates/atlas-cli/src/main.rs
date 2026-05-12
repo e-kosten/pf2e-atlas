@@ -43,11 +43,23 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
     .map_err(|error| error.to_string())?;
 
     if options.json {
+        let skipped_records = report
+            .skipped_records
+            .iter()
+            .map(|record| {
+                serde_json::json!({
+                    "path": record.path.display().to_string(),
+                    "reason": record.reason,
+                })
+            })
+            .collect::<Vec<_>>();
         let body = serde_json::json!({
             "status": "ok",
             "output": report.output_path.display().to_string(),
             "pack_count": report.pack_count,
             "record_count": report.record_count,
+            "skipped_record_count": report.skipped_records.len(),
+            "skipped_records": skipped_records,
             "warnings": report.warnings,
         });
         println!(
@@ -61,6 +73,13 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             report.pack_count,
             report.output_path.display()
         );
+        for skipped_record in &report.skipped_records {
+            eprintln!(
+                "skipped record: {}: {}",
+                skipped_record.path.display(),
+                skipped_record.reason
+            );
+        }
     }
 
     Ok(ExitCode::SUCCESS)
