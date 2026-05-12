@@ -16,6 +16,7 @@ use atlas_domain::{
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -46,6 +47,7 @@ pub struct BuildArtifactReport {
     pub output_path: PathBuf,
     pub pack_count: usize,
     pub record_count: usize,
+    pub source_signature: String,
     pub warnings: Vec<String>,
 }
 
@@ -53,6 +55,7 @@ pub struct BuildArtifactReport {
 pub struct SourceLoad {
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
+    pub source_signature: String,
     pub warnings: Vec<String>,
 }
 
@@ -117,6 +120,7 @@ pub fn build_minimal_artifact(
         output_path: options.output_path,
         pack_count: source.packs.len(),
         record_count: source.records.len(),
+        source_signature: source.source_signature,
         warnings: source.warnings,
     })
 }
@@ -136,9 +140,14 @@ pub fn load_foundry_source(
     let manifest_path = manifest_path
         .map(Path::to_path_buf)
         .unwrap_or_else(|| default_manifest_path(source_root));
-    let manifest = parse_manifest(&manifest_path)?;
+    let manifest_relative_path = source_relative_path(source_root, &manifest_path);
+    let (manifest, manifest_serialized) = parse_manifest(&manifest_path)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
+    let mut source_files = vec![SourceFileSignatureInput {
+        relative_path: manifest_relative_path,
+        content: manifest_serialized,
+    }];
     let mut warnings = Vec::new();
 
     for manifest_pack in manifest.packs {
@@ -159,9 +168,16 @@ pub fn load_foundry_source(
         let record_start = records.len();
 
         for path in paths {
-            let raw = read_json_record(&path)?;
+            let (raw, serialized) = read_json_record(&path)?;
+            let relative_path = source_relative_path(source_root, &path);
             match normalize_record(&manifest_pack, &pack_name, &path, source_root, raw) {
-                Ok(record) => records.push(record),
+                Ok(record) => {
+                    source_files.push(SourceFileSignatureInput {
+                        relative_path,
+                        content: serialized,
+                    });
+                    records.push(record);
+                }
                 Err(error) => warnings.push(error.to_string()),
             }
         }
@@ -182,6 +198,7 @@ pub fn load_foundry_source(
     Ok(SourceLoad {
         packs,
         records,
+        source_signature: compute_source_signature(source_files),
         warnings,
     })
 }
@@ -196,11 +213,12 @@ fn default_manifest_path(source_root: &Path) -> PathBuf {
     source_root.join("module.json")
 }
 
-fn parse_manifest(path: &Path) -> Result<Manifest, IngestError> {
+fn parse_manifest(path: &Path) -> Result<(Manifest, String), IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
-    serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))
+    let manifest = serde_json::from_str(&serialized)
+        .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))?;
+    Ok((manifest, serialized))
 }
 
 fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
@@ -228,11 +246,47 @@ fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), Inges
     Ok(())
 }
 
-fn read_json_record(path: &Path) -> Result<Value, IngestError> {
+fn read_json_record(path: &Path) -> Result<(Value, String), IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
-    serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))
+    let raw = serde_json::from_str(&serialized)
+        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
+    Ok((raw, serialized))
+}
+
+#[derive(Debug)]
+struct SourceFileSignatureInput {
+    relative_path: String,
+    content: String,
+}
+
+fn source_relative_path(source_root: &Path, path: &Path) -> String {
+    path.strip_prefix(source_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn compute_source_signature(mut files: Vec<SourceFileSignatureInput>) -> String {
+    files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    let mut hasher = Sha256::new();
+    for file in files {
+        hasher.update(file.relative_path.as_bytes());
+        hasher.update([0]);
+        hasher.update(file.content.as_bytes());
+        hasher.update([0]);
+    }
+    format!("foundry-pf2e:{}", hex_lower(&hasher.finalize()))
+}
+
+fn hex_lower(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(DIGITS[(byte >> 4) as usize] as char);
+        output.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    output
 }
 
 fn normalize_record(
@@ -407,7 +461,11 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
         .transaction()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     create_minimal_schema(&transaction)?;
-    write_artifact_metadata(&transaction, source.records.len())?;
+    write_artifact_metadata(
+        &transaction,
+        source.records.len(),
+        source.source_signature.as_str(),
+    )?;
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records)?;
     transaction
@@ -472,6 +530,13 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               raw_json TEXT NOT NULL
             );
 
+            CREATE TABLE record_traits (
+              record_key TEXT NOT NULL,
+              trait TEXT NOT NULL,
+              PRIMARY KEY (record_key, trait),
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
             CREATE VIRTUAL TABLE records_fts USING fts5(
               record_key UNINDEXED,
               name,
@@ -485,6 +550,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
 fn write_artifact_metadata(
     connection: &Connection,
     record_count: usize,
+    source_signature: &str,
 ) -> Result<(), IngestError> {
     let metadata = [
         (
@@ -501,7 +567,7 @@ fn write_artifact_metadata(
         ),
         (
             artifact_metadata_keys::SOURCE_SIGNATURE,
-            "foundry-pf2e:minimal-rust-ingest".to_string(),
+            source_signature.to_string(),
         ),
         (
             artifact_metadata_keys::SOURCE_RECORD_COUNT,
@@ -613,6 +679,9 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
     let mut insert_fts = connection
         .prepare("INSERT INTO records_fts (record_key, name, search_text) VALUES (?1, ?2, ?3)")
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    let mut insert_trait = connection
+        .prepare("INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)")
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for record in records {
         let traits_json = serde_json::to_string(&record.traits)
@@ -662,6 +731,11 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.search_text.as_str(),
             ))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        for trait_name in &record.traits {
+            insert_trait
+                .execute((record.key.to_string(), trait_name.as_str()))
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
     }
     Ok(())
 }

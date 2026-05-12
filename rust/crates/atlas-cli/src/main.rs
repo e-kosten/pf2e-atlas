@@ -48,6 +48,7 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             "output": report.output_path.display().to_string(),
             "pack_count": report.pack_count,
             "record_count": report.record_count,
+            "source_signature": report.source_signature,
             "warnings": report.warnings,
         });
         println!(

@@ -17,6 +17,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(source.packs.len(), 2);
     assert_eq!(source.records.len(), 3);
     assert!(source.warnings.is_empty());
+    assert!(source.source_signature.starts_with("foundry-pf2e:"));
+    assert_eq!(source.source_signature.len(), 77);
 
     let treat_wounds = source
         .records
@@ -51,10 +53,15 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     assert_eq!(report.pack_count, 2);
     assert_eq!(report.record_count, 3);
+    assert!(report.source_signature.starts_with("foundry-pf2e:"));
 
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("3"));
+    assert_eq!(
+        validation.source_signature.as_deref(),
+        Some(report.source_signature.as_str())
+    );
 
     let connection = Connection::open(&output_path)?;
     let pack_count: usize =
@@ -63,8 +70,15 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM records", [], |row| row.get(0))?;
     let fts_count: usize =
         connection.query_row("SELECT COUNT(*) FROM records_fts", [], |row| row.get(0))?;
+    let trait_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM record_traits", [], |row| row.get(0))?;
     let spell_category: String = connection.query_row(
         "SELECT category FROM records WHERE record_key = 'spells:testSpell0001'",
+        [],
+        |row| row.get(0),
+    )?;
+    let treat_wounds_healing_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM record_traits WHERE record_key = 'actions:testAction0001' AND trait = 'healing'",
         [],
         |row| row.get(0),
     )?;
@@ -72,7 +86,9 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(pack_count, 2);
     assert_eq!(record_count, 3);
     assert_eq!(fts_count, 3);
+    assert_eq!(trait_count, 9);
     assert_eq!(spell_category, "spell");
+    assert_eq!(treat_wounds_healing_count, 1);
 
     drop(connection);
     fs::remove_dir_all(root)?;
