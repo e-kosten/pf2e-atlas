@@ -11,7 +11,7 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, PackName,
-    RecordId, RecordKey, SourceCategory, Subcategory, TextStatus, artifact_metadata_keys,
+    RecordId, RecordKey, SourceCategory, TextStatus, artifact_metadata_keys,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
@@ -81,7 +81,6 @@ pub struct LoadedRecord {
     pub name: String,
     pub normalized_name: String,
     pub category: Category,
-    pub subcategory: Option<Subcategory>,
     pub pack_name: PackName,
     pub pack_label: String,
     pub document_type: String,
@@ -295,7 +294,7 @@ fn normalize_record(
         .map_err(|error| normalization_error(path, &format!("invalid _id: {error}")))?;
     let key = RecordKey::new(pack_name.clone(), id.clone());
     let normalized_name = normalize_text(&name);
-    let (category, subcategory) = classify_record(&manifest_pack.document_type, &record_type);
+    let category = classify_record(&manifest_pack.document_type, &record_type);
     let traits = extract_traits(&raw);
     let publication_title = pointer_string(&raw, "/system/publication/title");
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
@@ -323,7 +322,6 @@ fn normalize_record(
         name,
         normalized_name,
         category,
-        subcategory,
         pack_name: pack_name.clone(),
         pack_label: manifest_pack.label.clone(),
         document_type: manifest_pack.document_type.clone(),
@@ -348,28 +346,17 @@ fn normalization_error(path: &Path, message: &str) -> IngestError {
     }
 }
 
-fn classify_record(document_type: &str, record_type: &str) -> (Category, Option<Subcategory>) {
+fn classify_record(document_type: &str, record_type: &str) -> Category {
     match (document_type, record_type) {
-        ("Actor", "hazard") => (Category::Hazard, Some(Subcategory::Trap)),
-        ("Actor", "familiar") => (Category::Creature, Some(Subcategory::Familiar)),
-        ("Actor", _) => (Category::Creature, None),
-        ("Item", "action") => (Category::Rule, Some(Subcategory::Action)),
-        ("Item", "condition") => (Category::Rule, Some(Subcategory::Condition)),
-        ("Item", "effect") => (Category::Rule, Some(Subcategory::Effect)),
-        ("Item", "spell") => (Category::Spell, None),
-        ("Item", "feat") => (Category::Feat, None),
-        ("Item", "ancestry") => (Category::CharacterCreation, Some(Subcategory::Ancestry)),
-        ("Item", "background") => (Category::CharacterCreation, Some(Subcategory::Background)),
-        ("Item", "class") => (Category::CharacterCreation, Some(Subcategory::Class)),
-        ("Item", "heritage") => (Category::CharacterCreation, Some(Subcategory::Heritage)),
-        ("Item", "weapon") => (Category::Equipment, Some(Subcategory::Weapon)),
-        ("Item", "armor") => (Category::Equipment, Some(Subcategory::Armor)),
-        ("Item", "shield") => (Category::Equipment, Some(Subcategory::Shield)),
-        ("Item", "consumable") => (Category::Equipment, Some(Subcategory::Consumable)),
-        ("JournalEntry", _) | ("JournalEntryPage", _) => {
-            (Category::Lore, Some(Subcategory::Journal))
-        }
-        _ => (Category::Lore, None),
+        ("Actor", "hazard") => Category::Hazard,
+        ("Actor", _) => Category::Creature,
+        ("Item", "action" | "condition" | "effect") => Category::Rule,
+        ("Item", "spell") => Category::Spell,
+        ("Item", "feat") => Category::Feat,
+        ("Item", "ancestry" | "background" | "class" | "heritage") => Category::CharacterCreation,
+        ("Item", "weapon" | "armor" | "shield" | "consumable") => Category::Equipment,
+        ("JournalEntry", _) | ("JournalEntryPage", _) => Category::Lore,
+        _ => Category::Lore,
     }
 }
 
@@ -485,7 +472,6 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               name TEXT NOT NULL,
               normalized_name TEXT NOT NULL,
               category TEXT NOT NULL,
-              subcategory TEXT,
               pack_name TEXT NOT NULL,
               pack_label TEXT NOT NULL,
               document_type TEXT NOT NULL,
@@ -646,12 +632,12 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
     let mut insert_record = connection
         .prepare(
             "INSERT INTO records (
-              record_key, id, name, normalized_name, category, subcategory, pack_name, pack_label, document_type, record_type,
+              record_key, id, name, normalized_name, category, pack_name, pack_label, document_type, record_type,
               level, rarity, traits_json, derived_tags_json, publication_title, publication_remaster, description_text, blurb_text,
               has_description, description_snippet, source_category, folder_id, families_json, variant_family_key, variant_base_name,
               variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_unique, is_search_canonical,
               search_text, raw_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33)",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
@@ -668,7 +654,6 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.name.as_str(),
                 record.normalized_name.as_str(),
                 record.category.as_str(),
-                record.subcategory.map(Subcategory::as_str),
                 record.pack_name.as_str(),
                 record.pack_label.as_str(),
                 record.document_type.as_str(),

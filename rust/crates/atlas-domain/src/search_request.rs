@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::metadata::{MetadataPredicate, MetricOperator, NumericMetricOperator};
-use crate::{Category, RecordKey, Subcategory};
+use crate::{Category, RecordKey};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
@@ -95,7 +95,6 @@ pub enum SearchFilterNode {
     },
     Scope {
         category: Category,
-        subcategory: ScopeSubcategoryMatch,
     },
     Level {
         #[serde(rename = "match")]
@@ -141,15 +140,6 @@ pub enum SearchFilterNode {
     Not {
         child: Box<SearchFilterNode>,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ScopeSubcategoryMatch {
-    Any,
-    Eq { value: Subcategory },
-    IsNull,
-    IsNotNull,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -212,7 +202,6 @@ mod tests {
                 children: vec![
                     SearchFilterNode::Scope {
                         category: Category::Spell,
-                        subcategory: ScopeSubcategoryMatch::Any,
                     },
                     SearchFilterNode::MetadataPredicate {
                         predicate: MetadataPredicate::Set {

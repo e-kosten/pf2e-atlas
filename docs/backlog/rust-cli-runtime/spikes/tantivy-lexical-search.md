@@ -23,7 +23,7 @@ PF2E search has many lexical-heavy needs: exact names, phrases, rules terms, tra
 ## Do Not Mock
 
 - real PF2E text
-- category/subcategory filters
+- category and explicit metadata-axis filters
 - trait/tag filters
 - phrase search
 - field weighting

@@ -99,7 +99,7 @@ Goal: derive the Rust contract surface from the current TypeScript runtime befor
 
 - [x] Inventory current TypeScript SQLite tables and identify which runtime commands or discovery flows depend on each table.
 - [x] Inventory current TypeScript indexing stages and map them to planned Rust writer stages.
-- [x] Map current TypeScript record, category, subcategory, metadata, metric, request, filter, search, lookup, rule-graph, and output shapes to planned Rust contracts.
+- [x] Map current TypeScript record, category, metadata, metric, request, filter, search, lookup, rule-graph, and output shapes to planned Rust contracts, including the decision to retire TypeScript subcategory as a Rust contract.
 - [x] Classify each mapped contract as:
   - [x] parity requirement
   - [x] deliberate Rust redesign
@@ -129,8 +129,8 @@ Acceptance:
 Goal: define the typed runtime vocabulary that later ingest, index, search, CLI, and TUI crates share.
 
 - [x] Add `RecordKey` with pack and record id parsing.
-- [x] Add category and subcategory vocabularies.
-- [ ] Retire `subcategory` from the durable Rust scope model before lookup/search/discovery depend on it; replace useful cases with explicit metadata/filter axes.
+- [x] Add top-level category vocabulary.
+- [x] Remove subcategory from Rust domain, search scope, record summary, and minimal writer schema; replace useful cases with explicit metadata/filter axes.
 - [x] Add rarity, level, action-cost, and source/publication primitives.
 - [x] Add canonical record summary type.
 - [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
@@ -175,13 +175,12 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Parse vendored Foundry JSON with tolerant boundary types.
 - [x] Normalize canonical record keys.
 - [x] Normalize canonical names.
-- [x] Map minimal top-level record category and transitional record type/subcategory values for the fixture writer.
+- [x] Map minimal top-level record category and preserve Foundry `document_type` / `record_type` source axes for the fixture writer.
 - [x] Extract description text.
 - [x] Strip or normalize Foundry HTML and UUID markup.
 - [x] Extract traits.
 - [x] Extract publication/source metadata.
 - [x] Report skipped source records with path and reason during ingest.
-- [ ] Replace transitional subcategory mapping with explicit source-backed axes before search/discovery harden around Rust artifacts.
 - [ ] Decide whether `army` actors belong under creature-like actor handling or a separate explicit actor type axis.
 - [ ] Extract aliases and variant names.
 - [ ] Extract reference edges without substring false positives.
@@ -277,7 +276,7 @@ Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discov
 
 - [ ] Add a CLI equivalent for `pf2e_get_search_semantics`, such as `atlas schema search-filters --json`.
 - [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
-- [ ] Add category/subcategory filtering for value discovery.
+- [ ] Add category and explicit-axis filtering for value discovery.
 - [ ] Add trait discovery.
 - [ ] Add derived-tag discovery.
 - [ ] Add item metadata discovery.

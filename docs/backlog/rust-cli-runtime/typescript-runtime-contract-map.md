@@ -26,7 +26,7 @@ Primary TypeScript sources:
 - `src/data/indexing/embedding-writer.ts`: reusable embedding blobs and sqlite-vec rows.
 - `src/data/index-types.ts`: normalized ingest/write model.
 - `src/domain/record-types.ts`: runtime record shape.
-- `src/domain/search-types.ts`: categories, subcategories, lookup/search result contracts, filter discovery fields.
+- `src/domain/search-types.ts`: TypeScript categories/subcategories, lookup/search result contracts, filter discovery fields.
 - `src/domain/search-request-types.ts`: canonical request and filter tree.
 - `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts`: metadata fields and predicate contracts.
 - `src/domain/rule-types.ts`: rule graph and rule-context contracts.
@@ -71,7 +71,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | `records` is a broad catch-all row containing core identity, presentation text, classification, variant facts, search text, raw JSON, and several denormalized filter fields | Makes the central table hard to version and encourages consumers to depend on incidental columns | Split Rust domain types into identity, summary, presentation, source/provenance, variant, and search-index inputs. The SQLite table may stay wide for read performance, but Rust APIs should not expose one giant mutable shape as the primary contract. |
 | `raw_json` is persisted for every row | Useful for debugging, but dangerous if runtime behavior keeps reaching into arbitrary JSON paths | Keep initially for parity/debugging. Runtime lookup/search/discovery should use typed rows. Any raw JSON dependency must be called out as an ingest gap. |
 | Boolean values are stored as `INTEGER` without explicit value constraints | SQLite permits non-0/1 values unless writers are disciplined | Rust artifact schema should add `CHECK` constraints for boolean columns or validate them during artifact validation. |
-| Many enum-like columns are plain text: category, subcategory, rarity, source category, variant source, document type, record type, metric value type | Current TypeScript relies on conventions and runtime normalization | Rust should model durable closed values as enums or validated newtypes at load time. `subcategory` is not durable Rust scope; replace useful subcategory-like concepts with explicit metadata/filter axes such as Foundry document type, item type, actor type, spell tradition, spell kind, hazard kind, feat kind, and trait-backed filters. |
+| Many enum-like columns are plain text: category, TypeScript subcategory, rarity, source category, variant source, document type, record type, metric value type | Current TypeScript relies on conventions and runtime normalization | Rust should model durable closed values as enums or validated newtypes at load time. The Rust contract has no generic subcategory scope; useful TypeScript subcategory-like concepts become explicit metadata/filter axes such as Foundry document type, item type, actor type, spell tradition, spell kind, hazard kind, feat kind, and trait-backed filters. |
 | `RecordKey` is a string alias in TypeScript | Malformed keys can cross boundaries until late SQL/runtime failures | Rust should use a parseable `RecordKey` newtype with `pack` and `id` components, and only serialize/display as `pack:id` at boundaries. |
 | Metric storage uses EAV tables with string metric keys and dynamic value types | Flexible, but weakly typed and hard to discover without catalogs | Keep EAV for first parity because actor/item metrics are open-ended. Strengthen with typed `MetricValue`, catalog validation, namespace prefix parsing, and stable metric key normalization. |
 | `metric_key_catalog` and `metric_value_catalog` are derived after all record writes | Correct today, but easy for future writers to forget | Make metric catalog writing a required artifact stage with validation that catalog rows match metric rows for canonical records. |
@@ -87,7 +87,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 
 - Use newtypes for identifiers: `RecordKey`, `PackName`, `RecordId`, `MetricKey`, `SourceSignature`.
 - Use enums for closed vocabularies: top-level category, source category, rarity when normalized, search mode, search profile, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
-- Do not preserve TypeScript `subcategory` as a durable Rust scope. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field rather than a generic subcategory.
+- Do not preserve TypeScript subcategory as a Rust field, enum, scope member, or compatibility projection. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field.
 - Use typed side-data structs for actor, item, spell, publication, variant, and embedding identity.
 - Keep open PF2E/provider-defined values as validated strings with clear owners rather than pretending they are closed enums.
 - Use `Result` at boundary decoders and row loaders. Missing or malformed runtime-required fields should be artifact errors, not silently defaulted values.
@@ -109,7 +109,7 @@ Before Phase 3 writer work continues beyond the minimal writer:
 - Decide whether boolean and enum-like columns get SQLite `CHECK` constraints, row-loader validation, or both.
 - Decide the vector-row projection/sentinel contract.
 - Model the current TS remaster bridge table as `remaster_links` or edition links and preserve premaster-to-remaster navigation semantics.
-- Remove `subcategory` from the planned Rust canonical scope model before lookup/search/discovery harden around it. Existing minimal-writer `subcategory` output is transitional and should not be expanded for compatibility.
+- Keep the planned Rust canonical scope model free of generic subcategory fields before lookup/search/discovery harden around it.
 - Record each skipped source record during ingest with path and reason so full-corpus runs become an upgrade queue for the validation pipeline.
 
 Before Phase 7 discovery starts:
@@ -142,11 +142,11 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | --- | --- | --- | --- | --- |
 | `RecordKey = string` | `RecordKey { pack, id }` parseable/displayable newtype | `atlas-domain` | rust redesign | User-visible key syntax remains `pack:id`; Rust should reject malformed keys at the boundary. |
 | `SearchCategory` and aliases | `Category` enum plus explicit input alias parser | `atlas-domain` | rust redesign | Domain serde uses Rust-owned canonical values. Alias acceptance belongs at user-facing or compatibility boundaries and must serialize back to one canonical representation. |
-| `SearchSubcategory` and aliases | Retired as durable Rust scope; replace with explicit metadata/filter axes | `atlas-domain`, `atlas-ingest`, later `atlas-search` | retired | Do not keep subcategory as a compatibility projection. Useful source-authored or collapsed signals should become well-named fields; trait-derived groups should remain trait filters. |
+| `SearchSubcategory` and aliases | Removed from Rust contracts; replace with explicit metadata/filter axes | `atlas-domain`, `atlas-ingest`, later `atlas-search` | retired | Do not keep a compatibility projection. Useful source-authored or collapsed signals should become well-named fields; trait-derived groups should remain trait filters. |
 | `SourceCategory` | `SourceCategory` enum | `atlas-domain` | parity | Values: `core`, `rules`, `adventure`, `unknown`. |
 | `VariantSource` | `VariantSource` enum | `atlas-domain` | parity | Keep until variant parity is classified. |
 | `RecordDetail` | `DetailLevel` enum | `atlas-domain` | rust redesign | Current TS values are `minimal`, `standard`, `full`, and Rust keeps those as wire values. `standard` is current full record content minus `sourcePath`; `full` adds source provenance. Do not add `answerable` as a generic detail level. |
-| `NormalizedRecord` | `RecordSummary`, later `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | `RecordSummary` owns lightweight list/preview facts: identity, name, top-level category, optional level/rarity/action cost, traits, publication/source summary, text status, and optional summary text. Explicit type axes belong in named metadata or side-data, not a generic subcategory field. Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
+| `NormalizedRecord` | `RecordSummary`, later `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | `RecordSummary` owns lightweight list/preview facts: identity, name, top-level category, optional level/rarity/action cost, traits, publication/source summary, text status, and optional summary text. Explicit type axes belong in named metadata or side-data. Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
 | rarity, level, action cost, source/publication facts | `Rarity`, `Level`, `ActionCost`, `Publication`, `SourceProvenance`, `TextStatus` | `atlas-domain` | rust redesign | `Rarity` is closed. `Level` is a numeric alias unless later invariants justify a newtype. `ActionCost` preserves numeric action counts and non-numeric free/reaction/passive/variable/other source values. Publication/source titles and paths remain free text; only normalized `SourceCategory` is a closed bucket. `TextStatus` is an internal diagnostic, not a user-facing answerability level. |
 | `SearchRequest` | tagged enum: browse/search/lookup | `atlas-domain` | parity semantics, Rust-owned shape | Preserve mode semantics. Do not bake TypeScript camelCase request JSON into core domain serde; put TS compatibility, if needed, in a removable adapter. |
 | `SearchFilterNode` | recursive enum | `atlas-domain` | parity semantics, Rust-owned shape | Exhaustive matching should force downstream search handling. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
@@ -166,7 +166,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 
 - field vocabulary from `FILTER_VALUE_FIELDS`
 - metadata field kind/operator compatibility
-- category scope plus explicit metadata/filter axes that replace former subcategory use cases
+- category scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
 - traits, families, derived tags, and variant axes
 - spell traditions and spell kinds
 - item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
@@ -185,7 +185,7 @@ before it becomes part of the durable CLI contract.
 
 | Current product surface | Current behavior | Rust parity target |
 | --- | --- | --- |
-| `pf2e_lookup` | Best matching record by name with optional pack/category/subcategory hints and alternatives | `atlas lookup` or equivalent exact-name lookup command. |
+| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas lookup` or equivalent exact-name lookup command using Rust category and explicit metadata axes. |
 | `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch lookup command or a stable JSON input mode for `atlas lookup`. |
 | `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | Record-key lookup command; raw JSON remains debug/parity-only unless typed fields are missing. |
 | `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch record-key lookup with current detail semantics. |
@@ -194,7 +194,7 @@ before it becomes part of the durable CLI contract.
 | `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search` with the same query/profile/exclude/filter semantics. |
 | `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas browse` or `atlas list` with the same filter, sort, and pagination semantics. |
 | `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Search/schema discovery command such as `atlas schema search-filters`. |
-| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. Preserve user-visible discovery capability, but do not preserve generic subcategory as the Rust-owned scope mechanism. |
+| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. Preserve user-visible discovery capability through Rust category and explicit metadata axes. |
 | `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Rule-context command that returns context only; it should not synthesize an answer. |
 | `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | Graph command over record keys with outgoing/backlink controls. |
 | `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |

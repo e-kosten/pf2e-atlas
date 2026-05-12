@@ -10,7 +10,7 @@ pub mod record_key;
 pub mod rule_graph;
 pub mod search_request;
 
-pub use categories::{Category, Subcategory};
+pub use categories::Category;
 pub use detail::DetailLevel;
 pub use metadata::{
     BooleanOperator, CollectionOperator, EqualityOperator, MetadataBooleanField,
@@ -30,8 +30,7 @@ pub use rule_graph::{
 };
 pub use search_request::{
     BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, NullableNumericMatch,
-    NullableStringMatch, NumericMatch, ScalarValue, ScopeSubcategoryMatch, SearchFilterNode,
-    SearchProfile, SearchRequest,
+    NullableStringMatch, NumericMatch, ScalarValue, SearchFilterNode, SearchProfile, SearchRequest,
 };
 
 pub const ARTIFACT_METADATA_TABLE: &str = "artifact_metadata";

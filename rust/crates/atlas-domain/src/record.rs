@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Category, PackName, RecordKey, Subcategory};
+use crate::{Category, PackName, RecordKey};
 
 pub type Level = i16;
 
@@ -64,8 +64,6 @@ pub struct RecordSummary {
     pub name: String,
     pub category: Category,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subcategory: Option<Subcategory>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<Level>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rarity: Option<Rarity>,
@@ -90,7 +88,6 @@ mod tests {
             key: RecordKey::parse("rules:abc123").expect("record key should parse"),
             name: "Treat Wounds".to_string(),
             category: Category::Rule,
-            subcategory: Some(Subcategory::Action),
             level: Some(1),
             rarity: Some(Rarity::Common),
             action_cost: Some(ActionCost::Actions { count: 1 }),
@@ -111,7 +108,6 @@ mod tests {
         let json = serde_json::to_string(&summary).expect("summary should serialize");
         assert!(json.contains("\"key\":\"rules:abc123\""));
         assert!(json.contains("\"category\":\"rule\""));
-        assert!(json.contains("\"subcategory\":\"action\""));
         assert!(json.contains("\"action_cost\":{\"kind\":\"actions\",\"count\":1}"));
         assert!(json.contains("\"source_category\":\"core\""));
         assert!(json.contains("\"text_status\":\"resolved\""));
