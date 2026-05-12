@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_domain::{Category, Subcategory, ValidationStatus};
+use atlas_domain::{Category, ValidationStatus};
 use atlas_index::validate_index;
 use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact, load_foundry_source};
 use rusqlite::Connection;
@@ -27,7 +27,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(treat_wounds.name, "Treat Wounds");
     assert_eq!(treat_wounds.normalized_name, "treat wounds");
     assert_eq!(treat_wounds.category, Category::Rule);
-    assert_eq!(treat_wounds.subcategory, Some(Subcategory::Action));
+    assert_eq!(treat_wounds.record_type, "action");
     assert_eq!(treat_wounds.traits, vec!["exploration", "healing"]);
     assert_eq!(
         treat_wounds.description_text.as_deref(),

@@ -24,7 +24,7 @@ LanceDB is vector-first and has Rust, Python, and TypeScript access paths. It ma
 
 - vector storage
 - metadata filters
-- category/subcategory filters
+- category and explicit metadata-axis filters
 - embedding dimensions
 - index build time
 - query latency

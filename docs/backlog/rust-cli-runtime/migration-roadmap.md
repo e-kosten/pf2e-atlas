@@ -105,7 +105,7 @@ The important constraint is that these helpers do not become the owner of canoni
 A plausible Rust workspace shape:
 
 - `atlas-domain`
-  Shared record keys, categories, subcategories, metadata fields, search request/filter contracts, rule graph contracts, and derived-tag runtime types.
+  Shared record keys, categories, explicit metadata axes, search request/filter contracts, rule graph contracts, and derived-tag runtime types.
 - `atlas-index`
   SQLite schema validation, typed row loading, vector table access, metadata/source/embedding identity validation, and low-level prepared-query owners.
 - `atlas-search`
