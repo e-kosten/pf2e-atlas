@@ -16,6 +16,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
 
     assert_eq!(source.packs.len(), 2);
     assert_eq!(source.records.len(), 3);
+    assert!(source.skipped_records.is_empty());
     assert!(source.warnings.is_empty());
 
     let treat_wounds = source
@@ -38,6 +39,85 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
 }
 
 #[test]
+fn reports_all_skipped_records_without_aborting_source_load()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("skips");
+    write_fixture_source(&root)?;
+    fs::write(root.join("packs/actions/broken-json.json"), "{")?;
+    fs::write(
+        root.join("packs/actions/missing-id.json"),
+        r#"{
+          "name": "Missing Id",
+          "type": "action",
+          "system": {
+            "description": { "value": "<p>This record should be skipped.</p>" }
+          }
+        }"#,
+    )?;
+
+    let source = load_foundry_source(&root, None)?;
+
+    assert_eq!(source.records.len(), 3);
+    assert_eq!(source.skipped_records.len(), 2);
+    assert!(
+        source
+            .skipped_records
+            .iter()
+            .any(|record| record.path.ends_with("broken-json.json")
+                && record.reason.contains("source record failed to parse"))
+    );
+    assert!(
+        source
+            .skipped_records
+            .iter()
+            .any(|record| record.path.ends_with("missing-id.json")
+                && record.reason.contains("missing _id"))
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("namespaced");
+    fs::create_dir_all(root.join("packs/pf2e/actions"))?;
+    fs::write(
+        root.join("system.pf2e.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/pf2e/actions/treat-wounds.json"),
+        r#"{
+          "_id": "testAction0001",
+          "name": "Treat Wounds",
+          "type": "action",
+          "system": {
+            "description": { "value": "<p>Use Medicine to help a wounded creature recover.</p>" }
+          }
+        }"#,
+    )?;
+
+    let source = load_foundry_source(&root, None)?;
+
+    assert_eq!(source.packs.len(), 1);
+    assert_eq!(source.records.len(), 1);
+    assert_eq!(
+        source.packs[0].resolved_path,
+        root.join("packs/pf2e/actions")
+    );
+    assert!(source.warnings.is_empty());
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("build");
     write_fixture_source(&root)?;
@@ -51,6 +131,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     assert_eq!(report.pack_count, 2);
     assert_eq!(report.record_count, 3);
+    assert!(report.skipped_records.is_empty());
 
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);

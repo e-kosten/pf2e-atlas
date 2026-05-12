@@ -130,6 +130,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 
 - [x] Add `RecordKey` with pack and record id parsing.
 - [x] Add category and subcategory vocabularies.
+- [ ] Retire `subcategory` from the durable Rust scope model before lookup/search/discovery depend on it; replace useful cases with explicit metadata/filter axes.
 - [x] Add rarity, level, action-cost, and source/publication primitives.
 - [x] Add canonical record summary type.
 - [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
@@ -170,20 +171,24 @@ Acceptance:
 
 Goal: move deterministic Foundry JSON ingest and SQLite artifact construction toward Rust ownership.
 
-- [ ] Add `atlas-ingest` crate once the first real writer slice starts.
-- [ ] Parse vendored Foundry JSON with tolerant boundary types.
-- [ ] Normalize canonical record keys.
-- [ ] Normalize canonical names.
-- [ ] Map record category/subcategory, including a policy for `army` actors.
-- [ ] Extract description text.
-- [ ] Strip or normalize Foundry HTML and UUID markup.
-- [ ] Extract traits.
-- [ ] Extract publication/source metadata.
+- [x] Add `atlas-ingest` crate once the first real writer slice starts.
+- [x] Parse vendored Foundry JSON with tolerant boundary types.
+- [x] Normalize canonical record keys.
+- [x] Normalize canonical names.
+- [x] Map minimal top-level record category and transitional record type/subcategory values for the fixture writer.
+- [x] Extract description text.
+- [x] Strip or normalize Foundry HTML and UUID markup.
+- [x] Extract traits.
+- [x] Extract publication/source metadata.
+- [x] Report skipped source records with path and reason during ingest.
+- [ ] Replace transitional subcategory mapping with explicit source-backed axes before search/discovery harden around Rust artifacts.
+- [ ] Decide whether `army` actors belong under creature-like actor handling or a separate explicit actor type axis.
 - [ ] Extract aliases and variant names.
 - [ ] Extract reference edges without substring false positives.
-- [ ] Write `artifact_metadata`.
-- [ ] Write `records`.
-- [ ] Write `records_fts`.
+- [x] Write `artifact_metadata`.
+- [x] Write `packs`.
+- [x] Write `records`.
+- [x] Write `records_fts`.
 - [ ] Write `reference_edges`.
 - [ ] Write record traits.
 - [ ] Write aliases.
@@ -193,7 +198,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [ ] Write spell side-data.
 - [ ] Write derived-tag assignments needed at runtime.
 - [ ] Generate source signatures from source paths and per-record hashes.
-- [ ] Add a small fixture ingest test.
+- [x] Add a small fixture ingest test.
 - [ ] Add a full-corpus analysis command that reports counts without writing the full artifact.
 - [ ] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.
 
