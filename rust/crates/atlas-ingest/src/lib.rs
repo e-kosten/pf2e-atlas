@@ -57,6 +57,7 @@ pub struct SourceLoad {
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
     pub references: Vec<ReferenceEdge>,
+    pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
@@ -129,6 +130,22 @@ pub struct ReferenceEdge {
     pub to_record_key: RecordKey,
     pub display_text: Option<String>,
     pub reference_text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AliasSource {
+    RemasterJournal,
+    Migration,
+    CompendiumSource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordAlias {
+    pub canonical_record_key: RecordKey,
+    pub alias_text: String,
+    pub normalized_alias: String,
+    pub source: AliasSource,
+    pub source_ref: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -320,12 +337,14 @@ pub fn load_foundry_source(
 
     let reference_index = build_record_reference_index(&records);
     let references = resolve_reference_edges(&records, &reference_index);
+    let aliases = resolve_record_aliases(&records, &reference_index, source_root);
     let remaster_links = resolve_remaster_links(&records, &reference_index, source_root);
 
     Ok(SourceLoad {
         packs,
         records,
         references,
+        aliases,
         remaster_links,
         skipped_records,
         warnings,
@@ -687,6 +706,288 @@ fn record_by_key<'a>(
     index.by_key.get(&record_key.to_string())
 }
 
+fn resolve_record_aliases(
+    records: &[LoadedRecord],
+    index: &RecordReferenceIndex,
+    source_root: &Path,
+) -> Vec<RecordAlias> {
+    let mut aliases = Vec::new();
+    for record in records {
+        if record.foundry_document_type == "JournalEntry"
+            && record.normalized_name == "remaster changes"
+        {
+            aliases.extend(extract_remaster_journal_aliases(record, index));
+        }
+        aliases.extend(extract_compendium_source_aliases(record, index));
+    }
+
+    aliases.extend(extract_migration_aliases(source_root, index));
+    dedupe_record_aliases(aliases)
+}
+
+fn extract_remaster_journal_aliases(
+    record: &LoadedRecord,
+    index: &RecordReferenceIndex,
+) -> Vec<RecordAlias> {
+    let Ok(raw) = serde_json::from_str::<Value>(&record.raw_json) else {
+        return Vec::new();
+    };
+    let Some(pages) = raw.pointer("/pages").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+
+    let mut aliases = Vec::new();
+    for page in pages {
+        let page_name = pointer_string(page, "/name").unwrap_or_else(|| "journal-page".to_string());
+        let Some(content) = pointer_string(page, "/text/content") else {
+            continue;
+        };
+
+        if page_name == "Remaster Changes" {
+            for list_item in html_elements(&content, "li") {
+                let targets = resolve_journal_targets(&list_item, index);
+                if targets.len() != 1 {
+                    continue;
+                }
+                let plain = html_text(&list_item);
+                let old_segment = split_remaster_intro_alias_segment(&plain);
+                for alias_text in split_alias_list_text(&old_segment) {
+                    add_record_alias(
+                        &mut aliases,
+                        &targets[0],
+                        &alias_text,
+                        AliasSource::RemasterJournal,
+                        &format!("journal:{page_name}"),
+                        index,
+                    );
+                }
+            }
+        }
+
+        for row in html_elements(&content, "tr") {
+            let cells = html_cells(&row);
+            if cells.len() < 2 {
+                continue;
+            }
+            let status_cell = if cells.len() >= 4 {
+                &cells[2]
+            } else {
+                "Renamed"
+            };
+            let status = normalize_text(&html_text(status_cell));
+            if !matches!(status.as_str(), "renamed" | "merged" | "replaced") {
+                continue;
+            }
+
+            let old_cell = &cells[0];
+            let new_cell = cells.last().expect("row should have at least two cells");
+            let targets = resolve_journal_targets(new_cell, index);
+            if targets.is_empty() {
+                continue;
+            }
+
+            if targets.len() == 1 {
+                let Some(old_name) = resolve_alias_source_name(old_cell, index) else {
+                    continue;
+                };
+                add_record_alias(
+                    &mut aliases,
+                    &targets[0],
+                    &old_name,
+                    AliasSource::RemasterJournal,
+                    &format!("journal:{page_name}"),
+                    index,
+                );
+                continue;
+            }
+
+            let old_text = html_text(old_cell);
+            let Some(grouped_aliases) = expand_grouped_alias_text(&old_text, targets.len()) else {
+                continue;
+            };
+            for (alias_text, target) in grouped_aliases.iter().zip(targets.iter()) {
+                add_record_alias(
+                    &mut aliases,
+                    target,
+                    alias_text,
+                    AliasSource::RemasterJournal,
+                    &format!("journal:{page_name}"),
+                    index,
+                );
+            }
+        }
+    }
+
+    aliases
+}
+
+fn extract_migration_aliases(source_root: &Path, index: &RecordReferenceIndex) -> Vec<RecordAlias> {
+    let mut aliases = Vec::new();
+    for (legacy_name, remaster_name) in migration_rename_pairs_from_root(source_root) {
+        let Some(remaster_record_key) = resolve_record_key(None, &remaster_name, index) else {
+            continue;
+        };
+        add_record_alias(
+            &mut aliases,
+            &remaster_record_key,
+            &legacy_name,
+            AliasSource::Migration,
+            "src/module/migration/migrations",
+            index,
+        );
+    }
+    aliases
+}
+
+fn extract_compendium_source_aliases(
+    record: &LoadedRecord,
+    index: &RecordReferenceIndex,
+) -> Vec<RecordAlias> {
+    let Ok(raw) = serde_json::from_str::<Value>(&record.raw_json) else {
+        return Vec::new();
+    };
+    let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+
+    let mut aliases = Vec::new();
+    for item in items {
+        let Some(alias_text) = pointer_string(item, "/name") else {
+            continue;
+        };
+        let Some(compendium_source) = pointer_string(item, "/_stats/compendiumSource") else {
+            continue;
+        };
+        let Some((pack_name, locator)) = reference_pack_and_locator(&compendium_source) else {
+            continue;
+        };
+        let Some(target_record_key) = resolve_record_key(Some(&pack_name), &locator, index) else {
+            continue;
+        };
+        let Some(target_record) = record_by_key(index, &target_record_key) else {
+            continue;
+        };
+        let embedded_remaster = pointer_bool(item, "/system/publication/remaster").unwrap_or(false);
+        if embedded_remaster
+            || !target_record.publication_remaster
+            || should_ignore_compendium_alias(&alias_text, &target_record.name)
+        {
+            continue;
+        }
+
+        add_record_alias(
+            &mut aliases,
+            &target_record_key,
+            &alias_text,
+            AliasSource::CompendiumSource,
+            &record.key.to_string(),
+            index,
+        );
+    }
+    aliases
+}
+
+fn add_record_alias(
+    aliases: &mut Vec<RecordAlias>,
+    canonical_record_key: &RecordKey,
+    alias_text: &str,
+    source: AliasSource,
+    source_ref: &str,
+    index: &RecordReferenceIndex,
+) {
+    let normalized_alias = normalize_text(alias_text);
+    if normalized_alias.is_empty() {
+        return;
+    }
+    let Some(canonical_record) = record_by_key(index, canonical_record_key) else {
+        return;
+    };
+    if normalized_alias == canonical_record.normalized_name {
+        return;
+    }
+
+    aliases.push(RecordAlias {
+        canonical_record_key: canonical_record_key.clone(),
+        alias_text: alias_text.trim().to_string(),
+        normalized_alias,
+        source,
+        source_ref: source_ref.to_string(),
+    });
+}
+
+fn should_ignore_compendium_alias(alias_text: &str, target_name: &str) -> bool {
+    let normalized_alias = normalize_text(alias_text);
+    let normalized_target = normalize_text(target_name);
+    if normalized_alias.is_empty() || normalized_alias == normalized_target {
+        return true;
+    }
+    if alias_text
+        .chars()
+        .any(|character| character.is_ascii_digit())
+    {
+        return true;
+    }
+    if contains_any_word(
+        &normalized_alias,
+        &[
+            "feet",
+            "foot",
+            "mile",
+            "miles",
+            "precise",
+            "imprecise",
+            "status",
+            "circumstance",
+        ],
+    ) {
+        return true;
+    }
+    if alias_text.contains('(')
+        || alias_text.contains(')')
+        || target_name.trim_start().starts_with('(')
+    {
+        return true;
+    }
+    false
+}
+
+fn contains_any_word(value: &str, words: &[&str]) -> bool {
+    value
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .any(|word| words.contains(&word))
+}
+
+fn dedupe_record_aliases(aliases: Vec<RecordAlias>) -> Vec<RecordAlias> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = Vec::new();
+    for alias in aliases {
+        let key = (
+            alias.canonical_record_key.to_string(),
+            alias.normalized_alias.clone(),
+            alias_source_label(alias.source),
+            alias.source_ref.clone(),
+        );
+        if seen.insert(key) {
+            deduped.push(alias);
+        }
+    }
+    deduped.sort_by(|left, right| {
+        (
+            left.canonical_record_key.to_string(),
+            left.normalized_alias.as_str(),
+            alias_source_label(left.source),
+            left.source_ref.as_str(),
+        )
+            .cmp(&(
+                right.canonical_record_key.to_string(),
+                right.normalized_alias.as_str(),
+                alias_source_label(right.source),
+                right.source_ref.as_str(),
+            ))
+    });
+    deduped
+}
+
 fn resolve_remaster_links(
     records: &[LoadedRecord],
     index: &RecordReferenceIndex,
@@ -807,6 +1108,25 @@ fn extract_migration_remaster_links(
     source_root: &Path,
     index: &RecordReferenceIndex,
 ) -> Vec<RemasterLink> {
+    let mut links = Vec::new();
+    for (legacy_name, remaster_name) in migration_rename_pairs_from_root(source_root) {
+        let Some(remaster_record_key) = resolve_record_key(None, &remaster_name, index) else {
+            continue;
+        };
+        add_remaster_link(
+            &mut links,
+            &remaster_record_key,
+            &legacy_name,
+            RemasterLinkSource::Migration,
+            "src/module/migration/migrations",
+            index,
+        );
+    }
+
+    links
+}
+
+fn migration_rename_pairs_from_root(source_root: &Path) -> Vec<(String, String)> {
     let migration_root = source_root.join("src/module/migration/migrations");
     let Ok(entries) = fs::read_dir(migration_root) else {
         return Vec::new();
@@ -819,27 +1139,14 @@ fn extract_migration_remaster_links(
         .collect::<Vec<_>>();
     paths.sort();
 
-    let mut links = Vec::new();
+    let mut pairs = Vec::new();
     for path in paths {
         let Ok(source) = fs::read_to_string(path) else {
             continue;
         };
-        for (legacy_name, remaster_name) in migration_rename_pairs(&source) {
-            let Some(remaster_record_key) = resolve_record_key(None, &remaster_name, index) else {
-                continue;
-            };
-            add_remaster_link(
-                &mut links,
-                &remaster_record_key,
-                &legacy_name,
-                RemasterLinkSource::Migration,
-                "src/module/migration/migrations",
-                index,
-            );
-        }
+        pairs.extend(migration_rename_pairs(&source));
     }
-
-    links
+    pairs
 }
 
 fn add_remaster_link(
@@ -1989,6 +2296,7 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records)?;
     write_reference_edges(&transaction, &source.references)?;
+    write_record_aliases(&transaction, &source.aliases)?;
     write_remaster_links(&transaction, &source.remaster_links)?;
     write_metric_catalogs(&transaction)?;
     transaction
@@ -2085,6 +2393,16 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               FOREIGN KEY (to_record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
 
+            CREATE TABLE record_aliases (
+              canonical_record_key TEXT NOT NULL,
+              alias_text TEXT NOT NULL,
+              normalized_alias TEXT NOT NULL,
+              source_kind TEXT NOT NULL CHECK (source_kind IN ('remaster_journal', 'migration', 'compendium_source')),
+              source_ref TEXT NOT NULL,
+              PRIMARY KEY (canonical_record_key, normalized_alias, source_kind, source_ref),
+              FOREIGN KEY (canonical_record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
             CREATE TABLE remaster_links (
               remaster_record_key TEXT NOT NULL,
               legacy_record_key TEXT NOT NULL,
@@ -2177,6 +2495,8 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               name,
               search_text_projection
             );
+
+            CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
             ",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
@@ -2516,6 +2836,32 @@ fn write_reference_edges(
     Ok(())
 }
 
+fn write_record_aliases(
+    connection: &Connection,
+    aliases: &[RecordAlias],
+) -> Result<(), IngestError> {
+    let mut insert_alias = connection
+        .prepare(
+            "INSERT OR IGNORE INTO record_aliases (
+              canonical_record_key, alias_text, normalized_alias, source_kind, source_ref
+            ) VALUES (?1, ?2, ?3, ?4, ?5)",
+        )
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+
+    for alias in aliases {
+        insert_alias
+            .execute((
+                alias.canonical_record_key.to_string(),
+                alias.alias_text.as_str(),
+                alias.normalized_alias.as_str(),
+                alias_source_label(alias.source),
+                alias.source_ref.as_str(),
+            ))
+            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    }
+    Ok(())
+}
+
 fn write_remaster_links(
     connection: &Connection,
     remaster_links: &[RemasterLink],
@@ -2583,6 +2929,14 @@ fn metric_value_type_label(value_type: MetricValueType) -> &'static str {
         MetricValueType::Number => "number",
         MetricValueType::Text => "text",
         MetricValueType::Boolean => "boolean",
+    }
+}
+
+fn alias_source_label(source: AliasSource) -> &'static str {
+    match source {
+        AliasSource::RemasterJournal => "remaster_journal",
+        AliasSource::Migration => "migration",
+        AliasSource::CompendiumSource => "compendium_source",
     }
 }
 

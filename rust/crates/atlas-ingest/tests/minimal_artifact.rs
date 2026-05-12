@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use atlas_domain::{RecordFamily, ValidationStatus};
 use atlas_index::validate_index;
-use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact, load_foundry_source};
+use atlas_ingest::{
+    AliasSource, BuildArtifactOptions, build_minimal_artifact, load_foundry_source,
+};
 use rusqlite::Connection;
 
 #[test]
@@ -144,8 +146,28 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
     write_remaster_fixture_source(&root)?;
     let source = load_foundry_source(&root, None)?;
 
-    assert_eq!(source.records.len(), 5);
+    assert_eq!(source.records.len(), 6);
+    assert_eq!(source.aliases.len(), 3);
     assert_eq!(source.remaster_links.len(), 2);
+    assert!(source.aliases.iter().any(|alias| {
+        alias.canonical_record_key.to_string() == "actions:reactiveStrike1"
+            && alias.alias_text == "Attack of Opportunity"
+            && alias.normalized_alias == "attack of opportunity"
+            && alias.source == AliasSource::RemasterJournal
+            && alias.source_ref == "journal:Class Features"
+    }));
+    assert!(source.aliases.iter().any(|alias| {
+        alias.canonical_record_key.to_string() == "conditionitems:offGuard1"
+            && alias.alias_text == "flat-footed"
+            && alias.source == AliasSource::Migration
+            && alias.source_ref == "src/module/migration/migrations"
+    }));
+    assert!(source.aliases.iter().any(|alias| {
+        alias.canonical_record_key.to_string() == "conditionitems:offGuard1"
+            && alias.alias_text == "Legacy Guard"
+            && alias.source == AliasSource::CompendiumSource
+            && alias.source_ref == "bestiary:aliasCarrier1"
+    }));
     assert!(source.remaster_links.iter().any(|link| {
         link.remaster_record_key.to_string() == "actions:reactiveStrike1"
             && link.legacy_record_key.to_string() == "actions:attackOpportunity1"
@@ -166,6 +188,8 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
     let connection = Connection::open(&output_path)?;
     let remaster_link_count: usize =
         connection.query_row("SELECT COUNT(*) FROM remaster_links", [], |row| row.get(0))?;
+    let alias_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM record_aliases", [], |row| row.get(0))?;
     let journal_link_source: String = connection.query_row(
         "SELECT source_kind FROM remaster_links
          WHERE remaster_record_key = 'actions:reactiveStrike1'
@@ -173,8 +197,17 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
         [],
         |row| row.get(0),
     )?;
+    let compendium_alias_source: String = connection.query_row(
+        "SELECT source_kind FROM record_aliases
+         WHERE canonical_record_key = 'conditionitems:offGuard1'
+           AND normalized_alias = 'legacy guard'",
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(remaster_link_count, 2);
+    assert_eq!(alias_count, 3);
     assert_eq!(journal_link_source, "remaster_journal");
+    assert_eq!(compendium_alias_source, "compendium_source");
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -409,6 +442,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 fn write_remaster_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(root.join("packs/actions"))?;
     fs::create_dir_all(root.join("packs/conditionitems"))?;
+    fs::create_dir_all(root.join("packs/bestiary"))?;
     fs::create_dir_all(root.join("packs/journals"))?;
     fs::create_dir_all(root.join("src/module/migration/migrations"))?;
     fs::write(
@@ -417,6 +451,7 @@ fn write_remaster_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::
           "packs": [
             { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" },
             { "name": "conditionitems", "label": "Conditions", "type": "Item", "path": "packs/conditionitems" },
+            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" },
             { "name": "journals", "label": "Journals", "type": "JournalEntry", "path": "packs/journals" }
           ]
         }"#,
@@ -485,6 +520,32 @@ fn write_remaster_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::
               }
             }
           ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/alias-carrier.json"),
+        r#"{
+          "_id": "aliasCarrier1",
+          "name": "Alias Carrier",
+          "type": "npc",
+          "items": [
+            {
+              "_id": "embeddedLegacy1",
+              "name": "Legacy Guard",
+              "type": "condition",
+              "_stats": {
+                "compendiumSource": "Compendium.pf2e.conditionitems.Item.offGuard1"
+              },
+              "system": {
+                "publication": { "title": "Core Rulebook", "remaster": false }
+              }
+            }
+          ],
+          "system": {
+            "publication": { "title": "Bestiary", "remaster": false },
+            "traits": { "value": ["humanoid"] },
+            "description": { "value": "<p>Fixture carrier.</p>" }
+          }
         }"#,
     )?;
     fs::write(
