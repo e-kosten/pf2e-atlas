@@ -215,6 +215,85 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
 }
 
 #[test]
+fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("families");
+    write_family_fixture_source(&root)?;
+
+    let source = load_foundry_source(&root, None)?;
+    let bosun = source
+        .records
+        .iter()
+        .find(|record| record.key.to_string() == "pathfinder-npc-core:bosun00000001")
+        .expect("bosun should load");
+    let ghost_commoner = source
+        .records
+        .iter()
+        .find(|record| record.key.to_string() == "bestiary:ghostCommoner1")
+        .expect("ghost commoner should load");
+    let storm_young = source
+        .records
+        .iter()
+        .find(|record| record.key.to_string() == "bestiary:stormYoung001")
+        .expect("storm dragon should load");
+    let venexus = source
+        .records
+        .iter()
+        .find(|record| record.key.to_string() == "adventure-bestiary:venexus000001")
+        .expect("venexus should load");
+    let figurine = source
+        .records
+        .iter()
+        .find(|record| record.key.to_string() == "equipment:figurineBear1")
+        .expect("figurine should load");
+
+    assert_eq!(bosun.taxonomy_families, vec!["seafarer"]);
+    assert_eq!(ghost_commoner.taxonomy_families, vec!["ghost"]);
+    assert_eq!(
+        storm_young.variant_group_key.as_deref(),
+        Some("creature:family:storm-dragon")
+    );
+    assert_eq!(storm_young.variant_label.as_deref(), Some("Young"));
+    assert_eq!(storm_young.variant_axes, vec!["dragonAge"]);
+    assert_eq!(
+        venexus.variant_group_key.as_deref(),
+        Some("creature:family:storm-dragon")
+    );
+    assert_eq!(venexus.variant_label.as_deref(), Some("Venexus"));
+    assert_eq!(
+        figurine.variant_base_name.as_deref(),
+        Some("Wondrous Figurine")
+    );
+    assert_eq!(figurine.variant_label.as_deref(), Some("Rubber Bear"));
+
+    let output_path = root.join("artifact.sqlite");
+    build_minimal_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+    })?;
+    let connection = Connection::open(&output_path)?;
+    let bosun_families: String = connection.query_row(
+        "SELECT taxonomy_families_json FROM records WHERE record_key = 'pathfinder-npc-core:bosun00000001'",
+        [],
+        |row| row.get(0),
+    )?;
+    let venexus_variant: (String, String, String) = connection.query_row(
+        "SELECT variant_group_key, variant_label, variant_axes_json
+         FROM records WHERE record_key = 'adventure-bestiary:venexus000001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    assert_eq!(bosun_families, "[\"seafarer\"]");
+    assert_eq!(venexus_variant.0, "creature:family:storm-dragon");
+    assert_eq!(venexus_variant.1, "Venexus");
+    assert_eq!(venexus_variant.2, "[\"dragonAge\"]");
+
+    drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("build");
     write_fixture_source(&root)?;
@@ -436,6 +515,134 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     drop(connection);
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+fn write_family_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("packs/pathfinder-npc-core"))?;
+    fs::create_dir_all(root.join("packs/bestiary-family-ability-glossary/ghost"))?;
+    fs::create_dir_all(root.join("packs/bestiary"))?;
+    fs::create_dir_all(root.join("packs/adventure-bestiary"))?;
+    fs::create_dir_all(root.join("packs/equipment"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "pathfinder-npc-core", "label": "NPC Core", "type": "Actor", "path": "packs/pathfinder-npc-core" },
+            { "name": "bestiary-family-ability-glossary", "label": "Family Abilities", "type": "Item", "path": "packs/bestiary-family-ability-glossary" },
+            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" },
+            { "name": "adventure-bestiary", "label": "Adventure Bestiary", "type": "Actor", "path": "packs/adventure-bestiary" },
+            { "name": "equipment", "label": "Equipment", "type": "Item", "path": "packs/equipment" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/pathfinder-npc-core/_folders.json"),
+        r#"[
+          { "_id": "folderSeafarer", "name": "Seafarer", "folder": null }
+        ]"#,
+    )?;
+    fs::write(
+        root.join("packs/pathfinder-npc-core/bosun.json"),
+        r#"{
+          "_id": "bosun00000001",
+          "name": "Bosun",
+          "type": "npc",
+          "folder": "folderSeafarer",
+          "system": {
+            "traits": { "value": ["human", "humanoid"], "rarity": "common" },
+            "description": { "value": "<p>A ship officer.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary-family-ability-glossary/ghost/frightful-moans.json"),
+        r#"{
+          "_id": "ghostAbility01",
+          "name": "Frightful Moans",
+          "type": "action",
+          "system": {
+            "description": { "value": "<p>A ghost family ability.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/ghost-commoner.json"),
+        r#"{
+          "_id": "ghostCommoner1",
+          "name": "Ghost Commoner",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["ghost", "undead"] },
+            "rules": [
+              {
+                "key": "Note",
+                "text": "@UUID[Compendium.pf2e.bestiary-family-ability-glossary.Item.ghostAbility01]{Frightful Moans}"
+              }
+            ],
+            "description": { "value": "<p>A ghostly commoner.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/storm-dragon-young.json"),
+        r#"{
+          "_id": "stormYoung001",
+          "name": "Storm Dragon (Young)",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["dragon", "electricity"] },
+            "description": { "value": "<p>A young storm dragon.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/storm-dragon-adult.json"),
+        r#"{
+          "_id": "stormAdult01",
+          "name": "Storm Dragon (Adult)",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["dragon", "electricity"] },
+            "description": { "value": "<p>An adult storm dragon.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/adventure-bestiary/venexus.json"),
+        r#"{
+          "_id": "venexus000001",
+          "name": "Venexus",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["dragon", "electricity"], "rarity": "unique" },
+            "details": { "blurb": "Female young storm dragon" },
+            "description": { "value": "<p>A named storm dragon.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/equipment/wondrous-figurine-rubber-bear.json"),
+        r#"{
+          "_id": "figurineBear1",
+          "name": "Wondrous Figurine (Rubber Bear)",
+          "type": "equipment",
+          "system": {
+            "description": { "value": "<p>A rubber bear figurine.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/equipment/wondrous-figurine-golden-lions.json"),
+        r#"{
+          "_id": "figurineLions1",
+          "name": "Wondrous Figurine (Golden Lions)",
+          "type": "equipment",
+          "system": {
+            "description": { "value": "<p>A golden lions figurine.</p>" }
+          }
+        }"#,
+    )?;
     Ok(())
 }
 
