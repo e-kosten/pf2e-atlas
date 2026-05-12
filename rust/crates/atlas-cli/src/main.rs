@@ -6,6 +6,7 @@ use std::process::ExitCode;
 
 use atlas_domain::{ArtifactValidationReport, ValidationCode, ValidationStatus};
 use atlas_index::validate_index;
+use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact};
 
 fn main() -> ExitCode {
     match run() {
@@ -26,9 +27,43 @@ fn run() -> Result<ExitCode, String> {
 
     let command = args.remove(0);
     match command.as_str() {
+        "build-index" => run_build_index(args),
         "validate-index" => run_validate_index(args),
         _ => Err(format!("unknown command `{command}`")),
     }
+}
+
+fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
+    let options = parse_build_index(args)?;
+    let report = build_minimal_artifact(BuildArtifactOptions {
+        source_root: options.source,
+        output_path: options.output,
+        manifest_path: options.manifest,
+    })
+    .map_err(|error| error.to_string())?;
+
+    if options.json {
+        let body = serde_json::json!({
+            "status": "ok",
+            "output": report.output_path.display().to_string(),
+            "pack_count": report.pack_count,
+            "record_count": report.record_count,
+            "warnings": report.warnings,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&body).map_err(|error| error.to_string())?
+        );
+    } else {
+        println!(
+            "ok: wrote {} records from {} packs to {}",
+            report.record_count,
+            report.pack_count,
+            report.output_path.display()
+        );
+    }
+
+    Ok(ExitCode::SUCCESS)
 }
 
 fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
@@ -91,11 +126,69 @@ fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
 
 fn print_help() {
     println!(
-        "atlas validate-index --index <path> [--json]\n\
+        "atlas build-index --source <path> --output <path> [--manifest <path>] [--json]\n\
+         atlas validate-index --index <path> [--json]\n\
          \n\
          Commands:\n\
+           build-index      Build a minimal Rust artifact from Foundry source files\n\
            validate-index   Open an index read-only and validate Rust artifact metadata"
     );
+}
+
+#[derive(Debug)]
+struct BuildIndexOptions {
+    source: PathBuf,
+    output: PathBuf,
+    manifest: Option<PathBuf>,
+    json: bool,
+}
+
+fn parse_build_index(args: Vec<String>) -> Result<BuildIndexOptions, String> {
+    let mut source = None;
+    let mut output = None;
+    let mut manifest = None;
+    let mut json = false;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--source" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--source requires a path".to_string())?;
+                source = Some(PathBuf::from(value));
+                i += 2;
+            }
+            "--output" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--output requires a path".to_string())?;
+                output = Some(PathBuf::from(value));
+                i += 2;
+            }
+            "--manifest" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--manifest requires a path".to_string())?;
+                manifest = Some(PathBuf::from(value));
+                i += 2;
+            }
+            "--json" => {
+                json = true;
+                i += 1;
+            }
+            flag if flag.starts_with("--") => {
+                return Err(format!("unknown build-index option `{flag}`"));
+            }
+            value => return Err(format!("unexpected build-index argument `{value}`")),
+        }
+    }
+
+    Ok(BuildIndexOptions {
+        source: source.ok_or_else(|| "build-index requires --source <path>".to_string())?,
+        output: output.ok_or_else(|| "build-index requires --output <path>".to_string())?,
+        manifest,
+        json,
+    })
 }
 
 #[derive(Debug)]

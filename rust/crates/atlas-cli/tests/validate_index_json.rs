@@ -1,9 +1,47 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rusqlite::Connection;
 use serde_json::{Value, json};
+
+#[test]
+fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-build");
+    write_fixture_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["build-index", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+
+    assert!(build_output.status.success());
+    let build_json: Value = serde_json::from_slice(&build_output.stdout)?;
+    assert_eq!(
+        build_json,
+        json!({
+            "status": "ok",
+            "output": index_path.display().to_string(),
+            "pack_count": 1,
+            "record_count": 1,
+            "warnings": []
+        })
+    );
+
+    let validate_output = run_atlas(&index_path)?;
+
+    assert!(validate_output.status.success());
+    let validate_json: Value = serde_json::from_slice(&validate_output.stdout)?;
+    assert_eq!(validate_json["status"], "ok");
+    assert_eq!(validate_json["source_record_count"], "1");
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
 
 #[test]
 fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn std::error::Error>> {
@@ -358,4 +396,40 @@ fn temp_db_path(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_file(&path);
     path
+}
+
+fn temp_source_root(name: &str) -> PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "atlas-cli-{name}-{}-{}",
+        std::process::id(),
+        std::thread::current().name().unwrap_or("test")
+    ));
+    let _ = fs::remove_dir_all(&path);
+    path
+}
+
+fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("packs/actions"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/treat-wounds.json"),
+        r#"{
+          "_id": "testAction0001",
+          "name": "Treat Wounds",
+          "type": "action",
+          "system": {
+            "traits": { "value": ["healing", "exploration"] },
+            "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
+          }
+        }"#,
+    )?;
+    Ok(())
 }
