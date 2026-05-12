@@ -1,9 +1,9 @@
 # Artifact Contract Spike
 
-Status: proposed  
+Status: completed  
 Priority: soon  
 Owner: unassigned  
-Last reviewed: 2026-05-06
+Last reviewed: 2026-05-12
 
 ## Question
 
@@ -30,7 +30,11 @@ Python or Node prep is low-cost only if runtime artifacts are durable, validated
 - CLI output fixtures
 - stale-artifact diagnostics
 
-## Outputs
+## Durable Output
+
+The runtime artifact boundary is now defined in [Rust Artifact Contract](../../../architecture/rust-artifact-contract.md). That architecture document is the source of truth for the first Rust artifact contract version, required metadata keys, and validation diagnostic families.
+
+## Original Outputs
 
 - artifact contract draft
 - fixture corpus

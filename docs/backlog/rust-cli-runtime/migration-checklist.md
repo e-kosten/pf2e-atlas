@@ -48,40 +48,40 @@ cargo build --workspace
 
 Goal: define and enforce the runtime artifact boundary before porting lookup/search behavior.
 
-- [ ] Move the spike artifact-contract draft into durable repo docs.
-- [ ] Decide the canonical contract version string for the first Rust artifact.
-- [ ] Define required `artifact_metadata` keys in `atlas-domain`.
-- [ ] Expand `atlas-index` validation beyond the first five keys:
-  - [ ] contract version
-  - [ ] schema version
-  - [ ] source kind
-  - [ ] source signature
-  - [ ] source record count
-  - [ ] content hash algorithm
-  - [ ] embedding provider family
-  - [ ] embedding model id
-  - [ ] embedding model revision
-  - [ ] embedding tokenizer id
-  - [ ] embedding pooling
-  - [ ] embedding normalization
-  - [ ] embedding dimensions
-  - [ ] embedding dtype
-  - [ ] embedding distance metric
-  - [ ] document/query prefixes
-  - [ ] FTS tokenizer
-  - [ ] adjacent manifest path
-- [ ] Add typed validation diagnostics for each incompatible or missing contract family.
-- [ ] Add fixture indexes for:
-  - [ ] valid minimal contract
-  - [ ] missing `artifact_metadata`
-  - [ ] missing required key
-  - [ ] stale source signature
-  - [ ] embedding mismatch
-  - [ ] unsupported schema version
-- [ ] Keep validation metadata readable without loading sqlite-vec.
-- [ ] Add golden JSON tests for `atlas validate-index`.
-- [ ] Add `atlas artifact inspect --json` if validation output starts carrying too much detail.
-- [ ] Document artifact validation failure codes in `rust/README.md`.
+- [x] Move the spike artifact-contract draft into durable repo docs.
+- [x] Decide the canonical contract version string for the first Rust artifact.
+- [x] Define required `artifact_metadata` keys in `atlas-domain`.
+- [x] Expand `atlas-index` validation beyond the first five keys:
+  - [x] contract version
+  - [x] schema version
+  - [x] source kind
+  - [x] source signature
+  - [x] source record count
+  - [x] content hash algorithm
+  - [x] embedding provider family
+  - [x] embedding model id
+  - [x] embedding model revision
+  - [x] embedding tokenizer id
+  - [x] embedding pooling
+  - [x] embedding normalization
+  - [x] embedding dimensions
+  - [x] embedding dtype
+  - [x] embedding distance metric
+  - [x] document/query prefixes
+  - [x] FTS tokenizer
+  - [x] adjacent manifest path
+- [x] Add typed validation diagnostics for each incompatible or missing contract family.
+- [x] Add fixture indexes for:
+  - [x] valid minimal contract
+  - [x] missing `artifact_metadata`
+  - [x] missing required key
+  - [x] stale source signature
+  - [x] embedding mismatch
+  - [x] unsupported schema version
+- [x] Keep validation metadata readable without loading sqlite-vec.
+- [x] Add golden JSON tests for `atlas validate-index`.
+- [x] Add `atlas artifact inspect --json` if validation output starts carrying too much detail. Not needed for phase one; validation output remains focused on metadata and diagnostics.
+- [x] Document artifact validation failure codes in `rust/README.md`.
 
 Acceptance:
 - `atlas validate-index` returns stable JSON for valid and invalid fixtures.
