@@ -6,6 +6,8 @@ This folder tracks the design-in-progress roadmap and decision spikes for a poss
 
 - [Migration roadmap](./migration-roadmap.md)
   Active staged backlog item for a Rust runtime with CLI and TUI as primary local surfaces, Rust-owned deterministic ingest/index artifacts, optional MCP compatibility, and non-core exploratory tooling kept adjacent.
+- [Migration checklist](./migration-checklist.md)
+  Working checklist for follow-up agents implementing the Rust migration from the persistent `rust/runtime-root` worktree.
 
 ## Search And Retrieval Spikes
 

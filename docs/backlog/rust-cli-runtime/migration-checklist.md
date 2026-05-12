@@ -1,0 +1,415 @@
+# Rust Runtime Migration Checklist
+
+Status: active working checklist  
+Root worktree: `.worktrees/rust-runtime-root`  
+Primary branch: `rust/runtime-root`  
+Architecture decision: [ADR 0017](../../architecture/decisions/0017-rust-runtime-cli-first-migration.md)  
+Roadmap: [migration-roadmap.md](./migration-roadmap.md)
+
+This checklist is the working handoff for follow-up agents moving PF2e Atlas from the current TypeScript MCP/TUI runtime toward a Rust-owned deterministic core, CLI-first agent surface, Ratatui workbench, and optional MCP compatibility.
+
+The checklist is intentionally larger than one implementation pass. Treat each checked item as a validated, committed increment on `rust/runtime-root` or on a short-lived worktree branched from it.
+
+## Working Rules
+
+- Use `.worktrees/rust-runtime-root` as the persistent Rust migration root.
+- Prefer small commits that complete one checklist item or one tightly related group.
+- Use Cargo-native validation by default:
+
+```bash
+cd rust
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --workspace
+```
+
+- Do not run the full Node lint/build/test gate for normal Rust iteration.
+- Run the full repo gate only before landing back to `main`, when touching TypeScript runtime behavior, or when changing repo-wide Node tooling.
+- Do not make Rust shell out to the TypeScript runtime or Node MCP server.
+- Do not add placeholder crates. Add a crate only when its first real slice lands.
+- Keep runtime artifacts and deterministic ingest moving toward Rust ownership. Python, Node, and TypeScript are acceptable for exploratory analysis, parity harnesses, and temporary migration scripts.
+- If a slice exposes a major architecture decision not covered by ADR 0017, add or update an ADR before continuing.
+
+## Current Foundation
+
+- [x] Add `rust/` workspace.
+- [x] Add `atlas-domain`, `atlas-index`, and `atlas-cli`.
+- [x] Pin Rust toolchain with `rust-toolchain.toml`.
+- [x] Track `Cargo.lock`.
+- [x] Deny `unsafe_code` in initial crates.
+- [x] Use standard Clippy with warnings denied.
+- [x] Implement `atlas validate-index --index <path> --json`.
+- [x] Make current TypeScript-built indexes report `MISSING_ARTIFACT_METADATA`.
+- [x] Record ADR 0017.
+- [x] Update Rust migration roadmap to Rust-owned deterministic ingest/index direction.
+
+## Phase 1: Artifact Contract And Validation
+
+Goal: define and enforce the runtime artifact boundary before porting lookup/search behavior.
+
+- [ ] Move the spike artifact-contract draft into durable repo docs.
+- [ ] Decide the canonical contract version string for the first Rust artifact.
+- [ ] Define required `artifact_metadata` keys in `atlas-domain`.
+- [ ] Expand `atlas-index` validation beyond the first five keys:
+  - [ ] contract version
+  - [ ] schema version
+  - [ ] source kind
+  - [ ] source signature
+  - [ ] source record count
+  - [ ] content hash algorithm
+  - [ ] embedding provider family
+  - [ ] embedding model id
+  - [ ] embedding model revision
+  - [ ] embedding tokenizer id
+  - [ ] embedding pooling
+  - [ ] embedding normalization
+  - [ ] embedding dimensions
+  - [ ] embedding dtype
+  - [ ] embedding distance metric
+  - [ ] document/query prefixes
+  - [ ] FTS tokenizer
+  - [ ] adjacent manifest path
+- [ ] Add typed validation diagnostics for each incompatible or missing contract family.
+- [ ] Add fixture indexes for:
+  - [ ] valid minimal contract
+  - [ ] missing `artifact_metadata`
+  - [ ] missing required key
+  - [ ] stale source signature
+  - [ ] embedding mismatch
+  - [ ] unsupported schema version
+- [ ] Keep validation metadata readable without loading sqlite-vec.
+- [ ] Add golden JSON tests for `atlas validate-index`.
+- [ ] Add `atlas artifact inspect --json` if validation output starts carrying too much detail.
+- [ ] Document artifact validation failure codes in `rust/README.md`.
+
+Acceptance:
+- `atlas validate-index` returns stable JSON for valid and invalid fixtures.
+- The current TypeScript index still produces a clear legacy-contract diagnostic.
+- No vector-extension load is required for metadata validation.
+
+## Phase 2: Rust Domain Model
+
+Goal: define the typed runtime vocabulary that later ingest, index, search, CLI, and TUI crates share.
+
+- [ ] Add `RecordKey` with pack and record id parsing.
+- [ ] Add category and subcategory vocabularies.
+- [ ] Add rarity, level, action-cost, and source/publication primitives.
+- [ ] Add canonical record summary type.
+- [ ] Add detail-level vocabulary:
+  - [ ] compact
+  - [ ] full
+  - [ ] answerable
+- [ ] Add answerability/text-status vocabulary:
+  - [ ] resolved
+  - [ ] missing
+  - [ ] localized placeholder
+  - [ ] unsupported markup
+- [ ] Add canonical `SearchRequest` model:
+  - [ ] browse
+  - [ ] search
+  - [ ] lookup
+- [ ] Add canonical filter tree:
+  - [ ] scope
+  - [ ] level
+  - [ ] rarity
+  - [ ] action cost
+  - [ ] metadata predicate
+  - [ ] metric predicate
+  - [ ] linksTo
+  - [ ] linkedFrom
+  - [ ] anyOf/allOf/not
+- [ ] Add rule graph contracts.
+- [ ] Add metadata-field vocabulary.
+- [ ] Add CLI output envelope types if shared across commands.
+- [ ] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
+
+Acceptance:
+- Domain types compile independently.
+- Search/filter fixtures can round-trip through `serde`.
+- Adding a new filter kind requires explicit handling in downstream compilation tests.
+
+## Phase 3: Rust Canonical Ingest And Index Builder
+
+Goal: move deterministic Foundry JSON ingest and SQLite artifact construction toward Rust ownership.
+
+- [ ] Add `atlas-ingest` crate once the first real writer slice starts.
+- [ ] Parse vendored Foundry JSON with tolerant boundary types.
+- [ ] Normalize canonical record keys.
+- [ ] Normalize canonical names.
+- [ ] Map record category/subcategory, including a policy for `army` actors.
+- [ ] Extract description text.
+- [ ] Strip or normalize Foundry HTML and UUID markup.
+- [ ] Extract traits.
+- [ ] Extract publication/source metadata.
+- [ ] Extract aliases and variant names.
+- [ ] Extract reference edges without substring false positives.
+- [ ] Write `artifact_metadata`.
+- [ ] Write `records`.
+- [ ] Write `records_fts`.
+- [ ] Write `reference_edges`.
+- [ ] Write record traits.
+- [ ] Write aliases.
+- [ ] Write legacy links if still needed during parity.
+- [ ] Write actor side-data.
+- [ ] Write item side-data.
+- [ ] Write spell side-data.
+- [ ] Write derived-tag assignments needed at runtime.
+- [ ] Generate source signatures from source paths and per-record hashes.
+- [ ] Add a small fixture ingest test.
+- [ ] Add a full-corpus analysis command that reports counts without writing the full artifact.
+- [ ] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.
+
+Acceptance:
+- Rust can build a minimal valid artifact consumed by `atlas validate-index`.
+- Full-corpus analyzer has zero JSON parse failures.
+- Known count differences from TypeScript are classified as accepted policy differences or open parity defects.
+
+## Phase 4: Embeddings And Vector Artifact
+
+Goal: keep the first Rust search baseline compatible with the existing MiniLM embedding space.
+
+- [ ] Add `atlas-embedding` crate only when query or document embedding implementation starts.
+- [ ] Port MiniLM query embedding from the spike.
+- [ ] Validate tokenizer, pooling, normalization, dimensions, dtype, and prefixes.
+- [ ] Add query-vector fixture comparisons against the current TypeScript provider.
+- [ ] Decide ONNX Runtime packaging strategy.
+- [ ] Implement document embedding generation for Rust-built artifacts.
+- [ ] Store embedding identity in normal SQLite metadata.
+- [ ] Store vector row linkage in normal SQLite tables.
+- [ ] Integrate sqlite-vec loading behind explicit capability checks.
+- [ ] Add diagnostics for vector extension unavailable.
+- [ ] Keep BGE as a deferred quality-bakeoff option, not the first migration baseline.
+
+Acceptance:
+- Rust MiniLM query vectors match existing TypeScript vectors for sampled queries.
+- Runtime fails clearly on embedding identity mismatch.
+- Semantic search can be disabled or rejected without corrupting lexical/structured commands.
+
+## Phase 5: Lookup And Record Presentation
+
+Goal: make exact lookup the first production-quality Rust command.
+
+- [ ] Implement typed row loading from `records`.
+- [ ] Implement lookup by canonical key.
+- [ ] Implement exact lookup by name.
+- [ ] Implement variant-aware exact lookup.
+- [ ] Implement controlled alternatives for ambiguous lookup.
+- [ ] Preserve safe no-result behavior: exact miss does not return fuzzy unrelated records.
+- [ ] Add compact record output.
+- [ ] Add full record output.
+- [ ] Add answerable output with text status.
+- [ ] Resolve or pre-resolve localization according to the artifact policy.
+- [ ] Add golden output tests for `atlas lookup`.
+- [ ] Add CLI exit code tests.
+- [ ] Compare `Treat Wounds`, `Grabbed`, and `Antidote (Lesser)` against current MCP/TypeScript behavior.
+
+Acceptance:
+- `atlas lookup` is usable for known named records.
+- Missing names exit nonzero with concise diagnostics.
+- Output size stays compact by default.
+
+## Phase 6: Rule Graph And Rule Context
+
+Goal: preserve the spike’s strongest CLI win: direct, answerable rule context.
+
+- [ ] Load direct outgoing references.
+- [ ] Load backlinks.
+- [ ] Add graph get command by record key.
+- [ ] Add `rule-context <name>` command.
+- [ ] Resolve the bestiary glossary `Grab` record correctly.
+- [ ] Add support-record shaping that avoids noisy default backlinks.
+- [ ] Add `--include-backlinks`.
+- [ ] Add `--detail answerable`.
+- [ ] Add answerability status for primary and support text.
+- [ ] Add golden tests for `Grab`.
+- [ ] Add tests for localized text.
+- [ ] Add tests for ambiguous rule names.
+
+Acceptance:
+- `atlas rule-context Grab --detail answerable` returns answer-grade text.
+- Support records are useful by default and expandable when needed.
+
+## Phase 7: Filter And Schema Discovery
+
+Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discovery.
+
+- [ ] Add `atlas schema search-filters --json`.
+- [ ] Add `atlas filters list-values --field <field> --json`.
+- [ ] Add category/subcategory filtering for value discovery.
+- [ ] Add trait discovery.
+- [ ] Add derived-tag discovery.
+- [ ] Add item metadata discovery.
+- [ ] Add actor metric discovery.
+- [ ] Add spell metadata discovery.
+- [ ] Add examples in `rust/README.md`.
+- [ ] Add production Codex skill snippets once commands stabilize.
+- [ ] Add golden tests for schema output.
+
+Acceptance:
+- Agents can discover non-obvious filters without MCP.
+- The poison-consumables task from the CLI spike is answerable without guessing hidden metadata fields.
+
+## Phase 8: Search And Browse Runtime
+
+Goal: implement the first Rust search baseline using SQLite-centered hybrid retrieval.
+
+- [ ] Implement browse mode.
+- [ ] Implement pagination.
+- [ ] Implement deterministic sort modes.
+- [ ] Implement canonical filter lowering.
+- [ ] Implement structured filter SQL.
+- [ ] Implement FTS lexical retrieval.
+- [ ] Implement query analysis.
+- [ ] Implement sqlite-vec semantic retrieval.
+- [ ] Implement hybrid candidate fusion.
+- [ ] Implement rerank adjustments needed for current quality.
+- [ ] Implement `search.exclude`.
+- [ ] Implement search profiles.
+- [ ] Implement explain output if still useful.
+- [ ] Add top-k quality fixtures from the search-quality bakeoff.
+- [ ] Add parity or accepted-difference reports against TypeScript.
+- [ ] Keep Tantivy, LanceDB, BGE, and heavyweight rerankers deferred unless a new quality result justifies them.
+
+Acceptance:
+- Representative lookup/search/rule workflows pass against Rust.
+- Known expected records appear in top results for the bakeoff set.
+- Quality differences are documented rather than accidental.
+
+## Phase 9: CLI Product Surface And Skill
+
+Goal: make the Rust CLI the default local agent interface.
+
+- [ ] Stabilize command naming.
+- [ ] Stabilize JSON envelopes.
+- [ ] Stabilize exit codes.
+- [ ] Add human-readable output mode if needed.
+- [ ] Add `--json` default policy or explicit always-JSON policy.
+- [ ] Add `--index` and config lookup.
+- [ ] Add stale-index and incompatible-artifact diagnostics.
+- [ ] Add command golden tests.
+- [ ] Add a production Codex skill for PF2e Atlas CLI workflows.
+- [ ] Include command-choice rules:
+  - [ ] lookup for exact names
+  - [ ] search for concepts
+  - [ ] rule-context for rules answers
+  - [ ] schema/filters for discovery
+- [ ] Re-run the CLI-vs-MCP evaluation tasks.
+- [ ] Decide whether CLI plus skill graduates from `adjust` to `keep`.
+
+Acceptance:
+- Local agents can complete the standard evaluation tasks through CLI plus skill.
+- MCP is no longer needed for ordinary local PF2E lookup/search/rules work.
+
+## Phase 10: Derived Tags And Editorial Runtime
+
+Goal: move runtime tag consumption before moving high-churn editorial workflows.
+
+- [ ] Define Rust derived-tag runtime types.
+- [ ] Load published ontology.
+- [ ] Load assignments.
+- [ ] Load rules if deterministic matching remains runtime-visible.
+- [ ] Load exemplars if needed for runtime display or evaluation.
+- [ ] Load review registries only if needed by runtime commands.
+- [ ] Implement tag filters in search.
+- [ ] Implement tag list/discovery commands.
+- [ ] Add parity tests for current derived-tag assignments.
+- [ ] Defer high-churn candidate discovery and clustering until runtime tag consumption is stable.
+
+Acceptance:
+- Rust search can filter and present current derived tags.
+- The TypeScript tag runtime is no longer required for read-only lookup/search surfaces.
+
+## Phase 11: Ratatui Workbench
+
+Goal: replace the Ink TUI after the Rust runtime shell is stable.
+
+- [ ] Add `atlas-tui` crate when the first real TUI slice starts.
+- [ ] Define explicit app state.
+- [ ] Define route/navigation state.
+- [ ] Define rendered-row model.
+- [ ] Define list/detail state.
+- [ ] Define modal/prompt state.
+- [ ] Define pointer/selection state.
+- [ ] Add search result list/detail screen.
+- [ ] Add record detail screen.
+- [ ] Add reference navigation.
+- [ ] Add filter/schema explorer.
+- [ ] Add text selection and copy behavior.
+- [ ] Add link open/copy behavior.
+- [ ] Add terminal capability abstraction for clipboard/open.
+- [ ] Add Ratatui `TestBackend` render tests.
+- [ ] Add manual acceptance checklist for Ghostty, iTerm2, tmux, and non-tmux.
+- [ ] Port derived-tag review/editorial workflows only after core search/browse TUI is stable.
+
+Acceptance:
+- Ratatui can replace the user-facing search/detail flows.
+- Editorial migration is broken into separate validated slices.
+
+## Phase 12: Optional MCP Compatibility
+
+Goal: decide late whether MCP is still worth carrying.
+
+- [ ] Revisit optional MCP spike after CLI plus skill is operational.
+- [ ] Identify any real external-client requirement.
+- [ ] If kept, add `atlas-mcp` as a thin surface over Rust runtime services.
+- [ ] Preserve only useful tool names/schemas.
+- [ ] Add no MCP-only backend behavior.
+- [ ] Keep MCP validation secondary to CLI/runtime validation.
+- [ ] If dropped, update README, docs, and skills to remove MCP as a primary surface.
+
+Acceptance:
+- MCP is either retired or clearly isolated as compatibility.
+
+## Phase 13: TypeScript Runtime Retirement
+
+Goal: remove the old runtime only after Rust owns the requested capability set.
+
+- [ ] Freeze new TypeScript runtime feature work once Rust parity is sufficient.
+- [ ] Compare Rust and TypeScript against the same vendored source revision.
+- [ ] Classify every difference as accepted, fixed, or deferred.
+- [ ] Remove or archive Node MCP runtime.
+- [ ] Remove or archive Ink TUI runtime.
+- [ ] Remove TypeScript index builder after Rust index builder is canonical.
+- [ ] Preserve any still-useful exploratory scripts outside the core runtime path.
+- [ ] Update architecture overview.
+- [ ] Update architecture boundaries.
+- [ ] Update search architecture.
+- [ ] Update TUI architecture.
+- [ ] Update editorial architecture.
+- [ ] Update README.
+- [ ] Update CONTRIBUTING.
+- [ ] Move completed backlog items to history.
+- [ ] Remove transitional bridges and compatibility-only paths.
+
+Acceptance:
+- No unowned parallel runtime remains.
+- Docs describe the current Rust architecture, not the migration history.
+- TypeScript is either gone from the core path or explicitly scoped to non-core tools.
+
+## Agent Handoff Template
+
+Use this shape when assigning follow-up agents:
+
+```text
+Worktree root: /Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.worktrees/rust-runtime-root
+Checklist item(s): <exact items from docs/backlog/rust-cli-runtime/migration-checklist.md>
+Allowed scope: <files/crates/docs the agent may edit>
+Do not change: <explicit exclusions>
+Validation: <Cargo commands or targeted command>
+Completion: commit the coherent slice on rust/runtime-root or report blocker with exact failing command/output>
+```
+
+For parallel work, create short-lived worktrees from `rust/runtime-root` instead of editing the same files concurrently.
+
+## Lightweight Validation Policy
+
+Use the smallest validation set that proves the slice:
+
+- Rust source changes: Cargo fmt, Clippy, tests, build.
+- Rust docs-only changes: content review and `git diff --check`.
+- Architecture docs: content review against ADR 0017 and the roadmap.
+- TypeScript runtime changes: targeted Node tests plus full Node gate before landing to `main`.
+- Main landing: run the repo landing gate and the Cargo gate.
+
+Do not report a checklist item complete if validation is skipped without recording why.
