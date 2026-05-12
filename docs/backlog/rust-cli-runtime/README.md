@@ -8,6 +8,8 @@ This folder tracks the design-in-progress roadmap and decision spikes for a poss
   Active staged backlog item for a Rust runtime with CLI and TUI as primary local surfaces, Rust-owned deterministic ingest/index artifacts, optional MCP compatibility, and non-core exploratory tooling kept adjacent.
 - [Migration checklist](./migration-checklist.md)
   Working checklist for follow-up agents implementing the Rust migration from the persistent `rust/runtime-root` worktree.
+- [TypeScript runtime contract map](./typescript-runtime-contract-map.md)
+  Inventory of the current TypeScript schema, indexing stages, runtime contracts, crate ownership targets, and parity fixture gates that feed the early Rust domain and ingest phases.
 
 ## Search And Retrieval Spikes
 

@@ -72,6 +72,54 @@ Validation diagnostics are grouped by contract family:
 
 `adjacent_manifest_path` is reserved for a JSON manifest that can carry larger provenance, source file inventories, report locations, and non-runtime artifact references. Runtime startup validation only requires the relative path metadata during phase one; manifest schema validation lands when Rust ingest starts writing artifacts.
 
+## Runtime Table Families
+
+The Rust artifact contract extends beyond `artifact_metadata` once Rust ingest starts writing artifacts. The current TypeScript index is the parity inventory, but the Rust artifact should treat table families as generated projections over typed ingest/domain models rather than as ad hoc row bags.
+
+Required runtime table families for the first Rust-written artifact are:
+
+| Family | Tables | Purpose |
+| --- | --- | --- |
+| Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
+| Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
+| Records | `records` | Canonical normalized record identity, classification, presentation text, source facts, variant facts, search visibility, generated search text, and raw JSON for parity/debugging. |
+| Aliases and legacy links | `record_aliases`, `record_legacy_links` | Lookup aliases and temporary canonical-to-legacy record-key bridges. Legacy links are transitional and require a retention decision before TypeScript retirement. |
+| Filterable row projections | `record_traits`, `record_derived_tags`, actor/item/spell side tables | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
+| Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by category/subcategory and metric namespace. |
+| Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. |
+| Lexical search | `records_fts` | SQLite FTS5 index over canonical record name and search text. |
+| Embeddings and vector search | `embeddings`, `record_embeddings` | Reusable vector blobs with semantic input hashes plus sqlite-vec rows and vector-side filter projections. |
+
+Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
+
+## Table Design Rules
+
+Rust artifacts should tighten the current TypeScript schema where doing so improves validation without changing intended behavior:
+
+- `RecordKey` values are serialized as `pack:id`, but Rust runtime code should use a parsed `RecordKey` newtype.
+- Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
+- Closed vocabularies such as category, subcategory, source category, search visibility policy, metric value type, and variant source should be validated by row loaders and represented as enums or validated newtypes in Rust.
+- Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
+- Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
+- Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source.
+- Generated projections such as `records_fts`, `record_embeddings`, metric catalogs, aliases, and derived-tag rows must be written from typed source models and covered by row-count/key-coverage validation.
+- sqlite-vec sentinel values for nullable filter columns must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
+- `record_legacy_links` is transitional. It is allowed for parity and migration comparison, but canonical Rust lookup should be based on `RecordKey` and aliases unless a later ADR keeps legacy links.
+
+## Artifact Validation Beyond Metadata
+
+Metadata validation must remain available without loading `sqlite-vec`. Once Rust writes full runtime artifacts, startup validation should add a second validation layer for table contracts:
+
+- required table presence by family
+- required index/catalog coverage for canonical records
+- foreign-key and row-count coverage for records, aliases, traits, derived tags, side-data rows, reference edges, FTS rows, embedding rows, vector rows, and metric catalogs
+- enum/boolean/value-domain validation for closed vocabularies
+- embedding row dimensions and semantic-input hash coverage
+- vector table capability checks only when a command needs vector search
+- source-signature comparison once the runtime is given a current source signature or source manifest context
+
+`atlas validate-index --json` may continue to report metadata-only diagnostics by default if full table validation becomes too verbose. If validation output starts carrying detailed table diagnostics, add `atlas artifact inspect --json` or a separate full validation mode rather than overloading the startup metadata check.
+
 ## Extension Loading
 
 Artifact metadata validation must not load vector extensions. Later search commands may require `sqlite-vec`, but contract validation must remain available on systems where vector extension loading is unavailable.
