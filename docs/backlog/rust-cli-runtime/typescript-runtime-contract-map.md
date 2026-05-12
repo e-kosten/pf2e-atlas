@@ -153,7 +153,8 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | browse/lookup sort specs | sort enum plus lookup policy enum | `atlas-domain` | parity | Preserve random seed support. |
 | `LookupResult` | lookup result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve safe exact-miss behavior; output can be narrower. |
 | `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
-| `RuleReferenceEdge` and graph results | graph edge/result structs | `atlas-domain` | parity | Required for rule graph and rule context. |
+| `RuleReferenceEdge` and graph results | `ReferenceEdge`, graph request/result structs, rule-context request/result structs | `atlas-domain` | parity semantics, Rust-owned shape | Required for rule graph and rule context. Record-reference edges stay separate from remaster same-concept bridges. |
+| `record_legacy_links` rows | `RemasterLink` | `atlas-domain` | rust redesign | Represents premaster/remaster records that are conceptually the same record across edition state. Direction is `remaster` to `legacy`, preserving current TS canonical-to-legacy behavior. Source is currently `remaster_journal` or `migration`; do not model renamed/merged/replaced subtypes until ingest preserves that distinction. |
 | derived-tag ontology/runtime types | runtime tag model and filtered row model | `atlas-tags` with shared ids in `atlas-domain` | rust redesign | Do not port high-churn editorial state before read-only runtime consumption. |
 
 ## Filter And Discovery Contract Map

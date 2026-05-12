@@ -156,7 +156,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [x] linksTo
   - [x] linkedFrom
   - [x] anyOf/allOf/not
-- [ ] Add rule graph contracts.
+- [x] Add rule graph contracts.
 - [x] Add metadata-field vocabulary.
 - [ ] Add CLI output envelope types if shared across commands.
 - [ ] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
