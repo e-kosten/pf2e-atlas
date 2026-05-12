@@ -5,6 +5,7 @@ use serde::Serialize;
 pub mod categories;
 pub mod detail;
 pub mod metadata;
+pub mod record;
 pub mod record_key;
 pub mod search_request;
 
@@ -15,6 +16,10 @@ pub use metadata::{
     MetadataEnumStringField, MetadataNumberField, MetadataPredicate, MetadataSetField,
     MetadataTextStringField, MetricOperator, NullOperator, NumberOperator, NumericMetricOperator,
     OrderingOperator, StringOperator, TextOperator,
+};
+pub use record::{
+    ActionCost, Level, Publication, Rarity, RecordSummary, SourceCategory, SourceProvenance,
+    TextStatus,
 };
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 pub use search_request::{
