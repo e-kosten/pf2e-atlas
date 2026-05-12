@@ -138,6 +138,50 @@ fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
 }
 
 #[test]
+fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = fixture_root("remaster-links");
+    write_remaster_fixture_source(&root)?;
+    let source = load_foundry_source(&root, None)?;
+
+    assert_eq!(source.records.len(), 5);
+    assert_eq!(source.remaster_links.len(), 2);
+    assert!(source.remaster_links.iter().any(|link| {
+        link.remaster_record_key.to_string() == "actions:reactiveStrike1"
+            && link.legacy_record_key.to_string() == "actions:attackOpportunity1"
+            && link.source_ref == "journal:Class Features"
+    }));
+    assert!(source.remaster_links.iter().any(|link| {
+        link.remaster_record_key.to_string() == "conditionitems:offGuard1"
+            && link.legacy_record_key.to_string() == "conditionitems:flatFooted1"
+            && link.source_ref == "src/module/migration/migrations"
+    }));
+
+    let output_path = root.join("artifact.sqlite");
+    build_minimal_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+    })?;
+    let connection = Connection::open(&output_path)?;
+    let remaster_link_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM remaster_links", [], |row| row.get(0))?;
+    let journal_link_source: String = connection.query_row(
+        "SELECT source_kind FROM remaster_links
+         WHERE remaster_record_key = 'actions:reactiveStrike1'
+           AND legacy_record_key = 'actions:attackOpportunity1'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(remaster_link_count, 2);
+    assert_eq!(journal_link_source, "remaster_journal");
+
+    drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("build");
     write_fixture_source(&root)?;
@@ -359,6 +403,94 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     drop(connection);
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+fn write_remaster_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("packs/actions"))?;
+    fs::create_dir_all(root.join("packs/conditionitems"))?;
+    fs::create_dir_all(root.join("packs/journals"))?;
+    fs::create_dir_all(root.join("src/module/migration/migrations"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" },
+            { "name": "conditionitems", "label": "Conditions", "type": "Item", "path": "packs/conditionitems" },
+            { "name": "journals", "label": "Journals", "type": "JournalEntry", "path": "packs/journals" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/reactive-strike.json"),
+        r#"{
+          "_id": "reactiveStrike1",
+          "name": "Reactive Strike",
+          "type": "action",
+          "system": {
+            "publication": { "title": "Player Core", "remaster": true },
+            "description": { "value": "<p>Strike as a reaction.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/attack-of-opportunity.json"),
+        r#"{
+          "_id": "attackOpportunity1",
+          "name": "Attack of Opportunity",
+          "type": "action",
+          "system": {
+            "publication": { "title": "Core Rulebook", "remaster": false },
+            "description": { "value": "<p>Legacy reaction.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/conditionitems/off-guard.json"),
+        r#"{
+          "_id": "offGuard1",
+          "name": "Off-Guard",
+          "type": "condition",
+          "system": {
+            "publication": { "title": "Player Core", "remaster": true },
+            "description": { "value": "<p>You are distracted.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/conditionitems/flat-footed.json"),
+        r#"{
+          "_id": "flatFooted1",
+          "name": "flat-footed",
+          "type": "condition",
+          "system": {
+            "publication": { "title": "Core Rulebook", "remaster": false },
+            "description": { "value": "<p>You are distracted.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/journals/remaster-changes.json"),
+        r#"{
+          "_id": "journal1",
+          "name": "Remaster Changes",
+          "pages": [
+            {
+              "_id": "page1",
+              "name": "Class Features",
+              "type": "text",
+              "text": {
+                "content": "<table><tbody><tr><td>Attack of Opportunity</td><td>Multiple</td><td>Renamed</td><td>@UUID[Compendium.pf2e.actions.Item.Reactive Strike]{Reactive Strike}</td></tr></tbody></table>",
+                "format": 1
+              }
+            }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("src/module/migration/migrations/850-flat-footed-to-off-guard.ts"),
+        r#"/* Rename all uses and mentions of "flat-footed" to "Off-Guard" */"#,
+    )?;
     Ok(())
 }
 
