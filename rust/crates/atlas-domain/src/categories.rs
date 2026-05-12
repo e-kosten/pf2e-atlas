@@ -1,27 +1,19 @@
 use std::fmt;
 use std::str::FromStr;
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Category {
-    #[serde(rename = "equipment")]
     Equipment,
-    #[serde(rename = "feat")]
     Feat,
-    #[serde(rename = "creature")]
     Creature,
-    #[serde(rename = "hazard")]
     Hazard,
-    #[serde(rename = "affliction")]
     Affliction,
-    #[serde(rename = "rule")]
     Rule,
-    #[serde(rename = "spell")]
     Spell,
-    #[serde(rename = "characterCreation")]
     CharacterCreation,
-    #[serde(rename = "lore")]
     Lore,
 }
 
@@ -47,8 +39,23 @@ impl Category {
             Self::Affliction => "affliction",
             Self::Rule => "rule",
             Self::Spell => "spell",
-            Self::CharacterCreation => "characterCreation",
+            Self::CharacterCreation => "character_creation",
             Self::Lore => "lore",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "equipment" => Some(Self::Equipment),
+            "feat" => Some(Self::Feat),
+            "creature" => Some(Self::Creature),
+            "hazard" => Some(Self::Hazard),
+            "affliction" => Some(Self::Affliction),
+            "rule" => Some(Self::Rule),
+            "spell" => Some(Self::Spell),
+            "character_creation" => Some(Self::CharacterCreation),
+            "lore" => Some(Self::Lore),
+            _ => None,
         }
     }
 
@@ -128,20 +135,9 @@ impl FromStr for Category {
     type Err = CategoryParseError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Self::from_input(value).ok_or_else(|| CategoryParseError {
+        Self::from_canonical(value).ok_or_else(|| CategoryParseError {
             value: value.to_string(),
         })
-    }
-}
-
-impl<'de> Deserialize<'de> for Category {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-        Self::from_input(&value)
-            .ok_or_else(|| serde::de::Error::custom(CategoryParseError { value }))
     }
 }
 
@@ -158,69 +154,39 @@ impl fmt::Display for CategoryParseError {
 
 impl std::error::Error for CategoryParseError {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Subcategory {
-    #[serde(rename = "consumable")]
     Consumable,
-    #[serde(rename = "gear")]
     Gear,
-    #[serde(rename = "weapon")]
     Weapon,
-    #[serde(rename = "armor")]
     Armor,
-    #[serde(rename = "shield")]
     Shield,
-    #[serde(rename = "ammo")]
     Ammo,
-    #[serde(rename = "backpack")]
     Backpack,
-    #[serde(rename = "treasure")]
     Treasure,
-    #[serde(rename = "kit")]
     Kit,
-    #[serde(rename = "vehicle")]
     Vehicle,
-    #[serde(rename = "class")]
     Class,
-    #[serde(rename = "ancestry")]
     Ancestry,
-    #[serde(rename = "skill")]
     Skill,
-    #[serde(rename = "general")]
     General,
-    #[serde(rename = "archetype")]
     Archetype,
-    #[serde(rename = "boonCurse")]
     BoonCurse,
-    #[serde(rename = "character")]
     Character,
-    #[serde(rename = "familiar")]
     Familiar,
-    #[serde(rename = "haunt")]
     Haunt,
-    #[serde(rename = "trap")]
     Trap,
-    #[serde(rename = "curse")]
     Curse,
-    #[serde(rename = "disease")]
     Disease,
-    #[serde(rename = "poison")]
     Poison,
-    #[serde(rename = "action")]
     Action,
-    #[serde(rename = "condition")]
     Condition,
-    #[serde(rename = "effect")]
     Effect,
-    #[serde(rename = "campaignFeature")]
     CampaignFeature,
-    #[serde(rename = "heritage")]
     Heritage,
-    #[serde(rename = "background")]
     Background,
-    #[serde(rename = "deity")]
     Deity,
-    #[serde(rename = "journal")]
     Journal,
 }
 
@@ -276,7 +242,7 @@ impl Subcategory {
             Self::Skill => "skill",
             Self::General => "general",
             Self::Archetype => "archetype",
-            Self::BoonCurse => "boonCurse",
+            Self::BoonCurse => "boon_curse",
             Self::Character => "character",
             Self::Familiar => "familiar",
             Self::Haunt => "haunt",
@@ -287,11 +253,48 @@ impl Subcategory {
             Self::Action => "action",
             Self::Condition => "condition",
             Self::Effect => "effect",
-            Self::CampaignFeature => "campaignFeature",
+            Self::CampaignFeature => "campaign_feature",
             Self::Heritage => "heritage",
             Self::Background => "background",
             Self::Deity => "deity",
             Self::Journal => "journal",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "action" => Some(Self::Action),
+            "ammo" => Some(Self::Ammo),
+            "ancestry" => Some(Self::Ancestry),
+            "archetype" => Some(Self::Archetype),
+            "armor" => Some(Self::Armor),
+            "backpack" => Some(Self::Backpack),
+            "background" => Some(Self::Background),
+            "boon_curse" => Some(Self::BoonCurse),
+            "campaign_feature" => Some(Self::CampaignFeature),
+            "character" => Some(Self::Character),
+            "class" => Some(Self::Class),
+            "condition" => Some(Self::Condition),
+            "consumable" => Some(Self::Consumable),
+            "curse" => Some(Self::Curse),
+            "deity" => Some(Self::Deity),
+            "disease" => Some(Self::Disease),
+            "effect" => Some(Self::Effect),
+            "familiar" => Some(Self::Familiar),
+            "gear" => Some(Self::Gear),
+            "general" => Some(Self::General),
+            "haunt" => Some(Self::Haunt),
+            "heritage" => Some(Self::Heritage),
+            "journal" => Some(Self::Journal),
+            "kit" => Some(Self::Kit),
+            "poison" => Some(Self::Poison),
+            "shield" => Some(Self::Shield),
+            "skill" => Some(Self::Skill),
+            "trap" => Some(Self::Trap),
+            "treasure" => Some(Self::Treasure),
+            "vehicle" => Some(Self::Vehicle),
+            "weapon" => Some(Self::Weapon),
+            _ => None,
         }
     }
 
@@ -344,20 +347,9 @@ impl FromStr for Subcategory {
     type Err = SubcategoryParseError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Self::from_input(value).ok_or_else(|| SubcategoryParseError {
+        Self::from_canonical(value).ok_or_else(|| SubcategoryParseError {
             value: value.to_string(),
         })
-    }
-}
-
-impl<'de> Deserialize<'de> for Subcategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-        Self::from_input(&value)
-            .ok_or_else(|| serde::de::Error::custom(SubcategoryParseError { value }))
     }
 }
 
@@ -383,10 +375,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn category_serializes_to_ts_wire_values() {
+    fn category_serializes_to_rust_canonical_values() {
         assert_eq!(
             serde_json::to_string(&Category::CharacterCreation).expect("category serializes"),
-            "\"characterCreation\""
+            "\"character_creation\""
         );
     }
 
@@ -401,14 +393,14 @@ mod tests {
     }
 
     #[test]
-    fn subcategory_serializes_to_ts_wire_values() {
+    fn subcategory_serializes_to_rust_canonical_values() {
         assert_eq!(
             serde_json::to_string(&Subcategory::BoonCurse).expect("subcategory serializes"),
-            "\"boonCurse\""
+            "\"boon_curse\""
         );
         assert_eq!(
             serde_json::to_string(&Subcategory::CampaignFeature).expect("subcategory serializes"),
-            "\"campaignFeature\""
+            "\"campaign_feature\""
         );
     }
 
@@ -436,20 +428,25 @@ mod tests {
     }
 
     #[test]
-    fn deserializes_aliases_but_serializes_canonical_values() {
-        let category: Category = serde_json::from_str("\"feats\"").expect("alias deserializes");
-        assert_eq!(category, Category::Feat);
+    fn serde_accepts_only_rust_canonical_values() {
+        let category: Category =
+            serde_json::from_str("\"character_creation\"").expect("canonical value deserializes");
+        assert_eq!(category, Category::CharacterCreation);
         assert_eq!(
             serde_json::to_string(&category).expect("category serializes"),
-            "\"feat\""
+            "\"character_creation\""
         );
+        assert!(serde_json::from_str::<Category>("\"characterCreation\"").is_err());
+        assert!(serde_json::from_str::<Category>("\"feats\"").is_err());
 
         let subcategory: Subcategory =
-            serde_json::from_str("\"campaign\"").expect("alias deserializes");
+            serde_json::from_str("\"campaign_feature\"").expect("canonical value deserializes");
         assert_eq!(subcategory, Subcategory::CampaignFeature);
         assert_eq!(
             serde_json::to_string(&subcategory).expect("subcategory serializes"),
-            "\"campaignFeature\""
+            "\"campaign_feature\""
         );
+        assert!(serde_json::from_str::<Subcategory>("\"campaignFeature\"").is_err());
+        assert!(serde_json::from_str::<Subcategory>("\"campaign\"").is_err());
     }
 }

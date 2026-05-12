@@ -138,15 +138,15 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | Current TS contract | Rust contract | Owner | Classification | Notes |
 | --- | --- | --- | --- | --- |
 | `RecordKey = string` | `RecordKey { pack, id }` parseable/displayable newtype | `atlas-domain` | rust redesign | User-visible key syntax remains `pack:id`; Rust should reject malformed keys at the boundary. |
-| `SearchCategory` and aliases | `Category` enum plus input alias parser | `atlas-domain` | rust redesign | Preserve canonical categories and accepted plural aliases. |
-| `SearchSubcategory` and aliases | `Subcategory` enum plus input alias parser | `atlas-domain` | rust redesign | Preserve canonical values and accepted aliases. |
+| `SearchCategory` and aliases | `Category` enum plus explicit input alias parser | `atlas-domain` | rust redesign | Domain serde uses Rust-owned canonical values. Alias acceptance belongs at user-facing or compatibility boundaries and must serialize back to one canonical representation. |
+| `SearchSubcategory` and aliases | `Subcategory` enum plus explicit input alias parser | `atlas-domain` | rust redesign | Domain serde uses Rust-owned canonical values. Alias acceptance belongs at user-facing or compatibility boundaries and must serialize back to one canonical representation. |
 | `SourceCategory` | `SourceCategory` enum | `atlas-domain` | parity | Values: `core`, `rules`, `adventure`, `unknown`. |
 | `VariantSource` | `VariantSource` enum | `atlas-domain` | parity | Keep until variant parity is classified. |
 | `RecordDetail` | `DetailLevel` enum | `atlas-domain` | rust redesign | Current TS values are `minimal`, `standard`, `full`, and Rust keeps those as wire values. `standard` is current full record content minus `sourcePath`; `full` adds source provenance. Do not add `answerable` as a generic detail level. |
 | `NormalizedRecord` | `RecordSummary`, `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
-| `SearchRequest` | tagged enum: browse/search/lookup | `atlas-domain` | parity | Preserve mode semantics and JSON shape where CLI accepts canonical request JSON. |
-| `SearchFilterNode` | recursive enum | `atlas-domain` | parity | Exhaustive matching should force downstream search handling. |
-| metadata fields and predicates | field enum by kind plus predicate enum | `atlas-domain` | parity | Preserve operator semantics by field type. |
+| `SearchRequest` | tagged enum: browse/search/lookup | `atlas-domain` | parity semantics, Rust-owned shape | Preserve mode semantics. Do not bake TypeScript camelCase request JSON into core domain serde; put TS compatibility, if needed, in a removable adapter. |
+| `SearchFilterNode` | recursive enum | `atlas-domain` | parity semantics, Rust-owned shape | Exhaustive matching should force downstream search handling. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
+| metadata fields and predicates | field enum by kind plus predicate enum | `atlas-domain` | parity semantics, Rust-owned shape | Preserve operator semantics by field type. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
 | metric predicates | metric predicate structs/enums | `atlas-domain` | parity | Keep metric key as string initially; catalog discovery owns valid values. |
 | `SearchProfile` | enum: lexical/balanced/concept | `atlas-domain` or `atlas-search` | parity | Search execution owns meaning; domain may own wire value. |
 | browse/lookup sort specs | sort enum plus lookup policy enum | `atlas-domain` | parity | Preserve random seed support. |
