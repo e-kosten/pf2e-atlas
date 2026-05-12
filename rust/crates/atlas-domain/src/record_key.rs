@@ -24,6 +24,25 @@ impl fmt::Display for PackName {
     }
 }
 
+impl Serialize for PackName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for PackName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::new(value).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecordId(String);
 
@@ -42,6 +61,25 @@ impl RecordId {
 impl fmt::Display for RecordId {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)
+    }
+}
+
+impl Serialize for RecordId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for RecordId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::new(value).map_err(serde::de::Error::custom)
     }
 }
 
@@ -189,5 +227,20 @@ mod tests {
         let decoded: RecordKey =
             serde_json::from_str(&json).expect("record key should deserialize");
         assert_eq!(decoded, key);
+    }
+
+    #[test]
+    fn serializes_identifier_parts_as_boundary_strings() {
+        let pack = PackName::new("pack").expect("pack name should parse");
+        let id = RecordId::new("id").expect("record id should parse");
+
+        assert_eq!(
+            serde_json::to_string(&pack).expect("pack name should serialize"),
+            "\"pack\""
+        );
+        assert_eq!(
+            serde_json::to_string(&id).expect("record id should serialize"),
+            "\"id\""
+        );
     }
 }

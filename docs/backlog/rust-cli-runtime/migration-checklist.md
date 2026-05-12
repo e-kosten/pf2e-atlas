@@ -130,18 +130,18 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 
 - [x] Add `RecordKey` with pack and record id parsing.
 - [x] Add category and subcategory vocabularies.
-- [ ] Add rarity, level, action-cost, and source/publication primitives.
-- [ ] Add canonical record summary type.
+- [x] Add rarity, level, action-cost, and source/publication primitives.
+- [x] Add canonical record summary type.
 - [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
   - [x] minimal
   - [x] standard
   - [x] full
-- [ ] Add internal text availability/parsing status vocabulary for row loading and diagnostics, not as a new
+- [x] Add internal text availability/parsing status vocabulary for row loading and diagnostics, not as a new
   user-facing answerability capability:
-  - [ ] resolved
-  - [ ] missing
-  - [ ] localized placeholder
-  - [ ] unsupported markup
+  - [x] resolved
+  - [x] missing
+  - [x] localized placeholder
+  - [x] unsupported markup
 - [x] Add canonical `SearchRequest` model:
   - [x] browse
   - [x] search
