@@ -142,22 +142,22 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [ ] missing
   - [ ] localized placeholder
   - [ ] unsupported markup
-- [ ] Add canonical `SearchRequest` model:
-  - [ ] browse
-  - [ ] search
-  - [ ] lookup
-- [ ] Add canonical filter tree:
-  - [ ] scope
-  - [ ] level
-  - [ ] rarity
-  - [ ] action cost
-  - [ ] metadata predicate
-  - [ ] metric predicate
-  - [ ] linksTo
-  - [ ] linkedFrom
-  - [ ] anyOf/allOf/not
+- [x] Add canonical `SearchRequest` model:
+  - [x] browse
+  - [x] search
+  - [x] lookup
+- [x] Add canonical filter tree:
+  - [x] scope
+  - [x] level
+  - [x] rarity
+  - [x] action cost
+  - [x] metadata predicate
+  - [x] metric predicate
+  - [x] linksTo
+  - [x] linkedFrom
+  - [x] anyOf/allOf/not
 - [ ] Add rule graph contracts.
-- [ ] Add metadata-field vocabulary.
+- [x] Add metadata-field vocabulary.
 - [ ] Add CLI output envelope types if shared across commands.
 - [ ] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
 

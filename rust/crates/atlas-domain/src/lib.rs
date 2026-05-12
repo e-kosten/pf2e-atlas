@@ -4,11 +4,24 @@ use serde::Serialize;
 
 pub mod categories;
 pub mod detail;
+pub mod metadata;
 pub mod record_key;
+pub mod search_request;
 
 pub use categories::{Category, Subcategory};
 pub use detail::DetailLevel;
+pub use metadata::{
+    BooleanOperator, CollectionOperator, EqualityOperator, MetadataBooleanField,
+    MetadataEnumStringField, MetadataNumberField, MetadataPredicate, MetadataSetField,
+    MetadataTextStringField, MetricOperator, NullOperator, NumberOperator, NumericMetricOperator,
+    OrderingOperator, StringOperator, TextOperator,
+};
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
+pub use search_request::{
+    BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, NullableNumericMatch,
+    NullableStringMatch, NumericMatch, ScalarValue, ScopeSubcategoryMatch, SearchFilterNode,
+    SearchProfile, SearchRequest,
+};
 
 pub const ARTIFACT_METADATA_TABLE: &str = "artifact_metadata";
 pub const LEGACY_METADATA_TABLE: &str = "metadata";
