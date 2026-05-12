@@ -28,6 +28,8 @@ cargo build --workspace
 - Run the full repo gate only before landing back to `main`, when touching TypeScript runtime behavior, or when changing repo-wide Node tooling.
 - Do not make Rust shell out to the TypeScript runtime or Node MCP server.
 - Do not add placeholder crates. Add a crate only when its first real slice lands.
+- Do not let Rust CLI command names imply new product capability during parity phases. Each command should map to an
+  existing MCP tool, current tag/editorial script, or an explicitly documented new product decision.
 - Keep runtime artifacts and deterministic ingest moving toward Rust ownership. Python, Node, and TypeScript are acceptable for exploratory analysis, parity harnesses, and temporary migration scripts.
 - If a slice exposes a major architecture decision not covered by ADR 0017, add or update an ADR before continuing.
 
@@ -129,9 +131,10 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 - [ ] Add canonical record summary type.
 - [ ] Add detail-level vocabulary:
   - [ ] compact
+  - [ ] standard
   - [ ] full
-  - [ ] answerable
-- [ ] Add answerability/text-status vocabulary:
+- [ ] Add internal text availability/parsing status vocabulary for row loading and diagnostics, not as a new
+  user-facing answerability capability:
   - [ ] resolved
   - [ ] missing
   - [ ] localized placeholder
@@ -181,7 +184,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [ ] Write `reference_edges`.
 - [ ] Write record traits.
 - [ ] Write aliases.
-- [ ] Write legacy links if still needed during parity.
+- [ ] Write remaster links preserving current premaster-to-remaster bridge behavior.
 - [ ] Write actor side-data.
 - [ ] Write item side-data.
 - [ ] Write spell side-data.
@@ -228,8 +231,8 @@ Goal: make exact lookup the first production-quality Rust command.
 - [ ] Implement controlled alternatives for ambiguous lookup.
 - [ ] Preserve safe no-result behavior: exact miss does not return fuzzy unrelated records.
 - [ ] Add compact record output.
+- [ ] Add standard record output.
 - [ ] Add full record output.
-- [ ] Add answerable output with text status.
 - [ ] Resolve or pre-resolve localization according to the artifact policy.
 - [ ] Add golden output tests for `atlas lookup`.
 - [ ] Add CLI exit code tests.
@@ -242,7 +245,7 @@ Acceptance:
 
 ## Phase 6: Rule Graph And Rule Context
 
-Goal: preserve the spike’s strongest CLI win: direct, answerable rule context.
+Goal: preserve the spike’s strongest CLI win: direct rule context with useful primary and support records.
 
 - [ ] Load direct outgoing references.
 - [ ] Load backlinks.
@@ -251,22 +254,21 @@ Goal: preserve the spike’s strongest CLI win: direct, answerable rule context.
 - [ ] Resolve the bestiary glossary `Grab` record correctly.
 - [ ] Add support-record shaping that avoids noisy default backlinks.
 - [ ] Add `--include-backlinks`.
-- [ ] Add `--detail answerable`.
-- [ ] Add answerability status for primary and support text.
+- [ ] Preserve current rule-context behavior: return primary/support records and edges without synthesizing answers.
 - [ ] Add golden tests for `Grab`.
 - [ ] Add tests for localized text.
 - [ ] Add tests for ambiguous rule names.
 
 Acceptance:
-- `atlas rule-context Grab --detail answerable` returns answer-grade text.
+- `atlas rule-context Grab` returns useful primary and support records for direct rules answers.
 - Support records are useful by default and expandable when needed.
 
 ## Phase 7: Filter And Schema Discovery
 
 Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discovery.
 
-- [ ] Add `atlas schema search-filters --json`.
-- [ ] Add `atlas filters list-values --field <field> --json`.
+- [ ] Add a CLI equivalent for `pf2e_get_search_semantics`, such as `atlas schema search-filters --json`.
+- [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
 - [ ] Add category/subcategory filtering for value discovery.
 - [ ] Add trait discovery.
 - [ ] Add derived-tag discovery.
@@ -279,7 +281,7 @@ Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discov
 
 Acceptance:
 - Agents can discover non-obvious filters without MCP.
-- The poison-consumables task from the CLI spike is answerable without guessing hidden metadata fields.
+- The poison-consumables task from the CLI spike can be completed without guessing hidden metadata fields.
 
 ## Phase 8: Search And Browse Runtime
 
@@ -317,7 +319,7 @@ Goal: make the Rust CLI the default local agent interface.
 - [ ] Add human-readable output mode if needed.
 - [ ] Add `--json` default policy or explicit always-JSON policy.
 - [ ] Add `--index` and config lookup.
-- [ ] Add stale-index and incompatible-artifact diagnostics.
+- [ ] Add source-signature, embedding-mismatch, and incompatible-artifact diagnostics.
 - [ ] Add command golden tests.
 - [ ] Add a production Codex skill for PF2e Atlas CLI workflows.
 - [ ] Include command-choice rules:
@@ -343,7 +345,8 @@ Goal: move runtime tag consumption before moving high-churn editorial workflows.
 - [ ] Load exemplars if needed for runtime display or evaluation.
 - [ ] Load review registries only if needed by runtime commands.
 - [ ] Implement tag filters in search.
-- [ ] Implement tag list/discovery commands.
+- [ ] Implement tag list/discovery commands that match current derived-tag discovery and evaluation workflows unless a
+  separate product decision changes those workflows.
 - [ ] Add parity tests for current derived-tag assignments.
 - [ ] Defer high-churn candidate discovery and clustering until runtime tag consumption is stable.
 

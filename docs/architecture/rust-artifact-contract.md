@@ -83,7 +83,7 @@ Required runtime table families for the first Rust-written artifact are:
 | Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
 | Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
 | Records | `records` | Canonical normalized record identity, classification, presentation text, source facts, variant facts, search visibility, generated search text, and raw JSON for parity/debugging. |
-| Aliases and legacy links | `record_aliases`, `record_legacy_links` | Lookup aliases and temporary canonical-to-legacy record-key bridges. Legacy links are transitional and require a retention decision before TypeScript retirement. |
+| Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. |
 | Filterable row projections | `record_traits`, `record_derived_tags`, actor/item/spell side tables | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
 | Metric rows and catalogs | `actor_metrics`, `item_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics plus generated discovery catalogs by category/subcategory and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. |
@@ -104,21 +104,17 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 - Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source.
 - Generated projections such as `records_fts`, `record_embeddings`, metric catalogs, aliases, and derived-tag rows must be written from typed source models and covered by row-count/key-coverage validation.
 - sqlite-vec sentinel values for nullable filter columns must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
-- `record_legacy_links` is transitional. It is allowed for parity and migration comparison, but canonical Rust lookup should be based on `RecordKey` and aliases unless a later ADR keeps legacy links.
+- Premaster-to-remaster bridges should be modeled as `remaster_links` or edition links, not as generic legacy compatibility. Canonical Rust lookup should be based on `RecordKey` and aliases, while record detail can expose explicit remaster bridge relationships.
 
 ## Artifact Validation Beyond Metadata
 
 Metadata validation must remain available without loading `sqlite-vec`. Once Rust writes full runtime artifacts, startup validation should add a second validation layer for table contracts:
 
 - required table presence by family
-- required index/catalog coverage for canonical records
-- foreign-key and row-count coverage for records, aliases, traits, derived tags, side-data rows, reference edges, FTS rows, embedding rows, vector rows, and metric catalogs
-- enum/boolean/value-domain validation for closed vocabularies
-- embedding row dimensions and semantic-input hash coverage
 - vector table capability checks only when a command needs vector search
-- source-signature comparison once the runtime is given a current source signature or source manifest context
+- source-signature comparison only when the caller supplies an expected source signature or equivalent already-computed value
 
-`atlas validate-index --json` may continue to report metadata-only diagnostics by default if full table validation becomes too verbose. If validation output starts carrying detailed table diagnostics, add `atlas artifact inspect --json` or a separate full validation mode rather than overloading the startup metadata check.
+Do not add a broad full-artifact validator by default. Recomputing source freshness, row-domain coverage, generated catalog coverage, and vector coverage can approach the cost and complexity of rebuilding or reloading the source corpus. Prefer lightweight startup validation plus targeted writer/parity tests for generated projections such as FTS rows, vector rows, metric catalogs, aliases, derived-tag rows, and remaster links.
 
 ## Extension Loading
 

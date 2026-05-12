@@ -132,7 +132,9 @@ The canonical-ingest spike did not find a Rust-specific blocker for this ownersh
 
 The CLI should be designed for agents first, with human presentation as an optional mode.
 
-Representative commands:
+Representative commands map to current MCP tools or existing tag CLI workflows. Final names can change during
+Phase 9, but first-pass commands should not add new PF2E capabilities unless the plan records that as an explicit
+product change.
 
 ```bash
 atlas lookup "Treat Wounds" --category rule --json
@@ -141,8 +143,8 @@ atlas browse --category creature --filter '<canonical-filter-json>' --json
 atlas filters list-values --field traits --category creature --json
 atlas rule-context "Grab" --include-backlinks --json
 atlas graph get --record-key actions:abc123 --include-backlinks --json
-atlas tags review next --queue spell --json
-atlas tags evaluate gaps --category spell --json
+atlas tags evaluate-derived-tags --category spell --json
+atlas tags review-derived-tag-migration --session <path> --json
 atlas tui
 atlas mcp
 ```
@@ -151,11 +153,12 @@ CLI contracts should include:
 
 - stable JSON schemas
 - compact default output for agent use
-- explicit `--pretty` or human mode when needed
+- optional human presentation only where it helps local use; JSON parity is the primary contract
 - predictable exit codes
 - concise stderr errors
 - no hidden network access during runtime commands
-- clear stale-index and embedding-mismatch diagnostics
+- source-signature and embedding-mismatch diagnostics when the artifact can prove the mismatch without reloading the
+  source corpus
 
 ### TUI shape
 
@@ -274,7 +277,7 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 1. Implement domain contracts without importing Node runtime concepts.
 2. Implement typed lookup by canonical key and by name.
 3. Implement record presentation models separate from CLI/TUI rendering.
-4. Add tests around stale index, missing embedding provider, and schema mismatch errors.
+4. Add tests around source-signature mismatch, missing embedding provider, and schema mismatch errors.
 
 ### Phase 4: Search Runtime
 
@@ -296,6 +299,7 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
    - search semantics
    - rule graph
    - rule question context
+   - pack listing and pack metadata if the CLI is expected to replace the full current MCP lookup/discovery surface
 2. Stabilize JSON schemas and output size policy.
 3. Write Codex skills that teach the intended command workflows.
 4. Add command golden tests.
@@ -335,7 +339,7 @@ Any implementation plan that comes from this item should include:
 - embedding compatibility tests between ingest and runtime
 - search result parity or accepted-difference reports
 - CLI JSON schema/golden tests
-- stale-index and embedding-mismatch tests
+- source-signature and embedding-mismatch tests
 - TUI state transition tests
 - architecture docs and ADR updates
 - explicit checks that the old runtime path is not left as an unowned parallel implementation
