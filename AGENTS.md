@@ -82,6 +82,31 @@ Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for be
 - Docs-only or instruction-only changes do not require `cd scripts && npm test`.
 - Docs-only or instruction-only changes do not require `npm run build` unless the change also affects executable examples, generated output expectations, or another validated artifact.
 
+## Rust Migration Worktree Policy
+
+This worktree is the persistent Rust migration root for the backlog under `docs/backlog/rust-cli-runtime/`.
+
+- The persistent worktree is `.worktrees/rust-runtime-root` on branch `rust/runtime-root`.
+- For Rust migration work, this section overrides the generic main-landing workflow below.
+- Do implementation work for the Rust migration in `rust/runtime-root` or in a short-lived worktree branched from `rust/runtime-root`.
+- Do not create Rust migration task branches from `main` unless the user explicitly asks for a main-targeted change.
+- Do not land Rust migration slices back to `main` unless the user explicitly asks to promote the migration branch.
+- Completed Rust migration slices should be committed onto `rust/runtime-root`; if a short-lived worktree was used, merge or rebase that slice back into `rust/runtime-root`, then remove only the short-lived worktree.
+- Never remove `.worktrees/rust-runtime-root`; it is not a temporary task worktree.
+- Prefer the Cargo gate for normal Rust migration slices:
+
+```bash
+cd rust
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --workspace
+```
+
+- Run the full Node/repo gate only when touching TypeScript runtime behavior, changing repo-wide Node tooling, or when explicitly preparing to promote Rust migration work to `main`.
+- The vendored PF2E checkout is expected at `vendor/pf2e`. In this worktree it may be a gitignored symlink to the primary checkout's vendored data; do not remove it just because it is untracked.
+- Follow `docs/backlog/rust-cli-runtime/migration-checklist.md` as the active handoff contract for Rust migration scope, validation, and completion wording.
+
 ## Commit & Pull Request Guidelines
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line. Agents must commit any coherent, validated unit of work before reporting the task complete unless the user explicitly says not to commit. Do not present implementation work as finished while your tracked changes for that task remain uncommitted. Final completion messages for implementation work must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for your completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete and validated it should be merged back into `main`. Before considering the work done, run `npm run build` and `cd scripts && npm test`, commit the validated changes, describe the user-facing change, report the commit SHA and message, and note any required refresh steps or data/index migration implications. For docs-only or instruction-only changes, no build/test run is required unless the edited files themselves define a stricter expectation for that task. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
