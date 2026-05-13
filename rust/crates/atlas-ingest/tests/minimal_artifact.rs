@@ -204,10 +204,22 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
         [],
         |row| row.get(0),
     )?;
+    let attack_of_opportunity_visible: i64 = connection.query_row(
+        "SELECT is_default_visible FROM records WHERE record_key = 'actions:attackOpportunity1'",
+        [],
+        |row| row.get(0),
+    )?;
+    let reactive_strike_visible: i64 = connection.query_row(
+        "SELECT is_default_visible FROM records WHERE record_key = 'actions:reactiveStrike1'",
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(remaster_link_count, 2);
     assert_eq!(alias_count, 3);
     assert_eq!(journal_link_source, "remaster_journal");
     assert_eq!(compendium_alias_source, "compendium_source");
+    assert_eq!(attack_of_opportunity_visible, 0);
+    assert_eq!(reactive_strike_visible, 1);
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -332,6 +344,12 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
+    let (spell_level, spell_rarity, spell_publication_family): (i64, String, String) = connection
+        .query_row(
+            "SELECT level, rarity, publication_family FROM records WHERE record_key = 'spells:testSpell0001'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
     let trait_count: usize =
         connection.query_row("SELECT COUNT(*) FROM record_traits", [], |row| row.get(0))?;
     let metric_count: usize =
@@ -473,6 +491,9 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(record_count, 5);
     assert_eq!(fts_count, 5);
     assert_eq!(spell_record_family, "spell");
+    assert_eq!(spell_level, 1);
+    assert_eq!(spell_rarity, "common");
+    assert_eq!(spell_publication_family, "core");
     assert_eq!(trait_count, 13);
     assert_eq!(metric_count, 20);
     assert!(metric_key_catalog_count >= 20);
@@ -832,7 +853,8 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "name": "Heal",
           "type": "spell",
           "system": {
-            "traits": { "value": ["healing", "vitality", "cantrip"], "traditions": ["divine", "primal"] },
+            "level": { "value": 1 },
+            "traits": { "value": ["healing", "vitality", "cantrip"], "traditions": ["divine", "primal"], "rarity": "common" },
             "time": { "value": "1 minute" },
             "duration": { "value": "10 minutes" },
             "range": { "value": "30 feet" },
