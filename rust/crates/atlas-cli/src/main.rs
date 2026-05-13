@@ -94,6 +94,8 @@ struct BuildIndexOptions {
     #[arg(long)]
     embedding_cache_path: Option<PathBuf>,
     #[arg(long)]
+    no_reuse_embeddings: bool,
+    #[arg(long)]
     json: bool,
 }
 
@@ -348,6 +350,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
         output_path: options.output,
         manifest_path: options.manifest,
         embedding_cache_root: options.embedding_cache_path,
+        reuse_embeddings: !options.no_reuse_embeddings,
     })
     .map_err(|error| error.to_string())?;
 
@@ -369,8 +372,11 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={}",
-            report.pending_document_embedding_count, report.document_embedding_count
+            "embeddings: pending_document={} document={} reused={} generated={}",
+            report.pending_document_embedding_count,
+            report.document_embedding_count,
+            report.reused_document_embedding_count,
+            report.generated_document_embedding_count
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(

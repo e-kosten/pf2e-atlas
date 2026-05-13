@@ -23,6 +23,20 @@ pub struct GeneratedDocumentEmbedding {
     pub vector: Vec<f32>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReusableDocumentEmbedding {
+    pub input_hash: String,
+    pub dimensions: usize,
+    pub vector: Vec<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeneratedDocumentEmbeddings {
+    pub embeddings: Vec<GeneratedDocumentEmbedding>,
+    pub reused_count: usize,
+    pub generated_count: usize,
+}
+
 pub(crate) fn build_pending_document_embeddings(
     records: &[LoadedRecord],
     aliases: &[RecordAlias],
@@ -63,16 +77,34 @@ pub fn generate_document_embeddings(
     pending: &[PendingDocumentEmbedding],
     embedder: &mut TextEmbedder,
 ) -> Result<Vec<GeneratedDocumentEmbedding>, EmbeddingError> {
-    generate_document_embeddings_with(pending, |input| embedder.embed_document(input))
+    Ok(
+        generate_document_embeddings_with_reuse_using(pending, None, |input| {
+            embedder.embed_document(input)
+        })?
+        .embeddings,
+    )
 }
 
-fn generate_document_embeddings_with<E>(
+pub fn generate_document_embeddings_with_reuse(
     pending: &[PendingDocumentEmbedding],
+    reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
+    embedder: &mut TextEmbedder,
+) -> Result<GeneratedDocumentEmbeddings, EmbeddingError> {
+    generate_document_embeddings_with_reuse_using(pending, reusable_embeddings, |input| {
+        embedder.embed_document(input)
+    })
+}
+
+pub fn generate_document_embeddings_with_reuse_using<E>(
+    pending: &[PendingDocumentEmbedding],
+    reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
-) -> Result<Vec<GeneratedDocumentEmbedding>, E> {
+) -> Result<GeneratedDocumentEmbeddings, E> {
     let total = pending.len();
     let progress_interval = embedding_progress_interval(total);
     let mut generated = Vec::with_capacity(total);
+    let mut reused_count = 0;
+    let mut generated_count = 0;
     for (index, entry) in pending.iter().enumerate() {
         let current = index + 1;
         if current == 1 || current % progress_interval == 0 || current == total {
@@ -80,12 +112,26 @@ fn generate_document_embeddings_with<E>(
                 phase = "document_embeddings",
                 current = current as u64,
                 total = total as u64,
-                "Generating document embedding: {record_key}",
+                "Preparing document embedding: {record_key}",
                 record_key = entry.record_key.as_str()
             );
         }
+        if let Some(reusable) = reusable_embeddings
+            .and_then(|lookup| lookup.get(&entry.record_key))
+            .filter(|reusable| reusable.input_hash == entry.input_hash)
+        {
+            reused_count += 1;
+            generated.push(GeneratedDocumentEmbedding {
+                record_key: entry.record_key.clone(),
+                input_hash: entry.input_hash.clone(),
+                dimensions: reusable.dimensions,
+                vector: reusable.vector.clone(),
+            });
+            continue;
+        }
         generated.push({
             let vector = embed_document(&entry.input_text)?;
+            generated_count += 1;
             GeneratedDocumentEmbedding {
                 record_key: entry.record_key.clone(),
                 input_hash: entry.input_hash.clone(),
@@ -94,7 +140,11 @@ fn generate_document_embeddings_with<E>(
             }
         });
     }
-    Ok(generated)
+    Ok(GeneratedDocumentEmbeddings {
+        embeddings: generated,
+        reused_count,
+        generated_count,
+    })
 }
 
 fn embedding_progress_interval(total: usize) -> usize {
@@ -182,10 +232,11 @@ mod tests {
             },
         ];
 
-        let generated = generate_document_embeddings_with(&pending, |input| {
+        let generated = generate_document_embeddings_with_reuse_using(&pending, None, |input| {
             Ok::<_, std::convert::Infallible>(vec![input.len() as f32, 1.0])
         })
-        .expect("fixture embedding should succeed");
+        .expect("fixture embedding should succeed")
+        .embeddings;
 
         assert_eq!(generated.len(), 2);
         assert_eq!(generated[0].record_key, "packs:first");
@@ -196,6 +247,41 @@ mod tests {
         assert_eq!(generated[1].input_hash, "second-hash");
         assert_eq!(generated[1].dimensions, 2);
         assert_eq!(generated[1].vector, vec![12.0, 1.0]);
+    }
+
+    #[test]
+    fn reuses_matching_document_vectors() {
+        let pending = vec![
+            PendingDocumentEmbedding {
+                record_key: "packs:first".to_string(),
+                input_text: "first input".to_string(),
+                input_hash: "first-hash".to_string(),
+            },
+            PendingDocumentEmbedding {
+                record_key: "packs:second".to_string(),
+                input_text: "second input".to_string(),
+                input_hash: "second-hash".to_string(),
+            },
+        ];
+        let reusable = BTreeMap::from([(
+            "packs:first".to_string(),
+            ReusableDocumentEmbedding {
+                input_hash: "first-hash".to_string(),
+                dimensions: 2,
+                vector: vec![9.0, 1.0],
+            },
+        )]);
+
+        let generated =
+            generate_document_embeddings_with_reuse_using(&pending, Some(&reusable), |input| {
+                Ok::<_, std::convert::Infallible>(vec![input.len() as f32, 1.0])
+            })
+            .expect("fixture embedding should succeed");
+
+        assert_eq!(generated.reused_count, 1);
+        assert_eq!(generated.generated_count, 1);
+        assert_eq!(generated.embeddings[0].vector, vec![9.0, 1.0]);
+        assert_eq!(generated.embeddings[1].vector, vec![12.0, 1.0]);
     }
 
     fn test_record(key: &str, name: &str, is_default_visible: bool) -> LoadedRecord {

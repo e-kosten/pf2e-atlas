@@ -14,6 +14,7 @@ pub struct BuildArtifactOptions {
     pub output_path: PathBuf,
     pub manifest_path: Option<PathBuf>,
     pub embedding_cache_root: Option<PathBuf>,
+    pub reuse_embeddings: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,6 +27,8 @@ pub struct BuildArtifactReport {
     pub generated_record_count: usize,
     pub pending_document_embedding_count: usize,
     pub document_embedding_count: usize,
+    pub reused_document_embedding_count: usize,
+    pub generated_document_embedding_count: usize,
     pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
