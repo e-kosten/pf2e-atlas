@@ -13,14 +13,14 @@ use atlas_domain::{
     MetricValueType, PublicationFamily, RemasterLinkSource, TimeKind, TimeUnit,
     artifact_metadata_keys,
 };
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 
 use crate::{
     AliasSource, IngestError, LoadedPack, LoadedRecord, MetricValue, RecordAlias, ReferenceEdge,
     RemasterLink, SourceLoad, schema,
 };
 
-pub fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
+pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
     let _ = fs::remove_file(path);
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
@@ -564,24 +564,4 @@ pub(crate) fn time_unit_label(unit: TimeUnit) -> &'static str {
 
 pub(crate) fn publication_family_label(publication_family: PublicationFamily) -> &'static str {
     publication_family.as_str()
-}
-
-pub fn read_artifact_counts(path: &Path) -> Result<(usize, usize), IngestError> {
-    let connection = Connection::open(path)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let pack_count = connection
-        .query_row("SELECT COUNT(*) FROM packs", [], |row| {
-            row.get::<_, usize>(0)
-        })
-        .optional()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
-        .unwrap_or_default();
-    let record_count = connection
-        .query_row("SELECT COUNT(*) FROM records", [], |row| {
-            row.get::<_, usize>(0)
-        })
-        .optional()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
-        .unwrap_or_default();
-    Ok((pack_count, record_count))
 }
