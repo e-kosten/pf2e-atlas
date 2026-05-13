@@ -18,6 +18,7 @@ use atlas_domain::{
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 const DERIVED_AFFLICTIONS_PACK_NAME: &str = "derived-afflictions";
@@ -53,6 +54,7 @@ pub struct BuildArtifactReport {
     pub output_path: PathBuf,
     pub pack_count: usize,
     pub record_count: usize,
+    pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
@@ -60,6 +62,7 @@ pub struct BuildArtifactReport {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceLoad {
+    pub source_signature: String,
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
     pub references: Vec<ReferenceEdge>,
@@ -352,6 +355,12 @@ struct ManifestPack {
     path: String,
 }
 
+#[derive(Debug)]
+struct ParsedManifest {
+    manifest: Manifest,
+    content_hash: String,
+}
+
 pub fn build_minimal_artifact(
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
@@ -364,6 +373,7 @@ pub fn build_minimal_artifact(
         output_path: options.output_path,
         pack_count: source.packs.len(),
         record_count: source.records.len(),
+        source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,
         warnings: source.warnings,
@@ -385,14 +395,14 @@ pub fn load_foundry_source(
     let manifest_path = manifest_path
         .map(Path::to_path_buf)
         .unwrap_or_else(|| default_manifest_path(source_root));
-    let manifest = parse_manifest(&manifest_path)?;
+    let parsed_manifest = parse_manifest(&manifest_path)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
     let mut diagnostics = IngestDiagnostics::default();
 
-    for manifest_pack in manifest.packs {
+    for manifest_pack in parsed_manifest.manifest.packs {
         let resolved_path = resolve_pack_path(source_root, &manifest_pack);
         if !resolved_path.is_dir() {
             warnings.push(format!(
@@ -445,6 +455,15 @@ pub fn load_foundry_source(
             });
         }
     }
+
+    let source_signature = compute_source_signature(
+        source_root,
+        &manifest_path,
+        &parsed_manifest.content_hash,
+        &packs,
+        &records,
+        &skipped_records,
+    );
 
     let reference_index = build_record_reference_index(&records);
     let generated_afflictions = build_generated_afflictions(&records, &reference_index);
@@ -514,6 +533,7 @@ pub fn load_foundry_source(
     let remaster_links = resolve_remaster_links(&records, &reference_index, source_root);
 
     Ok(SourceLoad {
+        source_signature,
         packs,
         records,
         references,
@@ -552,11 +572,128 @@ fn default_manifest_path(source_root: &Path) -> PathBuf {
     source_root.join("module.json")
 }
 
-fn parse_manifest(path: &Path) -> Result<Manifest, IngestError> {
+fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
-    serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))
+    let content_hash = sha256_hex(serialized.as_bytes());
+    let manifest = serde_json::from_str(&serialized)
+        .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))?;
+    Ok(ParsedManifest {
+        manifest,
+        content_hash,
+    })
+}
+
+fn compute_source_signature(
+    source_root: &Path,
+    manifest_path: &Path,
+    manifest_content_hash: &str,
+    packs: &[LoadedPack],
+    records: &[LoadedRecord],
+    skipped_records: &[SkippedRecord],
+) -> String {
+    let mut hasher = Sha256::new();
+    hash_field(&mut hasher, "atlas-source-signature-v1");
+    hash_field(&mut hasher, "manifest");
+    hash_field(
+        &mut hasher,
+        &relative_source_path(source_root, manifest_path),
+    );
+    hash_field(&mut hasher, manifest_content_hash);
+
+    let mut sorted_packs = packs.iter().collect::<Vec<_>>();
+    sorted_packs.sort_by(|left, right| left.name.as_str().cmp(right.name.as_str()));
+    for pack in sorted_packs {
+        hash_field(&mut hasher, "pack");
+        hash_field(&mut hasher, pack.name.as_str());
+        hash_field(&mut hasher, &pack.label);
+        hash_field(&mut hasher, &pack.document_type);
+        hash_field(&mut hasher, &pack.declared_path);
+        hash_field(&mut hasher, &pack.record_count.to_string());
+    }
+
+    let mut sorted_records = records.iter().collect::<Vec<_>>();
+    sorted_records.sort_by(|left, right| {
+        (
+            left.source_path.as_str(),
+            left.pack_name.as_str(),
+            left.id.as_str(),
+            left.key.to_string(),
+        )
+            .cmp(&(
+                right.source_path.as_str(),
+                right.pack_name.as_str(),
+                right.id.as_str(),
+                right.key.to_string(),
+            ))
+    });
+    for record in sorted_records {
+        hash_field(&mut hasher, "record");
+        hash_field(&mut hasher, &record.source_path);
+        hash_field(&mut hasher, &record.key.to_string());
+        hash_field(&mut hasher, &record.name);
+        hash_field(&mut hasher, &record.foundry_document_type);
+        hash_field(&mut hasher, &record.foundry_record_type);
+        hash_field(&mut hasher, &sha256_hex(record.raw_json.as_bytes()));
+    }
+
+    let mut sorted_skipped_records = skipped_records.iter().collect::<Vec<_>>();
+    sorted_skipped_records.sort_by(|left, right| {
+        (
+            relative_source_path(source_root, &left.path),
+            left.reason.as_str(),
+        )
+            .cmp(&(
+                relative_source_path(source_root, &right.path),
+                right.reason.as_str(),
+            ))
+    });
+    for skipped_record in sorted_skipped_records {
+        hash_field(&mut hasher, "skipped");
+        hash_field(
+            &mut hasher,
+            &relative_source_path(source_root, &skipped_record.path),
+        );
+        hash_field(&mut hasher, &skipped_record.reason);
+    }
+
+    format!("foundry-pf2e:sha256:{}", hex_lower(hasher.finalize()))
+}
+
+fn hash_field(hasher: &mut Sha256, value: &str) {
+    hasher.update(value.len().to_string().as_bytes());
+    hasher.update(b":");
+    hasher.update(value.as_bytes());
+    hasher.update(b"\n");
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex_lower(hasher.finalize())
+}
+
+fn hex_lower(bytes: impl AsRef<[u8]>) -> String {
+    bytes
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn relative_source_path(source_root: &Path, path: &Path) -> String {
+    let relative_path = path.strip_prefix(source_root).ok();
+    let fallback_path = if path.is_absolute() {
+        path.file_name().map(Path::new).unwrap_or(path)
+    } else {
+        path
+    };
+    relative_path
+        .unwrap_or(fallback_path)
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
@@ -3992,7 +4129,7 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
         .transaction()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     create_minimal_schema(&transaction)?;
-    write_artifact_metadata(&transaction, source.records.len())?;
+    write_artifact_metadata(&transaction, source.records.len(), &source.source_signature)?;
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records, &source.remaster_links)?;
     write_reference_edges(&transaction, &source.references)?;
@@ -4215,6 +4352,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
 fn write_artifact_metadata(
     connection: &Connection,
     record_count: usize,
+    source_signature: &str,
 ) -> Result<(), IngestError> {
     let metadata = [
         (
@@ -4231,7 +4369,7 @@ fn write_artifact_metadata(
         ),
         (
             artifact_metadata_keys::SOURCE_SIGNATURE,
-            "foundry-pf2e:minimal-rust-ingest".to_string(),
+            source_signature.to_string(),
         ),
         (
             artifact_metadata_keys::SOURCE_RECORD_COUNT,

@@ -16,6 +16,11 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
 
     let source = load_foundry_source(&root, None)?;
 
+    assert!(source.source_signature.starts_with("foundry-pf2e:sha256:"));
+    assert_eq!(
+        source.source_signature.len(),
+        "foundry-pf2e:sha256:".len() + 64
+    );
     assert_eq!(source.packs.len(), 4);
     assert_eq!(source.records.len(), 5);
     assert_eq!(source.references.len(), 2);
@@ -55,6 +60,34 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
             && reference.display_text.as_deref() == Some("Heal Spell")
             && reference.reference_text == "@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}"
     }));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("source-signature");
+    write_fixture_source(&root)?;
+
+    let first = load_foundry_source(&root, None)?.source_signature;
+    let second = load_foundry_source(&root, None)?.source_signature;
+    assert_eq!(first, second);
+
+    fs::write(
+        root.join("packs/actions/demoralize.json"),
+        r#"{
+          "_id": "testAction0002",
+          "name": "Demoralize",
+          "type": "action",
+          "system": {
+            "traits": { "value": ["auditory", "concentrate", "emotion", "fear", "mental"] },
+            "description": { "value": "<p>Use Intimidation to unsettle a creature.</p>" }
+          }
+        }"#,
+    )?;
+    let third = load_foundry_source(&root, None)?.source_signature;
+    assert_ne!(first, third);
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -392,10 +425,15 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     assert_eq!(report.pack_count, 4);
     assert_eq!(report.record_count, 5);
+    assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
+    assert_eq!(
+        validation.source_signature.as_deref(),
+        Some(report.source_signature.as_str())
+    );
     assert_eq!(validation.source_record_count.as_deref(), Some("5"));
 
     let connection = Connection::open(&output_path)?;

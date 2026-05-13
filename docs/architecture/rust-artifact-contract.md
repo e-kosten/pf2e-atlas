@@ -38,7 +38,7 @@ Required keys:
 | `artifact_contract_version` | `pf2e-atlas-artifact/v1` |
 | `schema_version` | `1` |
 | `source_kind` | `foundry-pf2e` |
-| `source_signature` | `foundry-pf2e:<signature>` for current source snapshots |
+| `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |
 | `source_record_count` | positive integer |
 | `content_hash_algorithm` | `sha256` |
 | `embedding_provider_family` | `transformers-js-minilm` for the first MiniLM baseline |
@@ -72,6 +72,10 @@ Validation diagnostics are grouped by contract family:
 ## Adjacent Manifest
 
 `adjacent_manifest_path` is reserved for a JSON manifest that can carry larger provenance, source file inventories, report locations, and non-runtime artifact references. Runtime startup validation requires only the relative path metadata. Manifest schema validation belongs to a later ingest slice that writes and validates the adjacent manifest as a real artifact.
+
+## Source Signature
+
+Rust ingest computes `source_signature` from the loaded Foundry source inputs before source-backed generated records are added. The digest includes the manifest path and content hash, loaded pack declarations and record counts, each loaded source record's relative source path and raw JSON content hash, and skipped source record paths with skip reasons. It excludes absolute local paths, output artifact paths, generated records, timestamps, and other machine-local build facts.
 
 ## Runtime Table Families
 

@@ -20,7 +20,14 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         .output()?;
 
     assert!(build_output.status.success());
-    let build_json: Value = serde_json::from_slice(&build_output.stdout)?;
+    let mut build_json: Value = serde_json::from_slice(&build_output.stdout)?;
+    let source_signature = build_json["source_signature"]
+        .as_str()
+        .expect("build-index should report source signature")
+        .to_string();
+    assert!(source_signature.starts_with("foundry-pf2e:sha256:"));
+    assert_eq!(source_signature.len(), "foundry-pf2e:sha256:".len() + 64);
+    build_json["source_signature"] = json!("<source-signature>");
     assert_eq!(
         build_json,
         json!({
@@ -28,6 +35,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "output": index_path.display().to_string(),
             "pack_count": 1,
             "record_count": 1,
+            "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
                     "folder_records": 0,
@@ -57,6 +65,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert!(validate_output.status.success());
     let validate_json: Value = serde_json::from_slice(&validate_output.stdout)?;
     assert_eq!(validate_json["status"], "ok");
+    assert_eq!(validate_json["source_signature"], source_signature);
     assert_eq!(validate_json["source_record_count"], "1");
 
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
