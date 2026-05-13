@@ -2,10 +2,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use atlas_artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_EMBEDDING_MODEL_ID,
-    artifact_metadata_keys,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
 };
 use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use atlas_embedding::default_embedding_model_spec;
 use rusqlite::Connection;
 
 use crate::records::{load_persisted_record_set, load_persisted_records};
@@ -278,6 +278,7 @@ fn insert_contract_metadata(
 }
 
 fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
+    let embedding_spec = default_embedding_model_spec();
     vec![
         (
             artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
@@ -298,24 +299,45 @@ fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
         (artifact_metadata_keys::CONTENT_HASH_ALGORITHM, "sha256"),
         (
             artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
-            "transformers-js-minilm",
+            embedding_spec.provider_family,
         ),
         (
             artifact_metadata_keys::EMBEDDING_MODEL_ID,
-            EXPECTED_EMBEDDING_MODEL_ID,
+            embedding_spec.model_id,
         ),
-        (artifact_metadata_keys::EMBEDDING_MODEL_REVISION, "main"),
+        (
+            artifact_metadata_keys::EMBEDDING_MODEL_REVISION,
+            embedding_spec.model_revision,
+        ),
         (
             artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
-            EXPECTED_EMBEDDING_MODEL_ID,
+            embedding_spec.tokenizer_id,
         ),
-        (artifact_metadata_keys::EMBEDDING_POOLING, "mean"),
-        (artifact_metadata_keys::EMBEDDING_NORMALIZATION, "l2"),
+        (
+            artifact_metadata_keys::EMBEDDING_POOLING,
+            embedding_spec.pooling.as_str(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_NORMALIZATION,
+            embedding_spec.normalization.as_str(),
+        ),
         (artifact_metadata_keys::EMBEDDING_DIMENSIONS, "384"),
-        (artifact_metadata_keys::EMBEDDING_DTYPE, "f32"),
-        (artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC, "cosine"),
-        (artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX, ""),
-        (artifact_metadata_keys::EMBEDDING_QUERY_PREFIX, ""),
+        (
+            artifact_metadata_keys::EMBEDDING_DTYPE,
+            embedding_spec.dtype.as_str(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC,
+            embedding_spec.distance_metric.as_str(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX,
+            embedding_spec.document_prefix,
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
+            embedding_spec.query_prefix,
+        ),
         (
             artifact_metadata_keys::FTS_TOKENIZER,
             "unicode61 remove_diacritics 2",

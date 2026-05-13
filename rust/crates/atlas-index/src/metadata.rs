@@ -3,13 +3,9 @@ use std::path::Path;
 
 use atlas_artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_CONTENT_HASH_ALGORITHM,
-    EXPECTED_EMBEDDING_DIMENSIONS, EXPECTED_EMBEDDING_DISTANCE_METRIC,
-    EXPECTED_EMBEDDING_DOCUMENT_PREFIX, EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID,
-    EXPECTED_EMBEDDING_MODEL_REVISION, EXPECTED_EMBEDDING_NORMALIZATION,
-    EXPECTED_EMBEDDING_POOLING, EXPECTED_EMBEDDING_PROVIDER_FAMILY,
-    EXPECTED_EMBEDDING_QUERY_PREFIX, EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER,
-    EXPECTED_SOURCE_KIND, artifact_metadata_keys,
+    EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
+use atlas_embedding::default_embedding_model_spec;
 use rusqlite::Connection;
 
 use crate::{
@@ -174,10 +170,12 @@ pub(crate) fn validate_metadata_values(
         &mut diagnostics,
     );
     require_source_signature(metadata, &mut diagnostics);
+    let embedding_spec = default_embedding_model_spec();
+    let embedding_dimensions = embedding_spec.dimensions_string();
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
-        EXPECTED_EMBEDDING_PROVIDER_FAMILY,
+        embedding_spec.provider_family,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -185,7 +183,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_MODEL_ID,
-        EXPECTED_EMBEDDING_MODEL_ID,
+        embedding_spec.model_id,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -193,7 +191,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_MODEL_REVISION,
-        EXPECTED_EMBEDDING_MODEL_REVISION,
+        embedding_spec.model_revision,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -201,7 +199,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
-        EXPECTED_EMBEDDING_TOKENIZER_ID,
+        embedding_spec.tokenizer_id,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -209,7 +207,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_POOLING,
-        EXPECTED_EMBEDDING_POOLING,
+        embedding_spec.pooling.as_str(),
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -217,7 +215,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_NORMALIZATION,
-        EXPECTED_EMBEDDING_NORMALIZATION,
+        embedding_spec.normalization.as_str(),
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -225,7 +223,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_DIMENSIONS,
-        EXPECTED_EMBEDDING_DIMENSIONS,
+        &embedding_dimensions,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -233,7 +231,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_DTYPE,
-        EXPECTED_EMBEDDING_DTYPE,
+        embedding_spec.dtype.as_str(),
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -241,7 +239,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC,
-        EXPECTED_EMBEDDING_DISTANCE_METRIC,
+        embedding_spec.distance_metric.as_str(),
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -249,7 +247,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX,
-        EXPECTED_EMBEDDING_DOCUMENT_PREFIX,
+        embedding_spec.document_prefix,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,
@@ -257,7 +255,7 @@ pub(crate) fn validate_metadata_values(
     require_value(
         metadata,
         artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
-        EXPECTED_EMBEDDING_QUERY_PREFIX,
+        embedding_spec.query_prefix,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,

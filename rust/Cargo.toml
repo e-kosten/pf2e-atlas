@@ -3,6 +3,7 @@ members = [
   "crates/atlas-artifact",
   "crates/atlas-cli",
   "crates/atlas-domain",
+  "crates/atlas-embedding",
   "crates/atlas-ingest",
   "crates/atlas-index",
   "crates/atlas-record",
@@ -18,6 +19,7 @@ rust-version = "1.95"
 [workspace.dependencies]
 atlas-artifact = { path = "crates/atlas-artifact" }
 atlas-domain = { path = "crates/atlas-domain" }
+atlas-embedding = { path = "crates/atlas-embedding" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-record = { path = "crates/atlas-record" }
