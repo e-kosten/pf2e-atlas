@@ -59,6 +59,8 @@ Required keys:
 
 Embedding model decisions must be concentrated in an `atlas-embedding` model catalog rather than repeated as raw strings across ingest, index validation, and search. The first catalog default is MiniLM for compatibility with the current prepared artifact and TypeScript provider, but alternate providers such as BGE should be added by extending the catalog and changing configuration or the default model selection. Switching models requires rebuilding `document_embedding_cache`, `record_vector_index`, and embedding metadata, then rerunning search-quality validation; it should not require changing storage, validation, or search call sites outside the catalog/provider boundary unless the new model changes vector storage requirements such as dimensions or dtype.
 
+The Phase 4 Rust MiniLM provider uses the `ort` crate with a pinned ONNX Runtime crate version plus the real `tokenizers` tokenizer JSON from the prepared model cache. This keeps the first migration baseline close to the successful spike and avoids introducing a sidecar runtime. Distribution packaging should keep the native ONNX Runtime dependency explicit and pinned; a later product packaging pass may decide whether to vendor the native library, rely on the crate-managed artifact, or provide a platform-specific install step.
+
 ## Validation Families
 
 Validation diagnostics are grouped by contract family:
