@@ -94,11 +94,19 @@ dependencies = [
  "atlas-artifact",
  "atlas-domain",
  "atlas-index",
+ "atlas-record",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
  "thiserror",
+]
+
+[[package]]
+name = "atlas-record"
+version = "0.1.0"
+dependencies = [
+ "atlas-domain",
 ]
 
 [[package]]
