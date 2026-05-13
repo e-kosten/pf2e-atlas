@@ -231,7 +231,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Add query-vector fixture comparisons against the current TypeScript provider.
 - [x] Decide ONNX Runtime packaging strategy.
 - [x] Add Rust-owned document embedding input construction and pending input/hash generation for default-visible records.
-- [ ] Implement document embedding generation for Rust-built artifacts.
+- [x] Implement document embedding generation for Rust-built artifacts.
 - [ ] Store embedding identity in normal SQLite metadata.
 - [ ] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
 - [ ] Add Rust-owned `record_vector_index` sqlite-vec table with `record_key` plus embedding only.

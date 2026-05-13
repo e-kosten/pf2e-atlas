@@ -213,13 +213,13 @@ pub enum EmbeddingError {
     DimensionMismatch { expected: usize, actual: usize },
 }
 
-pub struct QueryEmbedder {
+pub struct TextEmbedder {
     spec: EmbeddingModelSpec,
     tokenizer: Tokenizer,
     session: Session,
 }
 
-impl QueryEmbedder {
+impl TextEmbedder {
     pub fn load(config: &EmbeddingRuntimeConfig) -> Result<Self, EmbeddingError> {
         Self::load_from_model_dir(config.model_spec(), config.model_dir())
     }
@@ -270,7 +270,20 @@ impl QueryEmbedder {
     }
 
     pub fn embed_query(&mut self, text: &str) -> Result<Vec<f32>, EmbeddingError> {
-        let normalized = normalize_embedding_text(&format!("{}{}", self.spec.query_prefix, text));
+        self.embed_text(text, self.spec.query_prefix)
+    }
+
+    pub fn embed_document(&mut self, text: &str) -> Result<Vec<f32>, EmbeddingError> {
+        self.embed_text(text, self.spec.document_prefix)
+    }
+
+    fn embed_text(&mut self, text: &str, prefix: &str) -> Result<Vec<f32>, EmbeddingError> {
+        let prefixed_text = if prefix.is_empty() {
+            text.to_string()
+        } else {
+            format!("{prefix}{text}")
+        };
+        let normalized = normalize_embedding_text(&prefixed_text);
         if normalized.is_empty() {
             return Ok(vec![0.0; self.spec.dimensions]);
         }
@@ -452,7 +465,7 @@ mod tests {
         }
 
         let mut embedder =
-            QueryEmbedder::load(&config).expect("local MiniLM cache should load from main repo");
+            TextEmbedder::load(&config).expect("local MiniLM cache should load from main repo");
         for fixture in ts_vector_fixtures() {
             let vector = embedder
                 .embed_query(fixture.query)
@@ -468,6 +481,27 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn minilm_document_embedding_uses_document_prefix_when_model_cache_exists() {
+        let config = EmbeddingRuntimeConfig::default_model(MAIN_REPO_MINILM_CACHE);
+        if !config.model_dir().join("onnx").join("model.onnx").exists() {
+            return;
+        }
+
+        let mut embedder =
+            TextEmbedder::load(&config).expect("local MiniLM cache should load from main repo");
+        let document_vector = embedder
+            .embed_document("Heal\nhealing\nRestore Hit Points.")
+            .expect("document embedding should succeed");
+        let query_vector = embedder
+            .embed_query("Heal\nhealing\nRestore Hit Points.")
+            .expect("query embedding should succeed");
+
+        assert_eq!(document_vector.len(), 384);
+        assert_eq!(query_vector.len(), 384);
+        assert_eq!(document_vector, query_vector);
     }
 
     struct VectorFixture {
