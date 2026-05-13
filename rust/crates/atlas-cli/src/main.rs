@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use atlas_index::{
     ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
-    validate_index_report, validate_vector_index_report,
+    validate_index_report, validate_vector_index_report, write_vector_index_report,
 };
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
@@ -44,6 +44,8 @@ enum IndexCommand {
     Validate(IndexPathOptions),
     #[command(about = "Validate sqlite-vec availability and record_vector_index coherence")]
     ValidateVectors(IndexPathOptions),
+    #[command(about = "Build record_vector_index from document_embedding_cache")]
+    BuildVectors(IndexPathOptions),
 }
 
 #[derive(Debug, Args)]
@@ -96,6 +98,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Inspect(options) => run_index_inspect(options),
             IndexCommand::Validate(options) => run_index_validate(options),
             IndexCommand::ValidateVectors(options) => run_index_validate_vectors(options),
+            IndexCommand::BuildVectors(options) => run_index_build_vectors(options),
         },
     }
 }
@@ -230,6 +233,11 @@ fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
 
 fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
     let report = validate_vector_index_report(&options.index);
+    write_validation_report(report, options.json)
+}
+
+fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
+    let report = write_vector_index_report(&options.index);
     write_validation_report(report, options.json)
 }
 
