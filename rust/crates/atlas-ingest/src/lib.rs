@@ -14,6 +14,7 @@ mod record_model;
 mod references;
 pub mod report;
 mod schema;
+mod side_data;
 mod source;
 mod source_model;
 mod variant_taxonomy;
