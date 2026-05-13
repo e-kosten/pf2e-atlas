@@ -1,18 +1,33 @@
+pub const TABLE_ARTIFACT_METADATA: &str = "artifact_metadata";
+pub const TABLE_PACKS: &str = "packs";
+pub const TABLE_RECORDS: &str = "records";
+pub const TABLE_RECORD_TRAITS: &str = "record_traits";
+pub const TABLE_REFERENCE_EDGES: &str = "reference_edges";
+pub const TABLE_RECORD_ALIASES: &str = "record_aliases";
+pub const TABLE_REMASTER_LINKS: &str = "remaster_links";
+pub const TABLE_RECORD_METRICS: &str = "record_metrics";
+pub const TABLE_METRIC_KEY_CATALOG: &str = "metric_key_catalog";
+pub const TABLE_METRIC_VALUE_CATALOG: &str = "metric_value_catalog";
+pub const TABLE_ACTOR_RECORDS: &str = "actor_records";
+pub const TABLE_ITEM_RECORDS: &str = "item_records";
+pub const TABLE_SPELL_RECORDS: &str = "spell_records";
+pub const TABLE_RECORDS_FTS: &str = "records_fts";
+
 pub const REQUIRED_TABLES: &[&str] = &[
-    "artifact_metadata",
-    "packs",
-    "records",
-    "record_traits",
-    "reference_edges",
-    "record_aliases",
-    "remaster_links",
-    "record_metrics",
-    "metric_key_catalog",
-    "metric_value_catalog",
-    "actor_records",
-    "item_records",
-    "spell_records",
-    "records_fts",
+    TABLE_ARTIFACT_METADATA,
+    TABLE_PACKS,
+    TABLE_RECORDS,
+    TABLE_RECORD_TRAITS,
+    TABLE_REFERENCE_EDGES,
+    TABLE_RECORD_ALIASES,
+    TABLE_REMASTER_LINKS,
+    TABLE_RECORD_METRICS,
+    TABLE_METRIC_KEY_CATALOG,
+    TABLE_METRIC_VALUE_CATALOG,
+    TABLE_ACTOR_RECORDS,
+    TABLE_ITEM_RECORDS,
+    TABLE_SPELL_RECORDS,
+    TABLE_RECORDS_FTS,
 ];
 
 pub const RECORD_COLUMNS: &[&str] = &[
@@ -67,9 +82,9 @@ pub const RECORD_COLUMNS: &[&str] = &[
 ];
 
 pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
-    ("artifact_metadata", &["key", "value"]),
+    (TABLE_ARTIFACT_METADATA, &["key", "value"]),
     (
-        "packs",
+        TABLE_PACKS,
         &[
             "name",
             "label",
@@ -79,10 +94,10 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "record_count",
         ],
     ),
-    ("records", RECORD_COLUMNS),
-    ("record_traits", &["record_key", "trait"]),
+    (TABLE_RECORDS, RECORD_COLUMNS),
+    (TABLE_RECORD_TRAITS, &["record_key", "trait"]),
     (
-        "reference_edges",
+        TABLE_REFERENCE_EDGES,
         &[
             "from_record_key",
             "to_record_key",
@@ -91,7 +106,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "record_aliases",
+        TABLE_RECORD_ALIASES,
         &[
             "canonical_record_key",
             "alias_text",
@@ -101,7 +116,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "remaster_links",
+        TABLE_REMASTER_LINKS,
         &[
             "remaster_record_key",
             "legacy_record_key",
@@ -110,7 +125,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "record_metrics",
+        TABLE_RECORD_METRICS,
         &[
             "record_key",
             "metric_domain",
@@ -122,7 +137,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "metric_key_catalog",
+        TABLE_METRIC_KEY_CATALOG,
         &[
             "metric_domain",
             "record_family",
@@ -135,7 +150,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "metric_value_catalog",
+        TABLE_METRIC_VALUE_CATALOG,
         &[
             "metric_domain",
             "record_family",
@@ -145,7 +160,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "actor_records",
+        TABLE_ACTOR_RECORDS,
         &[
             "record_key",
             "size",
@@ -161,7 +176,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "item_records",
+        TABLE_ITEM_RECORDS,
         &[
             "record_key",
             "system_category",
@@ -175,7 +190,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "spell_records",
+        TABLE_SPELL_RECORDS,
         &[
             "record_key",
             "traditions_json",
@@ -192,7 +207,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "records_fts",
+        TABLE_RECORDS_FTS,
         &["record_key", "name", "search_text_projection"],
     ),
 ];
