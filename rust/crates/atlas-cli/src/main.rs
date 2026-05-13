@@ -390,11 +390,21 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={} reused={} generated={} build_duration_ms={}",
+            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={} build_duration_ms={}",
             report.pending_document_embedding_count,
             report.document_embedding_count,
             report.reused_document_embedding_count,
             report.generated_document_embedding_count,
+            report
+                .document_embedding_tokenization
+                .truncated_document_count,
+            report
+                .document_embedding_tokenization
+                .max_token_count
+                .map_or_else(|| "unknown".to_string(), |value| value.to_string()),
+            report
+                .document_embedding_tokenization
+                .max_observed_token_count,
             report.build_duration_ms
         );
         eprintln!("source signature: {}", report.source_signature);

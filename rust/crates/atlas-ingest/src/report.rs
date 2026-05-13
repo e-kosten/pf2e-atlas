@@ -6,7 +6,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{
-    BuildArtifactReport, IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad,
+    BuildArtifactReport, DocumentEmbeddingTokenizationTelemetry, IngestDiagnostics, LoadedRecord,
+    MetricValue, SkippedRecord, SourceLoad,
 };
 
 use crate::{IngestError, pipeline};
@@ -219,12 +220,36 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
         "document_embedding_count": report.document_embedding_count,
         "reused_document_embedding_count": report.reused_document_embedding_count,
         "generated_document_embedding_count": report.generated_document_embedding_count,
+        "document_embedding_tokenization": document_embedding_tokenization_json(
+            &report.document_embedding_tokenization,
+        ),
         "build_duration_ms": report.build_duration_ms,
         "source_signature": report.source_signature,
         "diagnostics": diagnostics_json(&report.diagnostics),
         "skipped_record_count": report.skipped_records.len(),
         "skipped_records": skipped_records_json(&report.skipped_records),
         "warnings": report.warnings,
+    })
+}
+
+fn document_embedding_tokenization_json(
+    telemetry: &DocumentEmbeddingTokenizationTelemetry,
+) -> Value {
+    json!({
+        "document_count": telemetry.document_count,
+        "truncated_document_count": telemetry.truncated_document_count,
+        "max_token_count": telemetry.max_token_count,
+        "max_observed_token_count": telemetry.max_observed_token_count,
+        "truncated_examples": telemetry.truncated_examples
+            .iter()
+            .map(|example| {
+                json!({
+                    "record_key": example.record_key,
+                    "token_count": example.token_count,
+                    "max_token_count": example.max_token_count,
+                })
+            })
+            .collect::<Vec<_>>(),
     })
 }
 

@@ -5,7 +5,7 @@ use std::time::Instant;
 use thiserror::Error;
 use tracing::info;
 
-use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
+use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokenizer};
 
 mod aliases;
 mod embedding_reuse;
@@ -29,9 +29,10 @@ mod variants;
 mod writer;
 
 pub use embeddings::{
+    DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
     GeneratedDocumentEmbedding, PendingDocumentEmbedding, ReusableDocumentEmbedding,
-    generate_document_embeddings, generate_document_embeddings_with_reuse,
-    generate_document_embeddings_with_reuse_using,
+    analyze_document_embedding_tokenization, generate_document_embeddings,
+    generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 pub use model::IngestDiagnostics;
@@ -120,6 +121,35 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
             }
             None
         };
+        let tokenizer = TextEmbeddingTokenizer::load(&config)
+            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        source.document_embedding_tokenization = analyze_document_embedding_tokenization(
+            &source.pending_document_embeddings,
+            &tokenizer,
+        )
+        .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        info!(
+            document_embeddings = source.document_embedding_tokenization.document_count,
+            truncated_document_embeddings = source
+                .document_embedding_tokenization
+                .truncated_document_count,
+            max_embedding_tokens = source
+                .document_embedding_tokenization
+                .max_token_count
+                .unwrap_or(0),
+            max_observed_embedding_tokens = source
+                .document_embedding_tokenization
+                .max_observed_token_count,
+            "analyzed document embedding tokenization"
+        );
+        for example in &source.document_embedding_tokenization.truncated_examples {
+            info!(
+                record_key = %example.record_key,
+                embedding_tokens = example.token_count,
+                max_embedding_tokens = example.max_token_count,
+                "document embedding input exceeds tokenizer limit"
+            );
+        }
         info!(
             pending_document_embeddings = source.pending_document_embeddings.len(),
             "generating document embeddings"
@@ -181,6 +211,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         document_embedding_count: source.document_embeddings.len(),
         reused_document_embedding_count,
         generated_document_embedding_count,
+        document_embedding_tokenization: source.document_embedding_tokenization,
         build_duration_ms,
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,

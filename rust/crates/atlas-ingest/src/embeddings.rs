@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_embedding::{
-    DocumentEmbeddingInputParts, EmbeddingError, TextEmbedder, build_document_embedding_input,
-    hash_document_embedding_input,
+    DocumentEmbeddingInputParts, EmbeddingError, EmbeddingInputTokenization, TextEmbedder,
+    TextEmbeddingTokenizer, build_document_embedding_input, hash_document_embedding_input,
 };
 use tracing::info;
 
@@ -35,6 +35,22 @@ pub struct GeneratedDocumentEmbeddings {
     pub embeddings: Vec<GeneratedDocumentEmbedding>,
     pub reused_count: usize,
     pub generated_count: usize,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DocumentEmbeddingTokenizationTelemetry {
+    pub document_count: usize,
+    pub truncated_document_count: usize,
+    pub max_token_count: Option<usize>,
+    pub max_observed_token_count: usize,
+    pub truncated_examples: Vec<DocumentEmbeddingTruncationExample>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentEmbeddingTruncationExample {
+    pub record_key: String,
+    pub token_count: usize,
+    pub max_token_count: usize,
 }
 
 pub(crate) fn build_pending_document_embeddings(
@@ -71,6 +87,21 @@ pub(crate) fn build_pending_document_embeddings(
     }
 
     pending
+}
+
+pub fn analyze_document_embedding_tokenization(
+    pending: &[PendingDocumentEmbedding],
+    tokenizer: &TextEmbeddingTokenizer,
+) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
+    let inputs = pending
+        .iter()
+        .map(|entry| entry.input_text.as_str())
+        .collect::<Vec<_>>();
+    let tokenizations = tokenizer.analyze_document_inputs(&inputs)?;
+    Ok(summarize_document_embedding_tokenization(
+        pending,
+        &tokenizations,
+    ))
 }
 
 pub fn generate_document_embeddings(
@@ -191,6 +222,54 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
 
 fn embedding_progress_interval(total: usize) -> usize {
     (total / 100).clamp(25, 500)
+}
+
+fn summarize_document_embedding_tokenization(
+    pending: &[PendingDocumentEmbedding],
+    tokenizations: &[EmbeddingInputTokenization],
+) -> DocumentEmbeddingTokenizationTelemetry {
+    debug_assert_eq!(pending.len(), tokenizations.len());
+    let max_token_count = tokenizations
+        .iter()
+        .find_map(|tokenization| tokenization.max_token_count);
+    let max_observed_token_count = tokenizations
+        .iter()
+        .map(|tokenization| tokenization.token_count)
+        .max()
+        .unwrap_or(0);
+    let truncated_document_count = tokenizations
+        .iter()
+        .filter(|tokenization| tokenization.truncated)
+        .count();
+    let mut truncated_examples = pending
+        .iter()
+        .zip(tokenizations.iter())
+        .filter_map(|(entry, tokenization)| {
+            let max_token_count = tokenization.max_token_count?;
+            tokenization
+                .truncated
+                .then(|| DocumentEmbeddingTruncationExample {
+                    record_key: entry.record_key.clone(),
+                    token_count: tokenization.token_count,
+                    max_token_count,
+                })
+        })
+        .collect::<Vec<_>>();
+    truncated_examples.sort_by(|left, right| {
+        right
+            .token_count
+            .cmp(&left.token_count)
+            .then_with(|| left.record_key.cmp(&right.record_key))
+    });
+    truncated_examples.truncate(10);
+
+    DocumentEmbeddingTokenizationTelemetry {
+        document_count: pending.len(),
+        truncated_document_count,
+        max_token_count,
+        max_observed_token_count,
+        truncated_examples,
+    }
 }
 
 fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String>> {
@@ -371,6 +450,62 @@ mod tests {
         );
         assert_eq!(generated.embeddings[0].vector, vec![11.0, 2.0]);
         assert_eq!(generated.embeddings[2].vector, vec![11.0, 1.0]);
+    }
+
+    #[test]
+    fn summarizes_document_embedding_tokenization_truncation_examples() {
+        let pending = vec![
+            pending_embedding("packs:short", "short"),
+            pending_embedding("packs:long", "long"),
+            pending_embedding("packs:longer", "longer"),
+        ];
+        let tokenizations = vec![
+            EmbeddingInputTokenization {
+                token_count: 8,
+                max_token_count: Some(10),
+                truncated: false,
+            },
+            EmbeddingInputTokenization {
+                token_count: 12,
+                max_token_count: Some(10),
+                truncated: true,
+            },
+            EmbeddingInputTokenization {
+                token_count: 20,
+                max_token_count: Some(10),
+                truncated: true,
+            },
+        ];
+
+        let telemetry = summarize_document_embedding_tokenization(&pending, &tokenizations);
+
+        assert_eq!(telemetry.document_count, 3);
+        assert_eq!(telemetry.truncated_document_count, 2);
+        assert_eq!(telemetry.max_token_count, Some(10));
+        assert_eq!(telemetry.max_observed_token_count, 20);
+        assert_eq!(
+            telemetry.truncated_examples,
+            vec![
+                DocumentEmbeddingTruncationExample {
+                    record_key: "packs:longer".to_string(),
+                    token_count: 20,
+                    max_token_count: 10,
+                },
+                DocumentEmbeddingTruncationExample {
+                    record_key: "packs:long".to_string(),
+                    token_count: 12,
+                    max_token_count: 10,
+                },
+            ]
+        );
+    }
+
+    fn pending_embedding(record_key: &str, input_text: &str) -> PendingDocumentEmbedding {
+        PendingDocumentEmbedding {
+            record_key: record_key.to_string(),
+            input_text: input_text.to_string(),
+            input_hash: hash_document_embedding_input(input_text),
+        }
     }
 
     fn test_record(key: &str, name: &str, is_default_visible: bool) -> LoadedRecord {
