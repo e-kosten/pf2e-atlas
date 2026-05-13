@@ -1,6 +1,9 @@
 use std::collections::BTreeSet;
 
-use atlas_artifact::schema::record_insert_sql;
+use atlas_artifact::schema::{
+    actor_record_insert_sql, item_record_insert_sql, record_insert_sql, record_metric_insert_sql,
+    record_trait_insert_sql, records_fts_insert_sql, spell_record_insert_sql,
+};
 use rusqlite::{Connection, params};
 
 use super::labels::{
@@ -19,45 +22,32 @@ pub(super) fn write_records(
         .map(|link| link.legacy_record_key.to_string())
         .collect::<BTreeSet<_>>();
     let record_insert_sql = record_insert_sql();
+    let record_trait_insert_sql = record_trait_insert_sql();
+    let record_metric_insert_sql = record_metric_insert_sql();
+    let actor_record_insert_sql = actor_record_insert_sql();
+    let item_record_insert_sql = item_record_insert_sql();
+    let spell_record_insert_sql = spell_record_insert_sql();
+    let records_fts_insert_sql = records_fts_insert_sql();
     let mut insert_record = connection
         .prepare(&record_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_trait = connection
-        .prepare("INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)")
+        .prepare(&record_trait_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_metric = connection
-        .prepare(
-            "INSERT INTO record_metrics (
-              record_key, metric_domain, metric_key, value_type, number_value, text_value, bool_value
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        )
+        .prepare(&record_metric_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_actor = connection
-        .prepare(
-            "INSERT INTO actor_records (
-              record_key, size, languages_json, speed_types_json, senses_json, immunities_json,
-              resistances_json, weaknesses_json, disable_text, disable_skills_json, is_complex
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-        )
+        .prepare(&actor_record_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_item = connection
-        .prepare(
-            "INSERT INTO item_records (
-              record_key, system_category, system_base_item, system_group, system_usage, price_cp,
-              bulk_value, hands_requirement, damage_types_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        )
+        .prepare(&item_record_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_spell = connection
-        .prepare(
-            "INSERT INTO spell_records (
-              record_key, traditions_json, spell_kinds_json, range_text, range_value, target_text,
-              area_type, area_value, save_type, sustained, basic_save, damage_types_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-        )
+        .prepare(&spell_record_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_fts = connection
-        .prepare("INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)")
+        .prepare(&records_fts_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for record in records {

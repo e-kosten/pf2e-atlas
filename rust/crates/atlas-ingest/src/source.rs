@@ -7,9 +7,15 @@ use sha2::{Digest, Sha256};
 
 use crate::normalize::normalize_record;
 use crate::{
-    IngestDiagnostics, IngestError, LoadedPack, LoadedRecord, ManifestPack, ParsedManifest,
-    SkippedRecord, SourceLoad,
+    IngestDiagnostics, IngestError, LoadedPack, ManifestPack, ParsedManifest, SkippedRecord,
+    SourceLoad,
 };
+
+#[derive(Debug)]
+struct SourceSignatureRecord {
+    source_path: String,
+    content_hash: String,
+}
 
 pub(crate) fn load_foundry_source_records(
     source_root: impl AsRef<Path>,
@@ -29,6 +35,7 @@ pub(crate) fn load_foundry_source_records(
     let parsed_manifest = parse_manifest(&manifest_path)?;
     let mut packs = Vec::new();
     let mut records = Vec::new();
+    let mut source_signature_records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
     let diagnostics = IngestDiagnostics::default();
@@ -51,8 +58,8 @@ pub(crate) fn load_foundry_source_records(
         let record_start = records.len();
 
         for path in paths {
-            let raw = match read_json_record(&path) {
-                Ok(raw) => raw,
+            let raw_record = match read_json_record(&path) {
+                Ok(raw_record) => raw_record,
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
                         path: path.clone(),
@@ -62,8 +69,20 @@ pub(crate) fn load_foundry_source_records(
                     continue;
                 }
             };
-            match normalize_record(&manifest_pack, &pack_name, &path, source_root, raw) {
-                Ok(record) => records.push(record),
+            match normalize_record(
+                &manifest_pack,
+                &pack_name,
+                &path,
+                source_root,
+                raw_record.value,
+            ) {
+                Ok(record) => {
+                    source_signature_records.push(SourceSignatureRecord {
+                        source_path: relative_source_path(source_root, &path),
+                        content_hash: raw_record.content_hash,
+                    });
+                    records.push(record);
+                }
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
                         path: path.clone(),
@@ -92,7 +111,7 @@ pub(crate) fn load_foundry_source_records(
         &manifest_path,
         &parsed_manifest.content_hash,
         &packs,
-        &records,
+        &source_signature_records,
         &skipped_records,
     );
     let source_record_count = records.len();
@@ -112,7 +131,7 @@ pub(crate) fn load_foundry_source_records(
     })
 }
 
-pub(crate) fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {
+fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {
     let declared_path = manifest_pack.path.trim_start_matches('/');
     let direct = source_root.join(declared_path);
     if direct.is_dir() {
@@ -129,7 +148,7 @@ pub(crate) fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack
     direct
 }
 
-pub(crate) fn default_manifest_path(source_root: &Path) -> PathBuf {
+fn default_manifest_path(source_root: &Path) -> PathBuf {
     for relative_path in ["system.pf2e.json", "static/system.json", "module.json"] {
         let candidate = source_root.join(relative_path);
         if candidate.is_file() {
@@ -139,7 +158,7 @@ pub(crate) fn default_manifest_path(source_root: &Path) -> PathBuf {
     source_root.join("module.json")
 }
 
-pub(crate) fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
+fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
     let content_hash = sha256_hex(serialized.as_bytes());
@@ -151,12 +170,12 @@ pub(crate) fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError>
     })
 }
 
-pub(crate) fn compute_source_signature(
+fn compute_source_signature(
     source_root: &Path,
     manifest_path: &Path,
     manifest_content_hash: &str,
     packs: &[LoadedPack],
-    records: &[LoadedRecord],
+    records: &[SourceSignatureRecord],
     skipped_records: &[SkippedRecord],
 ) -> String {
     let mut hasher = Sha256::new();
@@ -180,28 +199,11 @@ pub(crate) fn compute_source_signature(
     }
 
     let mut sorted_records = records.iter().collect::<Vec<_>>();
-    sorted_records.sort_by(|left, right| {
-        (
-            left.source_path.as_str(),
-            left.pack_name.as_str(),
-            left.id.as_str(),
-            left.key.to_string(),
-        )
-            .cmp(&(
-                right.source_path.as_str(),
-                right.pack_name.as_str(),
-                right.id.as_str(),
-                right.key.to_string(),
-            ))
-    });
+    sorted_records.sort_by(|left, right| left.source_path.cmp(&right.source_path));
     for record in sorted_records {
         hash_field(&mut hasher, "record");
         hash_field(&mut hasher, &record.source_path);
-        hash_field(&mut hasher, &record.key.to_string());
-        hash_field(&mut hasher, &record.name);
-        hash_field(&mut hasher, &record.foundry_document_type);
-        hash_field(&mut hasher, &record.foundry_record_type);
-        hash_field(&mut hasher, &sha256_hex(record.raw_json.as_bytes()));
+        hash_field(&mut hasher, &record.content_hash);
     }
 
     let mut sorted_skipped_records = skipped_records.iter().collect::<Vec<_>>();
@@ -227,20 +229,20 @@ pub(crate) fn compute_source_signature(
     format!("foundry-pf2e:sha256:{}", hex_lower(hasher.finalize()))
 }
 
-pub(crate) fn hash_field(hasher: &mut Sha256, value: &str) {
+fn hash_field(hasher: &mut Sha256, value: &str) {
     hasher.update(value.len().to_string().as_bytes());
     hasher.update(b":");
     hasher.update(value.as_bytes());
     hasher.update(b"\n");
 }
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex_lower(hasher.finalize())
 }
 
-pub(crate) fn hex_lower(bytes: impl AsRef<[u8]>) -> String {
+fn hex_lower(bytes: impl AsRef<[u8]>) -> String {
     bytes
         .as_ref()
         .iter()
@@ -248,7 +250,7 @@ pub(crate) fn hex_lower(bytes: impl AsRef<[u8]>) -> String {
         .collect()
 }
 
-pub(crate) fn relative_source_path(source_root: &Path, path: &Path) -> String {
+fn relative_source_path(source_root: &Path, path: &Path) -> String {
     let relative_path = path.strip_prefix(source_root).ok();
     let fallback_path = if path.is_absolute() {
         path.file_name().map(Path::new).unwrap_or(path)
@@ -263,14 +265,14 @@ pub(crate) fn relative_source_path(source_root: &Path, path: &Path) -> String {
         .join("/")
 }
 
-pub(crate) fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
+fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
     let mut paths = Vec::new();
     collect_json_files(root, &mut paths)?;
     paths.sort();
     Ok(paths)
 }
 
-pub(crate) fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), IngestError> {
+fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), IngestError> {
     for entry in
         fs::read_dir(root).map_err(|error| IngestError::SourceUnavailable(error.to_string()))?
     {
@@ -291,9 +293,19 @@ pub(crate) fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Resul
     Ok(())
 }
 
-pub(crate) fn read_json_record(path: &Path) -> Result<Value, IngestError> {
+struct RawJsonRecord {
+    value: Value,
+    content_hash: String,
+}
+
+fn read_json_record(path: &Path) -> Result<RawJsonRecord, IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
-    serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))
+    let content_hash = sha256_hex(serialized.as_bytes());
+    let value = serde_json::from_str(&serialized)
+        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
+    Ok(RawJsonRecord {
+        value,
+        content_hash,
+    })
 }
