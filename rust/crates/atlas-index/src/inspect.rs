@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use atlas_domain::artifact_schema::REQUIRED_TABLES;
+use atlas_artifact::schema::REQUIRED_TABLES;
 use rusqlite::{Connection, OpenFlags};
 use serde::Serialize;
 

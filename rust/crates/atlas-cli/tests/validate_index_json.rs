@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use atlas_domain::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use rusqlite::Connection;
 use serde_json::{Value, json};
 

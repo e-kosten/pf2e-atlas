@@ -1,4 +1,4 @@
-use atlas_domain::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use rusqlite::Connection;
 
 use crate::IngestError;

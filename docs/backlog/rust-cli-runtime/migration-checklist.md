@@ -160,7 +160,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 - [x] Add rule graph contracts.
 - [x] Add metadata-field vocabulary.
 - [ ] Add CLI output envelope types if shared across commands.
-- [ ] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
+- [x] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
 
 Acceptance:
 - Domain types compile independently.

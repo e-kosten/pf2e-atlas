@@ -1,4 +1,17 @@
-use super::*;
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::Path;
+
+use atlas_domain::{RecordKey, RemasterLinkSource};
+use serde_json::Value;
+
+use crate::normalize::{normalize_text, pointer_bool, pointer_string};
+use crate::references::{
+    extract_reference_candidates_from_text, record_by_key, reference_pack_and_locator,
+    resolve_record_key,
+};
+use crate::writer::{alias_source_label, remaster_link_source_label};
+use crate::{AliasSource, LoadedRecord, RecordAlias, RecordReferenceIndex, RemasterLink};
 
 pub(super) fn resolve_record_aliases(
     records: &[LoadedRecord],
@@ -678,3 +691,6 @@ fn html_text(value: &str) -> String {
     }
     output.split_whitespace().collect::<Vec<_>>().join(" ")
 }
+
+#[cfg(test)]
+mod tests;

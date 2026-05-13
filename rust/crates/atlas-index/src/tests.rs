@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
 
+use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use atlas_domain::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_EMBEDDING_MODEL_ID,
     ValidationCode, ValidationStatus, artifact_metadata_keys,
-    artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL,
 };
 use rusqlite::Connection;
 

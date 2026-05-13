@@ -1,24 +1,19 @@
 #![deny(unsafe_code)]
 
-pub(crate) use std::collections::{BTreeMap, BTreeSet};
-pub(crate) use std::fs;
-pub(crate) use std::path::Path;
-
-pub(crate) use atlas_domain::{
-    MetricDomain, PackName, RecordFamily, RecordId, RecordKey, RemasterLinkSource, TextStatus,
-};
-pub(crate) use serde_json::{Value, json};
 use thiserror::Error;
 
 mod aliases;
+mod generated_affliction_identity;
 mod generated_afflictions;
 mod metrics;
 mod model;
 mod normalize;
+mod pipeline;
 mod references;
 pub mod report;
 mod schema;
 mod source;
+mod variant_taxonomy;
 mod variants;
 mod writer;
 
@@ -27,7 +22,7 @@ pub use model::{
     ItemSideData, LoadedPack, LoadedRecord, MetricRow, MetricValue, NormalizedTime, RecordAlias,
     ReferenceCandidate, ReferenceEdge, RemasterLink, SkippedRecord, SourceLoad, SpellSideData,
 };
-pub use source::load_foundry_source;
+pub use pipeline::load_foundry_source;
 pub use writer::{read_artifact_counts, write_artifact};
 
 pub(crate) use model::{
@@ -37,15 +32,6 @@ pub(crate) use model::{
     GeneratedAfflictionBuild, ManifestPack, RecordReferenceIndex, VariantCandidate,
     VariantDiagnosticSource,
 };
-pub(crate) use normalize::{
-    extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
-    extract_traits, normalize_text, normalized_pointer_string, parse_bulk_value,
-    parse_hands_requirement, pointer_bool, pointer_string, string_array_at_pointer, string_field,
-    strip_markup, typed_collection,
-};
-pub(crate) use references::extract_reference_candidates_from_text;
-pub(crate) use references::{record_by_key, reference_pack_and_locator, resolve_record_key};
-pub(crate) use writer::{alias_source_label, remaster_link_source_label};
 
 #[derive(Debug, Error)]
 pub enum IngestError {
