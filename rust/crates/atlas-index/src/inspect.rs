@@ -14,7 +14,7 @@ use crate::{IndexValidationError, validate_index};
 pub struct IndexInspectionReport {
     pub status: String,
     pub index: String,
-    pub validation: atlas_domain::ArtifactValidationReport,
+    pub validation: crate::ArtifactValidationReport,
     pub tables: BTreeMap<String, usize>,
     pub records: RecordCoverageReport,
     pub text: TextCoverageReport,
@@ -75,7 +75,7 @@ pub fn inspect_index(
 ) -> Result<IndexInspectionReport, IndexValidationError> {
     let path = path.as_ref();
     let validation = validate_index(path)?;
-    if validation.status != atlas_domain::ValidationStatus::Ok {
+    if validation.status != crate::ValidationStatus::Ok {
         return Err(IndexValidationError::InvalidArtifact(validation.message));
     }
 

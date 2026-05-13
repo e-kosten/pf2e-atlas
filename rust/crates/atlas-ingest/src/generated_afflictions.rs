@@ -3,19 +3,23 @@ use std::collections::BTreeMap;
 use atlas_domain::{PackName, RecordFamily, RecordId, RecordKey, TextStatus};
 use serde_json::{Value, json};
 
+mod source_facts;
+
 use crate::generated_affliction_identity::{
     build_affliction_occurrence_candidate_keys, choose_affliction_canonical_identity_key, hash_text,
 };
-use crate::normalize::{
-    extract_traits, normalize_text, normalized_pointer_string, pointer_string, string_field,
-    strip_markup,
-};
-use crate::references::{extract_reference_candidates_from_text, record_by_key};
+use crate::normalize::{extract_traits, normalize_text, string_field};
+use crate::references::record_by_key;
 use crate::{
     AfflictionFamily, AfflictionOccurrence, DERIVED_AFFLICTION_INSTANCES_PACK_LABEL,
     DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTIONS_PACK_LABEL,
     DERIVED_AFFLICTIONS_PACK_NAME, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
     LoadedRecord, RecordReferenceIndex, ReferenceEdge, variants,
+};
+use source_facts::{
+    affliction_family_label, compendium_source, detect_affliction_family,
+    extract_linked_names_from_markup, has_affliction_shape, parse_compendium_source,
+    record_description_markup, record_description_text, record_slug,
 };
 
 pub(super) fn build_generated_afflictions(
@@ -598,98 +602,4 @@ fn build_affliction_canonical_search_text(
         .concat(),
     )
     .join("\n")
-}
-
-fn detect_affliction_family(raw: &Value) -> Option<AfflictionFamily> {
-    let traits = extract_traits(raw);
-    let system_category =
-        normalized_pointer_string(raw, "/system/category").map(|value| normalize_text(&value));
-    if traits.iter().any(|trait_value| trait_value == "disease")
-        || system_category.as_deref() == Some("disease")
-    {
-        return Some(AfflictionFamily::Disease);
-    }
-    if traits.iter().any(|trait_value| trait_value == "poison")
-        || system_category.as_deref() == Some("poison")
-    {
-        return Some(AfflictionFamily::Poison);
-    }
-    if traits.iter().any(|trait_value| trait_value == "curse")
-        || system_category.as_deref() == Some("curse")
-    {
-        return Some(AfflictionFamily::Curse);
-    }
-    None
-}
-
-fn affliction_family_label(family: AfflictionFamily) -> &'static str {
-    match family {
-        AfflictionFamily::Curse => "curse",
-        AfflictionFamily::Disease => "disease",
-        AfflictionFamily::Poison => "poison",
-    }
-}
-
-fn has_affliction_shape(raw: &Value) -> bool {
-    let Some(description) = record_description_text(raw) else {
-        return false;
-    };
-    let normalized = normalize_text(&description);
-    normalized.contains("saving throw") && normalized.contains("stage 1")
-}
-
-fn record_description_markup(raw: &Value) -> Option<String> {
-    [
-        "/system/description/value",
-        "/system/details/description",
-        "/system/details/publicNotes",
-        "/system/details/blurb",
-    ]
-    .into_iter()
-    .find_map(|pointer| pointer_string(raw, pointer))
-    .filter(|value| !value.trim().is_empty())
-}
-
-fn record_description_text(raw: &Value) -> Option<String> {
-    record_description_markup(raw)
-        .map(|value| strip_markup(&value))
-        .filter(|value| !value.trim().is_empty())
-}
-
-fn record_slug(raw: &Value) -> Option<String> {
-    normalized_pointer_string(raw, "/system/slug")
-}
-
-fn compendium_source(raw: &Value) -> Option<String> {
-    normalized_pointer_string(raw, "/_stats/compendiumSource")
-}
-
-fn parse_compendium_source(value: &str) -> Option<(String, String)> {
-    let parts = value.split('.').collect::<Vec<_>>();
-    if parts.len() >= 5 && parts.first() == Some(&"Compendium") && parts.get(1) == Some(&"pf2e") {
-        return Some((normalize_text(parts.get(2)?), normalize_text(parts.last()?)));
-    }
-    None
-}
-
-fn extract_linked_names_from_markup(markup: Option<&str>) -> Vec<String> {
-    let Some(markup) = markup else {
-        return Vec::new();
-    };
-    variants::sorted_unique(
-        extract_reference_candidates_from_text(markup)
-            .into_iter()
-            .filter_map(|candidate| {
-                candidate
-                    .display_text
-                    .or_else(|| fallback_linked_name(&candidate.raw_target))
-            })
-            .collect(),
-    )
-}
-
-fn fallback_linked_name(locator: &str) -> Option<String> {
-    let tail = locator.split('.').next_back()?.replace(['-', '_'], " ");
-    let trimmed = tail.trim();
-    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }

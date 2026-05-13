@@ -1,8 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_domain::ValidationStatus;
-use atlas_index::validate_index;
+use atlas_index::{ValidationStatus, validate_index};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
 use rusqlite::Connection;
 
