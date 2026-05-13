@@ -3,8 +3,11 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use atlas_domain::{ArtifactValidationReport, ValidationCode, ValidationStatus};
-use atlas_index::{inspect_index, validate_index};
+use atlas_artifact::schema::{
+    TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS, TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
+};
+use atlas_domain::{ValidationCode, ValidationStatus};
+use atlas_index::{inspect_index, validate_index_report};
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact,
     report::{diagnostics_json, skipped_records_json},
@@ -201,21 +204,25 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
         );
         println!(
             "tables: records={} packs={} references={} aliases={} remaster_links={}",
-            report.tables.get("records").copied().unwrap_or_default(),
-            report.tables.get("packs").copied().unwrap_or_default(),
             report
                 .tables
-                .get("reference_edges")
+                .get(TABLE_RECORDS)
+                .copied()
+                .unwrap_or_default(),
+            report.tables.get(TABLE_PACKS).copied().unwrap_or_default(),
+            report
+                .tables
+                .get(TABLE_REFERENCE_EDGES)
                 .copied()
                 .unwrap_or_default(),
             report
                 .tables
-                .get("record_aliases")
+                .get(TABLE_RECORD_ALIASES)
                 .copied()
                 .unwrap_or_default(),
             report
                 .tables
-                .get("remaster_links")
+                .get(TABLE_REMASTER_LINKS)
                 .copied()
                 .unwrap_or_default()
         );
@@ -232,45 +239,7 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let report = match validate_index(&options.index) {
-        Ok(report) => report,
-        Err(error) => ArtifactValidationReport {
-            status: ValidationStatus::Error,
-            code: match error {
-                atlas_index::IndexValidationError::Unavailable(_) => {
-                    ValidationCode::IndexUnavailable
-                }
-                atlas_index::IndexValidationError::QueryFailed(_) => ValidationCode::QueryFailed,
-                atlas_index::IndexValidationError::InvalidArtifact(_) => {
-                    ValidationCode::InvalidSourceMetadata
-                }
-            },
-            index: options.index.display().to_string(),
-            message: error.to_string(),
-            artifact_contract_version: None,
-            schema_version: None,
-            source_kind: None,
-            source_signature: None,
-            source_record_count: None,
-            content_hash_algorithm: None,
-            embedding_provider_family: None,
-            embedding_model_id: None,
-            embedding_model_revision: None,
-            embedding_tokenizer_id: None,
-            embedding_pooling: None,
-            embedding_normalization: None,
-            embedding_dimensions: None,
-            embedding_dtype: None,
-            embedding_distance_metric: None,
-            embedding_document_prefix: None,
-            embedding_query_prefix: None,
-            fts_tokenizer: None,
-            adjacent_manifest_path: None,
-            missing_keys: Vec::new(),
-            diagnostics: Vec::new(),
-            legacy_schema_version: None,
-        },
-    };
+    let report = validate_index_report(&options.index);
 
     let exit_code = match report.status {
         ValidationStatus::Ok => ExitCode::SUCCESS,

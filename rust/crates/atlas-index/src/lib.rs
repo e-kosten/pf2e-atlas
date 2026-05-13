@@ -4,7 +4,7 @@ use std::path::Path;
 
 use atlas_domain::{
     ARTIFACT_METADATA_TABLE, ArtifactValidationReport, LEGACY_METADATA_TABLE,
-    REQUIRED_ARTIFACT_METADATA_KEYS,
+    REQUIRED_ARTIFACT_METADATA_KEYS, ValidationCode, ValidationStatus,
 };
 use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
@@ -85,5 +85,51 @@ pub fn validate_index(
             summary,
             diagnostics,
         ))
+    }
+}
+
+pub fn validate_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
+    let path = path.as_ref();
+    match validate_index(path) {
+        Ok(report) => report,
+        Err(error) => validation_report_from_error(path, error),
+    }
+}
+
+fn validation_report_from_error(
+    path: &Path,
+    error: IndexValidationError,
+) -> ArtifactValidationReport {
+    ArtifactValidationReport {
+        status: ValidationStatus::Error,
+        code: match error {
+            IndexValidationError::Unavailable(_) => ValidationCode::IndexUnavailable,
+            IndexValidationError::QueryFailed(_) => ValidationCode::QueryFailed,
+            IndexValidationError::InvalidArtifact(_) => ValidationCode::InvalidSourceMetadata,
+        },
+        index: path.display().to_string(),
+        message: error.to_string(),
+        artifact_contract_version: None,
+        schema_version: None,
+        source_kind: None,
+        source_signature: None,
+        source_record_count: None,
+        content_hash_algorithm: None,
+        embedding_provider_family: None,
+        embedding_model_id: None,
+        embedding_model_revision: None,
+        embedding_tokenizer_id: None,
+        embedding_pooling: None,
+        embedding_normalization: None,
+        embedding_dimensions: None,
+        embedding_dtype: None,
+        embedding_distance_metric: None,
+        embedding_document_prefix: None,
+        embedding_query_prefix: None,
+        fts_tokenizer: None,
+        adjacent_manifest_path: None,
+        missing_keys: Vec::new(),
+        diagnostics: Vec::new(),
+        legacy_schema_version: None,
     }
 }

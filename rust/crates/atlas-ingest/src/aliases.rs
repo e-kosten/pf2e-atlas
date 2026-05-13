@@ -10,7 +10,6 @@ use crate::references::{
     extract_reference_candidates_from_text, record_by_key, reference_pack_and_locator,
     resolve_record_key,
 };
-use crate::writer::{alias_source_label, remaster_link_source_label};
 use crate::{AliasSource, LoadedRecord, RecordAlias, RecordReferenceIndex, RemasterLink};
 
 pub(super) fn resolve_record_aliases(
@@ -271,7 +270,7 @@ fn dedupe_record_aliases(aliases: Vec<RecordAlias>) -> Vec<RecordAlias> {
         let key = (
             alias.canonical_record_key.to_string(),
             alias.normalized_alias.clone(),
-            alias_source_label(alias.source),
+            alias.source.as_str(),
             alias.source_ref.clone(),
         );
         if seen.insert(key) {
@@ -282,13 +281,13 @@ fn dedupe_record_aliases(aliases: Vec<RecordAlias>) -> Vec<RecordAlias> {
         (
             left.canonical_record_key.to_string(),
             left.normalized_alias.as_str(),
-            alias_source_label(left.source),
+            left.source.as_str(),
             left.source_ref.as_str(),
         )
             .cmp(&(
                 right.canonical_record_key.to_string(),
                 right.normalized_alias.as_str(),
-                alias_source_label(right.source),
+                right.source.as_str(),
                 right.source_ref.as_str(),
             ))
     });
@@ -496,7 +495,7 @@ fn dedupe_remaster_links(links: Vec<RemasterLink>) -> Vec<RemasterLink> {
         let key = (
             link.remaster_record_key.to_string(),
             link.legacy_record_key.to_string(),
-            remaster_link_source_label(link.source),
+            link.source.as_str(),
             link.source_ref.clone(),
         );
         if seen.insert(key) {
@@ -507,13 +506,13 @@ fn dedupe_remaster_links(links: Vec<RemasterLink>) -> Vec<RemasterLink> {
         (
             left.remaster_record_key.to_string(),
             left.legacy_record_key.to_string(),
-            remaster_link_source_label(left.source),
+            left.source.as_str(),
             left.source_ref.as_str(),
         )
             .cmp(&(
                 right.remaster_record_key.to_string(),
                 right.legacy_record_key.to_string(),
-                remaster_link_source_label(right.source),
+                right.source.as_str(),
                 right.source_ref.as_str(),
             ))
     });

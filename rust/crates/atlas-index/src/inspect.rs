@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use atlas_artifact::schema::REQUIRED_TABLES;
+use atlas_artifact::schema::{
+    REQUIRED_TABLES, TABLE_METRIC_VALUE_CATALOG, TABLE_RECORD_ALIASES, TABLE_RECORDS,
+    TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
+};
 use rusqlite::{Connection, OpenFlags};
 use serde::Serialize;
 
@@ -106,7 +109,7 @@ fn inspect_tables(
 
 fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, IndexValidationError> {
     Ok(RecordCoverageReport {
-        total_records: count_rows(connection, "records")?,
+        total_records: count_rows(connection, TABLE_RECORDS)?,
         default_visible_records: count_sql(
             connection,
             "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
@@ -206,9 +209,9 @@ fn inspect_relationships(
     connection: &Connection,
 ) -> Result<RelationshipCoverageReport, IndexValidationError> {
     Ok(RelationshipCoverageReport {
-        reference_edges: count_rows(connection, "reference_edges")?,
-        record_aliases: count_rows(connection, "record_aliases")?,
-        remaster_links: count_rows(connection, "remaster_links")?,
+        reference_edges: count_rows(connection, TABLE_REFERENCE_EDGES)?,
+        record_aliases: count_rows(connection, TABLE_RECORD_ALIASES)?,
+        remaster_links: count_rows(connection, TABLE_REMASTER_LINKS)?,
     })
 }
 
@@ -224,7 +227,7 @@ fn inspect_metrics(connection: &Connection) -> Result<MetricCoverageReport, Inde
              FROM record_metrics
              GROUP BY metric_domain",
         )?,
-        metric_value_catalog_rows: count_rows(connection, "metric_value_catalog")?,
+        metric_value_catalog_rows: count_rows(connection, TABLE_METRIC_VALUE_CATALOG)?,
     })
 }
 

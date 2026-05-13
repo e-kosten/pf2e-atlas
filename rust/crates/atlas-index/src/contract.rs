@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use atlas_artifact::schema::{REQUIRED_COLUMNS, REQUIRED_TABLES};
+use atlas_artifact::schema::{REQUIRED_COLUMNS, REQUIRED_TABLES, TABLE_RECORDS, TABLE_RECORDS_FTS};
 use atlas_domain::{
     ArtifactContractFamily, ArtifactValidationDiagnostic, ValidationCode, artifact_metadata_keys,
 };
@@ -81,7 +81,7 @@ fn validate_source_record_count(
     let expected = metadata
         .get(artifact_metadata_keys::SOURCE_RECORD_COUNT)
         .and_then(|value| value.parse::<usize>().ok());
-    let actual = count_rows(connection, "records")?;
+    let actual = count_rows(connection, TABLE_RECORDS)?;
     if expected != Some(actual) {
         diagnostics.push(contract_diagnostic(
             ArtifactContractFamily::Source,
@@ -182,7 +182,7 @@ fn validate_fts_coverage(
     connection: &Connection,
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
-    let fts_rows = count_rows(connection, "records_fts")?;
+    let fts_rows = count_rows(connection, TABLE_RECORDS_FTS)?;
     let default_visible_records = count_sql(
         connection,
         "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",

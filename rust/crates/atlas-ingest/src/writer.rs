@@ -10,14 +10,13 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, MetricDomain,
-    MetricValueType, PublicationFamily, RemasterLinkSource, TimeKind, TimeUnit,
-    artifact_metadata_keys,
+    MetricValueType, PublicationFamily, TimeKind, TimeUnit, artifact_metadata_keys,
 };
 use rusqlite::{Connection, params};
 
 use crate::{
-    AliasSource, IngestError, LoadedPack, LoadedRecord, MetricValue, RecordAlias, ReferenceEdge,
-    RemasterLink, SourceLoad, schema,
+    IngestError, LoadedPack, LoadedRecord, MetricValue, RecordAlias, ReferenceEdge, RemasterLink,
+    SourceLoad, schema,
 };
 
 pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
@@ -416,7 +415,7 @@ pub(crate) fn write_record_aliases(
                 alias.canonical_record_key.to_string(),
                 alias.alias_text.as_str(),
                 alias.normalized_alias.as_str(),
-                alias_source_label(alias.source),
+                alias.source.as_str(),
                 alias.source_ref.as_str(),
             ))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -441,7 +440,7 @@ pub(crate) fn write_remaster_links(
             .execute((
                 link.remaster_record_key.to_string(),
                 link.legacy_record_key.to_string(),
-                remaster_link_source_label(link.source),
+                link.source.as_str(),
                 link.source_ref.as_str(),
             ))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -485,14 +484,6 @@ pub(crate) fn metric_domain_label(domain: MetricDomain) -> &'static str {
 
 pub(crate) fn metric_value_type_label(value_type: MetricValueType) -> &'static str {
     value_type.as_str()
-}
-
-pub(crate) fn alias_source_label(source: AliasSource) -> &'static str {
-    source.as_str()
-}
-
-pub(crate) fn remaster_link_source_label(source: RemasterLinkSource) -> &'static str {
-    source.as_str()
 }
 
 pub(crate) fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
