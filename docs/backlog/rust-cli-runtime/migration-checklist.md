@@ -186,6 +186,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Preserve raw price JSON and normalize `price_cp`.
 - [x] Normalize activation time separately from effect/spell duration.
 - [x] Extract source-backed aliases from remaster journals, migration rename files, and embedded compendium sources.
+- [x] Generate derived affliction canonicals and hidden provenance instances from staged action, consumable, and spell records.
 - [ ] Extract variant names.
 - [x] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.

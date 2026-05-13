@@ -15,6 +15,7 @@ pub enum RecordFamily {
     Equipment,
     Feat,
     Spell,
+    Affliction,
     Rule,
     CharacterOption,
     Lore,
@@ -23,7 +24,7 @@ pub enum RecordFamily {
 }
 
 impl RecordFamily {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Creature,
         Self::Character,
         Self::Companion,
@@ -33,6 +34,7 @@ impl RecordFamily {
         Self::Equipment,
         Self::Feat,
         Self::Spell,
+        Self::Affliction,
         Self::Rule,
         Self::CharacterOption,
         Self::Lore,
@@ -51,6 +53,7 @@ impl RecordFamily {
             Self::Equipment => "equipment",
             Self::Feat => "feat",
             Self::Spell => "spell",
+            Self::Affliction => "affliction",
             Self::Rule => "rule",
             Self::CharacterOption => "character_option",
             Self::Lore => "lore",
@@ -70,6 +73,7 @@ impl RecordFamily {
             "equipment" => Some(Self::Equipment),
             "feat" => Some(Self::Feat),
             "spell" => Some(Self::Spell),
+            "affliction" => Some(Self::Affliction),
             "rule" => Some(Self::Rule),
             "character_option" => Some(Self::CharacterOption),
             "lore" => Some(Self::Lore),

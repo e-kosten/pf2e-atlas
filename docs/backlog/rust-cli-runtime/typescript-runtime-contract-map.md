@@ -128,7 +128,7 @@ Before Phase 7 discovery starts:
 | Normalize records | `record-normalization.ts` and helpers | Boundary parse to typed ingest model | `atlas-ingest` using `atlas-domain` value types | rust redesign |
 | Assign families | `family-assignment.ts` | Family/variant assignment | `atlas-ingest` initially, possibly later `atlas-search` for reusable semantics | parity |
 | Resolve references, aliases, remaster links | `reference-resolution.ts` | Reference/alias/remaster-link resolver | `atlas-ingest` | parity with Rust naming/model cleanup |
-| Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated record policy | `atlas-ingest` | parity |
+| Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated affliction policy; Rust keeps staged action, consumable, and spell afflictions, and rejects weapon/item containers whose affliction text would otherwise be promoted under the container name | `atlas-ingest` | rust redesign |
 | Build writable model | `record-write-model.ts` | Typed writer model | `atlas-ingest` | rust redesign |
 | Write records, side data, FTS, references | `record-writer.ts` | Table writers with typed row inputs | `atlas-ingest` | parity |
 | Generate/reuse embeddings | `embedding-writer.ts` | Embedding writer and reusable vector loader | `atlas-embedding` + `atlas-ingest` | parity |
