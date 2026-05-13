@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
+use atlas_artifact::schema::{REQUIRED_COLUMNS, REQUIRED_TABLES};
 use atlas_domain::{
     ArtifactContractFamily, ArtifactValidationDiagnostic, ValidationCode, artifact_metadata_keys,
-    artifact_schema::{REQUIRED_COLUMNS, REQUIRED_TABLES},
 };
 use rusqlite::Connection;
 

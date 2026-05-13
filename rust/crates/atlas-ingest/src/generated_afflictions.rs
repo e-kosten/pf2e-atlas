@@ -1,4 +1,22 @@
-use super::*;
+use std::collections::BTreeMap;
+
+use atlas_domain::{PackName, RecordFamily, RecordId, RecordKey, TextStatus};
+use serde_json::{Value, json};
+
+use crate::generated_affliction_identity::{
+    build_affliction_occurrence_candidate_keys, choose_affliction_canonical_identity_key, hash_text,
+};
+use crate::normalize::{
+    extract_traits, normalize_text, normalized_pointer_string, pointer_string, string_field,
+    strip_markup,
+};
+use crate::references::{extract_reference_candidates_from_text, record_by_key};
+use crate::{
+    AfflictionFamily, AfflictionOccurrence, DERIVED_AFFLICTION_INSTANCES_PACK_LABEL,
+    DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTIONS_PACK_LABEL,
+    DERIVED_AFFLICTIONS_PACK_NAME, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
+    LoadedRecord, RecordReferenceIndex, ReferenceEdge, variants,
+};
 
 pub(super) fn build_generated_afflictions(
     records: &[LoadedRecord],
@@ -443,28 +461,6 @@ fn choose_affliction_authoritative_candidate(
     )
 }
 
-fn choose_affliction_canonical_identity_key(candidate_keys: &[String]) -> String {
-    let mut keys = variants::sorted_unique(candidate_keys.to_vec());
-    keys.sort_by(|left, right| {
-        affliction_identity_key_rank(left)
-            .cmp(&affliction_identity_key_rank(right))
-            .then_with(|| left.cmp(right))
-    });
-    keys.into_iter().next().unwrap_or_default()
-}
-
-fn affliction_identity_key_rank(value: &str) -> u8 {
-    if value.starts_with("record:") {
-        0
-    } else if value.starts_with("compendium:") {
-        1
-    } else if value.starts_with("slug:") {
-        2
-    } else {
-        3
-    }
-}
-
 fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> LoadedRecord {
     let id = RecordId::new(input.id).expect("derived id is valid");
     let text_status = if input.description_text.is_some() {
@@ -559,36 +555,6 @@ fn build_affliction_instance_raw(
         );
     }
     raw
-}
-
-fn build_affliction_occurrence_candidate_keys(
-    family: AfflictionFamily,
-    name: &str,
-    slug: Option<&str>,
-    compendium_source: Option<&str>,
-    source_record_key: Option<&str>,
-) -> Vec<String> {
-    variants::sorted_unique(
-        [
-            source_record_key.map(|value| format!("record:{value}")),
-            compendium_source.map(|value| format!("compendium:{}", normalize_text(value))),
-            slug.map(|value| {
-                format!(
-                    "slug:{}:{}",
-                    affliction_family_label(family),
-                    normalize_text(value)
-                )
-            }),
-            Some(format!(
-                "name:{}:{}",
-                affliction_family_label(family),
-                normalize_text(name)
-            )),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
 }
 
 fn build_affliction_occurrence_search_text(
@@ -726,13 +692,4 @@ fn fallback_linked_name(locator: &str) -> Option<String> {
     let tail = locator.split('.').next_back()?.replace(['-', '_'], " ");
     let trimmed = tail.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_string())
-}
-
-fn hash_text(value: &str) -> String {
-    let mut hash: u32 = 2_166_136_261;
-    for byte in value.bytes() {
-        hash ^= u32::from(byte);
-        hash = hash.wrapping_mul(16_777_619);
-    }
-    format!("{hash:x}")
 }

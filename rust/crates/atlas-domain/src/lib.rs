@@ -2,7 +2,6 @@
 
 use serde::Serialize;
 
-pub mod artifact_schema;
 pub mod categories;
 pub mod detail;
 pub mod metadata;

@@ -77,6 +77,12 @@ Validation diagnostics are grouped by contract family:
 
 Rust ingest computes `source_signature` from the loaded Foundry source inputs before source-backed generated records are added. The digest includes the manifest path and content hash, loaded pack declarations and record counts, each loaded source record's relative source path and raw JSON content hash, and skipped source record paths with skip reasons. It excludes absolute local paths, output artifact paths, generated records, timestamps, and other machine-local build facts.
 
+Generated records, enrichment projections, and side-table rows are validated as artifact/data coherence rather than source freshness. This keeps the source signature stable for identical Foundry inputs while allowing Rust-owned projection policy to be checked by artifact validation and parity reports.
+
+## Rust Schema Owner
+
+The Rust workspace keeps physical SQLite table and column ownership in `atlas-artifact`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL or table inventories. Writers and validators import the shared artifact schema descriptors from `atlas-artifact` instead of maintaining independent table or column lists.
+
 ## Runtime Table Families
 
 The Rust artifact contract extends beyond `artifact_metadata` once Rust ingest starts writing artifacts. The current TypeScript index is the parity inventory, but the Rust artifact should treat table families as generated projections over typed ingest/domain models rather than as ad hoc row bags.

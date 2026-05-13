@@ -7,14 +7,9 @@ use sha2::{Digest, Sha256};
 
 use crate::model::{ManifestPack, ParsedManifest};
 use crate::normalize::normalize_record;
-use crate::references::{build_record_reference_index, resolve_reference_edges};
-use crate::{
-    DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
-    DERIVED_AFFLICTIONS_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_NAME, IngestDiagnostics, IngestError,
-    LoadedPack, LoadedRecord, SkippedRecord, SourceLoad, aliases, generated_afflictions, variants,
-};
+use crate::{IngestDiagnostics, IngestError, LoadedPack, LoadedRecord, SkippedRecord, SourceLoad};
 
-pub fn load_foundry_source(
+pub(crate) fn load_foundry_source_records(
     source_root: impl AsRef<Path>,
     manifest_path: Option<&Path>,
 ) -> Result<SourceLoad, IngestError> {
@@ -34,7 +29,7 @@ pub fn load_foundry_source(
     let mut records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
-    let mut diagnostics = IngestDiagnostics::default();
+    let diagnostics = IngestDiagnostics::default();
 
     for manifest_pack in parsed_manifest.manifest.packs {
         let resolved_path = resolve_pack_path(source_root, &manifest_pack);
@@ -99,82 +94,14 @@ pub fn load_foundry_source(
         &skipped_records,
     );
 
-    let reference_index = build_record_reference_index(&records);
-    let generated_afflictions =
-        generated_afflictions::build_generated_afflictions(&records, &reference_index);
-    let generated_references = generated_afflictions.references.clone();
-    if !generated_afflictions.records.is_empty() {
-        let canonical_count = generated_afflictions
-            .records
-            .iter()
-            .filter(|record| record.is_default_visible)
-            .count();
-        let instance_count = generated_afflictions.records.len() - canonical_count;
-        diagnostics.generated_affliction_canonical_records = canonical_count;
-        diagnostics.generated_affliction_instance_records = instance_count;
-        diagnostics.generated_affliction_reference_edges = generated_afflictions.references.len();
-        packs.push(LoadedPack {
-            name: PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).map_err(|error| {
-                IngestError::ManifestParseFailed(format!(
-                    "invalid derived affliction pack: {error}"
-                ))
-            })?,
-            label: DERIVED_AFFLICTIONS_PACK_LABEL.to_string(),
-            document_type: "Item".to_string(),
-            declared_path: "derived://afflictions".to_string(),
-            resolved_path: source_root.join("derived-afflictions"),
-            record_count: canonical_count,
-        });
-        packs.push(LoadedPack {
-            name: PackName::new(DERIVED_AFFLICTION_INSTANCES_PACK_NAME.to_string()).map_err(
-                |error| {
-                    IngestError::ManifestParseFailed(format!(
-                        "invalid derived affliction instance pack: {error}"
-                    ))
-                },
-            )?,
-            label: DERIVED_AFFLICTION_INSTANCES_PACK_LABEL.to_string(),
-            document_type: "Item".to_string(),
-            declared_path: "derived://affliction-instances".to_string(),
-            resolved_path: source_root.join("derived-affliction-instances"),
-            record_count: instance_count,
-        });
-        records.extend(generated_afflictions.records);
-    }
-
-    let reference_index = build_record_reference_index(&records);
-    variants::assign_taxonomy_families(&mut records, &packs, &reference_index, &mut diagnostics);
-    variants::assign_variant_groups(&mut records, &reference_index, &mut diagnostics);
-    let mut references = resolve_reference_edges(&records, &reference_index);
-    references.extend(generated_references);
-    references.sort_by(|left, right| {
-        (
-            left.from_record_key.to_string(),
-            left.to_record_key.to_string(),
-            left.reference_text.as_str(),
-        )
-            .cmp(&(
-                right.from_record_key.to_string(),
-                right.to_record_key.to_string(),
-                right.reference_text.as_str(),
-            ))
-    });
-    references.dedup_by(|left, right| {
-        left.from_record_key == right.from_record_key
-            && left.to_record_key == right.to_record_key
-            && left.reference_text == right.reference_text
-    });
-    let aliases = aliases::resolve_record_aliases(&records, &reference_index, source_root);
-    let remaster_links = aliases::resolve_remaster_links(&records, &reference_index, source_root);
-
     Ok(SourceLoad {
         manifest_path,
         source_signature,
         packs,
         records,
-        references,
-        aliases,
-        remaster_links,
+        references: Vec::new(),
+        aliases: Vec::new(),
+        remaster_links: Vec::new(),
         diagnostics,
         skipped_records,
         warnings,

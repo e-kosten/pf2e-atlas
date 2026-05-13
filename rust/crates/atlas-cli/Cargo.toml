@@ -11,6 +11,7 @@ name = "atlas"
 path = "src/main.rs"
 
 [dependencies]
+atlas-artifact.workspace = true
 atlas-domain.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true

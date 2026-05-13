@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/atlas-artifact",
   "crates/atlas-cli",
   "crates/atlas-domain",
   "crates/atlas-ingest",
@@ -14,6 +15,7 @@ publish = false
 rust-version = "1.95"
 
 [workspace.dependencies]
+atlas-artifact = { path = "crates/atlas-artifact" }
 atlas-domain = { path = "crates/atlas-domain" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }

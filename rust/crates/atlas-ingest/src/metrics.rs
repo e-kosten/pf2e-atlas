@@ -1,4 +1,14 @@
-use super::*;
+use std::collections::BTreeSet;
+
+use atlas_domain::MetricDomain;
+use serde_json::Value;
+
+use crate::normalize::{
+    extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
+    normalized_pointer_string, parse_bulk_value, parse_hands_requirement, pointer_bool,
+    pointer_string, string_array_at_pointer, strip_markup, typed_collection,
+};
+use crate::{ActorSideData, ItemSideData, MetricRow, MetricValue, SpellSideData};
 
 pub(super) fn extract_metrics(
     raw: &Value,
@@ -495,4 +505,52 @@ pub(super) fn slugify_metric_segment(value: &str) -> String {
         output.pop();
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slugifies_metric_segments_to_stable_keys() {
+        assert_eq!(slugify_metric_segment("Fortitude Save"), "fortitude_save");
+        assert_eq!(slugify_metric_segment("  Land-Speed! "), "land_speed");
+    }
+
+    #[test]
+    fn parses_first_numeric_prefix_from_text_values() {
+        assert_eq!(
+            parse_numeric_like_value(&Value::String("30 feet".to_string())),
+            Some(30.0)
+        );
+        assert_eq!(
+            parse_numeric_like_value(&Value::String("-5 penalty".to_string())),
+            Some(-5.0)
+        );
+    }
+
+    #[test]
+    fn dedupes_metrics_by_domain_and_key_with_later_values_winning() {
+        let metrics = dedupe_metrics(vec![
+            MetricRow {
+                domain: MetricDomain::Actor,
+                key: "hp.value".to_string(),
+                value: MetricValue::Number(5.0),
+            },
+            MetricRow {
+                domain: MetricDomain::Actor,
+                key: "hp.value".to_string(),
+                value: MetricValue::Number(9.0),
+            },
+        ]);
+
+        assert_eq!(
+            metrics,
+            vec![MetricRow {
+                domain: MetricDomain::Actor,
+                key: "hp.value".to_string(),
+                value: MetricValue::Number(9.0),
+            }]
+        );
+    }
 }

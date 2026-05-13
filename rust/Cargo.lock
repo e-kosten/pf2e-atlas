@@ -53,9 +53,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas-artifact"
+version = "0.1.0"
+
+[[package]]
 name = "atlas-cli"
 version = "0.1.0"
 dependencies = [
+ "atlas-artifact",
  "atlas-domain",
  "atlas-index",
  "atlas-ingest",
@@ -76,6 +81,7 @@ dependencies = [
 name = "atlas-index"
 version = "0.1.0"
 dependencies = [
+ "atlas-artifact",
  "atlas-domain",
  "rusqlite",
  "serde",
@@ -86,6 +92,7 @@ dependencies = [
 name = "atlas-ingest"
 version = "0.1.0"
 dependencies = [
+ "atlas-artifact",
  "atlas-domain",
  "atlas-index",
  "rusqlite",

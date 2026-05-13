@@ -7,6 +7,7 @@ TypeScript and Python may remain useful for exploratory analysis, parity compari
 ## Layout
 
 - `crates/atlas-domain`: shared Rust contracts and vocabulary.
+- `crates/atlas-artifact`: shared SQLite artifact schema descriptors used by writers and validators.
 - `crates/atlas-ingest`: Foundry source loading, normalized ingest records, and SQLite artifact writing.
 - `crates/atlas-index`: index/artifact opening and validation.
 - `crates/atlas-cli`: the local `atlas` command surface.
