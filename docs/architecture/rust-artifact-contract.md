@@ -81,9 +81,11 @@ Rust ingest computes `source_signature` from the loaded Foundry source inputs be
 
 Generated records, enrichment projections, and side-table rows are validated as artifact/data coherence rather than source freshness. This keeps the source signature stable for identical Foundry inputs while allowing Rust-owned projection policy to be checked by artifact validation and parity reports.
 
-## Rust Schema Owner
+## Rust Record And Schema Owners
 
-The Rust workspace keeps physical SQLite table and column ownership in `atlas-artifact`. Artifact metadata keys and expected artifact contract values also live in `atlas-artifact`. Artifact validation report DTOs live with the validator in `atlas-index`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL, table inventories, artifact metadata inventories, or validation-context DTOs. Writers and validators import the shared artifact schema descriptors from `atlas-artifact` instead of maintaining independent table or column lists.
+The Rust workspace keeps storage-agnostic normalized record DTOs in `atlas-record`. Ingest builds these DTOs from Foundry source data, artifact writers serialize them into SQLite table families, and index/runtime readers deserialize SQLite rows back into these DTOs or deliberately narrower views derived from them. `atlas-record` depends on `atlas-domain` primitives and must not own SQLite table names, column names, DDL, validation diagnostics, CLI envelopes, or source JSON parser structs.
+
+Physical SQLite table and column ownership lives in `atlas-artifact`. Artifact metadata keys and expected artifact contract values also live in `atlas-artifact`. Artifact validation report DTOs live with the validator in `atlas-index`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL, table inventories, artifact metadata inventories, storage DTOs, or validation-context DTOs. Writers and validators import the shared artifact schema descriptors from `atlas-artifact` instead of maintaining independent table or column lists.
 
 ## Runtime Table Families
 
