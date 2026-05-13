@@ -4,6 +4,7 @@ use atlas_embedding::{
     DocumentEmbeddingInputParts, EmbeddingError, TextEmbedder, build_document_embedding_input,
     hash_document_embedding_input,
 };
+use tracing::info;
 
 use crate::{LoadedRecord, RecordAlias, RemasterLink};
 
@@ -69,18 +70,35 @@ fn generate_document_embeddings_with<E>(
     pending: &[PendingDocumentEmbedding],
     mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
 ) -> Result<Vec<GeneratedDocumentEmbedding>, E> {
-    pending
-        .iter()
-        .map(|entry| {
+    let total = pending.len();
+    let progress_interval = embedding_progress_interval(total);
+    let mut generated = Vec::with_capacity(total);
+    for (index, entry) in pending.iter().enumerate() {
+        let current = index + 1;
+        if current == 1 || current % progress_interval == 0 || current == total {
+            info!(target: "atlas_progress",
+                phase = "document_embeddings",
+                current = current as u64,
+                total = total as u64,
+                "Generating document embeddings {current}/{total}: {record_key}",
+                record_key = entry.record_key.as_str()
+            );
+        }
+        generated.push({
             let vector = embed_document(&entry.input_text)?;
-            Ok(GeneratedDocumentEmbedding {
+            GeneratedDocumentEmbedding {
                 record_key: entry.record_key.clone(),
                 input_hash: entry.input_hash.clone(),
                 dimensions: vector.len(),
                 vector,
-            })
-        })
-        .collect()
+            }
+        });
+    }
+    Ok(generated)
+}
+
+fn embedding_progress_interval(total: usize) -> usize {
+    (total / 100).clamp(25, 500)
 }
 
 fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String>> {

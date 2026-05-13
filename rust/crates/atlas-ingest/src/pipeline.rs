@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use atlas_domain::PackName;
+use tracing::info;
 
 use crate::references::{build_record_reference_index, resolve_reference_edges};
 use crate::{
@@ -14,9 +15,18 @@ pub(crate) fn load_foundry_source(
     manifest_path: Option<&Path>,
 ) -> Result<SourceLoad, IngestError> {
     let source_root = source_root.as_ref();
+    info!(source = %source_root.display(), "loading Foundry source records");
     let mut source = source::load_foundry_source_records(source_root, manifest_path)?;
+    info!(
+        packs = source.packs.len(),
+        source_records = source.records.len(),
+        skipped_records = source.skipped_records.len(),
+        "loaded Foundry source records"
+    );
 
+    info!("building reference index");
     let reference_index = build_record_reference_index(&source.records);
+    info!("generating derived affliction records");
     let generated_afflictions =
         generated_afflictions::build_generated_afflictions(&source.records, &reference_index);
     let generated_references = generated_afflictions.references.clone();
@@ -58,8 +68,18 @@ pub(crate) fn load_foundry_source(
             record_count: instance_count,
         });
         source.records.extend(generated_afflictions.records);
+        info!(
+            canonical = canonical_count,
+            instances = instance_count,
+            reference_edges = generated_afflictions.references.len(),
+            "generated derived affliction records"
+        );
     }
 
+    info!(
+        records = source.records.len(),
+        "assigning taxonomy families"
+    );
     let reference_index = build_record_reference_index(&source.records);
     variant_taxonomy::assign_taxonomy_families(
         &mut source.records,
@@ -67,11 +87,13 @@ pub(crate) fn load_foundry_source(
         &reference_index,
         &mut source.diagnostics,
     );
+    info!(records = source.records.len(), "assigning variant groups");
     variants::assign_variant_groups(
         &mut source.records,
         &reference_index,
         &mut source.diagnostics,
     );
+    info!("resolving reference edges");
     source.references = resolve_reference_edges(&source.records, &reference_index);
     source.references.extend(generated_references);
     source.references.sort_by(|left, right| {
@@ -91,14 +113,29 @@ pub(crate) fn load_foundry_source(
             && left.to_record_key == right.to_record_key
             && left.reference_text == right.reference_text
     });
+    info!(
+        reference_edges = source.references.len(),
+        "resolved reference edges"
+    );
+    info!("resolving aliases and remaster links");
     source.aliases =
         aliases::resolve_record_aliases(&source.records, &reference_index, source_root);
     source.remaster_links =
         aliases::resolve_remaster_links(&source.records, &reference_index, source_root);
+    info!(
+        aliases = source.aliases.len(),
+        remaster_links = source.remaster_links.len(),
+        "resolved aliases and remaster links"
+    );
+    info!("preparing document embedding inputs");
     source.pending_document_embeddings = embeddings::build_pending_document_embeddings(
         &source.records,
         &source.aliases,
         &source.remaster_links,
+    );
+    info!(
+        pending_document_embeddings = source.pending_document_embeddings.len(),
+        "prepared document embedding inputs"
     );
 
     Ok(source)

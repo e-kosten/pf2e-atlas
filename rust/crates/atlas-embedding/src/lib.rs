@@ -7,6 +7,7 @@ use ort::{inputs, session::Session, value::Tensor};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokenizers::{EncodeInput, PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
+use tracing::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmbeddingModelId {
@@ -232,12 +233,14 @@ impl TextEmbedder {
         let tokenizer_path = model_dir.join("tokenizer.json");
         let onnx_path = model_dir.join("onnx").join("model.onnx");
 
+        info!(path = %tokenizer_path.display(), "loading embedding tokenizer");
         let mut tokenizer = Tokenizer::from_file(&tokenizer_path).map_err(|error| {
             EmbeddingError::TokenizerLoadFailed {
                 path: tokenizer_path.display().to_string(),
                 message: error.to_string(),
             }
         })?;
+        info!(path = %tokenizer_path.display(), "loaded embedding tokenizer");
         tokenizer.with_padding(Some(PaddingParams {
             strategy: PaddingStrategy::BatchLongest,
             direction: PaddingDirection::Right,
@@ -247,6 +250,7 @@ impl TextEmbedder {
             pad_token: "[PAD]".to_string(),
         }));
 
+        info!(path = %onnx_path.display(), "loading embedding ONNX model");
         let session = Session::builder()
             .map_err(|error| EmbeddingError::ModelLoadFailed {
                 path: onnx_path.display().to_string(),
@@ -257,6 +261,7 @@ impl TextEmbedder {
                 path: onnx_path.display().to_string(),
                 message: error.to_string(),
             })?;
+        info!(path = %onnx_path.display(), "loaded embedding ONNX model");
 
         Ok(Self {
             spec,

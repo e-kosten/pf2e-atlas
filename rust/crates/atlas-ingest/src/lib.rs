@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 use thiserror::Error;
+use tracing::info;
 
 use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
 
@@ -65,22 +66,58 @@ pub enum IngestError {
 }
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
+    info!(
+        source = %options.source_root.display(),
+        output = %options.output_path.display(),
+        "starting artifact build"
+    );
     let mut source =
         pipeline::load_foundry_source(&options.source_root, options.manifest_path.as_deref())?;
+    info!(
+        packs = source.packs.len(),
+        source_records = source.source_record_count,
+        artifact_records = source.records.len(),
+        pending_document_embeddings = source.pending_document_embeddings.len(),
+        "loaded and normalized source"
+    );
     if source.records.is_empty() {
         return Err(IngestError::NoRecordsLoaded);
     }
     if let Some(cache_root) = options.embedding_cache_root {
+        info!(
+            cache = %cache_root.display(),
+            pending_document_embeddings = source.pending_document_embeddings.len(),
+            "loading embedding model"
+        );
         let config = EmbeddingRuntimeConfig::default_model(cache_root);
         let mut embedder = TextEmbedder::load(&config)
             .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        info!(
+            pending_document_embeddings = source.pending_document_embeddings.len(),
+            "generating document embeddings"
+        );
         source.document_embeddings =
             generate_document_embeddings(&source.pending_document_embeddings, &mut embedder)
                 .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        info!(
+            document_embeddings = source.document_embeddings.len(),
+            "generated document embeddings"
+        );
     }
+    info!(
+        output = %options.output_path.display(),
+        "writing artifact"
+    );
     writer::write_artifact(&options.output_path, &source)?;
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
+    info!(
+        output = %options.output_path.display(),
+        artifact_records = artifact_record_count,
+        packs = source.packs.len(),
+        document_embeddings = source.document_embeddings.len(),
+        "artifact build complete"
+    );
     Ok(BuildArtifactReport {
         output_path: options.output_path,
         pack_count: source.packs.len(),

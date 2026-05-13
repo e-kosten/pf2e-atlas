@@ -8,6 +8,7 @@ use atlas_domain::SearchFilterNode;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 use thiserror::Error;
+use tracing::info;
 
 use crate::contract::{contract_diagnostic, contract_diagnostic_with_code};
 use crate::filters::{FilterCompileError, compile_eligible_records_query};
@@ -126,8 +127,10 @@ pub fn write_vector_index_with_loader(
     loader: impl FnOnce(&Connection) -> Result<(), String>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let path = path.as_ref();
+    info!(index = %path.display(), "validating base artifact before vector index build");
     let base_report = validate_index(path)?;
     if base_report.status != ValidationStatus::Ok {
+        info!(index = %path.display(), "base artifact validation failed; skipping vector index build");
         return Ok(base_report);
     }
 
@@ -136,11 +139,15 @@ pub fn write_vector_index_with_loader(
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
         .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
 
+    info!(index = %path.display(), "checking sqlite-vec capability");
     if let Err(message) = loader(&connection).and_then(|()| probe_sqlite_vec(&connection)) {
+        info!(index = %path.display(), error = %message, "sqlite-vec capability unavailable");
         return Ok(vector_extension_unavailable_report(index, summary, message));
     }
 
+    info!(index = %path.display(), "creating and populating record_vector_index");
     create_and_populate_vector_index(&connection, &summary)?;
+    info!(index = %path.display(), "validating record_vector_index");
     validate_vector_index_with_loaded_connection(index, summary, &connection)
 }
 
@@ -155,8 +162,10 @@ pub fn validate_vector_index_with_loader(
     loader: impl FnOnce(&Connection) -> Result<(), String>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let path = path.as_ref();
+    info!(index = %path.display(), "validating base artifact before vector index validation");
     let base_report = validate_index(path)?;
     if base_report.status != ValidationStatus::Ok {
+        info!(index = %path.display(), "base artifact validation failed; skipping vector validation");
         return Ok(base_report);
     }
 
@@ -165,7 +174,9 @@ pub fn validate_vector_index_with_loader(
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
 
+    info!(index = %path.display(), "checking sqlite-vec capability");
     if let Err(message) = loader(&connection).and_then(|()| probe_sqlite_vec(&connection)) {
+        info!(index = %path.display(), error = %message, "sqlite-vec capability unavailable");
         return Ok(vector_extension_unavailable_report(index, summary, message));
     }
 
@@ -234,6 +245,11 @@ fn create_and_populate_vector_index(
                     .to_string(),
             )
         })?;
+    info!(
+        dimensions,
+        table = TABLE_RECORD_VECTOR_INDEX,
+        "recreating vector index table"
+    );
 
     connection
         .execute_batch(&format!(
@@ -260,13 +276,20 @@ fn create_and_populate_vector_index(
             Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+    let mut row_count = 0usize;
     for row in rows {
         let (record_key, vector_blob) =
             row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
         insert
             .execute((record_key.as_str(), vector_blob))
             .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+        row_count += 1;
     }
+    info!(
+        rows = row_count,
+        table = TABLE_RECORD_VECTOR_INDEX,
+        "populated vector index table"
+    );
 
     Ok(())
 }
