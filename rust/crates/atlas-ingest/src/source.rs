@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use atlas_domain::PackName;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use tracing::info;
 
 use crate::normalize::normalize_record;
 use crate::{
@@ -39,10 +40,20 @@ pub(crate) fn load_foundry_source_records(
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
     let diagnostics = IngestDiagnostics::default();
+    let manifest_packs = parsed_manifest.manifest.packs;
+    let manifest_pack_count = manifest_packs.len();
 
-    for manifest_pack in parsed_manifest.manifest.packs {
+    for (pack_index, manifest_pack) in manifest_packs.into_iter().enumerate() {
+        let pack_number = pack_index + 1;
         let resolved_path = resolve_pack_path(source_root, &manifest_pack);
         if !resolved_path.is_dir() {
+            info!(
+                pack = manifest_pack.name.as_str(),
+                current = pack_number,
+                total = manifest_pack_count,
+                path = %resolved_path.display(),
+                "skipping unreadable source pack"
+            );
             warnings.push(format!(
                 "Skipping pack {}: {} is not a readable directory.",
                 manifest_pack.name,
@@ -54,15 +65,31 @@ pub(crate) fn load_foundry_source_records(
         let pack_name = PackName::new(manifest_pack.name.clone()).map_err(|error| {
             IngestError::ManifestParseFailed(format!("invalid pack name: {error}"))
         })?;
+        info!(target: "atlas_progress",
+            phase = "source_packs",
+            current = pack_number as u64,
+            total = manifest_pack_count as u64,
+            "Scanning source pack: {pack}",
+            pack = manifest_pack.name.as_str()
+        );
         let paths = json_files(&resolved_path)?;
+        info!(target: "atlas_progress",
+            phase = "source_packs",
+            current = pack_number as u64,
+            total = manifest_pack_count as u64,
+            "Loading source pack: {pack} (0/{files})",
+            pack = manifest_pack.name.as_str(),
+            files = paths.len()
+        );
         let record_start = records.len();
 
-        for path in paths {
-            let raw_record = match read_json_record(&path) {
+        let record_progress_interval = record_progress_interval(paths.len());
+        for (record_index, path) in paths.iter().enumerate() {
+            let raw_record = match read_json_record(path) {
                 Ok(raw_record) => raw_record,
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
-                        path: path.clone(),
+                        path: path.to_path_buf(),
                         reason: error.to_string(),
                     });
                     warnings.push(error.to_string());
@@ -72,28 +99,46 @@ pub(crate) fn load_foundry_source_records(
             match normalize_record(
                 &manifest_pack,
                 &pack_name,
-                &path,
+                path,
                 source_root,
                 raw_record.value,
             ) {
                 Ok(record) => {
                     source_signature_records.push(SourceSignatureRecord {
-                        source_path: relative_source_path(source_root, &path),
+                        source_path: relative_source_path(source_root, path),
                         content_hash: raw_record.content_hash,
                     });
                     records.push(record);
                 }
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
-                        path: path.clone(),
+                        path: path.to_path_buf(),
                         reason: error.to_string(),
                     });
                     warnings.push(error.to_string());
                 }
             }
+            let processed = record_index + 1;
+            if processed == paths.len() || processed % record_progress_interval == 0 {
+                info!(target: "atlas_progress",
+                    phase = "source_packs",
+                    current = pack_number as u64,
+                    total = manifest_pack_count as u64,
+                    "Loading source pack: {pack} ({processed}/{files})",
+                    pack = manifest_pack.name.as_str(),
+                    files = paths.len()
+                );
+            }
         }
 
         let record_count = records.len() - record_start;
+        info!(target: "atlas_progress",
+            phase = "source_packs",
+            current = pack_number as u64,
+            total = manifest_pack_count as u64,
+            "Finished source pack: {pack} ({record_count} records)",
+            pack = manifest_pack.name.as_str()
+        );
         if record_count > 0 {
             packs.push(LoadedPack {
                 name: pack_name,
@@ -272,6 +317,10 @@ fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
     collect_json_files(root, &mut paths)?;
     paths.sort();
     Ok(paths)
+}
+
+fn record_progress_interval(record_count: usize) -> usize {
+    (record_count / 10).clamp(25, 500)
 }
 
 fn collect_json_files(root: &Path, paths: &mut Vec<PathBuf>) -> Result<(), IngestError> {

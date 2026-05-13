@@ -240,6 +240,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
 - [x] Add a minimal `atlas search semantic --json` CLI route for query-string embedding, optional `--filter-json`, and raw vector hit output.
 - [x] Route semantic search orchestration through `atlas-search` and keep SQLite connection ownership behind `atlas-index`.
+- [x] Emit structured stderr progress logs for long-running Rust index build and vector-index operations without polluting JSON stdout.
 - [x] Integrate sqlite-vec loading behind explicit capability checks.
 - [x] Add diagnostics for vector extension unavailable.
 - [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.
