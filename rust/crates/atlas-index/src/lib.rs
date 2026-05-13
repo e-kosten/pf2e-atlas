@@ -9,6 +9,7 @@ use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
 
 mod contract;
+pub mod filters;
 pub mod inspect;
 mod metadata;
 pub mod records;
