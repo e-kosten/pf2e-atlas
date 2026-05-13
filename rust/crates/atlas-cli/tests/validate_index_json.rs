@@ -362,10 +362,7 @@ fn create_contract_database(
     override_entry: Option<(&str, &str)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
-    connection.execute(
-        "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-        [],
-    )?;
+    create_minimal_contract_schema(&connection)?;
     for (key, mut value) in valid_metadata_entries() {
         if let Some((override_key, override_value)) = override_entry
             && key == override_key
@@ -377,6 +374,9 @@ fn create_contract_database(
             [key, value],
         )?;
     }
+    if override_entry.is_none() {
+        insert_minimal_contract_rows(&connection)?;
+    }
     Ok(())
 }
 
@@ -385,10 +385,7 @@ fn create_contract_database_omitting(
     omitted_key: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
-    connection.execute(
-        "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-        [],
-    )?;
+    create_minimal_contract_schema(&connection)?;
     for (key, value) in valid_metadata_entries() {
         if key != omitted_key {
             connection.execute(
@@ -422,6 +419,117 @@ fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
         ("fts_tokenizer", "unicode61 remove_diacritics 2"),
         ("adjacent_manifest_path", "manifest.json"),
     ]
+}
+
+fn create_minimal_contract_schema(
+    connection: &Connection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    connection.execute_batch(
+        "
+        CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE packs (
+          name TEXT PRIMARY KEY, label TEXT, document_type TEXT, declared_path TEXT,
+          resolved_path TEXT, record_count INTEGER
+        );
+        CREATE TABLE records (
+          record_key TEXT PRIMARY KEY, id TEXT, name TEXT, normalized_name TEXT,
+          record_family TEXT, pack_name TEXT, pack_label TEXT, foundry_document_type TEXT,
+          foundry_record_type TEXT, level INTEGER, rarity TEXT, traits_json TEXT,
+          system_category TEXT, system_group TEXT, system_base_item TEXT, system_usage TEXT,
+          system_price_json TEXT, system_actions_value INTEGER, system_time_value TEXT,
+          system_duration_value TEXT, price_cp INTEGER, activation_time_kind TEXT,
+          activation_time_actions INTEGER, activation_time_duration_value INTEGER,
+          activation_time_duration_unit TEXT, activation_time_text TEXT, duration_kind TEXT,
+          duration_value INTEGER, duration_unit TEXT, duration_text TEXT,
+          publication_title TEXT, publication_remaster INTEGER, description_text TEXT,
+          blurb_text TEXT, description_snippet TEXT, publication_family TEXT, folder_id TEXT,
+          taxonomy_families_json TEXT, variant_group_key TEXT, variant_base_name TEXT,
+          variant_label TEXT, variant_axes_json TEXT, variant_confidence REAL,
+          variant_source TEXT, source_path TEXT, is_default_visible INTEGER,
+          search_text_projection TEXT, raw_json TEXT
+        );
+        CREATE TABLE record_traits (record_key TEXT, trait TEXT);
+        CREATE TABLE reference_edges (
+          from_record_key TEXT, to_record_key TEXT, display_text TEXT, reference_text TEXT
+        );
+        CREATE TABLE record_aliases (
+          canonical_record_key TEXT, alias_text TEXT, normalized_alias TEXT,
+          source_kind TEXT, source_ref TEXT
+        );
+        CREATE TABLE remaster_links (
+          remaster_record_key TEXT, legacy_record_key TEXT, source_kind TEXT, source_ref TEXT
+        );
+        CREATE TABLE record_metrics (
+          record_key TEXT, metric_domain TEXT, metric_key TEXT, value_type TEXT,
+          number_value REAL, text_value TEXT, bool_value INTEGER
+        );
+        CREATE TABLE metric_key_catalog (
+          metric_domain TEXT, record_family TEXT, namespace_prefix TEXT, metric_key TEXT,
+          value_type TEXT, catalog_count INTEGER, numeric_min REAL, numeric_max REAL
+        );
+        CREATE TABLE metric_value_catalog (
+          metric_domain TEXT, record_family TEXT, metric_key TEXT, value TEXT,
+          catalog_count INTEGER
+        );
+        CREATE TABLE actor_records (
+          record_key TEXT PRIMARY KEY, size TEXT, languages_json TEXT, speed_types_json TEXT,
+          senses_json TEXT, immunities_json TEXT, resistances_json TEXT, weaknesses_json TEXT,
+          disable_text TEXT, disable_skills_json TEXT, is_complex INTEGER
+        );
+        CREATE TABLE item_records (
+          record_key TEXT PRIMARY KEY, system_category TEXT, system_base_item TEXT,
+          system_group TEXT, system_usage TEXT, price_cp INTEGER, bulk_value REAL,
+          hands_requirement TEXT, damage_types_json TEXT
+        );
+        CREATE TABLE spell_records (
+          record_key TEXT PRIMARY KEY, traditions_json TEXT, spell_kinds_json TEXT,
+          range_text TEXT, range_value REAL, target_text TEXT, area_type TEXT,
+          area_value REAL, save_type TEXT, sustained INTEGER, basic_save INTEGER,
+          damage_types_json TEXT
+        );
+        CREATE VIRTUAL TABLE records_fts USING fts5(
+          record_key UNINDEXED, name, search_text_projection
+        );
+        ",
+    )?;
+    Ok(())
+}
+
+fn insert_minimal_contract_rows(connection: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+    connection.execute(
+        "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
+         VALUES ('actions', 'Actions', 'Item', 'packs/actions', 'packs/actions', 3)",
+        [],
+    )?;
+    for index in 1..=3 {
+        let record_key = format!("actions:testAction{index}");
+        let record_id = format!("testAction{index}");
+        let name = format!("Test Action {index}");
+        let normalized_name = name.to_lowercase();
+        let source_path = format!("packs/actions/test-action-{index}.json");
+        connection.execute(
+            "INSERT INTO records (
+              record_key, id, name, normalized_name, record_family, pack_name, pack_label,
+              foundry_document_type, foundry_record_type, traits_json, publication_remaster,
+              publication_family, taxonomy_families_json, variant_axes_json, variant_source,
+              source_path, is_default_visible, search_text_projection, raw_json
+            ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
+              '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, ?3, '{}')",
+            [
+                record_key.as_str(),
+                record_id.as_str(),
+                name.as_str(),
+                normalized_name.as_str(),
+                source_path.as_str(),
+            ],
+        )?;
+        connection.execute(
+            "INSERT INTO records_fts (record_key, name, search_text_projection)
+             VALUES (?1, ?2, ?2)",
+            [record_key.as_str(), name.as_str()],
+        )?;
+    }
+    Ok(())
 }
 
 fn temp_db_path(name: &str) -> PathBuf {

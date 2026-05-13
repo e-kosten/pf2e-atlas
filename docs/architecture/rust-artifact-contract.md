@@ -62,11 +62,12 @@ Validation diagnostics are grouped by contract family:
 - `contract`: artifact contract version.
 - `schema`: SQLite schema version.
 - `source`: Foundry source kind, source signature, record count, and content hashing.
+- `data`: required row relationships, generated catalogs, and side-table coherence.
 - `embedding`: query/document vector compatibility.
 - `fts`: lexical tokenizer compatibility.
 - `manifest`: adjacent artifact manifest linkage.
 
-`atlas validate-index --json` returns stable JSON diagnostics for missing or incompatible metadata. Current TypeScript-built indexes that only expose the legacy `metadata` table are intentionally reported as missing the Rust artifact contract.
+`atlas validate-index --json` returns stable JSON diagnostics for missing or incompatible metadata and for Rust artifact table/data contract violations. Current TypeScript-built indexes that only expose the legacy `metadata` table are intentionally reported as missing the Rust artifact contract.
 
 ## Adjacent Manifest
 
@@ -87,7 +88,7 @@ Required runtime table families for Rust-written artifacts are:
 | Filterable row projections | `record_traits`, actor/item/spell side tables; later `record_derived_tags` after the derived-tag redesign | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. |
 | Metric rows and catalogs | `record_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics in one physical row model with a `metric_domain` axis, plus generated discovery catalogs by record family, metric domain, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. Edges store `from_record_key`, `to_record_key`, optional authored link `display_text`, and the exact `reference_text`; pack/type/source metadata is derived by joining to `records`. |
-| Lexical search | `records_fts` | SQLite FTS5 index over canonical record name and search text. |
+| Lexical search | `records_fts` | SQLite FTS5 index over default-visible canonical record name and search text. |
 | Embeddings and vector search | `embeddings`, `record_embeddings` | Reusable vector blobs with semantic input hashes plus sqlite-vec rows and vector-side filter projections. |
 
 Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
@@ -114,13 +115,19 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 
 ## Artifact Validation Beyond Metadata
 
-Metadata validation must remain available without loading `sqlite-vec`. Once Rust writes full runtime artifacts, startup validation should add a second validation layer for table contracts:
+Metadata validation must remain available without loading `sqlite-vec`. For Rust-written SQLite artifacts, `atlas validate-index` also validates the lightweight runtime table contract:
 
-- required table presence by family
-- vector table capability checks only when a command needs vector search
-- source-signature comparison only when the caller supplies an expected source signature or equivalent already-computed value
+- required runtime table presence
+- required column presence for the current artifact schema
+- `source_record_count` agreement with `records`
+- SQLite foreign-key integrity plus explicit relationship orphan checks
+- boolean integer columns constrained to `0`/`1`
+- metric value columns matching `value_type`
+- `records_fts` key coverage exactly matching default-visible records
+- remaster link visibility policy: remaster-side records are default-visible and legacy-side records are not
+- metric key/value catalogs matching metrics emitted for default-visible records
 
-Do not add a broad full-artifact validator by default. Recomputing source freshness, row-domain coverage, generated catalog coverage, and vector coverage can approach the cost and complexity of rebuilding or reloading the source corpus. Prefer lightweight startup validation plus targeted writer/parity tests for generated projections such as FTS rows, vector rows, metric catalogs, aliases, and remaster links.
+Validation should stay bounded to SQLite runtime coherence. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. Vector table capability checks belong to commands that need vector search. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup validation.
 
 ## Extension Loading
 
