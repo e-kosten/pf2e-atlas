@@ -41,7 +41,7 @@ Primary TypeScript sources:
 | `artifact_metadata` | New Rust artifact contract metadata | parity | `atlas-domain` constants, `atlas-index` validation, `atlas-ingest` writer | First Rust-owned metadata table. Existing contract covers keys and diagnostics. |
 | `packs` | Pack labels, document types, source paths, counts | parity | `atlas-index` read model, `atlas-ingest` writer | Required for pack filtering, display, schema discovery, and source parity. |
 | `records` | Canonical normalized record row plus raw JSON and search flags | rust redesign | `atlas-domain` record types, `atlas-index` row loading, `atlas-ingest` writer | Preserve field meaning, but model Rust rows as typed structs rather than stringly row bags. |
-| `record_aliases` | Variant/name lookup aliases | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. |
+| `record_aliases` | Source-backed lookup aliases from remaster journals, migration rename files, and selected embedded compendium sources | parity | `atlas-index`, `atlas-ingest`, `atlas-search` lookup | Required before production lookup parity. Variant family grouping is separate metadata and should not create broad base-name alias rows. |
 | `record_legacy_links` | Premaster-to-remaster record bridges extracted from remaster journals and migration aliases | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest` | Preserve the domain concept, but name/model it as `remaster_links` or edition links in Rust rather than a generic legacy compatibility bucket. |
 | `record_traits` | Normalized trait rows | parity | `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Required for trait filters and value discovery. |
 | `record_derived_tags` | Normalized derived-tag rows | deferred redesign | Later `atlas-tags` model, `atlas-index`, `atlas-ingest`, `atlas-search` filters/discovery | Derived tags are intentionally deferred until late in the Rust migration. The surface is large and needs a separate design pass because `record_family`, explicit source axes, and retired subcategory semantics change the long-term tag model. |
@@ -239,7 +239,7 @@ Each later phase should update a durable parity note with source revision, comma
 - `Treat Wounds`
 - `Grabbed`
 - `Antidote (Lesser)`
-- one variant family with aliases
+- one variant family plus one source-backed alias case; variant metadata should not require broad base-name alias rows
 - one exact miss that must not return fuzzy unrelated records
 - one localized or placeholder-text record
 

@@ -187,7 +187,8 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Normalize activation time separately from effect/spell duration.
 - [x] Extract source-backed aliases from remaster journals, migration rename files, and embedded compendium sources.
 - [x] Generate derived affliction canonicals and hidden provenance instances from staged action, consumable, and spell records.
-- [ ] Extract variant names.
+- [x] Extract variant family metadata (`variant_group_key`, `variant_base_name`, `variant_label`, `variant_axes`, confidence, and source).
+- [ ] In Phase 5, implement variant-aware lookup using variant metadata rather than broad `record_aliases` rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
 - [x] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.
 - [x] Write `packs`.
@@ -244,7 +245,7 @@ Goal: make exact lookup the first production-quality Rust command.
 - [ ] Implement typed row loading from `records`.
 - [ ] Implement lookup by canonical key.
 - [ ] Implement exact lookup by name.
-- [ ] Implement variant-aware exact lookup.
+- [ ] Implement variant-aware exact lookup from `variant_*` metadata without broad base-name alias rows.
 - [ ] Implement controlled alternatives for ambiguous lookup.
 - [ ] Preserve safe no-result behavior: exact miss does not return fuzzy unrelated records.
 - [ ] Add compact record output.
