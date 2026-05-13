@@ -263,9 +263,9 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
    - embedding identity
    - record table contracts
    - FTS table contracts
-   - vector table contracts
+   - vector table contract placeholders for the Phase 4 embedding/vector artifact
    - reference edge contracts
-   - derived-tag runtime tables or artifact references
+   - explicit deferral of derived-tag runtime tables or artifact references to the later derived-tag redesign phase
 
 2. Define JSON/JSONL artifact schemas for prep outputs that should not live directly in SQLite.
 
@@ -285,15 +285,22 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 3. Implement record presentation models separate from CLI/TUI rendering.
 4. Add tests around source-signature mismatch, missing embedding provider, and schema mismatch errors.
 
-### Phase 4: Search Runtime
+### Phase 4: Embeddings And Vector Artifact
+
+1. Add `atlas-embedding` when query or document embedding implementation starts.
+2. Port MiniLM query embeddings and validate compatibility with the TypeScript provider.
+3. Implement document embedding generation for Rust-built artifacts.
+4. Write reusable embedding blobs and sqlite-vec `record_embeddings` rows from typed record projections.
+5. Add sqlite-vec capability checks and unavailable-vector diagnostics.
+
+### Later Search Runtime
 
 1. Port the canonical search request and filter tree.
 2. Implement filter normalization and lowering.
 3. Implement lexical search over FTS.
-4. Implement vector search with runtime query embeddings.
+4. Implement vector search using the Phase 4 embedding/vector artifact.
 5. Implement hybrid ranking.
-6. Port list filter values and search semantics discovery needed by agents.
-7. Add fixture parity tests against the existing TypeScript runtime for representative queries.
+6. Add fixture parity tests against the existing TypeScript runtime for representative queries.
 
 ### Phase 5: CLI As Primary Agent Surface
 

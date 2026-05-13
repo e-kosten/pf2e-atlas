@@ -202,7 +202,6 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write actor side-data.
 - [x] Write item side-data.
 - [x] Write spell side-data.
-- [ ] Revisit derived-tag assignments late in the migration after a dedicated design pass.
 - [x] Generate source signatures from source paths and per-record hashes.
 - [x] Group index management commands under `atlas index` without legacy command aliases.
 - [x] Add a small fixture ingest test.
@@ -228,6 +227,9 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [ ] Store vector row linkage in normal SQLite tables.
 - [ ] Integrate sqlite-vec loading behind explicit capability checks.
 - [ ] Add diagnostics for vector extension unavailable.
+- [ ] Write `embeddings` reusable vector blobs with semantic input hashes.
+- [ ] Write `record_embeddings` sqlite-vec rows from typed record projections.
+- [ ] Validate vector row key coverage against default-visible searchable records.
 - [ ] Keep BGE as a deferred quality-bakeoff option, not the first migration baseline.
 
 Acceptance:
@@ -286,7 +288,6 @@ Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discov
 - [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
 - [ ] Add category and explicit-axis filtering for value discovery.
 - [ ] Add trait discovery.
-- [ ] Add derived-tag discovery.
 - [ ] Add item metadata discovery.
 - [ ] Add actor metric discovery.
 - [ ] Add spell metadata discovery.
@@ -356,6 +357,7 @@ Goal: redesign derived tags after the core Rust record, search, discovery, and T
 - [ ] Reconsider the derived-tag product model against `record_family`, explicit source axes, and retired subcategory semantics.
 - [ ] Decide which derived-tag concepts remain runtime filter axes, which become authored taxonomy, and which retire.
 - [ ] Define Rust derived-tag runtime types only after that model is accepted.
+- [ ] Add `atlas-tags` crate only when the accepted runtime/editorial model starts implementation.
 - [ ] Load published ontology and assignments if they remain part of the accepted runtime model.
 - [ ] Load rules, exemplars, and review registries only if they are still needed by runtime commands.
 - [ ] Implement tag filters and discovery commands against the redesigned model.

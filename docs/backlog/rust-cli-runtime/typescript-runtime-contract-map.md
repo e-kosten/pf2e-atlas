@@ -53,12 +53,12 @@ Primary TypeScript sources:
 | `metric_key_catalog` | Precomputed metric key availability by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be written before `atlas filters list-values` can replace MCP discovery. |
 | `metric_value_catalog` | Precomputed text/boolean metric values by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be part of Phase 3 or a blocking prerequisite for Phase 7. |
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
-| `embeddings` | Reusable vector blobs plus semantic input hashes | parity | `atlas-index`, `atlas-embedding`, `atlas-ingest` | Preserve split between reusable vector storage and sqlite-vec rows. |
-| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign | `atlas-index` vector access, `atlas-embedding`, `atlas-search` | Preserve vector/filter meaning. Rust may refine capability checks and row loaders. |
+| `embeddings` | Reusable vector blobs plus semantic input hashes | parity | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve split between reusable vector storage and sqlite-vec rows. Not a Phase 3 writer requirement. |
+| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector/filter meaning. Rust may refine capability checks and row loaders. Not a Phase 3 writer requirement. |
 | `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `linksTo`, `linkedFrom`, graph, and rule context. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
-Required Phase 3 writer outputs are therefore broader than the current checklist's first table list. The writer plan must cover `packs`, side tables, metric catalogs, and embeddings/vector linkage, not only `records`, `records_fts`, and `reference_edges`. Derived-tag rows are excluded from Phase 3 until the late-migration redesign pass.
+Required Phase 3 writer outputs are therefore broader than the original minimal table list, but bounded to the non-vector runtime artifact. The writer plan must cover `packs`, side tables, metric catalogs, aliases, remaster links, and reference rows, not only `records`, `records_fts`, and `reference_edges`. Embeddings and vector rows are a cohesive Phase 4 concern. Derived-tag rows are excluded from Phase 3 until the Phase 10 redesign pass.
 
 ## Foundational DB And Type Design Review
 
@@ -68,7 +68,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 
 | Current TS design | Risk | Rust plan decision |
 | --- | --- | --- |
-| Arrays stored both as JSON blobs on `records` and as side tables for selected fields, such as traits and derived tags | Duplicated truth can drift and forces row hydration to parse JSON for common filters/discovery | Prefer typed side tables for filterable multi-value fields. Keep JSON blobs only for compact record presentation or parity debugging when they are generated from the same typed source. |
+| Arrays stored both as JSON blobs on `records` and as side tables for selected fields, such as traits | Duplicated truth can drift and forces row hydration to parse JSON for common filters/discovery | Prefer typed side tables for filterable multi-value fields. Keep JSON blobs only for compact record presentation or parity debugging when they are generated from the same typed source. Derived-tag storage is deferred to Phase 10 rather than being modeled from the current TypeScript table shape. |
 | `records` is a broad catch-all row containing core identity, presentation text, classification, variant facts, search text, raw JSON, and several denormalized filter fields | Makes the central table hard to version and encourages consumers to depend on incidental columns | Split Rust domain types into identity, summary, presentation, source/provenance, variant, and search-index inputs. The SQLite table may stay wide for read performance, but Rust APIs should not expose one giant mutable shape as the primary contract. |
 | `raw_json` is persisted for every row | Useful for debugging, but dangerous if runtime behavior keeps reaching into arbitrary JSON paths | Keep initially for parity/debugging. Runtime lookup/search/discovery should use typed rows. Any raw JSON dependency must be called out as an ingest gap. |
 | Boolean values are stored as `INTEGER` without explicit value constraints | SQLite permits non-0/1 values unless writers are disciplined | Rust artifact schema should add `CHECK` constraints for boolean columns or validate them during artifact validation. |
@@ -89,11 +89,11 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 - Use newtypes for identifiers: `RecordKey`, `PackName`, `RecordId`, `MetricKey`, `SourceSignature`.
 - Use enums for closed vocabularies: `record_family`, publication family, rarity when normalized, search mode, search profile, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
 - Do not preserve TypeScript subcategory as a Rust field, enum, scope member, or compatibility projection. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field.
-- Use typed side-data structs for actor, item, spell, publication, variant, and embedding identity.
+- Use typed side-data structs for actor, item, spell, publication, and variant facts. Embedding identity belongs to Phase 4 embedding/vector artifact contracts.
 - Keep open PF2E/provider-defined values as validated strings with clear owners rather than pretending they are closed enums.
 - Use `Result` at boundary decoders and row loaders. Missing or malformed runtime-required fields should be artifact errors, not silently defaulted values.
 - Keep SQLite row structs separate from CLI output structs. Storage shape, domain shape, and presentation shape should not collapse into one large type.
-- Make generated projections explicit: FTS rows, vector rows, metric catalogs, aliases, and derived tag rows should be derived from typed source models and have coverage checks.
+- Make generated projections explicit: FTS rows, metric catalogs, and aliases should be derived from typed source models and have coverage checks in Phase 3. Vector rows get the same treatment in Phase 4. Derived-tag rows get the same treatment only if retained after the Phase 10 redesign.
 
 ### Design Review Gates
 
@@ -108,7 +108,6 @@ Before Phase 3 writer work continues beyond the minimal writer:
 - Add the full Rust artifact table contract beyond `artifact_metadata`.
 - Decide which JSON array columns are durable versus generated presentation caches.
 - Decide whether boolean and enum-like columns get SQLite `CHECK` constraints, row-loader validation, or both.
-- Decide the vector-row projection/sentinel contract.
 - Model the current TS remaster bridge table as `remaster_links` or edition links and preserve premaster-to-remaster navigation semantics.
 - Keep the planned Rust canonical scope model free of generic subcategory fields before lookup/search/discovery harden around it.
 - Record each skipped source record during ingest with path and reason so full-corpus runs become an upgrade queue for the validation pipeline.
@@ -117,6 +116,13 @@ Before Phase 7 discovery starts:
 
 - Validate that discovery fields are backed by typed columns, side tables, or generated catalogs, not ad hoc raw JSON reads.
 - Validate metric catalog coverage against metric rows for canonical records.
+- Exclude derived-tag discovery until Phase 10 defines the retained runtime tag model.
+
+Before Phase 4 embedding/vector work starts:
+
+- Decide the vector-row projection/sentinel contract.
+- Preserve MiniLM compatibility unless a new ADR changes the baseline.
+- Keep vector table capability checks out of artifact metadata validation; vector capability belongs to commands that need semantic retrieval.
 
 ## Indexing Stage Map
 
@@ -168,7 +174,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 - field vocabulary from `FILTER_VALUE_FIELDS`
 - metadata field kind/operator compatibility
 - category scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
-- traits, taxonomy families, and variant axes; derived tags return only after the late redesign pass
+- traits, taxonomy families, and variant axes
 - spell traditions and spell kinds
 - item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
 - actor fields such as size, languages, speeds, senses, immunities, resistances, weaknesses, disable skills, and complexity
@@ -252,7 +258,6 @@ Each later phase should update a durable parity note with source revision, comma
 - actor metric key discovery with namespace prefix
 - item metric key/value discovery
 - spell metadata values for traditions, spell kinds, range, save, area, duration, sustained, and basic save
-- derived-tag value discovery
 
 ### Search And Browse
 
@@ -264,8 +269,10 @@ Each later phase should update a durable parity note with source revision, comma
 - structured filter with `linkedFrom`
 - metadata predicate and metric predicate filters
 
-### Derived-Tag Runtime
+### Derived-Tag Runtime And Editorial Redesign
 
+- retained tag model decision
+- accepted runtime/editorial boundary
 - read-only tag list by category
 - tag filter for equipment
 - tag filter for spell
@@ -285,7 +292,8 @@ Each later phase should update a durable parity note with source revision, comma
 
 - Phase 2 domain work must cite this map when adding each durable type.
 - Phase 3 writer work must update the SQLite artifact table contract before adding broad table writers.
-- Phase 4 embedding work must preserve MiniLM compatibility unless a new ADR changes the baseline.
-- Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract.
+- Phase 4 embedding work owns embeddings, vector rows, sqlite-vec capability checks, and MiniLM compatibility unless a new ADR changes the baseline.
+- Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract; derived-tag discovery is explicitly out of Phase 7.
+- Phase 10 owns any retained derived-tag runtime, filters, discovery, and editorial migration model.
 - Phase 13 retirement cannot start until each parity fixture group has a recorded pass, accepted difference, or explicit deferred defect.
 - Source freshness validation should stay lightweight: compare against an expected source signature when supplied, but do not add a broad full-artifact validator that effectively reloads the source corpus.
