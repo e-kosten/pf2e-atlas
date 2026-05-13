@@ -188,6 +188,29 @@ fn legacy_top_level_index_commands_are_not_supported() -> Result<(), Box<dyn std
 }
 
 #[test]
+fn semantic_search_rejects_invalid_filter_json_before_runtime_loading()
+-> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "semantic",
+            "--index",
+            "missing.sqlite",
+            "--query",
+            "healing",
+            "--filter-json",
+            "{\"kind\":\"unknown\"}",
+            "--json",
+        ])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("failed to parse --filter-json"));
+    Ok(())
+}
+
+#[test]
 fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-valid");
     create_contract_database(&path, None)?;

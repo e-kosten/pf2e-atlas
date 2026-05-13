@@ -6,7 +6,7 @@ use atlas_artifact::schema::{
 };
 use atlas_domain::SearchFilterNode;
 use rusqlite::types::Value;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags, params_from_iter};
 use thiserror::Error;
 
 use crate::contract::{contract_diagnostic, contract_diagnostic_with_code};
@@ -37,6 +37,8 @@ pub enum VectorQueryError {
     InvalidLimit,
     #[error("query vector must not be empty")]
     EmptyQueryVector,
+    #[error("vector query failed: {0}")]
+    QueryFailed(String),
     #[error(transparent)]
     Filter(#[from] FilterCompileError),
 }
@@ -73,6 +75,28 @@ pub fn compile_vector_knn_query(
     );
 
     Ok(VectorKnnQuery { sql, parameters })
+}
+
+pub fn query_vector_index(
+    connection: &Connection,
+    query_vector: &[f32],
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
+    let compiled = compile_vector_knn_query(query_vector, filter, limit)?;
+    let mut statement = connection
+        .prepare(&compiled.sql)
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    let rows = statement
+        .query_map(params_from_iter(compiled.parameters.iter()), |row| {
+            Ok(VectorSearchHit {
+                record_key: row.get(0)?,
+                distance: row.get(1)?,
+            })
+        })
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))
 }
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
