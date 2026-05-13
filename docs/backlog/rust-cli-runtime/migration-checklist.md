@@ -226,10 +226,10 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 
 - [x] Add `atlas-embedding` crate only when query or document embedding implementation starts.
 - [x] Add an `atlas-embedding` model catalog that owns the default model decision and all embedding identity fields used by ingest, validation, and query runtime.
-- [ ] Port MiniLM query embedding from the spike.
-- [ ] Validate tokenizer, pooling, normalization, dimensions, dtype, and prefixes.
-- [ ] Add query-vector fixture comparisons against the current TypeScript provider.
-- [ ] Decide ONNX Runtime packaging strategy.
+- [x] Port MiniLM query embedding from the spike.
+- [x] Validate tokenizer, pooling, normalization, dimensions, dtype, and prefixes.
+- [x] Add query-vector fixture comparisons against the current TypeScript provider.
+- [x] Decide ONNX Runtime packaging strategy.
 - [ ] Implement document embedding generation for Rust-built artifacts.
 - [ ] Store embedding identity in normal SQLite metadata.
 - [ ] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
