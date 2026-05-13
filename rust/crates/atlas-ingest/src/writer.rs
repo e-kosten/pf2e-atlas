@@ -42,7 +42,13 @@ pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), Ing
         .transaction()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     schema::create_artifact_schema(&transaction)?;
-    write_artifact_metadata(&transaction, source.records.len(), &source.source_signature)?;
+    write_artifact_metadata(
+        &transaction,
+        source.source_record_count,
+        source.records.len(),
+        source.records.len() - source.source_record_count,
+        &source.source_signature,
+    )?;
     write_packs(&transaction, &source.packs)?;
     write_records(&transaction, &source.records, &source.remaster_links)?;
     write_reference_edges(&transaction, &source.references)?;
@@ -56,7 +62,9 @@ pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), Ing
 
 pub(crate) fn write_artifact_metadata(
     connection: &Connection,
-    record_count: usize,
+    source_record_count: usize,
+    artifact_record_count: usize,
+    generated_record_count: usize,
     source_signature: &str,
 ) -> Result<(), IngestError> {
     let metadata = [
@@ -78,7 +86,15 @@ pub(crate) fn write_artifact_metadata(
         ),
         (
             artifact_metadata_keys::SOURCE_RECORD_COUNT,
-            record_count.to_string(),
+            source_record_count.to_string(),
+        ),
+        (
+            artifact_metadata_keys::ARTIFACT_RECORD_COUNT,
+            artifact_record_count.to_string(),
+        ),
+        (
+            artifact_metadata_keys::GENERATED_RECORD_COUNT,
+            generated_record_count.to_string(),
         ),
         (
             artifact_metadata_keys::CONTENT_HASH_ALGORITHM,

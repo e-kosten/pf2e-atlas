@@ -355,8 +355,14 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.diagnostics.generated_affliction_canonical_records, 1);
     assert_eq!(report.diagnostics.generated_affliction_instance_records, 1);
     assert_eq!(report.diagnostics.generated_affliction_reference_edges, 3);
+    assert_eq!(report.source_record_count, 1);
+    assert_eq!(report.artifact_record_count, 3);
+    assert_eq!(report.generated_record_count, 2);
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
+    assert_eq!(validation.source_record_count.as_deref(), Some("1"));
+    assert_eq!(validation.artifact_record_count.as_deref(), Some("3"));
+    assert_eq!(validation.generated_record_count.as_deref(), Some("2"));
 
     let connection = Connection::open(&output_path)?;
     let generated_record_count: usize = connection.query_row(
@@ -419,6 +425,9 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     assert_eq!(report.pack_count, 4);
     assert_eq!(report.record_count, 5);
+    assert_eq!(report.source_record_count, 5);
+    assert_eq!(report.artifact_record_count, 5);
+    assert_eq!(report.generated_record_count, 0);
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
@@ -429,6 +438,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         Some(report.source_signature.as_str())
     );
     assert_eq!(validation.source_record_count.as_deref(), Some("5"));
+    assert_eq!(validation.artifact_record_count.as_deref(), Some("5"));
+    assert_eq!(validation.generated_record_count.as_deref(), Some("0"));
 
     let connection = Connection::open(&output_path)?;
     let pack_count: usize =

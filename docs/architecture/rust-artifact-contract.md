@@ -39,7 +39,9 @@ Required keys:
 | `schema_version` | `1` |
 | `source_kind` | `foundry-pf2e` |
 | `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |
-| `source_record_count` | positive integer |
+| `source_record_count` | positive integer count of loaded Foundry source records before Rust-generated records are added |
+| `artifact_record_count` | positive integer count of rows in `records`, including generated records |
+| `generated_record_count` | non-negative integer count of Rust-generated records included in `records` |
 | `content_hash_algorithm` | `sha256` |
 | `embedding_provider_family` | `transformers-js-minilm` for the first MiniLM baseline |
 | `embedding_model_id` | `Xenova/all-MiniLM-L12-v2` |
@@ -131,7 +133,8 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 
 - required runtime table presence
 - required column presence for the current artifact schema
-- `source_record_count` agreement with `records`
+- `artifact_record_count` agreement with `records`
+- `source_record_count` plus `generated_record_count` agreement with `artifact_record_count`
 - SQLite foreign-key integrity plus explicit relationship orphan checks
 - boolean integer columns constrained to `0`/`1`
 - metric value columns matching `value_type`

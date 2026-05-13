@@ -24,7 +24,7 @@ pub(crate) fn validate_artifact_contract(
         return Ok(diagnostics);
     }
 
-    validate_source_record_count(connection, metadata, &mut diagnostics)?;
+    validate_record_counts(connection, metadata, &mut diagnostics)?;
     validate_foreign_keys(connection, &mut diagnostics)?;
     validate_boolean_columns(connection, &mut diagnostics)?;
     validate_metric_values(connection, &mut diagnostics)?;
@@ -73,22 +73,41 @@ fn validate_required_columns(
     Ok(())
 }
 
-fn validate_source_record_count(
+fn validate_record_counts(
     connection: &Connection,
     metadata: &BTreeMap<String, String>,
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
-    let expected = metadata
+    let source_count = metadata
         .get(artifact_metadata_keys::SOURCE_RECORD_COUNT)
         .and_then(|value| value.parse::<usize>().ok());
-    let actual = count_rows(connection, TABLE_RECORDS)?;
-    if expected != Some(actual) {
+    let artifact_count = metadata
+        .get(artifact_metadata_keys::ARTIFACT_RECORD_COUNT)
+        .and_then(|value| value.parse::<usize>().ok());
+    let generated_count = metadata
+        .get(artifact_metadata_keys::GENERATED_RECORD_COUNT)
+        .and_then(|value| value.parse::<usize>().ok());
+    let actual_artifact_count = count_rows(connection, TABLE_RECORDS)?;
+    if artifact_count != Some(actual_artifact_count) {
         diagnostics.push(contract_diagnostic(
             ArtifactContractFamily::Source,
-            "metadata source_record_count must match the records table".to_string(),
-            Some(artifact_metadata_keys::SOURCE_RECORD_COUNT.to_string()),
-            expected.map(|value| value.to_string()),
-            Some(actual.to_string()),
+            "metadata artifact_record_count must match the records table".to_string(),
+            Some(artifact_metadata_keys::ARTIFACT_RECORD_COUNT.to_string()),
+            artifact_count.map(|value| value.to_string()),
+            Some(actual_artifact_count.to_string()),
+        ));
+    }
+    if let (Some(source_count), Some(generated_count), Some(artifact_count)) =
+        (source_count, generated_count, artifact_count)
+        && source_count + generated_count != artifact_count
+    {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Source,
+            "metadata source_record_count plus generated_record_count must match artifact_record_count"
+                .to_string(),
+            Some("record_counts".to_string()),
+            Some(artifact_count.to_string()),
+            Some((source_count + generated_count).to_string()),
         ));
     }
     Ok(())

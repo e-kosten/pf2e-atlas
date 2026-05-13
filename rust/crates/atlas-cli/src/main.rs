@@ -3,16 +3,11 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use atlas_artifact::schema::{
-    TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS, TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
-};
 use atlas_index::{ValidationCode, ValidationStatus, inspect_index, validate_index_report};
 use atlas_ingest::{
-    BuildArtifactOptions, analyze_foundry_source, build_artifact,
-    report::{diagnostics_json, skipped_records_json},
+    BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
 use clap::{Args, Parser, Subcommand};
-use serde_json::json;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
@@ -139,27 +134,21 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     .map_err(|error| error.to_string())?;
 
     if options.json {
-        let body = json!({
-            "status": "ok",
-            "output": report.output_path.display().to_string(),
-            "pack_count": report.pack_count,
-            "record_count": report.record_count,
-            "source_signature": report.source_signature,
-            "diagnostics": diagnostics_json(&report.diagnostics),
-            "skipped_record_count": report.skipped_records.len(),
-            "skipped_records": skipped_records_json(&report.skipped_records),
-            "warnings": report.warnings,
-        });
         println!(
             "{}",
-            serde_json::to_string_pretty(&body).map_err(|error| error.to_string())?
+            serde_json::to_string_pretty(&build_artifact_json(&report))
+                .map_err(|error| error.to_string())?
         );
     } else {
         println!(
             "ok: wrote {} records from {} packs to {}",
-            report.record_count,
+            report.artifact_record_count,
             report.pack_count,
             report.output_path.display()
+        );
+        eprintln!(
+            "records: source={} generated={} artifact={}",
+            report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(
@@ -203,27 +192,11 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
         );
         println!(
             "tables: records={} packs={} references={} aliases={} remaster_links={}",
-            report
-                .tables
-                .get(TABLE_RECORDS)
-                .copied()
-                .unwrap_or_default(),
-            report.tables.get(TABLE_PACKS).copied().unwrap_or_default(),
-            report
-                .tables
-                .get(TABLE_REFERENCE_EDGES)
-                .copied()
-                .unwrap_or_default(),
-            report
-                .tables
-                .get(TABLE_RECORD_ALIASES)
-                .copied()
-                .unwrap_or_default(),
-            report
-                .tables
-                .get(TABLE_REMASTER_LINKS)
-                .copied()
-                .unwrap_or_default()
+            report.records_table_count(),
+            report.packs_table_count(),
+            report.reference_edges_table_count(),
+            report.record_aliases_table_count(),
+            report.remaster_links_table_count()
         );
         println!(
             "coverage: taxonomy_records={} variant_records={} descriptions={} blurbs={}",

@@ -5,9 +5,11 @@ use atlas_domain::PackName;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::model::{ManifestPack, ParsedManifest};
 use crate::normalize::normalize_record;
-use crate::{IngestDiagnostics, IngestError, LoadedPack, LoadedRecord, SkippedRecord, SourceLoad};
+use crate::{
+    IngestDiagnostics, IngestError, LoadedPack, LoadedRecord, ManifestPack, ParsedManifest,
+    SkippedRecord, SourceLoad,
+};
 
 pub(crate) fn load_foundry_source_records(
     source_root: impl AsRef<Path>,
@@ -93,10 +95,12 @@ pub(crate) fn load_foundry_source_records(
         &records,
         &skipped_records,
     );
+    let source_record_count = records.len();
 
     Ok(SourceLoad {
         manifest_path,
         source_signature,
+        source_record_count,
         packs,
         records,
         references: Vec::new(),

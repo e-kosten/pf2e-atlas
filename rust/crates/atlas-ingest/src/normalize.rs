@@ -1,10 +1,21 @@
 use std::path::Path;
 
-use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus};
+use atlas_domain::{PackName, RecordId, RecordKey, TextStatus};
 use serde_json::Value;
 
+mod family;
+mod json;
+mod publication;
+mod text;
 mod time;
 
+pub(crate) use family::classify_record;
+pub(crate) use json::{
+    normalized_pointer_string, pointer_bool, pointer_i64, pointer_string, string_array_at_pointer,
+    string_field, typed_collection,
+};
+pub(crate) use publication::publication_family;
+pub(crate) use text::{create_search_text, normalize_text, strip_markup};
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::references::extract_reference_candidates;
@@ -151,125 +162,11 @@ pub(crate) fn normalize_record(
     })
 }
 
-pub(crate) fn publication_family(
-    pack_name: &str,
-    publication_title: Option<&str>,
-) -> PublicationFamily {
-    if is_core_publication(publication_title) {
-        return PublicationFamily::Core;
-    }
-    if is_adventure_publication(publication_title) || is_adventure_pack(pack_name) {
-        return PublicationFamily::Adventure;
-    }
-    if publication_title.is_some_and(|title| !title.trim().is_empty()) {
-        return PublicationFamily::Rules;
-    }
-    PublicationFamily::Unknown
-}
-
-pub(crate) fn is_core_publication(publication_title: Option<&str>) -> bool {
-    matches!(
-        normalize_text(publication_title.unwrap_or_default()).as_str(),
-        "pathfinder player core"
-            | "player core"
-            | "pathfinder player core 2"
-            | "player core 2"
-            | "pathfinder gm core"
-            | "gm core"
-            | "pathfinder monster core"
-            | "monster core"
-            | "pathfinder monster core 2"
-            | "monster core 2"
-            | "pathfinder beginner box"
-    )
-}
-
-pub(crate) fn is_adventure_publication(publication_title: Option<&str>) -> bool {
-    let normalized = normalize_text(publication_title.unwrap_or_default());
-    !normalized.is_empty()
-        && (normalized.contains("adventure path")
-            || normalized.contains("pathfinder society")
-            || normalized.contains("quest")
-            || normalized.contains("one shot")
-            || normalized.contains("special")
-            || normalized.starts_with("pathfinder adventure ")
-            || is_pathfinder_numbered_adventure(&normalized))
-}
-
-pub(crate) fn is_pathfinder_numbered_adventure(value: &str) -> bool {
-    let mut parts = value.split_whitespace();
-    matches!(parts.next(), Some("pathfinder"))
-        && parts.next().is_some_and(|part| part.parse::<u16>().is_ok())
-}
-
-pub(crate) fn is_adventure_pack(pack_name: &str) -> bool {
-    let normalized = normalize_text(pack_name);
-    normalized.starts_with("pfs ")
-        || normalized.contains("one shot")
-        || normalized.contains("quest")
-}
-
 pub(crate) fn normalization_error(path: &Path, message: &str) -> IngestError {
     IngestError::RecordNormalizationFailed {
         path: path.display().to_string(),
         message: message.to_string(),
     }
-}
-
-pub(crate) fn classify_record(document_type: &str, record_type: &str) -> Option<RecordFamily> {
-    match (document_type, record_type) {
-        ("Actor", "npc") => Some(RecordFamily::Creature),
-        ("Actor", "character") => Some(RecordFamily::Character),
-        ("Actor", "familiar") => Some(RecordFamily::Companion),
-        ("Actor", "army") => Some(RecordFamily::Army),
-        ("Actor", "hazard") => Some(RecordFamily::Hazard),
-        ("Actor", "vehicle") => Some(RecordFamily::Vehicle),
-        (
-            "Item",
-            "ammo" | "armor" | "backpack" | "consumable" | "equipment" | "kit" | "shield"
-            | "treasure" | "weapon",
-        ) => Some(RecordFamily::Equipment),
-        ("Item", "feat") => Some(RecordFamily::Feat),
-        ("Item", "spell") => Some(RecordFamily::Spell),
-        ("Item", "affliction" | "affliction-instance") => Some(RecordFamily::Affliction),
-        ("Item", "action" | "condition" | "effect") => Some(RecordFamily::Rule),
-        ("Item", "ancestry" | "background" | "class" | "heritage") => {
-            Some(RecordFamily::CharacterOption)
-        }
-        ("Item", "deity") | ("JournalEntry", _) | ("JournalEntryPage", _) => {
-            Some(RecordFamily::Lore)
-        }
-        ("Macro", "script") | ("RollTable", _) => Some(RecordFamily::Tooling),
-        ("Item", "campaignFeature") => Some(RecordFamily::CampaignFeature),
-        _ => None,
-    }
-}
-
-pub(crate) fn string_field(raw: &Value, key: &str) -> Option<String> {
-    raw.get(key)?.as_str().map(str::to_string)
-}
-
-pub(crate) fn pointer_string(raw: &Value, pointer: &str) -> Option<String> {
-    raw.pointer(pointer)?.as_str().map(str::to_string)
-}
-
-pub(crate) fn normalized_pointer_string(raw: &Value, pointer: &str) -> Option<String> {
-    pointer_string(raw, pointer).and_then(|value| {
-        let normalized = value.trim();
-        if normalized.is_empty() {
-            None
-        } else {
-            Some(normalized.to_string())
-        }
-    })
-}
-
-pub(crate) fn pointer_bool(raw: &Value, pointer: &str) -> Option<bool> {
-    raw.pointer(pointer)?.as_bool()
-}
-
-pub(crate) fn pointer_i64(raw: &Value, pointer: &str) -> Option<i64> {
-    raw.pointer(pointer)?.as_i64()
 }
 
 pub(crate) fn normalize_price_cp(value: Option<&Value>) -> Option<i64> {
@@ -280,21 +177,6 @@ pub(crate) fn normalize_price_cp(value: Option<&Value>) -> Option<i64> {
     let copper = object.get("cp").and_then(Value::as_i64).unwrap_or(0);
     let total = platinum * 1000 + gold * 100 + silver * 10 + copper;
     (total > 0).then_some(total)
-}
-
-pub(crate) fn string_array_at_pointer(raw: &Value, pointer: &str) -> Vec<String> {
-    let mut values = raw
-        .pointer(pointer)
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(normalize_text)
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>();
-    values.sort();
-    values.dedup();
-    values
 }
 
 pub(crate) fn extract_speed_types(raw: &Value) -> Vec<String> {
@@ -323,19 +205,6 @@ pub(crate) fn extract_sense_types(raw: &Value) -> Vec<String> {
         .filter_map(|sense| normalized_pointer_string(sense, "/type"))
         .map(|value| metrics::slugify_metric_segment(&value).replace('_', " "))
         .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>();
-    values.sort();
-    values.dedup();
-    values
-}
-
-pub(crate) fn typed_collection(raw: &Value, pointer: &str) -> Vec<String> {
-    let mut values = raw
-        .pointer(pointer)
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| normalized_pointer_string(entry, "/type"))
         .collect::<Vec<_>>();
     values.sort();
     values.dedup();
@@ -435,100 +304,4 @@ pub(crate) fn extract_traits(raw: &Value) -> Vec<String> {
     traits.sort();
     traits.dedup();
     traits
-}
-
-pub(crate) fn normalize_text(value: &str) -> String {
-    value
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
-}
-
-pub(crate) fn strip_markup(value: &str) -> String {
-    let mut output = String::new();
-    let mut in_tag = false;
-    let mut chars = value.chars().peekable();
-    while let Some(character) = chars.next() {
-        match character {
-            '<' => in_tag = true,
-            '>' => {
-                in_tag = false;
-                output.push(' ');
-            }
-            '@' if chars.peek().is_some_and(|next| *next == 'U') => output.push(' '),
-            _ if !in_tag => output.push(character),
-            _ => {}
-        }
-    }
-    output.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-pub(crate) fn create_search_text(
-    name: &str,
-    description: Option<&str>,
-    traits: &[String],
-) -> String {
-    [Some(name), description, Some(&traits.join(" "))]
-        .into_iter()
-        .flatten()
-        .filter(|value| !value.trim().is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn classifies_complete_foundry_document_type_taxonomy() {
-        let cases = [
-            ("Actor", "npc", RecordFamily::Creature),
-            ("Actor", "character", RecordFamily::Character),
-            ("Actor", "familiar", RecordFamily::Companion),
-            ("Actor", "army", RecordFamily::Army),
-            ("Actor", "hazard", RecordFamily::Hazard),
-            ("Actor", "vehicle", RecordFamily::Vehicle),
-            ("Item", "ammo", RecordFamily::Equipment),
-            ("Item", "armor", RecordFamily::Equipment),
-            ("Item", "backpack", RecordFamily::Equipment),
-            ("Item", "consumable", RecordFamily::Equipment),
-            ("Item", "equipment", RecordFamily::Equipment),
-            ("Item", "kit", RecordFamily::Equipment),
-            ("Item", "shield", RecordFamily::Equipment),
-            ("Item", "treasure", RecordFamily::Equipment),
-            ("Item", "weapon", RecordFamily::Equipment),
-            ("Item", "feat", RecordFamily::Feat),
-            ("Item", "spell", RecordFamily::Spell),
-            ("Item", "action", RecordFamily::Rule),
-            ("Item", "condition", RecordFamily::Rule),
-            ("Item", "effect", RecordFamily::Rule),
-            ("Item", "ancestry", RecordFamily::CharacterOption),
-            ("Item", "background", RecordFamily::CharacterOption),
-            ("Item", "class", RecordFamily::CharacterOption),
-            ("Item", "heritage", RecordFamily::CharacterOption),
-            ("Item", "deity", RecordFamily::Lore),
-            ("JournalEntry", "JournalEntry", RecordFamily::Lore),
-            ("Macro", "script", RecordFamily::Tooling),
-            ("RollTable", "RollTable", RecordFamily::Tooling),
-            ("Item", "campaignFeature", RecordFamily::CampaignFeature),
-            ("Item", "affliction", RecordFamily::Affliction),
-            ("Item", "affliction-instance", RecordFamily::Affliction),
-        ];
-
-        for (document_type, record_type, expected) in cases {
-            assert_eq!(
-                classify_record(document_type, record_type),
-                Some(expected),
-                "{document_type}|{record_type}"
-            );
-        }
-    }
-
-    #[test]
-    fn leaves_unknown_foundry_taxonomy_for_skip_reporting() {
-        assert_eq!(classify_record("Actor", "mystery"), None);
-        assert_eq!(classify_record("Item", "mystery"), None);
-    }
 }
