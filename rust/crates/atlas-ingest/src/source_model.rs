@@ -15,6 +15,7 @@ pub struct BuildArtifactOptions {
     pub manifest_path: Option<PathBuf>,
     pub embedding_cache_root: Option<PathBuf>,
     pub reuse_embeddings: bool,
+    pub embedding_batch_size: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

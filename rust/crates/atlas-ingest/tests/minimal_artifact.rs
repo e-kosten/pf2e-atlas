@@ -46,6 +46,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
     let connection = Connection::open(&output_path)?;
     let (
@@ -149,6 +150,7 @@ fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: false,
+        embedding_batch_size: 64,
     })?;
 
     let wal_path = root.join("artifact.sqlite-wal");
@@ -162,6 +164,7 @@ fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: false,
+        embedding_batch_size: 64,
     })?;
 
     assert!(output_path.exists());
@@ -247,6 +250,7 @@ fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
 
     assert_eq!(report.pack_count, 1);
@@ -287,6 +291,7 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
     let connection = Connection::open(&output_path)?;
     let remaster_link_count: usize =
@@ -350,6 +355,7 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
     let connection = Connection::open(&output_path)?;
     let bosun_families: String = connection.query_row(
@@ -409,6 +415,7 @@ fn generates_affliction_records_from_staged_embedded_items()
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
     assert_eq!(report.diagnostics.generated_affliction_canonical_records, 1);
     assert_eq!(report.diagnostics.generated_affliction_instance_records, 1);
@@ -483,6 +490,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         manifest_path: None,
         embedding_cache_root: None,
         reuse_embeddings: true,
+        embedding_batch_size: 64,
     })?;
 
     assert_eq!(report.pack_count, 4);

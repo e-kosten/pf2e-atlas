@@ -282,30 +282,64 @@ impl TextEmbedder {
         self.embed_text(text, self.spec.document_prefix)
     }
 
+    pub fn embed_documents(&mut self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        self.embed_texts(texts, self.spec.document_prefix)
+    }
+
     fn embed_text(&mut self, text: &str, prefix: &str) -> Result<Vec<f32>, EmbeddingError> {
-        let prefixed_text = if prefix.is_empty() {
-            text.to_string()
-        } else {
-            format!("{prefix}{text}")
-        };
-        let normalized = normalize_embedding_text(&prefixed_text);
-        if normalized.is_empty() {
-            return Ok(vec![0.0; self.spec.dimensions]);
+        let mut vectors = self.embed_texts(&[text], prefix)?;
+        Ok(vectors.pop().expect("single text returns one vector"))
+    }
+
+    fn embed_texts(
+        &mut self,
+        texts: &[&str],
+        prefix: &str,
+    ) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
         }
 
-        let encoding = self
-            .tokenizer
-            .encode(EncodeInput::Single(normalized.into()), true)
-            .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
+        let mut vectors = vec![vec![0.0; self.spec.dimensions]; texts.len()];
+        let mut non_empty_indices = Vec::new();
+        let mut normalized_inputs = Vec::new();
+        for (index, text) in texts.iter().enumerate() {
+            let normalized = normalize_embedding_text(&prefixed_text(text, prefix));
+            if normalized.is_empty() {
+                continue;
+            }
+            non_empty_indices.push(index);
+            normalized_inputs.push(EncodeInput::Single(normalized.into()));
+        }
 
-        let token_count = encoding.get_ids().len();
-        let shape = [1usize, token_count];
-        let input_ids = Tensor::from_array((shape, to_i64_vec(encoding.get_ids())))
-            .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
-        let attention_mask = Tensor::from_array((shape, to_i64_vec(encoding.get_attention_mask())))
-            .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
-        let token_type_ids = Tensor::from_array((shape, to_i64_vec(encoding.get_type_ids())))
-            .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
+        if non_empty_indices.is_empty() {
+            return Ok(vectors);
+        }
+
+        let encodings = self
+            .tokenizer
+            .encode_batch(normalized_inputs, true)
+            .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
+        let token_count = encodings
+            .first()
+            .map(|encoding| encoding.get_ids().len())
+            .unwrap_or(0);
+        let shape = [encodings.len(), token_count];
+        let input_ids = Tensor::from_array((
+            shape,
+            to_i64_vec_batch(&encodings, |encoding| encoding.get_ids()),
+        ))
+        .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
+        let attention_mask = Tensor::from_array((
+            shape,
+            to_i64_vec_batch(&encodings, |encoding| encoding.get_attention_mask()),
+        ))
+        .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
+        let token_type_ids = Tensor::from_array((
+            shape,
+            to_i64_vec_batch(&encodings, |encoding| encoding.get_type_ids()),
+        ))
+        .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
 
         let outputs = self
             .session
@@ -336,6 +370,7 @@ impl TextEmbedder {
         if shape.len() != 3 {
             return Err(EmbeddingError::UnexpectedHiddenStateShape(shape));
         }
+        let batch = shape[0];
         let tokens = shape[1];
         let dimensions = shape[2];
         if dimensions != self.spec.dimensions {
@@ -344,7 +379,25 @@ impl TextEmbedder {
                 actual: dimensions,
             });
         }
-        mean_pool_normalized(data, tokens, dimensions, encoding.get_attention_mask())
+        for batch_index in 0..batch {
+            let output_index = non_empty_indices[batch_index];
+            let offset = batch_index * tokens * dimensions;
+            vectors[output_index] = mean_pool_normalized(
+                &data[offset..offset + (tokens * dimensions)],
+                tokens,
+                dimensions,
+                encodings[batch_index].get_attention_mask(),
+            )?;
+        }
+        Ok(vectors)
+    }
+}
+
+fn prefixed_text(text: &str, prefix: &str) -> String {
+    if prefix.is_empty() {
+        text.to_string()
+    } else {
+        format!("{prefix}{text}")
     }
 }
 
@@ -364,8 +417,14 @@ pub fn normalize_embedding_text(value: &str) -> String {
     normalized.trim().to_string()
 }
 
-fn to_i64_vec(values: &[u32]) -> Vec<i64> {
-    values.iter().map(|value| i64::from(*value)).collect()
+fn to_i64_vec_batch(
+    encodings: &[tokenizers::Encoding],
+    values: impl Fn(&tokenizers::Encoding) -> &[u32],
+) -> Vec<i64> {
+    encodings
+        .iter()
+        .flat_map(|encoding| values(encoding).iter().copied().map(i64::from))
+        .collect()
 }
 
 fn mean_pool_normalized(
@@ -507,6 +566,44 @@ mod tests {
         assert_eq!(document_vector.len(), 384);
         assert_eq!(query_vector.len(), 384);
         assert_eq!(document_vector, query_vector);
+    }
+
+    #[test]
+    fn minilm_batch_document_embeddings_match_single_embeddings_when_model_cache_exists() {
+        let config = EmbeddingRuntimeConfig::default_model(MAIN_REPO_MINILM_CACHE);
+        if !config.model_dir().join("onnx").join("model.onnx").exists() {
+            return;
+        }
+
+        let inputs = [
+            "Heal\nhealing\nRestore Hit Points.",
+            "Raise a Shield\ndefense\nUse your shield to protect yourself.",
+            "",
+        ];
+        let mut single_embedder =
+            TextEmbedder::load(&config).expect("local MiniLM cache should load from main repo");
+        let single_vectors = inputs
+            .iter()
+            .map(|input| {
+                single_embedder
+                    .embed_document(input)
+                    .expect("single document embedding should succeed")
+            })
+            .collect::<Vec<_>>();
+
+        let mut batch_embedder =
+            TextEmbedder::load(&config).expect("local MiniLM cache should load from main repo");
+        let batch_vectors = batch_embedder
+            .embed_documents(&inputs)
+            .expect("batch document embedding should succeed");
+
+        assert_eq!(batch_vectors.len(), single_vectors.len());
+        for (single, batch) in single_vectors.iter().zip(batch_vectors.iter()) {
+            assert_eq!(batch.len(), single.len());
+            for (single_value, batch_value) in single.iter().zip(batch.iter()) {
+                assert!((batch_value - single_value).abs() <= VECTOR_TOLERANCE);
+            }
+        }
     }
 
     struct VectorFixture {
