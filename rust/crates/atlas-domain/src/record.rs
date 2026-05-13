@@ -35,6 +35,19 @@ pub enum TimeKind {
     Other,
 }
 
+impl TimeKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Actions => "actions",
+            Self::Free => "free",
+            Self::Reaction => "reaction",
+            Self::Duration => "duration",
+            Self::Variable => "variable",
+            Self::Other => "other",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TimeUnit {
@@ -47,6 +60,20 @@ pub enum TimeUnit {
     Year,
 }
 
+impl TimeUnit {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Round => "round",
+            Self::Minute => "minute",
+            Self::Hour => "hour",
+            Self::Day => "day",
+            Self::Week => "week",
+            Self::Month => "month",
+            Self::Year => "year",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PublicationFamily {
@@ -56,11 +83,31 @@ pub enum PublicationFamily {
     Unknown,
 }
 
+impl PublicationFamily {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Core => "core",
+            Self::Rules => "rules",
+            Self::Adventure => "adventure",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetricDomain {
     Actor,
     Item,
+}
+
+impl MetricDomain {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Actor => "actor",
+            Self::Item => "item",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -69,6 +116,16 @@ pub enum MetricValueType {
     Number,
     Text,
     Boolean,
+}
+
+impl MetricValueType {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Number => "number",
+            Self::Text => "text",
+            Self::Boolean => "boolean",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

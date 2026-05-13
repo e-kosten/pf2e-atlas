@@ -95,6 +95,15 @@ pub enum RemasterLinkSource {
     Migration,
 }
 
+impl RemasterLinkSource {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RemasterJournal => "remaster_journal",
+            Self::Migration => "migration",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemasterLink {
     pub remaster: RecordKey,
