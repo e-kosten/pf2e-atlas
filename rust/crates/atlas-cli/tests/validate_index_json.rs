@@ -49,6 +49,13 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "document_embedding_count": 0,
             "reused_document_embedding_count": 0,
             "generated_document_embedding_count": 0,
+            "document_embedding_tokenization": {
+                "document_count": 0,
+                "truncated_document_count": 0,
+                "max_token_count": null,
+                "max_observed_token_count": 0,
+                "truncated_examples": []
+            },
             "build_duration_ms": "<build-duration-ms>",
             "source_signature": "<source-signature>",
             "diagnostics": {

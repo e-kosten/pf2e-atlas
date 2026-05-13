@@ -4,8 +4,8 @@ use atlas_domain::PackName;
 use serde::Deserialize;
 
 use crate::{
-    GeneratedDocumentEmbedding, IngestDiagnostics, LoadedRecord, PendingDocumentEmbedding,
-    RecordAlias, ReferenceEdge, RemasterLink,
+    DocumentEmbeddingTokenizationTelemetry, GeneratedDocumentEmbedding, IngestDiagnostics,
+    LoadedRecord, PendingDocumentEmbedding, RecordAlias, ReferenceEdge, RemasterLink,
 };
 
 #[derive(Debug, Clone)]
@@ -30,6 +30,7 @@ pub struct BuildArtifactReport {
     pub document_embedding_count: usize,
     pub reused_document_embedding_count: usize,
     pub generated_document_embedding_count: usize,
+    pub document_embedding_tokenization: DocumentEmbeddingTokenizationTelemetry,
     pub build_duration_ms: u128,
     pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
@@ -49,6 +50,7 @@ pub struct SourceLoad {
     pub remaster_links: Vec<RemasterLink>,
     pub pending_document_embeddings: Vec<PendingDocumentEmbedding>,
     pub document_embeddings: Vec<GeneratedDocumentEmbedding>,
+    pub document_embedding_tokenization: DocumentEmbeddingTokenizationTelemetry,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,

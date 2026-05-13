@@ -200,6 +200,7 @@ pub(crate) fn load_foundry_source_records(
         remaster_links: Vec::new(),
         pending_document_embeddings: Vec::new(),
         document_embeddings: Vec::new(),
+        document_embedding_tokenization: Default::default(),
         diagnostics,
         skipped_records,
         warnings,
