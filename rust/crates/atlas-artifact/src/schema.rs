@@ -81,6 +81,82 @@ pub const RECORD_COLUMNS: &[&str] = &[
     "raw_json",
 ];
 
+pub const PERSISTED_RECORD_COLUMNS: &[&str] = &[
+    "record_key",
+    "id",
+    "name",
+    "normalized_name",
+    "record_family",
+    "pack_name",
+    "pack_label",
+    "foundry_document_type",
+    "foundry_record_type",
+    "level",
+    "rarity",
+    "traits_json",
+    "system_category",
+    "system_group",
+    "system_base_item",
+    "system_usage",
+    "system_price_json",
+    "system_actions_value",
+    "system_time_value",
+    "system_duration_value",
+    "price_cp",
+    "activation_time_kind",
+    "activation_time_actions",
+    "activation_time_duration_value",
+    "activation_time_duration_unit",
+    "activation_time_text",
+    "duration_kind",
+    "duration_value",
+    "duration_unit",
+    "duration_text",
+    "publication_title",
+    "publication_remaster",
+    "description_text",
+    "blurb_text",
+    "publication_family",
+    "folder_id",
+    "taxonomy_families_json",
+    "variant_group_key",
+    "variant_base_name",
+    "variant_label",
+    "variant_axes_json",
+    "variant_confidence",
+    "variant_source",
+    "source_path",
+    "is_default_visible",
+    "search_text_projection",
+    "raw_json",
+];
+
+pub fn record_insert_sql() -> String {
+    insert_sql(TABLE_RECORDS, RECORD_COLUMNS)
+}
+
+pub fn persisted_record_select_sql() -> String {
+    ordered_select_sql(TABLE_RECORDS, PERSISTED_RECORD_COLUMNS, "record_key")
+}
+
+pub fn insert_sql(table: &str, columns: &[&str]) -> String {
+    let placeholders = (1..=columns.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "INSERT INTO {table} ({columns}) VALUES ({placeholders})",
+        columns = columns.join(", ")
+    )
+}
+
+pub fn ordered_select_sql(table: &str, columns: &[&str], order_by: &str) -> String {
+    format!(
+        "SELECT {columns} FROM {table} ORDER BY {order_by}",
+        columns = columns.join(", ")
+    )
+}
+
 pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     (TABLE_ARTIFACT_METADATA, &["key", "value"]),
     (
@@ -412,3 +488,36 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
             CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key);
             CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value);
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn record_insert_sql_uses_record_column_descriptor_order() {
+        assert_eq!(
+            record_insert_sql(),
+            format!(
+                "INSERT INTO records ({}) VALUES ({})",
+                RECORD_COLUMNS.join(", "),
+                (1..=RECORD_COLUMNS.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
+    }
+
+    #[test]
+    fn persisted_record_select_sql_uses_persisted_column_descriptor_order() {
+        assert_eq!(
+            persisted_record_select_sql(),
+            format!(
+                "SELECT {} FROM records ORDER BY record_key",
+                PERSISTED_RECORD_COLUMNS.join(", ")
+            )
+        );
+        assert!(!PERSISTED_RECORD_COLUMNS.contains(&"description_snippet"));
+        assert!(RECORD_COLUMNS.contains(&"description_snippet"));
+    }
+}
