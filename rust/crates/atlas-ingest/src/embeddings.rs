@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_embedding::{
-    DocumentEmbeddingInputParts, build_document_embedding_input, hash_document_embedding_input,
+    DocumentEmbeddingInputParts, EmbeddingError, TextEmbedder, build_document_embedding_input,
+    hash_document_embedding_input,
 };
 
 use crate::{LoadedRecord, RecordAlias, RemasterLink};
@@ -11,6 +12,14 @@ pub struct PendingDocumentEmbedding {
     pub record_key: String,
     pub input_text: String,
     pub input_hash: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GeneratedDocumentEmbedding {
+    pub record_key: String,
+    pub input_hash: String,
+    pub dimensions: usize,
+    pub vector: Vec<f32>,
 }
 
 pub(crate) fn build_pending_document_embeddings(
@@ -47,6 +56,31 @@ pub(crate) fn build_pending_document_embeddings(
     }
 
     pending
+}
+
+pub fn generate_document_embeddings(
+    pending: &[PendingDocumentEmbedding],
+    embedder: &mut TextEmbedder,
+) -> Result<Vec<GeneratedDocumentEmbedding>, EmbeddingError> {
+    generate_document_embeddings_with(pending, |input| embedder.embed_document(input))
+}
+
+fn generate_document_embeddings_with<E>(
+    pending: &[PendingDocumentEmbedding],
+    mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
+) -> Result<Vec<GeneratedDocumentEmbedding>, E> {
+    pending
+        .iter()
+        .map(|entry| {
+            let vector = embed_document(&entry.input_text)?;
+            Ok(GeneratedDocumentEmbedding {
+                record_key: entry.record_key.clone(),
+                input_hash: entry.input_hash.clone(),
+                dimensions: vector.len(),
+                vector,
+            })
+        })
+        .collect()
 }
 
 fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String>> {
@@ -113,6 +147,37 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["packs:remaster1"]
         );
+    }
+
+    #[test]
+    fn generates_document_vectors_from_pending_inputs() {
+        let pending = vec![
+            PendingDocumentEmbedding {
+                record_key: "packs:first".to_string(),
+                input_text: "first input".to_string(),
+                input_hash: "first-hash".to_string(),
+            },
+            PendingDocumentEmbedding {
+                record_key: "packs:second".to_string(),
+                input_text: "second input".to_string(),
+                input_hash: "second-hash".to_string(),
+            },
+        ];
+
+        let generated = generate_document_embeddings_with(&pending, |input| {
+            Ok::<_, std::convert::Infallible>(vec![input.len() as f32, 1.0])
+        })
+        .expect("fixture embedding should succeed");
+
+        assert_eq!(generated.len(), 2);
+        assert_eq!(generated[0].record_key, "packs:first");
+        assert_eq!(generated[0].input_hash, "first-hash");
+        assert_eq!(generated[0].dimensions, 2);
+        assert_eq!(generated[0].vector, vec![11.0, 1.0]);
+        assert_eq!(generated[1].record_key, "packs:second");
+        assert_eq!(generated[1].input_hash, "second-hash");
+        assert_eq!(generated[1].dimensions, 2);
+        assert_eq!(generated[1].vector, vec![12.0, 1.0]);
     }
 
     fn test_record(key: &str, name: &str, is_default_visible: bool) -> LoadedRecord {

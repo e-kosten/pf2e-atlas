@@ -22,11 +22,13 @@ mod variant_taxonomy;
 mod variants;
 mod writer;
 
+pub use embeddings::{
+    GeneratedDocumentEmbedding, PendingDocumentEmbedding, generate_document_embeddings,
+};
 pub use model::IngestDiagnostics;
 pub use report::analyze_foundry_source;
 pub use source_model::{BuildArtifactOptions, BuildArtifactReport, SkippedRecord};
 
-pub(crate) use embeddings::PendingDocumentEmbedding;
 pub(crate) use generated_affliction_model::{
     AfflictionFamily, AfflictionOccurrence, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
 };
