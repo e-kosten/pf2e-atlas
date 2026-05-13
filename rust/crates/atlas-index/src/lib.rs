@@ -11,6 +11,7 @@ use thiserror::Error;
 mod contract;
 pub mod inspect;
 mod metadata;
+pub mod records;
 mod sql;
 #[cfg(test)]
 mod tests;

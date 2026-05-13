@@ -8,6 +8,7 @@ use atlas_artifact::metadata::{
 use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use rusqlite::Connection;
 
+use crate::records::{load_persisted_record_set, load_persisted_records};
 use crate::{ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index};
 
 #[test]
@@ -162,6 +163,62 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
         diagnostic.family == ArtifactContractFamily::Fts
             && diagnostic.key.as_deref() == Some("records_fts:hidden_rows")
     }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records");
+    create_contract_database(&path)?;
+
+    let records = load_persisted_records(&path)?;
+
+    assert_eq!(records.len(), 3);
+    assert_eq!(records[0].key.to_string(), "actions:testAction1");
+    assert_eq!(records[0].record_family.as_str(), "rule");
+    assert_eq!(records[0].pack_name.as_str(), "actions");
+    assert_eq!(records[0].traits, Vec::<String>::new());
+    assert!(records[0].is_default_visible);
+    assert_eq!(records[0].source_path, "packs/actions/test-action-1.json");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-record-set");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO reference_edges (from_record_key, to_record_key, display_text, reference_text)
+             VALUES ('actions:testAction1', 'actions:testAction2', 'Test Action 2', '@UUID[Compendium.pf2e.actions.Item.testAction2]')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+             VALUES ('actions:testAction1', 'Test Alias', 'test alias', 'compendium_source', 'fixture')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO remaster_links (remaster_record_key, legacy_record_key, source_kind, source_ref)
+             VALUES ('actions:testAction1', 'actions:testAction3', 'migration', 'fixture')",
+        [],
+    )?;
+    drop(connection);
+
+    let record_set = load_persisted_record_set(&path)?;
+
+    assert_eq!(record_set.records.len(), 3);
+    assert_eq!(record_set.reference_edges.len(), 1);
+    assert_eq!(record_set.aliases.len(), 1);
+    assert_eq!(record_set.remaster_links.len(), 1);
+    assert_eq!(
+        record_set.reference_edges[0].to_record_key.to_string(),
+        "actions:testAction2"
+    );
+    assert_eq!(record_set.aliases[0].source.as_str(), "compendium_source");
+    assert_eq!(record_set.remaster_links[0].source.as_str(), "migration");
     fs::remove_file(path)?;
     Ok(())
 }
