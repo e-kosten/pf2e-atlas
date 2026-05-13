@@ -76,6 +76,20 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(validate_json["artifact_record_count"], "1");
     assert_eq!(validate_json["generated_record_count"], "0");
 
+    let validate_vectors_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate-vectors", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(validate_vectors_output.status.code(), Some(1));
+    let validate_vectors_json: Value = serde_json::from_slice(&validate_vectors_output.stdout)?;
+    assert_eq!(
+        validate_vectors_json["code"],
+        "VECTOR_EXTENSION_UNAVAILABLE"
+    );
+    assert_eq!(validate_vectors_json["diagnostics"][0]["key"], "sqlite_vec");
+
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "inspect", "--index"])
         .arg(&index_path)

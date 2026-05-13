@@ -10,7 +10,10 @@ use atlas_embedding::default_embedding_model_spec;
 use rusqlite::Connection;
 
 use crate::records::{load_persisted_record_set, load_persisted_records};
-use crate::{ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index};
+use crate::{
+    ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index,
+    validate_vector_index, validate_vector_index_with_loader,
+};
 
 #[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
@@ -224,6 +227,41 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
         diagnostic.family == ArtifactContractFamily::Embedding
             && diagnostic.key.as_deref() == Some("document_embedding_cache:default_visible_count")
     }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn vector_validation_reports_sqlite_vec_unavailable() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-extension-unavailable");
+    create_contract_database(&path)?;
+
+    let report = validate_vector_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.family == ArtifactContractFamily::Embedding
+            && diagnostic.key.as_deref() == Some("sqlite_vec")
+    }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn vector_validation_reports_loader_failure() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-loader-failure");
+    create_contract_database(&path)?;
+
+    let report =
+        validate_vector_index_with_loader(&path, |_| Err("fixture loader failed".to_string()))?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
+    assert_eq!(
+        report.diagnostics[0].actual.as_deref(),
+        Some("fixture loader failed")
+    );
     fs::remove_file(path)?;
     Ok(())
 }

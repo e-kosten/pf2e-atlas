@@ -16,6 +16,7 @@ mod sql;
 #[cfg(test)]
 mod tests;
 pub mod validation;
+pub mod vector;
 
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
@@ -24,6 +25,9 @@ pub use inspect::{
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus,
+};
+pub use vector::{
+    validate_vector_index, validate_vector_index_report, validate_vector_index_with_loader,
 };
 
 #[derive(Debug, Error)]

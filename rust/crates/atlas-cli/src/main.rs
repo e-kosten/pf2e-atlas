@@ -3,7 +3,10 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use atlas_index::{ValidationCode, ValidationStatus, inspect_index, validate_index_report};
+use atlas_index::{
+    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
+    validate_index_report, validate_vector_index_report,
+};
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
@@ -39,6 +42,8 @@ enum IndexCommand {
     Inspect(IndexPathOptions),
     #[command(about = "Open an index read-only and validate Rust artifact metadata")]
     Validate(IndexPathOptions),
+    #[command(about = "Validate sqlite-vec availability and record_vector_index coherence")]
+    ValidateVectors(IndexPathOptions),
 }
 
 #[derive(Debug, Args)]
@@ -90,6 +95,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Build(options) => run_index_build(options),
             IndexCommand::Inspect(options) => run_index_inspect(options),
             IndexCommand::Validate(options) => run_index_validate(options),
+            IndexCommand::ValidateVectors(options) => run_index_validate_vectors(options),
         },
     }
 }
@@ -219,13 +225,24 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
 
 fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
     let report = validate_index_report(&options.index);
+    write_validation_report(report, options.json)
+}
 
+fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
+    let report = validate_vector_index_report(&options.index);
+    write_validation_report(report, options.json)
+}
+
+fn write_validation_report(
+    report: ArtifactValidationReport,
+    json: bool,
+) -> Result<ExitCode, String> {
     let exit_code = match report.status {
         ValidationStatus::Ok => ExitCode::SUCCESS,
         ValidationStatus::Error => ExitCode::from(1),
     };
 
-    if options.json {
+    if json {
         let body = serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?;
         println!("{body}");
     } else {
@@ -253,6 +270,7 @@ fn validation_code_label(code: &ValidationCode) -> &'static str {
         ValidationCode::EmbeddingMismatch => "embedding-mismatch",
         ValidationCode::FtsMismatch => "fts-mismatch",
         ValidationCode::ManifestMismatch => "manifest-mismatch",
+        ValidationCode::VectorExtensionUnavailable => "vector-extension-unavailable",
         ValidationCode::QueryFailed => "query-failed",
     }
 }
