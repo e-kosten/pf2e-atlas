@@ -106,6 +106,13 @@ cargo build --workspace
 - Run the full Node/repo gate only when touching TypeScript runtime behavior, changing repo-wide Node tooling, or when explicitly preparing to promote Rust migration work to `main`.
 - The vendored PF2E checkout is expected at `vendor/pf2e`. In this worktree it may be a gitignored symlink to the primary checkout's vendored data; do not remove it just because it is untracked.
 - Follow `docs/backlog/rust-cli-runtime/migration-checklist.md` as the active handoff contract for Rust migration scope, validation, and completion wording.
+- Treat Rust crate and module ownership as part of the definition of done. Do not add new behavior to `atlas-ingest/src/lib.rs` except public exports and top-level orchestration; new ingest policy should live in a concern module named for the policy it owns.
+- Keep Rust modules single-purpose. A module may load source data, normalize source records, generate derived records, extract references, extract aliases/remaster links, assign variants, extract metrics, define artifact schema, write SQLite rows, validate artifacts, inspect artifacts, or present CLI output. It should not own more than one of those responsibilities unless the combination is explicitly documented in the module name and architecture notes.
+- Avoid generic Rust `utils.rs` or `helpers.rs` modules. Put helpers beside the concern that owns their policy; promote them only when at least two existing owners need the same stable primitive and there is no clearer domain owner.
+- If a Rust change touches SQLite artifact schema, update the shared artifact contract/schema owner and verify writer and validator expectations still agree. Do not maintain independent table or column lists in writer, validator, fixtures, and CLI code.
+- Keep `atlas-cli` thin. It should own argument parsing, exit codes, and terminal/JSON presentation. Durable analysis, validation, lookup, search, or report-shaping semantics belong in the runtime crate that owns the data.
+- For substantial Rust refactors, include a structure check before reporting complete: identify modules over roughly 700 lines, explain why any remain that large, and confirm no new behavior was added to an overlarge catch-all module.
+- When delegating Rust migration work to agents, include explicit ownership constraints in the assignment, such as "do not edit `atlas-ingest/src/lib.rs` except exports/orchestration" and "put reference extraction in `references.rs`." Treat those constraints as acceptance criteria, not style preferences.
 
 ## Commit & Pull Request Guidelines
 

@@ -13,10 +13,16 @@ use atlas_domain::{
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
     EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND,
     LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS, ValidationCode, artifact_metadata_keys,
+    artifact_schema::{REQUIRED_COLUMNS, REQUIRED_TABLES},
 };
 use rusqlite::{Connection, OpenFlags};
-use serde::Serialize;
 use thiserror::Error;
+
+pub mod inspect;
+pub use inspect::{
+    IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
+    TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport, inspect_index,
+};
 
 #[derive(Debug, Error)]
 pub enum IndexValidationError {
@@ -26,66 +32,6 @@ pub enum IndexValidationError {
     QueryFailed(String),
     #[error("index artifact metadata is invalid: {0}")]
     InvalidArtifact(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct IndexInspectionReport {
-    pub status: String,
-    pub index: String,
-    pub validation: ArtifactValidationReport,
-    pub tables: BTreeMap<String, usize>,
-    pub records: RecordCoverageReport,
-    pub text: TextCoverageReport,
-    pub taxonomy: TaxonomyCoverageReport,
-    pub variants: VariantCoverageReport,
-    pub relationships: RelationshipCoverageReport,
-    pub metrics: MetricCoverageReport,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct RecordCoverageReport {
-    pub total_records: usize,
-    pub default_visible_records: usize,
-    pub records_with_level: usize,
-    pub records_with_rarity: usize,
-    pub by_record_family: BTreeMap<String, usize>,
-    pub by_foundry_taxonomy: BTreeMap<String, usize>,
-    pub by_publication_family: BTreeMap<String, usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct TextCoverageReport {
-    pub records_with_description: usize,
-    pub records_with_blurb: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct TaxonomyCoverageReport {
-    pub records_with_taxonomy_families: usize,
-    pub distinct_taxonomy_families: usize,
-    pub top_taxonomy_families: BTreeMap<String, usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct VariantCoverageReport {
-    pub grouped_records: usize,
-    pub distinct_groups: usize,
-    pub by_source: BTreeMap<String, usize>,
-    pub by_axis: BTreeMap<String, usize>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct RelationshipCoverageReport {
-    pub reference_edges: usize,
-    pub record_aliases: usize,
-    pub remaster_links: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct MetricCoverageReport {
-    pub metric_rows_by_domain: BTreeMap<String, usize>,
-    pub metric_keys_by_domain: BTreeMap<String, usize>,
-    pub metric_value_catalog_rows: usize,
 }
 
 pub fn validate_index(
@@ -143,33 +89,6 @@ pub fn validate_index(
             diagnostics,
         ))
     }
-}
-
-pub fn inspect_index(
-    path: impl AsRef<Path>,
-) -> Result<IndexInspectionReport, IndexValidationError> {
-    let path = path.as_ref();
-    let validation = validate_index(path)?;
-    if validation.status != atlas_domain::ValidationStatus::Ok {
-        return Err(IndexValidationError::InvalidArtifact(validation.message));
-    }
-
-    let index = path.display().to_string();
-    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-
-    Ok(IndexInspectionReport {
-        status: "ok".to_string(),
-        index,
-        validation,
-        tables: inspect_tables(&connection)?,
-        records: inspect_records(&connection)?,
-        text: inspect_text(&connection)?,
-        taxonomy: inspect_taxonomy(&connection)?,
-        variants: inspect_variants(&connection)?,
-        relationships: inspect_relationships(&connection)?,
-        metrics: inspect_metrics(&connection)?,
-    })
 }
 
 fn is_missing_value(key: &str, value: &str) -> bool {
@@ -506,205 +425,6 @@ struct BooleanColumnCheck {
     sql: &'static str,
 }
 
-const REQUIRED_TABLES: &[&str] = &[
-    "artifact_metadata",
-    "packs",
-    "records",
-    "record_traits",
-    "reference_edges",
-    "record_aliases",
-    "remaster_links",
-    "record_metrics",
-    "metric_key_catalog",
-    "metric_value_catalog",
-    "actor_records",
-    "item_records",
-    "spell_records",
-    "records_fts",
-];
-
-const RECORD_COLUMNS: &[&str] = &[
-    "record_key",
-    "id",
-    "name",
-    "normalized_name",
-    "record_family",
-    "pack_name",
-    "pack_label",
-    "foundry_document_type",
-    "foundry_record_type",
-    "level",
-    "rarity",
-    "traits_json",
-    "system_category",
-    "system_group",
-    "system_base_item",
-    "system_usage",
-    "system_price_json",
-    "system_actions_value",
-    "system_time_value",
-    "system_duration_value",
-    "price_cp",
-    "activation_time_kind",
-    "activation_time_actions",
-    "activation_time_duration_value",
-    "activation_time_duration_unit",
-    "activation_time_text",
-    "duration_kind",
-    "duration_value",
-    "duration_unit",
-    "duration_text",
-    "publication_title",
-    "publication_remaster",
-    "description_text",
-    "blurb_text",
-    "description_snippet",
-    "publication_family",
-    "folder_id",
-    "taxonomy_families_json",
-    "variant_group_key",
-    "variant_base_name",
-    "variant_label",
-    "variant_axes_json",
-    "variant_confidence",
-    "variant_source",
-    "source_path",
-    "is_default_visible",
-    "search_text_projection",
-    "raw_json",
-];
-
-const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
-    ("artifact_metadata", &["key", "value"]),
-    (
-        "packs",
-        &[
-            "name",
-            "label",
-            "document_type",
-            "declared_path",
-            "resolved_path",
-            "record_count",
-        ],
-    ),
-    ("records", RECORD_COLUMNS),
-    ("record_traits", &["record_key", "trait"]),
-    (
-        "reference_edges",
-        &[
-            "from_record_key",
-            "to_record_key",
-            "display_text",
-            "reference_text",
-        ],
-    ),
-    (
-        "record_aliases",
-        &[
-            "canonical_record_key",
-            "alias_text",
-            "normalized_alias",
-            "source_kind",
-            "source_ref",
-        ],
-    ),
-    (
-        "remaster_links",
-        &[
-            "remaster_record_key",
-            "legacy_record_key",
-            "source_kind",
-            "source_ref",
-        ],
-    ),
-    (
-        "record_metrics",
-        &[
-            "record_key",
-            "metric_domain",
-            "metric_key",
-            "value_type",
-            "number_value",
-            "text_value",
-            "bool_value",
-        ],
-    ),
-    (
-        "metric_key_catalog",
-        &[
-            "metric_domain",
-            "record_family",
-            "namespace_prefix",
-            "metric_key",
-            "value_type",
-            "catalog_count",
-            "numeric_min",
-            "numeric_max",
-        ],
-    ),
-    (
-        "metric_value_catalog",
-        &[
-            "metric_domain",
-            "record_family",
-            "metric_key",
-            "value",
-            "catalog_count",
-        ],
-    ),
-    (
-        "actor_records",
-        &[
-            "record_key",
-            "size",
-            "languages_json",
-            "speed_types_json",
-            "senses_json",
-            "immunities_json",
-            "resistances_json",
-            "weaknesses_json",
-            "disable_text",
-            "disable_skills_json",
-            "is_complex",
-        ],
-    ),
-    (
-        "item_records",
-        &[
-            "record_key",
-            "system_category",
-            "system_base_item",
-            "system_group",
-            "system_usage",
-            "price_cp",
-            "bulk_value",
-            "hands_requirement",
-            "damage_types_json",
-        ],
-    ),
-    (
-        "spell_records",
-        &[
-            "record_key",
-            "traditions_json",
-            "spell_kinds_json",
-            "range_text",
-            "range_value",
-            "target_text",
-            "area_type",
-            "area_value",
-            "save_type",
-            "sustained",
-            "basic_save",
-            "damage_types_json",
-        ],
-    ),
-    (
-        "records_fts",
-        &["record_key", "name", "search_text_projection"],
-    ),
-];
-
 const BOOLEAN_COLUMN_CHECKS: &[BooleanColumnCheck] = &[
     BooleanColumnCheck {
         key: "records.publication_remaster",
@@ -901,156 +621,6 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
     ),
 ];
 
-fn inspect_tables(
-    connection: &Connection,
-) -> Result<BTreeMap<String, usize>, IndexValidationError> {
-    let table_names = [
-        "artifact_metadata",
-        "packs",
-        "records",
-        "record_traits",
-        "records_fts",
-        "reference_edges",
-        "record_aliases",
-        "remaster_links",
-        "record_metrics",
-        "metric_key_catalog",
-        "metric_value_catalog",
-        "actor_records",
-        "item_records",
-        "spell_records",
-    ];
-    let mut tables = BTreeMap::new();
-    for table in table_names {
-        tables.insert(table.to_string(), count_rows(connection, table)?);
-    }
-    Ok(tables)
-}
-
-fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, IndexValidationError> {
-    Ok(RecordCoverageReport {
-        total_records: count_rows(connection, "records")?,
-        default_visible_records: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
-        )?,
-        records_with_level: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE level IS NOT NULL",
-        )?,
-        records_with_rarity: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE rarity IS NOT NULL AND TRIM(rarity) <> ''",
-        )?,
-        by_record_family: count_grouped(
-            connection,
-            "SELECT record_family, COUNT(*) FROM records GROUP BY record_family",
-        )?,
-        by_foundry_taxonomy: count_grouped(
-            connection,
-            "SELECT foundry_document_type || '|' || foundry_record_type, COUNT(*)
-             FROM records
-             GROUP BY foundry_document_type, foundry_record_type",
-        )?,
-        by_publication_family: count_grouped(
-            connection,
-            "SELECT publication_family, COUNT(*) FROM records GROUP BY publication_family",
-        )?,
-    })
-}
-
-fn inspect_text(connection: &Connection) -> Result<TextCoverageReport, IndexValidationError> {
-    Ok(TextCoverageReport {
-        records_with_description: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE description_text IS NOT NULL AND TRIM(description_text) <> ''",
-        )?,
-        records_with_blurb: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE blurb_text IS NOT NULL AND TRIM(blurb_text) <> ''",
-        )?,
-    })
-}
-
-fn inspect_taxonomy(
-    connection: &Connection,
-) -> Result<TaxonomyCoverageReport, IndexValidationError> {
-    Ok(TaxonomyCoverageReport {
-        records_with_taxonomy_families: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE taxonomy_families_json <> '[]'",
-        )?,
-        distinct_taxonomy_families: count_sql(
-            connection,
-            "SELECT COUNT(DISTINCT taxonomy_family.value)
-             FROM records, json_each(records.taxonomy_families_json) AS taxonomy_family",
-        )?,
-        top_taxonomy_families: count_grouped_limited(
-            connection,
-            "SELECT taxonomy_family.value, COUNT(*)
-             FROM records, json_each(records.taxonomy_families_json) AS taxonomy_family
-             GROUP BY taxonomy_family.value
-             ORDER BY COUNT(*) DESC, taxonomy_family.value ASC
-             LIMIT 20",
-        )?,
-    })
-}
-
-fn inspect_variants(
-    connection: &Connection,
-) -> Result<VariantCoverageReport, IndexValidationError> {
-    Ok(VariantCoverageReport {
-        grouped_records: count_sql(
-            connection,
-            "SELECT COUNT(*) FROM records WHERE variant_group_key IS NOT NULL",
-        )?,
-        distinct_groups: count_sql(
-            connection,
-            "SELECT COUNT(DISTINCT variant_group_key) FROM records WHERE variant_group_key IS NOT NULL",
-        )?,
-        by_source: count_grouped(
-            connection,
-            "SELECT variant_source, COUNT(*)
-             FROM records
-             WHERE variant_group_key IS NOT NULL
-             GROUP BY variant_source",
-        )?,
-        by_axis: count_grouped(
-            connection,
-            "SELECT variant_axis.value, COUNT(*)
-             FROM records, json_each(records.variant_axes_json) AS variant_axis
-             WHERE records.variant_group_key IS NOT NULL
-             GROUP BY variant_axis.value",
-        )?,
-    })
-}
-
-fn inspect_relationships(
-    connection: &Connection,
-) -> Result<RelationshipCoverageReport, IndexValidationError> {
-    Ok(RelationshipCoverageReport {
-        reference_edges: count_rows(connection, "reference_edges")?,
-        record_aliases: count_rows(connection, "record_aliases")?,
-        remaster_links: count_rows(connection, "remaster_links")?,
-    })
-}
-
-fn inspect_metrics(connection: &Connection) -> Result<MetricCoverageReport, IndexValidationError> {
-    Ok(MetricCoverageReport {
-        metric_rows_by_domain: count_grouped(
-            connection,
-            "SELECT metric_domain, COUNT(*) FROM record_metrics GROUP BY metric_domain",
-        )?,
-        metric_keys_by_domain: count_grouped(
-            connection,
-            "SELECT metric_domain, COUNT(DISTINCT metric_key)
-             FROM record_metrics
-             GROUP BY metric_domain",
-        )?,
-        metric_value_catalog_rows: count_rows(connection, "metric_value_catalog")?,
-    })
-}
-
 fn count_rows(connection: &Connection, table: &str) -> Result<usize, IndexValidationError> {
     let sql = format!("SELECT COUNT(*) FROM {table}");
     count_sql(connection, &sql)
@@ -1060,34 +630,6 @@ fn count_sql(connection: &Connection, sql: &str) -> Result<usize, IndexValidatio
     connection
         .query_row(sql, [], |row| row.get::<_, usize>(0))
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))
-}
-
-fn count_grouped(
-    connection: &Connection,
-    sql: &str,
-) -> Result<BTreeMap<String, usize>, IndexValidationError> {
-    count_grouped_limited(connection, sql)
-}
-
-fn count_grouped_limited(
-    connection: &Connection,
-    sql: &str,
-) -> Result<BTreeMap<String, usize>, IndexValidationError> {
-    let mut statement = connection
-        .prepare(sql)
-        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, usize>(1)?))
-        })
-        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
-    let mut counts = BTreeMap::new();
-    for row in rows {
-        let (key, value) =
-            row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
-        counts.insert(key, value);
-    }
-    Ok(counts)
 }
 
 fn metadata_value(
