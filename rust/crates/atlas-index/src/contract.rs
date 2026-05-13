@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
+use atlas_artifact::metadata::artifact_metadata_keys;
 use atlas_artifact::schema::{REQUIRED_COLUMNS, REQUIRED_TABLES, TABLE_RECORDS, TABLE_RECORDS_FTS};
-use atlas_domain::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, ValidationCode, artifact_metadata_keys,
-};
 use rusqlite::Connection;
 
-use crate::IndexValidationError;
 use crate::sql::{count_rows, count_sql, table_columns, table_exists};
+use crate::{
+    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError, ValidationCode,
+};
 
 pub(crate) fn validate_artifact_contract(
     connection: &Connection,

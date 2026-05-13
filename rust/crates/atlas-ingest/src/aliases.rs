@@ -1,9 +1,17 @@
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::Path;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use serde_json::Value;
+
+mod html;
+mod migrations;
+
+use html::{html_cells, html_elements, html_text};
+use migrations::migration_rename_pairs_from_root;
+
+#[cfg(test)]
+use migrations::migration_rename_pairs;
 
 use crate::normalize::{normalize_text, pointer_bool, pointer_string};
 use crate::references::{
@@ -432,29 +440,6 @@ fn extract_migration_remaster_links(
     links
 }
 
-fn migration_rename_pairs_from_root(source_root: &Path) -> Vec<(String, String)> {
-    let migration_root = source_root.join("src/module/migration/migrations");
-    let Ok(entries) = fs::read_dir(migration_root) else {
-        return Vec::new();
-    };
-
-    let mut paths = entries
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "ts"))
-        .collect::<Vec<_>>();
-    paths.sort();
-
-    let mut pairs = Vec::new();
-    for path in paths {
-        let Ok(source) = fs::read_to_string(path) else {
-            continue;
-        };
-        pairs.extend(migration_rename_pairs(&source));
-    }
-    pairs
-}
-
 fn add_remaster_link(
     links: &mut Vec<RemasterLink>,
     remaster_record_key: &RecordKey,
@@ -600,95 +585,6 @@ fn expand_grouped_alias_text(alias_text: &str, expected_count: usize) -> Option<
             .map(|variant| format!("{base_name} ({variant})"))
             .collect(),
     )
-}
-
-fn migration_rename_pairs(source: &str) -> Vec<(String, String)> {
-    let mut pairs = Vec::new();
-    let mut rest = source;
-    while let Some(start) = rest.find("Rename all uses and mentions of \"") {
-        rest = &rest[start + "Rename all uses and mentions of \"".len()..];
-        let Some(old_end) = rest.find('"') else {
-            break;
-        };
-        let legacy_name = rest[..old_end].trim().to_string();
-        rest = &rest[old_end + 1..];
-        let Some(to_start) = rest.find(" to \"") else {
-            continue;
-        };
-        rest = &rest[to_start + " to \"".len()..];
-        let Some(new_end) = rest.find('"') else {
-            break;
-        };
-        let remaster_name = rest[..new_end].trim().to_string();
-        rest = &rest[new_end + 1..];
-        if !legacy_name.is_empty() && !remaster_name.is_empty() {
-            pairs.push((legacy_name, remaster_name));
-        }
-    }
-    pairs
-}
-
-fn html_cells(row_html: &str) -> Vec<String> {
-    let mut cells = html_elements(row_html, "td");
-    cells.extend(html_elements(row_html, "th"));
-    cells
-}
-
-fn html_elements(html: &str, tag_name: &str) -> Vec<String> {
-    let lower = html.to_lowercase();
-    let open_prefix = format!("<{tag_name}");
-    let close_tag = format!("</{tag_name}>");
-    let mut elements = Vec::new();
-    let mut offset = 0;
-    while let Some(open_relative) = lower[offset..].find(&open_prefix) {
-        let open = offset + open_relative;
-        let Some(open_end_relative) = lower[open..].find('>') else {
-            break;
-        };
-        let content_start = open + open_end_relative + 1;
-        let Some(close_relative) = lower[content_start..].find(&close_tag) else {
-            break;
-        };
-        let close = content_start + close_relative;
-        elements.push(html[content_start..close].to_string());
-        offset = close + close_tag.len();
-    }
-    elements
-}
-
-fn html_text(value: &str) -> String {
-    let mut output = String::new();
-    let mut in_tag = false;
-    let mut chars = value.chars().peekable();
-    while let Some(character) = chars.next() {
-        match character {
-            '<' => in_tag = true,
-            '>' => {
-                in_tag = false;
-                output.push(' ');
-            }
-            '@' if !in_tag && chars.peek().is_some_and(|next| *next == 'U') => {
-                for next in chars.by_ref() {
-                    if next == ']' {
-                        break;
-                    }
-                }
-                if chars.peek().is_some_and(|next| *next == '{') {
-                    let _ = chars.next();
-                    for display in chars.by_ref() {
-                        if display == '}' {
-                            break;
-                        }
-                        output.push(display);
-                    }
-                }
-                output.push(' ');
-            }
-            _ if !in_tag => output.push(character),
-            _ => {}
-        }
-    }
-    output.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[cfg(test)]

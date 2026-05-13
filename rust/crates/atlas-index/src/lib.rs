@@ -2,9 +2,8 @@
 
 use std::path::Path;
 
-use atlas_domain::{
-    ARTIFACT_METADATA_TABLE, ArtifactValidationReport, LEGACY_METADATA_TABLE,
-    REQUIRED_ARTIFACT_METADATA_KEYS, ValidationCode, ValidationStatus,
+use atlas_artifact::metadata::{
+    ARTIFACT_METADATA_TABLE, LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS,
 };
 use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
@@ -15,10 +14,15 @@ mod metadata;
 mod sql;
 #[cfg(test)]
 mod tests;
+pub mod validation;
 
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport, inspect_index,
+};
+pub use validation::{
+    ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
+    ArtifactValidationReport, ValidationCode, ValidationStatus,
 };
 
 #[derive(Debug, Error)]

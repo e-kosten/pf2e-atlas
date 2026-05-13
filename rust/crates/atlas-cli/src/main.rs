@@ -6,8 +6,7 @@ use std::process::ExitCode;
 use atlas_artifact::schema::{
     TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS, TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
 };
-use atlas_domain::{ValidationCode, ValidationStatus};
-use atlas_index::{inspect_index, validate_index_report};
+use atlas_index::{ValidationCode, ValidationStatus, inspect_index, validate_index_report};
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact,
     report::{diagnostics_json, skipped_records_json},

@@ -1,14 +1,14 @@
 use std::fs;
 use std::path::PathBuf;
 
-use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
-use atlas_domain::{
+use atlas_artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_EMBEDDING_MODEL_ID,
-    ValidationCode, ValidationStatus, artifact_metadata_keys,
+    artifact_metadata_keys,
 };
+use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use rusqlite::Connection;
 
-use crate::validate_index;
+use crate::{ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index};
 
 #[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
@@ -134,10 +134,7 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert_eq!(report.diagnostics.len(), 1);
-    assert_eq!(
-        report.diagnostics[0].family,
-        atlas_domain::ArtifactContractFamily::Schema
-    );
+    assert_eq!(report.diagnostics[0].family, ArtifactContractFamily::Schema);
     assert_eq!(
         report.diagnostics[0].key.as_deref(),
         Some("table:item_records")
@@ -162,7 +159,7 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == atlas_domain::ArtifactContractFamily::Fts
+        diagnostic.family == ArtifactContractFamily::Fts
             && diagnostic.key.as_deref() == Some("records_fts:hidden_rows")
     }));
     fs::remove_file(path)?;

@@ -2,22 +2,30 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use atlas_domain::{
+use atlas_artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
     EXPECTED_CONTENT_HASH_ALGORITHM, EXPECTED_EMBEDDING_DIMENSIONS,
     EXPECTED_EMBEDDING_DISTANCE_METRIC, EXPECTED_EMBEDDING_DOCUMENT_PREFIX,
     EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID, EXPECTED_EMBEDDING_MODEL_REVISION,
     EXPECTED_EMBEDDING_NORMALIZATION, EXPECTED_EMBEDDING_POOLING,
     EXPECTED_EMBEDDING_PROVIDER_FAMILY, EXPECTED_EMBEDDING_QUERY_PREFIX,
-    EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, MetricDomain,
-    MetricValueType, PublicationFamily, TimeKind, TimeUnit, artifact_metadata_keys,
+    EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND,
+    artifact_metadata_keys,
 };
 use rusqlite::{Connection, params};
 
-use crate::{
-    IngestError, LoadedPack, LoadedRecord, MetricValue, RecordAlias, ReferenceEdge, RemasterLink,
-    SourceLoad, schema,
+mod labels;
+mod metric_catalogs;
+mod relationships;
+
+use labels::{
+    metric_domain_label, metric_value_parts, publication_family_label, time_kind_label,
+    time_unit_label,
 };
+use metric_catalogs::write_metric_catalogs;
+use relationships::{write_record_aliases, write_reference_edges, write_remaster_links};
+
+use crate::{IngestError, LoadedPack, LoadedRecord, RemasterLink, SourceLoad, schema};
 
 pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
     let _ = fs::remove_file(path);
@@ -372,187 +380,7 @@ pub(crate) fn write_records(
     Ok(())
 }
 
-pub(crate) fn write_reference_edges(
-    connection: &Connection,
-    references: &[ReferenceEdge],
-) -> Result<(), IngestError> {
-    let mut insert_reference = connection
-        .prepare(
-            "INSERT OR IGNORE INTO reference_edges (
-              from_record_key, to_record_key, display_text, reference_text
-            ) VALUES (?1, ?2, ?3, ?4)",
-        )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-
-    for reference in references {
-        insert_reference
-            .execute((
-                reference.from_record_key.to_string(),
-                reference.to_record_key.to_string(),
-                reference.display_text.as_deref(),
-                reference.reference_text.as_str(),
-            ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    }
-    Ok(())
-}
-
-pub(crate) fn write_record_aliases(
-    connection: &Connection,
-    aliases: &[RecordAlias],
-) -> Result<(), IngestError> {
-    let mut insert_alias = connection
-        .prepare(
-            "INSERT OR IGNORE INTO record_aliases (
-              canonical_record_key, alias_text, normalized_alias, source_kind, source_ref
-            ) VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-
-    for alias in aliases {
-        insert_alias
-            .execute((
-                alias.canonical_record_key.to_string(),
-                alias.alias_text.as_str(),
-                alias.normalized_alias.as_str(),
-                alias.source.as_str(),
-                alias.source_ref.as_str(),
-            ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    }
-    Ok(())
-}
-
-pub(crate) fn write_remaster_links(
-    connection: &Connection,
-    remaster_links: &[RemasterLink],
-) -> Result<(), IngestError> {
-    let mut insert_link = connection
-        .prepare(
-            "INSERT OR IGNORE INTO remaster_links (
-              remaster_record_key, legacy_record_key, source_kind, source_ref
-            ) VALUES (?1, ?2, ?3, ?4)",
-        )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-
-    for link in remaster_links {
-        insert_link
-            .execute((
-                link.remaster_record_key.to_string(),
-                link.legacy_record_key.to_string(),
-                link.source.as_str(),
-                link.source_ref.as_str(),
-            ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    }
-    Ok(())
-}
-
-pub(crate) fn metric_value_parts(
-    value: &MetricValue,
-) -> (&'static str, Option<f64>, Option<&str>, Option<i64>) {
-    match value {
-        MetricValue::Number(number) => (
-            metric_value_type_label(MetricValueType::Number),
-            Some(*number),
-            None,
-            None,
-        ),
-        MetricValue::Text(text) => (
-            metric_value_type_label(MetricValueType::Text),
-            None,
-            Some(text.as_str()),
-            None,
-        ),
-        MetricValue::Boolean(boolean) => (
-            metric_value_type_label(MetricValueType::Boolean),
-            None,
-            None,
-            Some(i64::from(*boolean)),
-        ),
-    }
-}
-
 pub(crate) fn json_array(values: &[String]) -> Result<String, IngestError> {
     serde_json::to_string(values)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
-}
-
-pub(crate) fn metric_domain_label(domain: MetricDomain) -> &'static str {
-    domain.as_str()
-}
-
-pub(crate) fn metric_value_type_label(value_type: MetricValueType) -> &'static str {
-    value_type.as_str()
-}
-
-pub(crate) fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
-    connection
-        .execute_batch(
-            "
-            INSERT INTO metric_key_catalog (
-              metric_domain,
-              record_family,
-              namespace_prefix,
-              metric_key,
-              value_type,
-              catalog_count,
-              numeric_min,
-              numeric_max
-            )
-            SELECT
-              rm.metric_domain,
-              r.record_family,
-              CASE
-                WHEN instr(rm.metric_key, '.') > 0 THEN substr(rm.metric_key, 1, instr(rm.metric_key, '.'))
-                ELSE ''
-              END AS namespace_prefix,
-              rm.metric_key,
-              rm.value_type,
-              COUNT(*) AS catalog_count,
-              CASE WHEN rm.value_type = 'number' THEN MIN(rm.number_value) ELSE NULL END AS numeric_min,
-              CASE WHEN rm.value_type = 'number' THEN MAX(rm.number_value) ELSE NULL END AS numeric_max
-            FROM record_metrics rm
-            JOIN records r ON r.record_key = rm.record_key
-            WHERE r.is_default_visible = 1
-            GROUP BY rm.metric_domain, r.record_family, namespace_prefix, rm.metric_key, rm.value_type;
-
-            INSERT INTO metric_value_catalog (
-              metric_domain,
-              record_family,
-              metric_key,
-              value,
-              catalog_count
-            )
-            SELECT
-              rm.metric_domain,
-              r.record_family,
-              rm.metric_key,
-              CASE
-                WHEN rm.value_type = 'text' THEN rm.text_value
-                WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
-                ELSE NULL
-              END AS value,
-              COUNT(*) AS catalog_count
-            FROM record_metrics rm
-            JOIN records r ON r.record_key = rm.record_key
-            WHERE r.is_default_visible = 1
-              AND rm.value_type IN ('text', 'boolean')
-              AND value IS NOT NULL
-            GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value;
-            ",
-        )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
-}
-
-pub(crate) fn time_kind_label(kind: TimeKind) -> &'static str {
-    kind.as_str()
-}
-
-pub(crate) fn time_unit_label(unit: TimeUnit) -> &'static str {
-    unit.as_str()
-}
-
-pub(crate) fn publication_family_label(publication_family: PublicationFamily) -> &'static str {
-    publication_family.as_str()
 }

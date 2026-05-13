@@ -81,7 +81,7 @@ Generated records, enrichment projections, and side-table rows are validated as 
 
 ## Rust Schema Owner
 
-The Rust workspace keeps physical SQLite table and column ownership in `atlas-artifact`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL or table inventories. Writers and validators import the shared artifact schema descriptors from `atlas-artifact` instead of maintaining independent table or column lists.
+The Rust workspace keeps physical SQLite table and column ownership in `atlas-artifact`. Artifact metadata keys and expected artifact contract values also live in `atlas-artifact`. Artifact validation report DTOs live with the validator in `atlas-index`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL, table inventories, artifact metadata inventories, or validation-context DTOs. Writers and validators import the shared artifact schema descriptors from `atlas-artifact` instead of maintaining independent table or column lists.
 
 ## Runtime Table Families
 

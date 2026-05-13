@@ -1,19 +1,21 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use atlas_domain::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, ArtifactContractFamily,
-    ArtifactMetadataSummary, ArtifactValidationDiagnostic, EXPECTED_CONTENT_HASH_ALGORITHM,
+use atlas_artifact::metadata::{
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_CONTENT_HASH_ALGORITHM,
     EXPECTED_EMBEDDING_DIMENSIONS, EXPECTED_EMBEDDING_DISTANCE_METRIC,
     EXPECTED_EMBEDDING_DOCUMENT_PREFIX, EXPECTED_EMBEDDING_DTYPE, EXPECTED_EMBEDDING_MODEL_ID,
     EXPECTED_EMBEDDING_MODEL_REVISION, EXPECTED_EMBEDDING_NORMALIZATION,
     EXPECTED_EMBEDDING_POOLING, EXPECTED_EMBEDDING_PROVIDER_FAMILY,
     EXPECTED_EMBEDDING_QUERY_PREFIX, EXPECTED_EMBEDDING_TOKENIZER_ID, EXPECTED_FTS_TOKENIZER,
-    EXPECTED_SOURCE_KIND, ValidationCode, artifact_metadata_keys,
+    EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
 use rusqlite::Connection;
 
-use crate::IndexValidationError;
+use crate::{
+    ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
+    IndexValidationError, ValidationCode,
+};
 
 pub(crate) fn is_missing_value(key: &str, value: &str) -> bool {
     if matches!(
