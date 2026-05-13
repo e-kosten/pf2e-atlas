@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use atlas_artifact::schema::{
-    REQUIRED_TABLES, TABLE_METRIC_VALUE_CATALOG, TABLE_RECORD_ALIASES, TABLE_RECORDS,
+    REQUIRED_TABLES, TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
     TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
 };
 use rusqlite::{Connection, OpenFlags};
@@ -68,6 +68,37 @@ pub struct MetricCoverageReport {
     pub metric_rows_by_domain: BTreeMap<String, usize>,
     pub metric_keys_by_domain: BTreeMap<String, usize>,
     pub metric_value_catalog_rows: usize,
+}
+
+impl IndexInspectionReport {
+    pub fn records_table_count(&self) -> usize {
+        self.tables.get(TABLE_RECORDS).copied().unwrap_or_default()
+    }
+
+    pub fn packs_table_count(&self) -> usize {
+        self.tables.get(TABLE_PACKS).copied().unwrap_or_default()
+    }
+
+    pub fn reference_edges_table_count(&self) -> usize {
+        self.tables
+            .get(TABLE_REFERENCE_EDGES)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub fn record_aliases_table_count(&self) -> usize {
+        self.tables
+            .get(TABLE_RECORD_ALIASES)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub fn remaster_links_table_count(&self) -> usize {
+        self.tables
+            .get(TABLE_REMASTER_LINKS)
+            .copied()
+            .unwrap_or_default()
+    }
 }
 
 pub fn inspect_index(

@@ -67,6 +67,10 @@ pub struct ArtifactValidationReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_record_count: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_record_count: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_record_count: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content_hash_algorithm: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_provider_family: Option<String>,
@@ -114,6 +118,8 @@ impl ArtifactValidationReport {
             source_kind: metadata.source_kind.clone(),
             source_signature: metadata.source_signature.clone(),
             source_record_count: metadata.source_record_count.clone(),
+            artifact_record_count: metadata.artifact_record_count.clone(),
+            generated_record_count: metadata.generated_record_count.clone(),
             content_hash_algorithm: metadata.content_hash_algorithm.clone(),
             embedding_provider_family: metadata.embedding_provider_family.clone(),
             embedding_model_id: metadata.embedding_model_id.clone(),
@@ -146,6 +152,8 @@ impl ArtifactValidationReport {
             source_kind: None,
             source_signature: None,
             source_record_count: None,
+            artifact_record_count: None,
+            generated_record_count: None,
             content_hash_algorithm: None,
             embedding_provider_family: None,
             embedding_model_id: None,
@@ -181,6 +189,8 @@ impl ArtifactValidationReport {
             source_kind: metadata.source_kind.clone(),
             source_signature: metadata.source_signature.clone(),
             source_record_count: metadata.source_record_count.clone(),
+            artifact_record_count: metadata.artifact_record_count.clone(),
+            generated_record_count: metadata.generated_record_count.clone(),
             content_hash_algorithm: metadata.content_hash_algorithm.clone(),
             embedding_provider_family: metadata.embedding_provider_family.clone(),
             embedding_model_id: metadata.embedding_model_id.clone(),
@@ -220,6 +230,8 @@ impl ArtifactValidationReport {
             source_kind: metadata.source_kind.clone(),
             source_signature: metadata.source_signature.clone(),
             source_record_count: metadata.source_record_count.clone(),
+            artifact_record_count: metadata.artifact_record_count.clone(),
+            generated_record_count: metadata.generated_record_count.clone(),
             content_hash_algorithm: metadata.content_hash_algorithm.clone(),
             embedding_provider_family: metadata.embedding_provider_family.clone(),
             embedding_model_id: metadata.embedding_model_id.clone(),
@@ -248,6 +260,8 @@ pub struct ArtifactMetadataSummary {
     pub source_kind: Option<String>,
     pub source_signature: Option<String>,
     pub source_record_count: Option<String>,
+    pub artifact_record_count: Option<String>,
+    pub generated_record_count: Option<String>,
     pub content_hash_algorithm: Option<String>,
     pub embedding_provider_family: Option<String>,
     pub embedding_model_id: Option<String>,

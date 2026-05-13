@@ -5,7 +5,9 @@ use atlas_domain::{MetricDomain, PublicationFamily};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::{IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad};
+use crate::{
+    BuildArtifactReport, IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad,
+};
 
 use crate::{IngestError, pipeline};
 
@@ -193,6 +195,23 @@ pub fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
         .into_iter()
         .map(|record| json!(record))
         .collect()
+}
+
+pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
+    json!({
+        "status": "ok",
+        "output": report.output_path.display().to_string(),
+        "pack_count": report.pack_count,
+        "record_count": report.record_count,
+        "source_record_count": report.source_record_count,
+        "artifact_record_count": report.artifact_record_count,
+        "generated_record_count": report.generated_record_count,
+        "source_signature": report.source_signature,
+        "diagnostics": diagnostics_json(&report.diagnostics),
+        "skipped_record_count": report.skipped_records.len(),
+        "skipped_records": skipped_records_json(&report.skipped_records),
+        "warnings": report.warnings,
+    })
 }
 
 fn skipped_record_reports(skipped_records: &[SkippedRecord]) -> Vec<SkippedRecordReport> {

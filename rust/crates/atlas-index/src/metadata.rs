@@ -67,6 +67,12 @@ pub(crate) fn summarize_metadata(metadata: &BTreeMap<String, String>) -> Artifac
         source_record_count: metadata
             .get(artifact_metadata_keys::SOURCE_RECORD_COUNT)
             .cloned(),
+        artifact_record_count: metadata
+            .get(artifact_metadata_keys::ARTIFACT_RECORD_COUNT)
+            .cloned(),
+        generated_record_count: metadata
+            .get(artifact_metadata_keys::GENERATED_RECORD_COUNT)
+            .cloned(),
         content_hash_algorithm: metadata
             .get(artifact_metadata_keys::CONTENT_HASH_ALGORITHM)
             .cloned(),
@@ -149,6 +155,20 @@ pub(crate) fn validate_metadata_values(
     require_positive_usize(
         metadata,
         artifact_metadata_keys::SOURCE_RECORD_COUNT,
+        ValidationCode::InvalidSourceMetadata,
+        ArtifactContractFamily::Source,
+        &mut diagnostics,
+    );
+    require_usize(
+        metadata,
+        artifact_metadata_keys::ARTIFACT_RECORD_COUNT,
+        ValidationCode::InvalidSourceMetadata,
+        ArtifactContractFamily::Source,
+        &mut diagnostics,
+    );
+    require_usize(
+        metadata,
+        artifact_metadata_keys::GENERATED_RECORD_COUNT,
         ValidationCode::InvalidSourceMetadata,
         ArtifactContractFamily::Source,
         &mut diagnostics,
@@ -295,6 +315,26 @@ fn require_positive_usize(
             key: Some(key.to_string()),
             expected: Some("positive integer".to_string()),
             actual: Some(actual.to_string()),
+        });
+    }
+}
+
+fn require_usize(
+    metadata: &BTreeMap<String, String>,
+    key: &str,
+    code: ValidationCode,
+    family: ArtifactContractFamily,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) {
+    let value = metadata.get(key).map(String::as_str).unwrap_or_default();
+    if value.parse::<usize>().is_err() {
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code,
+            family,
+            message: format!("metadata key `{key}` must be a non-negative integer"),
+            key: Some(key.to_string()),
+            expected: Some("non-negative integer".to_string()),
+            actual: Some(value.to_string()),
         });
     }
 }

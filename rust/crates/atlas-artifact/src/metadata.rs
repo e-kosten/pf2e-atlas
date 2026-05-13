@@ -6,6 +6,7 @@ pub const ARTIFACT_SCHEMA_VERSION: &str = "1";
 pub mod artifact_metadata_keys {
     pub const ADJACENT_MANIFEST_PATH: &str = "adjacent_manifest_path";
     pub const ARTIFACT_CONTRACT_VERSION: &str = "artifact_contract_version";
+    pub const ARTIFACT_RECORD_COUNT: &str = "artifact_record_count";
     pub const CONTENT_HASH_ALGORITHM: &str = "content_hash_algorithm";
     pub const EMBEDDING_DIMENSIONS: &str = "embedding_dimensions";
     pub const EMBEDDING_DISTANCE_METRIC: &str = "embedding_distance_metric";
@@ -20,6 +21,7 @@ pub mod artifact_metadata_keys {
     pub const EMBEDDING_TOKENIZER_ID: &str = "embedding_tokenizer_id";
     pub const FTS_TOKENIZER: &str = "fts_tokenizer";
     pub const SCHEMA_VERSION: &str = "schema_version";
+    pub const GENERATED_RECORD_COUNT: &str = "generated_record_count";
     pub const SOURCE_KIND: &str = "source_kind";
     pub const SOURCE_RECORD_COUNT: &str = "source_record_count";
     pub const SOURCE_SIGNATURE: &str = "source_signature";
@@ -31,6 +33,8 @@ pub const REQUIRED_ARTIFACT_METADATA_KEYS: &[&str] = &[
     artifact_metadata_keys::SOURCE_KIND,
     artifact_metadata_keys::SOURCE_SIGNATURE,
     artifact_metadata_keys::SOURCE_RECORD_COUNT,
+    artifact_metadata_keys::ARTIFACT_RECORD_COUNT,
+    artifact_metadata_keys::GENERATED_RECORD_COUNT,
     artifact_metadata_keys::CONTENT_HASH_ALGORITHM,
     artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
     artifact_metadata_keys::EMBEDDING_MODEL_ID,

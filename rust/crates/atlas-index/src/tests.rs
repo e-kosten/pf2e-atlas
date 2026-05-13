@@ -236,6 +236,8 @@ fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
             "foundry-pf2e:fixture",
         ),
         (artifact_metadata_keys::SOURCE_RECORD_COUNT, "3"),
+        (artifact_metadata_keys::ARTIFACT_RECORD_COUNT, "3"),
+        (artifact_metadata_keys::GENERATED_RECORD_COUNT, "0"),
         (artifact_metadata_keys::CONTENT_HASH_ALGORITHM, "sha256"),
         (
             artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,

@@ -190,6 +190,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Extract variant family metadata (`variant_group_key`, `variant_base_name`, `variant_label`, `variant_axes`, confidence, and source).
 - [x] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.
+- [x] Split source, generated, and artifact record count metadata.
 - [x] Write `packs`.
 - [x] Write `records`.
 - [x] Write `records_fts`.

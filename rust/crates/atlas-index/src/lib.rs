@@ -118,6 +118,8 @@ fn validation_report_from_error(
         source_kind: None,
         source_signature: None,
         source_record_count: None,
+        artifact_record_count: None,
+        generated_record_count: None,
         content_hash_algorithm: None,
         embedding_provider_family: None,
         embedding_model_id: None,

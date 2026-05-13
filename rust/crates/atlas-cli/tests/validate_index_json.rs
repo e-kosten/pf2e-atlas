@@ -36,6 +36,9 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "output": index_path.display().to_string(),
             "pack_count": 1,
             "record_count": 1,
+            "source_record_count": 1,
+            "artifact_record_count": 1,
+            "generated_record_count": 0,
             "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
@@ -68,6 +71,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(validate_json["status"], "ok");
     assert_eq!(validate_json["source_signature"], source_signature);
     assert_eq!(validate_json["source_record_count"], "1");
+    assert_eq!(validate_json["artifact_record_count"], "1");
+    assert_eq!(validate_json["generated_record_count"], "0");
 
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "inspect", "--index"])
@@ -174,6 +179,8 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
             "source_kind": "foundry-pf2e",
             "source_signature": "foundry-pf2e:fixture",
             "source_record_count": "3",
+            "artifact_record_count": "3",
+            "generated_record_count": "0",
             "content_hash_algorithm": "sha256",
             "embedding_provider_family": "transformers-js-minilm",
             "embedding_model_id": "Xenova/all-MiniLM-L12-v2",
@@ -248,6 +255,8 @@ fn validate_index_json_reports_embedding_mismatch() -> Result<(), Box<dyn std::e
             "source_kind": "foundry-pf2e",
             "source_signature": "foundry-pf2e:fixture",
             "source_record_count": "3",
+            "artifact_record_count": "3",
+            "generated_record_count": "0",
             "content_hash_algorithm": "sha256",
             "embedding_provider_family": "transformers-js-minilm",
             "embedding_model_id": "Xenova/all-MiniLM-L12-v2",
@@ -299,6 +308,8 @@ fn validate_index_json_reports_missing_required_key() -> Result<(), Box<dyn std:
             "source_kind": "foundry-pf2e",
             "source_signature": "foundry-pf2e:fixture",
             "source_record_count": "3",
+            "artifact_record_count": "3",
+            "generated_record_count": "0",
             "content_hash_algorithm": "sha256",
             "embedding_provider_family": "transformers-js-minilm",
             "embedding_model_id": "Xenova/all-MiniLM-L12-v2",
@@ -340,6 +351,8 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
             "source_kind": "foundry-pf2e",
             "source_signature": "stale:fixture",
             "source_record_count": "3",
+            "artifact_record_count": "3",
+            "generated_record_count": "0",
             "content_hash_algorithm": "sha256",
             "embedding_provider_family": "transformers-js-minilm",
             "embedding_model_id": "Xenova/all-MiniLM-L12-v2",
@@ -392,6 +405,8 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
             "source_kind": "foundry-pf2e",
             "source_signature": "foundry-pf2e:fixture",
             "source_record_count": "3",
+            "artifact_record_count": "3",
+            "generated_record_count": "0",
             "content_hash_algorithm": "sha256",
             "embedding_provider_family": "transformers-js-minilm",
             "embedding_model_id": "Xenova/all-MiniLM-L12-v2",
@@ -477,6 +492,8 @@ fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
         ("source_kind", "foundry-pf2e"),
         ("source_signature", "foundry-pf2e:fixture"),
         ("source_record_count", "3"),
+        ("artifact_record_count", "3"),
+        ("generated_record_count", "0"),
         ("content_hash_algorithm", "sha256"),
         ("embedding_provider_family", "transformers-js-minilm"),
         ("embedding_model_id", "Xenova/all-MiniLM-L12-v2"),
