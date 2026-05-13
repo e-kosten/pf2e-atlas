@@ -80,7 +80,7 @@ fn generate_document_embeddings_with<E>(
                 phase = "document_embeddings",
                 current = current as u64,
                 total = total as u64,
-                "Generating document embeddings {current}/{total}: {record_key}",
+                "Generating document embedding: {record_key}",
                 record_key = entry.record_key.as_str()
             );
         }

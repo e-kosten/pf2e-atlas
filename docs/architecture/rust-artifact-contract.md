@@ -165,3 +165,5 @@ Validation should stay bounded to SQLite runtime coherence. Source freshness com
 ## Extension Loading
 
 Artifact metadata validation must not load vector extensions. Vector-specific validation and search commands use an explicit sqlite-vec capability boundary and report `vector_extension_unavailable` when the extension cannot be loaded or probed. Plain artifact validation remains available on systems where vector extension loading is unavailable.
+
+Rust sqlite-vec registration is isolated in `atlas-sqlite-vec`, a small crate that owns the required SQLite FFI call. Runtime crates such as `atlas-index`, `atlas-search`, and `atlas-cli` use that capability boundary instead of embedding unsafe extension-registration code locally.

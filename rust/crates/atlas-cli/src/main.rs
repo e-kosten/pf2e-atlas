@@ -177,6 +177,10 @@ where
         if *event.metadata().level() > Level::INFO {
             return;
         }
+        let target = event.metadata().target();
+        if target != "atlas_progress" && !target.starts_with("atlas_") {
+            return;
+        }
 
         let mut fields = EventFields::default();
         event.record(&mut fields);
@@ -187,7 +191,7 @@ where
             .unwrap_or_else(|| event.metadata().name().to_string());
 
         let mut state = self.state.lock().expect("progress state is not poisoned");
-        if event.metadata().target() == "atlas_progress" {
+        if target == "atlas_progress" {
             state.progress(&message, &fields);
         } else {
             state.log(&message, &fields.fields);
