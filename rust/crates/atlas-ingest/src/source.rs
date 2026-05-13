@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use atlas_domain::PackName;
 use serde_json::Value;
@@ -16,6 +17,16 @@ use crate::{
 struct SourceSignatureRecord {
     source_path: String,
     content_hash: String,
+}
+
+#[derive(Debug, Default)]
+struct SourceLoadTiming {
+    discover_duration: Duration,
+    read_duration: Duration,
+    hash_duration: Duration,
+    parse_duration: Duration,
+    normalize_duration: Duration,
+    signature_duration: Duration,
 }
 
 pub(crate) fn load_foundry_source_records(
@@ -42,6 +53,7 @@ pub(crate) fn load_foundry_source_records(
     let diagnostics = IngestDiagnostics::default();
     let manifest_packs = parsed_manifest.manifest.packs;
     let manifest_pack_count = manifest_packs.len();
+    let mut timing = SourceLoadTiming::default();
 
     for (pack_index, manifest_pack) in manifest_packs.into_iter().enumerate() {
         let pack_number = pack_index + 1;
@@ -72,7 +84,9 @@ pub(crate) fn load_foundry_source_records(
             "Scanning source pack: {pack}",
             pack = manifest_pack.name.as_str()
         );
+        let discover_started_at = Instant::now();
         let paths = json_files(&resolved_path)?;
+        timing.discover_duration += discover_started_at.elapsed();
         info!(target: "atlas_progress",
             phase = "source_packs",
             current = pack_number as u64,
@@ -85,7 +99,7 @@ pub(crate) fn load_foundry_source_records(
 
         let record_progress_interval = record_progress_interval(paths.len());
         for (record_index, path) in paths.iter().enumerate() {
-            let raw_record = match read_json_record(path) {
+            let raw_record = match read_json_record(path, &mut timing) {
                 Ok(raw_record) => raw_record,
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
@@ -96,13 +110,16 @@ pub(crate) fn load_foundry_source_records(
                     continue;
                 }
             };
-            match normalize_record(
+            let normalize_started_at = Instant::now();
+            let normalized_record = normalize_record(
                 &manifest_pack,
                 &pack_name,
                 path,
                 source_root,
                 raw_record.value,
-            ) {
+            );
+            timing.normalize_duration += normalize_started_at.elapsed();
+            match normalized_record {
                 Ok(record) => {
                     source_signature_records.push(SourceSignatureRecord {
                         source_path: relative_source_path(source_root, path),
@@ -151,6 +168,7 @@ pub(crate) fn load_foundry_source_records(
         }
     }
 
+    let signature_started_at = Instant::now();
     let source_signature = compute_source_signature(
         source_root,
         &manifest_path,
@@ -159,7 +177,17 @@ pub(crate) fn load_foundry_source_records(
         &source_signature_records,
         &skipped_records,
     );
+    timing.signature_duration = signature_started_at.elapsed();
     let source_record_count = records.len();
+    info!(
+        discover_ms = timing.discover_duration.as_millis(),
+        read_ms = timing.read_duration.as_millis(),
+        hash_ms = timing.hash_duration.as_millis(),
+        parse_ms = timing.parse_duration.as_millis(),
+        normalize_ms = timing.normalize_duration.as_millis(),
+        signature_ms = timing.signature_duration.as_millis(),
+        "source load timing"
+    );
 
     Ok(SourceLoad {
         manifest_path,
@@ -349,12 +377,23 @@ struct RawJsonRecord {
     content_hash: String,
 }
 
-fn read_json_record(path: &Path) -> Result<RawJsonRecord, IngestError> {
+fn read_json_record(
+    path: &Path,
+    timing: &mut SourceLoadTiming,
+) -> Result<RawJsonRecord, IngestError> {
+    let read_started_at = Instant::now();
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
+    timing.read_duration += read_started_at.elapsed();
+
+    let hash_started_at = Instant::now();
     let content_hash = sha256_hex(serialized.as_bytes());
+    timing.hash_duration += hash_started_at.elapsed();
+
+    let parse_started_at = Instant::now();
     let value = serde_json::from_str(&serialized)
         .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))?;
+    timing.parse_duration += parse_started_at.elapsed();
     Ok(RawJsonRecord {
         value,
         content_hash,

@@ -24,6 +24,15 @@ cargo test --workspace
 cargo build --workspace
 ```
 
+- Use Cargo's release profile for ingest and query performance comparisons:
+
+```bash
+cd rust
+cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
+```
+
+Do not compare TypeScript runtime timings against Rust dev-profile `cargo run` timings.
+
 - Do not run the full Node lint/build/test gate for normal Rust iteration.
 - Run the full repo gate only before landing back to `main`, when touching TypeScript runtime behavior, or when changing repo-wide Node tooling.
 - Do not make Rust shell out to the TypeScript runtime or Node MCP server.
