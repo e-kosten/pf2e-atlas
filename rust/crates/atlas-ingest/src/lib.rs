@@ -1,5 +1,7 @@
 #![deny(unsafe_code)]
 
+use std::time::Instant;
+
 use thiserror::Error;
 use tracing::info;
 
@@ -69,6 +71,7 @@ pub enum IngestError {
 }
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
+    let build_started_at = Instant::now();
     info!(
         source = %options.source_root.display(),
         output = %options.output_path.display(),
@@ -156,11 +159,13 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
     writer::write_artifact(&options.output_path, &source)?;
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
+    let build_duration_ms = build_started_at.elapsed().as_millis();
     info!(
         output = %options.output_path.display(),
         artifact_records = artifact_record_count,
         packs = source.packs.len(),
         document_embeddings = source.document_embeddings.len(),
+        duration_ms = build_duration_ms,
         "artifact build complete"
     );
     Ok(BuildArtifactReport {
@@ -174,6 +179,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         document_embedding_count: source.document_embeddings.len(),
         reused_document_embedding_count,
         generated_document_embedding_count,
+        build_duration_ms,
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,

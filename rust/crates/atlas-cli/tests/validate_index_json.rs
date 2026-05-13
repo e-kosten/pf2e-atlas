@@ -29,6 +29,12 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert!(source_signature.starts_with("foundry-pf2e:sha256:"));
     assert_eq!(source_signature.len(), "foundry-pf2e:sha256:".len() + 64);
     build_json["source_signature"] = json!("<source-signature>");
+    assert!(
+        build_json["build_duration_ms"]
+            .as_u64()
+            .is_some_and(|duration| duration > 0)
+    );
+    build_json["build_duration_ms"] = json!("<build-duration-ms>");
     assert_eq!(
         build_json,
         json!({
@@ -43,6 +49,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "document_embedding_count": 0,
             "reused_document_embedding_count": 0,
             "generated_document_embedding_count": 0,
+            "build_duration_ms": "<build-duration-ms>",
             "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
