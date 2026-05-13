@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use atlas_artifact::schema::record_insert_sql;
 use rusqlite::{Connection, params};
 
 use super::labels::{
@@ -17,20 +18,9 @@ pub(super) fn write_records(
         .iter()
         .map(|link| link.legacy_record_key.to_string())
         .collect::<BTreeSet<_>>();
+    let record_insert_sql = record_insert_sql();
     let mut insert_record = connection
-        .prepare(
-            "INSERT INTO records (
-              record_key, id, name, normalized_name, record_family, pack_name, pack_label, foundry_document_type, foundry_record_type,
-              level, rarity, traits_json, system_category, system_group, system_base_item, system_usage, system_price_json,
-              system_actions_value, system_time_value, system_duration_value, price_cp,
-              activation_time_kind, activation_time_actions, activation_time_duration_value, activation_time_duration_unit, activation_time_text,
-              duration_kind, duration_value, duration_unit, duration_text,
-              publication_title, publication_remaster, description_text, blurb_text,
-              description_snippet, publication_family, folder_id, taxonomy_families_json, variant_group_key, variant_base_name,
-              variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_default_visible,
-              search_text_projection, raw_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48)",
-        )
+        .prepare(&record_insert_sql)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_trait = connection
         .prepare("INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)")

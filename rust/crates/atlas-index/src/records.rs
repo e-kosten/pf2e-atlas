@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use atlas_artifact::schema::persisted_record_select_sql;
 use atlas_domain::{
     MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
     RemasterLinkSource, TimeKind, TimeUnit,
@@ -70,23 +71,9 @@ pub fn load_persisted_records_from_connection(
 }
 
 fn read_record_rows(connection: &Connection) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    let persisted_record_select_sql = persisted_record_select_sql();
     let mut statement = connection
-        .prepare(
-            "SELECT
-              record_key, id, name, normalized_name, record_family, pack_name, pack_label,
-              foundry_document_type, foundry_record_type, level, rarity, traits_json,
-              system_category, system_group, system_base_item, system_usage, system_price_json,
-              system_actions_value, system_time_value, system_duration_value, price_cp,
-              activation_time_kind, activation_time_actions, activation_time_duration_value,
-              activation_time_duration_unit, activation_time_text, duration_kind, duration_value,
-              duration_unit, duration_text, publication_title, publication_remaster,
-              description_text, blurb_text, publication_family, folder_id,
-              taxonomy_families_json, variant_group_key, variant_base_name, variant_label,
-              variant_axes_json, variant_confidence, variant_source, source_path,
-              is_default_visible, search_text_projection, raw_json
-             FROM records
-             ORDER BY record_key",
-        )
+        .prepare(&persisted_record_select_sql)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut records = Vec::new();
     let mut rows = statement
