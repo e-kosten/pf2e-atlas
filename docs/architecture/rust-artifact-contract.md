@@ -67,7 +67,7 @@ Validation diagnostics are grouped by contract family:
 - `fts`: lexical tokenizer compatibility.
 - `manifest`: adjacent artifact manifest linkage.
 
-`atlas validate-index --json` returns stable JSON diagnostics for missing or incompatible metadata and for Rust artifact table/data contract violations. Current TypeScript-built indexes that only expose the legacy `metadata` table are intentionally reported as missing the Rust artifact contract.
+`atlas index validate --json` returns stable JSON diagnostics for missing or incompatible metadata and for Rust artifact table/data contract violations. Current TypeScript-built indexes that only expose the legacy `metadata` table are intentionally reported as missing the Rust artifact contract.
 
 ## Adjacent Manifest
 
@@ -121,7 +121,7 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 
 ## Artifact Validation Beyond Metadata
 
-Metadata validation must remain available without loading `sqlite-vec`. For Rust-written SQLite artifacts, `atlas validate-index` also validates the lightweight runtime table contract:
+Metadata validation must remain available without loading `sqlite-vec`. For Rust-written SQLite artifacts, `atlas index validate` also validates the lightweight runtime table contract:
 
 - required runtime table presence
 - required column presence for the current artifact schema

@@ -52,7 +52,7 @@ cargo build --workspace
 
 The initial Rust lint policy should stay close to community defaults: standard Clippy with warnings denied and `unsafe_code` denied in crates. Broader panic-oriented denies such as `unwrap_used` and `expect_used` should be added later only when a crate's runtime API is stable enough that the extra friction is worth it.
 
-The first executable behavior is `atlas validate-index`, which proves CLI shape, typed errors, JSON diagnostics, and artifact-contract validation before lookup or search are ported.
+The first executable behavior is `atlas index validate`, which proves CLI shape, typed errors, JSON diagnostics, and artifact-contract validation before lookup or search are ported. Index management commands live under the `atlas index` namespace so future product commands such as lookup, search, and browse can occupy the top-level CLI surface.
 
 The migration proceeds by capability gates:
 

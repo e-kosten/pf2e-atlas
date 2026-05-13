@@ -1,15 +1,82 @@
 #![deny(unsafe_code)]
 
-use std::env;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use atlas_domain::{ArtifactValidationReport, ValidationCode, ValidationStatus};
+use atlas_domain::{ArtifactValidationReport, MetricDomain, ValidationCode, ValidationStatus};
 use atlas_index::{inspect_index, validate_index};
-use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact};
+use atlas_ingest::{
+    BuildArtifactOptions, IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad,
+    build_minimal_artifact, load_foundry_source,
+};
+use clap::{Args, Parser, Subcommand};
+use serde_json::{Value, json};
+
+#[derive(Debug, Parser)]
+#[command(name = "atlas")]
+#[command(about = "PF2e Atlas local search and index tooling")]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
+    Index(IndexArgs),
+}
+
+#[derive(Debug, Args)]
+struct IndexArgs {
+    #[command(subcommand)]
+    command: IndexCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum IndexCommand {
+    #[command(about = "Analyze Foundry source ingest without writing SQLite")]
+    Analyze(AnalyzeIndexOptions),
+    #[command(about = "Build a Rust SQLite artifact from Foundry source files")]
+    Build(BuildIndexOptions),
+    #[command(about = "Inspect artifact table and field coverage")]
+    Inspect(IndexPathOptions),
+    #[command(about = "Open an index read-only and validate Rust artifact metadata")]
+    Validate(IndexPathOptions),
+}
+
+#[derive(Debug, Args)]
+struct AnalyzeIndexOptions {
+    #[arg(long)]
+    source: PathBuf,
+    #[arg(long)]
+    manifest: Option<PathBuf>,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct BuildIndexOptions {
+    #[arg(long)]
+    source: PathBuf,
+    #[arg(long)]
+    output: PathBuf,
+    #[arg(long)]
+    manifest: Option<PathBuf>,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct IndexPathOptions {
+    #[arg(long)]
+    index: PathBuf,
+    #[arg(long)]
+    json: bool,
+}
 
 fn main() -> ExitCode {
-    match run() {
+    match run(Cli::parse()) {
         Ok(code) => code,
         Err(error) => {
             eprintln!("{error}");
@@ -18,24 +85,52 @@ fn main() -> ExitCode {
     }
 }
 
-fn run() -> Result<ExitCode, String> {
-    let mut args = env::args().skip(1).collect::<Vec<_>>();
-    if args.is_empty() || args.iter().any(|arg| arg == "--help" || arg == "-h") {
-        print_help();
-        return Ok(ExitCode::SUCCESS);
-    }
-
-    let command = args.remove(0);
-    match command.as_str() {
-        "build-index" => run_build_index(args),
-        "inspect-index" => run_inspect_index(args),
-        "validate-index" => run_validate_index(args),
-        _ => Err(format!("unknown command `{command}`")),
+fn run(cli: Cli) -> Result<ExitCode, String> {
+    match cli.command {
+        Command::Index(index) => match index.command {
+            IndexCommand::Analyze(options) => run_index_analyze(options),
+            IndexCommand::Build(options) => run_index_build(options),
+            IndexCommand::Inspect(options) => run_index_inspect(options),
+            IndexCommand::Validate(options) => run_index_validate(options),
+        },
     }
 }
 
-fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
-    let options = parse_build_index(args)?;
+fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
+    let source = load_foundry_source(&options.source, options.manifest.as_deref())
+        .map_err(|error| error.to_string())?;
+    let report = analyze_source_load(options.source, source);
+
+    if options.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?
+        );
+    } else {
+        println!(
+            "ok: analyzed {} records from {} packs in {}",
+            report["record_count"], report["pack_count"], report["source"]["root"]
+        );
+        println!("source signature: {}", report["source"]["source_signature"]);
+        println!(
+            "records: source={} generated={} default_visible={} hidden={}",
+            report["loaded_source_record_count"],
+            report["generated_record_count"],
+            report["default_visible_record_count"],
+            report["hidden_record_count"]
+        );
+        println!(
+            "relationships: references={} aliases={} remaster_links={}",
+            report["relationships"]["reference_edges"],
+            report["relationships"]["record_aliases"],
+            report["relationships"]["remaster_links"]
+        );
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
+fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     let report = build_minimal_artifact(BuildArtifactOptions {
         source_root: options.source,
         output_path: options.output,
@@ -44,42 +139,15 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
     .map_err(|error| error.to_string())?;
 
     if options.json {
-        let skipped_records = report
-            .skipped_records
-            .iter()
-            .map(|record| {
-                serde_json::json!({
-                    "path": record.path.display().to_string(),
-                    "reason": record.reason,
-                })
-            })
-            .collect::<Vec<_>>();
-        let body = serde_json::json!({
+        let body = json!({
             "status": "ok",
             "output": report.output_path.display().to_string(),
             "pack_count": report.pack_count,
             "record_count": report.record_count,
             "source_signature": report.source_signature,
-            "diagnostics": {
-                "taxonomy": {
-                    "folder_records": report.diagnostics.taxonomy_folder_records,
-                    "glossary_records": report.diagnostics.taxonomy_glossary_records,
-                },
-                "variants": {
-                    "parenthetical_records": report.diagnostics.variant_parenthetical_records,
-                    "suffix_records": report.diagnostics.variant_suffix_records,
-                    "creature_blurb_records": report.diagnostics.variant_creature_blurb_records,
-                    "creature_suffix_records": report.diagnostics.variant_creature_suffix_records,
-                    "exact_base_records": report.diagnostics.variant_exact_base_records,
-                },
-                "generated_afflictions": {
-                    "canonical_records": report.diagnostics.generated_affliction_canonical_records,
-                    "instance_records": report.diagnostics.generated_affliction_instance_records,
-                    "reference_edges": report.diagnostics.generated_affliction_reference_edges,
-                }
-            },
+            "diagnostics": diagnostics_json(&report.diagnostics),
             "skipped_record_count": report.skipped_records.len(),
-            "skipped_records": skipped_records,
+            "skipped_records": skipped_records_json(&report.skipped_records),
             "warnings": report.warnings,
         });
         println!(
@@ -122,8 +190,7 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn run_inspect_index(args: Vec<String>) -> Result<ExitCode, String> {
-    let options = parse_inspect_index(args)?;
+fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
     let report = inspect_index(&options.index).map_err(|error| error.to_string())?;
 
     if options.json {
@@ -166,8 +233,7 @@ fn run_inspect_index(args: Vec<String>) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
-    let options = parse_validate_index(args)?;
+fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
     let report = match validate_index(&options.index) {
         Ok(report) => report,
         Err(error) => ArtifactValidationReport {
@@ -227,143 +293,201 @@ fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
     Ok(exit_code)
 }
 
-fn print_help() {
-    println!(
-        "atlas build-index --source <path> --output <path> [--manifest <path>] [--json]\n\
-         atlas inspect-index --index <path> [--json]\n\
-         atlas validate-index --index <path> [--json]\n\
-         \n\
-         Commands:\n\
-         build-index      Build a minimal Rust artifact from Foundry source files\n\
-         inspect-index    Inspect artifact table and field coverage\n\
-         validate-index   Open an index read-only and validate Rust artifact metadata"
-    );
-}
+fn analyze_source_load(source_root: PathBuf, source: SourceLoad) -> Value {
+    let hidden_record_keys = source
+        .remaster_links
+        .iter()
+        .map(|link| link.legacy_record_key.to_string())
+        .collect::<BTreeSet<_>>();
+    let default_visible_record_count = source
+        .records
+        .iter()
+        .filter(|record| {
+            record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string())
+        })
+        .count();
+    let generated_record_count = source
+        .records
+        .iter()
+        .filter(|record| is_generated_record(record))
+        .count();
 
-#[derive(Debug)]
-struct BuildIndexOptions {
-    source: PathBuf,
-    output: PathBuf,
-    manifest: Option<PathBuf>,
-    json: bool,
-}
-
-fn parse_build_index(args: Vec<String>) -> Result<BuildIndexOptions, String> {
-    let mut source = None;
-    let mut output = None;
-    let mut manifest = None;
-    let mut json = false;
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--source" => {
-                let value = args
-                    .get(i + 1)
-                    .ok_or_else(|| "--source requires a path".to_string())?;
-                source = Some(PathBuf::from(value));
-                i += 2;
-            }
-            "--output" => {
-                let value = args
-                    .get(i + 1)
-                    .ok_or_else(|| "--output requires a path".to_string())?;
-                output = Some(PathBuf::from(value));
-                i += 2;
-            }
-            "--manifest" => {
-                let value = args
-                    .get(i + 1)
-                    .ok_or_else(|| "--manifest requires a path".to_string())?;
-                manifest = Some(PathBuf::from(value));
-                i += 2;
-            }
-            "--json" => {
-                json = true;
-                i += 1;
-            }
-            flag if flag.starts_with("--") => {
-                return Err(format!("unknown build-index option `{flag}`"));
-            }
-            value => return Err(format!("unexpected build-index argument `{value}`")),
-        }
-    }
-
-    Ok(BuildIndexOptions {
-        source: source.ok_or_else(|| "build-index requires --source <path>".to_string())?,
-        output: output.ok_or_else(|| "build-index requires --output <path>".to_string())?,
-        manifest,
-        json,
+    json!({
+        "status": "ok",
+        "source": {
+            "root": source_root.display().to_string(),
+            "manifest": source.manifest_path.display().to_string(),
+            "source_signature": source.source_signature,
+        },
+        "pack_count": source.packs.len(),
+        "loaded_source_pack_count": source.packs.iter().filter(|pack| !pack.declared_path.starts_with("derived://")).count(),
+        "record_count": source.records.len(),
+        "loaded_source_record_count": source.records.len() - generated_record_count,
+        "generated_record_count": generated_record_count,
+        "default_visible_record_count": default_visible_record_count,
+        "hidden_record_count": source.records.len() - default_visible_record_count,
+        "by_record_family": count_by_record_family(&source.records),
+        "by_foundry_taxonomy": count_by_foundry_taxonomy(&source.records),
+        "by_publication_family": count_by_publication_family(&source.records),
+        "text": {
+            "records_with_description": source.records.iter().filter(|record| record.description_text.is_some()).count(),
+            "records_with_blurb": source.records.iter().filter(|record| record.blurb_text.is_some()).count(),
+        },
+        "side_data": {
+            "actor_records": source.records.iter().filter(|record| record.actor_data.is_some()).count(),
+            "item_records": source.records.iter().filter(|record| record.item_data.is_some()).count(),
+            "spell_records": source.records.iter().filter(|record| record.spell_data.is_some()).count(),
+        },
+        "metrics": metrics_json(&source.records, &hidden_record_keys),
+        "relationships": {
+            "reference_edges": source.references.len(),
+            "record_aliases": source.aliases.len(),
+            "remaster_links": source.remaster_links.len(),
+        },
+        "diagnostics": diagnostics_json(&source.diagnostics),
+        "skipped_record_count": source.skipped_records.len(),
+        "skipped_records": skipped_records_json(&source.skipped_records),
+        "warnings": source.warnings,
     })
 }
 
-#[derive(Debug)]
-struct ValidateIndexOptions {
-    index: PathBuf,
-    json: bool,
-}
-
-#[derive(Debug)]
-struct InspectIndexOptions {
-    index: PathBuf,
-    json: bool,
-}
-
-fn parse_inspect_index(args: Vec<String>) -> Result<InspectIndexOptions, String> {
-    let mut index = None;
-    let mut json = false;
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--index" => {
-                let value = args
-                    .get(i + 1)
-                    .ok_or_else(|| "--index requires a path".to_string())?;
-                index = Some(PathBuf::from(value));
-                i += 2;
-            }
-            "--json" => {
-                json = true;
-                i += 1;
-            }
-            flag if flag.starts_with("--") => {
-                return Err(format!("unknown inspect-index option `{flag}`"));
-            }
-            value => return Err(format!("unexpected inspect-index argument `{value}`")),
+fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
+    json!({
+        "taxonomy": {
+            "folder_records": diagnostics.taxonomy_folder_records,
+            "glossary_records": diagnostics.taxonomy_glossary_records,
+        },
+        "variants": {
+            "parenthetical_records": diagnostics.variant_parenthetical_records,
+            "suffix_records": diagnostics.variant_suffix_records,
+            "creature_blurb_records": diagnostics.variant_creature_blurb_records,
+            "creature_suffix_records": diagnostics.variant_creature_suffix_records,
+            "exact_base_records": diagnostics.variant_exact_base_records,
+        },
+        "generated_afflictions": {
+            "canonical_records": diagnostics.generated_affliction_canonical_records,
+            "instance_records": diagnostics.generated_affliction_instance_records,
+            "reference_edges": diagnostics.generated_affliction_reference_edges,
         }
-    }
-
-    Ok(InspectIndexOptions {
-        index: index.ok_or_else(|| "inspect-index requires --index <path>".to_string())?,
-        json,
     })
 }
 
-fn parse_validate_index(args: Vec<String>) -> Result<ValidateIndexOptions, String> {
-    let mut index = None;
-    let mut json = false;
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--index" => {
-                let value = args
-                    .get(i + 1)
-                    .ok_or_else(|| "--index requires a path".to_string())?;
-                index = Some(PathBuf::from(value));
-                i += 2;
+fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
+    skipped_records
+        .iter()
+        .map(|record| {
+            json!({
+                "path": record.path.display().to_string(),
+                "reason": record.reason,
+            })
+        })
+        .collect()
+}
+
+fn count_by_record_family(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+    let mut counts = BTreeMap::new();
+    for record in records {
+        *counts
+            .entry(record.record_family.as_str().to_string())
+            .or_insert(0) += 1;
+    }
+    counts
+}
+
+fn count_by_foundry_taxonomy(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+    let mut counts = BTreeMap::new();
+    for record in records {
+        *counts
+            .entry(format!(
+                "{}|{}",
+                record.foundry_document_type, record.foundry_record_type
+            ))
+            .or_insert(0) += 1;
+    }
+    counts
+}
+
+fn count_by_publication_family(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+    let mut counts = BTreeMap::new();
+    for record in records {
+        *counts
+            .entry(publication_family_label(record.publication_family).to_string())
+            .or_insert(0) += 1;
+    }
+    counts
+}
+
+fn metrics_json(records: &[LoadedRecord], hidden_record_keys: &BTreeSet<String>) -> Value {
+    let mut rows_by_domain = BTreeMap::<String, usize>::new();
+    let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
+    for record in records {
+        let is_default_visible =
+            record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string());
+        for metric in &record.metrics {
+            let domain = metric_domain_label(metric.domain).to_string();
+            *rows_by_domain.entry(domain.clone()).or_insert(0) += 1;
+            keys_by_domain
+                .entry(domain.clone())
+                .or_default()
+                .insert(metric.key.clone());
+            match &metric.value {
+                MetricValue::Text(value) if is_default_visible => {
+                    text_boolean_values.insert((
+                        domain,
+                        record.record_family.as_str().to_string(),
+                        metric.key.clone(),
+                        value.clone(),
+                    ));
+                }
+                MetricValue::Boolean(value) => {
+                    if is_default_visible {
+                        text_boolean_values.insert((
+                            domain,
+                            record.record_family.as_str().to_string(),
+                            metric.key.clone(),
+                            i64::from(*value).to_string(),
+                        ));
+                    }
+                }
+                MetricValue::Number(_) | MetricValue::Text(_) => {}
             }
-            "--json" => {
-                json = true;
-                i += 1;
-            }
-            flag if flag.starts_with("--") => {
-                return Err(format!("unknown validate-index option `{flag}`"));
-            }
-            value => return Err(format!("unexpected validate-index argument `{value}`")),
         }
     }
 
-    let index = index.ok_or_else(|| "validate-index requires --index <path>".to_string())?;
-    Ok(ValidateIndexOptions { index, json })
+    let keys_by_domain = keys_by_domain
+        .into_iter()
+        .map(|(domain, keys)| (domain, keys.len()))
+        .collect::<BTreeMap<_, _>>();
+
+    json!({
+        "metric_rows_by_domain": rows_by_domain,
+        "metric_keys_by_domain": keys_by_domain,
+        "metric_value_catalog_rows": text_boolean_values.len(),
+    })
+}
+
+fn is_generated_record(record: &LoadedRecord) -> bool {
+    matches!(
+        record.pack_name.as_str(),
+        "derived-afflictions" | "derived-affliction-instances"
+    )
+}
+
+fn publication_family_label(family: atlas_domain::PublicationFamily) -> &'static str {
+    match family {
+        atlas_domain::PublicationFamily::Core => "core",
+        atlas_domain::PublicationFamily::Rules => "rules",
+        atlas_domain::PublicationFamily::Adventure => "adventure",
+        atlas_domain::PublicationFamily::Unknown => "unknown",
+    }
+}
+
+fn metric_domain_label(domain: MetricDomain) -> &'static str {
+    match domain {
+        MetricDomain::Actor => "actor",
+        MetricDomain::Item => "item",
+    }
 }
 
 fn validation_code_label(code: &ValidationCode) -> &'static str {
