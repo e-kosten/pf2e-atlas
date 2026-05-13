@@ -133,7 +133,8 @@ fn inspect_tables(
 ) -> Result<BTreeMap<String, usize>, IndexValidationError> {
     let mut tables = BTreeMap::new();
     for table in REQUIRED_TABLES {
-        tables.insert((*table).to_string(), count_rows(connection, table)?);
+        let table_name = table.name();
+        tables.insert(table_name.to_string(), count_rows(connection, table_name)?);
     }
     Ok(tables)
 }

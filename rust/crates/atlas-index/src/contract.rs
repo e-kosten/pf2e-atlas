@@ -42,11 +42,12 @@ fn validate_required_tables(
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
     for table in REQUIRED_TABLES {
-        if !table_exists(connection, table)? {
+        let table_name = table.name();
+        if !table_exists(connection, table_name)? {
             diagnostics.push(contract_diagnostic(
                 ArtifactContractFamily::Schema,
-                format!("required artifact table `{table}` is missing"),
-                Some(format!("table:{table}")),
+                format!("required artifact table `{table_name}` is missing"),
+                Some(format!("table:{table_name}")),
                 Some("present".to_string()),
                 Some("missing".to_string()),
             ));
@@ -60,13 +61,15 @@ fn validate_required_columns(
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
     for (table, columns) in REQUIRED_COLUMNS {
-        let present_columns = table_columns(connection, table)?;
+        let table_name = table.name();
+        let present_columns = table_columns(connection, table_name)?;
         for column in *columns {
-            if !present_columns.contains_key(*column) {
+            let column_name = column.name();
+            if !present_columns.contains_key(column_name) {
                 diagnostics.push(contract_diagnostic(
                     ArtifactContractFamily::Schema,
-                    format!("required artifact column `{table}.{column}` is missing"),
-                    Some(format!("column:{table}.{column}")),
+                    format!("required artifact column `{table_name}.{column_name}` is missing"),
+                    Some(format!("column:{table_name}.{column_name}")),
                     Some("present".to_string()),
                     Some("missing".to_string()),
                 ));
