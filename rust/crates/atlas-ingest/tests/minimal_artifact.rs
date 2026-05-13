@@ -138,6 +138,44 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
 }
 
 #[test]
+fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("rebuild-existing-output");
+    write_fixture_source(&root)?;
+    let output_path = root.join("artifact.sqlite");
+
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+        embedding_cache_root: None,
+        reuse_embeddings: false,
+    })?;
+
+    let wal_path = root.join("artifact.sqlite-wal");
+    let shm_path = root.join("artifact.sqlite-shm");
+    fs::write(&wal_path, b"stale wal")?;
+    fs::write(&shm_path, b"stale shm")?;
+
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+        embedding_cache_root: None,
+        reuse_embeddings: false,
+    })?;
+
+    assert!(output_path.exists());
+    assert!(!wal_path.exists());
+    assert!(!shm_path.exists());
+
+    let validation = validate_index(&output_path)?;
+    assert_eq!(validation.status, ValidationStatus::Ok);
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn reports_all_skipped_records_without_aborting_source_load()
 -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("skips");
