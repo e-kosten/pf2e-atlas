@@ -64,7 +64,12 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     let inspect_json: Value = serde_json::from_slice(&inspect_output.stdout)?;
     assert_eq!(inspect_json["status"], "ok");
     assert_eq!(inspect_json["records"]["total_records"], 1);
+    assert_eq!(inspect_json["records"]["default_visible_records"], 1);
     assert_eq!(inspect_json["records"]["by_record_family"]["rule"], 1);
+    assert_eq!(
+        inspect_json["records"]["by_publication_family"]["unknown"],
+        1
+    );
     assert_eq!(inspect_json["tables"]["records"], 1);
     assert_eq!(inspect_json["tables"]["packs"], 1);
     assert_eq!(inspect_json["text"]["records_with_description"], 1);

@@ -103,6 +103,8 @@ pub struct LoadedRecord {
     pub pack_label: String,
     pub foundry_document_type: String,
     pub foundry_record_type: String,
+    pub level: Option<i64>,
+    pub rarity: Option<String>,
     pub traits: Vec<String>,
     pub system_category: Option<String>,
     pub system_group: Option<String>,
@@ -133,7 +135,6 @@ pub struct LoadedRecord {
     pub variant_confidence: Option<f64>,
     pub variant_source: String,
     pub source_path: String,
-    pub is_unique: bool,
     pub text_status: TextStatus,
     pub search_text_projection: String,
     pub reference_candidates: Vec<ReferenceCandidate>,
@@ -501,6 +502,8 @@ fn normalize_record(
                 ),
             )
         })?;
+    let level = pointer_i64(&raw, "/system/level/value");
+    let rarity = normalized_pointer_string(&raw, "/system/traits/rarity");
     let traits = extract_traits(&raw);
     let system_category = normalized_pointer_string(&raw, "/system/category");
     let system_group = normalized_pointer_string(&raw, "/system/group");
@@ -535,8 +538,11 @@ fn normalize_record(
     });
     let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
         .then(|| extract_spell_side_data(&raw, &traits));
-    let publication_title = pointer_string(&raw, "/system/publication/title");
-    let publication_remaster = pointer_bool(&raw, "/system/publication/remaster").unwrap_or(false);
+    let publication_title = pointer_string(&raw, "/system/publication/title")
+        .or_else(|| pointer_string(&raw, "/system/details/publication/title"));
+    let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
+        .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
+        .unwrap_or(false);
     let description_text =
         pointer_string(&raw, "/system/description/value").map(|value| strip_markup(&value));
     let description_text = description_text.filter(|value| !value.trim().is_empty());
@@ -544,8 +550,6 @@ fn normalize_record(
         pointer_string(&raw, "/system/details/blurb").map(|value| strip_markup(&value));
     let blurb_text = blurb_text.filter(|value| !value.trim().is_empty());
     let folder_id = pointer_string(&raw, "/folder");
-    let is_unique = normalized_pointer_string(&raw, "/system/traits/rarity")
-        .is_some_and(|rarity| rarity == "unique");
     let text_status = if description_text.is_some() {
         TextStatus::Resolved
     } else {
@@ -561,6 +565,7 @@ fn normalize_record(
     let raw_json = serde_json::to_string(&raw).map_err(|error| {
         normalization_error(path, &format!("raw JSON serialization failed: {error}"))
     })?;
+    let publication_family = publication_family(pack_name.as_str(), publication_title.as_deref());
 
     Ok(LoadedRecord {
         key,
@@ -572,6 +577,8 @@ fn normalize_record(
         pack_label: manifest_pack.label.clone(),
         foundry_document_type: manifest_pack.document_type.clone(),
         foundry_record_type: record_type,
+        level,
+        rarity,
         traits,
         system_category,
         system_group,
@@ -592,7 +599,7 @@ fn normalize_record(
         publication_remaster,
         description_text: description_text.clone(),
         blurb_text,
-        publication_family: PublicationFamily::Unknown,
+        publication_family,
         folder_id,
         taxonomy_families: Vec::new(),
         variant_group_key: None,
@@ -602,12 +609,66 @@ fn normalize_record(
         variant_confidence: None,
         variant_source: "none".to_string(),
         source_path,
-        is_unique,
         text_status,
         search_text_projection,
         reference_candidates,
         raw_json,
     })
+}
+
+fn publication_family(pack_name: &str, publication_title: Option<&str>) -> PublicationFamily {
+    if is_core_publication(publication_title) {
+        return PublicationFamily::Core;
+    }
+    if is_adventure_publication(publication_title) || is_adventure_pack(pack_name) {
+        return PublicationFamily::Adventure;
+    }
+    if publication_title.is_some_and(|title| !title.trim().is_empty()) {
+        return PublicationFamily::Rules;
+    }
+    PublicationFamily::Unknown
+}
+
+fn is_core_publication(publication_title: Option<&str>) -> bool {
+    matches!(
+        normalize_text(publication_title.unwrap_or_default()).as_str(),
+        "pathfinder player core"
+            | "player core"
+            | "pathfinder player core 2"
+            | "player core 2"
+            | "pathfinder gm core"
+            | "gm core"
+            | "pathfinder monster core"
+            | "monster core"
+            | "pathfinder monster core 2"
+            | "monster core 2"
+            | "pathfinder beginner box"
+    )
+}
+
+fn is_adventure_publication(publication_title: Option<&str>) -> bool {
+    let normalized = normalize_text(publication_title.unwrap_or_default());
+    !normalized.is_empty()
+        && (normalized.contains("adventure path")
+            || normalized.contains("pathfinder society")
+            || normalized.contains("quest")
+            || normalized.contains("one shot")
+            || normalized.contains("special")
+            || normalized.starts_with("pathfinder adventure ")
+            || is_pathfinder_numbered_adventure(&normalized))
+}
+
+fn is_pathfinder_numbered_adventure(value: &str) -> bool {
+    let mut parts = value.split_whitespace();
+    matches!(parts.next(), Some("pathfinder"))
+        && parts.next().is_some_and(|part| part.parse::<u16>().is_ok())
+}
+
+fn is_adventure_pack(pack_name: &str) -> bool {
+    let normalized = normalize_text(pack_name);
+    normalized.starts_with("pfs ")
+        || normalized.contains("one shot")
+        || normalized.contains("quest")
 }
 
 fn normalization_error(path: &Path, message: &str) -> IngestError {
@@ -3069,7 +3130,7 @@ pub fn write_minimal_artifact(path: &Path, source: &SourceLoad) -> Result<(), In
     create_minimal_schema(&transaction)?;
     write_artifact_metadata(&transaction, source.records.len())?;
     write_packs(&transaction, &source.packs)?;
-    write_records(&transaction, &source.records)?;
+    write_records(&transaction, &source.records, &source.remaster_links)?;
     write_reference_edges(&transaction, &source.references)?;
     write_record_aliases(&transaction, &source.aliases)?;
     write_remaster_links(&transaction, &source.remaster_links)?;
@@ -3131,7 +3192,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               duration_unit TEXT,
               duration_text TEXT,
               publication_title TEXT,
-              publication_remaster INTEGER NOT NULL,
+              publication_remaster INTEGER NOT NULL CHECK (publication_remaster IN (0, 1)),
               description_text TEXT,
               blurb_text TEXT,
               description_snippet TEXT,
@@ -3145,8 +3206,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               variant_confidence REAL,
               variant_source TEXT NOT NULL,
               source_path TEXT NOT NULL,
-              is_unique INTEGER NOT NULL,
-              is_search_canonical INTEGER NOT NULL,
+              is_default_visible INTEGER NOT NULL CHECK (is_default_visible IN (0, 1)),
               search_text_projection TEXT NOT NULL,
               raw_json TEXT NOT NULL
             );
@@ -3195,7 +3255,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
               number_value REAL,
               text_value TEXT,
-              bool_value INTEGER,
+              bool_value INTEGER CHECK (bool_value IN (0, 1)),
               PRIMARY KEY (record_key, metric_domain, metric_key),
               FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
@@ -3232,7 +3292,7 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               weaknesses_json TEXT NOT NULL,
               disable_text TEXT,
               disable_skills_json TEXT NOT NULL,
-              is_complex INTEGER NOT NULL,
+              is_complex INTEGER NOT NULL CHECK (is_complex IN (0, 1)),
               FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
 
@@ -3259,8 +3319,8 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               area_type TEXT,
               area_value REAL,
               save_type TEXT,
-              sustained INTEGER NOT NULL,
-              basic_save INTEGER NOT NULL,
+              sustained INTEGER NOT NULL CHECK (sustained IN (0, 1)),
+              basic_save INTEGER NOT NULL CHECK (basic_save IN (0, 1)),
               damage_types_json TEXT NOT NULL,
               FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
@@ -3393,7 +3453,15 @@ fn write_packs(connection: &Connection, packs: &[LoadedPack]) -> Result<(), Inge
     Ok(())
 }
 
-fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<(), IngestError> {
+fn write_records(
+    connection: &Connection,
+    records: &[LoadedRecord],
+    remaster_links: &[RemasterLink],
+) -> Result<(), IngestError> {
+    let hidden_record_keys = remaster_links
+        .iter()
+        .map(|link| link.legacy_record_key.to_string())
+        .collect::<BTreeSet<_>>();
     let mut insert_record = connection
         .prepare(
             "INSERT INTO records (
@@ -3404,9 +3472,9 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
               duration_kind, duration_value, duration_unit, duration_text,
               publication_title, publication_remaster, description_text, blurb_text,
               description_snippet, publication_family, folder_id, taxonomy_families_json, variant_group_key, variant_base_name,
-              variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_unique, is_search_canonical,
+              variant_label, variant_axes_json, variant_confidence, variant_source, source_path, is_default_visible,
               search_text_projection, raw_json
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40, ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48)",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let mut insert_trait = connection
@@ -3465,8 +3533,8 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.pack_label.as_str(),
                 record.foundry_document_type.as_str(),
                 record.foundry_record_type.as_str(),
-                Option::<i64>::None,
-                Option::<String>::None,
+                record.level,
+                record.rarity.as_deref(),
                 traits_json,
                 record.system_category.as_deref(),
                 record.system_group.as_deref(),
@@ -3501,8 +3569,7 @@ fn write_records(connection: &Connection, records: &[LoadedRecord]) -> Result<()
                 record.variant_confidence,
                 record.variant_source.as_str(),
                 record.source_path.as_str(),
-                i64::from(record.is_unique),
-                1_i64,
+                i64::from(!hidden_record_keys.contains(&record.key.to_string())),
                 record.search_text_projection.as_str(),
                 record.raw_json.as_str(),
             ])
@@ -3752,7 +3819,7 @@ fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
               CASE WHEN rm.value_type = 'number' THEN MAX(rm.number_value) ELSE NULL END AS numeric_max
             FROM record_metrics rm
             JOIN records r ON r.record_key = rm.record_key
-            WHERE r.is_search_canonical = 1
+            WHERE r.is_default_visible = 1
             GROUP BY rm.metric_domain, r.record_family, namespace_prefix, rm.metric_key, rm.value_type;
 
             INSERT INTO metric_value_catalog (
@@ -3774,7 +3841,7 @@ fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
               COUNT(*) AS catalog_count
             FROM record_metrics rm
             JOIN records r ON r.record_key = rm.record_key
-            WHERE r.is_search_canonical = 1
+            WHERE r.is_default_visible = 1
               AND rm.value_type IN ('text', 'boolean')
               AND value IS NOT NULL
             GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value;

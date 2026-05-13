@@ -45,9 +45,12 @@ pub struct IndexInspectionReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RecordCoverageReport {
     pub total_records: usize,
-    pub search_canonical_records: usize,
+    pub default_visible_records: usize,
+    pub records_with_level: usize,
+    pub records_with_rarity: usize,
     pub by_record_family: BTreeMap<String, usize>,
     pub by_foundry_taxonomy: BTreeMap<String, usize>,
+    pub by_publication_family: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -217,9 +220,17 @@ fn inspect_tables(
 fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, IndexValidationError> {
     Ok(RecordCoverageReport {
         total_records: count_rows(connection, "records")?,
-        search_canonical_records: count_sql(
+        default_visible_records: count_sql(
             connection,
-            "SELECT COUNT(*) FROM records WHERE is_search_canonical = 1",
+            "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
+        )?,
+        records_with_level: count_sql(
+            connection,
+            "SELECT COUNT(*) FROM records WHERE level IS NOT NULL",
+        )?,
+        records_with_rarity: count_sql(
+            connection,
+            "SELECT COUNT(*) FROM records WHERE rarity IS NOT NULL AND TRIM(rarity) <> ''",
         )?,
         by_record_family: count_grouped(
             connection,
@@ -230,6 +241,10 @@ fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, Inde
             "SELECT foundry_document_type || '|' || foundry_record_type, COUNT(*)
              FROM records
              GROUP BY foundry_document_type, foundry_record_type",
+        )?,
+        by_publication_family: count_grouped(
+            connection,
+            "SELECT publication_family, COUNT(*) FROM records GROUP BY publication_family",
         )?,
     })
 }
