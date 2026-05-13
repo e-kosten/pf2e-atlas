@@ -2,11 +2,76 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use atlas_domain::{MetricDomain, PublicationFamily};
+use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad};
 
-pub fn analyze_source_load(source_root: PathBuf, source: SourceLoad) -> Value {
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SourceAnalysisReport {
+    pub status: &'static str,
+    pub source: SourceAnalysisSourceReport,
+    pub pack_count: usize,
+    pub loaded_source_pack_count: usize,
+    pub record_count: usize,
+    pub loaded_source_record_count: usize,
+    pub generated_record_count: usize,
+    pub default_visible_record_count: usize,
+    pub hidden_record_count: usize,
+    pub by_record_family: BTreeMap<String, usize>,
+    pub by_foundry_taxonomy: BTreeMap<String, usize>,
+    pub by_publication_family: BTreeMap<String, usize>,
+    pub text: SourceAnalysisTextReport,
+    pub side_data: SourceAnalysisSideDataReport,
+    pub metrics: SourceAnalysisMetricReport,
+    pub relationships: SourceAnalysisRelationshipReport,
+    pub diagnostics: Value,
+    pub skipped_record_count: usize,
+    pub skipped_records: Vec<SkippedRecordReport>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisSourceReport {
+    pub root: String,
+    pub manifest: String,
+    pub source_signature: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisTextReport {
+    pub records_with_description: usize,
+    pub records_with_blurb: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisSideDataReport {
+    pub actor_records: usize,
+    pub item_records: usize,
+    pub spell_records: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisMetricReport {
+    pub metric_rows_by_domain: BTreeMap<String, usize>,
+    pub metric_keys_by_domain: BTreeMap<String, usize>,
+    pub metric_value_catalog_rows: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisRelationshipReport {
+    pub reference_edges: usize,
+    pub record_aliases: usize,
+    pub remaster_links: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SkippedRecordReport {
+    pub path: String,
+    pub reason: String,
+}
+
+pub fn analyze_source_load(source_root: PathBuf, source: SourceLoad) -> SourceAnalysisReport {
     let hidden_record_keys = source
         .remaster_links
         .iter()
@@ -25,43 +90,67 @@ pub fn analyze_source_load(source_root: PathBuf, source: SourceLoad) -> Value {
         .filter(|record| is_generated_record(record))
         .count();
 
-    json!({
-        "status": "ok",
-        "source": {
-            "root": source_root.display().to_string(),
-            "manifest": source.manifest_path.display().to_string(),
-            "source_signature": source.source_signature,
+    SourceAnalysisReport {
+        status: "ok",
+        source: SourceAnalysisSourceReport {
+            root: source_root.display().to_string(),
+            manifest: source.manifest_path.display().to_string(),
+            source_signature: source.source_signature,
         },
-        "pack_count": source.packs.len(),
-        "loaded_source_pack_count": source.packs.iter().filter(|pack| !pack.declared_path.starts_with("derived://")).count(),
-        "record_count": source.records.len(),
-        "loaded_source_record_count": source.records.len() - generated_record_count,
-        "generated_record_count": generated_record_count,
-        "default_visible_record_count": default_visible_record_count,
-        "hidden_record_count": source.records.len() - default_visible_record_count,
-        "by_record_family": count_by_record_family(&source.records),
-        "by_foundry_taxonomy": count_by_foundry_taxonomy(&source.records),
-        "by_publication_family": count_by_publication_family(&source.records),
-        "text": {
-            "records_with_description": source.records.iter().filter(|record| record.description_text.is_some()).count(),
-            "records_with_blurb": source.records.iter().filter(|record| record.blurb_text.is_some()).count(),
+        pack_count: source.packs.len(),
+        loaded_source_pack_count: source
+            .packs
+            .iter()
+            .filter(|pack| !pack.declared_path.starts_with("derived://"))
+            .count(),
+        record_count: source.records.len(),
+        loaded_source_record_count: source.records.len() - generated_record_count,
+        generated_record_count,
+        default_visible_record_count,
+        hidden_record_count: source.records.len() - default_visible_record_count,
+        by_record_family: count_by_record_family(&source.records),
+        by_foundry_taxonomy: count_by_foundry_taxonomy(&source.records),
+        by_publication_family: count_by_publication_family(&source.records),
+        text: SourceAnalysisTextReport {
+            records_with_description: source
+                .records
+                .iter()
+                .filter(|record| record.description_text.is_some())
+                .count(),
+            records_with_blurb: source
+                .records
+                .iter()
+                .filter(|record| record.blurb_text.is_some())
+                .count(),
         },
-        "side_data": {
-            "actor_records": source.records.iter().filter(|record| record.actor_data.is_some()).count(),
-            "item_records": source.records.iter().filter(|record| record.item_data.is_some()).count(),
-            "spell_records": source.records.iter().filter(|record| record.spell_data.is_some()).count(),
+        side_data: SourceAnalysisSideDataReport {
+            actor_records: source
+                .records
+                .iter()
+                .filter(|record| record.actor_data.is_some())
+                .count(),
+            item_records: source
+                .records
+                .iter()
+                .filter(|record| record.item_data.is_some())
+                .count(),
+            spell_records: source
+                .records
+                .iter()
+                .filter(|record| record.spell_data.is_some())
+                .count(),
         },
-        "metrics": metrics_json(&source.records, &hidden_record_keys),
-        "relationships": {
-            "reference_edges": source.references.len(),
-            "record_aliases": source.aliases.len(),
-            "remaster_links": source.remaster_links.len(),
+        metrics: metrics_report(&source.records, &hidden_record_keys),
+        relationships: SourceAnalysisRelationshipReport {
+            reference_edges: source.references.len(),
+            record_aliases: source.aliases.len(),
+            remaster_links: source.remaster_links.len(),
         },
-        "diagnostics": diagnostics_json(&source.diagnostics),
-        "skipped_record_count": source.skipped_records.len(),
-        "skipped_records": skipped_records_json(&source.skipped_records),
-        "warnings": source.warnings,
-    })
+        diagnostics: diagnostics_json(&source.diagnostics),
+        skipped_record_count: source.skipped_records.len(),
+        skipped_records: skipped_record_reports(&source.skipped_records),
+        warnings: source.warnings,
+    }
 }
 
 pub fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
@@ -86,13 +175,18 @@ pub fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
 }
 
 pub fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
+    skipped_record_reports(skipped_records)
+        .into_iter()
+        .map(|record| json!(record))
+        .collect()
+}
+
+fn skipped_record_reports(skipped_records: &[SkippedRecord]) -> Vec<SkippedRecordReport> {
     skipped_records
         .iter()
-        .map(|record| {
-            json!({
-                "path": record.path.display().to_string(),
-                "reason": record.reason,
-            })
+        .map(|record| SkippedRecordReport {
+            path: record.path.display().to_string(),
+            reason: record.reason.clone(),
         })
         .collect()
 }
@@ -130,7 +224,10 @@ fn count_by_publication_family(records: &[LoadedRecord]) -> BTreeMap<String, usi
     counts
 }
 
-fn metrics_json(records: &[LoadedRecord], hidden_record_keys: &BTreeSet<String>) -> Value {
+fn metrics_report(
+    records: &[LoadedRecord],
+    hidden_record_keys: &BTreeSet<String>,
+) -> SourceAnalysisMetricReport {
     let mut rows_by_domain = BTreeMap::<String, usize>::new();
     let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
     let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
@@ -173,11 +270,11 @@ fn metrics_json(records: &[LoadedRecord], hidden_record_keys: &BTreeSet<String>)
         .map(|(domain, keys)| (domain, keys.len()))
         .collect::<BTreeMap<_, _>>();
 
-    json!({
-        "metric_rows_by_domain": rows_by_domain,
-        "metric_keys_by_domain": keys_by_domain,
-        "metric_value_catalog_rows": text_boolean_values.len(),
-    })
+    SourceAnalysisMetricReport {
+        metric_rows_by_domain: rows_by_domain,
+        metric_keys_by_domain: keys_by_domain,
+        metric_value_catalog_rows: text_boolean_values.len(),
+    }
 }
 
 fn is_generated_record(record: &LoadedRecord) -> bool {
@@ -188,17 +285,9 @@ fn is_generated_record(record: &LoadedRecord) -> bool {
 }
 
 fn publication_family_label(family: PublicationFamily) -> &'static str {
-    match family {
-        PublicationFamily::Core => "core",
-        PublicationFamily::Rules => "rules",
-        PublicationFamily::Adventure => "adventure",
-        PublicationFamily::Unknown => "unknown",
-    }
+    family.as_str()
 }
 
 fn metric_domain_label(domain: MetricDomain) -> &'static str {
-    match domain {
-        MetricDomain::Actor => "actor",
-        MetricDomain::Item => "item",
-    }
+    domain.as_str()
 }

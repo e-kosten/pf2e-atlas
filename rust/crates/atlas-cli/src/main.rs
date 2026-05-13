@@ -108,21 +108,21 @@ fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
     } else {
         println!(
             "ok: analyzed {} records from {} packs in {}",
-            report["record_count"], report["pack_count"], report["source"]["root"]
+            report.record_count, report.pack_count, report.source.root
         );
-        println!("source signature: {}", report["source"]["source_signature"]);
+        println!("source signature: {}", report.source.source_signature);
         println!(
             "records: source={} generated={} default_visible={} hidden={}",
-            report["loaded_source_record_count"],
-            report["generated_record_count"],
-            report["default_visible_record_count"],
-            report["hidden_record_count"]
+            report.loaded_source_record_count,
+            report.generated_record_count,
+            report.default_visible_record_count,
+            report.hidden_record_count
         );
         println!(
             "relationships: references={} aliases={} remaster_links={}",
-            report["relationships"]["reference_edges"],
-            report["relationships"]["record_aliases"],
-            report["relationships"]["remaster_links"]
+            report.relationships.reference_edges,
+            report.relationships.record_aliases,
+            report.relationships.remaster_links
         );
     }
 
