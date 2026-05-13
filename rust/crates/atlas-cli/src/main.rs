@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use atlas_domain::{ArtifactValidationReport, ValidationCode, ValidationStatus};
-use atlas_index::validate_index;
+use atlas_index::{inspect_index, validate_index};
 use atlas_ingest::{BuildArtifactOptions, build_minimal_artifact};
 
 fn main() -> ExitCode {
@@ -28,6 +28,7 @@ fn run() -> Result<ExitCode, String> {
     let command = args.remove(0);
     match command.as_str() {
         "build-index" => run_build_index(args),
+        "inspect-index" => run_inspect_index(args),
         "validate-index" => run_validate_index(args),
         _ => Err(format!("unknown command `{command}`")),
     }
@@ -108,6 +109,50 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
+fn run_inspect_index(args: Vec<String>) -> Result<ExitCode, String> {
+    let options = parse_inspect_index(args)?;
+    let report = inspect_index(&options.index).map_err(|error| error.to_string())?;
+
+    if options.json {
+        let body = serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?;
+        println!("{body}");
+    } else {
+        println!(
+            "ok: inspected {} records in {}",
+            report.records.total_records, report.index
+        );
+        println!(
+            "tables: records={} packs={} references={} aliases={} remaster_links={}",
+            report.tables.get("records").copied().unwrap_or_default(),
+            report.tables.get("packs").copied().unwrap_or_default(),
+            report
+                .tables
+                .get("reference_edges")
+                .copied()
+                .unwrap_or_default(),
+            report
+                .tables
+                .get("record_aliases")
+                .copied()
+                .unwrap_or_default(),
+            report
+                .tables
+                .get("remaster_links")
+                .copied()
+                .unwrap_or_default()
+        );
+        println!(
+            "coverage: taxonomy_records={} variant_records={} descriptions={} blurbs={}",
+            report.taxonomy.records_with_taxonomy_families,
+            report.variants.grouped_records,
+            report.text.records_with_description,
+            report.text.records_with_blurb
+        );
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
 fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
     let options = parse_validate_index(args)?;
     let report = match validate_index(&options.index) {
@@ -119,6 +164,9 @@ fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
                     ValidationCode::IndexUnavailable
                 }
                 atlas_index::IndexValidationError::QueryFailed(_) => ValidationCode::QueryFailed,
+                atlas_index::IndexValidationError::InvalidArtifact(_) => {
+                    ValidationCode::InvalidSourceMetadata
+                }
             },
             index: options.index.display().to_string(),
             message: error.to_string(),
@@ -169,11 +217,13 @@ fn run_validate_index(args: Vec<String>) -> Result<ExitCode, String> {
 fn print_help() {
     println!(
         "atlas build-index --source <path> --output <path> [--manifest <path>] [--json]\n\
+         atlas inspect-index --index <path> [--json]\n\
          atlas validate-index --index <path> [--json]\n\
          \n\
          Commands:\n\
-           build-index      Build a minimal Rust artifact from Foundry source files\n\
-           validate-index   Open an index read-only and validate Rust artifact metadata"
+         build-index      Build a minimal Rust artifact from Foundry source files\n\
+         inspect-index    Inspect artifact table and field coverage\n\
+         validate-index   Open an index read-only and validate Rust artifact metadata"
     );
 }
 
@@ -237,6 +287,42 @@ fn parse_build_index(args: Vec<String>) -> Result<BuildIndexOptions, String> {
 struct ValidateIndexOptions {
     index: PathBuf,
     json: bool,
+}
+
+#[derive(Debug)]
+struct InspectIndexOptions {
+    index: PathBuf,
+    json: bool,
+}
+
+fn parse_inspect_index(args: Vec<String>) -> Result<InspectIndexOptions, String> {
+    let mut index = None;
+    let mut json = false;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--index" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--index requires a path".to_string())?;
+                index = Some(PathBuf::from(value));
+                i += 2;
+            }
+            "--json" => {
+                json = true;
+                i += 1;
+            }
+            flag if flag.starts_with("--") => {
+                return Err(format!("unknown inspect-index option `{flag}`"));
+            }
+            value => return Err(format!("unexpected inspect-index argument `{value}`")),
+        }
+    }
+
+    Ok(InspectIndexOptions {
+        index: index.ok_or_else(|| "inspect-index requires --index <path>".to_string())?,
+        json,
+    })
 }
 
 fn parse_validate_index(args: Vec<String>) -> Result<ValidateIndexOptions, String> {

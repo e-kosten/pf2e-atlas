@@ -54,6 +54,23 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(validate_json["status"], "ok");
     assert_eq!(validate_json["source_record_count"], "1");
 
+    let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["inspect-index", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+
+    assert!(inspect_output.status.success());
+    let inspect_json: Value = serde_json::from_slice(&inspect_output.stdout)?;
+    assert_eq!(inspect_json["status"], "ok");
+    assert_eq!(inspect_json["records"]["total_records"], 1);
+    assert_eq!(inspect_json["records"]["by_record_family"]["rule"], 1);
+    assert_eq!(inspect_json["tables"]["records"], 1);
+    assert_eq!(inspect_json["tables"]["packs"], 1);
+    assert_eq!(inspect_json["text"]["records_with_description"], 1);
+    assert_eq!(inspect_json["relationships"]["reference_edges"], 0);
+    assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
+
     fs::remove_dir_all(root)?;
     Ok(())
 }
