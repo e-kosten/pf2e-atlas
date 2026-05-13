@@ -3,14 +3,18 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use atlas_domain::SearchFilterNode;
+use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{
-    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
+    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index, query_vector_index,
     validate_index_report, validate_vector_index_report, write_vector_index_report,
 };
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
 use clap::{Args, Parser, Subcommand};
+use rusqlite::{Connection, OpenFlags};
+use serde_json::json;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
@@ -24,12 +28,20 @@ struct Cli {
 enum Command {
     #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
     Index(IndexArgs),
+    #[command(about = "Run Atlas search commands")]
+    Search(SearchArgs),
 }
 
 #[derive(Debug, Args)]
 struct IndexArgs {
     #[command(subcommand)]
     command: IndexCommand,
+}
+
+#[derive(Debug, Args)]
+struct SearchArgs {
+    #[command(subcommand)]
+    command: SearchCommand,
 }
 
 #[derive(Debug, Subcommand)]
@@ -46,6 +58,12 @@ enum IndexCommand {
     ValidateVectors(IndexPathOptions),
     #[command(about = "Build record_vector_index from document_embedding_cache")]
     BuildVectors(IndexPathOptions),
+}
+
+#[derive(Debug, Subcommand)]
+enum SearchCommand {
+    #[command(about = "Run semantic vector search and print raw record-key hits")]
+    Semantic(SemanticSearchOptions),
 }
 
 #[derive(Debug, Args)]
@@ -80,6 +98,22 @@ struct IndexPathOptions {
     json: bool,
 }
 
+#[derive(Debug, Args)]
+struct SemanticSearchOptions {
+    #[arg(long)]
+    index: PathBuf,
+    #[arg(long)]
+    query: String,
+    #[arg(long, default_value_t = 10)]
+    limit: u32,
+    #[arg(long)]
+    filter_json: Option<String>,
+    #[arg(long, default_value = ".cache/hf-models")]
+    embedding_cache_path: PathBuf,
+    #[arg(long)]
+    json: bool,
+}
+
 fn main() -> ExitCode {
     match run(Cli::parse()) {
         Ok(code) => code,
@@ -99,6 +133,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Validate(options) => run_index_validate(options),
             IndexCommand::ValidateVectors(options) => run_index_validate_vectors(options),
             IndexCommand::BuildVectors(options) => run_index_build_vectors(options),
+        },
+        Command::Search(search) => match search.command {
+            SearchCommand::Semantic(options) => run_search_semantic(options),
         },
     }
 }
@@ -239,6 +276,52 @@ fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, Str
 fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
     let report = write_vector_index_report(&options.index);
     write_validation_report(report, options.json)
+}
+
+fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, String> {
+    let filter = options
+        .filter_json
+        .as_deref()
+        .map(|filter_json| {
+            serde_json::from_str::<SearchFilterNode>(filter_json)
+                .map_err(|error| format!("failed to parse --filter-json: {error}"))
+        })
+        .transpose()?;
+
+    let config = EmbeddingRuntimeConfig::default_model(&options.embedding_cache_path);
+    let mut embedder = TextEmbedder::load(&config).map_err(|error| error.to_string())?;
+    let query_vector = embedder
+        .embed_query(&options.query)
+        .map_err(|error| error.to_string())?;
+    let connection = Connection::open_with_flags(&options.index, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|error| error.to_string())?;
+    let hits = query_vector_index(&connection, &query_vector, filter.as_ref(), options.limit)
+        .map_err(|error| error.to_string())?;
+
+    if options.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "status": "ok",
+                "query": options.query,
+                "limit": options.limit,
+                "hits": hits.iter().map(|hit| {
+                    json!({
+                        "record_key": hit.record_key,
+                        "distance": hit.distance,
+                    })
+                }).collect::<Vec<_>>()
+            }))
+            .map_err(|error| error.to_string())?
+        );
+    } else {
+        println!("ok: {} semantic hits", hits.len());
+        for hit in hits {
+            println!("{}\t{}", hit.record_key, hit.distance);
+        }
+    }
+
+    Ok(ExitCode::SUCCESS)
 }
 
 fn write_validation_report(
