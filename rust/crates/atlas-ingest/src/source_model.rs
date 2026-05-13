@@ -29,6 +29,7 @@ pub struct BuildArtifactReport {
     pub document_embedding_count: usize,
     pub reused_document_embedding_count: usize,
     pub generated_document_embedding_count: usize,
+    pub build_duration_ms: u128,
     pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,

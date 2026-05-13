@@ -5,6 +5,7 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use atlas_domain::SearchFilterNode;
 use atlas_index::{
@@ -146,6 +147,7 @@ struct CliProgressLayer {
 #[derive(Debug)]
 struct CliProgressState {
     is_interactive: bool,
+    started_at: Instant,
     progress_bar: Option<ProgressBar>,
     progress_phase: Option<String>,
 }
@@ -164,6 +166,7 @@ impl CliProgressLayer {
         Self {
             state: Mutex::new(CliProgressState {
                 is_interactive: std::io::stderr().is_terminal(),
+                started_at: Instant::now(),
                 progress_bar: None,
                 progress_phase: None,
             }),
@@ -209,7 +212,10 @@ impl CliProgressState {
         };
         let current = fields.current.unwrap_or(0);
         if !self.is_interactive {
-            eprintln!(" INFO {message}");
+            eprintln!(
+                "{} INFO {message}",
+                elapsed_prefix(self.started_at.elapsed())
+            );
             return;
         }
 
@@ -239,7 +245,7 @@ impl CliProgressState {
     }
 
     fn log(&mut self, message: &str, fields: &[(String, String)]) {
-        let line = format_log_line(message, fields);
+        let line = format_log_line(self.started_at.elapsed(), message, fields);
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.suspend(|| eprintln!("{line}"));
         } else {
@@ -287,12 +293,21 @@ fn progress_style() -> ProgressStyle {
         .progress_chars("=> ")
 }
 
-fn format_log_line(message: &str, fields: &[(String, String)]) -> String {
-    let mut line = format!(" INFO {message}");
+fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
+    let mut line = format!("{} INFO {message}", elapsed_prefix(elapsed));
     for (name, value) in fields {
         let _ = write!(line, " {name}={value}");
     }
     line
+}
+
+fn elapsed_prefix(elapsed: Duration) -> String {
+    let total_millis = elapsed.as_millis();
+    let total_seconds = total_millis / 1000;
+    let millis = total_millis % 1000;
+    let minutes = total_seconds / 60;
+    let seconds = total_seconds % 60;
+    format!("[{minutes:02}:{seconds:02}.{millis:03}]")
 }
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
@@ -372,11 +387,12 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={} reused={} generated={}",
+            "embeddings: pending_document={} document={} reused={} generated={} build_duration_ms={}",
             report.pending_document_embedding_count,
             report.document_embedding_count,
             report.reused_document_embedding_count,
-            report.generated_document_embedding_count
+            report.generated_document_embedding_count,
+            report.build_duration_ms
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(
