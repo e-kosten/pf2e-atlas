@@ -203,7 +203,7 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write item side-data.
 - [x] Write spell side-data.
 - [ ] Revisit derived-tag assignments late in the migration after a dedicated design pass.
-- [ ] Generate source signatures from source paths and per-record hashes.
+- [x] Generate source signatures from source paths and per-record hashes.
 - [x] Add a small fixture ingest test.
 - [ ] Add a full-corpus analysis command that reports counts without writing the full artifact.
 - [ ] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.

@@ -59,6 +59,7 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             "output": report.output_path.display().to_string(),
             "pack_count": report.pack_count,
             "record_count": report.record_count,
+            "source_signature": report.source_signature,
             "diagnostics": {
                 "taxonomy": {
                     "folder_records": report.diagnostics.taxonomy_folder_records,
@@ -92,6 +93,7 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             report.pack_count,
             report.output_path.display()
         );
+        eprintln!("source signature: {}", report.source_signature);
         eprintln!(
             "diagnostics: taxonomy folder={} glossary={} variants parenthetical={} suffix={} creature_blurb={} creature_suffix={} exact_base={}",
             report.diagnostics.taxonomy_folder_records,
