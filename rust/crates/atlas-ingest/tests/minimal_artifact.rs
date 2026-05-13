@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 
 use atlas_domain::{RecordFamily, ValidationStatus};
 use atlas_index::validate_index;
-use atlas_ingest::{
-    AliasSource, BuildArtifactOptions, build_minimal_artifact, load_foundry_source,
-};
+use atlas_ingest::{AliasSource, BuildArtifactOptions, build_artifact, load_foundry_source};
 use rusqlite::Connection;
 
 #[test]
@@ -213,7 +211,7 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
     }));
 
     let output_path = root.join("artifact.sqlite");
-    build_minimal_artifact(BuildArtifactOptions {
+    build_artifact(BuildArtifactOptions {
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
@@ -318,7 +316,7 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
     assert_eq!(figurine.variant_label.as_deref(), Some("Rubber Bear"));
 
     let output_path = root.join("artifact.sqlite");
-    build_minimal_artifact(BuildArtifactOptions {
+    build_artifact(BuildArtifactOptions {
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
@@ -375,7 +373,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     );
 
     let output_path = root.join("artifact.sqlite");
-    build_minimal_artifact(BuildArtifactOptions {
+    build_artifact(BuildArtifactOptions {
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
@@ -417,7 +415,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     write_fixture_source(&root)?;
     let output_path = root.join("artifact.sqlite");
 
-    let report = build_minimal_artifact(BuildArtifactOptions {
+    let report = build_artifact(BuildArtifactOptions {
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
