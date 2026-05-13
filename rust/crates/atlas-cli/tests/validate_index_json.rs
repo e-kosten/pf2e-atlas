@@ -39,6 +39,11 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                     "creature_blurb_records": 0,
                     "creature_suffix_records": 0,
                     "exact_base_records": 0
+                },
+                "generated_afflictions": {
+                    "canonical_records": 0,
+                    "instance_records": 0,
+                    "reference_edges": 0
                 }
             },
             "skipped_record_count": 0,

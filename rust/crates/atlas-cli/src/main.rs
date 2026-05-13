@@ -70,6 +70,11 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
                     "creature_blurb_records": report.diagnostics.variant_creature_blurb_records,
                     "creature_suffix_records": report.diagnostics.variant_creature_suffix_records,
                     "exact_base_records": report.diagnostics.variant_exact_base_records,
+                },
+                "generated_afflictions": {
+                    "canonical_records": report.diagnostics.generated_affliction_canonical_records,
+                    "instance_records": report.diagnostics.generated_affliction_instance_records,
+                    "reference_edges": report.diagnostics.generated_affliction_reference_edges,
                 }
             },
             "skipped_record_count": report.skipped_records.len(),
@@ -96,6 +101,12 @@ fn run_build_index(args: Vec<String>) -> Result<ExitCode, String> {
             report.diagnostics.variant_creature_blurb_records,
             report.diagnostics.variant_creature_suffix_records,
             report.diagnostics.variant_exact_base_records
+        );
+        eprintln!(
+            "generated afflictions: canonical={} instances={} edges={}",
+            report.diagnostics.generated_affliction_canonical_records,
+            report.diagnostics.generated_affliction_instance_records,
+            report.diagnostics.generated_affliction_reference_edges
         );
         for skipped_record in &report.skipped_records {
             eprintln!(

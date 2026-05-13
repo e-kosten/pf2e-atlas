@@ -313,6 +313,72 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
 }
 
 #[test]
+fn generates_affliction_records_from_staged_embedded_items()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("generated-afflictions");
+    write_generated_affliction_fixture_source(&root)?;
+
+    let source = load_foundry_source(&root, None)?;
+
+    assert_eq!(source.diagnostics.generated_affliction_canonical_records, 1);
+    assert_eq!(source.diagnostics.generated_affliction_instance_records, 1);
+    assert_eq!(source.diagnostics.generated_affliction_reference_edges, 3);
+    assert!(
+        source
+            .records
+            .iter()
+            .any(|record| record.pack_name.as_str() == "derived-afflictions"
+                && record.name == "Ghoul Fever"
+                && record.foundry_record_type == "affliction"
+                && record.record_family == RecordFamily::Affliction
+                && record.is_default_visible)
+    );
+    assert!(
+        !source
+            .records
+            .iter()
+            .any(|record| record.pack_name.as_str() == "derived-afflictions"
+                && record.name == "Serpent Dagger")
+    );
+
+    let output_path = root.join("artifact.sqlite");
+    build_minimal_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+    })?;
+    let validation = validate_index(&output_path)?;
+    assert_eq!(validation.status, ValidationStatus::Ok);
+
+    let connection = Connection::open(&output_path)?;
+    let generated_record_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM records WHERE pack_name IN ('derived-afflictions', 'derived-affliction-instances')",
+        [],
+        |row| row.get(0),
+    )?;
+    let generated_fts_count: usize = connection.query_row(
+        "SELECT COUNT(*)
+         FROM records_fts
+         WHERE record_key LIKE 'derived-afflictions:%'
+            OR record_key LIKE 'derived-affliction-instances:%'",
+        [],
+        |row| row.get(0),
+    )?;
+    let generated_edge_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM reference_edges WHERE reference_text LIKE 'derived-affliction-%'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(generated_record_count, 2);
+    assert_eq!(generated_fts_count, 1);
+    assert_eq!(generated_edge_count, 3);
+
+    drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("build");
     write_fixture_source(&root)?;
@@ -543,6 +609,62 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     drop(connection);
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+fn write_generated_affliction_fixture_source(
+    root: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("packs/bestiary"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "bestiary", "label": "Bestiary", "type": "Actor", "path": "packs/bestiary" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/bestiary/ghoul.json"),
+        r#"{
+          "_id": "testGhoul0001",
+          "name": "Test Ghoul",
+          "type": "npc",
+          "items": [
+            {
+              "_id": "ghoulFeverItem",
+              "name": "Ghoul Fever",
+              "type": "action",
+              "system": {
+                "category": "offensive",
+                "description": {
+                  "value": "<p><strong>Saving Throw</strong> @Check[fortitude|dc:18]</p><p><strong>Stage 1</strong> @UUID[Compendium.pf2e.conditionitems.Item.Sickened]{Sickened 1} (1 day)</p>"
+                },
+                "traits": { "value": ["disease"] }
+              }
+            },
+            {
+              "_id": "serpentDaggerItem",
+              "name": "Serpent Dagger",
+              "type": "weapon",
+              "system": {
+                "category": "simple",
+                "description": {
+                  "value": "<p>Dagger Venom (poison) <strong>Saving Throw</strong> @Check[fortitude|dc:21]</p><p><strong>Stage 1</strong> @Damage[1d8[poison]] damage</p>"
+                },
+                "traits": { "value": ["agile", "poison"] }
+              }
+            }
+          ],
+          "system": {
+            "details": {
+              "level": { "value": 2 },
+              "publication": { "title": "Pathfinder Monster Core" }
+            },
+            "traits": { "rarity": "common", "value": ["undead"] }
+          }
+        }"#,
+    )?;
     Ok(())
 }
 
