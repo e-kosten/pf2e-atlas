@@ -130,7 +130,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 
 - [x] Add `RecordKey` with pack and record id parsing.
 - [x] Add `record_family` vocabulary for Atlas-derived product grouping.
-- [x] Remove subcategory from Rust domain, search scope, record summary, and minimal writer schema; replace useful cases with explicit metadata/filter axes.
+- [x] Remove subcategory from Rust domain, search filters, record summary, and minimal writer schema; replace useful cases with explicit metadata/filter axes.
 - [x] Add rarity, level, action-cost, and source/publication primitives.
 - [x] Add canonical record summary type.
 - [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
@@ -148,7 +148,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [x] search
   - [x] lookup
 - [x] Add canonical filter tree:
-  - [x] scope
+  - [x] record family
   - [x] level
   - [x] rarity
   - [x] action cost
@@ -235,6 +235,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Store embedding identity in normal SQLite metadata.
 - [x] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
 - [x] Add Rust-owned `record_vector_index` sqlite-vec table contract with `record_key` plus embedding only.
+- [x] Add a shared `atlas-index` compiler that lowers canonical filters into authoritative SQL eligible-record keysets for reuse by vector, browse, and search execution.
 - [ ] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
 - [ ] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
 - [x] Integrate sqlite-vec loading behind explicit capability checks.
@@ -320,8 +321,8 @@ Goal: implement the first Rust search baseline using SQLite-centered hybrid retr
 - [ ] Implement browse mode.
 - [ ] Implement pagination.
 - [ ] Implement deterministic sort modes.
-- [ ] Implement canonical filter lowering.
-- [ ] Implement structured filter SQL.
+- [x] Implement canonical filter lowering to SQL eligible keysets.
+- [ ] Wire structured filter SQL into browse and search execution.
 - [ ] Implement FTS lexical retrieval.
 - [ ] Implement query analysis.
 - [ ] Implement sqlite-vec semantic retrieval.

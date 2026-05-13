@@ -93,8 +93,8 @@ pub enum SearchFilterNode {
     Pack {
         value: String,
     },
-    Scope {
-        record_family: RecordFamily,
+    RecordFamily {
+        value: RecordFamily,
     },
     Level {
         #[serde(rename = "match")]
@@ -140,6 +140,84 @@ pub enum SearchFilterNode {
     Not {
         child: Box<SearchFilterNode>,
     },
+}
+
+impl SearchFilterNode {
+    pub fn pack(value: impl Into<String>) -> Self {
+        Self::Pack {
+            value: value.into(),
+        }
+    }
+
+    pub fn record_family(value: RecordFamily) -> Self {
+        Self::RecordFamily { value }
+    }
+
+    pub fn level(r#match: NumericMatch) -> Self {
+        Self::Level { r#match }
+    }
+
+    pub fn price(r#match: NumericMatch) -> Self {
+        Self::Price { r#match }
+    }
+
+    pub fn rarity(r#match: NullableStringMatch) -> Self {
+        Self::Rarity { r#match }
+    }
+
+    pub fn action_cost(r#match: NullableNumericMatch) -> Self {
+        Self::ActionCost { r#match }
+    }
+
+    pub fn links_to(target: RecordKey) -> Self {
+        Self::LinksTo { target }
+    }
+
+    pub fn linked_from(source: RecordKey) -> Self {
+        Self::LinkedFrom { source }
+    }
+
+    pub fn metadata(predicate: MetadataPredicate) -> Self {
+        Self::MetadataPredicate { predicate }
+    }
+
+    pub fn metric(metric: impl Into<String>, op: MetricOperator, value: ScalarValue) -> Self {
+        Self::Metric {
+            metric: metric.into(),
+            op,
+            value,
+        }
+    }
+
+    pub fn metric_compare(
+        left_metric: impl Into<String>,
+        op: NumericMetricOperator,
+        right_metric: impl Into<String>,
+    ) -> Self {
+        Self::MetricCompare {
+            left_metric: left_metric.into(),
+            op,
+            right_metric: right_metric.into(),
+        }
+    }
+
+    pub fn any_of(children: impl Into<Vec<Self>>) -> Self {
+        Self::AnyOf {
+            children: children.into(),
+        }
+    }
+
+    pub fn all_of(children: impl Into<Vec<Self>>) -> Self {
+        Self::AllOf {
+            children: children.into(),
+        }
+    }
+
+    pub fn not_of(child: Self) -> Self {
+        Self::Not {
+            child: Box::new(child),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -198,23 +276,17 @@ mod tests {
             query: "cold primal focus".to_string(),
             exclude: Some("ritual".to_string()),
             profile: Some(SearchProfile::Balanced),
-            filter: Some(SearchFilterNode::AllOf {
-                children: vec![
-                    SearchFilterNode::Scope {
-                        record_family: RecordFamily::Spell,
-                    },
-                    SearchFilterNode::MetadataPredicate {
-                        predicate: MetadataPredicate::Set {
-                            field: MetadataSetField::Traditions,
-                            op: CollectionOperator::Includes,
-                            value: Some("primal".to_string()),
-                        },
-                    },
-                    SearchFilterNode::LinksTo {
-                        target: RecordKey::parse("rules:abc123").expect("record key parses"),
-                    },
-                ],
-            }),
+            filter: Some(SearchFilterNode::all_of(vec![
+                SearchFilterNode::record_family(RecordFamily::Spell),
+                SearchFilterNode::metadata(MetadataPredicate::Set {
+                    field: MetadataSetField::Traditions,
+                    op: CollectionOperator::Includes,
+                    value: Some("primal".to_string()),
+                }),
+                SearchFilterNode::links_to(
+                    RecordKey::parse("rules:abc123").expect("record key parses"),
+                ),
+            ])),
             offset: Some(0),
             limit: Some(10),
             explain: Some(true),
@@ -223,6 +295,7 @@ mod tests {
         let json = serde_json::to_string(&request).expect("request serializes");
         assert!(json.contains("\"mode\":\"search\""));
         assert!(json.contains("\"kind\":\"all_of\""));
+        assert!(json.contains("\"kind\":\"record_family\""));
         assert!(json.contains("\"kind\":\"links_to\""));
         assert!(json.contains("\"field_type\":\"set\""));
 
@@ -233,9 +306,10 @@ mod tests {
     #[test]
     fn browse_request_round_trips_with_sort_and_numeric_filter() {
         let request = SearchRequest::Browse {
-            filter: Some(SearchFilterNode::Level {
-                r#match: NumericMatch::Between { min: 1.0, max: 5.0 },
-            }),
+            filter: Some(SearchFilterNode::level(NumericMatch::Between {
+                min: 1.0,
+                max: 5.0,
+            })),
             offset: None,
             limit: Some(20),
             sort: Some(BrowseSortSpec::Random { seed: Some(123) }),
@@ -254,13 +328,11 @@ mod tests {
     fn lookup_request_round_trips_with_metric_compare_and_not() {
         let request = SearchRequest::Lookup {
             query: "Treat Wounds".to_string(),
-            filter: Some(SearchFilterNode::Not {
-                child: Box::new(SearchFilterNode::MetricCompare {
-                    left_metric: "skill.medicine".to_string(),
-                    op: MetricOperator::Gte,
-                    right_metric: "dc.standard".to_string(),
-                }),
-            }),
+            filter: Some(SearchFilterNode::not_of(SearchFilterNode::metric_compare(
+                "skill.medicine",
+                MetricOperator::Gte,
+                "dc.standard",
+            ))),
             offset: None,
             limit: None,
             sort: Some(LookupSortSpec {
