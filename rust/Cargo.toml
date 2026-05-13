@@ -8,6 +8,7 @@ members = [
   "crates/atlas-index",
   "crates/atlas-record",
   "crates/atlas-search",
+  "crates/atlas-sqlite-vec",
 ]
 resolver = "3"
 
@@ -25,12 +26,14 @@ atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-record = { path = "crates/atlas-record" }
 atlas-search = { path = "crates/atlas-search" }
+atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 clap = { version = "4.5.53", features = ["derive"] }
 indicatif = "0.18.3"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 sha2 = "0.10.9"
+sqlite-vec = "0.1.6"
 thiserror = "2.0.17"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"

@@ -241,17 +241,17 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
 }
 
 #[test]
-fn vector_validation_reports_sqlite_vec_unavailable() -> Result<(), Box<dyn std::error::Error>> {
-    let path = temp_db_path("vector-extension-unavailable");
+fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-table-missing");
     create_contract_database(&path)?;
 
     let report = validate_vector_index(&path)?;
 
     assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
+    assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Embedding
-            && diagnostic.key.as_deref() == Some("sqlite_vec")
+        diagnostic.family == ArtifactContractFamily::Schema
+            && diagnostic.key.as_deref() == Some("table:record_vector_index")
     }));
     fs::remove_file(path)?;
     Ok(())
@@ -263,7 +263,7 @@ fn vector_validation_reports_loader_failure() -> Result<(), Box<dyn std::error::
     create_contract_database(&path)?;
 
     let report =
-        validate_vector_index_with_loader(&path, |_| Err("fixture loader failed".to_string()))?;
+        validate_vector_index_with_loader(&path, || Err("fixture loader failed".to_string()))?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
@@ -276,18 +276,14 @@ fn vector_validation_reports_loader_failure() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn vector_write_reports_sqlite_vec_unavailable() -> Result<(), Box<dyn std::error::Error>> {
-    let path = temp_db_path("vector-write-extension-unavailable");
+fn vector_write_builds_and_validates_vector_index() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-write");
     create_contract_database(&path)?;
 
     let report = write_vector_index(&path)?;
 
-    assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
-    assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Embedding
-            && diagnostic.key.as_deref() == Some("sqlite_vec")
-    }));
+    assert_eq!(report.status, ValidationStatus::Ok);
+    assert_eq!(report.code, ValidationCode::Ok);
     fs::remove_file(path)?;
     Ok(())
 }
@@ -298,7 +294,7 @@ fn vector_write_reports_loader_failure() -> Result<(), Box<dyn std::error::Error
     create_contract_database(&path)?;
 
     let report =
-        write_vector_index_with_loader(&path, |_| Err("fixture loader failed".to_string()))?;
+        write_vector_index_with_loader(&path, || Err("fixture loader failed".to_string()))?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);

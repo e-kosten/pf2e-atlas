@@ -18,7 +18,7 @@ use crate::{
     IndexValidationError, ValidationCode, ValidationStatus, validate_index,
 };
 
-pub type VectorExtensionLoader = dyn FnOnce(&Connection) -> Result<(), String>;
+pub type VectorExtensionLoader = dyn FnOnce() -> Result<(), String>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VectorKnnQuery {
@@ -119,12 +119,12 @@ pub fn write_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationRe
 pub fn write_vector_index(
     path: impl AsRef<Path>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
-    write_vector_index_with_loader(path, |_| Ok(()))
+    write_vector_index_with_loader(path, register_sqlite_vec_extension)
 }
 
 pub fn write_vector_index_with_loader(
     path: impl AsRef<Path>,
-    loader: impl FnOnce(&Connection) -> Result<(), String>,
+    loader: impl FnOnce() -> Result<(), String>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let path = path.as_ref();
     info!(index = %path.display(), "validating base artifact before vector index build");
@@ -136,11 +136,14 @@ pub fn write_vector_index_with_loader(
 
     let index = path.display().to_string();
     let summary = metadata_summary_from_report(&base_report);
+    if let Err(message) = loader() {
+        return Ok(vector_extension_unavailable_report(index, summary, message));
+    }
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
         .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
 
     info!(index = %path.display(), "checking sqlite-vec capability");
-    if let Err(message) = loader(&connection).and_then(|()| probe_sqlite_vec(&connection)) {
+    if let Err(message) = probe_sqlite_vec(&connection) {
         info!(index = %path.display(), error = %message, "sqlite-vec capability unavailable");
         return Ok(vector_extension_unavailable_report(index, summary, message));
     }
@@ -154,12 +157,12 @@ pub fn write_vector_index_with_loader(
 pub fn validate_vector_index(
     path: impl AsRef<Path>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
-    validate_vector_index_with_loader(path, |_| Ok(()))
+    validate_vector_index_with_loader(path, register_sqlite_vec_extension)
 }
 
 pub fn validate_vector_index_with_loader(
     path: impl AsRef<Path>,
-    loader: impl FnOnce(&Connection) -> Result<(), String>,
+    loader: impl FnOnce() -> Result<(), String>,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let path = path.as_ref();
     info!(index = %path.display(), "validating base artifact before vector index validation");
@@ -171,11 +174,14 @@ pub fn validate_vector_index_with_loader(
 
     let index = path.display().to_string();
     let summary = metadata_summary_from_report(&base_report);
+    if let Err(message) = loader() {
+        return Ok(vector_extension_unavailable_report(index, summary, message));
+    }
     let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
 
     info!(index = %path.display(), "checking sqlite-vec capability");
-    if let Err(message) = loader(&connection).and_then(|()| probe_sqlite_vec(&connection)) {
+    if let Err(message) = probe_sqlite_vec(&connection) {
         info!(index = %path.display(), error = %message, "sqlite-vec capability unavailable");
         return Ok(vector_extension_unavailable_report(index, summary, message));
     }
@@ -302,6 +308,10 @@ fn probe_sqlite_vec(connection: &Connection) -> Result<(), String> {
              DROP TABLE temp.atlas_vec_capability_probe;",
         )
         .map_err(|error| error.to_string())
+}
+
+pub(crate) fn register_sqlite_vec_extension() -> Result<(), String> {
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension().map_err(|error| error.to_string())
 }
 
 fn push_parameter(parameters: &mut Vec<Value>, value: Value) -> String {

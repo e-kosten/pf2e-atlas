@@ -84,11 +84,11 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
 
     assert_eq!(validate_vectors_output.status.code(), Some(1));
     let validate_vectors_json: Value = serde_json::from_slice(&validate_vectors_output.stdout)?;
+    assert_eq!(validate_vectors_json["code"], "ARTIFACT_CONTRACT_VIOLATION");
     assert_eq!(
-        validate_vectors_json["code"],
-        "VECTOR_EXTENSION_UNAVAILABLE"
+        validate_vectors_json["diagnostics"][0]["key"],
+        "table:record_vector_index"
     );
-    assert_eq!(validate_vectors_json["diagnostics"][0]["key"], "sqlite_vec");
 
     let build_vectors_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "build-vectors", "--index"])
@@ -96,10 +96,10 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         .arg("--json")
         .output()?;
 
-    assert_eq!(build_vectors_output.status.code(), Some(1));
+    assert!(build_vectors_output.status.success());
     let build_vectors_json: Value = serde_json::from_slice(&build_vectors_output.stdout)?;
-    assert_eq!(build_vectors_json["code"], "VECTOR_EXTENSION_UNAVAILABLE");
-    assert_eq!(build_vectors_json["diagnostics"][0]["key"], "sqlite_vec");
+    assert_eq!(build_vectors_json["status"], "ok");
+    assert_eq!(build_vectors_json["code"], "OK");
 
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "inspect", "--index"])

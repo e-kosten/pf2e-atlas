@@ -129,6 +129,7 @@ dependencies = [
  "atlas-domain",
  "atlas-embedding",
  "atlas-record",
+ "atlas-sqlite-vec",
  "rusqlite",
  "serde",
  "serde_json",
@@ -168,6 +169,15 @@ dependencies = [
  "atlas-embedding",
  "atlas-index",
  "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "atlas-sqlite-vec"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "sqlite-vec",
  "thiserror",
 ]
 
@@ -1413,6 +1423,15 @@ dependencies = [
  "nom",
  "serde",
  "unicode-segmentation",
+]
+
+[[package]]
+name = "sqlite-vec"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0ba424237a9a5db2f6071f193319e2b6a32f7f3961debb2fbbfe67067abce3f"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
