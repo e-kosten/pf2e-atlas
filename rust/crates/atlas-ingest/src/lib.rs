@@ -3331,7 +3331,18 @@ fn create_minimal_schema(connection: &Connection) -> Result<(), IngestError> {
               search_text_projection
             );
 
+            CREATE INDEX records_pack_name_idx ON records(pack_name);
+            CREATE INDEX records_default_visible_idx ON records(is_default_visible);
+            CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key);
+            CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
+            CREATE INDEX record_aliases_canonical_idx ON record_aliases(canonical_record_key);
             CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
+            CREATE INDEX remaster_links_remaster_idx ON remaster_links(remaster_record_key);
+            CREATE INDEX remaster_links_legacy_idx ON remaster_links(legacy_record_key);
+            CREATE INDEX record_metrics_record_idx ON record_metrics(record_key);
+            CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type);
+            CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key);
+            CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value);
             ",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
@@ -3516,6 +3527,7 @@ fn write_records(
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for record in records {
+        let is_default_visible = !hidden_record_keys.contains(&record.key.to_string());
         let traits_json = serde_json::to_string(&record.traits)
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         let taxonomy_families_json = json_array(&record.taxonomy_families)?;
@@ -3569,7 +3581,7 @@ fn write_records(
                 record.variant_confidence,
                 record.variant_source.as_str(),
                 record.source_path.as_str(),
-                i64::from(!hidden_record_keys.contains(&record.key.to_string())),
+                i64::from(is_default_visible),
                 record.search_text_projection.as_str(),
                 record.raw_json.as_str(),
             ])
@@ -3644,13 +3656,15 @@ fn write_records(
                 ])
                 .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         }
-        insert_fts
-            .execute((
-                record.key.to_string(),
-                record.name.as_str(),
-                record.search_text_projection.as_str(),
-            ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        if is_default_visible {
+            insert_fts
+                .execute((
+                    record.key.to_string(),
+                    record.name.as_str(),
+                    record.search_text_projection.as_str(),
+                ))
+                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        }
     }
     Ok(())
 }

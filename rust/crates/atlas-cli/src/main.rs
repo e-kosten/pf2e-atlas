@@ -361,6 +361,7 @@ fn validation_code_label(code: &ValidationCode) -> &'static str {
         ValidationCode::MissingRequiredMetadata => "missing-required-metadata",
         ValidationCode::UnsupportedContractVersion => "unsupported-contract-version",
         ValidationCode::UnsupportedSchemaVersion => "unsupported-schema-version",
+        ValidationCode::ArtifactContractViolation => "artifact-contract-violation",
         ValidationCode::InvalidSourceMetadata => "invalid-source-metadata",
         ValidationCode::StaleSourceSignature => "stale-source-signature",
         ValidationCode::EmbeddingMismatch => "embedding-mismatch",

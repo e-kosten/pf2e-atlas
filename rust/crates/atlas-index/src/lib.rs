@@ -129,6 +129,11 @@ pub fn validate_index(
     }
 
     let diagnostics = validate_metadata_values(&metadata);
+    let diagnostics = if diagnostics.is_empty() {
+        validate_artifact_contract(&connection, &metadata)?
+    } else {
+        diagnostics
+    };
     if diagnostics.is_empty() {
         Ok(ArtifactValidationReport::ok(index, summary))
     } else {
@@ -190,6 +195,711 @@ fn table_exists(connection: &Connection, table: &str) -> Result<bool, IndexValid
         .map(|row| row.is_some())
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))
 }
+
+fn validate_artifact_contract(
+    connection: &Connection,
+    metadata: &BTreeMap<String, String>,
+) -> Result<Vec<ArtifactValidationDiagnostic>, IndexValidationError> {
+    let mut diagnostics = Vec::new();
+    validate_required_tables(connection, &mut diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(diagnostics);
+    }
+
+    validate_required_columns(connection, &mut diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(diagnostics);
+    }
+
+    validate_source_record_count(connection, metadata, &mut diagnostics)?;
+    validate_foreign_keys(connection, &mut diagnostics)?;
+    validate_boolean_columns(connection, &mut diagnostics)?;
+    validate_metric_values(connection, &mut diagnostics)?;
+    validate_fts_coverage(connection, &mut diagnostics)?;
+    validate_relationships(connection, &mut diagnostics)?;
+    validate_metric_catalogs(connection, &mut diagnostics)?;
+    Ok(diagnostics)
+}
+
+fn validate_required_tables(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for table in REQUIRED_TABLES {
+        if !table_exists(connection, table)? {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Schema,
+                format!("required artifact table `{table}` is missing"),
+                Some(format!("table:{table}")),
+                Some("present".to_string()),
+                Some("missing".to_string()),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_required_columns(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (table, columns) in REQUIRED_COLUMNS {
+        let present_columns = table_columns(connection, table)?;
+        for column in *columns {
+            if !present_columns.contains_key(*column) {
+                diagnostics.push(contract_diagnostic(
+                    ArtifactContractFamily::Schema,
+                    format!("required artifact column `{table}.{column}` is missing"),
+                    Some(format!("column:{table}.{column}")),
+                    Some("present".to_string()),
+                    Some("missing".to_string()),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_source_record_count(
+    connection: &Connection,
+    metadata: &BTreeMap<String, String>,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let expected = metadata
+        .get(artifact_metadata_keys::SOURCE_RECORD_COUNT)
+        .and_then(|value| value.parse::<usize>().ok());
+    let actual = count_rows(connection, "records")?;
+    if expected != Some(actual) {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Source,
+            "metadata source_record_count must match the records table".to_string(),
+            Some(artifact_metadata_keys::SOURCE_RECORD_COUNT.to_string()),
+            expected.map(|value| value.to_string()),
+            Some(actual.to_string()),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_foreign_keys(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let mut statement = connection
+        .prepare("PRAGMA foreign_key_check")
+        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([], |_| Ok(()))
+        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+    let mut count = 0;
+    for row in rows {
+        row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+        count += 1;
+    }
+    if count > 0 {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Data,
+            "artifact contains foreign key violations".to_string(),
+            Some("foreign_key_check".to_string()),
+            Some("0".to_string()),
+            Some(count.to_string()),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_boolean_columns(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for check in BOOLEAN_COLUMN_CHECKS {
+        let invalid = count_sql(connection, check.sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("boolean column `{}` contains non-boolean values", check.key),
+                Some(check.key.to_string()),
+                Some("0 or 1".to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_metric_values(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (key, sql) in [
+        (
+            "record_metrics:number_value",
+            "SELECT COUNT(*) FROM record_metrics
+             WHERE value_type = 'number'
+               AND (number_value IS NULL OR text_value IS NOT NULL OR bool_value IS NOT NULL)",
+        ),
+        (
+            "record_metrics:text_value",
+            "SELECT COUNT(*) FROM record_metrics
+             WHERE value_type = 'text'
+               AND (text_value IS NULL OR number_value IS NOT NULL OR bool_value IS NOT NULL)",
+        ),
+        (
+            "record_metrics:bool_value",
+            "SELECT COUNT(*) FROM record_metrics
+             WHERE value_type = 'boolean'
+               AND (bool_value IS NULL OR number_value IS NOT NULL OR text_value IS NOT NULL)",
+        ),
+    ] {
+        let invalid = count_sql(connection, sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("metric value shape `{key}` is inconsistent with value_type"),
+                Some(key.to_string()),
+                Some("exactly one matching value column".to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_fts_coverage(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let fts_rows = count_rows(connection, "records_fts")?;
+    let default_visible_records = count_sql(
+        connection,
+        "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
+    )?;
+    if fts_rows != default_visible_records {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Fts,
+            "FTS row count must match default-visible record count".to_string(),
+            Some("records_fts:default_visible_count".to_string()),
+            Some(default_visible_records.to_string()),
+            Some(fts_rows.to_string()),
+        ));
+    }
+
+    for (key, sql, expected) in [
+        (
+            "records_fts:orphan_rows",
+            "SELECT COUNT(*)
+             FROM records_fts f
+             LEFT JOIN records r ON r.record_key = f.record_key
+             WHERE r.record_key IS NULL",
+            "no orphan FTS rows",
+        ),
+        (
+            "records_fts:hidden_rows",
+            "SELECT COUNT(*)
+             FROM records_fts f
+             JOIN records r ON r.record_key = f.record_key
+             WHERE r.is_default_visible <> 1",
+            "no hidden records in FTS",
+        ),
+        (
+            "records_fts:duplicate_rows",
+            "SELECT COUNT(*)
+             FROM (
+               SELECT record_key FROM records_fts GROUP BY record_key HAVING COUNT(*) > 1
+             )",
+            "at most one FTS row per record",
+        ),
+    ] {
+        let invalid = count_sql(connection, sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Fts,
+                format!("FTS coverage check `{key}` failed"),
+                Some(key.to_string()),
+                Some(expected.to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_relationships(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (key, sql) in RELATIONSHIP_CHECKS {
+        let invalid = count_sql(connection, sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("relationship check `{key}` failed"),
+                Some(key.to_string()),
+                Some("0 invalid rows".to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_metric_catalogs(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (key, sql) in METRIC_CATALOG_CHECKS {
+        let invalid = count_sql(connection, sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("metric catalog coverage check `{key}` failed"),
+                Some(key.to_string()),
+                Some("catalog rows match default-visible metrics".to_string()),
+                Some(format!("{invalid} mismatched rows")),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn contract_diagnostic(
+    family: ArtifactContractFamily,
+    message: String,
+    key: Option<String>,
+    expected: Option<String>,
+    actual: Option<String>,
+) -> ArtifactValidationDiagnostic {
+    ArtifactValidationDiagnostic {
+        code: ValidationCode::ArtifactContractViolation,
+        family,
+        message,
+        key,
+        expected,
+        actual,
+    }
+}
+
+fn table_columns(
+    connection: &Connection,
+    table: &str,
+) -> Result<BTreeMap<String, String>, IndexValidationError> {
+    let sql = format!("PRAGMA table_xinfo({table})");
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+        })
+        .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+    let mut columns = BTreeMap::new();
+    for row in rows {
+        let (name, column_type) =
+            row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
+        columns.insert(name, column_type);
+    }
+    Ok(columns)
+}
+
+struct BooleanColumnCheck {
+    key: &'static str,
+    sql: &'static str,
+}
+
+const REQUIRED_TABLES: &[&str] = &[
+    "artifact_metadata",
+    "packs",
+    "records",
+    "record_traits",
+    "reference_edges",
+    "record_aliases",
+    "remaster_links",
+    "record_metrics",
+    "metric_key_catalog",
+    "metric_value_catalog",
+    "actor_records",
+    "item_records",
+    "spell_records",
+    "records_fts",
+];
+
+const RECORD_COLUMNS: &[&str] = &[
+    "record_key",
+    "id",
+    "name",
+    "normalized_name",
+    "record_family",
+    "pack_name",
+    "pack_label",
+    "foundry_document_type",
+    "foundry_record_type",
+    "level",
+    "rarity",
+    "traits_json",
+    "system_category",
+    "system_group",
+    "system_base_item",
+    "system_usage",
+    "system_price_json",
+    "system_actions_value",
+    "system_time_value",
+    "system_duration_value",
+    "price_cp",
+    "activation_time_kind",
+    "activation_time_actions",
+    "activation_time_duration_value",
+    "activation_time_duration_unit",
+    "activation_time_text",
+    "duration_kind",
+    "duration_value",
+    "duration_unit",
+    "duration_text",
+    "publication_title",
+    "publication_remaster",
+    "description_text",
+    "blurb_text",
+    "description_snippet",
+    "publication_family",
+    "folder_id",
+    "taxonomy_families_json",
+    "variant_group_key",
+    "variant_base_name",
+    "variant_label",
+    "variant_axes_json",
+    "variant_confidence",
+    "variant_source",
+    "source_path",
+    "is_default_visible",
+    "search_text_projection",
+    "raw_json",
+];
+
+const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
+    ("artifact_metadata", &["key", "value"]),
+    (
+        "packs",
+        &[
+            "name",
+            "label",
+            "document_type",
+            "declared_path",
+            "resolved_path",
+            "record_count",
+        ],
+    ),
+    ("records", RECORD_COLUMNS),
+    ("record_traits", &["record_key", "trait"]),
+    (
+        "reference_edges",
+        &[
+            "from_record_key",
+            "to_record_key",
+            "display_text",
+            "reference_text",
+        ],
+    ),
+    (
+        "record_aliases",
+        &[
+            "canonical_record_key",
+            "alias_text",
+            "normalized_alias",
+            "source_kind",
+            "source_ref",
+        ],
+    ),
+    (
+        "remaster_links",
+        &[
+            "remaster_record_key",
+            "legacy_record_key",
+            "source_kind",
+            "source_ref",
+        ],
+    ),
+    (
+        "record_metrics",
+        &[
+            "record_key",
+            "metric_domain",
+            "metric_key",
+            "value_type",
+            "number_value",
+            "text_value",
+            "bool_value",
+        ],
+    ),
+    (
+        "metric_key_catalog",
+        &[
+            "metric_domain",
+            "record_family",
+            "namespace_prefix",
+            "metric_key",
+            "value_type",
+            "catalog_count",
+            "numeric_min",
+            "numeric_max",
+        ],
+    ),
+    (
+        "metric_value_catalog",
+        &[
+            "metric_domain",
+            "record_family",
+            "metric_key",
+            "value",
+            "catalog_count",
+        ],
+    ),
+    (
+        "actor_records",
+        &[
+            "record_key",
+            "size",
+            "languages_json",
+            "speed_types_json",
+            "senses_json",
+            "immunities_json",
+            "resistances_json",
+            "weaknesses_json",
+            "disable_text",
+            "disable_skills_json",
+            "is_complex",
+        ],
+    ),
+    (
+        "item_records",
+        &[
+            "record_key",
+            "system_category",
+            "system_base_item",
+            "system_group",
+            "system_usage",
+            "price_cp",
+            "bulk_value",
+            "hands_requirement",
+            "damage_types_json",
+        ],
+    ),
+    (
+        "spell_records",
+        &[
+            "record_key",
+            "traditions_json",
+            "spell_kinds_json",
+            "range_text",
+            "range_value",
+            "target_text",
+            "area_type",
+            "area_value",
+            "save_type",
+            "sustained",
+            "basic_save",
+            "damage_types_json",
+        ],
+    ),
+    (
+        "records_fts",
+        &["record_key", "name", "search_text_projection"],
+    ),
+];
+
+const BOOLEAN_COLUMN_CHECKS: &[BooleanColumnCheck] = &[
+    BooleanColumnCheck {
+        key: "records.publication_remaster",
+        sql: "SELECT COUNT(*) FROM records WHERE publication_remaster NOT IN (0, 1)",
+    },
+    BooleanColumnCheck {
+        key: "records.is_default_visible",
+        sql: "SELECT COUNT(*) FROM records WHERE is_default_visible NOT IN (0, 1)",
+    },
+    BooleanColumnCheck {
+        key: "record_metrics.bool_value",
+        sql: "SELECT COUNT(*) FROM record_metrics WHERE bool_value IS NOT NULL AND bool_value NOT IN (0, 1)",
+    },
+    BooleanColumnCheck {
+        key: "actor_records.is_complex",
+        sql: "SELECT COUNT(*) FROM actor_records WHERE is_complex NOT IN (0, 1)",
+    },
+    BooleanColumnCheck {
+        key: "spell_records.sustained",
+        sql: "SELECT COUNT(*) FROM spell_records WHERE sustained NOT IN (0, 1)",
+    },
+    BooleanColumnCheck {
+        key: "spell_records.basic_save",
+        sql: "SELECT COUNT(*) FROM spell_records WHERE basic_save NOT IN (0, 1)",
+    },
+];
+
+const RELATIONSHIP_CHECKS: &[(&str, &str)] = &[
+    (
+        "records.pack_name",
+        "SELECT COUNT(*)
+         FROM records r
+         LEFT JOIN packs p ON p.name = r.pack_name
+         WHERE p.name IS NULL",
+    ),
+    (
+        "record_traits.record_key",
+        "SELECT COUNT(*)
+         FROM record_traits t
+         LEFT JOIN records r ON r.record_key = t.record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "reference_edges.from_record_key",
+        "SELECT COUNT(*)
+         FROM reference_edges e
+         LEFT JOIN records r ON r.record_key = e.from_record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "reference_edges.to_record_key",
+        "SELECT COUNT(*)
+         FROM reference_edges e
+         LEFT JOIN records r ON r.record_key = e.to_record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "record_aliases.canonical_record_key",
+        "SELECT COUNT(*)
+         FROM record_aliases a
+         LEFT JOIN records r ON r.record_key = a.canonical_record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "remaster_links.remaster_record_key",
+        "SELECT COUNT(*)
+         FROM remaster_links l
+         LEFT JOIN records r ON r.record_key = l.remaster_record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "remaster_links.legacy_record_key",
+        "SELECT COUNT(*)
+         FROM remaster_links l
+         LEFT JOIN records r ON r.record_key = l.legacy_record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "record_metrics.record_key",
+        "SELECT COUNT(*)
+         FROM record_metrics m
+         LEFT JOIN records r ON r.record_key = m.record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "actor_records.record_key",
+        "SELECT COUNT(*)
+         FROM actor_records a
+         LEFT JOIN records r ON r.record_key = a.record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "item_records.record_key",
+        "SELECT COUNT(*)
+         FROM item_records i
+         LEFT JOIN records r ON r.record_key = i.record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "spell_records.record_key",
+        "SELECT COUNT(*)
+         FROM spell_records s
+         LEFT JOIN records r ON r.record_key = s.record_key
+         WHERE r.record_key IS NULL",
+    ),
+    (
+        "remaster_links.legacy_visibility",
+        "SELECT COUNT(*)
+         FROM remaster_links l
+         JOIN records legacy ON legacy.record_key = l.legacy_record_key
+         WHERE legacy.is_default_visible <> 0",
+    ),
+    (
+        "remaster_links.remaster_visibility",
+        "SELECT COUNT(*)
+         FROM remaster_links l
+         JOIN records remaster ON remaster.record_key = l.remaster_record_key
+         WHERE remaster.is_default_visible <> 1",
+    ),
+];
+
+const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
+    (
+        "metric_key_catalog.missing_keys",
+        "SELECT COUNT(*)
+         FROM (
+           SELECT rm.metric_domain, r.record_family, rm.metric_key
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+           GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+           EXCEPT
+           SELECT metric_domain, record_family, metric_key FROM metric_key_catalog
+         )",
+    ),
+    (
+        "metric_key_catalog.stale_keys",
+        "SELECT COUNT(*)
+         FROM (
+           SELECT metric_domain, record_family, metric_key FROM metric_key_catalog
+           EXCEPT
+           SELECT rm.metric_domain, r.record_family, rm.metric_key
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+           GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+         )",
+    ),
+    (
+        "metric_value_catalog.missing_values",
+        "SELECT COUNT(*)
+         FROM (
+           SELECT
+             rm.metric_domain,
+             r.record_family,
+             rm.metric_key,
+             CASE
+               WHEN rm.value_type = 'text' THEN rm.text_value
+               WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+               ELSE NULL
+             END AS value
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+             AND rm.value_type IN ('text', 'boolean')
+             AND value IS NOT NULL
+           GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+           EXCEPT
+           SELECT metric_domain, record_family, metric_key, value FROM metric_value_catalog
+         )",
+    ),
+    (
+        "metric_value_catalog.stale_values",
+        "SELECT COUNT(*)
+         FROM (
+           SELECT metric_domain, record_family, metric_key, value FROM metric_value_catalog
+           EXCEPT
+           SELECT
+             rm.metric_domain,
+             r.record_family,
+             rm.metric_key,
+             CASE
+               WHEN rm.value_type = 'text' THEN rm.text_value
+               WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+               ELSE NULL
+             END AS value
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+             AND rm.value_type IN ('text', 'boolean')
+             AND value IS NOT NULL
+           GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+         )",
+    ),
+];
 
 fn inspect_tables(
     connection: &Connection,
@@ -834,13 +1544,60 @@ mod tests {
         Ok(())
     }
 
-    fn create_contract_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let connection = Connection::open(path)?;
+    #[test]
+    fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("missing-contract-table");
+        let connection = Connection::open(&path)?;
+        create_minimal_contract_schema(&connection)?;
+        insert_contract_metadata(&connection, None)?;
+        connection.execute("DROP TABLE item_records", [])?;
+        drop(connection);
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+        assert_eq!(report.diagnostics.len(), 1);
+        assert_eq!(
+            report.diagnostics[0].family,
+            atlas_domain::ArtifactContractFamily::Schema
+        );
+        assert_eq!(
+            report.diagnostics[0].key.as_deref(),
+            Some("table:item_records")
+        );
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_db_path("hidden-fts");
+        create_contract_database(&path)?;
+        let connection = Connection::open(&path)?;
         connection.execute(
-            "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+            "UPDATE records SET is_default_visible = 0 WHERE record_key = 'actions:testAction1'",
             [],
         )?;
+        drop(connection);
+
+        let report = validate_index(&path)?;
+
+        assert_eq!(report.status, ValidationStatus::Error);
+        assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.family == atlas_domain::ArtifactContractFamily::Fts
+                && diagnostic.key.as_deref() == Some("records_fts:hidden_rows")
+        }));
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    fn create_contract_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(path)?;
+        create_minimal_contract_schema(&connection)?;
         insert_contract_metadata(&connection, None)?;
+        insert_minimal_contract_rows(&connection)?;
         Ok(())
     }
 
@@ -849,10 +1606,7 @@ mod tests {
         omitted_key: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let connection = Connection::open(path)?;
-        connection.execute(
-            "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-            [],
-        )?;
+        create_minimal_contract_schema(&connection)?;
         for (key, value) in valid_metadata_entries() {
             if key != omitted_key {
                 connection.execute(
@@ -870,10 +1624,7 @@ mod tests {
         override_value: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let connection = Connection::open(path)?;
-        connection.execute(
-            "CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-            [],
-        )?;
+        create_minimal_contract_schema(&connection)?;
         insert_contract_metadata(&connection, Some((override_key, override_value)))?;
         Ok(())
     }
@@ -942,6 +1693,119 @@ mod tests {
                 "manifest.json",
             ),
         ]
+    }
+
+    fn create_minimal_contract_schema(
+        connection: &Connection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        connection.execute_batch(
+            "
+            CREATE TABLE artifact_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE packs (
+              name TEXT PRIMARY KEY, label TEXT, document_type TEXT, declared_path TEXT,
+              resolved_path TEXT, record_count INTEGER
+            );
+            CREATE TABLE records (
+              record_key TEXT PRIMARY KEY, id TEXT, name TEXT, normalized_name TEXT,
+              record_family TEXT, pack_name TEXT, pack_label TEXT, foundry_document_type TEXT,
+              foundry_record_type TEXT, level INTEGER, rarity TEXT, traits_json TEXT,
+              system_category TEXT, system_group TEXT, system_base_item TEXT, system_usage TEXT,
+              system_price_json TEXT, system_actions_value INTEGER, system_time_value TEXT,
+              system_duration_value TEXT, price_cp INTEGER, activation_time_kind TEXT,
+              activation_time_actions INTEGER, activation_time_duration_value INTEGER,
+              activation_time_duration_unit TEXT, activation_time_text TEXT, duration_kind TEXT,
+              duration_value INTEGER, duration_unit TEXT, duration_text TEXT,
+              publication_title TEXT, publication_remaster INTEGER, description_text TEXT,
+              blurb_text TEXT, description_snippet TEXT, publication_family TEXT, folder_id TEXT,
+              taxonomy_families_json TEXT, variant_group_key TEXT, variant_base_name TEXT,
+              variant_label TEXT, variant_axes_json TEXT, variant_confidence REAL,
+              variant_source TEXT, source_path TEXT, is_default_visible INTEGER,
+              search_text_projection TEXT, raw_json TEXT
+            );
+            CREATE TABLE record_traits (record_key TEXT, trait TEXT);
+            CREATE TABLE reference_edges (
+              from_record_key TEXT, to_record_key TEXT, display_text TEXT, reference_text TEXT
+            );
+            CREATE TABLE record_aliases (
+              canonical_record_key TEXT, alias_text TEXT, normalized_alias TEXT,
+              source_kind TEXT, source_ref TEXT
+            );
+            CREATE TABLE remaster_links (
+              remaster_record_key TEXT, legacy_record_key TEXT, source_kind TEXT, source_ref TEXT
+            );
+            CREATE TABLE record_metrics (
+              record_key TEXT, metric_domain TEXT, metric_key TEXT, value_type TEXT,
+              number_value REAL, text_value TEXT, bool_value INTEGER
+            );
+            CREATE TABLE metric_key_catalog (
+              metric_domain TEXT, record_family TEXT, namespace_prefix TEXT, metric_key TEXT,
+              value_type TEXT, catalog_count INTEGER, numeric_min REAL, numeric_max REAL
+            );
+            CREATE TABLE metric_value_catalog (
+              metric_domain TEXT, record_family TEXT, metric_key TEXT, value TEXT,
+              catalog_count INTEGER
+            );
+            CREATE TABLE actor_records (
+              record_key TEXT PRIMARY KEY, size TEXT, languages_json TEXT, speed_types_json TEXT,
+              senses_json TEXT, immunities_json TEXT, resistances_json TEXT, weaknesses_json TEXT,
+              disable_text TEXT, disable_skills_json TEXT, is_complex INTEGER
+            );
+            CREATE TABLE item_records (
+              record_key TEXT PRIMARY KEY, system_category TEXT, system_base_item TEXT,
+              system_group TEXT, system_usage TEXT, price_cp INTEGER, bulk_value REAL,
+              hands_requirement TEXT, damage_types_json TEXT
+            );
+            CREATE TABLE spell_records (
+              record_key TEXT PRIMARY KEY, traditions_json TEXT, spell_kinds_json TEXT,
+              range_text TEXT, range_value REAL, target_text TEXT, area_type TEXT,
+              area_value REAL, save_type TEXT, sustained INTEGER, basic_save INTEGER,
+              damage_types_json TEXT
+            );
+            CREATE VIRTUAL TABLE records_fts USING fts5(
+              record_key UNINDEXED, name, search_text_projection
+            );
+            ",
+        )?;
+        Ok(())
+    }
+
+    fn insert_minimal_contract_rows(
+        connection: &Connection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        connection.execute(
+            "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
+             VALUES ('actions', 'Actions', 'Item', 'packs/actions', 'packs/actions', 3)",
+            [],
+        )?;
+        for index in 1..=3 {
+            let record_key = format!("actions:testAction{index}");
+            let record_id = format!("testAction{index}");
+            let name = format!("Test Action {index}");
+            let normalized_name = name.to_lowercase();
+            let source_path = format!("packs/actions/test-action-{index}.json");
+            connection.execute(
+                "INSERT INTO records (
+                  record_key, id, name, normalized_name, record_family, pack_name, pack_label,
+                  foundry_document_type, foundry_record_type, traits_json, publication_remaster,
+                  publication_family, taxonomy_families_json, variant_axes_json, variant_source,
+                  source_path, is_default_visible, search_text_projection, raw_json
+                ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
+                  '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, ?3, '{}')",
+                [
+                    record_key.as_str(),
+                    record_id.as_str(),
+                    name.as_str(),
+                    normalized_name.as_str(),
+                    source_path.as_str(),
+                ],
+            )?;
+            connection.execute(
+                "INSERT INTO records_fts (record_key, name, search_text_projection)
+                 VALUES (?1, ?2, ?2)",
+                [record_key.as_str(), name.as_str()],
+            )?;
+        }
+        Ok(())
     }
 
     fn temp_db_path(name: &str) -> PathBuf {
