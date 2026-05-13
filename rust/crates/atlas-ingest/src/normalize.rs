@@ -19,7 +19,7 @@ pub(crate) use text::{create_search_text, normalize_text, strip_markup};
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::references::extract_reference_candidates;
-use crate::{IngestError, LoadedRecord, ManifestPack, metrics};
+use crate::{IngestError, LoadedRecord, ManifestPack, metrics, side_data};
 
 pub(crate) fn normalize_record(
     manifest_pack: &ManifestPack,
@@ -70,9 +70,9 @@ pub(crate) fn normalize_record(
         .and_then(normalize_time_text);
     let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type);
     let actor_data =
-        (manifest_pack.document_type == "Actor").then(|| metrics::extract_actor_side_data(&raw));
+        (manifest_pack.document_type == "Actor").then(|| side_data::extract_actor_side_data(&raw));
     let item_data = (manifest_pack.document_type == "Item").then(|| {
-        metrics::extract_item_side_data(
+        side_data::extract_item_side_data(
             &raw,
             system_category.clone(),
             system_base_item.clone(),
@@ -82,7 +82,7 @@ pub(crate) fn normalize_record(
         )
     });
     let spell_data = (manifest_pack.document_type == "Item" && record_type == "spell")
-        .then(|| metrics::extract_spell_side_data(&raw, &traits));
+        .then(|| side_data::extract_spell_side_data(&raw, &traits));
     let publication_title = pointer_string(&raw, "/system/publication/title")
         .or_else(|| pointer_string(&raw, "/system/details/publication/title"));
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
