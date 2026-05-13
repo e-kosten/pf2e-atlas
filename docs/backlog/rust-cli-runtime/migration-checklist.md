@@ -188,7 +188,6 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Extract source-backed aliases from remaster journals, migration rename files, and embedded compendium sources.
 - [x] Generate derived affliction canonicals and hidden provenance instances from staged action, consumable, and spell records.
 - [x] Extract variant family metadata (`variant_group_key`, `variant_base_name`, `variant_label`, `variant_axes`, confidence, and source).
-- [ ] In Phase 5, implement variant-aware lookup using variant metadata rather than broad `record_aliases` rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
 - [x] Extract reference edges without substring false positives.
 - [x] Write `artifact_metadata`.
 - [x] Write `packs`.
@@ -207,12 +206,18 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Group index management commands under `atlas index` without legacy command aliases.
 - [x] Add a small fixture ingest test.
 - [x] Add a full-corpus analysis command that reports counts without writing the full artifact.
-- [ ] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.
+- [x] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.
 
 Acceptance:
 - Rust can build a minimal valid artifact consumed by `atlas index validate`.
 - Full-corpus analyzer has zero JSON parse failures.
 - Known count differences from TypeScript are classified as accepted policy differences or open parity defects.
+
+Comparison note:
+- Rebuilt the TypeScript index from the same `vendor/pf2e` source with `npm run refresh-index -- --embedding-provider hash --index-path .cache/pf2e-index.ts-parity.sqlite`; it produced 82 packs and 27,424 records.
+- Ran Rust full-corpus analysis and built `.cache/pf2e-rust-index.parity.sqlite`; Rust produced 96 packs and 29,674 records, with 0 skipped records, and `atlas index validate --json` returned `OK`.
+- The 14-pack Rust surplus is accepted policy: Rust includes the same 82 TypeScript packs plus generated `derived-afflictions` and `derived-affliction-instances`, `action-macros`, `pf2e-macros`, `rollable-tables`, `pathfinder-society-boons`, and PFS bestiary/introduction packs.
+- The 2,250-record Rust surplus is classified as accepted policy from broader source coverage and generated provenance: `army` actors (+22), additional actor records from PFS/source packs (`hazard` +425, `npc` +1,324), additional source items (`feat` +157, `effect` +20), generated afflictions/provenance (`affliction` +16, `affliction-instance` +136), and tooling records (`Macro|script` +81, `RollTable|RollTable` +69).
 
 ## Phase 4: Embeddings And Vector Artifact
 
@@ -245,7 +250,7 @@ Goal: make exact lookup the first production-quality Rust command.
 - [ ] Implement typed row loading from `records`.
 - [ ] Implement lookup by canonical key.
 - [ ] Implement exact lookup by name.
-- [ ] Implement variant-aware exact lookup from `variant_*` metadata without broad base-name alias rows.
+- [ ] Implement variant-aware exact lookup from `variant_*` metadata without broad base-name alias rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
 - [ ] Implement controlled alternatives for ambiguous lookup.
 - [ ] Preserve safe no-result behavior: exact miss does not return fuzzy unrelated records.
 - [ ] Add compact record output.
