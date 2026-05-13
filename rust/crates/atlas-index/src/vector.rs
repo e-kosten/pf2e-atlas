@@ -4,9 +4,13 @@ use atlas_artifact::schema::{
     TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX, record_vector_index_create_sql,
     record_vector_index_insert_sql,
 };
+use atlas_domain::SearchFilterNode;
+use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags};
+use thiserror::Error;
 
 use crate::contract::{contract_diagnostic, contract_diagnostic_with_code};
+use crate::filters::{FilterCompileError, compile_eligible_records_query};
 use crate::sql::{count_rows, count_sql, table_exists};
 use crate::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationReport,
@@ -14,6 +18,62 @@ use crate::{
 };
 
 pub type VectorExtensionLoader = dyn FnOnce(&Connection) -> Result<(), String>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorKnnQuery {
+    pub sql: String,
+    pub parameters: Vec<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorSearchHit {
+    pub record_key: String,
+    pub distance: f64,
+}
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum VectorQueryError {
+    #[error("vector query limit must be greater than zero")]
+    InvalidLimit,
+    #[error("query vector must not be empty")]
+    EmptyQueryVector,
+    #[error(transparent)]
+    Filter(#[from] FilterCompileError),
+}
+
+pub fn compile_vector_knn_query(
+    query_vector: &[f32],
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+) -> Result<VectorKnnQuery, VectorQueryError> {
+    if limit == 0 {
+        return Err(VectorQueryError::InvalidLimit);
+    }
+    if query_vector.is_empty() {
+        return Err(VectorQueryError::EmptyQueryVector);
+    }
+
+    let eligible = compile_eligible_records_query(filter)?;
+    let mut parameters = eligible.parameters;
+    let vector_placeholder = push_parameter(
+        &mut parameters,
+        Value::Blob(encode_f32_vector(query_vector)),
+    );
+    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(limit)));
+    let sql = format!(
+        "WITH eligible(record_key) AS ({eligible_sql})
+         SELECT v.record_key, v.distance
+         FROM {vector_table} v
+         WHERE v.embedding MATCH {vector_placeholder}
+           AND k = {limit_placeholder}
+           AND v.record_key IN (SELECT record_key FROM eligible)
+         ORDER BY v.distance ASC",
+        eligible_sql = eligible.sql,
+        vector_table = TABLE_RECORD_VECTOR_INDEX,
+    );
+
+    Ok(VectorKnnQuery { sql, parameters })
+}
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
     let path = path.as_ref();
@@ -195,6 +255,19 @@ fn probe_sqlite_vec(connection: &Connection) -> Result<(), String> {
              DROP TABLE temp.atlas_vec_capability_probe;",
         )
         .map_err(|error| error.to_string())
+}
+
+fn push_parameter(parameters: &mut Vec<Value>, value: Value) -> String {
+    parameters.push(value);
+    format!("?{}", parameters.len())
+}
+
+fn encode_f32_vector(vector: &[f32]) -> Vec<u8> {
+    let mut blob = Vec::with_capacity(std::mem::size_of_val(vector));
+    for value in vector {
+        blob.extend_from_slice(&value.to_le_bytes());
+    }
+    blob
 }
 
 fn validate_vector_index_coverage(

@@ -236,8 +236,8 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
 - [x] Add Rust-owned `record_vector_index` sqlite-vec table contract with `record_key` plus embedding only.
 - [x] Add a shared `atlas-index` compiler that lowers canonical filters into authoritative SQL eligible-record keysets for reuse by vector, browse, and search execution.
-- [ ] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
-- [ ] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
+- [x] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
+- [x] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
 - [x] Integrate sqlite-vec loading behind explicit capability checks.
 - [x] Add diagnostics for vector extension unavailable.
 - [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.

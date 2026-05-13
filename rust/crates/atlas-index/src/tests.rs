@@ -19,9 +19,9 @@ use crate::filters::{
 };
 use crate::records::{load_persisted_record_set, load_persisted_records};
 use crate::{
-    ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index,
-    validate_vector_index, validate_vector_index_with_loader, write_vector_index,
-    write_vector_index_with_loader,
+    ArtifactContractFamily, ValidationCode, ValidationStatus, VectorQueryError,
+    compile_vector_knn_query, validate_index, validate_vector_index,
+    validate_vector_index_with_loader, write_vector_index, write_vector_index_with_loader,
 };
 
 #[test]
@@ -548,6 +548,63 @@ fn reports_filters_that_cannot_be_lowered_authoritatively() {
             filter: "metadata.number.hands".to_string(),
         }
     );
+}
+
+#[test]
+fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::error::Error>> {
+    let filter = atlas_domain::SearchFilterNode::all_of(vec![
+        atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule),
+        atlas_domain::SearchFilterNode::pack("actions"),
+    ]);
+
+    let compiled = compile_vector_knn_query(&[0.25, 0.5, 0.75], Some(&filter), 12)?;
+
+    assert!(compiled.sql.contains("WITH eligible(record_key) AS"));
+    assert!(compiled.sql.contains("FROM record_vector_index v"));
+    assert!(compiled.sql.contains("v.embedding MATCH ?3"));
+    assert!(compiled.sql.contains("AND k = ?4"));
+    assert!(
+        compiled
+            .sql
+            .contains("v.record_key IN (SELECT record_key FROM eligible)")
+    );
+    assert_eq!(compiled.parameters.len(), 4);
+    assert_eq!(
+        compiled.parameters[0],
+        rusqlite::types::Value::Text("rule".to_string())
+    );
+    assert_eq!(
+        compiled.parameters[1],
+        rusqlite::types::Value::Text("actions".to_string())
+    );
+    assert_eq!(
+        compiled.parameters[2],
+        rusqlite::types::Value::Blob(vec![0, 0, 128, 62, 0, 0, 0, 63, 0, 0, 64, 63])
+    );
+    assert_eq!(compiled.parameters[3], rusqlite::types::Value::Integer(12));
+    Ok(())
+}
+
+#[test]
+fn rejects_invalid_vector_knn_queries() {
+    let unsupported = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
+        field: MetadataSetField::DerivedTags,
+        op: CollectionOperator::Includes,
+        value: Some("area-damage".to_string()),
+    });
+
+    assert_eq!(
+        compile_vector_knn_query(&[1.0], None, 0).unwrap_err(),
+        VectorQueryError::InvalidLimit
+    );
+    assert_eq!(
+        compile_vector_knn_query(&[], None, 10).unwrap_err(),
+        VectorQueryError::EmptyQueryVector
+    );
+    assert!(matches!(
+        compile_vector_knn_query(&[1.0], Some(&unsupported), 10).unwrap_err(),
+        VectorQueryError::Filter(FilterCompileError::Unsupported { .. })
+    ));
 }
 
 fn query_eligible_keys(
