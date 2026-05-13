@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use atlas_artifact::metadata::artifact_metadata_keys;
-use atlas_artifact::schema::{REQUIRED_COLUMNS, REQUIRED_TABLES, TABLE_RECORDS, TABLE_RECORDS_FTS};
+use atlas_artifact::schema::{
+    BOOLEAN_COLUMNS, REQUIRED_COLUMNS, REQUIRED_REFERENCES, REQUIRED_TABLES, TABLE_RECORDS,
+    TABLE_RECORDS_FTS, invalid_boolean_column_sql, orphan_reference_sql,
+};
 use rusqlite::Connection;
 
 use crate::sql::{count_rows, count_sql, table_columns, table_exists};
@@ -144,8 +147,9 @@ fn validate_boolean_columns(
     connection: &Connection,
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
-    for check in BOOLEAN_COLUMN_CHECKS {
-        let invalid = count_sql(connection, check.sql)?;
+    for check in BOOLEAN_COLUMNS {
+        let sql = invalid_boolean_column_sql(check);
+        let invalid = count_sql(connection, &sql)?;
         if invalid > 0 {
             diagnostics.push(contract_diagnostic(
                 ArtifactContractFamily::Data,
@@ -260,7 +264,20 @@ fn validate_relationships(
     connection: &Connection,
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
-    for (key, sql) in RELATIONSHIP_CHECKS {
+    for reference in REQUIRED_REFERENCES {
+        let sql = orphan_reference_sql(reference);
+        let invalid = count_sql(connection, &sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("relationship check `{}` failed", reference.key),
+                Some(reference.key.to_string()),
+                Some("0 invalid rows".to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+    for (key, sql) in RELATIONSHIP_POLICY_CHECKS {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
             diagnostics.push(contract_diagnostic(
@@ -311,116 +328,7 @@ pub(crate) fn contract_diagnostic(
     }
 }
 
-struct BooleanColumnCheck {
-    key: &'static str,
-    sql: &'static str,
-}
-
-const BOOLEAN_COLUMN_CHECKS: &[BooleanColumnCheck] = &[
-    BooleanColumnCheck {
-        key: "records.publication_remaster",
-        sql: "SELECT COUNT(*) FROM records WHERE publication_remaster NOT IN (0, 1)",
-    },
-    BooleanColumnCheck {
-        key: "records.is_default_visible",
-        sql: "SELECT COUNT(*) FROM records WHERE is_default_visible NOT IN (0, 1)",
-    },
-    BooleanColumnCheck {
-        key: "record_metrics.bool_value",
-        sql: "SELECT COUNT(*) FROM record_metrics WHERE bool_value IS NOT NULL AND bool_value NOT IN (0, 1)",
-    },
-    BooleanColumnCheck {
-        key: "actor_records.is_complex",
-        sql: "SELECT COUNT(*) FROM actor_records WHERE is_complex NOT IN (0, 1)",
-    },
-    BooleanColumnCheck {
-        key: "spell_records.sustained",
-        sql: "SELECT COUNT(*) FROM spell_records WHERE sustained NOT IN (0, 1)",
-    },
-    BooleanColumnCheck {
-        key: "spell_records.basic_save",
-        sql: "SELECT COUNT(*) FROM spell_records WHERE basic_save NOT IN (0, 1)",
-    },
-];
-
-const RELATIONSHIP_CHECKS: &[(&str, &str)] = &[
-    (
-        "records.pack_name",
-        "SELECT COUNT(*)
-         FROM records r
-         LEFT JOIN packs p ON p.name = r.pack_name
-         WHERE p.name IS NULL",
-    ),
-    (
-        "record_traits.record_key",
-        "SELECT COUNT(*)
-         FROM record_traits t
-         LEFT JOIN records r ON r.record_key = t.record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "reference_edges.from_record_key",
-        "SELECT COUNT(*)
-         FROM reference_edges e
-         LEFT JOIN records r ON r.record_key = e.from_record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "reference_edges.to_record_key",
-        "SELECT COUNT(*)
-         FROM reference_edges e
-         LEFT JOIN records r ON r.record_key = e.to_record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "record_aliases.canonical_record_key",
-        "SELECT COUNT(*)
-         FROM record_aliases a
-         LEFT JOIN records r ON r.record_key = a.canonical_record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "remaster_links.remaster_record_key",
-        "SELECT COUNT(*)
-         FROM remaster_links l
-         LEFT JOIN records r ON r.record_key = l.remaster_record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "remaster_links.legacy_record_key",
-        "SELECT COUNT(*)
-         FROM remaster_links l
-         LEFT JOIN records r ON r.record_key = l.legacy_record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "record_metrics.record_key",
-        "SELECT COUNT(*)
-         FROM record_metrics m
-         LEFT JOIN records r ON r.record_key = m.record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "actor_records.record_key",
-        "SELECT COUNT(*)
-         FROM actor_records a
-         LEFT JOIN records r ON r.record_key = a.record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "item_records.record_key",
-        "SELECT COUNT(*)
-         FROM item_records i
-         LEFT JOIN records r ON r.record_key = i.record_key
-         WHERE r.record_key IS NULL",
-    ),
-    (
-        "spell_records.record_key",
-        "SELECT COUNT(*)
-         FROM spell_records s
-         LEFT JOIN records r ON r.record_key = s.record_key
-         WHERE r.record_key IS NULL",
-    ),
+const RELATIONSHIP_POLICY_CHECKS: &[(&str, &str)] = &[
     (
         "remaster_links.legacy_visibility",
         "SELECT COUNT(*)

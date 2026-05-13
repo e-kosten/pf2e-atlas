@@ -1,3 +1,10 @@
+mod contract_checks;
+
+pub use contract_checks::{
+    BOOLEAN_COLUMNS, BooleanColumn, REQUIRED_REFERENCES, RequiredReference,
+    invalid_boolean_column_sql, orphan_reference_sql,
+};
+
 pub const TABLE_ARTIFACT_METADATA: &str = "artifact_metadata";
 pub const TABLE_PACKS: &str = "packs";
 pub const TABLE_RECORDS: &str = "records";
@@ -133,6 +140,28 @@ pub const PERSISTED_RECORD_COLUMNS: &[&str] = &[
 
 pub const RECORD_TRAIT_COLUMNS: &[&str] = &["record_key", "trait"];
 
+pub const REFERENCE_EDGE_COLUMNS: &[&str] = &[
+    "from_record_key",
+    "to_record_key",
+    "display_text",
+    "reference_text",
+];
+
+pub const RECORD_ALIAS_COLUMNS: &[&str] = &[
+    "canonical_record_key",
+    "alias_text",
+    "normalized_alias",
+    "source_kind",
+    "source_ref",
+];
+
+pub const REMASTER_LINK_COLUMNS: &[&str] = &[
+    "remaster_record_key",
+    "legacy_record_key",
+    "source_kind",
+    "source_ref",
+];
+
 pub const RECORD_METRIC_COLUMNS: &[&str] = &[
     "record_key",
     "metric_domain",
@@ -218,6 +247,50 @@ pub fn persisted_record_select_sql() -> String {
     ordered_select_sql(TABLE_RECORDS, PERSISTED_RECORD_COLUMNS, "record_key")
 }
 
+pub fn record_metric_select_sql() -> String {
+    ordered_select_sql(
+        TABLE_RECORD_METRICS,
+        RECORD_METRIC_COLUMNS,
+        "record_key, metric_domain, metric_key",
+    )
+}
+
+pub fn actor_record_select_sql() -> String {
+    ordered_select_sql(TABLE_ACTOR_RECORDS, ACTOR_RECORD_COLUMNS, "record_key")
+}
+
+pub fn item_record_select_sql() -> String {
+    ordered_select_sql(TABLE_ITEM_RECORDS, ITEM_RECORD_COLUMNS, "record_key")
+}
+
+pub fn spell_record_select_sql() -> String {
+    ordered_select_sql(TABLE_SPELL_RECORDS, SPELL_RECORD_COLUMNS, "record_key")
+}
+
+pub fn reference_edge_select_sql() -> String {
+    ordered_select_sql(
+        TABLE_REFERENCE_EDGES,
+        REFERENCE_EDGE_COLUMNS,
+        "from_record_key, to_record_key, reference_text",
+    )
+}
+
+pub fn record_alias_select_sql() -> String {
+    ordered_select_sql(
+        TABLE_RECORD_ALIASES,
+        RECORD_ALIAS_COLUMNS,
+        "canonical_record_key, normalized_alias, source_kind, source_ref",
+    )
+}
+
+pub fn remaster_link_select_sql() -> String {
+    ordered_select_sql(
+        TABLE_REMASTER_LINKS,
+        REMASTER_LINK_COLUMNS,
+        "remaster_record_key, legacy_record_key, source_kind, source_ref",
+    )
+}
+
 pub fn insert_sql(table: &str, columns: &[&str]) -> String {
     let placeholders = (1..=columns.len())
         .map(|index| format!("?{index}"))
@@ -251,34 +324,9 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
     ),
     (TABLE_RECORDS, RECORD_COLUMNS),
     (TABLE_RECORD_TRAITS, RECORD_TRAIT_COLUMNS),
-    (
-        TABLE_REFERENCE_EDGES,
-        &[
-            "from_record_key",
-            "to_record_key",
-            "display_text",
-            "reference_text",
-        ],
-    ),
-    (
-        TABLE_RECORD_ALIASES,
-        &[
-            "canonical_record_key",
-            "alias_text",
-            "normalized_alias",
-            "source_kind",
-            "source_ref",
-        ],
-    ),
-    (
-        TABLE_REMASTER_LINKS,
-        &[
-            "remaster_record_key",
-            "legacy_record_key",
-            "source_kind",
-            "source_ref",
-        ],
-    ),
+    (TABLE_REFERENCE_EDGES, REFERENCE_EDGE_COLUMNS),
+    (TABLE_RECORD_ALIASES, RECORD_ALIAS_COLUMNS),
+    (TABLE_REMASTER_LINKS, REMASTER_LINK_COLUMNS),
     (TABLE_RECORD_METRICS, RECORD_METRIC_COLUMNS),
     (
         TABLE_METRIC_KEY_CATALOG,
