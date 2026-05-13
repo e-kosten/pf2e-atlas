@@ -28,6 +28,7 @@ pub use validation::{
 };
 pub use vector::{
     validate_vector_index, validate_vector_index_report, validate_vector_index_with_loader,
+    write_vector_index, write_vector_index_report, write_vector_index_with_loader,
 };
 
 #[derive(Debug, Error)]

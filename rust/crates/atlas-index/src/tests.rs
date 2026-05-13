@@ -12,7 +12,8 @@ use rusqlite::Connection;
 use crate::records::{load_persisted_record_set, load_persisted_records};
 use crate::{
     ArtifactContractFamily, ValidationCode, ValidationStatus, validate_index,
-    validate_vector_index, validate_vector_index_with_loader,
+    validate_vector_index, validate_vector_index_with_loader, write_vector_index,
+    write_vector_index_with_loader,
 };
 
 #[test]
@@ -255,6 +256,41 @@ fn vector_validation_reports_loader_failure() -> Result<(), Box<dyn std::error::
 
     let report =
         validate_vector_index_with_loader(&path, |_| Err("fixture loader failed".to_string()))?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
+    assert_eq!(
+        report.diagnostics[0].actual.as_deref(),
+        Some("fixture loader failed")
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn vector_write_reports_sqlite_vec_unavailable() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-write-extension-unavailable");
+    create_contract_database(&path)?;
+
+    let report = write_vector_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.family == ArtifactContractFamily::Embedding
+            && diagnostic.key.as_deref() == Some("sqlite_vec")
+    }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn vector_write_reports_loader_failure() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("vector-write-loader-failure");
+    create_contract_database(&path)?;
+
+    let report =
+        write_vector_index_with_loader(&path, |_| Err("fixture loader failed".to_string()))?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
