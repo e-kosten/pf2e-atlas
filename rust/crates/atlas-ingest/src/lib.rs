@@ -32,6 +32,7 @@ pub use embeddings::{
     GeneratedDocumentEmbedding, PendingDocumentEmbedding, ReusableDocumentEmbedding,
     generate_document_embeddings, generate_document_embeddings_with_reuse,
     generate_document_embeddings_with_reuse_using,
+    generate_document_embeddings_with_reuse_using_batch,
 };
 pub use model::IngestDiagnostics;
 pub use report::analyze_foundry_source;
@@ -124,10 +125,11 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
             "generating document embeddings"
         );
         let mut embedder = None;
-        let generated = generate_document_embeddings_with_reuse_using(
+        let generated = generate_document_embeddings_with_reuse_using_batch(
             &source.pending_document_embeddings,
             reusable_embeddings.as_ref(),
-            |input| {
+            options.embedding_batch_size,
+            |inputs| {
                 if embedder.is_none() {
                     info!(
                         cache = %config.cache_root.display(),
@@ -138,7 +140,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
                 embedder
                     .as_mut()
                     .expect("embedder was initialized")
-                    .embed_document(input)
+                    .embed_documents(inputs)
             },
         )
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;

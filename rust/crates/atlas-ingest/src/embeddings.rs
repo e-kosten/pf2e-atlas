@@ -90,8 +90,8 @@ pub fn generate_document_embeddings_with_reuse(
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     embedder: &mut TextEmbedder,
 ) -> Result<GeneratedDocumentEmbeddings, EmbeddingError> {
-    generate_document_embeddings_with_reuse_using(pending, reusable_embeddings, |input| {
-        embedder.embed_document(input)
+    generate_document_embeddings_with_reuse_using_batch(pending, reusable_embeddings, 1, |inputs| {
+        embedder.embed_documents(inputs)
     })
 }
 
@@ -100,28 +100,35 @@ pub fn generate_document_embeddings_with_reuse_using<E>(
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
 ) -> Result<GeneratedDocumentEmbeddings, E> {
+    generate_document_embeddings_with_reuse_using_batch(pending, reusable_embeddings, 1, |inputs| {
+        inputs
+            .iter()
+            .map(|input| embed_document(input))
+            .collect::<Result<Vec<_>, _>>()
+    })
+}
+
+pub fn generate_document_embeddings_with_reuse_using_batch<E>(
+    pending: &[PendingDocumentEmbedding],
+    reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
+    batch_size: usize,
+    mut embed_documents: impl FnMut(&[&str]) -> Result<Vec<Vec<f32>>, E>,
+) -> Result<GeneratedDocumentEmbeddings, E> {
     let total = pending.len();
     let progress_interval = embedding_progress_interval(total);
-    let mut generated = Vec::with_capacity(total);
+    let batch_size = batch_size.max(1);
+    let mut generated = vec![None; total];
+    let mut pending_generation_indices = Vec::new();
     let mut reused_count = 0;
     let mut generated_count = 0;
+    let mut last_reported = 0;
     for (index, entry) in pending.iter().enumerate() {
-        let current = index + 1;
-        if current == 1 || current % progress_interval == 0 || current == total {
-            info!(target: "atlas_progress",
-                phase = "document_embeddings",
-                current = current as u64,
-                total = total as u64,
-                "Preparing document embedding: {record_key}",
-                record_key = entry.record_key.as_str()
-            );
-        }
         if let Some(reusable) = reusable_embeddings
             .and_then(|lookup| lookup.get(&entry.record_key))
             .filter(|reusable| reusable.input_hash == entry.input_hash)
         {
             reused_count += 1;
-            generated.push(GeneratedDocumentEmbedding {
+            generated[index] = Some(GeneratedDocumentEmbedding {
                 record_key: entry.record_key.clone(),
                 input_hash: entry.input_hash.clone(),
                 dimensions: reusable.dimensions,
@@ -129,19 +136,54 @@ pub fn generate_document_embeddings_with_reuse_using<E>(
             });
             continue;
         }
-        generated.push({
-            let vector = embed_document(&entry.input_text)?;
+        pending_generation_indices.push(index);
+    }
+
+    for chunk in pending_generation_indices.chunks(batch_size) {
+        let current = chunk.last().copied().unwrap_or(0) + 1;
+        let record_key = pending[current - 1].record_key.as_str();
+        let inputs = chunk
+            .iter()
+            .map(|index| pending[*index].input_text.as_str())
+            .collect::<Vec<_>>();
+        let vectors = embed_documents(&inputs)?;
+        debug_assert_eq!(vectors.len(), chunk.len());
+        for (chunk_index, vector) in vectors.into_iter().enumerate() {
+            let index = chunk[chunk_index];
+            let entry = &pending[index];
             generated_count += 1;
-            GeneratedDocumentEmbedding {
+            generated[index] = Some(GeneratedDocumentEmbedding {
                 record_key: entry.record_key.clone(),
                 input_hash: entry.input_hash.clone(),
                 dimensions: vector.len(),
                 vector,
-            }
-        });
+            });
+        }
+        if last_reported == 0 || current - last_reported >= progress_interval || current == total {
+            info!(target: "atlas_progress",
+                phase = "document_embeddings",
+                current = current as u64,
+                total = total as u64,
+                "Prepared document embedding batch through: {record_key}",
+                record_key = record_key
+            );
+            last_reported = current;
+        }
     }
+    if pending_generation_indices.is_empty() && total > 0 {
+        info!(target: "atlas_progress",
+            phase = "document_embeddings",
+            current = total as u64,
+            total = total as u64,
+            "Prepared document embeddings from reusable cache"
+        );
+    }
+
     Ok(GeneratedDocumentEmbeddings {
-        embeddings: generated,
+        embeddings: generated
+            .into_iter()
+            .map(|entry| entry.expect("every pending embedding is generated or reused"))
+            .collect(),
         reused_count,
         generated_count,
     })
@@ -282,6 +324,53 @@ mod tests {
         assert_eq!(generated.generated_count, 1);
         assert_eq!(generated.embeddings[0].vector, vec![9.0, 1.0]);
         assert_eq!(generated.embeddings[1].vector, vec![12.0, 1.0]);
+    }
+
+    #[test]
+    fn generates_missing_document_vectors_in_batches() {
+        let pending = vec![
+            PendingDocumentEmbedding {
+                record_key: "packs:first".to_string(),
+                input_text: "first input".to_string(),
+                input_hash: "first-hash".to_string(),
+            },
+            PendingDocumentEmbedding {
+                record_key: "packs:second".to_string(),
+                input_text: "second input".to_string(),
+                input_hash: "second-hash".to_string(),
+            },
+            PendingDocumentEmbedding {
+                record_key: "packs:third".to_string(),
+                input_text: "third input".to_string(),
+                input_hash: "third-hash".to_string(),
+            },
+        ];
+        let mut batch_lengths = Vec::new();
+
+        let generated =
+            generate_document_embeddings_with_reuse_using_batch(&pending, None, 2, |inputs| {
+                batch_lengths.push(inputs.len());
+                Ok::<_, std::convert::Infallible>(
+                    inputs
+                        .iter()
+                        .map(|input| vec![input.len() as f32, inputs.len() as f32])
+                        .collect(),
+                )
+            })
+            .expect("fixture embedding should succeed");
+
+        assert_eq!(batch_lengths, vec![2, 1]);
+        assert_eq!(generated.generated_count, 3);
+        assert_eq!(
+            generated
+                .embeddings
+                .iter()
+                .map(|entry| entry.record_key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["packs:first", "packs:second", "packs:third"]
+        );
+        assert_eq!(generated.embeddings[0].vector, vec![11.0, 2.0]);
+        assert_eq!(generated.embeddings[2].vector, vec![11.0, 1.0]);
     }
 
     fn test_record(key: &str, name: &str, is_default_visible: bool) -> LoadedRecord {

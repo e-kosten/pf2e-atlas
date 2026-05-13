@@ -94,6 +94,8 @@ struct BuildIndexOptions {
     manifest: Option<PathBuf>,
     #[arg(long)]
     embedding_cache_path: Option<PathBuf>,
+    #[arg(long, default_value_t = 32)]
+    embedding_batch_size: usize,
     #[arg(long)]
     no_reuse_embeddings: bool,
     #[arg(long)]
@@ -366,6 +368,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
         manifest_path: options.manifest,
         embedding_cache_root: options.embedding_cache_path,
         reuse_embeddings: !options.no_reuse_embeddings,
+        embedding_batch_size: options.embedding_batch_size,
     })
     .map_err(|error| error.to_string())?;
 
