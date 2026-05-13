@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_domain::{RecordFamily, ValidationStatus};
+use atlas_domain::ValidationStatus;
 use atlas_index::validate_index;
-use atlas_ingest::{AliasSource, BuildArtifactOptions, build_artifact, load_foundry_source};
+use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
 use rusqlite::Connection;
 
 #[test]
@@ -12,53 +12,88 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     let root = fixture_root("load");
     write_fixture_source(&root)?;
 
-    let source = load_foundry_source(&root, None)?;
+    let report = analyze_foundry_source(&root, None)?;
 
-    assert!(source.source_signature.starts_with("foundry-pf2e:sha256:"));
+    assert!(
+        report
+            .source
+            .source_signature
+            .starts_with("foundry-pf2e:sha256:")
+    );
     assert_eq!(
-        source.source_signature.len(),
+        report.source.source_signature.len(),
         "foundry-pf2e:sha256:".len() + 64
     );
-    assert_eq!(source.packs.len(), 4);
-    assert_eq!(source.records.len(), 5);
-    assert_eq!(source.references.len(), 2);
-    assert!(source.skipped_records.is_empty());
-    assert!(source.warnings.is_empty());
+    assert_eq!(report.pack_count, 4);
+    assert_eq!(report.record_count, 5);
+    assert_eq!(report.relationships.reference_edges, 2);
+    assert_eq!(report.skipped_record_count, 0);
+    assert!(report.warnings.is_empty());
 
-    let treat_wounds = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "actions:testAction0001")
-        .expect("action record should load");
-    assert_eq!(treat_wounds.name, "Treat Wounds");
-    assert_eq!(treat_wounds.normalized_name, "treat wounds");
-    assert_eq!(treat_wounds.record_family, RecordFamily::Rule);
-    assert_eq!(treat_wounds.foundry_record_type, "action");
-    assert_eq!(treat_wounds.traits, vec!["exploration", "healing"]);
+    let output_path = root.join("artifact.sqlite");
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+    })?;
+    let connection = Connection::open(&output_path)?;
+    let (
+        treat_wounds_name,
+        treat_wounds_normalized_name,
+        treat_wounds_family,
+        treat_wounds_record_type,
+        treat_wounds_traits,
+        treat_wounds_description,
+    ): (String, String, String, String, String, String) = connection.query_row(
+        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json, description_text
+         FROM records WHERE record_key = 'actions:testAction0001'",
+        [],
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+            ))
+        },
+    )?;
+    let (reference_to, reference_display, reference_text): (String, String, String) = connection
+        .query_row(
+            "SELECT to_record_key, display_text, reference_text
+             FROM reference_edges WHERE from_record_key = 'actions:testAction0001'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    let demoralize_reference_count: usize = connection.query_row(
+        "SELECT COUNT(*)
+         FROM reference_edges
+         WHERE from_record_key = 'actions:testAction0002'
+           AND to_record_key = 'spells:testSpell0001'
+           AND display_text = 'Heal Spell'
+           AND reference_text = '@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(treat_wounds_name, "Treat Wounds");
+    assert_eq!(treat_wounds_normalized_name, "treat wounds");
+    assert_eq!(treat_wounds_family, "rule");
+    assert_eq!(treat_wounds_record_type, "action");
+    assert_eq!(treat_wounds_traits, "[\"exploration\",\"healing\"]");
     assert_eq!(
-        treat_wounds.description_text.as_deref(),
-        Some("You spend 10 minutes treating one injured living creature.")
+        treat_wounds_description,
+        "You spend 10 minutes treating one injured living creature."
     );
+    assert_eq!(reference_to, "spells:testSpell0001");
+    assert_eq!(reference_display, "Heal");
     assert_eq!(
-        source.references[0].from_record_key.to_string(),
-        "actions:testAction0001"
-    );
-    assert_eq!(
-        source.references[0].to_record_key.to_string(),
-        "spells:testSpell0001"
-    );
-    assert_eq!(source.references[0].display_text.as_deref(), Some("Heal"));
-    assert_eq!(
-        source.references[0].reference_text,
+        reference_text,
         "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}"
     );
-    assert!(source.references.iter().any(|reference| {
-        reference.from_record_key.to_string() == "actions:testAction0002"
-            && reference.to_record_key.to_string() == "spells:testSpell0001"
-            && reference.display_text.as_deref() == Some("Heal Spell")
-            && reference.reference_text == "@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}"
-    }));
+    assert_eq!(demoralize_reference_count, 1);
 
+    drop(connection);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -68,8 +103,8 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
     let root = fixture_root("source-signature");
     write_fixture_source(&root)?;
 
-    let first = load_foundry_source(&root, None)?.source_signature;
-    let second = load_foundry_source(&root, None)?.source_signature;
+    let first = analyze_foundry_source(&root, None)?.source.source_signature;
+    let second = analyze_foundry_source(&root, None)?.source.source_signature;
     assert_eq!(first, second);
 
     fs::write(
@@ -84,7 +119,7 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
           }
         }"#,
     )?;
-    let third = load_foundry_source(&root, None)?.source_signature;
+    let third = analyze_foundry_source(&root, None)?.source.source_signature;
     assert_ne!(first, third);
 
     fs::remove_dir_all(root)?;
@@ -108,19 +143,19 @@ fn reports_all_skipped_records_without_aborting_source_load()
         }"#,
     )?;
 
-    let source = load_foundry_source(&root, None)?;
+    let report = analyze_foundry_source(&root, None)?;
 
-    assert_eq!(source.records.len(), 5);
-    assert_eq!(source.skipped_records.len(), 2);
+    assert_eq!(report.record_count, 5);
+    assert_eq!(report.skipped_record_count, 2);
     assert!(
-        source
+        report
             .skipped_records
             .iter()
             .any(|record| record.path.ends_with("broken-json.json")
                 && record.reason.contains("source record failed to parse"))
     );
     assert!(
-        source
+        report
             .skipped_records
             .iter()
             .any(|record| record.path.ends_with("missing-id.json")
@@ -156,16 +191,29 @@ fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
         }"#,
     )?;
 
-    let source = load_foundry_source(&root, None)?;
+    let output_path = root.join("artifact.sqlite");
+    let report = build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+    })?;
 
-    assert_eq!(source.packs.len(), 1);
-    assert_eq!(source.records.len(), 1);
+    assert_eq!(report.pack_count, 1);
+    assert_eq!(report.record_count, 1);
+    assert!(report.warnings.is_empty());
+
+    let connection = Connection::open(&output_path)?;
+    let resolved_path: String = connection.query_row(
+        "SELECT resolved_path FROM packs WHERE name = 'actions'",
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(
-        source.packs[0].resolved_path,
-        root.join("packs/pf2e/actions")
+        resolved_path,
+        root.join("packs/pf2e/actions").display().to_string()
     );
-    assert!(source.warnings.is_empty());
 
+    drop(connection);
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -175,40 +223,11 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
 {
     let root = fixture_root("remaster-links");
     write_remaster_fixture_source(&root)?;
-    let source = load_foundry_source(&root, None)?;
+    let report = analyze_foundry_source(&root, None)?;
 
-    assert_eq!(source.records.len(), 6);
-    assert_eq!(source.aliases.len(), 3);
-    assert_eq!(source.remaster_links.len(), 2);
-    assert!(source.aliases.iter().any(|alias| {
-        alias.canonical_record_key.to_string() == "actions:reactiveStrike1"
-            && alias.alias_text == "Attack of Opportunity"
-            && alias.normalized_alias == "attack of opportunity"
-            && alias.source == AliasSource::RemasterJournal
-            && alias.source_ref == "journal:Class Features"
-    }));
-    assert!(source.aliases.iter().any(|alias| {
-        alias.canonical_record_key.to_string() == "conditionitems:offGuard1"
-            && alias.alias_text == "flat-footed"
-            && alias.source == AliasSource::Migration
-            && alias.source_ref == "src/module/migration/migrations"
-    }));
-    assert!(source.aliases.iter().any(|alias| {
-        alias.canonical_record_key.to_string() == "conditionitems:offGuard1"
-            && alias.alias_text == "Legacy Guard"
-            && alias.source == AliasSource::CompendiumSource
-            && alias.source_ref == "bestiary:aliasCarrier1"
-    }));
-    assert!(source.remaster_links.iter().any(|link| {
-        link.remaster_record_key.to_string() == "actions:reactiveStrike1"
-            && link.legacy_record_key.to_string() == "actions:attackOpportunity1"
-            && link.source_ref == "journal:Class Features"
-    }));
-    assert!(source.remaster_links.iter().any(|link| {
-        link.remaster_record_key.to_string() == "conditionitems:offGuard1"
-            && link.legacy_record_key.to_string() == "conditionitems:flatFooted1"
-            && link.source_ref == "src/module/migration/migrations"
-    }));
+    assert_eq!(report.record_count, 6);
+    assert_eq!(report.relationships.record_aliases, 3);
+    assert_eq!(report.relationships.remaster_links, 2);
 
     let output_path = root.join("artifact.sqlite");
     build_artifact(BuildArtifactOptions {
@@ -262,58 +281,14 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
     let root = fixture_root("families");
     write_family_fixture_source(&root)?;
 
-    let source = load_foundry_source(&root, None)?;
-    assert!(source.skipped_records.is_empty());
-    assert!(source.warnings.is_empty());
-    assert_eq!(source.diagnostics.taxonomy_folder_records, 1);
-    assert_eq!(source.diagnostics.taxonomy_glossary_records, 1);
-    assert_eq!(source.diagnostics.variant_parenthetical_records, 4);
-    assert_eq!(source.diagnostics.variant_creature_blurb_records, 1);
-    assert_eq!(source.diagnostics.variant_exact_base_records, 0);
-    let bosun = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "pathfinder-npc-core:bosun00000001")
-        .expect("bosun should load");
-    let ghost_commoner = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "bestiary:ghostCommoner1")
-        .expect("ghost commoner should load");
-    let storm_young = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "bestiary:stormYoung001")
-        .expect("storm dragon should load");
-    let venexus = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "adventure-bestiary:venexus000001")
-        .expect("venexus should load");
-    let figurine = source
-        .records
-        .iter()
-        .find(|record| record.key.to_string() == "equipment:figurineBear1")
-        .expect("figurine should load");
-
-    assert_eq!(bosun.taxonomy_families, vec!["seafarer"]);
-    assert_eq!(ghost_commoner.taxonomy_families, vec!["ghost"]);
-    assert_eq!(
-        storm_young.variant_group_key.as_deref(),
-        Some("creature:family:storm-dragon")
-    );
-    assert_eq!(storm_young.variant_label.as_deref(), Some("Young"));
-    assert_eq!(storm_young.variant_axes, vec!["dragonAge"]);
-    assert_eq!(
-        venexus.variant_group_key.as_deref(),
-        Some("creature:family:storm-dragon")
-    );
-    assert_eq!(venexus.variant_label.as_deref(), Some("Venexus"));
-    assert_eq!(
-        figurine.variant_base_name.as_deref(),
-        Some("Wondrous Figurine")
-    );
-    assert_eq!(figurine.variant_label.as_deref(), Some("Rubber Bear"));
+    let report = analyze_foundry_source(&root, None)?;
+    assert_eq!(report.skipped_record_count, 0);
+    assert!(report.warnings.is_empty());
+    assert_eq!(report.diagnostics["taxonomy"]["folder_records"], 1);
+    assert_eq!(report.diagnostics["taxonomy"]["glossary_records"], 1);
+    assert_eq!(report.diagnostics["variants"]["parenthetical_records"], 4);
+    assert_eq!(report.diagnostics["variants"]["creature_blurb_records"], 1);
+    assert_eq!(report.diagnostics["variants"]["exact_base_records"], 0);
 
     let output_path = root.join("artifact.sqlite");
     build_artifact(BuildArtifactOptions {
@@ -327,16 +302,39 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
         [],
         |row| row.get(0),
     )?;
+    let ghost_commoner_families: String = connection.query_row(
+        "SELECT taxonomy_families_json FROM records WHERE record_key = 'bestiary:ghostCommoner1'",
+        [],
+        |row| row.get(0),
+    )?;
+    let storm_young_variant: (String, String, String) = connection.query_row(
+        "SELECT variant_group_key, variant_label, variant_axes_json
+         FROM records WHERE record_key = 'bestiary:stormYoung001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
     let venexus_variant: (String, String, String) = connection.query_row(
         "SELECT variant_group_key, variant_label, variant_axes_json
          FROM records WHERE record_key = 'adventure-bestiary:venexus000001'",
         [],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
+    let figurine_variant: (String, String) = connection.query_row(
+        "SELECT variant_base_name, variant_label
+         FROM records WHERE record_key = 'equipment:figurineBear1'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
     assert_eq!(bosun_families, "[\"seafarer\"]");
+    assert_eq!(ghost_commoner_families, "[\"ghost\"]");
+    assert_eq!(storm_young_variant.0, "creature:family:storm-dragon");
+    assert_eq!(storm_young_variant.1, "Young");
+    assert_eq!(storm_young_variant.2, "[\"dragonAge\"]");
     assert_eq!(venexus_variant.0, "creature:family:storm-dragon");
     assert_eq!(venexus_variant.1, "Venexus");
     assert_eq!(venexus_variant.2, "[\"dragonAge\"]");
+    assert_eq!(figurine_variant.0, "Wondrous Figurine");
+    assert_eq!(figurine_variant.1, "Rubber Bear");
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -349,35 +347,15 @@ fn generates_affliction_records_from_staged_embedded_items()
     let root = fixture_root("generated-afflictions");
     write_generated_affliction_fixture_source(&root)?;
 
-    let source = load_foundry_source(&root, None)?;
-
-    assert_eq!(source.diagnostics.generated_affliction_canonical_records, 1);
-    assert_eq!(source.diagnostics.generated_affliction_instance_records, 1);
-    assert_eq!(source.diagnostics.generated_affliction_reference_edges, 3);
-    assert!(
-        source
-            .records
-            .iter()
-            .any(|record| record.pack_name.as_str() == "derived-afflictions"
-                && record.name == "Ghoul Fever"
-                && record.foundry_record_type == "affliction"
-                && record.record_family == RecordFamily::Affliction
-                && record.is_default_visible)
-    );
-    assert!(
-        !source
-            .records
-            .iter()
-            .any(|record| record.pack_name.as_str() == "derived-afflictions"
-                && record.name == "Serpent Dagger")
-    );
-
     let output_path = root.join("artifact.sqlite");
-    build_artifact(BuildArtifactOptions {
+    let report = build_artifact(BuildArtifactOptions {
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
     })?;
+    assert_eq!(report.diagnostics.generated_affliction_canonical_records, 1);
+    assert_eq!(report.diagnostics.generated_affliction_instance_records, 1);
+    assert_eq!(report.diagnostics.generated_affliction_reference_edges, 3);
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
 
@@ -400,9 +378,28 @@ fn generates_affliction_records_from_staged_embedded_items()
         [],
         |row| row.get(0),
     )?;
+    let ghoul_fever_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM records
+         WHERE pack_name = 'derived-afflictions'
+           AND name = 'Ghoul Fever'
+           AND foundry_record_type = 'affliction'
+           AND record_family = 'affliction'
+           AND is_default_visible = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    let serpent_dagger_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM records
+         WHERE pack_name = 'derived-afflictions'
+           AND name = 'Serpent Dagger'",
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(generated_record_count, 2);
     assert_eq!(generated_fts_count, 1);
     assert_eq!(generated_edge_count, 3);
+    assert_eq!(ghoul_fever_count, 1);
+    assert_eq!(serpent_dagger_count, 0);
 
     drop(connection);
     fs::remove_dir_all(root)?;

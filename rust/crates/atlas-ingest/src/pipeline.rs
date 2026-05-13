@@ -9,7 +9,7 @@ use crate::{
     SourceLoad, aliases, generated_afflictions, source, variant_taxonomy, variants,
 };
 
-pub fn load_foundry_source(
+pub(crate) fn load_foundry_source(
     source_root: impl AsRef<Path>,
     manifest_path: Option<&Path>,
 ) -> Result<SourceLoad, IngestError> {

@@ -6,8 +6,8 @@ use std::process::ExitCode;
 use atlas_domain::{ArtifactValidationReport, ValidationCode, ValidationStatus};
 use atlas_index::{inspect_index, validate_index};
 use atlas_ingest::{
-    BuildArtifactOptions, build_artifact, load_foundry_source,
-    report::{analyze_source_load, diagnostics_json, skipped_records_json},
+    BuildArtifactOptions, analyze_foundry_source, build_artifact,
+    report::{diagnostics_json, skipped_records_json},
 };
 use clap::{Args, Parser, Subcommand};
 use serde_json::json;
@@ -96,9 +96,8 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
 }
 
 fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
-    let source = load_foundry_source(&options.source, options.manifest.as_deref())
+    let report = analyze_foundry_source(&options.source, options.manifest.as_deref())
         .map_err(|error| error.to_string())?;
-    let report = analyze_source_load(options.source, source);
 
     if options.json {
         println!(

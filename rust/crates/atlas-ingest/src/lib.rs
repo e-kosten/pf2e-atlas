@@ -17,19 +17,16 @@ mod variant_taxonomy;
 mod variants;
 mod writer;
 
-pub use model::{
-    ActorSideData, AliasSource, BuildArtifactOptions, BuildArtifactReport, IngestDiagnostics,
-    ItemSideData, LoadedPack, LoadedRecord, MetricRow, MetricValue, NormalizedTime, RecordAlias,
-    ReferenceCandidate, ReferenceEdge, RemasterLink, SkippedRecord, SourceLoad, SpellSideData,
-};
-pub use pipeline::load_foundry_source;
-pub use writer::{read_artifact_counts, write_artifact};
+pub use model::{BuildArtifactOptions, BuildArtifactReport, IngestDiagnostics, SkippedRecord};
+pub use report::analyze_foundry_source;
 
 pub(crate) use model::{
-    AfflictionFamily, AfflictionOccurrence, DERIVED_AFFLICTION_INSTANCES_PACK_LABEL,
-    DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTIONS_PACK_LABEL,
-    DERIVED_AFFLICTIONS_PACK_NAME, DerivedAfflictionRecordInput, FolderDefinition,
-    GeneratedAfflictionBuild, ManifestPack, RecordReferenceIndex, VariantCandidate,
+    ActorSideData, AfflictionFamily, AfflictionOccurrence, AliasSource,
+    DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
+    DERIVED_AFFLICTIONS_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_NAME, DerivedAfflictionRecordInput,
+    FolderDefinition, GeneratedAfflictionBuild, ItemSideData, LoadedPack, LoadedRecord,
+    ManifestPack, MetricRow, MetricValue, NormalizedTime, RecordAlias, RecordReferenceIndex,
+    ReferenceCandidate, ReferenceEdge, RemasterLink, SourceLoad, SpellSideData, VariantCandidate,
     VariantDiagnosticSource,
 };
 
@@ -50,11 +47,12 @@ pub enum IngestError {
 }
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
-    let source = load_foundry_source(&options.source_root, options.manifest_path.as_deref())?;
+    let source =
+        pipeline::load_foundry_source(&options.source_root, options.manifest_path.as_deref())?;
     if source.records.is_empty() {
         return Err(IngestError::NoRecordsLoaded);
     }
-    write_artifact(&options.output_path, &source)?;
+    writer::write_artifact(&options.output_path, &source)?;
     Ok(BuildArtifactReport {
         output_path: options.output_path,
         pack_count: source.packs.len(),

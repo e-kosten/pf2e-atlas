@@ -1,11 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use atlas_domain::{MetricDomain, PublicationFamily};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{IngestDiagnostics, LoadedRecord, MetricValue, SkippedRecord, SourceLoad};
+
+use crate::{IngestError, pipeline};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SourceAnalysisReport {
@@ -71,7 +73,19 @@ pub struct SkippedRecordReport {
     pub reason: String,
 }
 
-pub fn analyze_source_load(source_root: PathBuf, source: SourceLoad) -> SourceAnalysisReport {
+pub fn analyze_foundry_source(
+    source_root: impl AsRef<Path>,
+    manifest_path: Option<&Path>,
+) -> Result<SourceAnalysisReport, IngestError> {
+    let source_root = source_root.as_ref();
+    let source = pipeline::load_foundry_source(source_root, manifest_path)?;
+    Ok(analyze_source_load(source_root.to_path_buf(), source))
+}
+
+pub(crate) fn analyze_source_load(
+    source_root: PathBuf,
+    source: SourceLoad,
+) -> SourceAnalysisReport {
     let hidden_record_keys = source
         .remaster_links
         .iter()
