@@ -257,7 +257,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Write `record_vector_index` sqlite-vec rows from `document_embedding_cache` when sqlite-vec is available.
 - [x] Validate cache and vector-index key coverage against default-visible searchable records.
 - [x] Log and report tokenizer truncation telemetry for document embedding inputs.
-- [ ] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.
+- [x] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.
 - [ ] Keep BGE as a deferred quality-bakeoff option, not the first migration baseline.
 - [ ] Ensure switching the active embedding model is a catalog/config change plus artifact rebuild, not scattered edits to storage, validation, ingest, and search code.
 - [ ] Evaluate longer-context embedding options after the Rust baseline is measurable, including BGE v1.5 and Nomic, against query quality, ingest speed, artifact size, vector dimensions, and runtime packaging.
