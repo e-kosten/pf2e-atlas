@@ -57,6 +57,8 @@ Required keys:
 | `fts_tokenizer` | `unicode61 remove_diacritics 2` |
 | `adjacent_manifest_path` | relative path next to the SQLite artifact |
 
+Embedding model decisions must be concentrated in an `atlas-embedding` model catalog rather than repeated as raw strings across ingest, index validation, and search. The first catalog default is MiniLM for compatibility with the current prepared artifact and TypeScript provider, but alternate providers such as BGE should be added by extending the catalog and changing configuration or the default model selection. Switching models requires rebuilding `document_embedding_cache`, `record_vector_index`, and embedding metadata, then rerunning search-quality validation; it should not require changing storage, validation, or search call sites outside the catalog/provider boundary unless the new model changes vector storage requirements such as dimensions or dtype.
+
 ## Validation Families
 
 Validation diagnostics are grouped by contract family:

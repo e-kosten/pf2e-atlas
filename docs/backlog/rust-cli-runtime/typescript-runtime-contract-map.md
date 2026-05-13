@@ -124,7 +124,9 @@ Before Phase 4 embedding/vector work starts:
 - Keep `record_vector_index` key-and-vector only for the baseline. Do not add `record_family` or other filter projection columns before performance validation proves they are needed.
 - Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`. Do not use ordinary joins around the vec scan for exact filtered KNN.
 - Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
+- Add an `atlas-embedding` model catalog as the single owner of the active/default model decision and identity fields. Ingest, validation, and search should consume catalog specs rather than repeating raw model strings.
 - Preserve MiniLM compatibility unless a new ADR changes the baseline.
+- Treat a future BGE or other model switch as a catalog/config change plus `document_embedding_cache`, `record_vector_index`, and metadata rebuild, followed by search-quality validation.
 - Keep vector table capability checks out of artifact metadata validation; vector capability belongs to commands that need semantic retrieval.
 
 ## Indexing Stage Map

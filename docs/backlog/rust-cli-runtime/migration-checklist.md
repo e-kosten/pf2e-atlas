@@ -225,6 +225,7 @@ Comparison note:
 Goal: keep the first Rust search baseline compatible with the existing MiniLM embedding space.
 
 - [ ] Add `atlas-embedding` crate only when query or document embedding implementation starts.
+- [ ] Add an `atlas-embedding` model catalog that owns the default model decision and all embedding identity fields used by ingest, validation, and query runtime.
 - [ ] Port MiniLM query embedding from the spike.
 - [ ] Validate tokenizer, pooling, normalization, dimensions, dtype, and prefixes.
 - [ ] Add query-vector fixture comparisons against the current TypeScript provider.
@@ -242,6 +243,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [ ] Validate cache and vector-index key coverage against default-visible searchable records.
 - [ ] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.
 - [ ] Keep BGE as a deferred quality-bakeoff option, not the first migration baseline.
+- [ ] Ensure switching the active embedding model is a catalog/config change plus artifact rebuild, not scattered edits to storage, validation, ingest, and search code.
 
 Acceptance:
 - Rust MiniLM query vectors match existing TypeScript vectors for sampled queries.
