@@ -131,8 +131,87 @@ pub const PERSISTED_RECORD_COLUMNS: &[&str] = &[
     "raw_json",
 ];
 
+pub const RECORD_TRAIT_COLUMNS: &[&str] = &["record_key", "trait"];
+
+pub const RECORD_METRIC_COLUMNS: &[&str] = &[
+    "record_key",
+    "metric_domain",
+    "metric_key",
+    "value_type",
+    "number_value",
+    "text_value",
+    "bool_value",
+];
+
+pub const ACTOR_RECORD_COLUMNS: &[&str] = &[
+    "record_key",
+    "size",
+    "languages_json",
+    "speed_types_json",
+    "senses_json",
+    "immunities_json",
+    "resistances_json",
+    "weaknesses_json",
+    "disable_text",
+    "disable_skills_json",
+    "is_complex",
+];
+
+pub const ITEM_RECORD_COLUMNS: &[&str] = &[
+    "record_key",
+    "system_category",
+    "system_base_item",
+    "system_group",
+    "system_usage",
+    "price_cp",
+    "bulk_value",
+    "hands_requirement",
+    "damage_types_json",
+];
+
+pub const SPELL_RECORD_COLUMNS: &[&str] = &[
+    "record_key",
+    "traditions_json",
+    "spell_kinds_json",
+    "range_text",
+    "range_value",
+    "target_text",
+    "area_type",
+    "area_value",
+    "save_type",
+    "sustained",
+    "basic_save",
+    "damage_types_json",
+];
+
+pub const RECORDS_FTS_COLUMNS: &[&str] = &["record_key", "name", "search_text_projection"];
+
 pub fn record_insert_sql() -> String {
     insert_sql(TABLE_RECORDS, RECORD_COLUMNS)
+}
+
+pub fn record_trait_insert_sql() -> String {
+    insert_sql(TABLE_RECORD_TRAITS, RECORD_TRAIT_COLUMNS)
+}
+
+pub fn record_metric_insert_sql() -> String {
+    insert_sql(TABLE_RECORD_METRICS, RECORD_METRIC_COLUMNS)
+}
+
+pub fn actor_record_insert_sql() -> String {
+    insert_sql(TABLE_ACTOR_RECORDS, ACTOR_RECORD_COLUMNS)
+}
+
+pub fn item_record_insert_sql() -> String {
+    insert_sql(TABLE_ITEM_RECORDS, ITEM_RECORD_COLUMNS)
+}
+
+pub fn spell_record_insert_sql() -> String {
+    insert_sql(TABLE_SPELL_RECORDS, SPELL_RECORD_COLUMNS)
+}
+
+pub fn records_fts_insert_sql() -> String {
+    insert_sql(TABLE_RECORDS_FTS, RECORDS_FTS_COLUMNS)
 }
 
 pub fn persisted_record_select_sql() -> String {
@@ -171,7 +250,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
         ],
     ),
     (TABLE_RECORDS, RECORD_COLUMNS),
-    (TABLE_RECORD_TRAITS, &["record_key", "trait"]),
+    (TABLE_RECORD_TRAITS, RECORD_TRAIT_COLUMNS),
     (
         TABLE_REFERENCE_EDGES,
         &[
@@ -200,18 +279,7 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "source_ref",
         ],
     ),
-    (
-        TABLE_RECORD_METRICS,
-        &[
-            "record_key",
-            "metric_domain",
-            "metric_key",
-            "value_type",
-            "number_value",
-            "text_value",
-            "bool_value",
-        ],
-    ),
+    (TABLE_RECORD_METRICS, RECORD_METRIC_COLUMNS),
     (
         TABLE_METRIC_KEY_CATALOG,
         &[
@@ -235,57 +303,10 @@ pub const REQUIRED_COLUMNS: &[(&str, &[&str])] = &[
             "catalog_count",
         ],
     ),
-    (
-        TABLE_ACTOR_RECORDS,
-        &[
-            "record_key",
-            "size",
-            "languages_json",
-            "speed_types_json",
-            "senses_json",
-            "immunities_json",
-            "resistances_json",
-            "weaknesses_json",
-            "disable_text",
-            "disable_skills_json",
-            "is_complex",
-        ],
-    ),
-    (
-        TABLE_ITEM_RECORDS,
-        &[
-            "record_key",
-            "system_category",
-            "system_base_item",
-            "system_group",
-            "system_usage",
-            "price_cp",
-            "bulk_value",
-            "hands_requirement",
-            "damage_types_json",
-        ],
-    ),
-    (
-        TABLE_SPELL_RECORDS,
-        &[
-            "record_key",
-            "traditions_json",
-            "spell_kinds_json",
-            "range_text",
-            "range_value",
-            "target_text",
-            "area_type",
-            "area_value",
-            "save_type",
-            "sustained",
-            "basic_save",
-            "damage_types_json",
-        ],
-    ),
-    (
-        TABLE_RECORDS_FTS,
-        &["record_key", "name", "search_text_projection"],
-    ),
+    (TABLE_ACTOR_RECORDS, ACTOR_RECORD_COLUMNS),
+    (TABLE_ITEM_RECORDS, ITEM_RECORD_COLUMNS),
+    (TABLE_SPELL_RECORDS, SPELL_RECORD_COLUMNS),
+    (TABLE_RECORDS_FTS, RECORDS_FTS_COLUMNS),
 ];
 
 pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys = ON;
@@ -505,6 +526,62 @@ mod tests {
                     .collect::<Vec<_>>()
                     .join(", ")
             )
+        );
+    }
+
+    #[test]
+    fn side_table_insert_sql_uses_column_descriptor_order() {
+        assert_eq!(
+            record_trait_insert_sql(),
+            "INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)"
+        );
+        assert_eq!(
+            record_metric_insert_sql(),
+            format!(
+                "INSERT INTO record_metrics ({}) VALUES ({})",
+                RECORD_METRIC_COLUMNS.join(", "),
+                (1..=RECORD_METRIC_COLUMNS.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
+        assert_eq!(
+            actor_record_insert_sql(),
+            format!(
+                "INSERT INTO actor_records ({}) VALUES ({})",
+                ACTOR_RECORD_COLUMNS.join(", "),
+                (1..=ACTOR_RECORD_COLUMNS.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
+        assert_eq!(
+            item_record_insert_sql(),
+            format!(
+                "INSERT INTO item_records ({}) VALUES ({})",
+                ITEM_RECORD_COLUMNS.join(", "),
+                (1..=ITEM_RECORD_COLUMNS.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
+        assert_eq!(
+            spell_record_insert_sql(),
+            format!(
+                "INSERT INTO spell_records ({}) VALUES ({})",
+                SPELL_RECORD_COLUMNS.join(", "),
+                (1..=SPELL_RECORD_COLUMNS.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        );
+        assert_eq!(
+            records_fts_insert_sql(),
+            "INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)"
         );
     }
 
