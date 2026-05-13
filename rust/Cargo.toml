@@ -7,6 +7,7 @@ members = [
   "crates/atlas-ingest",
   "crates/atlas-index",
   "crates/atlas-record",
+  "crates/atlas-search",
 ]
 resolver = "3"
 
@@ -23,6 +24,7 @@ atlas-embedding = { path = "crates/atlas-embedding" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-record = { path = "crates/atlas-record" }
+atlas-search = { path = "crates/atlas-search" }
 clap = { version = "4.5.53", features = ["derive"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
