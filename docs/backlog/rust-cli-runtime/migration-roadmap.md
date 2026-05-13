@@ -290,8 +290,9 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 1. Add `atlas-embedding` when query or document embedding implementation starts.
 2. Port MiniLM query embeddings and validate compatibility with the TypeScript provider.
 3. Implement document embedding generation for Rust-built artifacts.
-4. Write reusable embedding blobs and sqlite-vec `record_embeddings` rows from typed record projections.
-5. Add sqlite-vec capability checks and unavailable-vector diagnostics.
+4. Write reusable vector blobs to `document_embedding_cache` and lightweight sqlite-vec rows to `record_vector_index`.
+5. Use authoritative SQL keyset prefiltering for filtered semantic search instead of duplicating filter projection columns in the vector table.
+6. Add sqlite-vec capability checks and unavailable-vector diagnostics.
 
 ### Later Search Runtime
 

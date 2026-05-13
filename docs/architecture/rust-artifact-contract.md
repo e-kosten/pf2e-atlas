@@ -104,7 +104,8 @@ Required runtime table families for Rust-written artifacts are:
 | Metric rows and catalogs | `record_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics in one physical row model with a `metric_domain` axis, plus generated discovery catalogs by record family, metric domain, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. Edges store `from_record_key`, `to_record_key`, optional authored link `display_text`, and the exact `reference_text`; pack/type/source metadata is derived by joining to `records`. |
 | Lexical search | `records_fts` | SQLite FTS5 index over default-visible canonical record name and search text. |
-| Embeddings and vector search | `embeddings`, `record_embeddings` | Reusable vector blobs with semantic input hashes plus sqlite-vec rows and vector-side filter projections. |
+| Document embedding cache | `document_embedding_cache` | Durable reusable document vector blobs keyed by `record_key`, with semantic input hashes and vector dimensions for reuse, validation, debugging, and optional non-sqlite-vec scoring paths. |
+| Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible records. It stores `record_key` plus the embedding vector and does not own user-facing filter semantics. |
 
 Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
 
@@ -125,8 +126,11 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 - Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
 - Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
 - Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source.
-- Generated projections such as `records_fts`, `record_embeddings`, metric catalogs, and aliases must be written from typed source models and covered by row-count/key-coverage validation. Derived-tag rows are intentionally deferred until a later design pass.
-- sqlite-vec sentinel values for nullable filter columns must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
+- Generated projections such as `records_fts`, `record_vector_index`, metric catalogs, and aliases must be written from typed source models and covered by row-count/key-coverage validation. Derived-tag rows are intentionally deferred until a later design pass.
+- `record_vector_index` is a query index, not a duplicated filter store. The initial Rust vector table should stay key-and-vector only. Do not add `record_family`, trait, level, rarity, metric, source, or other filter projection columns as part of the baseline. If performance testing later proves a vec metadata or partition column is needed, treat it as an accelerator generated from authoritative rows and add validation that it cannot drift.
+- Semantic search with filters uses authoritative SQL keyset prefiltering. Compile the canonical filter tree into an eligible-record keyset from `records` and side tables, then constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`. Do not implement exact filtered semantic search by joining ordinary filter tables around the vec scan, because joined predicates can be applied after the vec top-k result set.
+- Filters that cannot compile to an authoritative SQL keyset are errors for the first Rust baseline. Approximate overfetch-and-post-filter behavior is not part of the default contract.
+- sqlite-vec sentinel values for nullable filter columns should not be needed in the baseline because the vector table has no filter projection columns. If future performance accelerators add vec metadata columns, their sentinels must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
 - Premaster-to-remaster bridges should be modeled as `remaster_links` or edition links, not as generic legacy compatibility. Canonical Rust lookup should be based on `RecordKey` and aliases, while record detail can expose explicit remaster bridge relationships.
 
 ## Artifact Validation Beyond Metadata
@@ -143,6 +147,8 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 - `records_fts` key coverage exactly matching default-visible records
 - remaster link visibility policy: remaster-side records are default-visible and legacy-side records are not
 - metric key/value catalogs matching metrics emitted for default-visible records
+- `document_embedding_cache` and `record_vector_index` key coverage exactly matching default-visible records that are eligible for semantic search
+- vector dimensions matching the embedding identity metadata
 
 Validation should stay bounded to SQLite runtime coherence. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. Vector table capability checks belong to commands that need vector search. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup validation.
 
