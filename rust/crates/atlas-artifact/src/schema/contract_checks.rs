@@ -1,6 +1,6 @@
 use super::{
-    Column, Table, actor_records, item_records, packs, record_aliases, record_metrics,
-    record_traits, records, reference_edges, remaster_links, spell_records,
+    Column, Table, actor_records, document_embedding_cache, item_records, packs, record_aliases,
+    record_metrics, record_traits, records, reference_edges, remaster_links, spell_records,
 };
 
 pub struct BooleanColumn {
@@ -132,6 +132,13 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         key: "spell_records.record_key",
         table: spell_records::TABLE,
         column: spell_records::columns::RECORD_KEY,
+        referenced_table: records::TABLE,
+        referenced_column: records::columns::RECORD_KEY,
+    },
+    RequiredReference {
+        key: "document_embedding_cache.record_key",
+        table: document_embedding_cache::TABLE,
+        column: document_embedding_cache::columns::RECORD_KEY,
         referenced_table: records::TABLE,
         referenced_column: records::columns::RECORD_KEY,
     },

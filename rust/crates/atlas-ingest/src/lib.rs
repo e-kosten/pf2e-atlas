@@ -2,6 +2,8 @@
 
 use thiserror::Error;
 
+use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
+
 mod aliases;
 mod embeddings;
 mod generated_affliction_identity;
@@ -58,13 +60,23 @@ pub enum IngestError {
     NoRecordsLoaded,
     #[error("artifact write failed: {0}")]
     ArtifactWriteFailed(String),
+    #[error("document embedding generation failed: {0}")]
+    DocumentEmbeddingFailed(String),
 }
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
-    let source =
+    let mut source =
         pipeline::load_foundry_source(&options.source_root, options.manifest_path.as_deref())?;
     if source.records.is_empty() {
         return Err(IngestError::NoRecordsLoaded);
+    }
+    if let Some(cache_root) = options.embedding_cache_root {
+        let config = EmbeddingRuntimeConfig::default_model(cache_root);
+        let mut embedder = TextEmbedder::load(&config)
+            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        source.document_embeddings =
+            generate_document_embeddings(&source.pending_document_embeddings, &mut embedder)
+                .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
     }
     writer::write_artifact(&options.output_path, &source)?;
     let artifact_record_count = source.records.len();
@@ -77,6 +89,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         artifact_record_count,
         generated_record_count: artifact_record_count - source_record_count,
         pending_document_embedding_count: source.pending_document_embeddings.len(),
+        document_embedding_count: source.document_embeddings.len(),
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,

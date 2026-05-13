@@ -1,9 +1,10 @@
 use super::{
-    ACTOR_RECORD_COLUMNS, Column, ITEM_RECORD_COLUMNS, PERSISTED_RECORD_COLUMNS,
-    RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_METRIC_COLUMNS, RECORD_TRAIT_COLUMNS,
-    RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS,
-    Table, actor_records, item_records, record_aliases, record_metrics, record_traits, records,
-    records_fts, reference_edges, remaster_links, spell_records,
+    ACTOR_RECORD_COLUMNS, Column, DOCUMENT_EMBEDDING_CACHE_COLUMNS, ITEM_RECORD_COLUMNS,
+    PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_METRIC_COLUMNS,
+    RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS,
+    SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache, item_records,
+    record_aliases, record_metrics, record_traits, records, records_fts, reference_edges,
+    remaster_links, spell_records,
 };
 
 pub fn record_insert_sql() -> String {
@@ -32,6 +33,13 @@ pub fn spell_record_insert_sql() -> String {
 
 pub fn records_fts_insert_sql() -> String {
     insert_sql(records_fts::TABLE, RECORDS_FTS_COLUMNS)
+}
+
+pub fn document_embedding_cache_insert_sql() -> String {
+    insert_sql(
+        document_embedding_cache::TABLE,
+        DOCUMENT_EMBEDDING_CACHE_COLUMNS,
+    )
 }
 
 pub fn persisted_record_select_sql() -> String {
@@ -328,6 +336,14 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
               search_text_projection
             );
 
+            CREATE TABLE document_embedding_cache (
+              record_key TEXT PRIMARY KEY,
+              semantic_input_hash TEXT NOT NULL,
+              dimensions INTEGER NOT NULL,
+              vector_blob BLOB NOT NULL,
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
+            );
+
             CREATE INDEX records_pack_name_idx ON records(pack_name);
             CREATE INDEX records_default_visible_idx ON records(is_default_visible);
             CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key);
@@ -340,6 +356,7 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
             CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type);
             CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key);
             CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value);
+            CREATE INDEX document_embedding_cache_hash_idx ON document_embedding_cache(semantic_input_hash);
 "#;
 
 #[cfg(test)]
@@ -414,6 +431,10 @@ mod tests {
         assert_eq!(
             records_fts_insert_sql(),
             "INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)"
+        );
+        assert_eq!(
+            document_embedding_cache_insert_sql(),
+            "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob) VALUES (?1, ?2, ?3, ?4)"
         );
     }
 

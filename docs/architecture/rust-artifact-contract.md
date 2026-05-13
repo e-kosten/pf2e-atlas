@@ -110,7 +110,7 @@ Required runtime table families for Rust-written artifacts are:
 | Metric rows and catalogs | `record_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics in one physical row model with a `metric_domain` axis, plus generated discovery catalogs by record family, metric domain, and metric namespace. |
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. Edges store `from_record_key`, `to_record_key`, optional authored link `display_text`, and the exact `reference_text`; pack/type/source metadata is derived by joining to `records`. |
 | Lexical search | `records_fts` | SQLite FTS5 index over default-visible canonical record name and search text. |
-| Document embedding cache | `document_embedding_cache` | Durable reusable document vector blobs keyed by `record_key`, with semantic input hashes and vector dimensions for reuse, validation, debugging, and optional non-sqlite-vec scoring paths. |
+| Document embedding cache | `document_embedding_cache` | Durable reusable document vector blobs keyed by `record_key`, with semantic input hashes and vector dimensions for reuse, validation, debugging, and optional non-sqlite-vec scoring paths. Rows are normal SQLite and can be written before sqlite-vec is available. |
 | Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible records. It stores `record_key` plus the embedding vector and does not own user-facing filter semantics. |
 
 Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
@@ -153,7 +153,8 @@ Metadata validation must remain available without loading `sqlite-vec`. For Rust
 - `records_fts` key coverage exactly matching default-visible records
 - remaster link visibility policy: remaster-side records are default-visible and legacy-side records are not
 - metric key/value catalogs matching metrics emitted for default-visible records
-- `document_embedding_cache` and `record_vector_index` key coverage exactly matching default-visible records that are eligible for semantic search
+- non-empty `document_embedding_cache` key coverage exactly matching default-visible records that are eligible for semantic search
+- `record_vector_index` key coverage exactly matching default-visible records that are eligible for semantic search once the sqlite-vec index is present
 - vector dimensions matching the embedding identity metadata
 
 Validation should stay bounded to SQLite runtime coherence. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. Vector table capability checks belong to commands that need vector search. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup validation.

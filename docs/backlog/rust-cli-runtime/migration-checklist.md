@@ -232,14 +232,14 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Decide ONNX Runtime packaging strategy.
 - [x] Add Rust-owned document embedding input construction and pending input/hash generation for default-visible records.
 - [x] Implement document embedding generation for Rust-built artifacts.
-- [ ] Store embedding identity in normal SQLite metadata.
-- [ ] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
+- [x] Store embedding identity in normal SQLite metadata.
+- [x] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
 - [ ] Add Rust-owned `record_vector_index` sqlite-vec table with `record_key` plus embedding only.
 - [ ] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
 - [ ] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
 - [ ] Integrate sqlite-vec loading behind explicit capability checks.
 - [ ] Add diagnostics for vector extension unavailable.
-- [ ] Write `document_embedding_cache` reusable vector blobs with semantic input hashes.
+- [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.
 - [ ] Write `record_vector_index` sqlite-vec rows for default-visible searchable records only.
 - [ ] Validate cache and vector-index key coverage against default-visible searchable records.
 - [ ] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.

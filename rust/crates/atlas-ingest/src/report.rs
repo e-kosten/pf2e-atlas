@@ -216,6 +216,7 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
         "artifact_record_count": report.artifact_record_count,
         "generated_record_count": report.generated_record_count,
         "pending_document_embedding_count": report.pending_document_embedding_count,
+        "document_embedding_count": report.document_embedding_count,
         "source_signature": report.source_signature,
         "diagnostics": diagnostics_json(&report.diagnostics),
         "skipped_record_count": report.skipped_records.len(),
