@@ -39,6 +39,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "source_record_count": 1,
             "artifact_record_count": 1,
             "generated_record_count": 0,
+            "pending_document_embedding_count": 1,
             "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
@@ -139,6 +140,7 @@ fn analyze_index_json_reports_source_without_writing_artifact()
     assert_eq!(analyze_json["by_publication_family"]["unknown"], 1);
     assert_eq!(analyze_json["side_data"]["item_records"], 1);
     assert_eq!(analyze_json["text"]["records_with_description"], 1);
+    assert_eq!(analyze_json["embeddings"]["pending_document_embeddings"], 1);
     assert_eq!(analyze_json["relationships"]["reference_edges"], 0);
     assert_eq!(analyze_json["skipped_record_count"], 0);
 

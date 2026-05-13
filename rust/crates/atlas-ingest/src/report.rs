@@ -26,6 +26,7 @@ pub struct SourceAnalysisReport {
     pub by_foundry_taxonomy: BTreeMap<String, usize>,
     pub by_publication_family: BTreeMap<String, usize>,
     pub text: SourceAnalysisTextReport,
+    pub embeddings: SourceAnalysisEmbeddingReport,
     pub side_data: SourceAnalysisSideDataReport,
     pub metrics: SourceAnalysisMetricReport,
     pub relationships: SourceAnalysisRelationshipReport,
@@ -46,6 +47,11 @@ pub struct SourceAnalysisSourceReport {
 pub struct SourceAnalysisTextReport {
     pub records_with_description: usize,
     pub records_with_blurb: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceAnalysisEmbeddingReport {
+    pub pending_document_embeddings: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -139,6 +145,9 @@ pub(crate) fn analyze_source_load(
                 .filter(|record| record.blurb_text.is_some())
                 .count(),
         },
+        embeddings: SourceAnalysisEmbeddingReport {
+            pending_document_embeddings: source.pending_document_embeddings.len(),
+        },
         side_data: SourceAnalysisSideDataReport {
             actor_records: source
                 .records
@@ -206,6 +215,7 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
         "source_record_count": report.source_record_count,
         "artifact_record_count": report.artifact_record_count,
         "generated_record_count": report.generated_record_count,
+        "pending_document_embedding_count": report.pending_document_embedding_count,
         "source_signature": report.source_signature,
         "diagnostics": diagnostics_json(&report.diagnostics),
         "skipped_record_count": report.skipped_records.len(),

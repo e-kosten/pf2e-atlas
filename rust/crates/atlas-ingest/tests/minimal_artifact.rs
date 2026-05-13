@@ -32,6 +32,10 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(report.pack_count, 4);
     assert_eq!(report.record_count, 5);
     assert_eq!(report.relationships.reference_edges, 2);
+    assert_eq!(
+        report.embeddings.pending_document_embeddings,
+        report.default_visible_record_count
+    );
     assert_eq!(report.skipped_record_count, 0);
     assert!(report.warnings.is_empty());
 
@@ -364,6 +368,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.source_record_count, 1);
     assert_eq!(report.artifact_record_count, 3);
     assert_eq!(report.generated_record_count, 2);
+    assert_eq!(report.pending_document_embedding_count, 2);
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("1"));
@@ -434,6 +439,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(report.source_record_count, 5);
     assert_eq!(report.artifact_record_count, 5);
     assert_eq!(report.generated_record_count, 0);
+    assert_eq!(report.pending_document_embedding_count, 5);
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 

@@ -1,8 +1,10 @@
 #![deny(unsafe_code)]
 
+use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use ort::{inputs, session::Session, value::Tensor};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokenizers::{EncodeInput, PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 
@@ -110,6 +112,58 @@ pub const fn embedding_model_spec(model: EmbeddingModelId) -> EmbeddingModelSpec
 
 pub const fn default_embedding_model_spec() -> EmbeddingModelSpec {
     embedding_model_spec(DEFAULT_EMBEDDING_MODEL)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DocumentEmbeddingInputParts<'a> {
+    pub name: &'a str,
+    pub traits: &'a [String],
+    pub taxonomy_families: &'a [String],
+    pub description_text: Option<&'a str>,
+    pub aliases: &'a [String],
+}
+
+pub fn build_document_embedding_input(parts: DocumentEmbeddingInputParts<'_>) -> String {
+    let mut chunks = Vec::new();
+    let mut seen = Vec::new();
+
+    append_unique_text_chunk(&mut chunks, &mut seen, parts.name);
+    for trait_value in parts.traits {
+        append_unique_text_chunk(&mut chunks, &mut seen, trait_value);
+    }
+    for family in parts.taxonomy_families {
+        append_unique_text_chunk(&mut chunks, &mut seen, family);
+    }
+    if let Some(description_text) = parts.description_text {
+        append_unique_text_chunk(&mut chunks, &mut seen, description_text);
+    }
+    for alias in parts.aliases {
+        append_unique_text_chunk(&mut chunks, &mut seen, alias);
+    }
+
+    chunks.join("\n")
+}
+
+pub fn hash_document_embedding_input(input: &str) -> String {
+    let digest = Sha256::digest(input.as_bytes());
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut encoded, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    encoded
+}
+
+fn append_unique_text_chunk(chunks: &mut Vec<String>, seen: &mut Vec<String>, value: &str) {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let normalized = normalize_embedding_text(trimmed);
+    if normalized.is_empty() || seen.contains(&normalized) {
+        return;
+    }
+    seen.push(normalized);
+    chunks.push(trimmed.to_string());
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -367,6 +421,26 @@ mod tests {
         assert_eq!(
             normalize_embedding_text("Remove&nbsp;Frightened Condition!"),
             "remove frightened condition"
+        );
+    }
+
+    #[test]
+    fn builds_document_embedding_input_from_stable_chunks() {
+        let input = build_document_embedding_input(DocumentEmbeddingInputParts {
+            name: "Heal",
+            traits: &["healing".to_string(), "vitality".to_string()],
+            taxonomy_families: &["spell healing".to_string()],
+            description_text: Some("Restore Hit Points."),
+            aliases: &["Restore".to_string(), "heal".to_string()],
+        });
+
+        assert_eq!(
+            input,
+            "Heal\nhealing\nvitality\nspell healing\nRestore Hit Points.\nRestore"
+        );
+        assert_eq!(
+            hash_document_embedding_input(&input),
+            "b378ff4932396a900910defcba972f84722eebb067c8b518c5619d6132d44c85"
         );
     }
 

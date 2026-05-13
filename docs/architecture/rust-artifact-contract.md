@@ -61,6 +61,8 @@ Embedding model decisions must be concentrated in an `atlas-embedding` model cat
 
 The Phase 4 Rust MiniLM provider uses the `ort` crate with a pinned ONNX Runtime crate version plus the real `tokenizers` tokenizer JSON from the prepared model cache. This keeps the first migration baseline close to the successful spike and avoids introducing a sidecar runtime. Distribution packaging should keep the native ONNX Runtime dependency explicit and pinned; a later product packaging pass may decide whether to vendor the native library, rely on the crate-managed artifact, or provide a platform-specific install step.
 
+Document embedding input construction is owned by `atlas-embedding` so ingest, refresh, validation, and query tooling use the same recipe. The Rust baseline builds document inputs from user-facing record name, traits, taxonomy families, description text, and aliases, then computes the semantic input hash as SHA-256 over the exact generated input text. Ingest prepares pending document embedding rows only for default-visible searchable records; hidden provenance rows and remaster-hidden legacy rows are excluded from vector work.
+
 ## Validation Families
 
 Validation diagnostics are grouped by contract family:

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use atlas_domain::PackName;
 use serde::Deserialize;
 
-use crate::{IngestDiagnostics, LoadedRecord, RecordAlias, ReferenceEdge, RemasterLink};
+use crate::{
+    IngestDiagnostics, LoadedRecord, PendingDocumentEmbedding, RecordAlias, ReferenceEdge,
+    RemasterLink,
+};
 
 #[derive(Debug, Clone)]
 pub struct BuildArtifactOptions {
@@ -20,6 +23,7 @@ pub struct BuildArtifactReport {
     pub source_record_count: usize,
     pub artifact_record_count: usize,
     pub generated_record_count: usize,
+    pub pending_document_embedding_count: usize,
     pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
@@ -36,6 +40,7 @@ pub struct SourceLoad {
     pub references: Vec<ReferenceEdge>,
     pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,
+    pub pending_document_embeddings: Vec<PendingDocumentEmbedding>,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,

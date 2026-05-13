@@ -125,6 +125,7 @@ pub(crate) fn load_foundry_source_records(
         references: Vec::new(),
         aliases: Vec::new(),
         remaster_links: Vec::new(),
+        pending_document_embeddings: Vec::new(),
         diagnostics,
         skipped_records,
         warnings,
