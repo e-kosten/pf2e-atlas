@@ -244,6 +244,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Integrate sqlite-vec loading behind explicit capability checks.
 - [x] Add diagnostics for vector extension unavailable.
 - [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.
+- [x] Reuse unchanged `document_embedding_cache` rows by default on Rust artifact rebuilds, with an explicit opt-out.
 - [x] Write `record_vector_index` sqlite-vec rows from `document_embedding_cache` when sqlite-vec is available.
 - [x] Validate cache and vector-index key coverage against default-visible searchable records.
 - [ ] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.

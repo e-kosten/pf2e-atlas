@@ -63,6 +63,8 @@ The Phase 4 Rust MiniLM provider uses the `ort` crate with a pinned ONNX Runtime
 
 Document embedding input construction and document vector generation are owned by `atlas-embedding` so ingest, refresh, validation, and query tooling use the same recipe and MiniLM provider. The Rust baseline builds document inputs from user-facing record name, traits, taxonomy families, description text, and aliases, then computes the semantic input hash as SHA-256 over the exact generated input text. Ingest prepares pending document embedding rows only for default-visible searchable records; hidden provenance rows and remaster-hidden legacy rows are excluded from vector work. Generated document vectors carry `record_key`, `semantic_input_hash`, vector dimensions, and the vector payload before storage writers project them into `document_embedding_cache` and `record_vector_index`.
 
+Rust artifact rebuilds reuse existing `document_embedding_cache` rows by default when the output artifact already exists, embedding identity metadata matches the active model catalog, and the row's `semantic_input_hash` and dimensions match the newly prepared input. The build command exposes an explicit opt-out for full regeneration. Reuse is limited to the normal SQLite cache table; `record_vector_index` is still rebuilt from `document_embedding_cache` through the vector capability path.
+
 Long-running Rust CLI index operations initialize `tracing` and emit progress events to stderr. JSON command output remains reserved for the command result on stdout, so automation can parse reports without stripping progress text.
 
 ## Validation Families

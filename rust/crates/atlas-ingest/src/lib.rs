@@ -6,6 +6,7 @@ use tracing::info;
 use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
 
 mod aliases;
+mod embedding_reuse;
 mod embeddings;
 mod generated_affliction_identity;
 mod generated_affliction_model;
@@ -26,7 +27,9 @@ mod variants;
 mod writer;
 
 pub use embeddings::{
-    GeneratedDocumentEmbedding, PendingDocumentEmbedding, generate_document_embeddings,
+    GeneratedDocumentEmbedding, PendingDocumentEmbedding, ReusableDocumentEmbedding,
+    generate_document_embeddings, generate_document_embeddings_with_reuse,
+    generate_document_embeddings_with_reuse_using,
 };
 pub use model::IngestDiagnostics;
 pub use report::analyze_foundry_source;
@@ -83,24 +86,66 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
     if source.records.is_empty() {
         return Err(IngestError::NoRecordsLoaded);
     }
+    let mut reused_document_embedding_count = 0;
+    let mut generated_document_embedding_count = 0;
     if let Some(cache_root) = options.embedding_cache_root {
-        info!(
-            cache = %cache_root.display(),
-            pending_document_embeddings = source.pending_document_embeddings.len(),
-            "loading embedding model"
-        );
         let config = EmbeddingRuntimeConfig::default_model(cache_root);
-        let mut embedder = TextEmbedder::load(&config)
-            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        let reusable_embeddings = if options.reuse_embeddings && options.output_path.exists() {
+            match embedding_reuse::load_reusable_document_embeddings(&options.output_path, &config)
+            {
+                Ok(reusable_embeddings) => {
+                    info!(
+                        reusable_document_embeddings = reusable_embeddings.len(),
+                        "loaded reusable document embeddings"
+                    );
+                    Some(reusable_embeddings)
+                }
+                Err(error) => {
+                    info!(
+                        reason = %error,
+                        "document embedding reuse unavailable"
+                    );
+                    None
+                }
+            }
+        } else {
+            if options.reuse_embeddings {
+                info!("document embedding reuse unavailable: existing output artifact not found");
+            } else {
+                info!("document embedding reuse disabled");
+            }
+            None
+        };
         info!(
             pending_document_embeddings = source.pending_document_embeddings.len(),
             "generating document embeddings"
         );
-        source.document_embeddings =
-            generate_document_embeddings(&source.pending_document_embeddings, &mut embedder)
-                .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        let mut embedder = None;
+        let generated = generate_document_embeddings_with_reuse_using(
+            &source.pending_document_embeddings,
+            reusable_embeddings.as_ref(),
+            |input| {
+                if embedder.is_none() {
+                    info!(
+                        cache = %config.cache_root.display(),
+                        "loading embedding model"
+                    );
+                    embedder = Some(TextEmbedder::load(&config)?);
+                }
+                embedder
+                    .as_mut()
+                    .expect("embedder was initialized")
+                    .embed_document(input)
+            },
+        )
+        .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        reused_document_embedding_count = generated.reused_count;
+        generated_document_embedding_count = generated.generated_count;
+        source.document_embeddings = generated.embeddings;
         info!(
             document_embeddings = source.document_embeddings.len(),
+            reused_document_embeddings = reused_document_embedding_count,
+            generated_document_embeddings = generated_document_embedding_count,
             "generated document embeddings"
         );
     }
@@ -127,6 +172,8 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         generated_record_count: artifact_record_count - source_record_count,
         pending_document_embedding_count: source.pending_document_embeddings.len(),
         document_embedding_count: source.document_embeddings.len(),
+        reused_document_embedding_count,
+        generated_document_embedding_count,
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,

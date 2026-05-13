@@ -41,6 +41,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "generated_record_count": 0,
             "pending_document_embedding_count": 1,
             "document_embedding_count": 0,
+            "reused_document_embedding_count": 0,
+            "generated_document_embedding_count": 0,
             "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
