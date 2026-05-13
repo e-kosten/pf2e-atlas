@@ -55,6 +55,62 @@ pub struct NormalizedRecord {
     pub raw_json: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PersistedRecord {
+    pub key: RecordKey,
+    pub id: RecordId,
+    pub name: String,
+    pub normalized_name: String,
+    pub record_family: RecordFamily,
+    pub pack_name: PackName,
+    pub pack_label: String,
+    pub foundry_document_type: String,
+    pub foundry_record_type: String,
+    pub level: Option<i64>,
+    pub rarity: Option<String>,
+    pub traits: Vec<String>,
+    pub system_category: Option<String>,
+    pub system_group: Option<String>,
+    pub system_base_item: Option<String>,
+    pub system_usage: Option<String>,
+    pub system_price_json: Option<String>,
+    pub system_actions_value: Option<i64>,
+    pub system_time_value: Option<String>,
+    pub system_duration_value: Option<String>,
+    pub price_cp: Option<i64>,
+    pub activation_time: Option<NormalizedTime>,
+    pub duration: Option<NormalizedTime>,
+    pub metrics: Vec<MetricRow>,
+    pub actor_data: Option<ActorSideData>,
+    pub item_data: Option<ItemSideData>,
+    pub spell_data: Option<SpellSideData>,
+    pub publication_title: Option<String>,
+    pub publication_remaster: bool,
+    pub description_text: Option<String>,
+    pub blurb_text: Option<String>,
+    pub publication_family: PublicationFamily,
+    pub folder_id: Option<String>,
+    pub taxonomy_families: Vec<String>,
+    pub variant_group_key: Option<String>,
+    pub variant_base_name: Option<String>,
+    pub variant_label: Option<String>,
+    pub variant_axes: Vec<String>,
+    pub variant_confidence: Option<f64>,
+    pub variant_source: String,
+    pub source_path: String,
+    pub is_default_visible: bool,
+    pub search_text_projection: String,
+    pub raw_json: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PersistedRecordSet {
+    pub records: Vec<PersistedRecord>,
+    pub reference_edges: Vec<ReferenceEdge>,
+    pub aliases: Vec<RecordAlias>,
+    pub remaster_links: Vec<RemasterLink>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceCandidate {
     pub raw_target: String,
