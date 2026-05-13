@@ -62,6 +62,7 @@ pub struct BuildArtifactReport {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceLoad {
+    pub manifest_path: PathBuf,
     pub source_signature: String,
     pub packs: Vec<LoadedPack>,
     pub records: Vec<LoadedRecord>,
@@ -533,6 +534,7 @@ pub fn load_foundry_source(
     let remaster_links = resolve_remaster_links(&records, &reference_index, source_root);
 
     Ok(SourceLoad {
+        manifest_path,
         source_signature,
         packs,
         records,

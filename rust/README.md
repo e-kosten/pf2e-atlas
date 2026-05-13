@@ -27,7 +27,7 @@ cargo build --workspace
 The first CLI behavior is:
 
 ```bash
-cargo run -p atlas-cli -- validate-index --index ../.cache/pf2e-index.sqlite --json
+cargo run -p atlas-cli -- index validate --index ../.cache/pf2e-index.sqlite --json
 ```
 
 Current TypeScript-built indexes are expected to report a legacy-contract diagnostic until the Rust artifact contract is implemented by the index builder.
@@ -35,7 +35,13 @@ Current TypeScript-built indexes are expected to report a legacy-contract diagno
 The first Rust writer behavior is:
 
 ```bash
-cargo run -p atlas-cli -- build-index --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json
+cargo run -p atlas-cli -- index build --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json
+```
+
+The read-only source analysis behavior is:
+
+```bash
+cargo run -p atlas-cli -- index analyze --source ../vendor/pf2e --json
 ```
 
 The current writer is a minimal Phase 3 slice. It loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, `record_aliases`, `record_traits`, `reference_edges`, `remaster_links`, unified `record_metrics`, metric catalogs, actor/item/spell side-data tables, and `records_fts`. It also extracts selected direct `system_*` paths, raw price JSON, normalized copper price, activation time, separate effect duration, exact Foundry inline reference links resolved against loaded records, source-backed lookup aliases, and premaster-to-remaster bridges from remaster journals and migration rename files. Full corpus parity, variant-name aliases, embeddings, and manifest schema validation remain later ingest/index slices. Derived tags are intentionally deferred until late in the migration because the Rust model changes require a separate design pass for that surface.
@@ -44,7 +50,7 @@ The current writer is a minimal Phase 3 slice. It loads Foundry packs and record
 
 The first Rust artifact contract is `pf2e-atlas-artifact/v1` with SQLite schema version `1`. The durable contract is documented in [`docs/architecture/rust-artifact-contract.md`](../docs/architecture/rust-artifact-contract.md).
 
-`atlas validate-index --json` can return these validation codes:
+`atlas index validate --json` can return these validation codes:
 
 | Code | Meaning |
 | --- | --- |

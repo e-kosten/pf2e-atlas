@@ -252,7 +252,7 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 1. Add ADR 0017 for the Rust-owned deterministic core, CLI-first surface, Ratatui sequencing, and optional MCP rule.
 2. Create the `rust/` workspace with `atlas-domain`, `atlas-index`, and `atlas-cli`.
 3. Add standard Rust validation commands: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `cargo build --workspace`.
-4. Implement `atlas validate-index --index <path> --json`.
+4. Implement `atlas index validate --index <path> --json`.
 5. Make current TypeScript-built indexes report a clear legacy-contract diagnostic until the Rust artifact contract is written by the index builder.
 
 ### Phase 2: Artifact Contract

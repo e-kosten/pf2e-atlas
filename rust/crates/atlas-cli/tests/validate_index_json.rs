@@ -12,7 +12,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     let index_path = root.join("artifact.sqlite");
 
     let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["build-index", "--source"])
+        .args(["index", "build", "--source"])
         .arg(&root)
         .args(["--output"])
         .arg(&index_path)
@@ -23,7 +23,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     let mut build_json: Value = serde_json::from_slice(&build_output.stdout)?;
     let source_signature = build_json["source_signature"]
         .as_str()
-        .expect("build-index should report source signature")
+        .expect("index build should report source signature")
         .to_string();
     assert!(source_signature.starts_with("foundry-pf2e:sha256:"));
     assert_eq!(source_signature.len(), "foundry-pf2e:sha256:".len() + 64);
@@ -69,7 +69,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(validate_json["source_record_count"], "1");
 
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["inspect-index", "--index"])
+        .args(["index", "inspect", "--index"])
         .arg(&index_path)
         .arg("--json")
         .output()?;
@@ -91,6 +91,64 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
 
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn analyze_index_json_reports_source_without_writing_artifact()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-analyze");
+    write_fixture_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+
+    let analyze_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "analyze", "--source"])
+        .arg(&root)
+        .arg("--json")
+        .output()?;
+
+    assert!(analyze_output.status.success());
+    assert!(!index_path.exists());
+    let analyze_json: Value = serde_json::from_slice(&analyze_output.stdout)?;
+    assert_eq!(analyze_json["status"], "ok");
+    assert_eq!(analyze_json["source"]["root"], root.display().to_string());
+    assert_eq!(
+        analyze_json["source"]["manifest"],
+        root.join("module.json").display().to_string()
+    );
+    let source_signature = analyze_json["source"]["source_signature"]
+        .as_str()
+        .expect("index analyze should report source signature");
+    assert!(source_signature.starts_with("foundry-pf2e:sha256:"));
+    assert_eq!(source_signature.len(), "foundry-pf2e:sha256:".len() + 64);
+    assert_eq!(analyze_json["pack_count"], 1);
+    assert_eq!(analyze_json["loaded_source_pack_count"], 1);
+    assert_eq!(analyze_json["record_count"], 1);
+    assert_eq!(analyze_json["loaded_source_record_count"], 1);
+    assert_eq!(analyze_json["generated_record_count"], 0);
+    assert_eq!(analyze_json["default_visible_record_count"], 1);
+    assert_eq!(analyze_json["hidden_record_count"], 0);
+    assert_eq!(analyze_json["by_record_family"]["rule"], 1);
+    assert_eq!(analyze_json["by_foundry_taxonomy"]["Item|action"], 1);
+    assert_eq!(analyze_json["by_publication_family"]["unknown"], 1);
+    assert_eq!(analyze_json["side_data"]["item_records"], 1);
+    assert_eq!(analyze_json["text"]["records_with_description"], 1);
+    assert_eq!(analyze_json["relationships"]["reference_edges"], 0);
+    assert_eq!(analyze_json["skipped_record_count"], 0);
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn legacy_top_level_index_commands_are_not_supported() -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .arg("validate-index")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("unrecognized subcommand 'validate-index'"));
     Ok(())
 }
 
@@ -365,7 +423,7 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
 
 fn run_atlas(path: &PathBuf) -> Result<std::process::Output, Box<dyn std::error::Error>> {
     Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["validate-index", "--index"])
+        .args(["index", "validate", "--index"])
         .arg(path)
         .arg("--json")
         .output()?)

@@ -44,7 +44,7 @@ cargo build --workspace
 - [x] Track `Cargo.lock`.
 - [x] Deny `unsafe_code` in initial crates.
 - [x] Use standard Clippy with warnings denied.
-- [x] Implement `atlas validate-index --index <path> --json`.
+- [x] Implement `atlas index validate --index <path> --json`.
 - [x] Make current TypeScript-built indexes report `MISSING_ARTIFACT_METADATA`.
 - [x] Record ADR 0017.
 - [x] Update Rust migration roadmap to Rust-owned deterministic ingest/index direction.
@@ -84,12 +84,12 @@ Goal: define and enforce the runtime artifact boundary before porting lookup/sea
   - [x] embedding mismatch
   - [x] unsupported schema version
 - [x] Keep validation metadata readable without loading sqlite-vec.
-- [x] Add golden JSON tests for `atlas validate-index`.
+- [x] Add golden JSON tests for `atlas index validate`.
 - [x] Add `atlas artifact inspect --json` if validation output starts carrying too much detail. Not needed for phase one; validation output remains focused on metadata and diagnostics.
 - [x] Document artifact validation failure codes in `rust/README.md`.
 
 Acceptance:
-- `atlas validate-index` returns stable JSON for valid and invalid fixtures.
+- `atlas index validate` returns stable JSON for valid and invalid fixtures.
 - The current TypeScript index still produces a clear legacy-contract diagnostic.
 - No vector-extension load is required for metadata validation.
 
@@ -204,12 +204,13 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Write spell side-data.
 - [ ] Revisit derived-tag assignments late in the migration after a dedicated design pass.
 - [x] Generate source signatures from source paths and per-record hashes.
+- [x] Group index management commands under `atlas index` without legacy command aliases.
 - [x] Add a small fixture ingest test.
-- [ ] Add a full-corpus analysis command that reports counts without writing the full artifact.
+- [x] Add a full-corpus analysis command that reports counts without writing the full artifact.
 - [ ] Compare Rust full-corpus counts against a freshly rebuilt TypeScript index from the same PF2E source revision.
 
 Acceptance:
-- Rust can build a minimal valid artifact consumed by `atlas validate-index`.
+- Rust can build a minimal valid artifact consumed by `atlas index validate`.
 - Full-corpus analyzer has zero JSON parse failures.
 - Known count differences from TypeScript are classified as accepted policy differences or open parity defects.
 
