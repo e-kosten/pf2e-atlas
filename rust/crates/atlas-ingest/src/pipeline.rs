@@ -6,7 +6,7 @@ use crate::references::{build_record_reference_index, resolve_reference_edges};
 use crate::{
     DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
     DERIVED_AFFLICTIONS_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_NAME, IngestError, LoadedPack,
-    SourceLoad, aliases, generated_afflictions, source, variant_taxonomy, variants,
+    SourceLoad, aliases, embeddings, generated_afflictions, source, variant_taxonomy, variants,
 };
 
 pub(crate) fn load_foundry_source(
@@ -95,6 +95,11 @@ pub(crate) fn load_foundry_source(
         aliases::resolve_record_aliases(&source.records, &reference_index, source_root);
     source.remaster_links =
         aliases::resolve_remaster_links(&source.records, &reference_index, source_root);
+    source.pending_document_embeddings = embeddings::build_pending_document_embeddings(
+        &source.records,
+        &source.aliases,
+        &source.remaster_links,
+    );
 
     Ok(source)
 }

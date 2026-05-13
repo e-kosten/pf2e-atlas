@@ -110,6 +110,7 @@ name = "atlas-embedding"
 version = "0.1.0"
 dependencies = [
  "ort",
+ "sha2",
  "thiserror",
  "tokenizers",
 ]

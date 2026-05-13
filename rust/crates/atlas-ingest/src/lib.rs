@@ -3,6 +3,7 @@
 use thiserror::Error;
 
 mod aliases;
+mod embeddings;
 mod generated_affliction_identity;
 mod generated_affliction_model;
 mod generated_afflictions;
@@ -25,6 +26,7 @@ pub use model::IngestDiagnostics;
 pub use report::analyze_foundry_source;
 pub use source_model::{BuildArtifactOptions, BuildArtifactReport, SkippedRecord};
 
+pub(crate) use embeddings::PendingDocumentEmbedding;
 pub(crate) use generated_affliction_model::{
     AfflictionFamily, AfflictionOccurrence, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
 };
@@ -72,6 +74,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         source_record_count,
         artifact_record_count,
         generated_record_count: artifact_record_count - source_record_count,
+        pending_document_embedding_count: source.pending_document_embeddings.len(),
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,

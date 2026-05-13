@@ -150,6 +150,10 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             "records: source={} generated={} artifact={}",
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
+        eprintln!(
+            "embeddings: pending_document={}",
+            report.pending_document_embedding_count
+        );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(
             "diagnostics: taxonomy folder={} glossary={} variants parenthetical={} suffix={} creature_blurb={} creature_suffix={} exact_base={}",
