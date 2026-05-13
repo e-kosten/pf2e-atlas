@@ -224,8 +224,8 @@ Comparison note:
 
 Goal: keep the first Rust search baseline compatible with the existing MiniLM embedding space.
 
-- [ ] Add `atlas-embedding` crate only when query or document embedding implementation starts.
-- [ ] Add an `atlas-embedding` model catalog that owns the default model decision and all embedding identity fields used by ingest, validation, and query runtime.
+- [x] Add `atlas-embedding` crate only when query or document embedding implementation starts.
+- [x] Add an `atlas-embedding` model catalog that owns the default model decision and all embedding identity fields used by ingest, validation, and query runtime.
 - [ ] Port MiniLM query embedding from the spike.
 - [ ] Validate tokenizer, pooling, normalization, dimensions, dtype, and prefixes.
 - [ ] Add query-vector fixture comparisons against the current TypeScript provider.

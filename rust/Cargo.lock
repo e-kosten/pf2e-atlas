@@ -77,11 +77,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas-embedding"
+version = "0.1.0"
+
+[[package]]
 name = "atlas-index"
 version = "0.1.0"
 dependencies = [
  "atlas-artifact",
  "atlas-domain",
+ "atlas-embedding",
  "atlas-record",
  "rusqlite",
  "serde",
@@ -95,6 +100,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-artifact",
  "atlas-domain",
+ "atlas-embedding",
  "atlas-index",
  "atlas-record",
  "rusqlite",

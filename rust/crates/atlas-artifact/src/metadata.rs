@@ -53,15 +53,4 @@ pub const REQUIRED_ARTIFACT_METADATA_KEYS: &[&str] = &[
 
 pub const EXPECTED_SOURCE_KIND: &str = "foundry-pf2e";
 pub const EXPECTED_CONTENT_HASH_ALGORITHM: &str = "sha256";
-pub const EXPECTED_EMBEDDING_PROVIDER_FAMILY: &str = "transformers-js-minilm";
-pub const EXPECTED_EMBEDDING_MODEL_ID: &str = "Xenova/all-MiniLM-L12-v2";
-pub const EXPECTED_EMBEDDING_MODEL_REVISION: &str = "main";
-pub const EXPECTED_EMBEDDING_TOKENIZER_ID: &str = "Xenova/all-MiniLM-L12-v2";
-pub const EXPECTED_EMBEDDING_POOLING: &str = "mean";
-pub const EXPECTED_EMBEDDING_NORMALIZATION: &str = "l2";
-pub const EXPECTED_EMBEDDING_DIMENSIONS: &str = "384";
-pub const EXPECTED_EMBEDDING_DTYPE: &str = "f32";
-pub const EXPECTED_EMBEDDING_DISTANCE_METRIC: &str = "cosine";
-pub const EXPECTED_EMBEDDING_DOCUMENT_PREFIX: &str = "";
-pub const EXPECTED_EMBEDDING_QUERY_PREFIX: &str = "";
 pub const EXPECTED_FTS_TOKENIZER: &str = "unicode61 remove_diacritics 2";

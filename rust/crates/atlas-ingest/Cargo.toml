@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 atlas-artifact.workspace = true
 atlas-domain.workspace = true
+atlas-embedding.workspace = true
 atlas-record.workspace = true
 rusqlite.workspace = true
 serde.workspace = true
