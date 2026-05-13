@@ -53,8 +53,8 @@ Primary TypeScript sources:
 | `metric_key_catalog` | Precomputed metric key availability by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be written before `atlas filters list-values` can replace MCP discovery. |
 | `metric_value_catalog` | Precomputed text/boolean metric values by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be part of Phase 3 or a blocking prerequisite for Phase 7. |
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
-| `embeddings` | Reusable vector blobs plus semantic input hashes | parity | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve split between reusable vector storage and sqlite-vec rows. Not a Phase 3 writer requirement. |
-| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector/filter meaning. Rust may refine capability checks and row loaders. Not a Phase 3 writer requirement. |
+| `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
+| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores `record_key` plus embedding only; full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
 | `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `linksTo`, `linkedFrom`, graph, and rule context. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
@@ -76,8 +76,8 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | `RecordKey` is a string alias in TypeScript | Malformed keys can cross boundaries until late SQL/runtime failures | Rust should use a parseable `RecordKey` newtype with `pack` and `id` components, and only serialize/display as `pack:id` at boundaries. |
 | Metric storage uses EAV tables with string metric keys and dynamic value types | Flexible, but weakly typed and hard to discover without catalogs | Keep EAV for first parity because actor/item metrics are open-ended. Strengthen with typed `MetricValue`, catalog validation, namespace prefix parsing, and stable metric key normalization. |
 | `metric_key_catalog` and `metric_value_catalog` are derived after all record writes | Correct today, but easy for future writers to forget | Make metric catalog writing a required artifact stage with validation that catalog rows match metric rows for canonical records. |
-| `record_embeddings` duplicates many filter columns already present in `records`/side tables | Useful for sqlite-vec partition filtering, but can drift from source rows | Treat vector filter columns as generated projection data. Rust writer should derive them from typed records in one function and validation should detect mismatched row counts/keys. |
-| Sentinel values in sqlite-vec partition columns use empty string and `-1` | Necessary for vec metadata constraints, but semantically lossy | Hide sentinels behind `atlas-index` vector-row projection helpers. Domain/search code should never see sentinel values as real metadata. |
+| `record_embeddings` duplicates many filter columns already present in `records`/side tables | Useful for sqlite-vec partition filtering, but can drift from source rows | Rust replaces this with keyset-prefiltered semantic search over `record_vector_index`. Do not add vector-side filter projection columns to the baseline. If performance testing later adds vec metadata or partition columns, treat them as accelerators generated from authoritative rows with drift validation. |
+| Sentinel values in sqlite-vec partition columns use empty string and `-1` | Necessary for vec metadata constraints, but semantically lossy | Rust avoids sentinels in the baseline by keeping `record_vector_index` key-and-vector only. If future performance accelerators add vec metadata columns, sentinels must remain hidden behind `atlas-index` helpers and never appear as domain/search values. |
 | `reference_edges` has generic reference rows but no explicit relationship enum beyond source/target and text | Adequate for current `linksTo`/`linkedFrom`, but may blur rules, page links, aliases, and generated references later | Add a Rust relationship/source-kind enum before expanding graph behavior. Preserve current `references` semantics for parity, but leave room for typed relationship classes. |
 | Current TS `record_legacy_links` is a real table beside canonical aliases | The concept is useful for PF2E remaster navigation, but the current name makes it sound like generic compatibility | Keep the concept as `remaster_links` or edition links. Rust lookup should prefer canonical keys and aliases, while record detail can expose explicit remaster bridge relationships. |
 | Search canonicality is stored as `is_search_canonical` | Necessary for variants/generated records, but easy to misuse | Rust stores the first policy projection as `is_default_visible`, meaning participation in default user-facing retrieval surfaces. Records remain addressable by direct key, links, and inspection when this is false. Decide later whether generated afflictions, variants, and aliases need a richer policy enum. |
@@ -120,7 +120,10 @@ Before Phase 7 discovery starts:
 
 Before Phase 4 embedding/vector work starts:
 
-- Decide the vector-row projection/sentinel contract.
+- Use Rust-owned physical table names `document_embedding_cache` and `record_vector_index`; do not copy the TypeScript `embeddings` / `record_embeddings` names into the Rust artifact.
+- Keep `record_vector_index` key-and-vector only for the baseline. Do not add `record_family` or other filter projection columns before performance validation proves they are needed.
+- Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`. Do not use ordinary joins around the vec scan for exact filtered KNN.
+- Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
 - Preserve MiniLM compatibility unless a new ADR changes the baseline.
 - Keep vector table capability checks out of artifact metadata validation; vector capability belongs to commands that need semantic retrieval.
 
@@ -137,7 +140,7 @@ Before Phase 4 embedding/vector work starts:
 | Canonicalize records and derived afflictions | `canonicalization.ts`, `derived-afflictions.ts` | Canonical record selection and generated affliction policy; Rust keeps staged action, consumable, and spell afflictions, and rejects weapon/item containers whose affliction text would otherwise be promoted under the container name | `atlas-ingest` | rust redesign |
 | Build writable model | `record-write-model.ts` | Typed writer model | `atlas-ingest` | rust redesign |
 | Write records, side data, FTS, references | `record-writer.ts` | Table writers with typed row inputs | `atlas-ingest` | parity |
-| Generate/reuse embeddings | `embedding-writer.ts` | Embedding writer and reusable vector loader | `atlas-embedding` + `atlas-ingest` | parity |
+| Generate/reuse embeddings | `embedding-writer.ts` | Document embedding input builder, `document_embedding_cache` writer, and `record_vector_index` writer | `atlas-embedding` + `atlas-ingest` | parity behavior with Rust-owned table names and keyset-prefiltered search design |
 | Write alias and remaster-link rows | `catalog-writer.ts` | Alias writer and remaster-link writer | `atlas-ingest` | parity with Rust naming/model cleanup |
 | Populate metric catalogs | `catalog-writer.ts` | Metric catalog writer | `atlas-ingest` | parity |
 
@@ -292,7 +295,7 @@ Each later phase should update a durable parity note with source revision, comma
 
 - Phase 2 domain work must cite this map when adding each durable type.
 - Phase 3 writer work must update the SQLite artifact table contract before adding broad table writers.
-- Phase 4 embedding work owns embeddings, vector rows, sqlite-vec capability checks, and MiniLM compatibility unless a new ADR changes the baseline.
+- Phase 4 embedding work owns `document_embedding_cache`, `record_vector_index`, keyset-prefiltered semantic retrieval, sqlite-vec capability checks, and MiniLM compatibility unless a new ADR changes the baseline.
 - Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract; derived-tag discovery is explicitly out of Phase 7.
 - Phase 10 owns any retained derived-tag runtime, filters, discovery, and editorial migration model.
 - Phase 13 retirement cannot start until each parity fixture group has a recorded pass, accepted difference, or explicit deferred defect.
