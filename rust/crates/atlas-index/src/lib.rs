@@ -9,6 +9,7 @@ use rusqlite::{Connection, OpenFlags};
 use thiserror::Error;
 
 mod contract;
+mod database;
 pub mod filters;
 pub mod inspect;
 mod metadata;
@@ -19,6 +20,7 @@ mod tests;
 pub mod validation;
 pub mod vector;
 
+pub use database::AtlasIndex;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport, inspect_index,

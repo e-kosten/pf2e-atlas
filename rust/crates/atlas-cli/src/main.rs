@@ -4,16 +4,15 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use atlas_domain::SearchFilterNode;
-use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{
-    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index, query_vector_index,
+    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
     validate_index_report, validate_vector_index_report, write_vector_index_report,
 };
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
+use atlas_search::{EmbeddingRuntimeConfig, SemanticSearchService};
 use clap::{Args, Parser, Subcommand};
-use rusqlite::{Connection, OpenFlags};
 use serde_json::json;
 
 #[derive(Debug, Parser)]
@@ -289,13 +288,10 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
         .transpose()?;
 
     let config = EmbeddingRuntimeConfig::default_model(&options.embedding_cache_path);
-    let mut embedder = TextEmbedder::load(&config).map_err(|error| error.to_string())?;
-    let query_vector = embedder
-        .embed_query(&options.query)
-        .map_err(|error| error.to_string())?;
-    let connection = Connection::open_with_flags(&options.index, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| error.to_string())?;
-    let hits = query_vector_index(&connection, &query_vector, filter.as_ref(), options.limit)
+    let mut search =
+        SemanticSearchService::open(&options.index, &config).map_err(|error| error.to_string())?;
+    let hits = search
+        .semantic(&options.query, filter.as_ref(), options.limit)
         .map_err(|error| error.to_string())?;
 
     if options.json {

@@ -39,7 +39,7 @@ cargo build --workspace
 ## Current Foundation
 
 - [x] Add `rust/` workspace.
-- [x] Add `atlas-domain`, `atlas-index`, and `atlas-cli`.
+- [x] Add `atlas-domain`, `atlas-index`, `atlas-search`, and `atlas-cli`.
 - [x] Pin Rust toolchain with `rust-toolchain.toml`.
 - [x] Track `Cargo.lock`.
 - [x] Deny `unsafe_code` in initial crates.
@@ -239,6 +239,7 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
 - [x] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
 - [x] Add a minimal `atlas search semantic --json` CLI route for query-string embedding, optional `--filter-json`, and raw vector hit output.
+- [x] Route semantic search orchestration through `atlas-search` and keep SQLite connection ownership behind `atlas-index`.
 - [x] Integrate sqlite-vec loading behind explicit capability checks.
 - [x] Add diagnostics for vector extension unavailable.
 - [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.

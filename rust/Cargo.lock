@@ -91,9 +91,9 @@ version = "0.1.0"
 dependencies = [
  "atlas-artifact",
  "atlas-domain",
- "atlas-embedding",
  "atlas-index",
  "atlas-ingest",
+ "atlas-search",
  "clap",
  "rusqlite",
  "serde_json",
@@ -152,6 +152,17 @@ name = "atlas-record"
 version = "0.1.0"
 dependencies = [
  "atlas-domain",
+]
+
+[[package]]
+name = "atlas-search"
+version = "0.1.0"
+dependencies = [
+ "atlas-domain",
+ "atlas-embedding",
+ "atlas-index",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
