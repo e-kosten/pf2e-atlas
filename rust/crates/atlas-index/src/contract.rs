@@ -433,8 +433,26 @@ pub(crate) fn contract_diagnostic(
     expected: Option<String>,
     actual: Option<String>,
 ) -> ArtifactValidationDiagnostic {
+    contract_diagnostic_with_code(
+        family,
+        message,
+        key,
+        expected,
+        actual,
+        ValidationCode::ArtifactContractViolation,
+    )
+}
+
+pub(crate) fn contract_diagnostic_with_code(
+    family: ArtifactContractFamily,
+    message: String,
+    key: Option<String>,
+    expected: Option<String>,
+    actual: Option<String>,
+    code: ValidationCode,
+) -> ArtifactValidationDiagnostic {
     ArtifactValidationDiagnostic {
-        code: ValidationCode::ArtifactContractViolation,
+        code,
         family,
         message,
         key,

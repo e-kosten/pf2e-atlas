@@ -22,6 +22,7 @@ pub enum ValidationCode {
     EmbeddingMismatch,
     FtsMismatch,
     ManifestMismatch,
+    VectorExtensionUnavailable,
     QueryFailed,
 }
 

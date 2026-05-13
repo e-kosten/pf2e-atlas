@@ -234,11 +234,11 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Implement document embedding generation for Rust-built artifacts.
 - [x] Store embedding identity in normal SQLite metadata.
 - [x] Add Rust-owned `document_embedding_cache` table for reusable vector blobs, semantic input hashes, and dimensions.
-- [ ] Add Rust-owned `record_vector_index` sqlite-vec table with `record_key` plus embedding only.
+- [x] Add Rust-owned `record_vector_index` sqlite-vec table contract with `record_key` plus embedding only.
 - [ ] Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`.
 - [ ] Reject semantic search filters that cannot compile to an authoritative SQL keyset for the first Rust baseline.
-- [ ] Integrate sqlite-vec loading behind explicit capability checks.
-- [ ] Add diagnostics for vector extension unavailable.
+- [x] Integrate sqlite-vec loading behind explicit capability checks.
+- [x] Add diagnostics for vector extension unavailable.
 - [x] Write `document_embedding_cache` reusable vector blobs with semantic input hashes when document embeddings are generated.
 - [ ] Write `record_vector_index` sqlite-vec rows for default-visible searchable records only.
 - [ ] Validate cache and vector-index key coverage against default-visible searchable records.

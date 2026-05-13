@@ -111,7 +111,7 @@ Required runtime table families for Rust-written artifacts are:
 | Reference graph | `reference_edges` | Exact outgoing/backlink relationships for `linksTo`, `linkedFrom`, rule graph, rule context, and page navigation. Edges store `from_record_key`, `to_record_key`, optional authored link `display_text`, and the exact `reference_text`; pack/type/source metadata is derived by joining to `records`. |
 | Lexical search | `records_fts` | SQLite FTS5 index over default-visible canonical record name and search text. |
 | Document embedding cache | `document_embedding_cache` | Durable reusable document vector blobs keyed by `record_key`, with semantic input hashes and vector dimensions for reuse, validation, debugging, and optional non-sqlite-vec scoring paths. Rows are normal SQLite and can be written before sqlite-vec is available. |
-| Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible records. It stores `record_key` plus the embedding vector and does not own user-facing filter semantics. |
+| Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible records. It stores `record_key` plus the embedding vector and does not own user-facing filter semantics. This table is created and validated through an explicit sqlite-vec capability path, not through the base plain-SQLite schema. |
 
 Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
 
@@ -161,4 +161,4 @@ Validation should stay bounded to SQLite runtime coherence. Source freshness com
 
 ## Extension Loading
 
-Artifact metadata validation must not load vector extensions. Later search commands may require `sqlite-vec`, but contract validation must remain available on systems where vector extension loading is unavailable.
+Artifact metadata validation must not load vector extensions. Vector-specific validation and search commands use an explicit sqlite-vec capability boundary and report `vector_extension_unavailable` when the extension cannot be loaded or probed. Plain artifact validation remains available on systems where vector extension loading is unavailable.

@@ -1,10 +1,10 @@
 use super::{
     ACTOR_RECORD_COLUMNS, Column, DOCUMENT_EMBEDDING_CACHE_COLUMNS, ITEM_RECORD_COLUMNS,
     PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_METRIC_COLUMNS,
-    RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS,
-    SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache, item_records,
-    record_aliases, record_metrics, record_traits, records, records_fts, reference_edges,
-    remaster_links, spell_records,
+    RECORD_TRAIT_COLUMNS, RECORD_VECTOR_INDEX_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS,
+    REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache,
+    item_records, record_aliases, record_metrics, record_traits, record_vector_index, records,
+    records_fts, reference_edges, remaster_links, spell_records,
 };
 
 pub fn record_insert_sql() -> String {
@@ -40,6 +40,17 @@ pub fn document_embedding_cache_insert_sql() -> String {
         document_embedding_cache::TABLE,
         DOCUMENT_EMBEDDING_CACHE_COLUMNS,
     )
+}
+
+pub fn record_vector_index_create_sql(dimensions: usize) -> String {
+    format!(
+        "CREATE VIRTUAL TABLE {} USING vec0(record_key TEXT PRIMARY KEY, embedding FLOAT[{dimensions}])",
+        record_vector_index::TABLE.name()
+    )
+}
+
+pub fn record_vector_index_insert_sql() -> String {
+    insert_sql(record_vector_index::TABLE, RECORD_VECTOR_INDEX_COLUMNS)
 }
 
 pub fn persisted_record_select_sql() -> String {
@@ -435,6 +446,14 @@ mod tests {
         assert_eq!(
             document_embedding_cache_insert_sql(),
             "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob) VALUES (?1, ?2, ?3, ?4)"
+        );
+        assert_eq!(
+            record_vector_index_insert_sql(),
+            "INSERT INTO record_vector_index (record_key, embedding) VALUES (?1, ?2)"
+        );
+        assert_eq!(
+            record_vector_index_create_sql(384),
+            "CREATE VIRTUAL TABLE record_vector_index USING vec0(record_key TEXT PRIMARY KEY, embedding FLOAT[384])"
         );
     }
 

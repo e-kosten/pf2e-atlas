@@ -516,6 +516,21 @@ pub mod document_embedding_cache {
     ];
 }
 
+pub mod record_vector_index {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("record_vector_index");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const EMBEDDING: Column = Column::new(TABLE, "embedding");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[columns::RECORD_KEY, columns::EMBEDDING];
+}
+
 pub const TABLE_ARTIFACT_METADATA: &str = artifact_metadata::TABLE.name();
 pub const TABLE_PACKS: &str = packs::TABLE.name();
 pub const TABLE_RECORDS: &str = records::TABLE.name();
@@ -531,6 +546,7 @@ pub const TABLE_ITEM_RECORDS: &str = item_records::TABLE.name();
 pub const TABLE_SPELL_RECORDS: &str = spell_records::TABLE.name();
 pub const TABLE_RECORDS_FTS: &str = records_fts::TABLE.name();
 pub const TABLE_DOCUMENT_EMBEDDING_CACHE: &str = document_embedding_cache::TABLE.name();
+pub const TABLE_RECORD_VECTOR_INDEX: &str = record_vector_index::TABLE.name();
 
 pub const REQUIRED_TABLES: &[Table] = &[
     artifact_metadata::TABLE,
@@ -562,6 +578,7 @@ pub const ITEM_RECORD_COLUMNS: &[Column] = item_records::ALL_COLUMNS;
 pub const SPELL_RECORD_COLUMNS: &[Column] = spell_records::ALL_COLUMNS;
 pub const RECORDS_FTS_COLUMNS: &[Column] = records_fts::ALL_COLUMNS;
 pub const DOCUMENT_EMBEDDING_CACHE_COLUMNS: &[Column] = document_embedding_cache::ALL_COLUMNS;
+pub const RECORD_VECTOR_INDEX_COLUMNS: &[Column] = record_vector_index::ALL_COLUMNS;
 
 pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (artifact_metadata::TABLE, artifact_metadata::ALL_COLUMNS),
