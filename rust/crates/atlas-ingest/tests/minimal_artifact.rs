@@ -44,6 +44,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let (
@@ -205,6 +206,7 @@ fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
 
     assert_eq!(report.pack_count, 1);
@@ -243,6 +245,7 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let remaster_link_count: usize =
@@ -304,6 +307,7 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let bosun_families: String = connection.query_row(
@@ -361,6 +365,7 @@ fn generates_affliction_records_from_staged_embedded_items()
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
     assert_eq!(report.diagnostics.generated_affliction_canonical_records, 1);
     assert_eq!(report.diagnostics.generated_affliction_instance_records, 1);
@@ -369,6 +374,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.artifact_record_count, 3);
     assert_eq!(report.generated_record_count, 2);
     assert_eq!(report.pending_document_embedding_count, 2);
+    assert_eq!(report.document_embedding_count, 0);
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("1"));
@@ -432,6 +438,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         source_root: root.clone(),
         output_path: output_path.clone(),
         manifest_path: None,
+        embedding_cache_root: None,
     })?;
 
     assert_eq!(report.pack_count, 4);
@@ -440,6 +447,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(report.artifact_record_count, 5);
     assert_eq!(report.generated_record_count, 0);
     assert_eq!(report.pending_document_embedding_count, 5);
+    assert_eq!(report.document_embedding_count, 0);
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
@@ -458,6 +466,10 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM packs", [], |row| row.get(0))?;
     let record_count: usize =
         connection.query_row("SELECT COUNT(*) FROM records", [], |row| row.get(0))?;
+    let document_embedding_count: usize =
+        connection.query_row("SELECT COUNT(*) FROM document_embedding_cache", [], |row| {
+            row.get(0)
+        })?;
     let fts_count: usize =
         connection.query_row("SELECT COUNT(*) FROM records_fts", [], |row| row.get(0))?;
     let spell_record_family: String = connection.query_row(
@@ -610,6 +622,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
 
     assert_eq!(pack_count, 4);
     assert_eq!(record_count, 5);
+    assert_eq!(document_embedding_count, 0);
     assert_eq!(fts_count, 5);
     assert_eq!(spell_record_family, "spell");
     assert_eq!(spell_level, 1);

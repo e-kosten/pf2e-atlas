@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
+use std::mem::size_of;
 
 use atlas_artifact::metadata::artifact_metadata_keys;
 use atlas_artifact::schema::{
-    BOOLEAN_COLUMNS, REQUIRED_COLUMNS, REQUIRED_REFERENCES, REQUIRED_TABLES, TABLE_RECORDS,
-    TABLE_RECORDS_FTS, invalid_boolean_column_sql, orphan_reference_sql,
+    BOOLEAN_COLUMNS, REQUIRED_COLUMNS, REQUIRED_REFERENCES, REQUIRED_TABLES,
+    TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORDS, TABLE_RECORDS_FTS, invalid_boolean_column_sql,
+    orphan_reference_sql,
 };
 use rusqlite::Connection;
 
@@ -32,9 +34,119 @@ pub(crate) fn validate_artifact_contract(
     validate_boolean_columns(connection, &mut diagnostics)?;
     validate_metric_values(connection, &mut diagnostics)?;
     validate_fts_coverage(connection, &mut diagnostics)?;
+    validate_document_embedding_cache(connection, metadata, &mut diagnostics)?;
     validate_relationships(connection, &mut diagnostics)?;
     validate_metric_catalogs(connection, &mut diagnostics)?;
     Ok(diagnostics)
+}
+
+fn validate_document_embedding_cache(
+    connection: &Connection,
+    metadata: &BTreeMap<String, String>,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let cache_rows = count_rows(connection, TABLE_DOCUMENT_EMBEDDING_CACHE)?;
+    if cache_rows == 0 {
+        return Ok(());
+    }
+
+    let default_visible_records = count_sql(
+        connection,
+        "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
+    )?;
+    if cache_rows != default_visible_records {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Embedding,
+            "document embedding cache row count must match default-visible record count"
+                .to_string(),
+            Some("document_embedding_cache:default_visible_count".to_string()),
+            Some(default_visible_records.to_string()),
+            Some(cache_rows.to_string()),
+        ));
+    }
+
+    let expected_dimensions = metadata
+        .get(artifact_metadata_keys::EMBEDDING_DIMENSIONS)
+        .and_then(|value| value.parse::<usize>().ok());
+    if let Some(expected_dimensions) = expected_dimensions {
+        let invalid_dimensions = count_sql(
+            connection,
+            &format!(
+                "SELECT COUNT(*) FROM document_embedding_cache WHERE dimensions <> {expected_dimensions}"
+            ),
+        )?;
+        if invalid_dimensions > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Embedding,
+                "document embedding cache dimensions must match embedding metadata".to_string(),
+                Some("document_embedding_cache:dimensions".to_string()),
+                Some(expected_dimensions.to_string()),
+                Some(format!("{invalid_dimensions} invalid rows")),
+            ));
+        }
+
+        let expected_bytes = expected_dimensions * size_of::<f32>();
+        let invalid_blob_bytes = count_sql(
+            connection,
+            &format!(
+                "SELECT COUNT(*) FROM document_embedding_cache WHERE length(vector_blob) <> {expected_bytes}"
+            ),
+        )?;
+        if invalid_blob_bytes > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Embedding,
+                "document embedding cache vector blob length must match embedding dimensions"
+                    .to_string(),
+                Some("document_embedding_cache:vector_blob".to_string()),
+                Some(format!("{expected_bytes} bytes")),
+                Some(format!("{invalid_blob_bytes} invalid rows")),
+            ));
+        }
+    }
+
+    for (key, sql, expected) in [
+        (
+            "document_embedding_cache:hidden_rows",
+            "SELECT COUNT(*)
+             FROM document_embedding_cache e
+             JOIN records r ON r.record_key = e.record_key
+             WHERE r.is_default_visible <> 1",
+            "no hidden records in document embedding cache",
+        ),
+        (
+            "document_embedding_cache:missing_rows",
+            "SELECT COUNT(*)
+             FROM (
+               SELECT record_key FROM records WHERE is_default_visible = 1
+               EXCEPT
+               SELECT record_key FROM document_embedding_cache
+             )",
+            "every default-visible record has a document embedding",
+        ),
+        (
+            "document_embedding_cache:stale_rows",
+            "SELECT COUNT(*)
+             FROM (
+               SELECT record_key FROM document_embedding_cache
+               EXCEPT
+               SELECT record_key FROM records WHERE is_default_visible = 1
+             )",
+            "every document embedding row belongs to a default-visible record",
+        ),
+    ] {
+        let invalid = count_sql(connection, sql)?;
+        if invalid > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Embedding,
+                format!("document embedding cache coverage check `{key}` failed"),
+                Some(key.to_string()),
+                Some(expected.to_string()),
+                Some(format!("{invalid} invalid rows")),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_required_tables(

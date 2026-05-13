@@ -40,6 +40,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "artifact_record_count": 1,
             "generated_record_count": 0,
             "pending_document_embedding_count": 1,
+            "document_embedding_count": 0,
             "source_signature": "<source-signature>",
             "diagnostics": {
                 "taxonomy": {
@@ -93,6 +94,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     );
     assert_eq!(inspect_json["tables"]["records"], 1);
     assert_eq!(inspect_json["tables"]["packs"], 1);
+    assert_eq!(inspect_json["tables"]["document_embedding_cache"], 0);
     assert_eq!(inspect_json["text"]["records_with_description"], 1);
     assert_eq!(inspect_json["relationships"]["reference_edges"], 0);
     assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);

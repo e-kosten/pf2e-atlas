@@ -60,6 +60,8 @@ struct BuildIndexOptions {
     #[arg(long)]
     manifest: Option<PathBuf>,
     #[arg(long)]
+    embedding_cache_path: Option<PathBuf>,
+    #[arg(long)]
     json: bool,
 }
 
@@ -130,6 +132,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
         source_root: options.source,
         output_path: options.output,
         manifest_path: options.manifest,
+        embedding_cache_root: options.embedding_cache_path,
     })
     .map_err(|error| error.to_string())?;
 
@@ -151,8 +154,8 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={}",
-            report.pending_document_embedding_count
+            "embeddings: pending_document={} document={}",
+            report.pending_document_embedding_count, report.document_embedding_count
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(

@@ -494,6 +494,28 @@ pub mod records_fts {
     ];
 }
 
+pub mod document_embedding_cache {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("document_embedding_cache");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const SEMANTIC_INPUT_HASH: Column = Column::new(TABLE, "semantic_input_hash");
+        pub const DIMENSIONS: Column = Column::new(TABLE, "dimensions");
+        pub const VECTOR_BLOB: Column = Column::new(TABLE, "vector_blob");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::SEMANTIC_INPUT_HASH,
+        columns::DIMENSIONS,
+        columns::VECTOR_BLOB,
+    ];
+}
+
 pub const TABLE_ARTIFACT_METADATA: &str = artifact_metadata::TABLE.name();
 pub const TABLE_PACKS: &str = packs::TABLE.name();
 pub const TABLE_RECORDS: &str = records::TABLE.name();
@@ -508,6 +530,7 @@ pub const TABLE_ACTOR_RECORDS: &str = actor_records::TABLE.name();
 pub const TABLE_ITEM_RECORDS: &str = item_records::TABLE.name();
 pub const TABLE_SPELL_RECORDS: &str = spell_records::TABLE.name();
 pub const TABLE_RECORDS_FTS: &str = records_fts::TABLE.name();
+pub const TABLE_DOCUMENT_EMBEDDING_CACHE: &str = document_embedding_cache::TABLE.name();
 
 pub const REQUIRED_TABLES: &[Table] = &[
     artifact_metadata::TABLE,
@@ -524,6 +547,7 @@ pub const REQUIRED_TABLES: &[Table] = &[
     item_records::TABLE,
     spell_records::TABLE,
     records_fts::TABLE,
+    document_embedding_cache::TABLE,
 ];
 
 pub const RECORD_COLUMNS: &[Column] = records::ALL_COLUMNS;
@@ -537,6 +561,7 @@ pub const ACTOR_RECORD_COLUMNS: &[Column] = actor_records::ALL_COLUMNS;
 pub const ITEM_RECORD_COLUMNS: &[Column] = item_records::ALL_COLUMNS;
 pub const SPELL_RECORD_COLUMNS: &[Column] = spell_records::ALL_COLUMNS;
 pub const RECORDS_FTS_COLUMNS: &[Column] = records_fts::ALL_COLUMNS;
+pub const DOCUMENT_EMBEDDING_CACHE_COLUMNS: &[Column] = document_embedding_cache::ALL_COLUMNS;
 
 pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (artifact_metadata::TABLE, artifact_metadata::ALL_COLUMNS),
@@ -556,4 +581,8 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (item_records::TABLE, ITEM_RECORD_COLUMNS),
     (spell_records::TABLE, SPELL_RECORD_COLUMNS),
     (records_fts::TABLE, RECORDS_FTS_COLUMNS),
+    (
+        document_embedding_cache::TABLE,
+        DOCUMENT_EMBEDDING_CACHE_COLUMNS,
+    ),
 ];

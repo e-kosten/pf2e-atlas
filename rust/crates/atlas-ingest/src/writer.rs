@@ -3,6 +3,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
+mod embeddings;
 mod labels;
 mod metadata;
 mod metric_catalogs;
@@ -10,6 +11,7 @@ mod packs;
 mod records;
 mod relationships;
 
+use embeddings::write_document_embedding_cache;
 use metadata::write_artifact_metadata;
 use metric_catalogs::write_metric_catalogs;
 use packs::write_packs;
@@ -45,6 +47,7 @@ pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), Ing
     write_reference_edges(&transaction, &source.references)?;
     write_record_aliases(&transaction, &source.aliases)?;
     write_remaster_links(&transaction, &source.remaster_links)?;
+    write_document_embedding_cache(&transaction, &source.document_embeddings)?;
     write_metric_catalogs(&transaction)?;
     transaction
         .commit()

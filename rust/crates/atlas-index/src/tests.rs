@@ -1,4 +1,5 @@
 use std::fs;
+use std::mem::size_of;
 use std::path::PathBuf;
 
 use atlas_artifact::metadata::{
@@ -168,6 +169,66 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
 }
 
 #[test]
+fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
+    drop(connection);
+
+    let report = validate_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Ok);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-dimensions");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 383, 384 * size_of::<f32>())?;
+    drop(connection);
+
+    let report = validate_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.family == ArtifactContractFamily::Embedding
+            && diagnostic.key.as_deref() == Some("document_embedding_cache:dimensions")
+    }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_db_path("document-embedding-cache-coverage");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob)
+         VALUES ('actions:testAction1', 'fixture-hash', 384, zeroblob(1536))",
+        [],
+    )?;
+    drop(connection);
+
+    let report = validate_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.family == ArtifactContractFamily::Embedding
+            && diagnostic.key.as_deref() == Some("document_embedding_cache:default_visible_count")
+    }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-records");
     create_contract_database(&path)?;
@@ -182,6 +243,28 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     assert!(records[0].is_default_visible);
     assert_eq!(records[0].source_path, "packs/actions/test-action-1.json");
     fs::remove_file(path)?;
+    Ok(())
+}
+
+fn insert_document_embedding_cache_rows(
+    connection: &Connection,
+    dimensions: usize,
+    byte_len: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for index in 1..=3 {
+        let record_key = format!("actions:testAction{index}");
+        let semantic_input_hash = format!("fixture-hash-{index}");
+        connection.execute(
+            "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob)
+             VALUES (?1, ?2, ?3, zeroblob(?4))",
+            rusqlite::params![
+                record_key,
+                semantic_input_hash,
+                dimensions as i64,
+                byte_len as i64,
+            ],
+        )?;
+    }
     Ok(())
 }
 
