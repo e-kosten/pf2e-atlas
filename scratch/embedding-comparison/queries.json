@@ -461,5 +461,45 @@
     "limit": 10,
     "filter": null,
     "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Dispel Magic spell at or near rank 1. Penalize if generic counteract or magic-removal records outrank the exact title."
+  },
+  {
+    "id": "exact-title-red-dragon",
+    "category": "exact-title",
+    "query": "Red Dragon",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test for creature names. Reward result sets that return Red Dragon creature records or the closest explicit Red Dragon family/age entries at or near rank 1. Penalize if unrelated dragons or red/fire records obscure the creature title."
+  },
+  {
+    "id": "exact-title-owlbear",
+    "category": "exact-title",
+    "query": "Owlbear",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test for creature names. Reward result sets that return the Owlbear creature record at or near rank 1. Penalize if abilities, items, or unrelated animal records outrank the creature title."
+  },
+  {
+    "id": "exact-title-goblin-warrior",
+    "category": "exact-title",
+    "query": "Goblin Warrior",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test for creature names. Reward result sets that return Goblin Warrior or the closest explicit goblin warrior creature record at or near rank 1. Penalize if generic goblin ancestry or equipment records outrank the creature title."
+  },
+  {
+    "id": "exact-title-skeleton-guard",
+    "category": "exact-title",
+    "query": "Skeleton Guard",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test for creature names. Reward result sets that return Skeleton Guard or the closest explicit skeleton guard creature record at or near rank 1. Penalize if generic undead rules or unrelated skeleton variants obscure the title match."
+  },
+  {
+    "id": "exact-title-adult-black-dragon",
+    "category": "exact-title",
+    "query": "Adult Black Dragon",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test for specific creature variants. Reward result sets that return Adult Black Dragon at or near rank 1. Penalize if other dragon colors or ages outrank the exact creature title."
   }
 ]
