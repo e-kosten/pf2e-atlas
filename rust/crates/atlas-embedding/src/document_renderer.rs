@@ -4,10 +4,86 @@ use atlas_record::{
 };
 
 pub fn render_presentation_document_for_embedding(document: &RecordPresentationDocument) -> String {
-    let mut lines = Vec::new();
-    push_line(&mut lines, &format!("Name: {}", document.title));
-    push_fact_lines(&mut lines, &document.identity);
-    render_badges(&mut lines, document);
+    render_embedding_chunks_for_embedding(&render_presentation_document_embedding_chunks(document))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddingInputChunk {
+    pub section: EmbeddingInputSection,
+    pub text: String,
+    pub truncatable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EmbeddingInputSection {
+    Identity,
+    Traits,
+    Classification,
+    Summary,
+    Description,
+    Defense,
+    Movement,
+    Offense,
+    Routine,
+    Details,
+    References,
+    Aliases,
+}
+
+impl EmbeddingInputSection {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Identity => "identity",
+            Self::Traits => "traits",
+            Self::Classification => "classification",
+            Self::Summary => "summary",
+            Self::Description => "description",
+            Self::Defense => "defense",
+            Self::Movement => "movement",
+            Self::Offense => "offense",
+            Self::Routine => "routine",
+            Self::Details => "details",
+            Self::References => "references",
+            Self::Aliases => "aliases",
+        }
+    }
+}
+
+impl EmbeddingInputChunk {
+    pub fn line(section: EmbeddingInputSection, text: impl Into<String>) -> Self {
+        Self {
+            section,
+            text: text.into(),
+            truncatable: false,
+        }
+    }
+
+    pub fn truncatable_line(section: EmbeddingInputSection, text: impl Into<String>) -> Self {
+        Self {
+            section,
+            text: text.into(),
+            truncatable: true,
+        }
+    }
+}
+
+pub fn render_presentation_document_embedding_chunks(
+    document: &RecordPresentationDocument,
+) -> Vec<EmbeddingInputChunk> {
+    let mut chunks = Vec::new();
+    push_chunk(
+        &mut chunks,
+        EmbeddingInputChunk::line(
+            EmbeddingInputSection::Identity,
+            format!("Name: {}", document.title),
+        ),
+    );
+    push_fact_chunks(
+        &mut chunks,
+        EmbeddingInputSection::Identity,
+        &document.identity,
+    );
+    render_badges(&mut chunks, document);
 
     for kind in EMBEDDING_SECTION_ORDER {
         for section in document
@@ -15,11 +91,19 @@ pub fn render_presentation_document_for_embedding(document: &RecordPresentationD
             .iter()
             .filter(|section| section.kind == *kind)
         {
-            render_section(&mut lines, section);
+            render_section(&mut chunks, section);
         }
     }
 
-    lines.join("\n")
+    chunks
+}
+
+pub fn render_embedding_chunks_for_embedding(chunks: &[EmbeddingInputChunk]) -> String {
+    chunks
+        .iter()
+        .map(|chunk| chunk.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 const EMBEDDING_SECTION_ORDER: &[PresentationSectionKind] = &[
@@ -34,7 +118,7 @@ const EMBEDDING_SECTION_ORDER: &[PresentationSectionKind] = &[
     PresentationSectionKind::Classification,
 ];
 
-fn render_badges(lines: &mut Vec<String>, document: &RecordPresentationDocument) {
+fn render_badges(chunks: &mut Vec<EmbeddingInputChunk>, document: &RecordPresentationDocument) {
     let traits = document
         .badges
         .iter()
@@ -42,7 +126,13 @@ fn render_badges(lines: &mut Vec<String>, document: &RecordPresentationDocument)
         .map(|badge| badge.value.as_str())
         .collect::<Vec<_>>();
     if !traits.is_empty() {
-        push_line(lines, &format!("Traits: {}", traits.join(", ")));
+        push_chunk(
+            chunks,
+            EmbeddingInputChunk::line(
+                EmbeddingInputSection::Traits,
+                format!("Traits: {}", traits.join(", ")),
+            ),
+        );
     }
 
     let classifications = document
@@ -52,22 +142,34 @@ fn render_badges(lines: &mut Vec<String>, document: &RecordPresentationDocument)
         .map(|badge| badge.value.as_str())
         .collect::<Vec<_>>();
     if !classifications.is_empty() {
-        push_line(
-            lines,
-            &format!("Classification: {}", classifications.join(", ")),
+        push_chunk(
+            chunks,
+            EmbeddingInputChunk::line(
+                EmbeddingInputSection::Classification,
+                format!("Classification: {}", classifications.join(", ")),
+            ),
         );
     }
 }
 
-fn render_section(lines: &mut Vec<String>, section: &PresentationSection) {
+fn render_section(chunks: &mut Vec<EmbeddingInputChunk>, section: &PresentationSection) {
     if section.kind == PresentationSectionKind::Backlinks {
         return;
     }
+    let embedding_section = embedding_section_kind(section.kind);
     for block in &section.blocks {
         match block {
-            PresentationBlock::FactList(facts) => push_fact_lines(lines, facts),
+            PresentationBlock::FactList(facts) => {
+                push_fact_chunks(chunks, embedding_section, facts)
+            }
             PresentationBlock::Prose(text) => {
-                push_line(lines, &format!("Description: {}", text.text));
+                push_chunk(
+                    chunks,
+                    EmbeddingInputChunk::truncatable_line(
+                        embedding_section,
+                        format!("Description: {}", text.text),
+                    ),
+                );
             }
             PresentationBlock::Relationships(relationships) => {
                 let references = relationships
@@ -78,25 +180,54 @@ fn render_section(lines: &mut Vec<String>, section: &PresentationSection) {
                     .map(|relationship| relationship.label.as_str())
                     .collect::<Vec<_>>();
                 if !references.is_empty() {
-                    push_line(lines, &format!("References: {}", references.join(", ")));
+                    push_chunk(
+                        chunks,
+                        EmbeddingInputChunk::truncatable_line(
+                            EmbeddingInputSection::References,
+                            format!("References: {}", references.join(", ")),
+                        ),
+                    );
                 }
             }
         }
     }
 }
 
-fn push_fact_lines(lines: &mut Vec<String>, facts: &[PresentationFact]) {
+fn push_fact_chunks(
+    chunks: &mut Vec<EmbeddingInputChunk>,
+    section: EmbeddingInputSection,
+    facts: &[PresentationFact],
+) {
     for fact in facts {
-        push_line(lines, &format!("{}: {}", fact.label, fact.value));
+        push_chunk(
+            chunks,
+            EmbeddingInputChunk::line(section, format!("{}: {}", fact.label, fact.value)),
+        );
     }
 }
 
-fn push_line(lines: &mut Vec<String>, line: &str) {
-    let trimmed = line.trim();
+fn push_chunk(chunks: &mut Vec<EmbeddingInputChunk>, mut chunk: EmbeddingInputChunk) {
+    let trimmed = chunk.text.trim();
     if trimmed.is_empty() {
         return;
     }
-    if !lines.iter().any(|existing| existing == trimmed) {
-        lines.push(trimmed.to_string());
+    if !chunks.iter().any(|existing| existing.text == trimmed) {
+        chunk.text = trimmed.to_string();
+        chunks.push(chunk);
+    }
+}
+
+fn embedding_section_kind(kind: PresentationSectionKind) -> EmbeddingInputSection {
+    match kind {
+        PresentationSectionKind::Summary => EmbeddingInputSection::Summary,
+        PresentationSectionKind::Description => EmbeddingInputSection::Description,
+        PresentationSectionKind::Defense => EmbeddingInputSection::Defense,
+        PresentationSectionKind::Movement => EmbeddingInputSection::Movement,
+        PresentationSectionKind::Offense => EmbeddingInputSection::Offense,
+        PresentationSectionKind::Routine => EmbeddingInputSection::Routine,
+        PresentationSectionKind::Details => EmbeddingInputSection::Details,
+        PresentationSectionKind::References => EmbeddingInputSection::References,
+        PresentationSectionKind::Backlinks => EmbeddingInputSection::References,
+        PresentationSectionKind::Classification => EmbeddingInputSection::Classification,
     }
 }

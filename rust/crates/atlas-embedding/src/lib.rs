@@ -16,11 +16,17 @@ pub use catalog::{
     supported_embedding_model_ids,
 };
 pub use document_input::hash_document_embedding_input;
-pub use document_renderer::render_presentation_document_for_embedding;
+pub use document_renderer::{
+    EmbeddingInputChunk, EmbeddingInputSection, render_embedding_chunks_for_embedding,
+    render_presentation_document_embedding_chunks, render_presentation_document_for_embedding,
+};
 pub use error::EmbeddingError;
 pub use minilm::TextEmbedder;
 pub use text::normalize_embedding_text;
-pub use tokenization::{EmbeddingInputTokenization, TextEmbeddingTokenizer};
+pub use tokenization::{
+    BudgetedEmbeddingInput, EmbeddingInputTokenization, EmbeddingSectionTruncation,
+    TextEmbeddingTokenizer,
+};
 
 #[cfg(test)]
 mod tests;

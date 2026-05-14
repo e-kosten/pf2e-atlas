@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_embedding::{
-    EmbeddingError, EmbeddingInputTokenization, TextEmbedder, TextEmbeddingTokenizer,
-    hash_document_embedding_input, render_presentation_document_for_embedding,
+    EmbeddingError, EmbeddingInputChunk, EmbeddingInputSection, EmbeddingInputTokenization,
+    EmbeddingSectionTruncation, TextEmbedder, TextEmbeddingTokenizer,
+    hash_document_embedding_input, render_embedding_chunks_for_embedding,
+    render_presentation_document_embedding_chunks,
 };
 use atlas_record::build_record_presentation_document;
 use tracing::info;
@@ -12,6 +14,7 @@ use crate::{LoadedRecord, RecordAlias, RemasterLink};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingDocumentEmbedding {
     pub record_key: String,
+    pub input_chunks: Vec<EmbeddingInputChunk>,
     pub input_text: String,
     pub input_hash: String,
 }
@@ -46,6 +49,7 @@ pub struct DocumentEmbeddingTokenizationTelemetry {
     pub max_observed_token_count: usize,
     pub total_observed_token_count: usize,
     pub total_tokens_over_limit: usize,
+    pub section_truncations: Vec<DocumentEmbeddingSectionTruncation>,
     pub truncated_examples: Vec<DocumentEmbeddingTruncationExample>,
 }
 
@@ -54,6 +58,14 @@ pub struct DocumentEmbeddingTruncationExample {
     pub record_key: String,
     pub token_count: usize,
     pub max_token_count: usize,
+    pub truncated_sections: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentEmbeddingSectionTruncation {
+    pub section: String,
+    pub document_count: usize,
+    pub dropped_chunk_count: usize,
 }
 
 pub(crate) fn build_pending_document_embeddings(
@@ -75,10 +87,12 @@ pub(crate) fn build_pending_document_embeddings(
         }
         let aliases = aliases_by_key.get(&record_key).cloned().unwrap_or_default();
         let document = build_record_presentation_document(record);
-        let input_text = document_embedding_input_text(&document, &aliases);
+        let input_chunks = document_embedding_input_chunks(&document, &aliases);
+        let input_text = render_embedding_chunks_for_embedding(&input_chunks);
         let input_hash = hash_document_embedding_input(&input_text);
         pending.push(PendingDocumentEmbedding {
             record_key,
+            input_chunks,
             input_text,
             input_hash,
         });
@@ -87,23 +101,22 @@ pub(crate) fn build_pending_document_embeddings(
     pending
 }
 
-fn document_embedding_input_text(
+fn document_embedding_input_chunks(
     document: &atlas_record::RecordPresentationDocument,
     aliases: &[String],
-) -> String {
-    let mut input_text = render_presentation_document_for_embedding(document);
+) -> Vec<EmbeddingInputChunk> {
+    let mut chunks = render_presentation_document_embedding_chunks(document);
     if !aliases.is_empty() {
-        if !input_text.is_empty() {
-            input_text.push('\n');
-        }
-        input_text.push_str("Aliases: ");
-        input_text.push_str(&aliases.join(", "));
+        chunks.push(EmbeddingInputChunk::truncatable_line(
+            EmbeddingInputSection::Aliases,
+            format!("Aliases: {}", aliases.join(", ")),
+        ));
     }
-    input_text
+    chunks
 }
 
-pub fn analyze_document_embedding_tokenization(
-    pending: &[PendingDocumentEmbedding],
+pub fn apply_document_embedding_token_budget(
+    pending: &mut [PendingDocumentEmbedding],
     tokenizer: &TextEmbeddingTokenizer,
 ) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
     let inputs = pending
@@ -111,9 +124,24 @@ pub fn analyze_document_embedding_tokenization(
         .map(|entry| entry.input_text.as_str())
         .collect::<Vec<_>>();
     let tokenizations = tokenizer.analyze_document_inputs(&inputs)?;
+    let mut truncated_sections_by_record =
+        BTreeMap::<String, Vec<EmbeddingSectionTruncation>>::new();
+    for (entry, tokenization) in pending.iter_mut().zip(tokenizations.iter()) {
+        if !tokenization.truncated {
+            continue;
+        }
+        let budgeted = tokenizer.budget_document_input(&entry.input_chunks)?;
+        if !budgeted.truncated_sections.is_empty() {
+            truncated_sections_by_record
+                .insert(entry.record_key.clone(), budgeted.truncated_sections);
+        }
+        entry.input_text = budgeted.text;
+        entry.input_hash = hash_document_embedding_input(&entry.input_text);
+    }
     Ok(summarize_document_embedding_tokenization(
         pending,
         &tokenizations,
+        &truncated_sections_by_record,
     ))
 }
 
@@ -240,6 +268,7 @@ fn embedding_progress_interval(total: usize) -> usize {
 fn summarize_document_embedding_tokenization(
     pending: &[PendingDocumentEmbedding],
     tokenizations: &[EmbeddingInputTokenization],
+    truncated_sections_by_record: &BTreeMap<String, Vec<EmbeddingSectionTruncation>>,
 ) -> DocumentEmbeddingTokenizationTelemetry {
     debug_assert_eq!(pending.len(), tokenizations.len());
     let max_token_count = tokenizations
@@ -276,6 +305,15 @@ fn summarize_document_embedding_tokenization(
                     record_key: entry.record_key.clone(),
                     token_count: tokenization.token_count,
                     max_token_count,
+                    truncated_sections: truncated_sections_by_record
+                        .get(&entry.record_key)
+                        .map(|sections| {
+                            sections
+                                .iter()
+                                .map(|section| section.section.as_str().to_string())
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                 })
         })
         .collect::<Vec<_>>();
@@ -286,6 +324,7 @@ fn summarize_document_embedding_tokenization(
             .then_with(|| left.record_key.cmp(&right.record_key))
     });
     truncated_examples.truncate(10);
+    let section_truncations = summarize_section_truncations(truncated_sections_by_record);
 
     DocumentEmbeddingTokenizationTelemetry {
         document_count: pending.len(),
@@ -294,8 +333,34 @@ fn summarize_document_embedding_tokenization(
         max_observed_token_count,
         total_observed_token_count,
         total_tokens_over_limit,
+        section_truncations,
         truncated_examples,
     }
+}
+
+fn summarize_section_truncations(
+    truncated_sections_by_record: &BTreeMap<String, Vec<EmbeddingSectionTruncation>>,
+) -> Vec<DocumentEmbeddingSectionTruncation> {
+    let mut by_section = BTreeMap::<String, (usize, usize)>::new();
+    for sections in truncated_sections_by_record.values() {
+        for section in sections {
+            let entry = by_section
+                .entry(section.section.as_str().to_string())
+                .or_insert((0, 0));
+            entry.0 += 1;
+            entry.1 += section.dropped_chunk_count;
+        }
+    }
+    by_section
+        .into_iter()
+        .map(|(section, (document_count, dropped_chunk_count))| {
+            DocumentEmbeddingSectionTruncation {
+                section,
+                document_count,
+                dropped_chunk_count,
+            }
+        })
+        .collect()
 }
 
 fn aliases_by_record_key(aliases: &[RecordAlias]) -> BTreeMap<String, Vec<String>> {
@@ -377,16 +442,8 @@ Aliases: Legacy Visible"
     #[test]
     fn generates_document_vectors_from_pending_inputs() {
         let pending = vec![
-            PendingDocumentEmbedding {
-                record_key: "packs:first".to_string(),
-                input_text: "first input".to_string(),
-                input_hash: "first-hash".to_string(),
-            },
-            PendingDocumentEmbedding {
-                record_key: "packs:second".to_string(),
-                input_text: "second input".to_string(),
-                input_hash: "second-hash".to_string(),
-            },
+            pending_embedding_with_hash("packs:first", "first input", "first-hash"),
+            pending_embedding_with_hash("packs:second", "second input", "second-hash"),
         ];
 
         let generated = generate_document_embeddings_with_reuse_using(&pending, None, |input| {
@@ -409,16 +466,8 @@ Aliases: Legacy Visible"
     #[test]
     fn reuses_matching_document_vectors() {
         let pending = vec![
-            PendingDocumentEmbedding {
-                record_key: "packs:first".to_string(),
-                input_text: "first input".to_string(),
-                input_hash: "first-hash".to_string(),
-            },
-            PendingDocumentEmbedding {
-                record_key: "packs:second".to_string(),
-                input_text: "second input".to_string(),
-                input_hash: "second-hash".to_string(),
-            },
+            pending_embedding_with_hash("packs:first", "first input", "first-hash"),
+            pending_embedding_with_hash("packs:second", "second input", "second-hash"),
         ];
         let reusable = BTreeMap::from([(
             "packs:first".to_string(),
@@ -444,21 +493,9 @@ Aliases: Legacy Visible"
     #[test]
     fn generates_missing_document_vectors_in_batches() {
         let pending = vec![
-            PendingDocumentEmbedding {
-                record_key: "packs:first".to_string(),
-                input_text: "first input".to_string(),
-                input_hash: "first-hash".to_string(),
-            },
-            PendingDocumentEmbedding {
-                record_key: "packs:second".to_string(),
-                input_text: "second input".to_string(),
-                input_hash: "second-hash".to_string(),
-            },
-            PendingDocumentEmbedding {
-                record_key: "packs:third".to_string(),
-                input_text: "third input".to_string(),
-                input_hash: "third-hash".to_string(),
-            },
+            pending_embedding_with_hash("packs:first", "first input", "first-hash"),
+            pending_embedding_with_hash("packs:second", "second input", "second-hash"),
+            pending_embedding_with_hash("packs:third", "third input", "third-hash"),
         ];
         let mut batch_lengths = Vec::new();
 
@@ -513,7 +550,19 @@ Aliases: Legacy Visible"
             },
         ];
 
-        let telemetry = summarize_document_embedding_tokenization(&pending, &tokenizations);
+        let truncated_sections_by_record = BTreeMap::from([(
+            "packs:longer".to_string(),
+            vec![EmbeddingSectionTruncation {
+                section: EmbeddingInputSection::Description,
+                dropped_chunk_count: 1,
+            }],
+        )]);
+
+        let telemetry = summarize_document_embedding_tokenization(
+            &pending,
+            &tokenizations,
+            &truncated_sections_by_record,
+        );
 
         assert_eq!(telemetry.document_count, 3);
         assert_eq!(telemetry.truncated_document_count, 2);
@@ -522,27 +571,53 @@ Aliases: Legacy Visible"
         assert_eq!(telemetry.total_observed_token_count, 40);
         assert_eq!(telemetry.total_tokens_over_limit, 12);
         assert_eq!(
+            telemetry.section_truncations,
+            vec![DocumentEmbeddingSectionTruncation {
+                section: "description".to_string(),
+                document_count: 1,
+                dropped_chunk_count: 1,
+            }]
+        );
+        assert_eq!(
             telemetry.truncated_examples,
             vec![
                 DocumentEmbeddingTruncationExample {
                     record_key: "packs:longer".to_string(),
                     token_count: 20,
                     max_token_count: 10,
+                    truncated_sections: vec!["description".to_string()],
                 },
                 DocumentEmbeddingTruncationExample {
                     record_key: "packs:long".to_string(),
                     token_count: 12,
                     max_token_count: 10,
+                    truncated_sections: Vec::new(),
                 },
             ]
         );
     }
 
     fn pending_embedding(record_key: &str, input_text: &str) -> PendingDocumentEmbedding {
+        pending_embedding_with_hash(
+            record_key,
+            input_text,
+            &hash_document_embedding_input(input_text),
+        )
+    }
+
+    fn pending_embedding_with_hash(
+        record_key: &str,
+        input_text: &str,
+        input_hash: &str,
+    ) -> PendingDocumentEmbedding {
         PendingDocumentEmbedding {
             record_key: record_key.to_string(),
+            input_chunks: vec![EmbeddingInputChunk::line(
+                EmbeddingInputSection::Identity,
+                input_text,
+            )],
             input_text: input_text.to_string(),
-            input_hash: hash_document_embedding_input(input_text),
+            input_hash: input_hash.to_string(),
         }
     }
 

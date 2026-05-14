@@ -520,6 +520,7 @@ function embeddingMetricsFor({
       max_observed_token_count: tokenization.max_observed_token_count ?? null,
       total_observed_token_count: tokenization.total_observed_token_count ?? null,
       total_tokens_over_limit: tokenization.total_tokens_over_limit ?? null,
+      section_truncations: tokenization.section_truncations ?? [],
       truncated_document_count: truncatedDocumentCount,
       truncation_rate: documentCount > 0 ? truncatedDocumentCount / documentCount : null,
       tokens_over_limit_rate:

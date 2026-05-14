@@ -29,9 +29,9 @@ mod variants;
 mod writer;
 
 pub use embeddings::{
-    DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
-    GeneratedDocumentEmbedding, PendingDocumentEmbedding, ReusableDocumentEmbedding,
-    analyze_document_embedding_tokenization, generate_document_embeddings,
+    DocumentEmbeddingSectionTruncation, DocumentEmbeddingTokenizationTelemetry,
+    DocumentEmbeddingTruncationExample, GeneratedDocumentEmbedding, PendingDocumentEmbedding,
+    ReusableDocumentEmbedding, apply_document_embedding_token_budget, generate_document_embeddings,
     generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
@@ -123,8 +123,8 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         };
         let tokenizer = TextEmbeddingTokenizer::load(&config)
             .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
-        source.document_embedding_tokenization = analyze_document_embedding_tokenization(
-            &source.pending_document_embeddings,
+        source.document_embedding_tokenization = apply_document_embedding_token_budget(
+            &mut source.pending_document_embeddings,
             &tokenizer,
         )
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
