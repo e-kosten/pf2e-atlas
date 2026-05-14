@@ -15,9 +15,7 @@ pub use catalog::{
     default_embedding_model_spec, embedding_model_for_model_id, embedding_model_spec,
     supported_embedding_model_ids,
 };
-pub use document_input::{
-    DocumentEmbeddingInputParts, build_document_embedding_input, hash_document_embedding_input,
-};
+pub use document_input::hash_document_embedding_input;
 pub use document_renderer::render_presentation_document_for_embedding;
 pub use error::EmbeddingError;
 pub use minilm::TextEmbedder;
