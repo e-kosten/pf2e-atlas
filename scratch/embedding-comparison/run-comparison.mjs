@@ -602,6 +602,25 @@ function runCommandSync(command, args, cwd) {
 
 function createLineStreamer(prefix = "[atlas]") {
   let buffered = "";
+  let pendingCollapsedLine = null;
+  const flushCollapsedLine = () => {
+    if (!pendingCollapsedLine) {
+      return;
+    }
+    console.error(`${prefix} ${pendingCollapsedLine}`);
+    pendingCollapsedLine = null;
+  };
+  const streamLine = (line) => {
+    if (!shouldStreamAtlasLine(line)) {
+      return;
+    }
+    if (shouldCollapseAtlasLine(line)) {
+      pendingCollapsedLine = line;
+      return;
+    }
+    flushCollapsedLine();
+    console.error(`${prefix} ${line}`);
+  };
   return {
     write(chunk) {
       if (quiet) {
@@ -611,14 +630,13 @@ function createLineStreamer(prefix = "[atlas]") {
       const lines = buffered.split(/\r?\n/);
       buffered = lines.pop() ?? "";
       for (const line of lines) {
-        if (shouldStreamAtlasLine(line)) {
-          console.error(`${prefix} ${line}`);
-        }
+        streamLine(line);
       }
     },
     flush() {
-      if (!quiet && shouldStreamAtlasLine(buffered)) {
-        console.error(`${prefix} ${buffered}`);
+      if (!quiet) {
+        streamLine(buffered);
+        flushCollapsedLine();
       }
       buffered = "";
     },
@@ -634,6 +652,13 @@ function shouldStreamAtlasLine(line) {
     return true;
   }
   return !/\b(?:Scanning|Loading|Finished) source pack:/.test(trimmed);
+}
+
+function shouldCollapseAtlasLine(line) {
+  if (atlasLogDetail === "full") {
+    return false;
+  }
+  return line.includes("Prepared document embedding batch through:");
 }
 
 function sqlite3Available() {
