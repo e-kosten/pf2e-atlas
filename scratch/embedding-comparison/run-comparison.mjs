@@ -24,6 +24,18 @@ if (!fs.existsSync(atlasPath)) {
   throw new Error(`atlas binary not found at ${atlasPath}; run: cd rust && cargo build --release -p atlas-cli`);
 }
 
+const atlasCapabilities = readAtlasCapabilities(atlasPath);
+if (!atlasCapabilities.index_build_embedding_model) {
+  throw new Error(
+    `atlas binary at ${atlasPath} does not support index build --embedding-model; run: cd rust && cargo build --release -p atlas-cli`,
+  );
+}
+if (!atlasCapabilities.search_semantic_embedding_model) {
+  throw new Error(
+    `atlas binary at ${atlasPath} does not support search semantic --embedding-model; run: cd rust && cargo build --release -p atlas-cli`,
+  );
+}
+
 const models = readJson(modelsPath).filter((model) => model.enabled !== false);
 const queries = readJson(queriesPath);
 
@@ -40,8 +52,9 @@ fs.mkdirSync(path.join(outputRoot, "score-templates"), { recursive: true });
 const preflight = {
   source_exists: fs.existsSync(sourceRoot),
   atlas_exists: fs.existsSync(atlasPath),
+  atlas_capabilities: atlasCapabilities,
   embedding_cache_path: embeddingCachePath,
-  sqlite3: commandExists("sqlite3"),
+  sqlite3: sqlite3Available(),
   query_count: queries.length,
   models: models.map((model) => modelPreflight(model)),
 };
@@ -485,9 +498,21 @@ function runCommand(command, args, cwd) {
   };
 }
 
-function commandExists(command) {
-  const output = spawnSync("command", ["-v", command], {
-    shell: true,
+function readAtlasCapabilities(command) {
+  const indexBuildHelp = runCommand(command, ["index", "build", "--help"], repoRoot);
+  const searchSemanticHelp = runCommand(command, ["search", "semantic", "--help"], repoRoot);
+  return {
+    index_build_help_status: indexBuildHelp.status,
+    search_semantic_help_status: searchSemanticHelp.status,
+    index_build_embedding_model:
+      indexBuildHelp.status === 0 && indexBuildHelp.stdout.includes("--embedding-model"),
+    search_semantic_embedding_model:
+      searchSemanticHelp.status === 0 && searchSemanticHelp.stdout.includes("--embedding-model"),
+  };
+}
+
+function sqlite3Available() {
+  const output = spawnSync("sqlite3", ["-version"], {
     encoding: "utf8",
   });
   return output.status === 0;
