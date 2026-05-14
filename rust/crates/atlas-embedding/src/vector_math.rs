@@ -4,6 +4,7 @@ pub(crate) fn mean_pool_normalized(
     data: &[f32],
     tokens: usize,
     dimensions: usize,
+    model_dimensions: usize,
     attention_mask: &[u32],
 ) -> Result<Vec<f32>, EmbeddingError> {
     let mut vector = vec![0.0; dimensions];
@@ -14,7 +15,7 @@ pub(crate) fn mean_pool_normalized(
             continue;
         }
         token_count += 1.0;
-        let offset = token_index * dimensions;
+        let offset = token_index * model_dimensions;
         for dimension in 0..dimensions {
             vector[dimension] += data[offset + dimension];
         }

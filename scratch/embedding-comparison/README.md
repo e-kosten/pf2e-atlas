@@ -9,9 +9,9 @@ It intentionally keeps deterministic measurement separate from subjective result
 3. Emit anonymized review packets for LLM or human scoring.
 4. Aggregate build/query metrics and scored review output later.
 
-The current Rust CLI only exposes the default `atlas-embedding` model. Non-default model
-configs should stay disabled until the Rust catalog/config surface can select them without
-code edits.
+The Rust CLI exposes every candidate in `models.json` through `--embedding-model`. The
+harness keeps running if an individual model fails to load or execute, so an overnight run
+can distinguish ready local model caches from candidates that still need provider/export work.
 
 ## Run
 
@@ -41,6 +41,7 @@ scratch/embedding-comparison/runs/<run-id>/
     model-config.json
     build-command.json
     build-report.json
+    build-vectors-report.json
     embedding-metrics.json
     validate-vectors-report.json
     artifact.sqlite
@@ -56,4 +57,3 @@ scratch/embedding-comparison/runs/<run-id>/
 
 Review scores are intentionally not produced by the harness. Put scoring JSON files under
 `review-scores/` and aggregate them with the deterministic metrics in a later decision pass.
-

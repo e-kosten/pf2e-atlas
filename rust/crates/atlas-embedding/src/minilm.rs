@@ -124,19 +124,27 @@ impl TextEmbedder {
             to_i64_vec_batch(&encodings, |encoding| encoding.get_attention_mask()),
         ))
         .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
-        let token_type_ids = Tensor::from_array((
-            shape,
-            to_i64_vec_batch(&encodings, |encoding| encoding.get_type_ids()),
-        ))
-        .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
+        let mut session_inputs = inputs![
+            "input_ids" => input_ids,
+            "attention_mask" => attention_mask,
+        ];
+        if self
+            .session
+            .inputs()
+            .iter()
+            .any(|input| input.name() == "token_type_ids")
+        {
+            let token_type_ids = Tensor::from_array((
+                shape,
+                to_i64_vec_batch(&encodings, |encoding| encoding.get_type_ids()),
+            ))
+            .map_err(|error| EmbeddingError::TensorPrepareFailed(error.to_string()))?;
+            session_inputs.push(("token_type_ids".into(), token_type_ids.into()));
+        }
 
         let outputs = self
             .session
-            .run(inputs![
-                "input_ids" => input_ids,
-                "attention_mask" => attention_mask,
-                "token_type_ids" => token_type_ids,
-            ])
+            .run(session_inputs)
             .map_err(|error| EmbeddingError::ModelRunFailed(error.to_string()))?;
 
         let output = if let Some(output) = outputs
@@ -162,7 +170,7 @@ impl TextEmbedder {
         let batch = shape[0];
         let tokens = shape[1];
         let dimensions = shape[2];
-        if dimensions != self.spec.dimensions {
+        if dimensions < self.spec.dimensions {
             return Err(EmbeddingError::DimensionMismatch {
                 expected: self.spec.dimensions,
                 actual: dimensions,
@@ -174,6 +182,7 @@ impl TextEmbedder {
             vectors[output_index] = mean_pool_normalized(
                 &data[offset..offset + (tokens * dimensions)],
                 tokens,
+                self.spec.dimensions,
                 dimensions,
                 encodings[batch_index].get_attention_mask(),
             )?;

@@ -10,7 +10,7 @@ use atlas_domain::metadata::{
     CollectionOperator, MetadataNumberField, MetadataPredicate, MetadataSetField, NumberOperator,
 };
 use atlas_domain::{MetricOperator, NumericMatch, RecordFamily, RecordKey, ScalarValue};
-use atlas_embedding::default_embedding_model_spec;
+use atlas_embedding::{EmbeddingModelId, default_embedding_model_spec, embedding_model_spec};
 use rusqlite::{Connection, params_from_iter};
 
 use crate::filters::{
@@ -106,7 +106,7 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
     create_contract_database_with_override(
         &path,
         artifact_metadata_keys::EMBEDDING_MODEL_ID,
-        "BAAI/bge-small-en-v1.5",
+        "unknown/model",
     )?;
 
     let report = validate_index(&path)?;
@@ -117,6 +117,28 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         report.diagnostics[0].key.as_deref(),
         Some(artifact_metadata_keys::EMBEDDING_MODEL_ID)
     );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("known-non-default-embedding");
+    let connection = Connection::open(&path)?;
+    create_minimal_contract_schema(&connection)?;
+    let embedding_spec = embedding_model_spec(EmbeddingModelId::BgeSmallEnV15);
+    insert_contract_metadata_entries(
+        &connection,
+        valid_metadata_entries_for_embedding(embedding_spec),
+        None,
+    )?;
+    insert_minimal_contract_rows(&connection)?;
+    drop(connection);
+
+    let report = validate_index(&path)?;
+
+    assert_eq!(report.status, ValidationStatus::Ok);
+    assert_eq!(report.code, ValidationCode::Ok);
     fs::remove_file(path)?;
     Ok(())
 }
@@ -665,7 +687,15 @@ fn insert_contract_metadata(
     connection: &Connection,
     override_entry: Option<(&str, &str)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    for (key, mut value) in valid_metadata_entries() {
+    insert_contract_metadata_entries(connection, valid_metadata_entries(), override_entry)
+}
+
+fn insert_contract_metadata_entries(
+    connection: &Connection,
+    entries: Vec<(&'static str, &'static str)>,
+    override_entry: Option<(&str, &str)>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for (key, mut value) in entries {
         if let Some((override_key, override_value)) = override_entry
             && key == override_key
         {
@@ -680,7 +710,12 @@ fn insert_contract_metadata(
 }
 
 fn valid_metadata_entries() -> Vec<(&'static str, &'static str)> {
-    let embedding_spec = default_embedding_model_spec();
+    valid_metadata_entries_for_embedding(default_embedding_model_spec())
+}
+
+fn valid_metadata_entries_for_embedding(
+    embedding_spec: atlas_embedding::EmbeddingModelSpec,
+) -> Vec<(&'static str, &'static str)> {
     vec![
         (
             artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
