@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use atlas_embedding::EmbeddingModelId;
 use rusqlite::Connection;
 use tracing::info;
 
@@ -23,7 +24,11 @@ use relationships::{write_record_aliases, write_reference_edges, write_remaster_
 
 use crate::{IngestError, SourceLoad, schema};
 
-pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
+pub(crate) fn write_artifact(
+    path: &Path,
+    source: &SourceLoad,
+    embedding_model: EmbeddingModelId,
+) -> Result<(), IngestError> {
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
 
@@ -41,6 +46,7 @@ pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), Ing
         source.records.len(),
         source.records.len() - source.source_record_count,
         &source.source_signature,
+        embedding_model,
     )?;
     info!(packs = source.packs.len(), "writing packs");
     write_packs(&transaction, &source.packs)?;

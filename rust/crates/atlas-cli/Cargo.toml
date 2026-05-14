@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 atlas-domain.workspace = true
+atlas-embedding.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
 atlas-search.workspace = true
