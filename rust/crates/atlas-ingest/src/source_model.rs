@@ -39,11 +39,24 @@ pub struct BuildArtifactReport {
     pub reused_document_embedding_count: usize,
     pub generated_document_embedding_count: usize,
     pub document_embedding_tokenization: DocumentEmbeddingTokenizationTelemetry,
+    pub embedding_timing: EmbeddingTimingReport,
     pub build_duration_ms: u128,
     pub source_signature: String,
     pub diagnostics: IngestDiagnostics,
     pub skipped_records: Vec<SkippedRecord>,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EmbeddingTimingReport {
+    pub tokenization_duration_ms: u128,
+    pub model_load_duration_ms: u128,
+    pub generation_duration_ms: u128,
+    pub batch_count: usize,
+    pub batch_duration_min_ms: Option<u128>,
+    pub batch_duration_p50_ms: Option<u128>,
+    pub batch_duration_p95_ms: Option<u128>,
+    pub batch_duration_max_ms: Option<u128>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

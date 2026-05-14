@@ -230,6 +230,16 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
         "document_embedding_tokenization": document_embedding_tokenization_json(
             &report.document_embedding_tokenization,
         ),
+        "embedding_timing": {
+            "tokenization_duration_ms": report.embedding_timing.tokenization_duration_ms,
+            "model_load_duration_ms": report.embedding_timing.model_load_duration_ms,
+            "generation_duration_ms": report.embedding_timing.generation_duration_ms,
+            "batch_count": report.embedding_timing.batch_count,
+            "batch_duration_min_ms": report.embedding_timing.batch_duration_min_ms,
+            "batch_duration_p50_ms": report.embedding_timing.batch_duration_p50_ms,
+            "batch_duration_p95_ms": report.embedding_timing.batch_duration_p95_ms,
+            "batch_duration_max_ms": report.embedding_timing.batch_duration_max_ms,
+        },
         "build_duration_ms": report.build_duration_ms,
         "source_signature": report.source_signature,
         "diagnostics": diagnostics_json(&report.diagnostics),

@@ -59,6 +59,16 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                 "section_truncations": [],
                 "truncated_examples": []
             },
+            "embedding_timing": {
+                "tokenization_duration_ms": 0,
+                "model_load_duration_ms": 0,
+                "generation_duration_ms": 0,
+                "batch_count": 0,
+                "batch_duration_min_ms": null,
+                "batch_duration_p50_ms": null,
+                "batch_duration_p95_ms": null,
+                "batch_duration_max_ms": null
+            },
             "build_duration_ms": "<build-duration-ms>",
             "source_signature": "<source-signature>",
             "diagnostics": {

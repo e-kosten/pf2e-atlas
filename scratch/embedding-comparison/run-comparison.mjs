@@ -322,6 +322,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
 
   const searchReport = parseJsonOutput(output.stdout, `query output for ${model.id}/${query.id}`);
   const enrichedHits = enrichHits(artifactPath, searchReport.hits ?? []);
+  const timing = searchReport.timing ?? {};
   const result = {
     status: "ok",
     model_id: model.id,
@@ -332,6 +333,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
     filter: query.filter ?? null,
     review_guidance: query.review_guidance,
     duration_ms: output.duration_ms,
+    rust_timing: timing,
     hit_count: enrichedHits.length,
     hits: enrichedHits,
   };
@@ -345,6 +347,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
       query_category: query.category ?? null,
       query_length: queryLength(query.query),
       duration_ms: output.duration_ms,
+      rust_timing: timing,
       hit_count: enrichedHits.length,
       top_distance: enrichedHits[0]?.distance ?? null,
     },
@@ -352,6 +355,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
       model_id: model.id,
       status: "ok",
       duration_ms: output.duration_ms,
+      rust_timing: timing,
       results: enrichedHits,
     },
   };
@@ -495,6 +499,7 @@ function embeddingMetricsFor({
   embeddingCachePath,
 }) {
   const tokenization = buildReport.document_embedding_tokenization ?? {};
+  const timing = buildReport.embedding_timing ?? {};
   const documentCount = tokenization.document_count ?? 0;
   const truncatedDocumentCount = tokenization.truncated_document_count ?? 0;
   const generated = buildReport.generated_document_embedding_count ?? 0;
@@ -513,6 +518,18 @@ function embeddingMetricsFor({
     generated_document_embedding_count: generated,
     reused_document_embedding_count: buildReport.reused_document_embedding_count,
     generated_docs_per_second_coarse: durationSeconds > 0 ? generated / durationSeconds : null,
+    embedding_timing: {
+      tokenization_duration_ms: timing.tokenization_duration_ms ?? null,
+      model_load_duration_ms: timing.model_load_duration_ms ?? null,
+      generation_duration_ms: timing.generation_duration_ms ?? null,
+      batch_count: timing.batch_count ?? null,
+      batch_duration_min_ms: timing.batch_duration_min_ms ?? null,
+      batch_duration_p50_ms: timing.batch_duration_p50_ms ?? null,
+      batch_duration_p95_ms: timing.batch_duration_p95_ms ?? null,
+      batch_duration_max_ms: timing.batch_duration_max_ms ?? null,
+      generated_docs_per_second:
+        (timing.generation_duration_ms ?? 0) > 0 ? generated / (timing.generation_duration_ms / 1000) : null,
+    },
     artifact_bytes: fileSizeOrNull(artifactPath),
     model_cache_bytes: directorySizeOrNull(path.join(embeddingCachePath, model.model_id ?? "")),
     vector_index: {
@@ -536,10 +553,6 @@ function embeddingMetricsFor({
       truncated_examples: tokenization.truncated_examples ?? [],
     },
     unavailable_metrics: [
-      "separate_model_load_duration_ms",
-      "separate_tokenizer_load_duration_ms",
-      "embedding_generation_duration_ms",
-      "per_batch_duration_ms",
       "peak_rss_bytes",
     ],
   };
