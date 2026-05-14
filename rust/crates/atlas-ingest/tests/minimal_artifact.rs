@@ -38,6 +38,12 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     );
     assert_eq!(report.skipped_record_count, 0);
     assert!(report.warnings.is_empty());
+    assert_eq!(
+        report.diagnostics["dropped_inline_macros"]
+            .as_array()
+            .map_or(usize::MAX, Vec::len),
+        0
+    );
 
     let output_path = root.join("artifact.sqlite");
     build_artifact(BuildArtifactOptions {
@@ -106,6 +112,55 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(demoralize_reference_count, 1);
 
     drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn reports_dropped_inline_macro_diagnostics() -> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("dropped-inline-macros");
+    fs::create_dir_all(root.join("packs/actions"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/template.json"),
+        r#"{
+          "_id": "templateAction",
+          "name": "Template Action",
+          "type": "action",
+          "system": {
+            "description": {
+              "value": "<p>@Template[type:burst|distance:10] @UUID[Compendium.pf2e.conditionitems.Item.Sickened] @UUID[Compendium.pf2e.conditionitems.Item.Clumsy]{Clumsy 1}</p>"
+            },
+            "traits": { "value": [] }
+          }
+        }"#,
+    )?;
+
+    let report = analyze_foundry_source(&root, None)?;
+
+    assert_eq!(
+        report.diagnostics["dropped_inline_macros"],
+        serde_json::json!([
+            {
+                "name": "Template",
+                "count": 1,
+                "examples": ["@Template[type:burst|distance:10]"]
+            },
+            {
+                "name": "UUID",
+                "count": 1,
+                "examples": ["@UUID[Compendium.pf2e.conditionitems.Item.Sickened]"]
+            }
+        ])
+    );
+
     fs::remove_dir_all(root)?;
     Ok(())
 }

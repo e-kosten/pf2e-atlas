@@ -15,7 +15,10 @@ pub(crate) use json::{
     string_field, typed_collection,
 };
 pub(crate) use publication::publication_family;
-pub(crate) use text::{create_search_text, normalize_text, strip_markup};
+pub(crate) use text::{
+    DroppedFoundryInlineMacro, create_search_text, dropped_foundry_inline_macros, normalize_text,
+    strip_markup,
+};
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::references::extract_reference_candidates;

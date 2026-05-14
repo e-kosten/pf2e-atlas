@@ -74,7 +74,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                     "canonical_records": 0,
                     "instance_records": 0,
                     "reference_edges": 0
-                }
+                },
+                "dropped_inline_macros": []
             },
             "skipped_record_count": 0,
             "skipped_records": [],
