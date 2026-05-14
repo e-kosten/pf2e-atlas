@@ -1,0 +1,21 @@
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum EmbeddingError {
+    #[error("failed to load tokenizer `{path}`: {message}")]
+    TokenizerLoadFailed { path: String, message: String },
+    #[error("failed to tokenize query: {0}")]
+    TokenizationFailed(String),
+    #[error("failed to load ONNX model `{path}`: {message}")]
+    ModelLoadFailed { path: String, message: String },
+    #[error("failed to prepare ONNX tensor: {0}")]
+    TensorPrepareFailed(String),
+    #[error("failed to run ONNX model: {0}")]
+    ModelRunFailed(String),
+    #[error("model did not return a hidden-state tensor")]
+    MissingHiddenState,
+    #[error("expected hidden-state shape [batch, tokens, dims], got {0:?}")]
+    UnexpectedHiddenStateShape(Vec<usize>),
+    #[error("model returned {actual} dimensions, but embedding catalog expects {expected}")]
+    DimensionMismatch { expected: usize, actual: usize },
+}
