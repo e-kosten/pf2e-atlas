@@ -20,6 +20,7 @@ fn default_model_spec_matches_minilm_contract() {
     assert_eq!(spec.model_id, "Xenova/all-MiniLM-L12-v2");
     assert_eq!(spec.model_revision, "main");
     assert_eq!(spec.tokenizer_id, "Xenova/all-MiniLM-L12-v2");
+    assert_eq!(spec.max_input_tokens, Some(512));
     assert_eq!(spec.pooling.as_str(), "mean");
     assert_eq!(spec.normalization.as_str(), "l2");
     assert_eq!(spec.dimensions, 384);
@@ -27,6 +28,27 @@ fn default_model_spec_matches_minilm_contract() {
     assert_eq!(spec.distance_metric.as_str(), "cosine");
     assert_eq!(spec.document_prefix, "");
     assert_eq!(spec.query_prefix, "");
+}
+
+#[test]
+fn candidate_model_specs_declare_input_token_limits() {
+    for model in ALL_EMBEDDING_MODELS {
+        let spec = embedding_model_spec(*model);
+        assert!(
+            spec.max_input_tokens.is_some(),
+            "{} should declare an ONNX-safe input token limit",
+            model
+        );
+    }
+
+    assert_eq!(
+        embedding_model_spec(EmbeddingModelId::BgeSmallEnV15).max_input_tokens,
+        Some(512)
+    );
+    assert_eq!(
+        embedding_model_spec(EmbeddingModelId::NomicEmbedTextV15).max_input_tokens,
+        Some(8192)
+    );
 }
 
 #[test]
@@ -87,6 +109,27 @@ fn embedding_renderer_omits_backlinks() {
     let input = render_presentation_document_for_embedding(&document);
 
     assert!(!input.contains("Some scenario record"));
+}
+
+#[test]
+fn minilm_tokenization_reports_catalog_limit_when_model_cache_exists() {
+    let Some(config) = model_backed_test_config("minilm tokenization limit") else {
+        return;
+    };
+
+    let tokenizer = TextEmbeddingTokenizer::load(&config)
+        .expect("local MiniLM cache should load from test cache");
+    let long_input = std::iter::repeat_n("poison sickened slowed persistent damage", 200)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let telemetry = tokenizer
+        .analyze_document_inputs(&[long_input.as_str()])
+        .expect("document tokenization should succeed");
+
+    assert_eq!(telemetry.len(), 1);
+    assert_eq!(telemetry[0].max_token_count, Some(512));
+    assert!(telemetry[0].token_count > 512);
+    assert!(telemetry[0].truncated);
 }
 
 #[test]

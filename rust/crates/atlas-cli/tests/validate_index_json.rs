@@ -54,6 +54,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                 "truncated_document_count": 0,
                 "max_token_count": null,
                 "max_observed_token_count": 0,
+                "total_observed_token_count": 0,
+                "total_tokens_over_limit": 0,
                 "truncated_examples": []
             },
             "build_duration_ms": "<build-duration-ms>",

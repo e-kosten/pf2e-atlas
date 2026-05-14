@@ -44,6 +44,8 @@ pub struct DocumentEmbeddingTokenizationTelemetry {
     pub truncated_document_count: usize,
     pub max_token_count: Option<usize>,
     pub max_observed_token_count: usize,
+    pub total_observed_token_count: usize,
+    pub total_tokens_over_limit: usize,
     pub truncated_examples: Vec<DocumentEmbeddingTruncationExample>,
 }
 
@@ -248,6 +250,17 @@ fn summarize_document_embedding_tokenization(
         .map(|tokenization| tokenization.token_count)
         .max()
         .unwrap_or(0);
+    let total_observed_token_count = tokenizations
+        .iter()
+        .map(|tokenization| tokenization.token_count)
+        .sum();
+    let total_tokens_over_limit = tokenizations
+        .iter()
+        .filter_map(|tokenization| {
+            let max_token_count = tokenization.max_token_count?;
+            Some(tokenization.token_count.saturating_sub(max_token_count))
+        })
+        .sum();
     let truncated_document_count = tokenizations
         .iter()
         .filter(|tokenization| tokenization.truncated)
@@ -279,6 +292,8 @@ fn summarize_document_embedding_tokenization(
         truncated_document_count,
         max_token_count,
         max_observed_token_count,
+        total_observed_token_count,
+        total_tokens_over_limit,
         truncated_examples,
     }
 }
@@ -504,6 +519,8 @@ Aliases: Legacy Visible"
         assert_eq!(telemetry.truncated_document_count, 2);
         assert_eq!(telemetry.max_token_count, Some(10));
         assert_eq!(telemetry.max_observed_token_count, 20);
+        assert_eq!(telemetry.total_observed_token_count, 40);
+        assert_eq!(telemetry.total_tokens_over_limit, 12);
         assert_eq!(
             telemetry.truncated_examples,
             vec![
