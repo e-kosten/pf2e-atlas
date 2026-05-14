@@ -56,6 +56,10 @@ fs.mkdirSync(path.join(outputRoot, "models"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-packets"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-scores"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "score-templates"), { recursive: true });
+fs.copyFileSync(
+  path.join(repoRoot, "scratch/embedding-comparison/scoring-rubric.json"),
+  path.join(outputRoot, "scoring-rubric.json"),
+);
 
 const preflight = {
   source_exists: fs.existsSync(sourceRoot),
