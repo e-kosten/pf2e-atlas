@@ -5,7 +5,7 @@ description: Use for Pathfinder MCP implementation work that creates, validates,
 
 # Pathfinder Worktree Lifecycle
 
-Use this skill before any tracked implementation edit in this repository, and again before committing, landing, or cleaning up a task worktree.
+Use this skill before any tracked implementation edit in this repository, and again before preparing a commit, landing, or cleaning up a task worktree.
 
 ## Root Selection
 
@@ -63,7 +63,7 @@ If a command tries to write outside the allowed root or asks for approval, treat
 
 ## Validation Gate
 
-Before saying implementation is complete, run the validation required by the task plus the repo landing gate.
+Before saying implementation is ready for a commit milestone, run the validation required by the task plus the repo landing gate.
 
 For implementation work, the minimum gate is:
 
@@ -84,6 +84,8 @@ For plan-driven work, also validate directly against the plan file:
 Do not commit a failing implementation unless the user explicitly asks for that state.
 
 ## Commit Gate
+
+Commit only after the user explicitly asks to prepare a commit and the `$prepare-commit` skill has completed its fresh-validator loop.
 
 Before committing:
 
@@ -120,7 +122,7 @@ Before reporting done:
 
 - remove every temporary worktree created for the task
 - verify `git worktree list` no longer shows stale task worktrees
-- report the commit SHA and commit message for completed implementation work
+- report the commit SHA and commit message after a prepare-commit workflow creates one
 - note any skipped validation, refresh step, data/index implication, or remaining blocker
 
 Cleanup is part of done. Do not leave temporary worktrees behind unless the user explicitly asks to keep them.
