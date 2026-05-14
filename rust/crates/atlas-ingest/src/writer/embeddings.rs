@@ -15,7 +15,11 @@ pub(super) fn write_document_embedding_cache(
     for embedding in embeddings {
         insert
             .execute(params![
+                embedding.embedding_unit_key.as_str(),
                 embedding.record_key.as_str(),
+                embedding.unit_kind.as_str(),
+                embedding.label.as_deref(),
+                embedding.ordinal as i64,
                 embedding.input_hash.as_str(),
                 embedding.dimensions as i64,
                 encode_vector_blob(&embedding.vector),
@@ -75,7 +79,11 @@ mod tests {
             )
             .expect("record row should insert");
         let embeddings = vec![GeneratedDocumentEmbedding {
+            embedding_unit_key: "actions:testAction1#parent".to_string(),
             record_key: "actions:testAction1".to_string(),
+            unit_kind: crate::embeddings::EmbeddingUnitKind::Parent,
+            label: None,
+            ordinal: 0,
             input_hash: "fixture-hash".to_string(),
             dimensions: 2,
             vector: vec![1.0, -2.5],
@@ -88,7 +96,7 @@ mod tests {
             .query_row(
                 "SELECT semantic_input_hash, dimensions, vector_blob
                  FROM document_embedding_cache
-                 WHERE record_key = 'actions:testAction1'",
+                 WHERE embedding_unit_key = 'actions:testAction1#parent'",
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )

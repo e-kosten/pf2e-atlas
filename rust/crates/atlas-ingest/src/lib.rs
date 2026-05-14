@@ -9,6 +9,7 @@ use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokeniz
 
 mod aliases;
 mod embedding_reuse;
+mod embedding_units;
 mod embeddings;
 mod generated_affliction_identity;
 mod generated_affliction_model;
@@ -30,9 +31,10 @@ mod writer;
 
 pub use embeddings::{
     DocumentEmbeddingSectionTruncation, DocumentEmbeddingTokenizationTelemetry,
-    DocumentEmbeddingTruncationExample, GeneratedDocumentEmbedding, PendingDocumentEmbedding,
-    ReusableDocumentEmbedding, apply_document_embedding_token_budget, generate_document_embeddings,
-    generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
+    DocumentEmbeddingTruncationExample, EmbeddingUnitKind, GeneratedDocumentEmbedding,
+    PendingDocumentEmbedding, ReusableDocumentEmbedding, apply_document_embedding_token_budget,
+    generate_document_embeddings, generate_document_embeddings_with_reuse,
+    generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 pub use model::{DroppedInlineMacroDiagnostic, IngestDiagnostics};

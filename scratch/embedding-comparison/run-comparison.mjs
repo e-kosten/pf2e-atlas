@@ -366,13 +366,16 @@ function enrichHits(artifactPath, hits) {
     return [];
   }
   const values = hits
-    .map((hit, index) => `(${index + 1}, ${sqlString(hit.record_key)}, ${Number(hit.distance)})`)
+    .map((hit, index) => `(${index + 1}, ${sqlString(hit.embedding_unit_key)}, ${Number(hit.distance)})`)
     .join(", ");
   const sql = `
-WITH hits(rank, record_key, distance) AS (VALUES ${values})
+WITH hits(rank, embedding_unit_key, distance) AS (VALUES ${values})
 SELECT
   hits.rank,
   hits.distance,
+  hits.embedding_unit_key,
+  document_embedding_cache.unit_kind,
+  document_embedding_cache.label AS unit_label,
   records.record_key,
   records.name,
   records.record_family,
@@ -381,7 +384,8 @@ SELECT
   records.traits_json,
   substr(coalesce(records.description_text, ''), 1, 700) AS description_excerpt
 FROM hits
-LEFT JOIN records ON records.record_key = hits.record_key
+LEFT JOIN document_embedding_cache ON document_embedding_cache.embedding_unit_key = hits.embedding_unit_key
+LEFT JOIN records ON records.record_key = document_embedding_cache.record_key
 ORDER BY hits.rank;
 `;
 
@@ -394,6 +398,9 @@ ORDER BY hits.rank;
   }
   return JSON.parse(output.stdout || "[]").map((row) => ({
     rank: row.rank,
+    embedding_unit_key: row.embedding_unit_key,
+    unit_kind: row.unit_kind,
+    unit_label: row.unit_label,
     record_key: row.record_key,
     distance: row.distance,
     name: row.name,
@@ -438,6 +445,13 @@ function writeReviewPacket(root, query, entries) {
     entry.results.forEach((hit) => {
       lines.push(`${hit.rank}. ${hit.name ?? hit.record_key} (${hit.record_family ?? "unknown"})`);
       lines.push(`   Record key: ${hit.record_key}`);
+      if (hit.embedding_unit_key) {
+        lines.push(
+          `   Matched unit: ${hit.embedding_unit_key} (${hit.unit_kind ?? "unknown"}${
+            hit.unit_label ? `: ${hit.unit_label}` : ""
+          })`,
+        );
+      }
       lines.push(`   Distance: ${hit.distance}`);
       if (hit.traits?.length) {
         lines.push(`   Traits: ${hit.traits.join(", ")}`);
@@ -504,6 +518,7 @@ function embeddingMetricsFor({
   const truncatedDocumentCount = tokenization.truncated_document_count ?? 0;
   const generated = buildReport.generated_document_embedding_count ?? 0;
   const durationSeconds = build.duration_ms / 1000;
+  const unitMetrics = embeddingUnitMetrics(artifactPath);
   return {
     model_id: model.id,
     runtime_model: model.runtime_model ?? "default",
@@ -517,6 +532,7 @@ function embeddingMetricsFor({
     document_embedding_count: buildReport.document_embedding_count,
     generated_document_embedding_count: generated,
     reused_document_embedding_count: buildReport.reused_document_embedding_count,
+    embedding_units: unitMetrics,
     generated_docs_per_second_coarse: durationSeconds > 0 ? generated / durationSeconds : null,
     embedding_timing: {
       tokenization_duration_ms: timing.tokenization_duration_ms ?? null,
@@ -555,6 +571,51 @@ function embeddingMetricsFor({
     unavailable_metrics: [
       "peak_rss_bytes",
     ],
+  };
+}
+
+function embeddingUnitMetrics(artifactPath) {
+  const byKindSql = `
+SELECT
+  unit_kind,
+  COUNT(*) AS count,
+  COUNT(DISTINCT record_key) AS record_count
+FROM document_embedding_cache
+GROUP BY unit_kind
+ORDER BY unit_kind;
+`;
+  const totalsSql = `
+SELECT
+  COUNT(*) AS total_units,
+  COUNT(DISTINCT record_key) AS records_with_units,
+  SUM(CASE WHEN unit_kind <> 'parent' THEN 1 ELSE 0 END) AS child_units
+FROM document_embedding_cache;
+`;
+  const byKindOutput = spawnSync("sqlite3", ["-json", artifactPath, byKindSql], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  const totalsOutput = spawnSync("sqlite3", ["-json", artifactPath, totalsSql], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (byKindOutput.status !== 0 || totalsOutput.status !== 0) {
+    return { error: byKindOutput.stderr || totalsOutput.stderr };
+  }
+  const totals = (JSON.parse(totalsOutput.stdout || "[]") ?? [])[0] ?? {};
+  const byKind = JSON.parse(byKindOutput.stdout || "[]").map((row) => ({
+      unit_kind: row.unit_kind,
+      count: row.count,
+      record_count: row.record_count,
+  }));
+  return {
+    total_units: totals.total_units ?? null,
+    parent_units: byKind.find((row) => row.unit_kind === "parent")?.count ?? 0,
+    child_units: totals.child_units ?? 0,
+    records_with_units: totals.records_with_units ?? null,
+    units_per_record:
+      (totals.records_with_units ?? 0) > 0 ? (totals.total_units ?? 0) / totals.records_with_units : null,
+    by_kind: byKind,
   };
 }
 

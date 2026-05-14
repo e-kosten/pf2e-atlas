@@ -28,7 +28,10 @@ pub struct VectorKnnQuery {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VectorSearchHit {
+    pub embedding_unit_key: String,
     pub record_key: String,
+    pub unit_kind: String,
+    pub label: Option<String>,
     pub distance: f64,
 }
 
@@ -62,17 +65,20 @@ pub fn compile_vector_knn_query(
         &mut parameters,
         Value::Blob(encode_f32_vector(query_vector)),
     );
-    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(limit)));
+    let unit_limit = limit.saturating_mul(20).max(limit).min(1000);
+    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(unit_limit)));
     let sql = format!(
         "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT v.record_key, v.distance
+         SELECT v.embedding_unit_key, v.record_key, e.unit_kind, e.label, v.distance
          FROM {vector_table} v
+         JOIN {cache_table} e ON e.embedding_unit_key = v.embedding_unit_key
          WHERE v.embedding MATCH {vector_placeholder}
            AND k = {limit_placeholder}
            AND v.record_key IN (SELECT record_key FROM eligible)
          ORDER BY v.distance ASC",
         eligible_sql = eligible.sql,
         vector_table = TABLE_RECORD_VECTOR_INDEX,
+        cache_table = TABLE_DOCUMENT_EMBEDDING_CACHE,
     );
 
     Ok(VectorKnnQuery { sql, parameters })
@@ -91,13 +97,32 @@ pub fn query_vector_index(
     let rows = statement
         .query_map(params_from_iter(compiled.parameters.iter()), |row| {
             Ok(VectorSearchHit {
-                record_key: row.get(0)?,
-                distance: row.get(1)?,
+                embedding_unit_key: row.get(0)?,
+                record_key: row.get(1)?,
+                unit_kind: row.get(2)?,
+                label: row.get(3)?,
+                distance: row.get(4)?,
             })
         })
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))
+    let rows = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    Ok(collapse_vector_hits(rows, limit as usize))
+}
+
+fn collapse_vector_hits(rows: Vec<VectorSearchHit>, limit: usize) -> Vec<VectorSearchHit> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut collapsed = Vec::new();
+    for hit in rows {
+        if seen.insert(hit.record_key.clone()) {
+            collapsed.push(hit);
+            if collapsed.len() == limit {
+                break;
+            }
+        }
+    }
+    collapsed
 }
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
@@ -272,22 +297,30 @@ fn create_and_populate_vector_index(
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut select = connection
         .prepare(
-            "SELECT record_key, vector_blob
+            "SELECT embedding_unit_key, record_key, vector_blob
              FROM document_embedding_cache
-             ORDER BY record_key",
+             ORDER BY embedding_unit_key",
         )
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let rows = select
         .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Vec<u8>>(2)?,
+            ))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut row_count = 0usize;
     for row in rows {
-        let (record_key, vector_blob) =
+        let (embedding_unit_key, record_key, vector_blob) =
             row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
         insert
-            .execute((record_key.as_str(), vector_blob))
+            .execute((
+                embedding_unit_key.as_str(),
+                record_key.as_str(),
+                vector_blob,
+            ))
             .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
         row_count += 1;
     }
@@ -349,9 +382,9 @@ fn validate_vector_index_coverage(
             "record_vector_index:missing_rows",
             "SELECT COUNT(*)
              FROM (
-               SELECT record_key FROM document_embedding_cache
+               SELECT embedding_unit_key FROM document_embedding_cache
                EXCEPT
-               SELECT record_key FROM record_vector_index
+               SELECT embedding_unit_key FROM record_vector_index
              )",
             "every document embedding has a vector index row",
         ),
@@ -359,9 +392,9 @@ fn validate_vector_index_coverage(
             "record_vector_index:stale_rows",
             "SELECT COUNT(*)
              FROM (
-               SELECT record_key FROM record_vector_index
+               SELECT embedding_unit_key FROM record_vector_index
                EXCEPT
-               SELECT record_key FROM document_embedding_cache
+               SELECT embedding_unit_key FROM document_embedding_cache
              )",
             "every vector index row has a document embedding cache row",
         ),
@@ -404,5 +437,44 @@ fn metadata_summary_from_report(report: &ArtifactValidationReport) -> ArtifactMe
         embedding_query_prefix: report.embedding_query_prefix.clone(),
         fts_tokenizer: report.fts_tokenizer.clone(),
         adjacent_manifest_path: report.adjacent_manifest_path.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hit(unit: &str, record: &str, distance: f64) -> VectorSearchHit {
+        VectorSearchHit {
+            embedding_unit_key: unit.to_string(),
+            record_key: record.to_string(),
+            unit_kind: "full_record".to_string(),
+            label: None,
+            distance,
+        }
+    }
+
+    #[test]
+    fn collapse_vector_hits_keeps_best_unit_per_record() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit("records:a:full_record:1", "records:a", 0.1),
+                hit("records:a:heading_section:1", "records:a", 0.2),
+                hit("records:b:full_record:1", "records:b", 0.3),
+                hit("records:c:full_record:1", "records:c", 0.4),
+            ],
+            2,
+        );
+
+        assert_eq!(
+            collapsed
+                .iter()
+                .map(|hit| (hit.embedding_unit_key.as_str(), hit.record_key.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("records:a:full_record:1", "records:a"),
+                ("records:b:full_record:1", "records:b"),
+            ]
+        );
     }
 }
