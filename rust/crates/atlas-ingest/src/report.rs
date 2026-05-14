@@ -259,6 +259,28 @@ fn document_embedding_tokenization_json(
         "max_observed_token_count": telemetry.max_observed_token_count,
         "total_observed_token_count": telemetry.total_observed_token_count,
         "total_tokens_over_limit": telemetry.total_tokens_over_limit,
+        "unit_kind_truncations": telemetry.unit_kind_truncations
+            .iter()
+            .map(|truncation| {
+                json!({
+                    "unit_kind": truncation.unit_kind,
+                    "unit_count": truncation.unit_count,
+                    "record_count": truncation.record_count,
+                    "total_tokens_over_limit": truncation.total_tokens_over_limit,
+                    "max_observed_token_count": truncation.max_observed_token_count,
+                })
+            })
+            .collect::<Vec<_>>(),
+        "record_truncation_coverage": {
+            "record_count": telemetry.record_truncation_coverage.record_count,
+            "records_with_child_units": telemetry.record_truncation_coverage.records_with_child_units,
+            "records_with_any_truncated_unit": telemetry.record_truncation_coverage.records_with_any_truncated_unit,
+            "records_with_truncated_parent_unit": telemetry.record_truncation_coverage.records_with_truncated_parent_unit,
+            "records_with_truncated_child_unit": telemetry.record_truncation_coverage.records_with_truncated_child_unit,
+            "records_with_truncated_parent_and_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_and_child_units,
+            "records_with_truncated_parent_and_all_child_units_fit": telemetry.record_truncation_coverage.records_with_truncated_parent_and_all_child_units_fit,
+            "records_with_truncated_parent_without_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_without_child_units,
+        },
         "section_truncations": telemetry.section_truncations
             .iter()
             .map(|section| {
@@ -273,7 +295,10 @@ fn document_embedding_tokenization_json(
             .iter()
             .map(|example| {
                 json!({
+                    "embedding_unit_key": example.embedding_unit_key,
                     "record_key": example.record_key,
+                    "unit_kind": example.unit_kind.as_str(),
+                    "label": example.label,
                     "token_count": example.token_count,
                     "max_token_count": example.max_token_count,
                     "truncated_sections": example.truncated_sections,
