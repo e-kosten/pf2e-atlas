@@ -1,5 +1,12 @@
 use std::path::PathBuf;
 
+use atlas_domain::RecordFamily;
+use atlas_record::{
+    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
+    PresentationRelationship, PresentationRelationshipKind, PresentationSection,
+    PresentationSectionKind, PresentationText, RecordPresentationDocument,
+};
+
 use super::*;
 
 const MODEL_CACHE_ENV: &str = "ATLAS_EMBEDDING_TEST_CACHE";
@@ -48,6 +55,48 @@ fn builds_document_embedding_input_from_stable_chunks() {
         hash_document_embedding_input(&input),
         "b378ff4932396a900910defcba972f84722eebb067c8b518c5619d6132d44c85"
     );
+}
+
+#[test]
+fn renders_presentation_document_for_embedding_in_priority_order() {
+    let document = fixture_presentation_document();
+
+    let input = render_presentation_document_for_embedding(&document);
+
+    assert_eq!(
+        input,
+        "Name: Shield Warden\n\
+Family: Creature\n\
+Level: 4\n\
+Traits: Guardian, Shield\n\
+Classification: Defender\n\
+Role: Defensive guardian\n\
+Description: A disciplined guardian protects nearby allies.\n\
+AC: 22\n\
+HP: 70\n\
+Speed: Land 25 feet\n\
+Attack: Shield bash +14\n\
+References: Reactive Strike"
+    );
+}
+
+#[test]
+fn embedding_renderer_omits_backlinks() {
+    let mut document = fixture_presentation_document();
+    document.sections.push(PresentationSection::new(
+        PresentationSectionKind::Backlinks,
+        vec![PresentationBlock::Relationships(vec![
+            PresentationRelationship {
+                kind: PresentationRelationshipKind::Backlink,
+                label: "Some scenario record".to_string(),
+                record_key: None,
+            },
+        ])],
+    ));
+
+    let input = render_presentation_document_for_embedding(&document);
+
+    assert!(!input.contains("Some scenario record"));
 }
 
 #[test]
@@ -159,6 +208,106 @@ fn repo_root() -> PathBuf {
         .join("..")
         .join("..")
         .join("..")
+}
+
+fn fixture_presentation_document() -> RecordPresentationDocument {
+    RecordPresentationDocument {
+        record_key: "creatures:ShieldWarden"
+            .parse()
+            .expect("record key should parse"),
+        record_family: RecordFamily::Creature,
+        title: "Shield Warden".to_string(),
+        identity: vec![
+            PresentationFact {
+                key: "family".to_string(),
+                label: "Family".to_string(),
+                value: "Creature".to_string(),
+            },
+            PresentationFact {
+                key: "level".to_string(),
+                label: "Level".to_string(),
+                value: "4".to_string(),
+            },
+        ],
+        badges: vec![
+            PresentationBadge {
+                kind: PresentationBadgeKind::Trait,
+                label: "Trait".to_string(),
+                value: "Guardian".to_string(),
+            },
+            PresentationBadge {
+                kind: PresentationBadgeKind::Trait,
+                label: "Trait".to_string(),
+                value: "Shield".to_string(),
+            },
+            PresentationBadge {
+                kind: PresentationBadgeKind::Classification,
+                label: "Family".to_string(),
+                value: "Defender".to_string(),
+            },
+        ],
+        sections: vec![
+            PresentationSection::new(
+                PresentationSectionKind::Summary,
+                vec![PresentationBlock::FactList(vec![PresentationFact {
+                    key: "role".to_string(),
+                    label: "Role".to_string(),
+                    value: "Defensive guardian".to_string(),
+                }])],
+            ),
+            PresentationSection::new(
+                PresentationSectionKind::Defense,
+                vec![PresentationBlock::FactList(vec![
+                    PresentationFact {
+                        key: "ac".to_string(),
+                        label: "AC".to_string(),
+                        value: "22".to_string(),
+                    },
+                    PresentationFact {
+                        key: "hp".to_string(),
+                        label: "HP".to_string(),
+                        value: "70".to_string(),
+                    },
+                ])],
+            ),
+            PresentationSection::new(
+                PresentationSectionKind::Movement,
+                vec![PresentationBlock::FactList(vec![PresentationFact {
+                    key: "speed".to_string(),
+                    label: "Speed".to_string(),
+                    value: "Land 25 feet".to_string(),
+                }])],
+            ),
+            PresentationSection::new(
+                PresentationSectionKind::Offense,
+                vec![PresentationBlock::FactList(vec![PresentationFact {
+                    key: "attack".to_string(),
+                    label: "Attack".to_string(),
+                    value: "Shield bash +14".to_string(),
+                }])],
+            ),
+            PresentationSection::new(
+                PresentationSectionKind::Description,
+                vec![PresentationBlock::Prose(PresentationText {
+                    text: "A disciplined guardian protects nearby allies.".to_string(),
+                })],
+            ),
+            PresentationSection::new(
+                PresentationSectionKind::References,
+                vec![PresentationBlock::Relationships(vec![
+                    PresentationRelationship {
+                        kind: PresentationRelationshipKind::Reference,
+                        label: "Reactive Strike".to_string(),
+                        record_key: Some(
+                            "actions:ReactiveStrike"
+                                .parse()
+                                .expect("record key should parse"),
+                        ),
+                    },
+                ])],
+            ),
+        ],
+    }
 }
 
 struct VectorFixture {
