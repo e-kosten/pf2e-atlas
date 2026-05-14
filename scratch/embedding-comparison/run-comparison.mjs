@@ -20,6 +20,7 @@ const atlasPath = path.resolve(repoRoot, options.atlas ?? "rust/target/release/a
 const embeddingCachePath = path.resolve(repoRoot, options.embeddingCachePath ?? ".cache/hf-models");
 const embeddingBatchSize = Number(options.embeddingBatchSize ?? 32);
 const atlasLogDetail = options.atlasLogDetail ?? "summary";
+const allowMissingModels = Boolean(options.allowMissingModels);
 const quiet = Boolean(options.quiet);
 
 if (!fs.existsSync(atlasPath)) {
@@ -72,6 +73,33 @@ const preflight = {
 };
 writeJson(path.join(outputRoot, "preflight.json"), preflight);
 
+const missingModels = preflight.models.filter((model) => !model.ready);
+if (missingModels.length > 0 && !allowMissingModels) {
+  const missing = missingModels
+    .map((model) => {
+      const missingFiles = [
+        model.model_cache_exists ? null : "model cache directory",
+        model.tokenizer_json_exists ? null : "tokenizer.json",
+        model.onnx_model_exists ? null : "onnx/model.onnx",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      return `- ${model.model_id} (${model.runtime_model}): missing ${missingFiles}`;
+    })
+    .join("\n");
+  throw new Error(
+    [
+      "embedding comparison cannot start because selected models are missing local assets:",
+      missing,
+      "",
+      "Prepare the selected model caches first:",
+      `node scratch/embedding-comparison/prepare-models.mjs --models ${path.relative(repoRoot, modelsPath)} --embedding-cache-path ${path.relative(repoRoot, embeddingCachePath)}`,
+      "",
+      "Pass --allow-missing-models only for intentional failure-path smoke tests.",
+    ].join("\n"),
+  );
+}
+
 writeJson(path.join(outputRoot, "run-config.json"), {
   started_at: new Date().toISOString(),
   source: sourceRoot,
@@ -82,6 +110,7 @@ writeJson(path.join(outputRoot, "run-config.json"), {
   embedding_cache_path: embeddingCachePath,
   embedding_batch_size: embeddingBatchSize,
   atlas_log_detail: atlasLogDetail,
+  allow_missing_models: allowMissingModels,
 });
 
 const modelSummaries = [];
@@ -512,6 +541,7 @@ function modelPreflight(model) {
     model_cache_exists: fs.existsSync(modelCachePath),
     tokenizer_json_exists: fs.existsSync(tokenizerPath),
     onnx_model_exists: fs.existsSync(onnxPath),
+    ready: fs.existsSync(modelCachePath) && fs.existsSync(tokenizerPath) && fs.existsSync(onnxPath),
     model_cache_bytes: directorySizeOrNull(modelCachePath),
   };
 }

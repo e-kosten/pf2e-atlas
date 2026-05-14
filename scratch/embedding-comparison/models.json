@@ -46,24 +46,24 @@
   {
     "id": "jina-embeddings-v2-small-en",
     "label": "Jina Embeddings v2 Small EN",
-    "enabled": true,
+    "enabled": false,
     "runtime_model": "jina-embeddings-v2-small-en",
     "model_id": "jinaai/jina-embeddings-v2-small-en",
     "dimensions": 512,
     "document_prefix": "",
     "query_prefix": "",
-    "notes": "Long-context small English candidate."
+    "notes": "Long-context small English candidate. Disabled for current Rust bakeoff: no default onnx/model.onnx is available from the Hugging Face repo."
   },
   {
     "id": "jina-embeddings-v3",
     "label": "Jina Embeddings v3",
-    "enabled": true,
+    "enabled": false,
     "runtime_model": "jina-embeddings-v3",
     "model_id": "jinaai/jina-embeddings-v3",
     "dimensions": 1024,
     "document_prefix": "",
     "query_prefix": "",
-    "notes": "Long-context multitask candidate; may require provider-specific task handling."
+    "notes": "Long-context multitask candidate; may require provider-specific task handling. Disabled for current Rust bakeoff: Transformers.js expects external ONNX data files; current Rust loader only validates onnx/model.onnx layout."
   },
   {
     "id": "gte-modernbert-base",
@@ -79,13 +79,13 @@
   {
     "id": "qwen3-embedding-0.6b",
     "label": "Qwen3 Embedding 0.6B",
-    "enabled": true,
+    "enabled": false,
     "runtime_model": "qwen3-embedding-0.6b",
     "model_id": "Qwen/Qwen3-Embedding-0.6B",
     "dimensions": 1024,
     "document_prefix": "",
     "query_prefix": "",
-    "notes": "Heavier quality-ceiling candidate; likely to expose packaging/runtime cost."
+    "notes": "Heavier quality-ceiling candidate; likely to expose packaging/runtime cost. Disabled for current Rust bakeoff: no default onnx/model.onnx is available from the Hugging Face repo."
   },
   {
     "id": "snowflake-arctic-embed-xs",
@@ -123,24 +123,24 @@
   {
     "id": "embeddinggemma-300m",
     "label": "EmbeddingGemma 300M",
-    "enabled": true,
+    "enabled": false,
     "runtime_model": "embeddinggemma-300m",
     "model_id": "google/embeddinggemma-300m",
     "dimensions": 768,
     "document_prefix": "title: none | text: ",
     "query_prefix": "task: search result | query: ",
-    "notes": "On-device candidate with task prefixes; ONNX/cache availability must be verified."
+    "notes": "On-device candidate with task prefixes; ONNX/cache availability must be verified. Disabled for current Rust bakeoff: model repo is gated/unauthorized without Hugging Face auth."
   },
   {
     "id": "e5-small-v2",
     "label": "E5 Small v2",
-    "enabled": true,
+    "enabled": false,
     "runtime_model": "e5-small-v2",
     "model_id": "intfloat/e5-small-v2",
     "dimensions": 384,
     "document_prefix": "passage: ",
     "query_prefix": "query: ",
-    "notes": "Classic compact retrieval baseline with explicit passage/query prefixes."
+    "notes": "Classic compact retrieval baseline with explicit passage/query prefixes. Disabled for current Rust bakeoff: no default onnx/model.onnx is available from the Hugging Face repo."
   },
   {
     "id": "all-mpnet-base-v2",

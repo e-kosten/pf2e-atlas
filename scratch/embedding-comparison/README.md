@@ -10,10 +10,21 @@ It intentionally keeps deterministic measurement separate from subjective result
 4. Aggregate build/query metrics and scored review output later.
 
 The Rust CLI exposes every candidate in `models.json` through `--embedding-model`. The
-harness keeps running if an individual model fails to load or execute, so an overnight run
-can distinguish ready local model caches from candidates that still need provider/export work.
+harness requires selected models to have local `tokenizer.json` and `onnx/model.onnx`
+assets before it starts the expensive ingest loop. Prepare the selected caches first so
+an overnight run does not spend time on models that cannot load.
 
 ## Run
+
+Prepare model assets:
+
+```bash
+node scratch/embedding-comparison/prepare-models.mjs \
+  --models scratch/embedding-comparison/models.json \
+  --embedding-cache-path .cache/hf-models
+```
+
+Then run the comparison:
 
 ```bash
 node scratch/embedding-comparison/run-comparison.mjs \
@@ -22,6 +33,8 @@ node scratch/embedding-comparison/run-comparison.mjs \
   --queries scratch/embedding-comparison/queries.json \
   --output scratch/embedding-comparison/runs/manual
 ```
+
+Use `--allow-missing-models` only for intentional failure-path smoke tests.
 
 By default the script uses `rust/target/release/atlas`. If the binary is absent, build it first:
 
