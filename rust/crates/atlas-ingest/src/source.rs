@@ -7,11 +7,15 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tracing::info;
 
-use crate::normalize::normalize_record;
+use crate::normalize::{
+    DroppedFoundryInlineMacro, dropped_foundry_inline_macros, normalize_record,
+};
 use crate::{
     IngestDiagnostics, IngestError, LoadedPack, ManifestPack, ParsedManifest, SkippedRecord,
     SourceLoad,
 };
+
+const DROPPED_INLINE_MACRO_EXAMPLE_LIMIT: usize = 5;
 
 #[derive(Debug)]
 struct SourceSignatureRecord {
@@ -50,7 +54,7 @@ pub(crate) fn load_foundry_source_records(
     let mut source_signature_records = Vec::new();
     let mut skipped_records = Vec::new();
     let mut warnings = Vec::new();
-    let diagnostics = IngestDiagnostics::default();
+    let mut diagnostics = IngestDiagnostics::default();
     let manifest_packs = parsed_manifest.manifest.packs;
     let manifest_pack_count = manifest_packs.len();
     let mut timing = SourceLoadTiming::default();
@@ -111,6 +115,7 @@ pub(crate) fn load_foundry_source_records(
                 }
             };
             let normalize_started_at = Instant::now();
+            collect_dropped_inline_macros(&raw_record.value, &mut diagnostics);
             let normalized_record = normalize_record(
                 &manifest_pack,
                 &pack_name,
@@ -205,6 +210,43 @@ pub(crate) fn load_foundry_source_records(
         skipped_records,
         warnings,
     })
+}
+
+fn collect_dropped_inline_macros(raw: &Value, diagnostics: &mut IngestDiagnostics) {
+    match raw {
+        Value::Array(values) => {
+            for value in values {
+                collect_dropped_inline_macros(value, diagnostics);
+            }
+        }
+        Value::Object(values) => {
+            for value in values.values() {
+                collect_dropped_inline_macros(value, diagnostics);
+            }
+        }
+        Value::String(value) => {
+            for dropped in dropped_foundry_inline_macros(value) {
+                record_dropped_inline_macro(dropped, diagnostics);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn record_dropped_inline_macro(
+    dropped: DroppedFoundryInlineMacro,
+    diagnostics: &mut IngestDiagnostics,
+) {
+    let entry = diagnostics
+        .dropped_inline_macros
+        .entry(dropped.name)
+        .or_default();
+    entry.count += 1;
+    if entry.examples.len() < DROPPED_INLINE_MACRO_EXAMPLE_LIMIT
+        && !entry.examples.iter().any(|example| example == &dropped.raw)
+    {
+        entry.examples.push(dropped.raw);
+    }
 }
 
 fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {

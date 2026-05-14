@@ -35,7 +35,7 @@ pub use embeddings::{
     generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
-pub use model::IngestDiagnostics;
+pub use model::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use report::analyze_foundry_source;
 pub use source_model::{BuildArtifactOptions, BuildArtifactReport, SkippedRecord};
 

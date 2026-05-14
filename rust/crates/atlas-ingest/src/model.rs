@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::Deserialize;
 
 pub(crate) const DERIVED_AFFLICTIONS_PACK_NAME: &str = "derived-afflictions";
@@ -17,6 +19,13 @@ pub struct IngestDiagnostics {
     pub generated_affliction_canonical_records: usize,
     pub generated_affliction_instance_records: usize,
     pub generated_affliction_reference_edges: usize,
+    pub dropped_inline_macros: BTreeMap<String, DroppedInlineMacroDiagnostic>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DroppedInlineMacroDiagnostic {
+    pub count: usize,
+    pub examples: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

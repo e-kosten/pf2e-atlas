@@ -196,7 +196,14 @@ pub fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
             "canonical_records": diagnostics.generated_affliction_canonical_records,
             "instance_records": diagnostics.generated_affliction_instance_records,
             "reference_edges": diagnostics.generated_affliction_reference_edges,
-        }
+        },
+        "dropped_inline_macros": diagnostics.dropped_inline_macros.iter().map(|(name, diagnostic)| {
+            json!({
+                "name": name,
+                "count": diagnostic.count,
+                "examples": diagnostic.examples,
+            })
+        }).collect::<Vec<_>>()
     })
 }
 

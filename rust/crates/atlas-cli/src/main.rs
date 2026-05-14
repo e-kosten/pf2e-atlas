@@ -356,6 +356,14 @@ fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
             report.relationships.record_aliases,
             report.relationships.remaster_links
         );
+        println!(
+            "dropped inline macros: {}",
+            report
+                .diagnostics
+                .get("dropped_inline_macros")
+                .and_then(serde_json::Value::as_array)
+                .map_or(0, Vec::len)
+        );
     }
 
     Ok(ExitCode::SUCCESS)
@@ -424,6 +432,16 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
             report.diagnostics.generated_affliction_instance_records,
             report.diagnostics.generated_affliction_reference_edges
         );
+        if !report.diagnostics.dropped_inline_macros.is_empty() {
+            let dropped_inline_macros = report
+                .diagnostics
+                .dropped_inline_macros
+                .iter()
+                .map(|(name, diagnostic)| format!("{name}={}", diagnostic.count))
+                .collect::<Vec<_>>()
+                .join(" ");
+            eprintln!("dropped inline macros: {dropped_inline_macros}");
+        }
         for skipped_record in &report.skipped_records {
             eprintln!(
                 "skipped record: {}: {}",
