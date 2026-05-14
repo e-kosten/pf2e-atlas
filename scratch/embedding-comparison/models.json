@@ -1,0 +1,58 @@
+[
+  {
+    "id": "minilm-rust-default",
+    "label": "MiniLM Rust Default",
+    "enabled": true,
+    "runtime_model": "default",
+    "model_id": "Xenova/all-MiniLM-L12-v2",
+    "dimensions": 384,
+    "document_prefix": "",
+    "query_prefix": "",
+    "notes": "Current Rust Phase 4 baseline."
+  },
+  {
+    "id": "bge-small-en-v1.5",
+    "label": "BGE Small EN v1.5",
+    "enabled": false,
+    "runtime_model": "pending-rust-catalog-support",
+    "model_id": "BAAI/bge-small-en-v1.5",
+    "dimensions": 384,
+    "document_prefix": "",
+    "query_prefix": "Represent this sentence for searching relevant passages: ",
+    "notes": "Enable after atlas-embedding can select this catalog entry."
+  },
+  {
+    "id": "nomic-embed-text-v1.5-768",
+    "label": "Nomic Embed Text v1.5 768d",
+    "enabled": false,
+    "runtime_model": "pending-rust-catalog-support",
+    "model_id": "nomic-ai/nomic-embed-text-v1.5",
+    "dimensions": 768,
+    "document_prefix": "search_document: ",
+    "query_prefix": "search_query: ",
+    "notes": "Long-context candidate; enable after model support and ONNX/tokenizer compatibility are wired."
+  },
+  {
+    "id": "jina-embeddings-v2-small-en",
+    "label": "Jina Embeddings v2 Small EN",
+    "enabled": false,
+    "runtime_model": "pending-rust-catalog-support",
+    "model_id": "jinaai/jina-embeddings-v2-small-en",
+    "dimensions": 512,
+    "document_prefix": "",
+    "query_prefix": "",
+    "notes": "Long-context candidate; enable after model support and ONNX/tokenizer compatibility are wired."
+  },
+  {
+    "id": "gte-modernbert-base",
+    "label": "GTE ModernBERT Base",
+    "enabled": false,
+    "runtime_model": "pending-rust-catalog-support",
+    "model_id": "Alibaba-NLP/gte-modernbert-base",
+    "dimensions": 768,
+    "document_prefix": "",
+    "query_prefix": "",
+    "notes": "Long-context candidate; enable after model support and ONNX/tokenizer compatibility are wired."
+  }
+]
+

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use atlas_domain::PackName;
+use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use serde::Deserialize;
 
 use crate::{
@@ -13,9 +14,16 @@ pub struct BuildArtifactOptions {
     pub source_root: PathBuf,
     pub output_path: PathBuf,
     pub manifest_path: Option<PathBuf>,
+    pub embedding_model: EmbeddingModelId,
     pub embedding_cache_root: Option<PathBuf>,
     pub reuse_embeddings: bool,
     pub embedding_batch_size: usize,
+}
+
+impl BuildArtifactOptions {
+    pub fn default_embedding_model() -> EmbeddingModelId {
+        DEFAULT_EMBEDDING_MODEL
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

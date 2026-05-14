@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use atlas_domain::SearchFilterNode;
+use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_index::{
     ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
     validate_index_report, validate_vector_index_report, write_vector_index_report,
@@ -92,6 +93,8 @@ struct BuildIndexOptions {
     output: PathBuf,
     #[arg(long)]
     manifest: Option<PathBuf>,
+    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
+    embedding_model: EmbeddingModelId,
     #[arg(long)]
     embedding_cache_path: Option<PathBuf>,
     #[arg(long, default_value_t = 32)]
@@ -122,6 +125,8 @@ struct SemanticSearchOptions {
     filter_json: Option<String>,
     #[arg(long, default_value = ".cache/hf-models")]
     embedding_cache_path: PathBuf,
+    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
+    embedding_model: EmbeddingModelId,
     #[arg(long)]
     json: bool,
 }
@@ -374,6 +379,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
         source_root: options.source,
         output_path: options.output,
         manifest_path: options.manifest,
+        embedding_model: options.embedding_model,
         embedding_cache_root: options.embedding_cache_path,
         reuse_embeddings: !options.no_reuse_embeddings,
         embedding_batch_size: options.embedding_batch_size,
@@ -510,7 +516,8 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
         })
         .transpose()?;
 
-    let config = EmbeddingRuntimeConfig::default_model(&options.embedding_cache_path);
+    let config =
+        EmbeddingRuntimeConfig::new(options.embedding_model, &options.embedding_cache_path);
     let mut search =
         SemanticSearchService::open(&options.index, &config).map_err(|error| error.to_string())?;
     let hits = search

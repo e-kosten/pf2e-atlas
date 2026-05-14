@@ -1,0 +1,110 @@
+[
+  {
+    "id": "healing-magic",
+    "query": "healing magic that restores vitality",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results are concrete spells, abilities, or items that directly restore health, vitality, or life. Prefer usable player-facing records over broad glossary or unrelated positive-energy references."
+  },
+  {
+    "id": "poison-consumable-debuffs",
+    "query": "poison consumables that sicken or weaken a target",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "equipment" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "consumable" }
+        }
+      ]
+    },
+    "review_guidance": "Assess whether the results are concrete consumable equipment records whose descriptions indicate poison-like harmful effects, especially conditions, weakening, persistent damage, or other debuffs. Prefer specific usable items over broad rules, traits, glossary pages, or unrelated healing/protection records."
+  },
+  {
+    "id": "primal-healing-spells",
+    "query": "restore vitality with primal healing",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "spell" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traditions", "op": "includes", "value": "primal" }
+        },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "healing" }
+        }
+      ]
+    },
+    "review_guidance": "Assess whether the results are primal healing spells that plausibly restore HP, life, vitality, or otherwise provide restorative magical support."
+  },
+  {
+    "id": "sustained-burst-control-spells",
+    "query": "sustained battlefield area control effect",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "spell" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "boolean", "field": "sustained", "op": "eq", "value": true }
+        },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "enum_string", "field": "area_type", "op": "eq", "value": "burst" }
+        }
+      ]
+    },
+    "review_guidance": "Assess whether the results are sustained burst-area spells that shape or control a battlefield. Prefer effects with ongoing zones, terrain, hazards, debuffs, or tactical denial over unrelated sustained utility."
+  },
+  {
+    "id": "undead-high-ac-guardian",
+    "query": "hard to hit undead guardian",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "creature" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "undead" }
+        },
+        { "kind": "metric", "metric": "ac.value", "op": "gte", "value": 30 }
+      ]
+    },
+    "review_guidance": "Assess whether the results are undead creatures that fit a durable guardian, sentinel, armored, or defensive enemy concept. Prefer records that sound like protectors or hard-to-hit defenders over generic undead."
+  },
+  {
+    "id": "fear-frightened-links",
+    "query": "fear effect that makes a target frightened",
+    "limit": 10,
+    "filter": {
+      "kind": "links_to",
+      "target": "conditionitems:TBSHQspnbcqxsmjL"
+    },
+    "review_guidance": "Assess whether the results are concrete effects, spells, abilities, or items that inflict or meaningfully interact with the frightened condition. Prefer actionable records over generic condition text or broad fear references."
+  },
+  {
+    "id": "moderate-alchemical-consumables",
+    "query": "moderate alchemical consumable item",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "equipment" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "consumable" }
+        },
+        { "kind": "price", "match": { "kind": "between", "min": 1000, "max": 10000 } },
+        { "kind": "not", "child": { "kind": "rarity", "match": { "kind": "eq", "value": "unique" } } }
+      ]
+    },
+    "review_guidance": "Assess whether the results are concrete mid-priced consumable equipment, especially alchemical items or consumables with clear use at the table. Penalize permanent gear, unique story objects, or records that only mention consumables tangentially."
+  }
+]

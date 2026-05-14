@@ -3,7 +3,7 @@ use atlas_artifact::metadata::{
     EXPECTED_CONTENT_HASH_ALGORITHM, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND,
     artifact_metadata_keys,
 };
-use atlas_embedding::default_embedding_model_spec;
+use atlas_embedding::{EmbeddingModelId, embedding_model_spec};
 use rusqlite::Connection;
 
 use crate::IngestError;
@@ -18,8 +18,9 @@ pub(super) fn write_artifact_metadata(
     artifact_record_count: usize,
     generated_record_count: usize,
     source_signature: &str,
+    embedding_model: EmbeddingModelId,
 ) -> Result<(), IngestError> {
-    let embedding_spec = default_embedding_model_spec();
+    let embedding_spec = embedding_model_spec(embedding_model);
     let metadata = [
         (
             artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,

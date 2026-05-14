@@ -1,8 +1,39 @@
+use std::fmt;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmbeddingModelId {
     MiniLmL12V2,
+}
+
+impl EmbeddingModelId {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::MiniLmL12V2 => "minilm-l12-v2",
+        }
+    }
+}
+
+impl fmt::Display for EmbeddingModelId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for EmbeddingModelId {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "default" | "minilm" | "minilm-l12-v2" | "Xenova/all-MiniLM-L12-v2" => {
+                Ok(Self::MiniLmL12V2)
+            }
+            _ => Err(format!(
+                "unsupported embedding model `{value}`; supported values: minilm-l12-v2"
+            )),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

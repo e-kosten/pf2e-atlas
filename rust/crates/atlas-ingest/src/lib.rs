@@ -94,7 +94,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
     let mut reused_document_embedding_count = 0;
     let mut generated_document_embedding_count = 0;
     if let Some(cache_root) = options.embedding_cache_root {
-        let config = EmbeddingRuntimeConfig::default_model(cache_root);
+        let config = EmbeddingRuntimeConfig::new(options.embedding_model, cache_root);
         let reusable_embeddings = if options.reuse_embeddings && options.output_path.exists() {
             match embedding_reuse::load_reusable_document_embeddings(&options.output_path, &config)
             {
@@ -188,7 +188,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         output = %options.output_path.display(),
         "writing artifact"
     );
-    writer::write_artifact(&options.output_path, &source)?;
+    writer::write_artifact(&options.output_path, &source, options.embedding_model)?;
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
     let build_duration_ms = build_started_at.elapsed().as_millis();
