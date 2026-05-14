@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_embedding::{
-    DocumentEmbeddingInputParts, EmbeddingError, EmbeddingInputTokenization, TextEmbedder,
-    TextEmbeddingTokenizer, build_document_embedding_input, hash_document_embedding_input,
+    EmbeddingError, EmbeddingInputTokenization, TextEmbedder, TextEmbeddingTokenizer,
+    hash_document_embedding_input, render_presentation_document_for_embedding,
 };
+use atlas_record::build_record_presentation_document;
 use tracing::info;
 
 use crate::{LoadedRecord, RecordAlias, RemasterLink};
@@ -71,13 +72,8 @@ pub(crate) fn build_pending_document_embeddings(
             continue;
         }
         let aliases = aliases_by_key.get(&record_key).cloned().unwrap_or_default();
-        let input_text = build_document_embedding_input(DocumentEmbeddingInputParts {
-            name: record.name.as_str(),
-            traits: &record.traits,
-            taxonomy_families: &record.taxonomy_families,
-            description_text: record.description_text.as_deref(),
-            aliases: &aliases,
-        });
+        let document = build_record_presentation_document(record);
+        let input_text = document_embedding_input_text(&document, &aliases);
         let input_hash = hash_document_embedding_input(&input_text);
         pending.push(PendingDocumentEmbedding {
             record_key,
@@ -87,6 +83,21 @@ pub(crate) fn build_pending_document_embeddings(
     }
 
     pending
+}
+
+fn document_embedding_input_text(
+    document: &atlas_record::RecordPresentationDocument,
+    aliases: &[String],
+) -> String {
+    let mut input_text = render_presentation_document_for_embedding(document);
+    if !aliases.is_empty() {
+        if !input_text.is_empty() {
+            input_text.push('\n');
+        }
+        input_text.push_str("Aliases: ");
+        input_text.push_str(&aliases.join(", "));
+    }
+    input_text
 }
 
 pub fn analyze_document_embedding_tokenization(
@@ -310,10 +321,20 @@ mod tests {
 
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].record_key, "packs:visible1");
-        assert!(pending[0].input_text.contains("Visible Record"));
-        assert!(pending[0].input_text.contains("healing"));
-        assert!(pending[0].input_text.contains("fixture family"));
-        assert!(pending[0].input_text.contains("Legacy Visible"));
+        assert_eq!(
+            pending[0].input_text,
+            "Name: Visible Record\n\
+Family: Rule\n\
+Type: Action\n\
+Traits: Healing\n\
+Classification: Fixture family\n\
+Description: Fixture description.\n\
+Families: Fixture family\n\
+Publication Family: Unknown\n\
+Pack: packs\n\
+Foundry Document Type: Item\n\
+Aliases: Legacy Visible"
+        );
     }
 
     #[test]

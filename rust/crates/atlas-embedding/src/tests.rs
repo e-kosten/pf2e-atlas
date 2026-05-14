@@ -38,22 +38,12 @@ fn normalizes_queries_like_typescript_provider() {
 }
 
 #[test]
-fn builds_document_embedding_input_from_stable_chunks() {
-    let input = build_document_embedding_input(DocumentEmbeddingInputParts {
-        name: "Heal",
-        traits: &["healing".to_string(), "vitality".to_string()],
-        taxonomy_families: &["spell healing".to_string()],
-        description_text: Some("Restore Hit Points."),
-        aliases: &["Restore".to_string(), "heal".to_string()],
-    });
+fn hashes_document_embedding_input_stably() {
+    let input = "Name: Heal\nTraits: healing, vitality\nDescription: Restore Hit Points.";
 
     assert_eq!(
-        input,
-        "Heal\nhealing\nvitality\nspell healing\nRestore Hit Points.\nRestore"
-    );
-    assert_eq!(
-        hash_document_embedding_input(&input),
-        "b378ff4932396a900910defcba972f84722eebb067c8b518c5619d6132d44c85"
+        hash_document_embedding_input(input),
+        "4782317058a66506f1d72113b3ec9a87167ee2dff98b3ffca3039919d9024fb8"
     );
 }
 
