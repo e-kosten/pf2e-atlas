@@ -102,6 +102,14 @@ impl RemasterLinkSource {
             Self::Migration => "migration",
         }
     }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "remaster_journal" => Some(Self::RemasterJournal),
+            "migration" => Some(Self::Migration),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
