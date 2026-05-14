@@ -249,6 +249,16 @@ fn document_embedding_tokenization_json(
         "max_observed_token_count": telemetry.max_observed_token_count,
         "total_observed_token_count": telemetry.total_observed_token_count,
         "total_tokens_over_limit": telemetry.total_tokens_over_limit,
+        "section_truncations": telemetry.section_truncations
+            .iter()
+            .map(|section| {
+                json!({
+                    "section": section.section,
+                    "document_count": section.document_count,
+                    "dropped_chunk_count": section.dropped_chunk_count,
+                })
+            })
+            .collect::<Vec<_>>(),
         "truncated_examples": telemetry.truncated_examples
             .iter()
             .map(|example| {
@@ -256,6 +266,7 @@ fn document_embedding_tokenization_json(
                     "record_key": example.record_key,
                     "token_count": example.token_count,
                     "max_token_count": example.max_token_count,
+                    "truncated_sections": example.truncated_sections,
                 })
             })
             .collect::<Vec<_>>(),

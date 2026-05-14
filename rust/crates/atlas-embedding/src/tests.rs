@@ -133,6 +133,58 @@ fn minilm_tokenization_reports_catalog_limit_when_model_cache_exists() {
 }
 
 #[test]
+fn minilm_budgeting_drops_lower_priority_sections_when_model_cache_exists() {
+    let Some(config) = model_backed_test_config("minilm section-aware budget") else {
+        return;
+    };
+
+    let tokenizer = TextEmbeddingTokenizer::load(&config)
+        .expect("local MiniLM cache should load from test cache");
+    let chunks = vec![
+        EmbeddingInputChunk::line(EmbeddingInputSection::Identity, "Name: Venom Torrent"),
+        EmbeddingInputChunk::line(EmbeddingInputSection::Traits, "Traits: Poison, Consumable"),
+        EmbeddingInputChunk::truncatable_line(
+            EmbeddingInputSection::Description,
+            format!(
+                "Description: {}",
+                std::iter::repeat_n("poison sickened slowed persistent damage", 180)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
+        ),
+        EmbeddingInputChunk::truncatable_line(
+            EmbeddingInputSection::References,
+            "References: poison, sickened, persistent damage, basic Fortitude save",
+        ),
+    ];
+
+    let budgeted = tokenizer
+        .budget_document_input(&chunks)
+        .expect("budgeting should succeed");
+    let budgeted_tokenization = tokenizer
+        .analyze_document_inputs(&[budgeted.text.as_str()])
+        .expect("budgeted document should tokenize");
+
+    assert!(budgeted.tokenization.truncated);
+    assert_eq!(budgeted.tokenization.max_token_count, Some(512));
+    assert!(budgeted_tokenization[0].token_count <= 512);
+    assert!(budgeted.text.contains("Name: Venom Torrent"));
+    assert!(budgeted.text.contains("Traits: Poison, Consumable"));
+    assert!(
+        budgeted
+            .truncated_sections
+            .iter()
+            .any(|section| section.section == EmbeddingInputSection::Description)
+    );
+    assert!(
+        budgeted
+            .truncated_sections
+            .iter()
+            .any(|section| section.section == EmbeddingInputSection::References)
+    );
+}
+
+#[test]
 fn minilm_query_vectors_match_typescript_fixture_when_model_cache_exists() {
     let Some(config) = model_backed_test_config("minilm query vector parity") else {
         return;

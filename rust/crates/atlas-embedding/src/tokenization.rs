@@ -4,6 +4,9 @@ use tokenizers::{EncodeInput, Tokenizer, TruncationParams};
 use tracing::info;
 
 use crate::catalog::{EmbeddingModelSpec, EmbeddingRuntimeConfig};
+use crate::document_renderer::{
+    EmbeddingInputChunk, EmbeddingInputSection, render_embedding_chunks_for_embedding,
+};
 use crate::error::EmbeddingError;
 use crate::text::{normalize_embedding_text, prefixed_text};
 
@@ -12,6 +15,19 @@ pub struct EmbeddingInputTokenization {
     pub token_count: usize,
     pub max_token_count: Option<usize>,
     pub truncated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BudgetedEmbeddingInput {
+    pub text: String,
+    pub tokenization: EmbeddingInputTokenization,
+    pub truncated_sections: Vec<EmbeddingSectionTruncation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddingSectionTruncation {
+    pub section: EmbeddingInputSection,
+    pub dropped_chunk_count: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +55,62 @@ impl TextEmbeddingTokenizer {
         texts: &[&str],
     ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
         self.analyze_texts(texts, self.spec.document_prefix)
+    }
+
+    pub fn budget_document_input(
+        &self,
+        chunks: &[EmbeddingInputChunk],
+    ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
+        let max_token_count = self.spec.max_input_tokens;
+        let full_text = render_embedding_chunks_for_embedding(chunks);
+        let full_tokenization = self
+            .analyze_texts(&[full_text.as_str()], self.spec.document_prefix)?
+            .pop()
+            .expect("single text returns one tokenization");
+        let Some(max_token_count) = max_token_count else {
+            return Ok(BudgetedEmbeddingInput {
+                text: full_text,
+                tokenization: full_tokenization,
+                truncated_sections: Vec::new(),
+            });
+        };
+        if full_tokenization.token_count <= max_token_count {
+            return Ok(BudgetedEmbeddingInput {
+                text: full_text,
+                tokenization: full_tokenization,
+                truncated_sections: Vec::new(),
+            });
+        }
+
+        let mut accepted = Vec::new();
+        let mut truncated_sections = Vec::<EmbeddingSectionTruncation>::new();
+        for chunk in chunks {
+            let candidate = candidate_text(&accepted, chunk);
+            if self.document_token_count(&candidate)? <= max_token_count {
+                accepted.push(chunk.clone());
+                continue;
+            }
+            if chunk.truncatable
+                && let Some(trimmed_chunk) =
+                    self.trim_chunk_to_fit(&accepted, chunk, max_token_count)?
+            {
+                accepted.push(trimmed_chunk);
+            }
+            increment_section_truncation(&mut truncated_sections, chunk.section);
+        }
+
+        let text = render_embedding_chunks_for_embedding(&accepted);
+        let token_count = self.document_token_count(&text)?;
+        debug_assert!(token_count <= max_token_count);
+        Ok(BudgetedEmbeddingInput {
+            text,
+            tokenization: EmbeddingInputTokenization {
+                token_count: full_tokenization.token_count,
+                max_token_count: Some(max_token_count),
+                truncated: true,
+            },
+            truncated_sections,
+        })
     }
 
     fn analyze_texts(
@@ -75,6 +147,79 @@ impl TextEmbeddingTokenizer {
                 })
             })
             .collect()
+    }
+
+    fn document_token_count(&self, text: &str) -> Result<usize, EmbeddingError> {
+        Ok(self
+            .analyze_texts(&[text], self.spec.document_prefix)?
+            .pop()
+            .expect("single text returns one tokenization")
+            .token_count)
+    }
+
+    fn trim_chunk_to_fit(
+        &self,
+        accepted: &[EmbeddingInputChunk],
+        chunk: &EmbeddingInputChunk,
+        max_token_count: usize,
+    ) -> Result<Option<EmbeddingInputChunk>, EmbeddingError> {
+        let Some((prefix, body)) = chunk.text.split_once(": ") else {
+            return Ok(None);
+        };
+        let words = body.split_whitespace().collect::<Vec<_>>();
+        if words.is_empty() {
+            return Ok(None);
+        }
+        let mut low = 0;
+        let mut high = words.len();
+        while low < high {
+            let mid = (low + high).div_ceil(2);
+            let candidate_chunk = EmbeddingInputChunk {
+                section: chunk.section,
+                text: format!("{prefix}: {}", words[..mid].join(" ")),
+                truncatable: chunk.truncatable,
+            };
+            let candidate = candidate_text(accepted, &candidate_chunk);
+            if self.document_token_count(&candidate)? <= max_token_count {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
+        }
+        if low == 0 {
+            return Ok(None);
+        }
+        Ok(Some(EmbeddingInputChunk {
+            section: chunk.section,
+            text: format!("{prefix}: {}", words[..low].join(" ")),
+            truncatable: chunk.truncatable,
+        }))
+    }
+}
+
+fn candidate_text(accepted: &[EmbeddingInputChunk], chunk: &EmbeddingInputChunk) -> String {
+    let mut candidate = render_embedding_chunks_for_embedding(accepted);
+    if !candidate.is_empty() {
+        candidate.push('\n');
+    }
+    candidate.push_str(&chunk.text);
+    candidate
+}
+
+fn increment_section_truncation(
+    truncated_sections: &mut Vec<EmbeddingSectionTruncation>,
+    section: EmbeddingInputSection,
+) {
+    if let Some(existing) = truncated_sections
+        .iter_mut()
+        .find(|existing| existing.section == section)
+    {
+        existing.dropped_chunk_count += 1;
+    } else {
+        truncated_sections.push(EmbeddingSectionTruncation {
+            section,
+            dropped_chunk_count: 1,
+        });
     }
 }
 
