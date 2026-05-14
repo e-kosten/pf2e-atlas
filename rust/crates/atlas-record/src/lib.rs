@@ -6,12 +6,17 @@ use atlas_domain::{
 };
 
 pub mod presentation;
+mod presentation_format;
+mod presentation_recipe;
+#[cfg(test)]
+mod presentation_recipe_tests;
 
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
     PresentationSectionKind, PresentationText, RecordPresentationDocument,
 };
+pub use presentation_recipe::build_record_presentation_document;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NormalizedRecord {
