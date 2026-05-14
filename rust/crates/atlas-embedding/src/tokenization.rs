@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use tokenizers::{EncodeInput, Tokenizer};
+use tokenizers::{EncodeInput, Tokenizer, TruncationParams};
 use tracing::info;
 
 use crate::catalog::{EmbeddingModelSpec, EmbeddingRuntimeConfig};
@@ -46,10 +46,7 @@ impl TextEmbeddingTokenizer {
         texts: &[&str],
         prefix: &str,
     ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
-        let max_token_count = self
-            .tokenizer
-            .get_truncation()
-            .map(|truncation| truncation.max_length);
+        let max_token_count = self.spec.max_input_tokens;
         let mut tokenizer = self.tokenizer.clone();
         tokenizer
             .with_truncation(None)
@@ -91,4 +88,19 @@ pub(crate) fn load_tokenizer(tokenizer_path: &Path) -> Result<Tokenizer, Embeddi
     })?;
     info!(path = %tokenizer_path.display(), "loaded embedding tokenizer");
     Ok(tokenizer)
+}
+
+pub(crate) fn apply_model_truncation(
+    tokenizer: &mut Tokenizer,
+    spec: EmbeddingModelSpec,
+) -> Result<(), EmbeddingError> {
+    if let Some(max_length) = spec.max_input_tokens {
+        tokenizer
+            .with_truncation(Some(TruncationParams {
+                max_length,
+                ..Default::default()
+            }))
+            .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
+    }
+    Ok(())
 }

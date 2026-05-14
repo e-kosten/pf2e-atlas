@@ -79,6 +79,8 @@ const modelScores = [...scoresByModel.entries()]
       build_duration_ms: deterministic.build_duration_ms ?? null,
       artifact_bytes: deterministic.artifact_bytes ?? null,
       truncated_document_count: deterministic.truncated_document_count ?? null,
+      total_tokens_over_limit: deterministic.total_tokens_over_limit ?? null,
+      tokens_over_limit_rate: deterministic.tokens_over_limit_rate ?? null,
       vector_build_status: deterministic.vector_build_status ?? null,
     };
   })

@@ -247,6 +247,8 @@ fn document_embedding_tokenization_json(
         "truncated_document_count": telemetry.truncated_document_count,
         "max_token_count": telemetry.max_token_count,
         "max_observed_token_count": telemetry.max_observed_token_count,
+        "total_observed_token_count": telemetry.total_observed_token_count,
+        "total_tokens_over_limit": telemetry.total_tokens_over_limit,
         "truncated_examples": telemetry.truncated_examples
             .iter()
             .map(|example| {

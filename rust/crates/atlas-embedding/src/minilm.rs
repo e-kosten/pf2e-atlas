@@ -7,7 +7,7 @@ use tracing::info;
 use crate::catalog::{EmbeddingModelSpec, EmbeddingRuntimeConfig};
 use crate::error::EmbeddingError;
 use crate::text::{normalize_embedding_text, prefixed_text};
-use crate::tokenization::load_tokenizer;
+use crate::tokenization::{apply_model_truncation, load_tokenizer};
 use crate::vector_math::mean_pool_normalized;
 
 pub struct TextEmbedder {
@@ -30,6 +30,7 @@ impl TextEmbedder {
         let onnx_path = model_dir.join("onnx").join("model.onnx");
 
         let mut tokenizer = load_tokenizer(&tokenizer_path)?;
+        apply_model_truncation(&mut tokenizer, spec)?;
         tokenizer.with_padding(Some(PaddingParams {
             strategy: PaddingStrategy::BatchLongest,
             direction: PaddingDirection::Right,

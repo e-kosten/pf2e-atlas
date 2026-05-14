@@ -238,6 +238,8 @@ for (const [modelIndex, model] of models.entries()) {
     reused_document_embedding_count: buildReport.reused_document_embedding_count,
     vector_build_status: buildVectorsReport.status,
     truncated_document_count: buildReport.document_embedding_tokenization?.truncated_document_count ?? null,
+    total_tokens_over_limit: buildReport.document_embedding_tokenization?.total_tokens_over_limit ?? null,
+    tokens_over_limit_rate: embeddingMetrics.tokenization.tokens_over_limit_rate,
     query_count: modelQuerySummaries.length,
   });
   logModelStep(modelIndex, models.length, model.id, "model complete");
@@ -516,8 +518,14 @@ function embeddingMetricsFor({
       document_count: documentCount,
       max_token_count: tokenization.max_token_count ?? null,
       max_observed_token_count: tokenization.max_observed_token_count ?? null,
+      total_observed_token_count: tokenization.total_observed_token_count ?? null,
+      total_tokens_over_limit: tokenization.total_tokens_over_limit ?? null,
       truncated_document_count: truncatedDocumentCount,
       truncation_rate: documentCount > 0 ? truncatedDocumentCount / documentCount : null,
+      tokens_over_limit_rate:
+        (tokenization.total_observed_token_count ?? 0) > 0
+          ? (tokenization.total_tokens_over_limit ?? 0) / tokenization.total_observed_token_count
+          : null,
       truncated_examples: tokenization.truncated_examples ?? [],
     },
     unavailable_metrics: [
@@ -821,11 +829,11 @@ function timestampRunId() {
 function summaryMarkdown(summary) {
   const lines = ["# Embedding Comparison Summary", ""];
   lines.push(`Output: ${summary.output}`, "");
-  lines.push("| Model | Status | Build ms | Artifact bytes | Truncated docs | Queries |");
-  lines.push("| --- | --- | ---: | ---: | ---: | ---: |");
+  lines.push("| Model | Status | Build ms | Artifact bytes | Truncated docs | Tokens over limit | Queries |");
+  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: |");
   for (const model of summary.models) {
     lines.push(
-      `| ${model.model_id} | ${model.status} | ${model.build_duration_ms ?? ""} | ${model.artifact_bytes ?? ""} | ${model.truncated_document_count ?? ""} | ${model.query_count ?? ""} |`,
+      `| ${model.model_id} | ${model.status} | ${model.build_duration_ms ?? ""} | ${model.artifact_bytes ?? ""} | ${model.truncated_document_count ?? ""} | ${model.total_tokens_over_limit ?? ""} | ${model.query_count ?? ""} |`,
     );
   }
   lines.push("");
