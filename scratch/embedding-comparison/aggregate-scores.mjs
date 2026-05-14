@@ -16,7 +16,9 @@ const summary = readJson(path.join(runRoot, "summary.json"));
 const scoreDir = path.join(runRoot, "review-scores");
 const packetsDir = path.join(runRoot, "review-packets");
 const scoresByModel = new Map();
+const scoresByModelCategory = new Map();
 const queryScores = [];
+const queryById = new Map((summary.queries ?? []).map((query) => [query.query_id, query]));
 
 for (const fileName of fs.readdirSync(scoreDir).filter((file) => file.endsWith(".json")).sort()) {
   const scoreFile = path.join(scoreDir, fileName);
@@ -39,6 +41,7 @@ for (const fileName of fs.readdirSync(scoreDir).filter((file) => file.endsWith("
       number(score.relationship_noise_count);
     const entry = {
       query_id: review.query_id,
+      query_category: queryById.get(review.query_id)?.query_category ?? "uncategorized",
       candidate_set: score.candidate_set,
       model_id: modelId,
       quality,
@@ -49,6 +52,11 @@ for (const fileName of fs.readdirSync(scoreDir).filter((file) => file.endsWith("
       scoresByModel.set(modelId, []);
     }
     scoresByModel.get(modelId).push(entry);
+    const categoryKey = `${modelId}\u0000${entry.query_category}`;
+    if (!scoresByModelCategory.has(categoryKey)) {
+      scoresByModelCategory.set(categoryKey, []);
+    }
+    scoresByModelCategory.get(categoryKey).push(entry);
   }
 }
 
@@ -81,6 +89,7 @@ const aggregate = {
   run: runRoot,
   scored_query_count: new Set(queryScores.map((score) => score.query_id)).size,
   model_scores: modelScores,
+  category_scores: categoryScores(scoresByModelCategory),
   query_scores: queryScores,
 };
 
@@ -99,8 +108,43 @@ function scoreSummaryMarkdown(aggregate) {
     );
   }
   lines.push("");
+  lines.push("## Category Scores");
+  lines.push("");
+  lines.push("| Model | Category | Avg quality | Queries | Irrelevant | Overbroad | Relationship noise |");
+  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: |");
+  for (const score of aggregate.category_scores) {
+    lines.push(
+      `| ${score.model_id} | ${score.query_category} | ${format(score.average_quality)} | ${score.scored_query_count} | ${score.total_irrelevant_count} | ${score.total_overbroad_count} | ${score.total_relationship_noise_count} |`,
+    );
+  }
+  lines.push("");
   lines.push("Quality formula: top_1 + top_3 + top_10 - irrelevant - overbroad - relationship_noise.");
   return `${lines.join("\n")}\n`;
+}
+
+function categoryScores(scoresByModelCategory) {
+  return [...scoresByModelCategory.entries()]
+    .map(([key, scores]) => {
+      const [modelId, queryCategory] = key.split("\u0000");
+      const totalQuality = sum(scores.map((score) => score.quality));
+      return {
+        model_id: modelId,
+        query_category: queryCategory,
+        scored_query_count: scores.length,
+        total_quality: totalQuality,
+        average_quality: scores.length > 0 ? totalQuality / scores.length : null,
+        total_irrelevant_count: sum(scores.map((score) => score.irrelevant_count)),
+        total_overbroad_count: sum(scores.map((score) => score.overbroad_count)),
+        total_relationship_noise_count: sum(scores.map((score) => score.relationship_noise_count)),
+      };
+    })
+    .sort((left, right) => {
+      const model = left.model_id.localeCompare(right.model_id);
+      if (model !== 0) {
+        return model;
+      }
+      return left.query_category.localeCompare(right.query_category);
+    });
 }
 
 function parseArgs(args) {

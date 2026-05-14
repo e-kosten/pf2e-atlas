@@ -365,5 +365,101 @@
     "limit": 10,
     "filter": null,
     "review_guidance": "Assess whether the results support a ranged precision martial build. Useful records may be feats, class features, archetype options, actions, weapons, or abilities tied to archery, sniping, ambushes, precision damage, or exploiting vulnerable targets."
+  },
+  {
+    "id": "exact-title-treat-wounds",
+    "category": "exact-title",
+    "query": "Treat Wounds",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the named record at or near rank 1, but remember exact lookup should own this workflow in product use. Penalize if the title match is absent or buried under semantically adjacent records."
+  },
+  {
+    "id": "exact-title-reactive-strike",
+    "category": "exact-title",
+    "query": "Reactive Strike",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the named record at or near rank 1, including renamed/remastered action handling where appropriate. Penalize if the title match is absent or buried."
+  },
+  {
+    "id": "exact-title-grab",
+    "category": "exact-title",
+    "query": "Grab",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the core Grab rule or bestiary ability glossary record at or near rank 1. Penalize if generic grabbing references outrank the title match."
+  },
+  {
+    "id": "exact-title-frightened",
+    "category": "exact-title",
+    "query": "Frightened",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Frightened condition record at or near rank 1. Penalize if fear effects or records that merely inflict frightened obscure the condition itself."
+  },
+  {
+    "id": "exact-title-sickened",
+    "category": "exact-title",
+    "query": "Sickened",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Sickened condition record at or near rank 1. Penalize if afflictions or poisons that inflict sickened obscure the condition itself."
+  },
+  {
+    "id": "exact-title-heal",
+    "category": "exact-title",
+    "query": "Heal",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Heal spell at or near rank 1. Penalize if general healing records outrank the exact spell title."
+  },
+  {
+    "id": "exact-title-fireball",
+    "category": "exact-title",
+    "query": "Fireball",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Fireball spell at or near rank 1. Penalize if unrelated fire spells or items outrank the exact spell title."
+  },
+  {
+    "id": "exact-title-antidote",
+    "category": "exact-title",
+    "query": "Antidote",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Antidote item family or concrete Antidote records at or near rank 1. Penalize if poison rules or unrelated remedies obscure the title match."
+  },
+  {
+    "id": "exact-title-dagger-venom",
+    "category": "exact-title",
+    "query": "Dagger Venom",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return Dagger Venom at or near rank 1. Penalize if generic poison items or dagger equipment outrank the exact item title."
+  },
+  {
+    "id": "exact-title-bag-of-holding",
+    "category": "exact-title",
+    "query": "Bag of Holding",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return Bag of Holding or its current PF2E naming equivalent at or near rank 1. Penalize if generic containers or extradimensional storage mentions outrank it."
+  },
+  {
+    "id": "exact-title-long-jump",
+    "category": "exact-title",
+    "query": "Long Jump",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Long Jump action/rule at or near rank 1. Penalize if generic movement or athletics records obscure the title match."
+  },
+  {
+    "id": "exact-title-dispel-magic",
+    "category": "exact-title",
+    "query": "Dispel Magic",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "This is an exact-title fallback test. Reward result sets that return the Dispel Magic spell at or near rank 1. Penalize if generic counteract or magic-removal records outrank the exact title."
   }
 ]
