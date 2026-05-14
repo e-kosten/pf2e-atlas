@@ -113,6 +113,7 @@ for (const [modelIndex, model] of models.entries()) {
   logModelStep(modelIndex, models.length, model.id, `building index with ${runtimeModel}`);
   const build = await runCommand(atlasPath, buildArgs, repoRoot, {
     logPrefix: `[atlas ${model.id} build]`,
+    repaintProgress: true,
   });
   fs.writeFileSync(path.join(modelDir, "build.stdout.json"), build.stdout);
   fs.writeFileSync(path.join(modelDir, "build.stderr.log"), build.stderr);
@@ -252,6 +253,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
 
   const output = await runCommand(atlasPath, args, repoRoot, {
     logPrefix: `[atlas ${model.id} query ${query.id}]`,
+    streamStderr: atlasLogDetail === "full",
   });
   fs.writeFileSync(path.join(queryDir, `${query.id}.stdout.json`), output.stdout);
   fs.writeFileSync(path.join(queryDir, `${query.id}.stderr.log`), output.stderr);
@@ -525,20 +527,27 @@ function runCommand(command, args, cwd, options = {}) {
   });
   const stdoutChunks = [];
   const stderrChunks = [];
-  const stderrStreamer = createLineStreamer(options.logPrefix);
+  const streamStderr = options.streamStderr !== false;
+  const stderrStreamer = createLineStreamer(options.logPrefix, {
+    repaintProgress: Boolean(options.repaintProgress),
+  });
 
   child.stdout.on("data", (chunk) => {
     stdoutChunks.push(chunk);
   });
   child.stderr.on("data", (chunk) => {
     stderrChunks.push(chunk);
-    stderrStreamer.write(chunk);
+    if (streamStderr) {
+      stderrStreamer.write(chunk);
+    }
   });
 
   return new Promise((resolve, reject) => {
     child.on("error", reject);
     child.on("close", (status, signal) => {
-      stderrStreamer.flush();
+      if (streamStderr) {
+        stderrStreamer.flush();
+      }
       resolve({
         status,
         signal,
@@ -600,25 +609,44 @@ function runCommandSync(command, args, cwd) {
   };
 }
 
-function createLineStreamer(prefix = "[atlas]") {
+function createLineStreamer(prefix = "[atlas]", options = {}) {
   let buffered = "";
-  let pendingCollapsedLine = null;
-  const flushCollapsedLine = () => {
-    if (!pendingCollapsedLine) {
+  let pendingCapturedProgressLine = null;
+  let hasRepaintedLine = false;
+  const repaintProgress = options.repaintProgress && atlasLogDetail !== "full" && process.stderr.isTTY;
+  const collapseCapturedProgress = options.repaintProgress && atlasLogDetail !== "full" && !process.stderr.isTTY;
+  const flushRepaintedLine = () => {
+    if (!hasRepaintedLine) {
       return;
     }
-    console.error(`${prefix} ${pendingCollapsedLine}`);
-    pendingCollapsedLine = null;
+    process.stderr.write("\n");
+    hasRepaintedLine = false;
+  };
+  const flushCapturedProgressLine = () => {
+    if (!pendingCapturedProgressLine) {
+      return;
+    }
+    console.error(`${prefix} ${pendingCapturedProgressLine}`);
+    pendingCapturedProgressLine = null;
   };
   const streamLine = (line) => {
+    if (repaintProgress) {
+      if (!shouldStreamAtlasLine(line, { repaintProgress })) {
+        return;
+      }
+      process.stderr.write(`\r\x1b[2K${prefix} ${line}`);
+      hasRepaintedLine = true;
+      return;
+    }
+    if (collapseCapturedProgress && shouldCollapseCapturedProgressLine(line)) {
+      pendingCapturedProgressLine = line;
+      return;
+    }
     if (!shouldStreamAtlasLine(line)) {
       return;
     }
-    if (shouldCollapseAtlasLine(line)) {
-      pendingCollapsedLine = line;
-      return;
-    }
-    flushCollapsedLine();
+    flushRepaintedLine();
+    flushCapturedProgressLine();
     console.error(`${prefix} ${line}`);
   };
   return {
@@ -636,17 +664,21 @@ function createLineStreamer(prefix = "[atlas]") {
     flush() {
       if (!quiet) {
         streamLine(buffered);
-        flushCollapsedLine();
+        flushRepaintedLine();
+        flushCapturedProgressLine();
       }
       buffered = "";
     },
   };
 }
 
-function shouldStreamAtlasLine(line) {
+function shouldStreamAtlasLine(line, options = {}) {
   const trimmed = line.trim();
   if (trimmed.length === 0) {
     return false;
+  }
+  if (options.collapseCapturedProgress || options.repaintProgress) {
+    return true;
   }
   if (atlasLogDetail === "full") {
     return true;
@@ -654,10 +686,7 @@ function shouldStreamAtlasLine(line) {
   return !/\b(?:Scanning|Loading|Finished) source pack:/.test(trimmed);
 }
 
-function shouldCollapseAtlasLine(line) {
-  if (atlasLogDetail === "full") {
-    return false;
-  }
+function shouldCollapseCapturedProgressLine(line) {
   return line.includes("Prepared document embedding batch through:");
 }
 
