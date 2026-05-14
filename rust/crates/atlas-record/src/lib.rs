@@ -5,6 +5,14 @@ use atlas_domain::{
     RemasterLinkSource, TextStatus, TimeKind, TimeUnit,
 };
 
+pub mod presentation;
+
+pub use presentation::{
+    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
+    PresentationRelationship, PresentationRelationshipKind, PresentationSection,
+    PresentationSectionKind, PresentationText, RecordPresentationDocument,
+};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NormalizedRecord {
     pub key: RecordKey,
