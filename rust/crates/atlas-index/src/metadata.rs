@@ -5,7 +5,9 @@ use atlas_artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_CONTENT_HASH_ALGORITHM,
     EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
-use atlas_embedding::default_embedding_model_spec;
+use atlas_embedding::{
+    embedding_model_for_model_id, embedding_model_spec, supported_embedding_model_ids,
+};
 use rusqlite::Connection;
 
 use crate::{
@@ -170,7 +172,28 @@ pub(crate) fn validate_metadata_values(
         &mut diagnostics,
     );
     require_source_signature(metadata, &mut diagnostics);
-    let embedding_spec = default_embedding_model_spec();
+    let Some(embedding_model) = metadata
+        .get(artifact_metadata_keys::EMBEDDING_MODEL_ID)
+        .and_then(|model_id| embedding_model_for_model_id(model_id))
+    else {
+        let actual = metadata
+            .get(artifact_metadata_keys::EMBEDDING_MODEL_ID)
+            .cloned()
+            .unwrap_or_default();
+        diagnostics.push(ArtifactValidationDiagnostic {
+            code: ValidationCode::EmbeddingMismatch,
+            family: ArtifactContractFamily::Embedding,
+            message: format!(
+                "metadata key `{}` has an unsupported value",
+                artifact_metadata_keys::EMBEDDING_MODEL_ID
+            ),
+            key: Some(artifact_metadata_keys::EMBEDDING_MODEL_ID.to_string()),
+            expected: Some(supported_embedding_model_ids().join(", ")),
+            actual: Some(actual),
+        });
+        return diagnostics;
+    };
+    let embedding_spec = embedding_model_spec(embedding_model);
     let embedding_dimensions = embedding_spec.dimensions_string();
     require_value(
         metadata,

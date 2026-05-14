@@ -87,10 +87,24 @@ for (const model of models) {
   }
 
   const buildReport = parseJsonOutput(build.stdout, `build output for ${model.id}`);
+  const buildVectors = runCommand(
+    atlasPath,
+    ["index", "build-vectors", "--index", artifactPath, "--json"],
+    repoRoot,
+  );
+  fs.writeFileSync(path.join(modelDir, "build-vectors.stdout.json"), buildVectors.stdout);
+  fs.writeFileSync(path.join(modelDir, "build-vectors.stderr.log"), buildVectors.stderr);
+  const buildVectorsReport = buildVectors.stdout.trim()
+    ? parseJsonOutput(buildVectors.stdout, `build-vectors output for ${model.id}`)
+    : { status: "error", stderr: buildVectors.stderr };
+  writeJson(path.join(modelDir, "build-vectors-report.json"), buildVectorsReport);
+
   const embeddingMetrics = embeddingMetricsFor({
     model,
     build,
     buildReport,
+    buildVectors,
+    buildVectorsReport,
     artifactPath,
     embeddingCachePath,
   });
@@ -126,6 +140,7 @@ for (const model of models) {
     artifact_bytes: embeddingMetrics.artifact_bytes,
     generated_document_embedding_count: buildReport.generated_document_embedding_count,
     reused_document_embedding_count: buildReport.reused_document_embedding_count,
+    vector_build_status: buildVectorsReport.status,
     truncated_document_count: buildReport.document_embedding_tokenization?.truncated_document_count ?? null,
     query_count: modelQuerySummaries.length,
   });
@@ -318,7 +333,15 @@ function writeReviewPacket(root, query, entries) {
   fs.writeFileSync(path.join(root, "review-packets", `${query.id}.md`), `${lines.join("\n")}\n`);
 }
 
-function embeddingMetricsFor({ model, build, buildReport, artifactPath, embeddingCachePath }) {
+function embeddingMetricsFor({
+  model,
+  build,
+  buildReport,
+  buildVectors,
+  buildVectorsReport,
+  artifactPath,
+  embeddingCachePath,
+}) {
   const tokenization = buildReport.document_embedding_tokenization ?? {};
   const documentCount = tokenization.document_count ?? 0;
   const truncatedDocumentCount = tokenization.truncated_document_count ?? 0;
@@ -336,6 +359,11 @@ function embeddingMetricsFor({ model, build, buildReport, artifactPath, embeddin
     generated_docs_per_second_coarse: durationSeconds > 0 ? generated / durationSeconds : null,
     artifact_bytes: fileSizeOrNull(artifactPath),
     model_cache_bytes: directorySizeOrNull(path.join(embeddingCachePath, model.model_id ?? "")),
+    vector_index: {
+      status: buildVectorsReport.status ?? null,
+      code: buildVectorsReport.code ?? null,
+      duration_ms: buildVectors.duration_ms,
+    },
     tokenization: {
       document_count: documentCount,
       max_token_count: tokenization.max_token_count ?? null,
@@ -464,4 +492,3 @@ function summaryMarkdown(summary) {
   lines.push("Review packets are under `review-packets/`. Put subjective scoring JSON under `review-scores/` before the final decision pass.");
   return `${lines.join("\n")}\n`;
 }
-
