@@ -54,14 +54,18 @@ fn validate_document_embedding_cache(
         connection,
         "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
     )?;
-    if cache_rows != default_visible_records {
+    let parent_units = count_sql(
+        connection,
+        "SELECT COUNT(*) FROM document_embedding_cache WHERE unit_kind = 'parent'",
+    )?;
+    if parent_units != default_visible_records {
         diagnostics.push(contract_diagnostic(
             ArtifactContractFamily::Embedding,
-            "document embedding cache row count must match default-visible record count"
+            "document embedding cache parent unit count must match default-visible record count"
                 .to_string(),
             Some("document_embedding_cache:default_visible_count".to_string()),
             Some(default_visible_records.to_string()),
-            Some(cache_rows.to_string()),
+            Some(parent_units.to_string()),
         ));
     }
 
@@ -119,19 +123,26 @@ fn validate_document_embedding_cache(
              FROM (
                SELECT record_key FROM records WHERE is_default_visible = 1
                EXCEPT
-               SELECT record_key FROM document_embedding_cache
+               SELECT record_key FROM document_embedding_cache WHERE unit_kind = 'parent'
              )",
-            "every default-visible record has a document embedding",
+            "every default-visible record has a parent document embedding",
         ),
         (
             "document_embedding_cache:stale_rows",
             "SELECT COUNT(*)
              FROM (
-               SELECT record_key FROM document_embedding_cache
+               SELECT record_key FROM document_embedding_cache WHERE unit_kind = 'parent'
                EXCEPT
                SELECT record_key FROM records WHERE is_default_visible = 1
              )",
-            "every document embedding row belongs to a default-visible record",
+            "every parent document embedding row belongs to a default-visible record",
+        ),
+        (
+            "document_embedding_cache:invalid_unit_kind",
+            "SELECT COUNT(*)
+             FROM document_embedding_cache
+             WHERE unit_kind NOT IN ('parent', 'heading_section', 'titled_option', 'activation_block')",
+            "every document embedding row has a known unit kind",
         ),
     ] {
         let invalid = count_sql(connection, sql)?;

@@ -244,8 +244,12 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
     create_contract_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob)
-         VALUES ('actions:testAction1', 'fixture-hash', 384, zeroblob(1536))",
+        "INSERT INTO document_embedding_cache (
+           embedding_unit_key, record_key, unit_kind, label, ordinal,
+           semantic_input_hash, dimensions, vector_blob
+         )
+         VALUES ('actions:testAction1#parent', 'actions:testAction1', 'parent', NULL, 0,
+           'fixture-hash', 384, zeroblob(1536))",
         [],
     )?;
     drop(connection);
@@ -353,11 +357,16 @@ fn insert_document_embedding_cache_rows(
 ) -> Result<(), Box<dyn std::error::Error>> {
     for index in 1..=3 {
         let record_key = format!("actions:testAction{index}");
+        let embedding_unit_key = format!("{record_key}#parent");
         let semantic_input_hash = format!("fixture-hash-{index}");
         connection.execute(
-            "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob)
-             VALUES (?1, ?2, ?3, zeroblob(?4))",
+            "INSERT INTO document_embedding_cache (
+               embedding_unit_key, record_key, unit_kind, label, ordinal,
+               semantic_input_hash, dimensions, vector_blob
+             )
+             VALUES (?1, ?2, 'parent', NULL, 0, ?3, ?4, zeroblob(?5))",
             rusqlite::params![
+                embedding_unit_key,
                 record_key,
                 semantic_input_hash,
                 dimensions as i64,
@@ -599,7 +608,7 @@ fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::
         compiled.parameters[2],
         rusqlite::types::Value::Blob(vec![0, 0, 128, 62, 0, 0, 0, 63, 0, 0, 64, 63])
     );
-    assert_eq!(compiled.parameters[3], rusqlite::types::Value::Integer(12));
+    assert_eq!(compiled.parameters[3], rusqlite::types::Value::Integer(240));
     Ok(())
 }
 

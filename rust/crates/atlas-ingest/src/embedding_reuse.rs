@@ -16,35 +16,36 @@ pub(crate) fn load_reusable_document_embeddings(
     validate_embedding_identity(&connection, config.model_spec())?;
     let mut select = connection
         .prepare(
-            "SELECT record_key, semantic_input_hash, dimensions, vector_blob
+            "SELECT embedding_unit_key, semantic_input_hash, dimensions, vector_blob
              FROM document_embedding_cache",
         )
         .map_err(|error| error.to_string())?;
     let rows = select
         .query_map([], |row| {
-            let record_key: String = row.get(0)?;
+            let embedding_unit_key: String = row.get(0)?;
             let input_hash: String = row.get(1)?;
             let dimensions: i64 = row.get(2)?;
             let vector_blob: Vec<u8> = row.get(3)?;
-            Ok((record_key, input_hash, dimensions, vector_blob))
+            Ok((embedding_unit_key, input_hash, dimensions, vector_blob))
         })
         .map_err(|error| error.to_string())?;
 
     let expected_dimensions = config.model_spec().dimensions;
     let mut reusable = BTreeMap::new();
     for row in rows {
-        let (record_key, input_hash, dimensions, vector_blob) =
+        let (embedding_unit_key, input_hash, dimensions, vector_blob) =
             row.map_err(|error| error.to_string())?;
-        let dimensions = usize::try_from(dimensions)
-            .map_err(|_| format!("cached embedding `{record_key}` has invalid dimensions"))?;
+        let dimensions = usize::try_from(dimensions).map_err(|_| {
+            format!("cached embedding `{embedding_unit_key}` has invalid dimensions")
+        })?;
         if dimensions != expected_dimensions {
             return Err(format!(
-                "cached embedding `{record_key}` has {dimensions} dimensions; expected {expected_dimensions}"
+                "cached embedding `{embedding_unit_key}` has {dimensions} dimensions; expected {expected_dimensions}"
             ));
         }
-        let vector = decode_vector_blob(&record_key, &vector_blob, dimensions)?;
+        let vector = decode_vector_blob(&embedding_unit_key, &vector_blob, dimensions)?;
         reusable.insert(
-            record_key,
+            embedding_unit_key,
             ReusableDocumentEmbedding {
                 input_hash,
                 dimensions,

@@ -19,6 +19,9 @@ pub struct SemanticSearchService {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticSearchHit {
     pub record_key: String,
+    pub embedding_unit_key: String,
+    pub unit_kind: String,
+    pub label: Option<String>,
     pub distance: f64,
 }
 
@@ -95,6 +98,9 @@ impl From<VectorSearchHit> for SemanticSearchHit {
     fn from(hit: VectorSearchHit) -> Self {
         Self {
             record_key: hit.record_key,
+            embedding_unit_key: hit.embedding_unit_key,
+            unit_kind: hit.unit_kind,
+            label: hit.label,
             distance: hit.distance,
         }
     }

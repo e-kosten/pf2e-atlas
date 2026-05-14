@@ -44,7 +44,7 @@ pub fn document_embedding_cache_insert_sql() -> String {
 
 pub fn record_vector_index_create_sql(dimensions: usize) -> String {
     format!(
-        "CREATE VIRTUAL TABLE {} USING vec0(record_key TEXT PRIMARY KEY, embedding FLOAT[{dimensions}])",
+        "CREATE VIRTUAL TABLE {} USING vec0(embedding_unit_key TEXT PRIMARY KEY, record_key TEXT, embedding FLOAT[{dimensions}])",
         record_vector_index::TABLE.name()
     )
 }
@@ -348,7 +348,11 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
             );
 
             CREATE TABLE document_embedding_cache (
-              record_key TEXT PRIMARY KEY,
+              embedding_unit_key TEXT PRIMARY KEY,
+              record_key TEXT NOT NULL,
+              unit_kind TEXT NOT NULL,
+              label TEXT,
+              ordinal INTEGER NOT NULL,
               semantic_input_hash TEXT NOT NULL,
               dimensions INTEGER NOT NULL,
               vector_blob BLOB NOT NULL,
@@ -367,6 +371,7 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
             CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type);
             CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key);
             CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value);
+            CREATE INDEX document_embedding_cache_record_idx ON document_embedding_cache(record_key);
             CREATE INDEX document_embedding_cache_hash_idx ON document_embedding_cache(semantic_input_hash);
 "#;
 
@@ -445,15 +450,15 @@ mod tests {
         );
         assert_eq!(
             document_embedding_cache_insert_sql(),
-            "INSERT INTO document_embedding_cache (record_key, semantic_input_hash, dimensions, vector_blob) VALUES (?1, ?2, ?3, ?4)"
+            "INSERT INTO document_embedding_cache (embedding_unit_key, record_key, unit_kind, label, ordinal, semantic_input_hash, dimensions, vector_blob) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
         );
         assert_eq!(
             record_vector_index_insert_sql(),
-            "INSERT INTO record_vector_index (record_key, embedding) VALUES (?1, ?2)"
+            "INSERT INTO record_vector_index (embedding_unit_key, record_key, embedding) VALUES (?1, ?2, ?3)"
         );
         assert_eq!(
             record_vector_index_create_sql(384),
-            "CREATE VIRTUAL TABLE record_vector_index USING vec0(record_key TEXT PRIMARY KEY, embedding FLOAT[384])"
+            "CREATE VIRTUAL TABLE record_vector_index USING vec0(embedding_unit_key TEXT PRIMARY KEY, record_key TEXT, embedding FLOAT[384])"
         );
     }
 

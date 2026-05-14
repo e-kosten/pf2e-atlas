@@ -545,6 +545,9 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
                 "hits": hits.iter().map(|hit| {
                     json!({
                         "record_key": hit.record_key,
+                        "embedding_unit_key": hit.embedding_unit_key,
+                        "unit_kind": hit.unit_kind,
+                        "label": hit.label,
                         "distance": hit.distance,
                     })
                 }).collect::<Vec<_>>()

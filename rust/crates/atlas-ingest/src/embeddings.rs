@@ -7,21 +7,52 @@ use atlas_embedding::{
     render_presentation_document_embedding_chunks,
 };
 use atlas_record::build_record_presentation_document;
+use serde_json::Value;
 use tracing::info;
 
+use crate::embedding_units::{
+    extract_structured_embedding_units, strip_markup_for_embedding_units,
+};
 use crate::{LoadedRecord, RecordAlias, RemasterLink};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingDocumentEmbedding {
+    pub embedding_unit_key: String,
     pub record_key: String,
+    pub unit_kind: EmbeddingUnitKind,
+    pub label: Option<String>,
+    pub ordinal: usize,
     pub input_chunks: Vec<EmbeddingInputChunk>,
     pub input_text: String,
     pub input_hash: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EmbeddingUnitKind {
+    Parent,
+    HeadingSection,
+    TitledOption,
+    ActivationBlock,
+}
+
+impl EmbeddingUnitKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Parent => "parent",
+            Self::HeadingSection => "heading_section",
+            Self::TitledOption => "titled_option",
+            Self::ActivationBlock => "activation_block",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratedDocumentEmbedding {
+    pub embedding_unit_key: String,
     pub record_key: String,
+    pub unit_kind: EmbeddingUnitKind,
+    pub label: Option<String>,
+    pub ordinal: usize,
     pub input_hash: String,
     pub dimensions: usize,
     pub vector: Vec<f32>,
@@ -86,19 +117,84 @@ pub(crate) fn build_pending_document_embeddings(
             continue;
         }
         let aliases = aliases_by_key.get(&record_key).cloned().unwrap_or_default();
-        let document = build_record_presentation_document(record);
-        let input_chunks = document_embedding_input_chunks(&document, &aliases);
-        let input_text = render_embedding_chunks_for_embedding(&input_chunks);
-        let input_hash = hash_document_embedding_input(&input_text);
-        pending.push(PendingDocumentEmbedding {
-            record_key,
-            input_chunks,
-            input_text,
-            input_hash,
-        });
+        pending.extend(build_record_embedding_units(record, &aliases));
     }
 
     pending
+}
+
+fn build_record_embedding_units(
+    record: &LoadedRecord,
+    aliases: &[String],
+) -> Vec<PendingDocumentEmbedding> {
+    let record_key = record.key.to_string();
+    let raw_description = raw_description_markup(record);
+    let compact_description = raw_description
+        .as_deref()
+        .map(strip_markup_for_embedding_units)
+        .filter(|value| !value.trim().is_empty());
+    let mut compact_record = record.clone();
+    if compact_description.is_some() {
+        compact_record.description_text = compact_description;
+    }
+    let document = build_record_presentation_document(&compact_record);
+    let parent_chunks = document_embedding_input_chunks(&document, aliases);
+    let mut units = vec![pending_embedding_unit(
+        format!("{record_key}#parent"),
+        record_key.clone(),
+        EmbeddingUnitKind::Parent,
+        None,
+        0,
+        parent_chunks,
+    )];
+
+    if let Some(markup) = raw_description {
+        let child_units = extract_structured_embedding_units(&record.name, &markup);
+        let context = child_embedding_context_chunks(&document);
+        for child in child_units {
+            let mut chunks = context.clone();
+            chunks.push(EmbeddingInputChunk::line(
+                EmbeddingInputSection::Description,
+                format!("Section: {}", child.label),
+            ));
+            chunks.push(EmbeddingInputChunk::truncatable_line(
+                EmbeddingInputSection::Description,
+                format!("Description: {}", child.body),
+            ));
+            units.push(pending_embedding_unit(
+                format!("{record_key}#{}:{}", child.kind.as_str(), child.ordinal),
+                record_key.clone(),
+                child.kind,
+                Some(child.label),
+                child.ordinal,
+                chunks,
+            ));
+        }
+    }
+
+    units
+}
+
+fn pending_embedding_unit(
+    embedding_unit_key: String,
+    record_key: String,
+    unit_kind: EmbeddingUnitKind,
+    label: Option<String>,
+    ordinal: usize,
+    input_chunks: Vec<EmbeddingInputChunk>,
+) -> PendingDocumentEmbedding {
+    let input_text = render_embedding_chunks_for_embedding(&input_chunks);
+    let input_hash = hash_document_embedding_input(&input_text);
+    PendingDocumentEmbedding {
+        embedding_unit_key,
+        record_key,
+        unit_kind,
+        label,
+        ordinal,
+        input_chunks,
+        input_text,
+        input_hash,
+    }
 }
 
 fn document_embedding_input_chunks(
@@ -113,6 +209,30 @@ fn document_embedding_input_chunks(
         ));
     }
     chunks
+}
+
+fn child_embedding_context_chunks(
+    document: &atlas_record::RecordPresentationDocument,
+) -> Vec<EmbeddingInputChunk> {
+    render_presentation_document_embedding_chunks(document)
+        .into_iter()
+        .filter(|chunk| {
+            matches!(
+                chunk.section,
+                EmbeddingInputSection::Identity
+                    | EmbeddingInputSection::Traits
+                    | EmbeddingInputSection::Classification
+                    | EmbeddingInputSection::Summary
+            )
+        })
+        .collect()
+}
+
+fn raw_description_markup(record: &LoadedRecord) -> Option<String> {
+    let raw = serde_json::from_str::<Value>(&record.raw_json).ok()?;
+    raw.pointer("/system/description/value")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
 }
 
 pub fn apply_document_embedding_token_budget(
@@ -196,12 +316,16 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
     let mut last_reported = 0;
     for (index, entry) in pending.iter().enumerate() {
         if let Some(reusable) = reusable_embeddings
-            .and_then(|lookup| lookup.get(&entry.record_key))
+            .and_then(|lookup| lookup.get(&entry.embedding_unit_key))
             .filter(|reusable| reusable.input_hash == entry.input_hash)
         {
             reused_count += 1;
             generated[index] = Some(GeneratedDocumentEmbedding {
+                embedding_unit_key: entry.embedding_unit_key.clone(),
                 record_key: entry.record_key.clone(),
+                unit_kind: entry.unit_kind,
+                label: entry.label.clone(),
+                ordinal: entry.ordinal,
                 input_hash: entry.input_hash.clone(),
                 dimensions: reusable.dimensions,
                 vector: reusable.vector.clone(),
@@ -225,7 +349,11 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
             let entry = &pending[index];
             generated_count += 1;
             generated[index] = Some(GeneratedDocumentEmbedding {
+                embedding_unit_key: entry.embedding_unit_key.clone(),
                 record_key: entry.record_key.clone(),
+                unit_kind: entry.unit_kind,
+                label: entry.label.clone(),
+                ordinal: entry.ordinal,
                 input_hash: entry.input_hash.clone(),
                 dimensions: vector.len(),
                 vector,
@@ -470,7 +598,7 @@ Aliases: Legacy Visible"
             pending_embedding_with_hash("packs:second", "second input", "second-hash"),
         ];
         let reusable = BTreeMap::from([(
-            "packs:first".to_string(),
+            "packs:first#parent".to_string(),
             ReusableDocumentEmbedding {
                 input_hash: "first-hash".to_string(),
                 dimensions: 2,
@@ -611,7 +739,11 @@ Aliases: Legacy Visible"
         input_hash: &str,
     ) -> PendingDocumentEmbedding {
         PendingDocumentEmbedding {
+            embedding_unit_key: format!("{record_key}#parent"),
             record_key: record_key.to_string(),
+            unit_kind: EmbeddingUnitKind::Parent,
+            label: None,
+            ordinal: 0,
             input_chunks: vec![EmbeddingInputChunk::line(
                 EmbeddingInputSection::Identity,
                 input_text,
