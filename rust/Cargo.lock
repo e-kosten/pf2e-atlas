@@ -115,6 +115,8 @@ dependencies = [
 name = "atlas-embedding"
 version = "0.1.0"
 dependencies = [
+ "atlas-domain",
+ "atlas-record",
  "ort",
  "sha2",
  "thiserror",

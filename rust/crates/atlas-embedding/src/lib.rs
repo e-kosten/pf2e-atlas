@@ -2,6 +2,7 @@
 
 mod catalog;
 mod document_input;
+mod document_renderer;
 mod error;
 mod minilm;
 mod text;
@@ -17,6 +18,7 @@ pub use catalog::{
 pub use document_input::{
     DocumentEmbeddingInputParts, build_document_embedding_input, hash_document_embedding_input,
 };
+pub use document_renderer::render_presentation_document_for_embedding;
 pub use error::EmbeddingError;
 pub use minilm::TextEmbedder;
 pub use text::normalize_embedding_text;
