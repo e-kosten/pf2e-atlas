@@ -56,6 +56,17 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                 "max_observed_token_count": 0,
                 "total_observed_token_count": 0,
                 "total_tokens_over_limit": 0,
+                "unit_kind_truncations": [],
+                "record_truncation_coverage": {
+                    "record_count": 0,
+                    "records_with_child_units": 0,
+                    "records_with_any_truncated_unit": 0,
+                    "records_with_truncated_parent_unit": 0,
+                    "records_with_truncated_child_unit": 0,
+                    "records_with_truncated_parent_and_child_units": 0,
+                    "records_with_truncated_parent_and_all_child_units_fit": 0,
+                    "records_with_truncated_parent_without_child_units": 0
+                },
                 "section_truncations": [],
                 "truncated_examples": []
             },
