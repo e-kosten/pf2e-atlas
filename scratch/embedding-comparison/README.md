@@ -35,6 +35,8 @@ cargo build --release -p atlas-cli
 ```text
 scratch/embedding-comparison/runs/<run-id>/
   run-config.json
+  preflight.json
+  REVIEW.md
   summary.json
   summary.md
   models/<model-id>/
@@ -52,8 +54,17 @@ scratch/embedding-comparison/runs/<run-id>/
     queries/<query-id>.stderr.log
   review-packets/<query-id>.md
   review-packets/<query-id>.mapping.json
+  score-templates/<query-id>.json
   review-scores/
 ```
 
 Review scores are intentionally not produced by the harness. Put scoring JSON files under
-`review-scores/` and aggregate them with the deterministic metrics in a later decision pass.
+`review-scores/` and aggregate them with the deterministic metrics:
+
+```bash
+node scratch/embedding-comparison/aggregate-scores.mjs \
+  --run scratch/embedding-comparison/runs/manual
+```
+
+The query suite intentionally mixes terse one-word searches, compact agent-style searches,
+and longer natural-language requests so model behavior can be compared across query length.

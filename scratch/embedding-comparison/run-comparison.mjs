@@ -35,6 +35,17 @@ fs.mkdirSync(outputRoot, { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "models"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-packets"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-scores"), { recursive: true });
+fs.mkdirSync(path.join(outputRoot, "score-templates"), { recursive: true });
+
+const preflight = {
+  source_exists: fs.existsSync(sourceRoot),
+  atlas_exists: fs.existsSync(atlasPath),
+  embedding_cache_path: embeddingCachePath,
+  sqlite3: commandExists("sqlite3"),
+  query_count: queries.length,
+  models: models.map((model) => modelPreflight(model)),
+};
+writeJson(path.join(outputRoot, "preflight.json"), preflight);
 
 writeJson(path.join(outputRoot, "run-config.json"), {
   started_at: new Date().toISOString(),
@@ -82,7 +93,14 @@ for (const model of models) {
   fs.writeFileSync(path.join(modelDir, "build.stderr.log"), build.stderr);
   if (build.status !== 0) {
     writeJson(path.join(modelDir, "build-error.json"), build);
-    modelSummaries.push({ model_id: model.id, status: "build_failed", status_code: build.status });
+    modelSummaries.push({
+      model_id: model.id,
+      status: "build_failed",
+      status_code: build.status,
+      preflight: modelPreflight(model),
+      stderr_excerpt: excerpt(build.stderr),
+      stdout_excerpt: excerpt(build.stdout),
+    });
     continue;
   }
 
@@ -150,6 +168,7 @@ for (const query of queries) {
   const entries = queryResultsById.get(query.id) ?? [];
   writeReviewPacket(outputRoot, query, entries);
 }
+writeRunReviewInstructions(outputRoot);
 
 const summary = {
   status: "ok",
@@ -197,6 +216,7 @@ function runQuery({ model, modelDir, artifactPath, query }) {
       duration_ms: output.duration_ms,
       status_code: output.status,
       stderr: output.stderr,
+      stderr_excerpt: excerpt(output.stderr),
     };
     writeJson(path.join(queryDir, `${query.id}.json`), failed);
     return {
@@ -216,6 +236,8 @@ function runQuery({ model, modelDir, artifactPath, query }) {
     model_id: model.id,
     query_id: query.id,
     query: query.query,
+    query_category: query.category ?? null,
+    query_length: queryLength(query.query),
     filter: query.filter ?? null,
     review_guidance: query.review_guidance,
     duration_ms: output.duration_ms,
@@ -229,6 +251,8 @@ function runQuery({ model, modelDir, artifactPath, query }) {
       status: "ok",
       model_id: model.id,
       query_id: query.id,
+      query_category: query.category ?? null,
+      query_length: queryLength(query.query),
       duration_ms: output.duration_ms,
       hit_count: enrichedHits.length,
       top_distance: enrichedHits[0]?.distance ?? null,
@@ -300,6 +324,9 @@ function writeReviewPacket(root, query, entries) {
     "",
     `Query: ${query.query}`,
     "",
+    `Category: ${query.category ?? "uncategorized"}`,
+    `Query length: ${queryLength(query.query).word_count} words / ${query.query.length} characters`,
+    "",
     "Review guidance:",
     query.review_guidance ?? "",
     "",
@@ -331,6 +358,40 @@ function writeReviewPacket(root, query, entries) {
   });
 
   fs.writeFileSync(path.join(root, "review-packets", `${query.id}.md`), `${lines.join("\n")}\n`);
+  writeJson(path.join(root, "score-templates", `${query.id}.json`), {
+    query_id: query.id,
+    scores: mapping.map((entry) => ({
+      candidate_set: entry.candidate_set,
+      top_1_quality: 0,
+      top_3_quality: 0,
+      top_10_quality: 0,
+      irrelevant_count: 0,
+      overbroad_count: 0,
+      relationship_noise_count: 0,
+      missing_obvious_result_notes: [],
+      notes: "",
+    })),
+  });
+}
+
+function writeRunReviewInstructions(root) {
+  const relativeRoot = path.relative(repoRoot, root);
+  const lines = [
+    "# Review Instructions",
+    "",
+    "1. Open each `review-packets/<query-id>.md` file.",
+    "2. Score each anonymized candidate set using `scoring-rubric.json`.",
+    "3. Write completed score JSON files under `review-scores/<query-id>.json`.",
+    "4. Run:",
+    "",
+    "```bash",
+    `node scratch/embedding-comparison/aggregate-scores.mjs --run ${relativeRoot}`,
+    "```",
+    "",
+    "Use the score templates in `score-templates/` as starting points. Do not edit `review-packets/*.mapping.json`; those files de-anonymize candidate sets for aggregation.",
+    "",
+  ];
+  fs.writeFileSync(path.join(root, "REVIEW.md"), lines.join("\n"));
 }
 
 function embeddingMetricsFor({
@@ -350,6 +411,10 @@ function embeddingMetricsFor({
   return {
     model_id: model.id,
     runtime_model: model.runtime_model ?? "default",
+    model_cache_path: path.join(embeddingCachePath, model.model_id ?? ""),
+    model_cache_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "")),
+    onnx_model_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "", "onnx", "model.onnx")),
+    tokenizer_json_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "", "tokenizer.json")),
     build_duration_ms: buildReport.build_duration_ms,
     orchestrator_build_duration_ms: build.duration_ms,
     pending_document_embedding_count: buildReport.pending_document_embedding_count,
@@ -382,6 +447,28 @@ function embeddingMetricsFor({
   };
 }
 
+function modelPreflight(model) {
+  const modelCachePath = path.join(embeddingCachePath, model.model_id ?? "");
+  const tokenizerPath = path.join(modelCachePath, "tokenizer.json");
+  const onnxPath = path.join(modelCachePath, "onnx", "model.onnx");
+  return {
+    model_id: model.id,
+    runtime_model: model.runtime_model ?? "default",
+    model_cache_path: modelCachePath,
+    model_cache_exists: fs.existsSync(modelCachePath),
+    tokenizer_json_exists: fs.existsSync(tokenizerPath),
+    onnx_model_exists: fs.existsSync(onnxPath),
+    model_cache_bytes: directorySizeOrNull(modelCachePath),
+  };
+}
+
+function queryLength(query) {
+  return {
+    character_count: query.length,
+    word_count: query.trim().split(/\s+/).filter(Boolean).length,
+  };
+}
+
 function runCommand(command, args, cwd) {
   const started = performance.now();
   const output = spawnSync(command, args, {
@@ -396,6 +483,14 @@ function runCommand(command, args, cwd) {
     stdout: output.stdout ?? "",
     stderr: output.stderr ?? "",
   };
+}
+
+function commandExists(command) {
+  const output = spawnSync("command", ["-v", command], {
+    shell: true,
+    encoding: "utf8",
+  });
+  return output.status === 0;
 }
 
 function parseArgs(args) {
@@ -472,6 +567,13 @@ function directorySizeOrNull(directoryPath) {
   } catch {
     return null;
   }
+}
+
+function excerpt(value, limit = 2000) {
+  if (!value) {
+    return "";
+  }
+  return value.length <= limit ? value : `${value.slice(0, limit)}...`;
 }
 
 function timestampRunId() {
