@@ -1,6 +1,7 @@
 [
   {
     "id": "healing-magic",
+    "category": "broad-concept",
     "query": "healing magic that restores vitality",
     "limit": 10,
     "filter": null,
@@ -8,6 +9,7 @@
   },
   {
     "id": "poison-consumable-debuffs",
+    "category": "equipment-filtered",
     "query": "poison consumables that sicken or weaken a target",
     "limit": 10,
     "filter": {
@@ -24,6 +26,7 @@
   },
   {
     "id": "primal-healing-spells",
+    "category": "spell-filtered",
     "query": "restore vitality with primal healing",
     "limit": 10,
     "filter": {
@@ -44,6 +47,7 @@
   },
   {
     "id": "sustained-burst-control-spells",
+    "category": "spell-filtered",
     "query": "sustained battlefield area control effect",
     "limit": 10,
     "filter": {
@@ -64,6 +68,7 @@
   },
   {
     "id": "undead-high-ac-guardian",
+    "category": "creature-filtered",
     "query": "hard to hit undead guardian",
     "limit": 10,
     "filter": {
@@ -81,6 +86,7 @@
   },
   {
     "id": "fear-frightened-links",
+    "category": "relationship-filtered",
     "query": "fear effect that makes a target frightened",
     "limit": 10,
     "filter": {
@@ -91,6 +97,7 @@
   },
   {
     "id": "moderate-alchemical-consumables",
+    "category": "equipment-filtered",
     "query": "moderate alchemical consumable item",
     "limit": 10,
     "filter": {
@@ -106,5 +113,257 @@
       ]
     },
     "review_guidance": "Assess whether the results are concrete mid-priced consumable equipment, especially alchemical items or consumables with clear use at the table. Penalize permanent gear, unique story objects, or records that only mention consumables tangentially."
+  },
+  {
+    "id": "nonlethal-capture-tools",
+    "category": "equipment-concept",
+    "query": "equipment for restraining or capturing an enemy without killing them",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "equipment"
+    },
+    "review_guidance": "Assess whether the results are concrete equipment useful for capture, restraint, nonlethal takedowns, immobilization, or prisoner control. Prefer usable gear over abstract rules or weapons that only incidentally mention nonlethal."
+  },
+  {
+    "id": "social-deception-actions",
+    "category": "rules-actions",
+    "query": "social action to trick someone with a lie or false impression",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results are actionable rules or actions for deception, lying, creating a diversion, impersonation, or misleading another creature. Prefer direct action records over broad skill glossary pages unless the query is best answered by the skill rule."
+  },
+  {
+    "id": "counterspell-reaction",
+    "category": "rules-spells",
+    "query": "reaction that disrupts or counters an enemy spell as it is cast",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results are reactions, feats, abilities, or spells that counteract, disrupt, or interfere with an enemy spell during casting. Prefer precise counterspell-like records over generic magic defense."
+  },
+  {
+    "id": "mental-fear-spells",
+    "category": "spell-filtered",
+    "query": "mind-affecting fear magic",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "spell" },
+        {
+          "kind": "any_of",
+          "children": [
+            {
+              "kind": "metadata_predicate",
+              "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "mental" }
+            },
+            {
+              "kind": "metadata_predicate",
+              "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "fear" }
+            }
+          ]
+        }
+      ]
+    },
+    "review_guidance": "Assess whether the results are spells that affect a creature's mind, morale, courage, or fear response. Prefer concrete fear/mental effects over unrelated spells with incidental mental wording."
+  },
+  {
+    "id": "fire-resistance-protection",
+    "category": "defense-concept",
+    "query": "protect allies from fire damage",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results help reduce, prevent, resist, absorb, or otherwise protect against fire damage. Useful results may be spells, equipment, feats, or abilities. Penalize records that only deal fire damage without protection."
+  },
+  {
+    "id": "flying-mount-creature",
+    "category": "creature-concept",
+    "query": "flying mount creature suitable to ride",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "creature"
+    },
+    "review_guidance": "Assess whether the results are creatures that can plausibly serve as flying mounts or rideable aerial companions. Prefer creature records over ancestry, equipment, or unrelated flight abilities."
+  },
+  {
+    "id": "aquatic-low-level-creature",
+    "category": "creature-filtered",
+    "query": "low level aquatic enemy",
+    "limit": 10,
+    "filter": {
+      "kind": "all_of",
+      "children": [
+        { "kind": "record_family", "value": "creature" },
+        {
+          "kind": "metadata_predicate",
+          "predicate": { "field_type": "set", "field": "traits", "op": "includes", "value": "aquatic" }
+        },
+        { "kind": "level", "match": { "kind": "between", "min": -1, "max": 3 } }
+      ]
+    },
+    "review_guidance": "Assess whether the results are low-level aquatic creatures that would work as enemies or encounters. Prefer actual creature records with aquatic relevance over terrain, hazards, or general water rules."
+  },
+  {
+    "id": "trap-hazard-poison-needle",
+    "category": "hazard-concept",
+    "query": "poison needle trap hazard",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "hazard"
+    },
+    "review_guidance": "Assess whether the results are hazards or traps involving needles, poison, punctures, toxins, or similar concealed injury. Prefer concrete hazard records over poison items or general trap rules."
+  },
+  {
+    "id": "curse-removal",
+    "category": "remediation-concept",
+    "query": "remove or counteract a curse",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results directly remove, counteract, suppress, protect against, or otherwise remediate curses. Prefer actionable spells, rituals, items, feats, or rules over cursed objects that merely impose curses."
+  },
+  {
+    "id": "disease-diagnosis-treatment",
+    "category": "remediation-concept",
+    "query": "diagnose and treat disease",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results support identifying, treating, curing, or improving disease outcomes. Prefer medicine actions, healing spells, equipment, or disease-specific treatment records over disease afflictions themselves."
+  },
+  {
+    "id": "illusion-invisibility",
+    "category": "spell-concept",
+    "query": "illusion magic that makes a creature invisible or hidden",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "spell"
+    },
+    "review_guidance": "Assess whether the results are illusion or concealment spells that make creatures invisible, hidden, concealed, disguised, or difficult to perceive. Prefer direct stealth/illusion effects over generic visual effects."
+  },
+  {
+    "id": "cold-iron-weakness",
+    "category": "material-weakness",
+    "query": "creatures vulnerable to cold iron",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "creature"
+    },
+    "review_guidance": "Assess whether the results are creatures for which cold iron is mechanically relevant, such as weakness, resistance bypass, or strong folklore/material association. Penalize generic cold damage or iron equipment results."
+  },
+  {
+    "id": "holy-undead-damage",
+    "category": "relationship-noise-check",
+    "query": "holy damage against undead",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results help a user find options or rules for harming undead with holy/vitality/divine effects. Watch for relationship noise from records that merely mention undead or holy in passing."
+  },
+  {
+    "id": "long-description-ritual-summoning",
+    "category": "long-description",
+    "query": "ritual to call or bind an extraplanar creature",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results are rituals, spells, or rules for summoning, calling, binding, bargaining with, or compelling extraplanar creatures. This query is intended to test long-description resilience and should reward records with substantive procedure text."
+  },
+  {
+    "id": "crafting-magical-runes",
+    "category": "rules-equipment",
+    "query": "craft or transfer magical weapon runes",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results support crafting, transferring, etching, upgrading, or understanding magical weapon runes. Prefer concrete rune rules/actions/items over unrelated magic weapons."
+  },
+  {
+    "id": "concealed-hidden-undetected",
+    "category": "condition-rules",
+    "query": "difference between concealed hidden and undetected",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results explain or directly reference the perception states concealed, hidden, undetected, observed, or related stealth rules. Prefer core condition/rule records over isolated abilities that mention one state."
+  },
+  {
+    "id": "swarm-area-damage",
+    "category": "creature-tactics",
+    "query": "area damage against a swarm of tiny creatures",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results help understand or find rules/options involving swarms, area damage, splash damage, or vulnerabilities of groups of tiny creatures. Penalize unrelated tiny creatures or generic area spells with no swarm relevance."
+  },
+  {
+    "id": "persistent-bleed-treatment",
+    "category": "condition-remediation",
+    "query": "stop persistent bleed damage",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results help stop, recover from, treat, or mitigate persistent bleed damage. Prefer rules, actions, spells, items, or abilities directly relevant to persistent damage recovery."
+  },
+  {
+    "id": "teleportation-escape",
+    "category": "spell-concept",
+    "query": "teleport away from danger quickly",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "spell"
+    },
+    "review_guidance": "Assess whether the results are spells that enable rapid escape, repositioning, teleportation, dimensional movement, or emergency withdrawal. Prefer immediate tactical movement over long-distance travel-only effects."
+  },
+  {
+    "id": "short-heal",
+    "category": "short-query",
+    "query": "heal",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether a very terse query still retrieves broadly useful healing records. Prefer direct healing spells, actions, items, or abilities over loosely positive or unrelated records."
+  },
+  {
+    "id": "short-grapple",
+    "category": "short-query",
+    "query": "grapple",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether a one-word rules query retrieves the core grapple/grab/restrain rules and closely related actions or abilities. Penalize incidental monster abilities unless they are clearly useful support."
+  },
+  {
+    "id": "short-poison",
+    "category": "short-query",
+    "query": "poison",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether a broad one-word concept query retrieves useful poison rules, afflictions, items, or condition-relevant records without being dominated by noisy incidental mentions."
+  },
+  {
+    "id": "long-player-natural-language-healing",
+    "category": "long-query",
+    "query": "I am looking for options a low or mid level party can use after a fight to restore hit points or recover from serious wounds without needing a dedicated cleric in the group",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the model handles a long natural-language request and retrieves practical post-combat recovery options. Prefer medicine actions, healing spells, consumables, feats, or abilities that help a party recover after combat."
+  },
+  {
+    "id": "long-gm-natural-language-haunt",
+    "category": "long-query",
+    "query": "As a GM I need a spooky hazard or haunt for an old ruin that frightens the party, creates supernatural pressure, and can be disabled by clever skill use rather than just attacking it",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "hazard"
+    },
+    "review_guidance": "Assess whether the results are hazards or haunts that fit a spooky ruin encounter with fear, supernatural pressure, and skill-based disablement. Prefer concrete hazard records over monsters, spells, or generic fear rules."
+  },
+  {
+    "id": "long-build-natural-language-ranged-precision",
+    "category": "long-query",
+    "query": "Find character options for a martial archer or sniper style build that rewards precise ranged attacks, careful positioning, ambush tactics, or extra damage when the target is vulnerable",
+    "limit": 10,
+    "filter": null,
+    "review_guidance": "Assess whether the results support a ranged precision martial build. Useful records may be feats, class features, archetype options, actions, weapons, or abilities tied to archery, sniping, ambushes, precision damage, or exploiting vulnerable targets."
   }
 ]
