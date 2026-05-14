@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Commit"
+  short_description: "Run fresh validators before committing"
+  default_prompt: "Use $prepare-commit to validate this milestone with fresh review agents and create a clean commit."
