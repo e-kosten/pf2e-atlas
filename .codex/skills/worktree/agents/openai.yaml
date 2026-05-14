@@ -1,0 +1,4 @@
+interface:
+  display_name: "Worktree"
+  short_description: "Use isolated task worktrees on request"
+  default_prompt: "Use $worktree to move this task into an isolated repository worktree."

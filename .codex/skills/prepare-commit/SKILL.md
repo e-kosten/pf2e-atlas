@@ -1,6 +1,6 @@
 ---
 name: prepare-commit
-description: Use when the user says to prepare a commit or identifies a committable milestone. Runs a fresh two-validator review loop over the candidate commit scope, fixes reported issues, repeats with fresh agents until clean, then creates the commit.
+description: Use when the user says to prepare a commit or identifies a committable milestone. Runs two validators over the candidate commit scope, uses the same validators to re-check reported fixes, then requires a final fresh-validator pass before creating the commit.
 ---
 
 # Prepare Commit
@@ -13,7 +13,7 @@ This skill replaces automatic end-of-task commits. The goal is to keep implement
 
 Before validation, define the candidate commit scope:
 
-- identify the active task worktree and branch
+- identify the active checkout, branch, and whether the work is in a task worktree
 - inspect `git status --short` and the diff against the intended base, usually `main`
 - identify staged, unstaged, and untracked files that belong to this milestone
 - exclude unrelated user or agent changes from the commit scope
@@ -37,18 +37,33 @@ Prefer full pre-implementation excerpts from the conversation, plan file, or che
 
 ## Validator Loop
 
-Run validation in cycles. Every cycle must use fresh validation agents; do not reuse validators from earlier dirty cycles.
+Run validation in two phases: an issue-fix loop that reuses the same validators for efficient rechecks, then a final clean pass with fresh validators.
 
-In each cycle:
+### Issue-Fix Loop
 
-1. Spawn two read-only validators in parallel with fresh context. Prefer `fork_context: false` and pass only the planning snapshot, candidate commit scope, relevant files, and assignment instructions.
-2. Wait for both reports.
-3. If either validator reports `fail` or actionable `uncertain`, fix the issues in the task worktree.
+Start by spawning two read-only validators in parallel with fresh context. Prefer `fork_context: false` and pass only the planning snapshot, candidate commit scope, relevant files, and assignment instructions.
+
+For each validator report:
+
+1. Wait for both reports.
+2. If both validators return `pass`, leave the issue-fix loop and start the fresh final pass.
+3. If either validator reports `fail` or actionable `uncertain`, fix the issues in the active task checkout.
 4. Run any targeted checks needed for the fixes.
-5. Start a new cycle with fresh validators.
-6. Continue until both fresh validators return `pass`, or until a blocker requires user input.
+5. Send the relevant fix summary, changed files, and updated diff context back to the same validator agents.
+6. Ask each prior validator to re-check its own findings and any directly related regressions.
+7. Continue this same-validator recheck loop until both prior validators return `pass`, or until a blocker requires user input.
 
-Close stale validator agents after each failed cycle when the runtime supports it. Their context contains obsolete defect history and must not be treated as the final clean review. Do not include previous validator reports in the next cycle's prompt except for a short factual note that fixes were made and the current diff is the source of truth.
+Reusing validators is intentional during remediation: they already understand their findings and can verify whether the fix addresses the exact problem without rebuilding context from scratch.
+
+### Fresh Final Pass
+
+After the same-validator loop passes, spawn a new pair of read-only validators with fresh context. These final validators must not inherit context from the dirty remediation loop.
+
+The final fresh validators should receive the planning-context snapshot, candidate commit scope, current diff, relevant files, and assignment instructions. Do not include prior validator reports except for a short factual note that earlier issues were fixed and the current diff is the source of truth.
+
+If either final fresh validator reports `fail` or actionable `uncertain`, fix the issues, use those final validators for the next same-validator issue-fix loop, then run another fresh final pass. The commit gate is satisfied only when a fresh pair of validators returns `pass`.
+
+Close stale validator agents after each loop when the runtime supports it. Dirty-loop validator context is useful for rechecking its own findings, but it must not be treated as the final clean review.
 
 ## Validator 1: Plan Completion
 
@@ -100,11 +115,11 @@ The main agent owns fixes. Validators should stay read-only unless the user expl
 
 When fixing validator findings:
 
-- keep edits inside the active task worktree
+- keep edits inside the active task checkout
 - do not broaden the commit scope without telling the user
 - preserve unrelated changes
 - update tests and docs when the fix changes behavior or guidance
-- rerun targeted validation locally before starting the next fresh-validator cycle
+- rerun targeted validation locally before asking validators to re-check
 
 If the validators disagree, inspect their evidence and either fix the underlying issue or explain why one finding is not applicable in the next cycle's context.
 
