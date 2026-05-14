@@ -21,7 +21,12 @@ const embeddingCachePath = path.resolve(repoRoot, options.embeddingCachePath ?? 
 const embeddingBatchSize = Number(options.embeddingBatchSize ?? 32);
 const atlasLogDetail = options.atlasLogDetail ?? "summary";
 const allowMissingModels = Boolean(options.allowMissingModels);
+const skipAtlasBuild = Boolean(options.skipAtlasBuild);
 const quiet = Boolean(options.quiet);
+
+if (!options.atlas && !skipAtlasBuild) {
+  buildDefaultAtlasBinary();
+}
 
 if (!fs.existsSync(atlasPath)) {
   throw new Error(`atlas binary not found at ${atlasPath}; run: cd rust && cargo build --release -p atlas-cli`);
@@ -111,6 +116,7 @@ writeJson(path.join(outputRoot, "run-config.json"), {
   embedding_batch_size: embeddingBatchSize,
   atlas_log_detail: atlasLogDetail,
   allow_missing_models: allowMissingModels,
+  skip_atlas_build: skipAtlasBuild,
 });
 
 const modelSummaries = [];
@@ -634,6 +640,26 @@ function readAtlasCapabilities(command) {
     search_semantic_embedding_model:
       searchSemanticHelp.status === 0 && searchSemanticHelp.stdout.includes("--embedding-model"),
   };
+}
+
+function buildDefaultAtlasBinary() {
+  log("building default atlas release binary: cargo build --release -p atlas-cli");
+  const result = spawnSync("cargo", ["build", "--release", "-p", "atlas-cli"], {
+    cwd: path.join(repoRoot, "rust"),
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024 * 200,
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      [
+        "failed to build default atlas release binary",
+        result.stdout?.trim(),
+        result.stderr?.trim(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
 }
 
 function runCommandSync(command, args, cwd) {
