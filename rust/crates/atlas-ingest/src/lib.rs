@@ -52,6 +52,7 @@ pub(crate) use record_model::{
     RecordAlias, RecordReferenceIndex, ReferenceCandidate, ReferenceEdge, RemasterLink,
     SpellSideData,
 };
+use source_model::EmbeddingTimingReport;
 pub(crate) use source_model::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};
 
 #[derive(Debug, Error)]
@@ -93,6 +94,7 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
     }
     let mut reused_document_embedding_count = 0;
     let mut generated_document_embedding_count = 0;
+    let mut embedding_timing = EmbeddingTimingReport::default();
     if let Some(cache_root) = options.embedding_cache_root {
         let config = EmbeddingRuntimeConfig::new(options.embedding_model, cache_root);
         let reusable_embeddings = if options.reuse_embeddings && options.output_path.exists() {
@@ -123,11 +125,13 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         };
         let tokenizer = TextEmbeddingTokenizer::load(&config)
             .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        let tokenization_started_at = Instant::now();
         source.document_embedding_tokenization = apply_document_embedding_token_budget(
             &mut source.pending_document_embeddings,
             &tokenizer,
         )
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        embedding_timing.tokenization_duration_ms = tokenization_started_at.elapsed().as_millis();
         info!(
             document_embeddings = source.document_embedding_tokenization.document_count,
             truncated_document_embeddings = source
@@ -155,6 +159,8 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
             "generating document embeddings"
         );
         let mut embedder = None;
+        let generation_started_at = Instant::now();
+        let mut batch_durations_ms = Vec::new();
         let generated = generate_document_embeddings_with_reuse_using_batch(
             &source.pending_document_embeddings,
             reusable_embeddings.as_ref(),
@@ -165,15 +171,22 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
                         cache = %config.cache_root.display(),
                         "loading embedding model"
                     );
+                    let load_started_at = Instant::now();
                     embedder = Some(TextEmbedder::load(&config)?);
+                    embedding_timing.model_load_duration_ms = load_started_at.elapsed().as_millis();
                 }
-                embedder
+                let batch_started_at = Instant::now();
+                let vectors = embedder
                     .as_mut()
                     .expect("embedder was initialized")
-                    .embed_documents(inputs)
+                    .embed_documents(inputs)?;
+                batch_durations_ms.push(batch_started_at.elapsed().as_millis());
+                Ok::<Vec<Vec<f32>>, atlas_embedding::EmbeddingError>(vectors)
             },
         )
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        embedding_timing.generation_duration_ms = generation_started_at.elapsed().as_millis();
+        apply_batch_timing(&mut embedding_timing, batch_durations_ms);
         reused_document_embedding_count = generated.reused_count;
         generated_document_embedding_count = generated.generated_count;
         source.document_embeddings = generated.embeddings;
@@ -212,10 +225,31 @@ pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactRepo
         reused_document_embedding_count,
         generated_document_embedding_count,
         document_embedding_tokenization: source.document_embedding_tokenization,
+        embedding_timing,
         build_duration_ms,
         source_signature: source.source_signature,
         diagnostics: source.diagnostics,
         skipped_records: source.skipped_records,
         warnings: source.warnings,
     })
+}
+
+fn apply_batch_timing(report: &mut EmbeddingTimingReport, mut batch_durations_ms: Vec<u128>) {
+    report.batch_count = batch_durations_ms.len();
+    if batch_durations_ms.is_empty() {
+        return;
+    }
+    batch_durations_ms.sort_unstable();
+    report.batch_duration_min_ms = batch_durations_ms.first().copied();
+    report.batch_duration_p50_ms = percentile(&batch_durations_ms, 50);
+    report.batch_duration_p95_ms = percentile(&batch_durations_ms, 95);
+    report.batch_duration_max_ms = batch_durations_ms.last().copied();
+}
+
+fn percentile(sorted: &[u128], percentile: usize) -> Option<u128> {
+    if sorted.is_empty() {
+        return None;
+    }
+    let index = ((sorted.len() - 1) * percentile).div_ceil(100);
+    sorted.get(index).copied()
 }

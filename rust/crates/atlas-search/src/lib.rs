@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 use std::path::Path;
+use std::time::Instant;
 
 use atlas_domain::SearchFilterNode;
 use atlas_embedding::{EmbeddingError, TextEmbedder};
@@ -19,6 +20,19 @@ pub struct SemanticSearchService {
 pub struct SemanticSearchHit {
     pub record_key: String,
     pub distance: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticSearchTiming {
+    pub query_embedding_duration_ms: u128,
+    pub vector_search_duration_ms: u128,
+    pub total_duration_ms: u128,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticSearchResult {
+    pub hits: Vec<SemanticSearchHit>,
+    pub timing: SemanticSearchTiming,
 }
 
 #[derive(Debug, Error)]
@@ -48,11 +62,32 @@ impl SemanticSearchService {
         filter: Option<&SearchFilterNode>,
         limit: u32,
     ) -> Result<Vec<SemanticSearchHit>, SearchError> {
+        Ok(self.semantic_with_timing(query, filter, limit)?.hits)
+    }
+
+    pub fn semantic_with_timing(
+        &mut self,
+        query: &str,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+    ) -> Result<SemanticSearchResult, SearchError> {
+        let total_started_at = Instant::now();
+        let embedding_started_at = Instant::now();
         let query_vector = self.embedder.embed_query(query)?;
+        let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
+        let vector_started_at = Instant::now();
         let hits = self
             .index
             .query_vector_index(&query_vector, filter, limit)?;
-        Ok(hits.into_iter().map(SemanticSearchHit::from).collect())
+        let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
+        Ok(SemanticSearchResult {
+            hits: hits.into_iter().map(SemanticSearchHit::from).collect(),
+            timing: SemanticSearchTiming {
+                query_embedding_duration_ms,
+                vector_search_duration_ms,
+                total_duration_ms: total_started_at.elapsed().as_millis(),
+            },
+        })
     }
 }
 

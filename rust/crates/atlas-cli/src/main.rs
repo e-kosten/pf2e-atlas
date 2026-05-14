@@ -507,6 +507,7 @@ fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String
 }
 
 fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, String> {
+    let total_started_at = Instant::now();
     let filter = options
         .filter_json
         .as_deref()
@@ -518,11 +519,14 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
 
     let config =
         EmbeddingRuntimeConfig::new(options.embedding_model, &options.embedding_cache_path);
+    let service_open_started_at = Instant::now();
     let mut search =
         SemanticSearchService::open(&options.index, &config).map_err(|error| error.to_string())?;
-    let hits = search
-        .semantic(&options.query, filter.as_ref(), options.limit)
+    let service_open_duration_ms = service_open_started_at.elapsed().as_millis();
+    let result = search
+        .semantic_with_timing(&options.query, filter.as_ref(), options.limit)
         .map_err(|error| error.to_string())?;
+    let hits = result.hits;
 
     if options.json {
         println!(
@@ -531,6 +535,13 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
                 "status": "ok",
                 "query": options.query,
                 "limit": options.limit,
+                "timing": {
+                    "service_open_duration_ms": service_open_duration_ms,
+                    "query_embedding_duration_ms": result.timing.query_embedding_duration_ms,
+                    "vector_search_duration_ms": result.timing.vector_search_duration_ms,
+                    "semantic_duration_ms": result.timing.total_duration_ms,
+                    "total_duration_ms": total_started_at.elapsed().as_millis(),
+                },
                 "hits": hits.iter().map(|hit| {
                     json!({
                         "record_key": hit.record_key,
