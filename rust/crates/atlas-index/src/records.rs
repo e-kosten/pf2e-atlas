@@ -7,7 +7,7 @@ use atlas_artifact::schema::{
     remaster_link_select_sql, spell_record_select_sql,
 };
 use atlas_domain::{
-    MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
+    MetricDomain, MetricValueType, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
     RemasterLinkSource, TimeKind, TimeUnit,
 };
 use atlas_record::{
@@ -191,13 +191,12 @@ fn read_metrics(
         let domain = parse_metric_domain(&required_string(row, "metric_domain")?)?;
         let key = required_string(row, "metric_key")?;
         let value_type = required_string(row, "value_type")?;
-        let value = match value_type.as_str() {
-            "number" => MetricValue::Number(required_f64(row, "number_value")?),
-            "text" => MetricValue::Text(required_string(row, "text_value")?),
-            "boolean" => {
+        let value = match parse_metric_value_type(&value_type)? {
+            MetricValueType::Number => MetricValue::Number(required_f64(row, "number_value")?),
+            MetricValueType::Text => MetricValue::Text(required_string(row, "text_value")?),
+            MetricValueType::Boolean => {
                 MetricValue::Boolean(bool_column("record_metrics.bool_value", row, "bool_value")?)
             }
-            _ => return Err(invalid_value("record_metrics.value_type", value_type)),
         };
         let metric = MetricRow { domain, key, value };
         metrics.entry(record_key).or_default().push(metric);
@@ -482,75 +481,36 @@ fn parse_record_family(value: &str) -> Result<RecordFamily, RecordLoadError> {
 }
 
 fn parse_publication_family(value: &str) -> Result<PublicationFamily, RecordLoadError> {
-    match value {
-        "core" => Ok(PublicationFamily::Core),
-        "rules" => Ok(PublicationFamily::Rules),
-        "adventure" => Ok(PublicationFamily::Adventure),
-        "unknown" => Ok(PublicationFamily::Unknown),
-        _ => Err(invalid_value(
-            "records.publication_family",
-            value.to_string(),
-        )),
-    }
+    PublicationFamily::from_canonical(value)
+        .ok_or_else(|| invalid_value("records.publication_family", value.to_string()))
 }
 
 fn parse_metric_domain(value: &str) -> Result<MetricDomain, RecordLoadError> {
-    match value {
-        "actor" => Ok(MetricDomain::Actor),
-        "item" => Ok(MetricDomain::Item),
-        _ => Err(invalid_value(
-            "record_metrics.metric_domain",
-            value.to_string(),
-        )),
-    }
+    MetricDomain::from_canonical(value)
+        .ok_or_else(|| invalid_value("record_metrics.metric_domain", value.to_string()))
+}
+
+fn parse_metric_value_type(value: &str) -> Result<MetricValueType, RecordLoadError> {
+    MetricValueType::from_canonical(value)
+        .ok_or_else(|| invalid_value("record_metrics.value_type", value.to_string()))
 }
 
 fn parse_alias_source(value: &str) -> Result<AliasSource, RecordLoadError> {
-    match value {
-        "remaster_journal" => Ok(AliasSource::RemasterJournal),
-        "migration" => Ok(AliasSource::Migration),
-        "compendium_source" => Ok(AliasSource::CompendiumSource),
-        _ => Err(invalid_value(
-            "record_aliases.source_kind",
-            value.to_string(),
-        )),
-    }
+    AliasSource::from_canonical(value)
+        .ok_or_else(|| invalid_value("record_aliases.source_kind", value.to_string()))
 }
 
 fn parse_remaster_link_source(value: &str) -> Result<RemasterLinkSource, RecordLoadError> {
-    match value {
-        "remaster_journal" => Ok(RemasterLinkSource::RemasterJournal),
-        "migration" => Ok(RemasterLinkSource::Migration),
-        _ => Err(invalid_value(
-            "remaster_links.source_kind",
-            value.to_string(),
-        )),
-    }
+    RemasterLinkSource::from_canonical(value)
+        .ok_or_else(|| invalid_value("remaster_links.source_kind", value.to_string()))
 }
 
 fn parse_time_kind(value: &str) -> Result<TimeKind, RecordLoadError> {
-    match value {
-        "actions" => Ok(TimeKind::Actions),
-        "free" => Ok(TimeKind::Free),
-        "reaction" => Ok(TimeKind::Reaction),
-        "duration" => Ok(TimeKind::Duration),
-        "variable" => Ok(TimeKind::Variable),
-        "other" => Ok(TimeKind::Other),
-        _ => Err(invalid_value("time.kind", value.to_string())),
-    }
+    TimeKind::from_canonical(value).ok_or_else(|| invalid_value("time.kind", value.to_string()))
 }
 
 fn parse_time_unit(value: &str) -> Result<TimeUnit, RecordLoadError> {
-    match value {
-        "round" => Ok(TimeUnit::Round),
-        "minute" => Ok(TimeUnit::Minute),
-        "hour" => Ok(TimeUnit::Hour),
-        "day" => Ok(TimeUnit::Day),
-        "week" => Ok(TimeUnit::Week),
-        "month" => Ok(TimeUnit::Month),
-        "year" => Ok(TimeUnit::Year),
-        _ => Err(invalid_value("time.unit", value.to_string())),
-    }
+    TimeUnit::from_canonical(value).ok_or_else(|| invalid_value("time.unit", value.to_string()))
 }
 
 fn invalid_parse<E: std::fmt::Display + 'static>(

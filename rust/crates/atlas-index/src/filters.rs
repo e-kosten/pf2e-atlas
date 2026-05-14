@@ -1,3 +1,7 @@
+use atlas_artifact::schema::{
+    Column, Table, actor_records, item_records, record_metrics, record_traits, records,
+    reference_edges, spell_records,
+};
 use atlas_domain::metadata::{
     BooleanOperator, CollectionOperator, MetadataBooleanField, MetadataEnumStringField,
     MetadataNumberField, MetadataPredicate, MetadataSetField, MetadataTextStringField,
@@ -42,10 +46,16 @@ pub fn compile_eligible_records_query(
     filter: Option<&SearchFilterNode>,
 ) -> Result<EligibleRecordsQuery, FilterCompileError> {
     let mut compiler = FilterCompiler::default();
-    let base = "SELECT r.record_key FROM records r WHERE r.is_default_visible = 1";
+    let base = format!(
+        "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
+        record_key = record_column(records::columns::RECORD_KEY),
+        records_table = records::TABLE.name(),
+        records_alias = RECORDS_ALIAS,
+        default_visible = record_column(records::columns::IS_DEFAULT_VISIBLE),
+    );
     let sql = match filter {
         Some(filter) => format!("{base} AND ({})", compiler.compile_node(filter)?),
-        None => base.to_string(),
+        None => base,
     };
 
     Ok(EligibleRecordsQuery {
@@ -74,11 +84,15 @@ impl EligibleRecordsQuery {
         let mut parameters = self.parameters;
         let mut sql = format!(
             "WITH eligible(record_key) AS ({})
-             SELECT r.record_key
+             SELECT {}
              FROM eligible e
-             JOIN records r ON r.record_key = e.record_key
+             JOIN {} {} ON {} = e.record_key
              ORDER BY {}",
             self.sql,
+            record_column(records::columns::RECORD_KEY),
+            records::TABLE.name(),
+            RECORDS_ALIAS,
+            record_column(records::columns::RECORD_KEY),
             sort.sql()
         );
 
@@ -106,16 +120,28 @@ impl EligibleRecordsQuery {
 }
 
 impl FilteredRecordSort {
-    fn sql(self) -> &'static str {
+    fn sql(self) -> String {
         match self {
-            Self::RecordKeyAsc => "r.record_key ASC",
-            Self::NameAsc => "r.normalized_name ASC, r.record_key ASC",
-            Self::LevelAsc => {
-                "r.level IS NULL ASC, r.level ASC, r.normalized_name ASC, r.record_key ASC"
-            }
-            Self::LevelDesc => {
-                "r.level IS NULL ASC, r.level DESC, r.normalized_name ASC, r.record_key ASC"
-            }
+            Self::RecordKeyAsc => format!("{} ASC", record_column(records::columns::RECORD_KEY)),
+            Self::NameAsc => format!(
+                "{} ASC, {} ASC",
+                record_column(records::columns::NORMALIZED_NAME),
+                record_column(records::columns::RECORD_KEY)
+            ),
+            Self::LevelAsc => format!(
+                "{} IS NULL ASC, {} ASC, {} ASC, {} ASC",
+                record_column(records::columns::LEVEL),
+                record_column(records::columns::LEVEL),
+                record_column(records::columns::NORMALIZED_NAME),
+                record_column(records::columns::RECORD_KEY)
+            ),
+            Self::LevelDesc => format!(
+                "{} IS NULL ASC, {} DESC, {} ASC, {} ASC",
+                record_column(records::columns::LEVEL),
+                record_column(records::columns::LEVEL),
+                record_column(records::columns::NORMALIZED_NAME),
+                record_column(records::columns::RECORD_KEY)
+            ),
         }
     }
 }
@@ -128,23 +154,58 @@ struct FilterCompiler {
 impl FilterCompiler {
     fn compile_node(&mut self, filter: &SearchFilterNode) -> Result<String, FilterCompileError> {
         match filter {
-            SearchFilterNode::Pack { value } => Ok(format!("r.pack_name = {}", self.text(value))),
-            SearchFilterNode::RecordFamily { value } => {
-                Ok(format!("r.record_family = {}", self.text(value.as_str())))
+            SearchFilterNode::Pack { value } => Ok(format!(
+                "{} = {}",
+                record_column(records::columns::PACK_NAME),
+                self.text(value)
+            )),
+            SearchFilterNode::RecordFamily { value } => Ok(format!(
+                "{} = {}",
+                record_column(records::columns::RECORD_FAMILY),
+                self.text(value.as_str())
+            )),
+            SearchFilterNode::Level { r#match } => {
+                self.numeric_match(&record_column(records::columns::LEVEL), *r#match)
             }
-            SearchFilterNode::Level { r#match } => self.numeric_match("r.level", *r#match),
-            SearchFilterNode::Price { r#match } => self.numeric_match("r.price_cp", *r#match),
-            SearchFilterNode::Rarity { r#match } => self.nullable_string_match("r.rarity", r#match),
-            SearchFilterNode::ActionCost { r#match } => {
-                self.nullable_numeric_match("r.activation_time_actions", *r#match)
+            SearchFilterNode::Price { r#match } => {
+                self.numeric_match(&record_column(records::columns::PRICE_CP), *r#match)
             }
+            SearchFilterNode::Rarity { r#match } => {
+                self.nullable_string_match(&record_column(records::columns::RARITY), r#match)
+            }
+            SearchFilterNode::ActionCost { r#match } => self.nullable_numeric_match(
+                &record_column(records::columns::ACTIVATION_TIME_ACTIONS),
+                *r#match,
+            ),
             SearchFilterNode::LinksTo { target } => Ok(format!(
-                "EXISTS (SELECT 1 FROM reference_edges re WHERE re.from_record_key = r.record_key AND re.to_record_key = {})",
-                self.text(&target.to_string())
+                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {record_key} AND {to_key} = {})",
+                self.text(&target.to_string()),
+                table = reference_edges::TABLE.name(),
+                alias = REFERENCE_EDGES_ALIAS,
+                from_key = aliased_column(
+                    REFERENCE_EDGES_ALIAS,
+                    reference_edges::columns::FROM_RECORD_KEY
+                ),
+                record_key = record_column(records::columns::RECORD_KEY),
+                to_key = aliased_column(
+                    REFERENCE_EDGES_ALIAS,
+                    reference_edges::columns::TO_RECORD_KEY
+                ),
             )),
             SearchFilterNode::LinkedFrom { source } => Ok(format!(
-                "EXISTS (SELECT 1 FROM reference_edges re WHERE re.from_record_key = {} AND re.to_record_key = r.record_key)",
-                self.text(&source.to_string())
+                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {} AND {to_key} = {record_key})",
+                self.text(&source.to_string()),
+                table = reference_edges::TABLE.name(),
+                alias = REFERENCE_EDGES_ALIAS,
+                from_key = aliased_column(
+                    REFERENCE_EDGES_ALIAS,
+                    reference_edges::columns::FROM_RECORD_KEY
+                ),
+                to_key = aliased_column(
+                    REFERENCE_EDGES_ALIAS,
+                    reference_edges::columns::TO_RECORD_KEY
+                ),
+                record_key = record_column(records::columns::RECORD_KEY),
             )),
             SearchFilterNode::MetadataPredicate { predicate } => self.metadata_predicate(predicate),
             SearchFilterNode::Metric { metric, op, value } => {
@@ -155,10 +216,20 @@ impl FilterCompiler {
                 op,
                 right_metric,
             } => Ok(format!(
-                "EXISTS (SELECT 1 FROM record_metrics lm JOIN record_metrics rm ON rm.record_key = lm.record_key WHERE lm.record_key = r.record_key AND lm.metric_key = {} AND rm.metric_key = {} AND lm.value_type = 'number' AND rm.value_type = 'number' AND lm.number_value {} rm.number_value)",
+                "EXISTS (SELECT 1 FROM {table} lm JOIN {table} rm ON {rm_record_key} = {lm_record_key} WHERE {lm_record_key} = {record_key} AND {lm_metric_key} = {} AND {rm_metric_key} = {} AND {lm_value_type} = 'number' AND {rm_value_type} = 'number' AND {lm_number_value} {} {rm_number_value})",
                 self.text(left_metric),
                 self.text(right_metric),
-                metric_operator_sql(*op)
+                metric_operator_sql(*op),
+                table = record_metrics::TABLE.name(),
+                lm_record_key = aliased_column("lm", record_metrics::columns::RECORD_KEY),
+                rm_record_key = aliased_column("rm", record_metrics::columns::RECORD_KEY),
+                record_key = record_column(records::columns::RECORD_KEY),
+                lm_metric_key = aliased_column("lm", record_metrics::columns::METRIC_KEY),
+                rm_metric_key = aliased_column("rm", record_metrics::columns::METRIC_KEY),
+                lm_value_type = aliased_column("lm", record_metrics::columns::VALUE_TYPE),
+                rm_value_type = aliased_column("rm", record_metrics::columns::VALUE_TYPE),
+                lm_number_value = aliased_column("lm", record_metrics::columns::NUMBER_VALUE),
+                rm_number_value = aliased_column("rm", record_metrics::columns::NUMBER_VALUE),
             )),
             SearchFilterNode::AnyOf { children } => self.boolean_group(children, " OR ", "0"),
             SearchFilterNode::AllOf { children } => self.boolean_group(children, " AND ", "1"),
@@ -220,60 +291,68 @@ impl FilterCompiler {
     ) -> Result<String, FilterCompileError> {
         let set = match field {
             MetadataSetField::Traits => SetStorage::Rows {
-                table: "record_traits",
-                key_column: "record_key",
-                value_column: "trait",
+                table: record_traits::TABLE,
+                key_column: record_traits::columns::RECORD_KEY,
+                value_column: record_traits::columns::TRAIT,
             },
             MetadataSetField::TaxonomyFamilies => {
-                SetStorage::JsonColumn("r.taxonomy_families_json")
+                SetStorage::JsonColumn(records::columns::TAXONOMY_FAMILIES_JSON)
             }
             MetadataSetField::Traditions => SetStorage::JsonSideTable {
-                table: "spell_records",
-                column: "traditions_json",
+                table: spell_records::TABLE,
+                column: spell_records::columns::TRADITIONS_JSON,
             },
             MetadataSetField::SpellKinds => SetStorage::JsonSideTable {
-                table: "spell_records",
-                column: "spell_kinds_json",
+                table: spell_records::TABLE,
+                column: spell_records::columns::SPELL_KINDS_JSON,
             },
             MetadataSetField::DamageTypes => {
                 return self.multi_json_side_table_set(
                     op,
                     value,
                     &[
-                        ("item_records", "damage_types_json"),
-                        ("spell_records", "damage_types_json"),
+                        (
+                            item_records::TABLE,
+                            item_records::columns::DAMAGE_TYPES_JSON,
+                        ),
+                        (
+                            spell_records::TABLE,
+                            spell_records::columns::DAMAGE_TYPES_JSON,
+                        ),
                     ],
                 );
             }
             MetadataSetField::Languages => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "languages_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::LANGUAGES_JSON,
             },
             MetadataSetField::SpeedTypes => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "speed_types_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::SPEED_TYPES_JSON,
             },
             MetadataSetField::Senses => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "senses_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::SENSES_JSON,
             },
             MetadataSetField::Immunities => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "immunities_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::IMMUNITIES_JSON,
             },
             MetadataSetField::Resistances => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "resistances_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::RESISTANCES_JSON,
             },
             MetadataSetField::Weaknesses => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "weaknesses_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::WEAKNESSES_JSON,
             },
             MetadataSetField::DisableSkills => SetStorage::JsonSideTable {
-                table: "actor_records",
-                column: "disable_skills_json",
+                table: actor_records::TABLE,
+                column: actor_records::columns::DISABLE_SKILLS_JSON,
             },
-            MetadataSetField::VariantAxes => SetStorage::JsonColumn("r.variant_axes_json"),
+            MetadataSetField::VariantAxes => {
+                SetStorage::JsonColumn(records::columns::VARIANT_AXES_JSON)
+            }
             MetadataSetField::DerivedTags => {
                 return Err(FilterCompileError::Unsupported {
                     filter: "metadata.set.derived_tags".to_string(),
@@ -301,15 +380,22 @@ impl FilterCompiler {
                         key_column,
                         value_column,
                     } => format!(
-                        "EXISTS (SELECT 1 FROM {table} s WHERE s.{key_column} = r.record_key AND s.{value_column} = {})",
-                        self.text(value)
+                        "EXISTS (SELECT 1 FROM {table} s WHERE {key_column} = {record_key} AND {value_column} = {})",
+                        self.text(value),
+                        table = table.name(),
+                        key_column = aliased_column("s", key_column),
+                        record_key = record_column(records::columns::RECORD_KEY),
+                        value_column = aliased_column("s", value_column),
                     ),
                     SetStorage::JsonColumn(column) => {
-                        json_array_contains_sql(column, &self.text(value))
+                        json_array_contains_sql(&record_column(column), &self.text(value))
                     }
                     SetStorage::JsonSideTable { table, column } => format!(
-                        "EXISTS (SELECT 1 FROM {table} s WHERE s.record_key = r.record_key AND {})",
-                        json_array_contains_sql(&format!("s.{column}"), &self.text(value))
+                        "EXISTS (SELECT 1 FROM {table} s WHERE {side_record_key} = {record_key} AND {})",
+                        json_array_contains_sql(&aliased_column("s", column), &self.text(value)),
+                        table = table.name(),
+                        side_record_key = aliased_column("s", record_key_column(table)),
+                        record_key = record_column(records::columns::RECORD_KEY),
                     ),
                 })
             }
@@ -317,24 +403,40 @@ impl FilterCompiler {
                 SetStorage::Rows {
                     table, key_column, ..
                 } => format!(
-                    "NOT EXISTS (SELECT 1 FROM {table} s WHERE s.{key_column} = r.record_key)"
+                    "NOT EXISTS (SELECT 1 FROM {table} s WHERE {key_column} = {record_key})",
+                    table = table.name(),
+                    key_column = aliased_column("s", key_column),
+                    record_key = record_column(records::columns::RECORD_KEY),
                 ),
-                SetStorage::JsonColumn(column) => json_array_empty_sql(column),
+                SetStorage::JsonColumn(column) => json_array_empty_sql(&record_column(column)),
                 SetStorage::JsonSideTable { table, column } => format!(
-                    "NOT EXISTS (SELECT 1 FROM {table} s WHERE s.record_key = r.record_key AND NOT {})",
-                    json_array_empty_sql(&format!("s.{column}"))
+                    "NOT EXISTS (SELECT 1 FROM {table} s WHERE {side_record_key} = {record_key} AND NOT {})",
+                    json_array_empty_sql(&aliased_column("s", column)),
+                    table = table.name(),
+                    side_record_key = aliased_column("s", record_key_column(table)),
+                    record_key = record_column(records::columns::RECORD_KEY),
                 ),
             }),
             CollectionOperator::IsNotNull => Ok(match set {
                 SetStorage::Rows {
                     table, key_column, ..
                 } => {
-                    format!("EXISTS (SELECT 1 FROM {table} s WHERE s.{key_column} = r.record_key)")
+                    format!(
+                        "EXISTS (SELECT 1 FROM {table} s WHERE {key_column} = {record_key})",
+                        table = table.name(),
+                        key_column = aliased_column("s", key_column),
+                        record_key = record_column(records::columns::RECORD_KEY),
+                    )
                 }
-                SetStorage::JsonColumn(column) => format!("NOT ({})", json_array_empty_sql(column)),
+                SetStorage::JsonColumn(column) => {
+                    format!("NOT ({})", json_array_empty_sql(&record_column(column)))
+                }
                 SetStorage::JsonSideTable { table, column } => format!(
-                    "EXISTS (SELECT 1 FROM {table} s WHERE s.record_key = r.record_key AND NOT {})",
-                    json_array_empty_sql(&format!("s.{column}"))
+                    "EXISTS (SELECT 1 FROM {table} s WHERE {side_record_key} = {record_key} AND NOT {})",
+                    json_array_empty_sql(&aliased_column("s", column)),
+                    table = table.name(),
+                    side_record_key = aliased_column("s", record_key_column(table)),
+                    record_key = record_column(records::columns::RECORD_KEY),
                 ),
             }),
         }
@@ -344,13 +446,20 @@ impl FilterCompiler {
         &mut self,
         op: CollectionOperator,
         value: Option<&str>,
-        tables: &[(&str, &str)],
+        tables: &[(Table, Column)],
     ) -> Result<String, FilterCompileError> {
         let predicates = tables
             .iter()
             .map(|(table, column)| {
-                self.set_predicate(SetStorage::JsonSideTable { table, column }, op, value)
-                    .map(|sql| format!("({sql})"))
+                self.set_predicate(
+                    SetStorage::JsonSideTable {
+                        table: *table,
+                        column: *column,
+                    },
+                    op,
+                    value,
+                )
+                .map(|sql| format!("({sql})"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let joiner = match op {
@@ -368,17 +477,17 @@ impl FilterCompiler {
         values: Option<&[String]>,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
-            MetadataEnumStringField::PublicationFamily => "r.publication_family",
-            MetadataEnumStringField::Size => "a.size",
-            MetadataEnumStringField::Usage => "r.system_usage",
-            MetadataEnumStringField::SystemGroup => "r.system_group",
-            MetadataEnumStringField::FoundryRecordType => "r.foundry_record_type",
-            MetadataEnumStringField::BaseItem => "r.system_base_item",
-            MetadataEnumStringField::SaveType => "s.save_type",
-            MetadataEnumStringField::AreaType => "s.area_type",
-            MetadataEnumStringField::DurationUnit => "r.duration_unit",
-            MetadataEnumStringField::Rarity => "r.rarity",
-            MetadataEnumStringField::VariantGroupKey => "r.variant_group_key",
+            MetadataEnumStringField::PublicationFamily => records::columns::PUBLICATION_FAMILY,
+            MetadataEnumStringField::Size => actor_records::columns::SIZE,
+            MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
+            MetadataEnumStringField::SystemGroup => records::columns::SYSTEM_GROUP,
+            MetadataEnumStringField::FoundryRecordType => records::columns::FOUNDRY_RECORD_TYPE,
+            MetadataEnumStringField::BaseItem => records::columns::SYSTEM_BASE_ITEM,
+            MetadataEnumStringField::SaveType => spell_records::columns::SAVE_TYPE,
+            MetadataEnumStringField::AreaType => spell_records::columns::AREA_TYPE,
+            MetadataEnumStringField::DurationUnit => records::columns::DURATION_UNIT,
+            MetadataEnumStringField::Rarity => records::columns::RARITY,
+            MetadataEnumStringField::VariantGroupKey => records::columns::VARIANT_GROUP_KEY,
         };
         self.with_field_source(column, |compiler, qualified_column| {
             compiler.string_operator(qualified_column, op, value, values)
@@ -392,13 +501,13 @@ impl FilterCompiler {
         value: Option<&str>,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
-            MetadataTextStringField::PublicationTitle => "r.publication_title",
-            MetadataTextStringField::RangeText => "s.range_text",
-            MetadataTextStringField::DurationText => "r.duration_text",
-            MetadataTextStringField::TargetText => "s.target_text",
-            MetadataTextStringField::DisableText => "a.disable_text",
-            MetadataTextStringField::VariantBaseName => "r.variant_base_name",
-            MetadataTextStringField::VariantLabel => "r.variant_label",
+            MetadataTextStringField::PublicationTitle => records::columns::PUBLICATION_TITLE,
+            MetadataTextStringField::RangeText => spell_records::columns::RANGE_TEXT,
+            MetadataTextStringField::DurationText => records::columns::DURATION_TEXT,
+            MetadataTextStringField::TargetText => spell_records::columns::TARGET_TEXT,
+            MetadataTextStringField::DisableText => actor_records::columns::DISABLE_TEXT,
+            MetadataTextStringField::VariantBaseName => records::columns::VARIANT_BASE_NAME,
+            MetadataTextStringField::VariantLabel => records::columns::VARIANT_LABEL,
         };
         self.with_field_source(column, |compiler, qualified_column| {
             compiler.text_operator(qualified_column, op, value)
@@ -414,12 +523,12 @@ impl FilterCompiler {
         max: Option<f64>,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
-            MetadataNumberField::Level => "r.level",
-            MetadataNumberField::PriceCp => "r.price_cp",
-            MetadataNumberField::BulkValue => "i.bulk_value",
-            MetadataNumberField::ActionCost => "r.activation_time_actions",
-            MetadataNumberField::RangeValue => "s.range_value",
-            MetadataNumberField::AreaValue => "s.area_value",
+            MetadataNumberField::Level => records::columns::LEVEL,
+            MetadataNumberField::PriceCp => records::columns::PRICE_CP,
+            MetadataNumberField::BulkValue => item_records::columns::BULK_VALUE,
+            MetadataNumberField::ActionCost => records::columns::ACTIVATION_TIME_ACTIONS,
+            MetadataNumberField::RangeValue => spell_records::columns::RANGE_VALUE,
+            MetadataNumberField::AreaValue => spell_records::columns::AREA_VALUE,
             MetadataNumberField::Hands => {
                 return Err(FilterCompileError::Unsupported {
                     filter: "metadata.number.hands".to_string(),
@@ -438,10 +547,10 @@ impl FilterCompiler {
         value: Option<bool>,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
-            MetadataBooleanField::PublicationRemaster => "r.publication_remaster",
-            MetadataBooleanField::Sustained => "s.sustained",
-            MetadataBooleanField::BasicSave => "s.basic_save",
-            MetadataBooleanField::IsComplex => "a.is_complex",
+            MetadataBooleanField::PublicationRemaster => records::columns::PUBLICATION_REMASTER,
+            MetadataBooleanField::Sustained => spell_records::columns::SUSTAINED,
+            MetadataBooleanField::BasicSave => spell_records::columns::BASIC_SAVE,
+            MetadataBooleanField::IsComplex => actor_records::columns::IS_COMPLEX,
         };
         self.with_field_source(column, |compiler, qualified_column| {
             compiler.boolean_operator(qualified_column, op, value)
@@ -450,16 +559,20 @@ impl FilterCompiler {
 
     fn with_field_source(
         &mut self,
-        column: &str,
+        column: Column,
         compile: impl FnOnce(&mut Self, &str) -> Result<String, FilterCompileError>,
     ) -> Result<String, FilterCompileError> {
         if let Some((alias, table)) = side_table_for_column(column) {
-            let predicate = compile(self, column)?;
+            let qualified_column = aliased_column(alias, column);
+            let predicate = compile(self, &qualified_column)?;
             Ok(format!(
-                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {alias}.record_key = r.record_key AND {predicate})"
+                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {side_record_key} = {record_key} AND {predicate})",
+                table = table.name(),
+                side_record_key = aliased_column(alias, record_key_column(table)),
+                record_key = record_column(records::columns::RECORD_KEY),
             ))
         } else {
-            compile(self, column)
+            compile(self, &record_column(column))
         }
     }
 
@@ -471,13 +584,30 @@ impl FilterCompiler {
     ) -> Result<String, FilterCompileError> {
         let metric_param = self.text(metric);
         let (value_type, column, value_param) = match value {
-            ScalarValue::String(value) => ("text", "m.text_value", self.text(value)),
-            ScalarValue::Number(value) => ("number", "m.number_value", self.number(*value)),
-            ScalarValue::Boolean(value) => ("boolean", "m.bool_value", self.boolean(*value)),
+            ScalarValue::String(value) => (
+                "text",
+                aliased_column("m", record_metrics::columns::TEXT_VALUE),
+                self.text(value),
+            ),
+            ScalarValue::Number(value) => (
+                "number",
+                aliased_column("m", record_metrics::columns::NUMBER_VALUE),
+                self.number(*value),
+            ),
+            ScalarValue::Boolean(value) => (
+                "boolean",
+                aliased_column("m", record_metrics::columns::BOOL_VALUE),
+                self.boolean(*value),
+            ),
         };
         Ok(format!(
-            "EXISTS (SELECT 1 FROM record_metrics m WHERE m.record_key = r.record_key AND m.metric_key = {metric_param} AND m.value_type = '{value_type}' AND {column} {} {value_param})",
-            metric_operator_sql(op)
+            "EXISTS (SELECT 1 FROM {table} m WHERE {metric_record_key} = {record_key} AND {metric_key} = {metric_param} AND {metric_value_type} = '{value_type}' AND {column} {} {value_param})",
+            metric_operator_sql(op),
+            table = record_metrics::TABLE.name(),
+            metric_record_key = aliased_column("m", record_metrics::columns::RECORD_KEY),
+            record_key = record_column(records::columns::RECORD_KEY),
+            metric_key = aliased_column("m", record_metrics::columns::METRIC_KEY),
+            metric_value_type = aliased_column("m", record_metrics::columns::VALUE_TYPE),
         ))
     }
 
@@ -741,26 +871,53 @@ impl FilterCompiler {
 }
 
 #[derive(Clone, Copy)]
-enum SetStorage<'a> {
+enum SetStorage {
     Rows {
-        table: &'a str,
-        key_column: &'a str,
-        value_column: &'a str,
+        table: Table,
+        key_column: Column,
+        value_column: Column,
     },
-    JsonColumn(&'a str),
+    JsonColumn(Column),
     JsonSideTable {
-        table: &'a str,
-        column: &'a str,
+        table: Table,
+        column: Column,
     },
 }
 
-fn side_table_for_column(column: &str) -> Option<(&'static str, &'static str)> {
-    match column.chars().next() {
-        Some('a') if column.starts_with("a.") => Some(("a", "actor_records")),
-        Some('i') if column.starts_with("i.") => Some(("i", "item_records")),
-        Some('s') if column.starts_with("s.") => Some(("s", "spell_records")),
+const RECORDS_ALIAS: &str = "r";
+const REFERENCE_EDGES_ALIAS: &str = "re";
+
+fn side_table_for_column(column: Column) -> Option<(&'static str, Table)> {
+    match column.table() {
+        table if table == actor_records::TABLE => Some(("a", actor_records::TABLE)),
+        table if table == item_records::TABLE => Some(("i", item_records::TABLE)),
+        table if table == spell_records::TABLE => Some(("s", spell_records::TABLE)),
         _ => None,
     }
+}
+
+fn record_key_column(table: Table) -> Column {
+    if table == actor_records::TABLE {
+        actor_records::columns::RECORD_KEY
+    } else if table == item_records::TABLE {
+        item_records::columns::RECORD_KEY
+    } else if table == spell_records::TABLE {
+        spell_records::columns::RECORD_KEY
+    } else if table == record_traits::TABLE {
+        record_traits::columns::RECORD_KEY
+    } else if table == record_metrics::TABLE {
+        record_metrics::columns::RECORD_KEY
+    } else {
+        records::columns::RECORD_KEY
+    }
+}
+
+fn record_column(column: Column) -> String {
+    aliased_column(RECORDS_ALIAS, column)
+}
+
+fn aliased_column(alias: &str, column: Column) -> String {
+    format!("{alias}.{}", column.name())
 }
 
 fn metric_operator_sql(op: MetricOperator) -> &'static str {

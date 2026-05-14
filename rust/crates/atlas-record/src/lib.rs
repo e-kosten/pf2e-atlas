@@ -141,6 +141,15 @@ impl AliasSource {
             Self::CompendiumSource => "compendium_source",
         }
     }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "remaster_journal" => Some(Self::RemasterJournal),
+            "migration" => Some(Self::Migration),
+            "compendium_source" => Some(Self::CompendiumSource),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

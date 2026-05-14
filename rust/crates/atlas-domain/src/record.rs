@@ -46,6 +46,18 @@ impl TimeKind {
             Self::Other => "other",
         }
     }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "actions" => Some(Self::Actions),
+            "free" => Some(Self::Free),
+            "reaction" => Some(Self::Reaction),
+            "duration" => Some(Self::Duration),
+            "variable" => Some(Self::Variable),
+            "other" => Some(Self::Other),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -72,6 +84,19 @@ impl TimeUnit {
             Self::Year => "year",
         }
     }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "round" => Some(Self::Round),
+            "minute" => Some(Self::Minute),
+            "hour" => Some(Self::Hour),
+            "day" => Some(Self::Day),
+            "week" => Some(Self::Week),
+            "month" => Some(Self::Month),
+            "year" => Some(Self::Year),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -92,6 +117,16 @@ impl PublicationFamily {
             Self::Unknown => "unknown",
         }
     }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "core" => Some(Self::Core),
+            "rules" => Some(Self::Rules),
+            "adventure" => Some(Self::Adventure),
+            "unknown" => Some(Self::Unknown),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -106,6 +141,14 @@ impl MetricDomain {
         match self {
             Self::Actor => "actor",
             Self::Item => "item",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "actor" => Some(Self::Actor),
+            "item" => Some(Self::Item),
+            _ => None,
         }
     }
 }
@@ -124,6 +167,15 @@ impl MetricValueType {
             Self::Number => "number",
             Self::Text => "text",
             Self::Boolean => "boolean",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "number" => Some(Self::Number),
+            "text" => Some(Self::Text),
+            "boolean" => Some(Self::Boolean),
+            _ => None,
         }
     }
 }
