@@ -32,15 +32,10 @@ for (const fileName of fs.readdirSync(scoreDir).filter((file) => file.endsWith("
     if (!modelId) {
       continue;
     }
-    const quality =
-      number(score.top_1_quality) +
-      number(score.top_3_quality) +
-      number(score.top_10_quality) -
-      number(score.irrelevant_count) -
-      number(score.overbroad_count) -
-      number(score.relationship_noise_count);
+    const quality = scoreQuality(score);
     const entry = {
       query_id: review.query_id,
+      review_mode: review.review_mode ?? "numeric",
       query_category: queryById.get(review.query_id)?.query_category ?? "uncategorized",
       candidate_set: score.candidate_set,
       model_id: modelId,
@@ -76,6 +71,8 @@ const modelScores = [...scoresByModel.entries()]
       total_irrelevant_count: sum(scores.map((score) => score.irrelevant_count)),
       total_overbroad_count: sum(scores.map((score) => score.overbroad_count)),
       total_relationship_noise_count: sum(scores.map((score) => score.relationship_noise_count)),
+      average_rank: average(scores.map((score) => score.rank)),
+      average_rank_score: average(scores.map((score) => score.rank_score)),
       build_duration_ms: deterministic.build_duration_ms ?? null,
       artifact_bytes: deterministic.artifact_bytes ?? null,
       truncated_document_count: deterministic.truncated_document_count ?? null,
@@ -110,17 +107,29 @@ function scoreSummaryMarkdown(aggregate) {
     );
   }
   lines.push("");
+  if (aggregate.model_scores.some((score) => typeof score.average_rank === "number")) {
+    lines.push("## Rank Scores");
+    lines.push("");
+    lines.push("| Model | Avg rank | Avg rank score | Queries |");
+    lines.push("| --- | ---: | ---: | ---: |");
+    for (const score of aggregate.model_scores) {
+      lines.push(
+        `| ${score.model_id} | ${format(score.average_rank)} | ${format(score.average_rank_score)} | ${score.scored_query_count} |`,
+      );
+    }
+    lines.push("");
+  }
   lines.push("## Category Scores");
   lines.push("");
-  lines.push("| Model | Category | Avg quality | Queries | Irrelevant | Overbroad | Relationship noise |");
-  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| Model | Category | Avg quality | Avg rank | Queries | Irrelevant | Overbroad | Relationship noise |");
+  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const score of aggregate.category_scores) {
     lines.push(
-      `| ${score.model_id} | ${score.query_category} | ${format(score.average_quality)} | ${score.scored_query_count} | ${score.total_irrelevant_count} | ${score.total_overbroad_count} | ${score.total_relationship_noise_count} |`,
+      `| ${score.model_id} | ${score.query_category} | ${format(score.average_quality)} | ${format(score.average_rank)} | ${score.scored_query_count} | ${score.total_irrelevant_count} | ${score.total_overbroad_count} | ${score.total_relationship_noise_count} |`,
     );
   }
   lines.push("");
-  lines.push("Quality formula: top_1 + top_3 + top_10 - irrelevant - overbroad - relationship_noise.");
+  lines.push("Quality formula: numeric reviews use top_1 + top_3 + top_10 - irrelevant - overbroad - relationship_noise; rank-order reviews use rank_score where higher is better.");
   return `${lines.join("\n")}\n`;
 }
 
@@ -138,6 +147,8 @@ function categoryScores(scoresByModelCategory) {
         total_irrelevant_count: sum(scores.map((score) => score.irrelevant_count)),
         total_overbroad_count: sum(scores.map((score) => score.overbroad_count)),
         total_relationship_noise_count: sum(scores.map((score) => score.relationship_noise_count)),
+        average_rank: average(scores.map((score) => score.rank)),
+        average_rank_score: average(scores.map((score) => score.rank_score)),
       };
     })
     .sort((left, right) => {
@@ -147,6 +158,20 @@ function categoryScores(scoresByModelCategory) {
       }
       return left.query_category.localeCompare(right.query_category);
     });
+}
+
+function scoreQuality(score) {
+  if (typeof score.rank_score === "number") {
+    return score.rank_score;
+  }
+  return (
+    number(score.top_1_quality) +
+    number(score.top_3_quality) +
+    number(score.top_10_quality) -
+    number(score.irrelevant_count) -
+    number(score.overbroad_count) -
+    number(score.relationship_noise_count)
+  );
 }
 
 function parseArgs(args) {

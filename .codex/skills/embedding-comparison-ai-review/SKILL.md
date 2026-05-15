@@ -13,8 +13,8 @@ Use this skill to score an embedding comparison run without revealing model iden
 - Do not open or quote `review-packets/*.mapping.json` until all scoring is complete.
 - Do not inspect model identities in `summary.json` while scoring.
 - Do not include model ids, model labels, build metrics, artifact paths, or mapping contents in scoring prompts.
-- Write scorer outputs only under `<run>/ai-review-scores/candidate-<letter>/chunk-XXX.json`.
-- Run `merge-ai-review-scores.mjs` only after all required chunk outputs exist.
+- Write scorer outputs only to the exact output path named in each job file under `<run>/ai-review-scores/`.
+- Run `merge-ai-review-scores.mjs` only after all required job outputs exist.
 - Run `aggregate-scores.mjs` only after merge succeeds.
 
 ## Workflow
@@ -30,6 +30,7 @@ Use this skill to score an embedding comparison run without revealing model iden
    ```bash
    node scratch/embedding-comparison/prepare-ai-review-jobs.mjs \
      --run <run> \
+     --review-mode rank-order \
      --chunk-size 10 \
      --exclude-query aquatic-low-level-creature
    ```
@@ -37,8 +38,9 @@ Use this skill to score an embedding comparison run without revealing model iden
 2. Read `<run>/ai-review-jobs/manifest.json` for job paths and expected outputs.
 
 3. Score jobs.
-   - If delegation is explicitly authorized, delegate one candidate letter or one chunk per scoring agent.
-   - Each scoring agent receives only one `ai-review-jobs/.../chunk-XXX.md` file.
+   - For `review_mode: "rank-order"`, delegate one query job per scoring agent when possible. Each scoring agent receives exactly one `ai-review-jobs/queries/<query-id>.md` file and ranks all visible candidate sets for that query.
+   - For older `review_mode: "numeric"` jobs, delegate one candidate letter or one chunk per scoring agent.
+   - Each scoring agent receives only one job file.
    - If scoring locally, process one job file at a time and write exactly the output JSON requested in the job.
 
 4. Validate and merge:
@@ -64,3 +66,5 @@ Use this skill to score an embedding comparison run without revealing model iden
 - Penalize irrelevant, overbroad, or relationship-noise results.
 - Do not invent exact expected records.
 - Empty candidate sections should receive low usefulness scores and notes explaining that no results were returned.
+- For rank-order jobs, keep ties at the same rank when candidate sets are materially indistinguishable. Every visible candidate letter must appear exactly once across `rankings[].candidate_sets`.
+- For rank-order jobs, do not force tiny differences into separate ranks. Prefer a clear tie plus notes when top results are effectively equivalent.

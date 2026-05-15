@@ -15,78 +15,122 @@ const runRoot = path.resolve(repoRoot, options.run);
 const manifest = readJson(path.join(runRoot, "ai-review-jobs", "manifest.json"));
 const scoreTemplatesDir = path.join(runRoot, "score-templates");
 const reviewScoresDir = path.join(runRoot, "review-scores");
-const expectedByQuery = expectedScoresByQuery(manifest);
+const reviewMode = manifest.review_mode ?? "numeric";
 const actualByQuery = new Map();
 const errors = [];
 
-for (const job of manifest.jobs ?? []) {
-  const scorePath = path.resolve(repoRoot, job.output_path);
-  if (!scorePath.startsWith(path.join(runRoot, "ai-review-scores"))) {
-    errors.push(`${job.candidate_set} ${job.chunk_id}: output path escapes ai-review-scores`);
-    continue;
-  }
-  if (!fs.existsSync(scorePath)) {
-    errors.push(`${job.candidate_set} ${job.chunk_id}: missing ${relative(scorePath)}`);
-    continue;
-  }
-
-  const review = readJson(scorePath);
-  if (review.candidate_set !== job.candidate_set) {
-    errors.push(
-      `${relative(scorePath)}: candidate_set is ${JSON.stringify(review.candidate_set)}, expected ${job.candidate_set}`,
-    );
-    continue;
-  }
-  const scoreByQuery = new Map((review.scores ?? []).map((score) => [score.query_id, score]));
-  for (const queryId of job.query_ids ?? []) {
-    const score = scoreByQuery.get(queryId);
-    if (!score) {
-      errors.push(`${relative(scorePath)}: missing score for ${queryId}`);
-      continue;
-    }
-    const normalized = normalizeScore(score, job.candidate_set, queryId, relative(scorePath), errors);
-    if (!normalized) {
-      continue;
-    }
-    const key = `${queryId}\u0000${job.candidate_set}`;
-    if (actualByQuery.has(key)) {
-      errors.push(`${relative(scorePath)}: duplicate score for ${queryId} candidate ${job.candidate_set}`);
-      continue;
-    }
-    actualByQuery.set(key, normalized);
-  }
-  for (const queryId of scoreByQuery.keys()) {
-    if (!(job.query_ids ?? []).includes(queryId)) {
-      errors.push(`${relative(scorePath)}: unexpected score for ${queryId}`);
-    }
-  }
-}
-
-for (const [queryId, candidateSets] of expectedByQuery.entries()) {
-  for (const candidateSet of candidateSets) {
-    if (!actualByQuery.has(`${queryId}\u0000${candidateSet}`)) {
-      errors.push(`missing merged score for ${queryId} candidate ${candidateSet}`);
-    }
-  }
+if (reviewMode === "rank-order") {
+  mergeRankOrderScores();
+} else {
+  mergeNumericScores();
 }
 
 if (errors.length > 0) {
   throw new Error(["AI review scores are incomplete or invalid:", ...errors.map((error) => `- ${error}`)].join("\n"));
 }
 
-fs.mkdirSync(reviewScoresDir, { recursive: true });
-for (const [queryId, candidateSets] of expectedByQuery.entries()) {
-  const template = readJson(path.join(scoreTemplatesDir, `${queryId}.json`));
-  const scores = template.scores
-    .filter((score) => candidateSets.includes(score.candidate_set))
-    .map((score) => actualByQuery.get(`${queryId}\u0000${score.candidate_set}`));
-  writeJson(path.join(reviewScoresDir, `${queryId}.json`), {
-    query_id: queryId,
-    scores,
-  });
+console.log(`merged AI review scores into ${relative(reviewScoresDir)}`);
+
+function mergeNumericScores() {
+  const expectedByQuery = expectedScoresByQuery(manifest);
+
+  for (const job of manifest.jobs ?? []) {
+    const scorePath = path.resolve(repoRoot, job.output_path);
+    if (!validScorePath(scorePath)) {
+      errors.push(`${job.candidate_set} ${job.chunk_id}: output path escapes ai-review-scores`);
+      continue;
+    }
+    if (!fs.existsSync(scorePath)) {
+      errors.push(`${job.candidate_set} ${job.chunk_id}: missing ${relative(scorePath)}`);
+      continue;
+    }
+
+    const review = readJson(scorePath);
+    if (review.candidate_set !== job.candidate_set) {
+      errors.push(
+        `${relative(scorePath)}: candidate_set is ${JSON.stringify(review.candidate_set)}, expected ${job.candidate_set}`,
+      );
+      continue;
+    }
+    const scoreByQuery = new Map((review.scores ?? []).map((score) => [score.query_id, score]));
+    for (const queryId of job.query_ids ?? []) {
+      const score = scoreByQuery.get(queryId);
+      if (!score) {
+        errors.push(`${relative(scorePath)}: missing score for ${queryId}`);
+        continue;
+      }
+      const normalized = normalizeScore(score, job.candidate_set, queryId, relative(scorePath), errors);
+      if (!normalized) {
+        continue;
+      }
+      const key = `${queryId}\u0000${job.candidate_set}`;
+      if (actualByQuery.has(key)) {
+        errors.push(`${relative(scorePath)}: duplicate score for ${queryId} candidate ${job.candidate_set}`);
+        continue;
+      }
+      actualByQuery.set(key, normalized);
+    }
+    for (const queryId of scoreByQuery.keys()) {
+      if (!(job.query_ids ?? []).includes(queryId)) {
+        errors.push(`${relative(scorePath)}: unexpected score for ${queryId}`);
+      }
+    }
+  }
+
+  for (const [queryId, candidateSets] of expectedByQuery.entries()) {
+    for (const candidateSet of candidateSets) {
+      if (!actualByQuery.has(`${queryId}\u0000${candidateSet}`)) {
+        errors.push(`missing merged score for ${queryId} candidate ${candidateSet}`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return;
+  }
+
+  fs.mkdirSync(reviewScoresDir, { recursive: true });
+  for (const [queryId, candidateSets] of expectedByQuery.entries()) {
+    const template = readJson(path.join(scoreTemplatesDir, `${queryId}.json`));
+    const scores = template.scores
+      .filter((score) => candidateSets.includes(score.candidate_set))
+      .map((score) => actualByQuery.get(`${queryId}\u0000${score.candidate_set}`));
+    writeJson(path.join(reviewScoresDir, `${queryId}.json`), {
+      query_id: queryId,
+      review_mode: "numeric",
+      scores,
+    });
+  }
 }
 
-console.log(`merged AI review scores for ${expectedByQuery.size} query file(s) into ${relative(reviewScoresDir)}`);
+function mergeRankOrderScores() {
+  fs.mkdirSync(reviewScoresDir, { recursive: true });
+  for (const job of manifest.jobs ?? []) {
+    const scorePath = path.resolve(repoRoot, job.output_path);
+    if (!validScorePath(scorePath)) {
+      errors.push(`${job.query_id}: output path escapes ai-review-scores`);
+      continue;
+    }
+    if (!fs.existsSync(scorePath)) {
+      errors.push(`${job.query_id}: missing ${relative(scorePath)}`);
+      continue;
+    }
+    const review = readJson(scorePath);
+    if (review.query_id !== job.query_id) {
+      errors.push(`${relative(scorePath)}: query_id is ${JSON.stringify(review.query_id)}, expected ${job.query_id}`);
+      continue;
+    }
+    const normalized = normalizeRankOrderReview(review, job, relative(scorePath), errors);
+    if (!normalized) {
+      continue;
+    }
+    writeJson(path.join(reviewScoresDir, `${job.query_id}.json`), normalized);
+  }
+}
+
+function validScorePath(scorePath) {
+  return scorePath.startsWith(path.join(runRoot, "ai-review-scores"));
+}
 
 function expectedScoresByQuery(manifest) {
   const expected = new Map();
@@ -114,6 +158,68 @@ function expectedScoresByQuery(manifest) {
   return expected;
 }
 
+function normalizeRankOrderReview(review, job, source, errors) {
+  const expectedCandidates = new Set(job.candidate_sets ?? []);
+  const seenCandidates = new Set();
+  const rankings = [];
+  for (const group of review.rankings ?? []) {
+    const rank = positiveIntegerValue(group.rank, "rank", source, job.query_id, errors);
+    const candidateSets = Array.isArray(group.candidate_sets) ? group.candidate_sets.map(String) : [];
+    if (candidateSets.length === 0) {
+      errors.push(`${source}: ${job.query_id} ranking rank ${group.rank} has no candidate_sets`);
+    }
+    for (const candidateSet of candidateSets) {
+      if (!expectedCandidates.has(candidateSet)) {
+        errors.push(`${source}: ${job.query_id} unexpected candidate ${candidateSet}`);
+      }
+      if (seenCandidates.has(candidateSet)) {
+        errors.push(`${source}: ${job.query_id} duplicate candidate ${candidateSet}`);
+      }
+      seenCandidates.add(candidateSet);
+    }
+    rankings.push({
+      rank,
+      candidate_sets: candidateSets,
+      rationale: typeof group.rationale === "string" ? group.rationale : "",
+    });
+  }
+
+  for (const candidateSet of expectedCandidates) {
+    if (!seenCandidates.has(candidateSet)) {
+      errors.push(`${source}: ${job.query_id} missing candidate ${candidateSet}`);
+    }
+  }
+
+  if (errors.some((error) => error.startsWith(`${source}: ${job.query_id}`))) {
+    return null;
+  }
+
+  rankings.sort((left, right) => left.rank - right.rank);
+  const candidateNotes = new Map(
+    (review.candidate_notes ?? []).map((note) => [String(note.candidate_set), String(note.notes ?? "")]),
+  );
+  const candidateCount = expectedCandidates.size;
+  const scores = [];
+  for (const group of rankings) {
+    for (const candidateSet of group.candidate_sets) {
+      scores.push({
+        candidate_set: candidateSet,
+        rank: group.rank,
+        rank_score: candidateCount - group.rank + 1,
+        tied_candidate_count: group.candidate_sets.length,
+        notes: candidateNotes.get(candidateSet) ?? group.rationale,
+      });
+    }
+  }
+
+  return {
+    query_id: job.query_id,
+    review_mode: "rank-order",
+    rankings,
+    scores: scores.sort((left, right) => left.candidate_set.localeCompare(right.candidate_set)),
+  };
+}
+
 function normalizeScore(score, candidateSet, queryId, source, errors) {
   const normalized = {
     candidate_set: candidateSet,
@@ -135,6 +241,14 @@ function normalizeScore(score, candidateSet, queryId, source, errors) {
     notes: typeof score.notes === "string" ? score.notes : "",
   };
   return errors.some((error) => error.startsWith(`${source}: ${queryId}`)) ? null : normalized;
+}
+
+function positiveIntegerValue(value, field, source, queryId, errors) {
+  if (!Number.isInteger(value) || value <= 0) {
+    errors.push(`${source}: ${queryId} ${field} must be a positive integer`);
+    return 1;
+  }
+  return value;
 }
 
 function boundedInteger(value, min, max, field, source, queryId, errors) {
