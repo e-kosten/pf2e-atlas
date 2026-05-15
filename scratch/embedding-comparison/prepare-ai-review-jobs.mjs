@@ -9,7 +9,7 @@ const options = parseArgs(process.argv.slice(2));
 
 if (!options.run) {
   throw new Error(
-    "usage: node scratch/embedding-comparison/prepare-ai-review-jobs.mjs --run <run-dir> [--chunk-size 10] [--exclude-query <query-id>]",
+    "usage: node scratch/embedding-comparison/prepare-ai-review-jobs.mjs --run <run-dir> [--review-mode numeric|rank-order] [--chunk-size 10] [--exclude-query <query-id>]",
   );
 }
 
@@ -20,6 +20,10 @@ const jobsRoot = path.join(runRoot, "ai-review-jobs");
 const scoresRoot = path.join(runRoot, "ai-review-scores");
 const chunkSize = positiveInteger(options.chunkSize ?? "10", "--chunk-size");
 const excludedQueries = new Set(arrayOption(options.excludeQuery));
+const reviewMode = options.reviewMode ?? "numeric";
+if (!["numeric", "rank-order"].includes(reviewMode)) {
+  throw new Error("--review-mode must be numeric or rank-order");
+}
 
 const rubric = readJson(path.join(runRoot, "scoring-rubric.json"));
 const templates = fs
@@ -37,45 +41,17 @@ const candidateLetters = candidateLettersFromTemplates(templates);
 fs.mkdirSync(jobsRoot, { recursive: true });
 fs.mkdirSync(scoresRoot, { recursive: true });
 
-const jobs = [];
-for (const candidateSet of candidateLetters) {
-  const candidateJobDir = path.join(jobsRoot, `candidate-${candidateSet}`);
-  const candidateScoreDir = path.join(scoresRoot, `candidate-${candidateSet}`);
-  fs.mkdirSync(candidateJobDir, { recursive: true });
-  fs.mkdirSync(candidateScoreDir, { recursive: true });
-
-  const chunks = chunk(templates, chunkSize);
-  for (const [chunkIndex, chunkTemplates] of chunks.entries()) {
-    const chunkId = `chunk-${String(chunkIndex + 1).padStart(3, "0")}`;
-    const outputPath = path.join(candidateScoreDir, `${chunkId}.json`);
-    const jobPath = path.join(candidateJobDir, `${chunkId}.md`);
-    const queryIds = chunkTemplates.map((template) => template.query_id);
-    fs.writeFileSync(
-      jobPath,
-      reviewJobMarkdown({
-        candidateSet,
-        chunkId,
-        outputPath,
-        queryIds,
-        rubric,
-        packets: queryIds.map((queryId) => candidatePacketSection(queryId, candidateSet)),
-      }),
-    );
-    jobs.push({
-      candidate_set: candidateSet,
-      chunk_id: chunkId,
-      job_path: relative(jobPath),
-      output_path: relative(outputPath),
-      query_ids: queryIds,
-    });
-  }
-}
+const jobs =
+  reviewMode === "rank-order"
+    ? writeRankOrderJobs({ templates, candidateLetters, rubric })
+    : writeNumericJobs({ templates, candidateLetters, rubric, chunkSize });
 
 const manifest = {
-  version: 1,
+  version: reviewMode === "rank-order" ? 2 : 1,
+  review_mode: reviewMode,
   run: relative(runRoot),
   generated_at: new Date().toISOString(),
-  chunk_size: chunkSize,
+  chunk_size: reviewMode === "rank-order" ? null : chunkSize,
   excluded_queries: [...excludedQueries].sort(),
   candidate_sets: candidateLetters,
   query_count: templates.length,
@@ -84,6 +60,79 @@ const manifest = {
 };
 writeJson(path.join(jobsRoot, "manifest.json"), manifest);
 console.log(`wrote ${jobs.length} AI review job(s) to ${relative(jobsRoot)}`);
+
+function writeNumericJobs({ templates, candidateLetters, rubric, chunkSize }) {
+  const jobs = [];
+  for (const candidateSet of candidateLetters) {
+    const candidateJobDir = path.join(jobsRoot, `candidate-${candidateSet}`);
+    const candidateScoreDir = path.join(scoresRoot, `candidate-${candidateSet}`);
+    fs.mkdirSync(candidateJobDir, { recursive: true });
+    fs.mkdirSync(candidateScoreDir, { recursive: true });
+
+    const chunks = chunk(templates, chunkSize);
+    for (const [chunkIndex, chunkTemplates] of chunks.entries()) {
+      const chunkId = `chunk-${String(chunkIndex + 1).padStart(3, "0")}`;
+      const outputPath = path.join(candidateScoreDir, `${chunkId}.json`);
+      const jobPath = path.join(candidateJobDir, `${chunkId}.md`);
+      const queryIds = chunkTemplates.map((template) => template.query_id);
+      fs.writeFileSync(
+        jobPath,
+        numericReviewJobMarkdown({
+          candidateSet,
+          chunkId,
+          outputPath,
+          queryIds,
+          rubric,
+          packets: queryIds.map((queryId) => candidatePacketSection(queryId, candidateSet)),
+        }),
+      );
+      jobs.push({
+        review_mode: "numeric",
+        candidate_set: candidateSet,
+        chunk_id: chunkId,
+        job_path: relative(jobPath),
+        output_path: relative(outputPath),
+        query_ids: queryIds,
+      });
+    }
+  }
+  return jobs;
+}
+
+function writeRankOrderJobs({ templates, candidateLetters, rubric }) {
+  const jobDir = path.join(jobsRoot, "queries");
+  const scoreDir = path.join(scoresRoot, "queries");
+  fs.mkdirSync(jobDir, { recursive: true });
+  fs.mkdirSync(scoreDir, { recursive: true });
+
+  return templates.map((template) => {
+    const queryId = template.query_id;
+    const outputPath = path.join(scoreDir, `${queryId}.json`);
+    const jobPath = path.join(jobDir, `${queryId}.md`);
+    fs.writeFileSync(
+      jobPath,
+      rankOrderReviewJobMarkdown({
+        queryId,
+        outputPath,
+        rubric,
+        candidateLetters,
+        packet: fullPacketSection(queryId),
+      }),
+    );
+    return {
+      review_mode: "rank-order",
+      query_id: queryId,
+      job_path: relative(jobPath),
+      output_path: relative(outputPath),
+      candidate_sets: candidateLetters,
+    };
+  });
+}
+
+function fullPacketSection(queryId) {
+  const packetPath = path.join(reviewPacketsDir, `${queryId}.md`);
+  return fs.readFileSync(packetPath, "utf8").trimEnd();
+}
 
 function candidatePacketSection(queryId, candidateSet) {
   const packetPath = path.join(reviewPacketsDir, `${queryId}.md`);
@@ -108,7 +157,7 @@ function candidatePacketSection(queryId, candidateSet) {
   };
 }
 
-function reviewJobMarkdown({ candidateSet, chunkId, outputPath, queryIds, rubric, packets }) {
+function numericReviewJobMarkdown({ candidateSet, chunkId, outputPath, queryIds, rubric, packets }) {
   const lines = [
     `# AI Review Job ${candidateSet} ${chunkId}`,
     "",
@@ -166,6 +215,76 @@ function reviewJobMarkdown({ candidateSet, chunkId, outputPath, queryIds, rubric
     lines.push("---", "", packet.markdown.trimEnd(), "");
   }
 
+  return `${lines.join("\n")}\n`;
+}
+
+function rankOrderReviewJobMarkdown({ queryId, outputPath, rubric, candidateLetters, packet }) {
+  const lines = [
+    `# AI Review Job ${queryId}`,
+    "",
+    "You are ranking search result quality for one query across all anonymized candidate sets.",
+    "",
+    "Rules:",
+    "- Rank only the candidate sets shown in this file.",
+    "- Do not infer or ask for model identities.",
+    "- Do not open mapping files or summary files.",
+    "- Rank against the query and review guidance only.",
+    "- Prefer the candidate set that best satisfies the user intent in the visible top results.",
+    "- Keep ties at the same rank when result quality is meaningfully indistinguishable.",
+    "- Penalize irrelevant, overbroad, or relationship-noise results.",
+    "- Do not assume there is a predefined answer key.",
+    "",
+    `Query in this job: ${queryId}`,
+    `Candidate sets: ${candidateLetters.join(", ")}`,
+    "",
+    "Write exactly one JSON file to:",
+    "",
+    "```text",
+    relative(outputPath),
+    "```",
+    "",
+    "Output JSON shape:",
+    "",
+    "```json",
+    JSON.stringify(
+      {
+        query_id: queryId,
+        rankings: [
+          {
+            rank: 1,
+            candidate_sets: ["A"],
+            rationale: "Why these candidate sets belong at this rank.",
+          },
+          {
+            rank: 2,
+            candidate_sets: ["B", "C"],
+            rationale: "These are tied because their result quality is materially similar.",
+          },
+        ],
+        candidate_notes: candidateLetters.map((candidateSet) => ({
+          candidate_set: candidateSet,
+          notes: "",
+        })),
+      },
+      null,
+      2,
+    ),
+    "```",
+    "",
+    "Every candidate set must appear exactly once across `rankings[].candidate_sets`.",
+    "Use rank `1` for the best candidate set or tie group; larger rank numbers are worse.",
+    "",
+    "Rubric:",
+    "",
+    "```json",
+    JSON.stringify(rubric, null, 2),
+    "```",
+    "",
+    "---",
+    "",
+    packet,
+    "",
+  ];
   return `${lines.join("\n")}\n`;
 }
 
