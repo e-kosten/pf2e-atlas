@@ -3,16 +3,86 @@ use crate::embedding_units::{
 };
 use crate::embeddings::EmbeddingUnitKind;
 
+fn filler(word: &str, count: usize) -> String {
+    std::iter::repeat_n(word, count)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[test]
-fn heading_equal_to_record_name_does_not_create_child_unit() {
+fn compact_heading_document_does_not_create_child_units() {
     let units = extract_structured_embedding_units(
         "Earn Income",
         "<h2>Earn Income</h2><p>This text is long enough to pass the token threshold because it describes the parent action rather than a distinct child section with a separate user intent.</p><h2>Ending or Interrupting Tasks</h2><p>When a task is complete, or if you stop in the middle of one, you normally need to find a new task before you can keep earning income from downtime work.</p>",
     );
 
+    assert!(units.is_empty());
+}
+
+#[test]
+fn long_heading_equal_to_record_name_does_not_create_child_unit() {
+    let units = extract_structured_embedding_units(
+        "Earn Income",
+        &format!(
+            "<h2>Earn Income</h2><p>{}</p><h2>Ending or Interrupting Tasks</h2><p>{}</p>",
+            filler("downtime", 220),
+            filler("interruption", 220)
+        ),
+    );
+
     assert_eq!(units.len(), 1);
     assert_eq!(units[0].kind, EmbeddingUnitKind::HeadingSection);
     assert_eq!(units[0].label, "Ending or Interrupting Tasks");
+}
+
+#[test]
+fn record_name_heading_can_still_split_nested_sections() {
+    let units = extract_structured_embedding_units(
+        "Downtime Procedures",
+        &format!(
+            "<h1>Downtime Procedures</h1><p>{}</p><h2>Earn Income</h2><p>{}</p><h2>Craft</h2><p>{}</p>",
+            filler("overview", 80),
+            filler("income", 180),
+            filler("crafting", 180)
+        ),
+    );
+
+    assert_eq!(
+        units
+            .iter()
+            .map(|unit| (unit.kind, unit.label.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (EmbeddingUnitKind::HeadingSection, "Earn Income"),
+            (EmbeddingUnitKind::HeadingSection, "Craft"),
+        ]
+    );
+}
+
+#[test]
+fn long_heading_document_splits_only_to_needed_nested_level() {
+    let units = extract_structured_embedding_units(
+        "Downtime Procedures",
+        &format!(
+            "<h1>Chapter One</h1><p>{}</p><h2>First Task</h2><p>{}</p><h2>Second Task</h2><p>{}</p><h1>Chapter Two</h1><p>{}</p>",
+            filler("overview", 40),
+            filler("crafting", 140),
+            filler("income", 140),
+            filler("resting", 120)
+        ),
+    );
+
+    assert_eq!(
+        units
+            .iter()
+            .map(|unit| (unit.kind, unit.label.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            (EmbeddingUnitKind::HeadingSection, "First Task"),
+            (EmbeddingUnitKind::HeadingSection, "Second Task"),
+            (EmbeddingUnitKind::HeadingSection, "Chapter Two"),
+        ]
+    );
 }
 
 #[test]
@@ -27,9 +97,12 @@ fn strong_result_labels_do_not_create_heading_units() {
 
 #[test]
 fn titled_option_lists_create_units_when_siblings_qualify() {
+    let detail = filler("avatar", 140);
     let units = extract_structured_embedding_units(
         "Avatar",
-        "<ul><li><strong>Abadar</strong><ul><li>Speed 50 feet, burrow Speed 30 feet, immune to immobilized.</li><li>Ranged crossbow with a long range increment and piercing damage for the deity form.</li></ul></li><li><strong>Achaekek</strong><ul><li>Speed 70 feet and climb Speed 50 feet, ignoring difficult terrain.</li><li>Melee mantis claw and ranged spine volley attacks for the deity form.</li></ul></li><li><strong>Asmodeus</strong><ul><li>Speed 70 feet and fly, with mace and hell fire attacks.</li><li>The battle form uses the spell attack modifier and listed fire damage.</li></ul></li></ul>",
+        &format!(
+            "<ul><li><strong>Abadar</strong> {detail}</li><li><strong>Achaekek</strong> {detail}</li><li><strong>Asmodeus</strong> {detail}</li></ul>"
+        ),
     );
 
     assert_eq!(
@@ -47,9 +120,12 @@ fn titled_option_lists_create_units_when_siblings_qualify() {
 
 #[test]
 fn titled_option_lists_ignore_nested_list_items() {
+    let detail = filler("avatar", 140);
     let units = extract_structured_embedding_units(
         "Avatar",
-        "<ul><li><strong>Abadar</strong> The Abadar avatar form includes a nested list of movement and attack details that should stay part of the Abadar unit.<ul><li><strong>Nested Speed</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Strike</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li><li><strong>Achaekek</strong> The Achaekek avatar form includes a nested list of movement and attack details that should stay part of the Achaekek unit.<ul><li><strong>Nested Climb</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Spine</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li><li><strong>Asmodeus</strong> The Asmodeus avatar form includes a nested list of movement and attack details that should stay part of the Asmodeus unit.<ul><li><strong>Nested Fire</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Mace</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li></ul>",
+        &format!(
+            "<ul><li><strong>Abadar</strong> {detail}<ul><li><strong>Nested Speed</strong> {detail}</li><li><strong>Nested Strike</strong> {detail}</li></ul></li><li><strong>Achaekek</strong> {detail}<ul><li><strong>Nested Climb</strong> {detail}</li><li><strong>Nested Spine</strong> {detail}</li></ul></li><li><strong>Asmodeus</strong> {detail}<ul><li><strong>Nested Fire</strong> {detail}</li><li><strong>Nested Mace</strong> {detail}</li></ul></li></ul>"
+        ),
     );
 
     assert_eq!(
@@ -63,9 +139,13 @@ fn titled_option_lists_ignore_nested_list_items() {
 
 #[test]
 fn titled_option_paragraphs_create_units_when_siblings_qualify() {
+    let overview = filler("overview", 80);
+    let detail = filler("eidolon", 120);
     let units = extract_structured_embedding_units(
         "Elemental Eidolon",
-        "<h2>Elemental Core</h2><p>The elemental core gives the eidolon a durable identity for movement, defenses, damage, and battlefield roles. This introduction should remain searchable as the section overview while individual elemental choices become separate option units.</p><p><strong>Air:</strong> Air eidolons move with speed and precision, emphasizing mobility, flight, lightning, thunder, and evasive positioning around enemies during dangerous encounters with shifting terrain.</p><p><strong>Earth:</strong> Earth eidolons favor durability, grounded movement, stone, metal, and resilient battlefield control that helps allies withstand pressure from enemies in sustained defensive fights.</p><p><strong>Fire:</strong> Fire eidolons focus on heat, flame, persistent damage, bright destructive pressure, and aggressive offense that can punish clustered opponents before they scatter.</p>",
+        &format!(
+            "<h2>Elemental Core</h2><p>{overview}</p><p><strong>Air:</strong> {detail}</p><p><strong>Earth:</strong> {detail}</p><p><strong>Fire:</strong> {detail}</p>"
+        ),
     );
 
     let labels = units
@@ -75,33 +155,24 @@ fn titled_option_paragraphs_create_units_when_siblings_qualify() {
     assert_eq!(
         labels,
         vec![
-            (EmbeddingUnitKind::HeadingSection, "Elemental Core"),
             (EmbeddingUnitKind::TitledOption, "Air"),
             (EmbeddingUnitKind::TitledOption, "Earth"),
             (EmbeddingUnitKind::TitledOption, "Fire"),
         ]
     );
-    let heading = units
-        .iter()
-        .find(|unit| unit.kind == EmbeddingUnitKind::HeadingSection)
-        .expect("heading section unit");
-    assert!(heading.body.contains("section overview"));
-    assert!(!heading.body.contains("Air eidolons"));
 }
 
 #[test]
 fn heading_sections_omit_nested_titled_option_lists() {
+    let overview = filler("mortar", 80);
+    let detail = filler("shrapnel", 120);
     let units = extract_structured_embedding_units(
         "Light Mortar Innovation",
-        "<h3>Innovation</h3><p>Your light mortar is a field-tested prototype with modular chambers and defensive bracing. This overview should remain searchable for the innovation section while the individual modifications are searched as option children.</p><ul><li><strong>Contained Shrapnel</strong> Your innovation redirects explosive force into safer patterns, protecting allies while still pressuring enemies near the target area during complicated battlefield engagements.</li><li><strong>Enhanced Shrapnel</strong> Your innovation improves the fragment spread and makes the mortar more effective against enemies that rely on tight formations and defensive positioning.</li><li><strong>Spring-Loaded</strong> Your innovation prepares a faster reload sequence, helping you recover between attacks and keep pressure during extended encounters with multiple opponents.</li></ul>",
+        &format!(
+            "<h3>Innovation</h3><p>{overview}</p><ul><li><strong>Contained Shrapnel</strong> {detail}</li><li><strong>Enhanced Shrapnel</strong> {detail}</li><li><strong>Spring-Loaded</strong> {detail}</li></ul>"
+        ),
     );
 
-    let heading = units
-        .iter()
-        .find(|unit| unit.kind == EmbeddingUnitKind::HeadingSection)
-        .expect("heading section unit");
-    assert!(heading.body.contains("field-tested prototype"));
-    assert!(!heading.body.contains("Contained Shrapnel"));
     assert_eq!(
         units
             .iter()
@@ -113,16 +184,16 @@ fn heading_sections_omit_nested_titled_option_lists() {
 }
 
 #[test]
-fn activation_blocks_group_activate_through_effect() {
+fn activation_blocks_are_not_emitted_by_active_extractor() {
+    let detail = filler("ritual", 220);
     let units = extract_structured_embedding_units(
         "Void Mirror",
-        "<p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> Accumulate 12 RP by making Occultism checks.</p><p><strong>Frequency</strong> once per month</p><p><strong>Effect</strong> The first activation ritual is known as \"Speak to the Void\" and allows the user to contact an intelligence in a distant part of the universe. The alien intelligence infuses the user's mind with answers, allowing Recall Knowledge with legendary proficiency, but failed checks deal mental damage.</p><p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> Accumulate 12 RP by making more difficult Occultism checks over a longer downtime interval.</p><p><strong>Frequency</strong> once per year</p><p><strong>Effect</strong> The second activation ritual is known as \"Call from the Void\" and draws a creature across the universe with attitude determined by the user's Occultism result and Will DC. The creature can arrive helpful, indifferent, hostile, or with magical feedback depending on the outcome.</p>",
+        &format!(
+            "<p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> {detail}</p><p><strong>Frequency</strong> once per month</p><p><strong>Effect</strong> The first activation ritual is known as \"Speak to the Void\" and {detail}</p><p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> {detail}</p><p><strong>Frequency</strong> once per year</p><p><strong>Effect</strong> The second activation ritual is known as \"Call from the Void\" and {detail}</p>"
+        ),
     );
 
-    assert_eq!(units.len(), 2);
-    assert_eq!(units[0].kind, EmbeddingUnitKind::ActivationBlock);
-    assert_eq!(units[0].label, "Speak to the Void");
-    assert_eq!(units[1].label, "Call from the Void");
+    assert!(units.is_empty());
 }
 
 #[test]
