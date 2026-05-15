@@ -6,8 +6,9 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::{
-    BuildArtifactReport, DocumentEmbeddingTokenizationTelemetry, IngestDiagnostics, LoadedRecord,
-    MetricValue, SkippedRecord, SourceLoad,
+    BuildArtifactReport, DocumentEmbeddingTokenizationTelemetry,
+    DocumentEmbeddingTruncationExample, IngestDiagnostics, LoadedRecord, MetricValue,
+    SkippedRecord, SourceLoad,
 };
 
 use crate::{IngestError, pipeline};
@@ -268,6 +269,10 @@ fn document_embedding_tokenization_json(
                     "record_count": truncation.record_count,
                     "total_tokens_over_limit": truncation.total_tokens_over_limit,
                     "max_observed_token_count": truncation.max_observed_token_count,
+                    "examples": truncation.examples
+                        .iter()
+                        .map(truncation_example_json)
+                        .collect::<Vec<_>>(),
                 })
             })
             .collect::<Vec<_>>(),
@@ -293,18 +298,20 @@ fn document_embedding_tokenization_json(
             .collect::<Vec<_>>(),
         "truncated_examples": telemetry.truncated_examples
             .iter()
-            .map(|example| {
-                json!({
-                    "embedding_unit_key": example.embedding_unit_key,
-                    "record_key": example.record_key,
-                    "unit_kind": example.unit_kind.as_str(),
-                    "label": example.label,
-                    "token_count": example.token_count,
-                    "max_token_count": example.max_token_count,
-                    "truncated_sections": example.truncated_sections,
-                })
-            })
+            .map(truncation_example_json)
             .collect::<Vec<_>>(),
+    })
+}
+
+fn truncation_example_json(example: &DocumentEmbeddingTruncationExample) -> Value {
+    json!({
+        "embedding_unit_key": example.embedding_unit_key,
+        "record_key": example.record_key,
+        "unit_kind": example.unit_kind.as_str(),
+        "label": example.label,
+        "token_count": example.token_count,
+        "max_token_count": example.max_token_count,
+        "truncated_sections": example.truncated_sections,
     })
 }
 

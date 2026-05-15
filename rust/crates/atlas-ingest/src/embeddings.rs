@@ -104,6 +104,7 @@ pub struct DocumentEmbeddingUnitKindTruncation {
     pub record_count: usize,
     pub total_tokens_over_limit: usize,
     pub max_observed_token_count: usize,
+    pub examples: Vec<DocumentEmbeddingTruncationExample>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -449,9 +450,34 @@ fn summarize_document_embedding_tokenization(
         .iter()
         .filter(|tokenization| tokenization.truncated)
         .count();
-    let unit_kind_truncations = summarize_unit_kind_truncations(pending, tokenizations);
     let record_truncation_coverage = summarize_record_truncation_coverage(pending, tokenizations);
-    let mut truncated_examples = pending
+    let mut truncated_examples =
+        truncated_examples(pending, tokenizations, truncated_sections_by_unit);
+    let unit_kind_truncations = summarize_unit_kind_truncations(&truncated_examples);
+    truncated_examples.truncate(10);
+
+    let section_truncations = summarize_section_truncations(truncated_sections_by_unit);
+
+    DocumentEmbeddingTokenizationTelemetry {
+        document_count: pending.len(),
+        truncated_document_count,
+        max_token_count,
+        max_observed_token_count,
+        total_observed_token_count,
+        total_tokens_over_limit,
+        unit_kind_truncations,
+        record_truncation_coverage,
+        section_truncations,
+        truncated_examples,
+    }
+}
+
+fn truncated_examples(
+    pending: &[PendingDocumentEmbedding],
+    tokenizations: &[EmbeddingInputTokenization],
+    truncated_sections_by_unit: &BTreeMap<String, Vec<EmbeddingSectionTruncation>>,
+) -> Vec<DocumentEmbeddingTruncationExample> {
+    let mut examples = pending
         .iter()
         .zip(tokenizations.iter())
         .filter_map(|(entry, tokenization)| {
@@ -477,55 +503,53 @@ fn summarize_document_embedding_tokenization(
                 })
         })
         .collect::<Vec<_>>();
-    truncated_examples.sort_by(|left, right| {
+    examples.sort_by(|left, right| {
         right
             .token_count
             .cmp(&left.token_count)
             .then_with(|| left.record_key.cmp(&right.record_key))
+            .then_with(|| left.embedding_unit_key.cmp(&right.embedding_unit_key))
     });
-    truncated_examples.truncate(10);
-    let section_truncations = summarize_section_truncations(truncated_sections_by_unit);
-
-    DocumentEmbeddingTokenizationTelemetry {
-        document_count: pending.len(),
-        truncated_document_count,
-        max_token_count,
-        max_observed_token_count,
-        total_observed_token_count,
-        total_tokens_over_limit,
-        unit_kind_truncations,
-        record_truncation_coverage,
-        section_truncations,
-        truncated_examples,
-    }
+    examples
 }
 
 fn summarize_unit_kind_truncations(
-    pending: &[PendingDocumentEmbedding],
-    tokenizations: &[EmbeddingInputTokenization],
+    truncated_examples: &[DocumentEmbeddingTruncationExample],
 ) -> Vec<DocumentEmbeddingUnitKindTruncation> {
-    let mut by_kind = BTreeMap::<String, (usize, BTreeSet<String>, usize, usize)>::new();
-    for (entry, tokenization) in pending.iter().zip(tokenizations.iter()) {
-        if !tokenization.truncated {
-            continue;
-        }
-        let max_token_count = tokenization
-            .max_token_count
-            .unwrap_or(tokenization.token_count);
-        let tokens_over_limit = tokenization.token_count.saturating_sub(max_token_count);
-        let kind = entry.unit_kind.as_str().to_string();
+    let mut by_kind = BTreeMap::<
+        String,
+        (
+            usize,
+            BTreeSet<String>,
+            usize,
+            usize,
+            Vec<DocumentEmbeddingTruncationExample>,
+        ),
+    >::new();
+    for example in truncated_examples {
+        let tokens_over_limit = example.token_count.saturating_sub(example.max_token_count);
+        let kind = example.unit_kind.as_str().to_string();
         let summary = by_kind.entry(kind).or_default();
         summary.0 += 1;
-        summary.1.insert(entry.record_key.clone());
+        summary.1.insert(example.record_key.clone());
         summary.2 += tokens_over_limit;
-        summary.3 = summary.3.max(tokenization.token_count);
+        summary.3 = summary.3.max(example.token_count);
+        if summary.4.len() < 5 {
+            summary.4.push(example.clone());
+        }
     }
     by_kind
         .into_iter()
         .map(
             |(
                 unit_kind,
-                (unit_count, record_keys, total_tokens_over_limit, max_observed_token_count),
+                (
+                    unit_count,
+                    record_keys,
+                    total_tokens_over_limit,
+                    max_observed_token_count,
+                    examples,
+                ),
             )| {
                 DocumentEmbeddingUnitKindTruncation {
                     unit_kind,
@@ -533,6 +557,7 @@ fn summarize_unit_kind_truncations(
                     record_count: record_keys.len(),
                     total_tokens_over_limit,
                     max_observed_token_count,
+                    examples,
                 }
             },
         )
@@ -831,6 +856,26 @@ Aliases: Legacy Visible"
         assert_eq!(telemetry.max_observed_token_count, 20);
         assert_eq!(telemetry.total_observed_token_count, 49);
         assert_eq!(telemetry.total_tokens_over_limit, 12);
+        let expected_truncated_examples = vec![
+            DocumentEmbeddingTruncationExample {
+                embedding_unit_key: "packs:longer#parent".to_string(),
+                record_key: "packs:longer".to_string(),
+                unit_kind: EmbeddingUnitKind::Parent,
+                label: None,
+                token_count: 20,
+                max_token_count: 10,
+                truncated_sections: vec!["description".to_string()],
+            },
+            DocumentEmbeddingTruncationExample {
+                embedding_unit_key: "packs:long#parent".to_string(),
+                record_key: "packs:long".to_string(),
+                unit_kind: EmbeddingUnitKind::Parent,
+                label: None,
+                token_count: 12,
+                max_token_count: 10,
+                truncated_sections: Vec::new(),
+            },
+        ];
         assert_eq!(
             telemetry.unit_kind_truncations,
             vec![DocumentEmbeddingUnitKindTruncation {
@@ -839,6 +884,7 @@ Aliases: Legacy Visible"
                 record_count: 2,
                 total_tokens_over_limit: 12,
                 max_observed_token_count: 20,
+                examples: expected_truncated_examples.clone(),
             }]
         );
         assert_eq!(
@@ -862,29 +908,7 @@ Aliases: Legacy Visible"
                 dropped_chunk_count: 1,
             }]
         );
-        assert_eq!(
-            telemetry.truncated_examples,
-            vec![
-                DocumentEmbeddingTruncationExample {
-                    embedding_unit_key: "packs:longer#parent".to_string(),
-                    record_key: "packs:longer".to_string(),
-                    unit_kind: EmbeddingUnitKind::Parent,
-                    label: None,
-                    token_count: 20,
-                    max_token_count: 10,
-                    truncated_sections: vec!["description".to_string()],
-                },
-                DocumentEmbeddingTruncationExample {
-                    embedding_unit_key: "packs:long#parent".to_string(),
-                    record_key: "packs:long".to_string(),
-                    unit_kind: EmbeddingUnitKind::Parent,
-                    label: None,
-                    token_count: 12,
-                    max_token_count: 10,
-                    truncated_sections: Vec::new(),
-                },
-            ]
-        );
+        assert_eq!(telemetry.truncated_examples, expected_truncated_examples);
     }
 
     fn pending_embedding(record_key: &str, input_text: &str) -> PendingDocumentEmbedding {
