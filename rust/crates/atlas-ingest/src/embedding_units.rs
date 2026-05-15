@@ -3,6 +3,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::embeddings::EmbeddingUnitKind;
 use crate::normalize::strip_markup;
 
+const CHILD_SPLIT_DOCUMENT_TOKEN_THRESHOLD: usize = 384;
+const CHILD_SPLIT_TARGET_TOKEN_COUNT: usize = 256;
+const MIN_HEADING_SECTION_TOKENS: usize = 25;
+const MIN_TITLED_OPTION_TOKENS: usize = 20;
+const MAX_HEADING_LEVEL: u8 = 3;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StructuredEmbeddingUnit {
     pub(crate) kind: EmbeddingUnitKind,
@@ -36,16 +42,32 @@ struct TitledOptionCandidate {
     body: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HeadingSectionRange {
+    level: u8,
+    label: String,
+    label_is_valid: bool,
+    ordinal: usize,
+    start: usize,
+    end: usize,
+    body_token_count: usize,
+}
+
 pub(crate) fn extract_structured_embedding_units(
     record_name: &str,
     markup: &str,
 ) -> Vec<StructuredEmbeddingUnit> {
     let blocks = markup_blocks(markup);
+    if normalized_token_count(&render_blocks_for_unit(&blocks))
+        <= CHILD_SPLIT_DOCUMENT_TOKEN_THRESHOLD
+    {
+        return Vec::new();
+    }
     let normalized_record_name = normalize_split_label(record_name);
-    let mut units = Vec::new();
-    units.extend(extract_heading_units(&blocks, &normalized_record_name));
-    units.extend(extract_titled_option_units(&blocks));
-    units.extend(extract_activation_block_units(&blocks));
+    let mut units = extract_adaptive_heading_units(&blocks, &normalized_record_name);
+    if units.is_empty() {
+        units.extend(extract_titled_option_units(&blocks, 0, blocks.len()));
+    }
     units.sort_by_key(|unit| (unit.ordinal, unit.kind));
     reassign_ordinals_by_source_order(units)
 }
@@ -69,97 +91,164 @@ fn reassign_ordinals_by_source_order(
         .collect()
 }
 
-fn extract_heading_units(
+fn extract_adaptive_heading_units(
     blocks: &[MarkupBlock],
     normalized_record_name: &str,
 ) -> Vec<StructuredEmbeddingUnit> {
-    let mut units = Vec::new();
-    for (index, block) in blocks.iter().enumerate() {
-        let MarkupBlock::Heading { level, label } = block else {
-            continue;
-        };
-        if !matches!(level, 1..=3) {
-            continue;
-        }
-        let normalized_label = normalize_split_label(label);
-        if normalized_label.is_empty() || normalized_label == normalized_record_name {
-            continue;
-        }
-        let end = blocks[index + 1..]
-            .iter()
-            .position(|candidate| {
-                matches!(
-                    candidate,
-                    MarkupBlock::Heading {
-                        level: candidate_level,
-                        ..
-                    } if *candidate_level <= *level && matches!(candidate_level, 1..=3)
-                )
-            })
-            .map(|relative| index + 1 + relative)
-            .unwrap_or(blocks.len());
-        let body = render_heading_body(blocks, index + 1, end, normalized_record_name);
-        if normalized_token_count(&body) < 25 {
-            continue;
-        }
-        units.push(StructuredEmbeddingUnit {
-            kind: EmbeddingUnitKind::HeadingSection,
-            label: label.clone(),
-            ordinal: index + 1,
-            body,
-        });
-    }
-    dedupe_units(units)
+    dedupe_units(plan_heading_units(
+        blocks,
+        0,
+        blocks.len(),
+        normalized_record_name,
+    ))
 }
 
-fn render_heading_body(
+fn plan_heading_units(
     blocks: &[MarkupBlock],
     start: usize,
     end: usize,
     normalized_record_name: &str,
-) -> String {
-    let mut rendered = Vec::new();
-    let mut index = start;
-    while index < end {
-        if let MarkupBlock::Heading { level, label } = &blocks[index]
-            && matches!(level, 1..=3)
-        {
-            let nested_end = blocks[index + 1..end]
-                .iter()
-                .position(|candidate| {
-                    matches!(
-                        candidate,
-                        MarkupBlock::Heading {
-                            level: candidate_level,
-                            ..
-                        } if *candidate_level <= *level && matches!(candidate_level, 1..=3)
-                    )
-                })
-                .map(|relative| index + 1 + relative)
-                .unwrap_or(end);
-            let normalized_label = normalize_split_label(label);
-            let nested_body = render_blocks_for_unit(&blocks[index + 1..nested_end]);
-            if !normalized_label.is_empty()
-                && normalized_label != normalized_record_name
-                && normalized_token_count(&nested_body) >= 25
-            {
-                index = nested_end;
+) -> Vec<StructuredEmbeddingUnit> {
+    let sections = immediate_heading_sections(blocks, start, end, normalized_record_name);
+    if sections.is_empty() {
+        return Vec::new();
+    }
+    let mut units = Vec::new();
+
+    for section in sections {
+        if !section.label_is_valid {
+            let nested = plan_heading_units(
+                blocks,
+                section.start + 1,
+                section.end,
+                normalized_record_name,
+            );
+            if nested.len() >= 2 {
+                units.extend(nested);
+                continue;
+            }
+
+            let titled_options =
+                extract_titled_option_units(blocks, section.start + 1, section.end);
+            if titled_options.len() >= 3 {
+                units.extend(titled_options);
+            }
+            continue;
+        }
+
+        if section.body_token_count > CHILD_SPLIT_TARGET_TOKEN_COUNT {
+            let nested = plan_heading_units(
+                blocks,
+                section.start + 1,
+                section.end,
+                normalized_record_name,
+            );
+            if nested.len() >= 2 {
+                units.extend(nested);
+                continue;
+            }
+
+            let titled_options =
+                extract_titled_option_units(blocks, section.start + 1, section.end);
+            if titled_options.len() >= 3 {
+                units.extend(titled_options);
                 continue;
             }
         }
-        if let Some(skip_end) = titled_option_skip_end(blocks, index, end) {
-            index = skip_end;
-            continue;
-        }
-        rendered.push(render_blocks_for_unit(&blocks[index..index + 1]));
-        index += 1;
+
+        let body = render_blocks_for_unit(&blocks[section.start + 1..section.end]);
+        units.push(StructuredEmbeddingUnit {
+            kind: EmbeddingUnitKind::HeadingSection,
+            label: section.label,
+            ordinal: section.ordinal,
+            body,
+        });
     }
-    rendered.join(" ")
+
+    units
 }
 
-fn extract_titled_option_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddingUnit> {
+fn immediate_heading_sections(
+    blocks: &[MarkupBlock],
+    start: usize,
+    end: usize,
+    normalized_record_name: &str,
+) -> Vec<HeadingSectionRange> {
+    let Some(level) = immediate_heading_level(blocks, start, end) else {
+        return Vec::new();
+    };
+    let mut sections = Vec::new();
+    let mut index = start;
+    while index < end {
+        let MarkupBlock::Heading {
+            level: candidate_level,
+            label,
+        } = &blocks[index]
+        else {
+            index += 1;
+            continue;
+        };
+        if *candidate_level != level {
+            index += 1;
+            continue;
+        }
+
+        let section_end = heading_section_end(blocks, index, end, level);
+        let normalized_label = normalize_split_label(label);
+        let body = render_blocks_for_unit(&blocks[index + 1..section_end]);
+        let body_token_count = normalized_token_count(&body);
+        if body_token_count >= MIN_HEADING_SECTION_TOKENS {
+            sections.push(HeadingSectionRange {
+                level,
+                label: label.clone(),
+                label_is_valid: !normalized_label.is_empty()
+                    && normalized_label != normalized_record_name,
+                ordinal: index + 1,
+                start: index,
+                end: section_end,
+                body_token_count,
+            });
+        }
+        index = section_end;
+    }
+    sections
+}
+
+fn immediate_heading_level(blocks: &[MarkupBlock], start: usize, end: usize) -> Option<u8> {
+    blocks[start..end].iter().find_map(|block| {
+        if let MarkupBlock::Heading { level, .. } = block
+            && matches!(*level, 1..=MAX_HEADING_LEVEL)
+        {
+            return Some(*level);
+        }
+        None
+    })
+}
+
+fn heading_section_end(blocks: &[MarkupBlock], index: usize, end: usize, level: u8) -> usize {
+    blocks[index + 1..end]
+        .iter()
+        .position(|candidate| {
+            matches!(
+                candidate,
+                MarkupBlock::Heading {
+                    level: candidate_level,
+                    ..
+                } if *candidate_level <= level && matches!(*candidate_level, 1..=MAX_HEADING_LEVEL)
+            )
+        })
+        .map(|relative| index + 1 + relative)
+        .unwrap_or(end)
+}
+
+fn extract_titled_option_units(
+    blocks: &[MarkupBlock],
+    start: usize,
+    end: usize,
+) -> Vec<StructuredEmbeddingUnit> {
     let mut units = Vec::new();
-    for (block_index, block) in blocks.iter().enumerate() {
+    for (relative_index, block) in blocks[start..end].iter().enumerate() {
+        let block_index = start + relative_index;
         let MarkupBlock::List(items) = block else {
             continue;
         };
@@ -176,10 +265,10 @@ fn extract_titled_option_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddin
             });
         }
     }
-    let mut index = 0;
-    while index < blocks.len() {
+    let mut index = start;
+    while index < end {
         let start = index;
-        let candidates = collect_titled_paragraph_candidates(blocks, index, blocks.len());
+        let candidates = collect_titled_paragraph_candidates(blocks, index, end);
         if candidates.len() < 3 {
             index += candidates.len().max(1);
             continue;
@@ -196,16 +285,6 @@ fn extract_titled_option_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddin
         index = start + candidate_count;
     }
     dedupe_units(units)
-}
-
-fn titled_option_skip_end(blocks: &[MarkupBlock], start: usize, end: usize) -> Option<usize> {
-    if let MarkupBlock::List(items) = &blocks[start]
-        && titled_option_candidates_from_list(items).len() >= 3
-    {
-        return Some(start + 1);
-    }
-    let candidates = collect_titled_paragraph_candidates(blocks, start, end);
-    (candidates.len() >= 3).then_some(start + candidates.len())
 }
 
 fn collect_titled_paragraph_candidates(
@@ -230,10 +309,12 @@ fn titled_option_candidates_from_list(items: &[ListItem]) -> Vec<TitledOptionCan
         .iter()
         .filter_map(|item| {
             let label = clean_option_label(item.label.as_deref()?)?;
-            (normalized_token_count(&item.body) >= 20).then_some(TitledOptionCandidate {
-                label,
-                body: item.body.clone(),
-            })
+            (normalized_token_count(&item.body) >= MIN_TITLED_OPTION_TOKENS).then_some(
+                TitledOptionCandidate {
+                    label,
+                    body: item.body.clone(),
+                },
+            )
         })
         .collect()
 }
@@ -247,7 +328,7 @@ fn titled_option_candidate_from_paragraph(block: &MarkupBlock) -> Option<TitledO
         return None;
     };
     let label = clean_option_label(label)?;
-    (normalized_token_count(text) >= 20).then_some(TitledOptionCandidate {
+    (normalized_token_count(text) >= MIN_TITLED_OPTION_TOKENS).then_some(TitledOptionCandidate {
         label,
         body: text.clone(),
     })
@@ -266,6 +347,7 @@ fn is_mechanics_result_label(normalized_label: &str) -> bool {
     )
 }
 
+#[allow(dead_code)]
 fn extract_activation_block_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddingUnit> {
     let mut units = Vec::new();
     let mut index = 0;
