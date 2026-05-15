@@ -13,13 +13,14 @@ const MODEL_CACHE_ENV: &str = "ATLAS_EMBEDDING_TEST_CACHE";
 const VECTOR_TOLERANCE: f32 = 0.00001;
 
 #[test]
-fn default_model_spec_matches_minilm_contract() {
+fn default_model_spec_matches_bge_small_contract() {
     let spec = default_embedding_model_spec();
 
-    assert_eq!(spec.provider_family, "transformers-js-minilm");
-    assert_eq!(spec.model_id, "Xenova/all-MiniLM-L12-v2");
+    assert_eq!(DEFAULT_EMBEDDING_MODEL, EmbeddingModelId::BgeSmallEnV15);
+    assert_eq!(spec.provider_family, "onnx-mean-pooling");
+    assert_eq!(spec.model_id, "BAAI/bge-small-en-v1.5");
     assert_eq!(spec.model_revision, "main");
-    assert_eq!(spec.tokenizer_id, "Xenova/all-MiniLM-L12-v2");
+    assert_eq!(spec.tokenizer_id, "BAAI/bge-small-en-v1.5");
     assert_eq!(spec.max_input_tokens, Some(512));
     assert_eq!(spec.pooling.as_str(), "mean");
     assert_eq!(spec.normalization.as_str(), "l2");
@@ -27,7 +28,22 @@ fn default_model_spec_matches_minilm_contract() {
     assert_eq!(spec.dtype.as_str(), "f32");
     assert_eq!(spec.distance_metric.as_str(), "cosine");
     assert_eq!(spec.document_prefix, "");
-    assert_eq!(spec.query_prefix, "");
+    assert_eq!(
+        spec.query_prefix,
+        "Represent this sentence for searching relevant passages: "
+    );
+}
+
+#[test]
+fn model_aliases_keep_minilm_explicit_and_default_tracks_catalog_default() {
+    assert_eq!(
+        "default".parse::<EmbeddingModelId>().unwrap(),
+        DEFAULT_EMBEDDING_MODEL
+    );
+    assert_eq!(
+        "minilm".parse::<EmbeddingModelId>().unwrap(),
+        EmbeddingModelId::MiniLmL12V2
+    );
 }
 
 #[test]
@@ -113,7 +129,9 @@ fn embedding_renderer_omits_backlinks() {
 
 #[test]
 fn minilm_tokenization_reports_catalog_limit_when_model_cache_exists() {
-    let Some(config) = model_backed_test_config("minilm tokenization limit") else {
+    let Some(config) =
+        model_backed_test_config(EmbeddingModelId::MiniLmL12V2, "minilm tokenization limit")
+    else {
         return;
     };
 
@@ -134,7 +152,9 @@ fn minilm_tokenization_reports_catalog_limit_when_model_cache_exists() {
 
 #[test]
 fn minilm_budgeting_drops_lower_priority_sections_when_model_cache_exists() {
-    let Some(config) = model_backed_test_config("minilm section-aware budget") else {
+    let Some(config) =
+        model_backed_test_config(EmbeddingModelId::MiniLmL12V2, "minilm section-aware budget")
+    else {
         return;
     };
 
@@ -186,7 +206,9 @@ fn minilm_budgeting_drops_lower_priority_sections_when_model_cache_exists() {
 
 #[test]
 fn minilm_query_vectors_match_typescript_fixture_when_model_cache_exists() {
-    let Some(config) = model_backed_test_config("minilm query vector parity") else {
+    let Some(config) =
+        model_backed_test_config(EmbeddingModelId::MiniLmL12V2, "minilm query vector parity")
+    else {
         return;
     };
 
@@ -211,7 +233,10 @@ fn minilm_query_vectors_match_typescript_fixture_when_model_cache_exists() {
 
 #[test]
 fn minilm_document_embedding_uses_document_prefix_when_model_cache_exists() {
-    let Some(config) = model_backed_test_config("minilm document prefix parity") else {
+    let Some(config) = model_backed_test_config(
+        EmbeddingModelId::MiniLmL12V2,
+        "minilm document prefix parity",
+    ) else {
         return;
     };
 
@@ -231,7 +256,10 @@ fn minilm_document_embedding_uses_document_prefix_when_model_cache_exists() {
 
 #[test]
 fn minilm_batch_document_embeddings_match_single_embeddings_when_model_cache_exists() {
-    let Some(config) = model_backed_test_config("minilm batch document parity") else {
+    let Some(config) = model_backed_test_config(
+        EmbeddingModelId::MiniLmL12V2,
+        "minilm batch document parity",
+    ) else {
         return;
     };
 
@@ -266,15 +294,18 @@ fn minilm_batch_document_embeddings_match_single_embeddings_when_model_cache_exi
     }
 }
 
-fn model_backed_test_config(test_name: &str) -> Option<EmbeddingRuntimeConfig> {
+fn model_backed_test_config(
+    model: EmbeddingModelId,
+    test_name: &str,
+) -> Option<EmbeddingRuntimeConfig> {
     let cache_root = model_cache_root();
-    let config = EmbeddingRuntimeConfig::default_model(&cache_root);
+    let config = EmbeddingRuntimeConfig::new(model, &cache_root);
     let model_path = config.model_dir().join("onnx").join("model.onnx");
     if model_path.exists() {
         Some(config)
     } else {
         eprintln!(
-            "skipping {test_name}: MiniLM model cache not found at {}; set {MODEL_CACHE_ENV} to override",
+            "skipping {test_name}: {model} model cache not found at {}; set {MODEL_CACHE_ENV} to override",
             cache_root.display()
         );
         None

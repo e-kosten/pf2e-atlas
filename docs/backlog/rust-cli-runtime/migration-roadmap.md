@@ -209,7 +209,7 @@ Using a different engine at ingest and runtime is acceptable only if the produce
 ## Non-Goals
 
 - Do not start with a full rewrite.
-- Do not introduce a Python runtime query sidecar; Rust query embeddings are viable for the first MiniLM migration baseline.
+- Do not introduce a Python runtime query sidecar; Rust query embeddings are viable in-process through the catalog-backed ONNX provider.
 - Do not keep MCP as the architectural center if the product remains local-only.
 - Do not create parallel TypeScript and Rust runtime cores with mixed feature ownership.
 - Do not use Rust as a thin wrapper over the existing Node runtime; that would preserve the current architecture cost while adding another language.
@@ -218,10 +218,7 @@ Using a different engine at ingest and runtime is acceptable only if the produce
 
 ## Open Questions
 
-- Which embedding model should become the long-term cross-language contract?
-  - Current default is `Xenova/all-MiniLM-L12-v2`.
-  - Candidate upgrade path includes BGE-family models such as `BAAI/bge-small-en-v1.5`.
-- Should the first Rust document-embedding writer keep MiniLM only, or also prepare a BGE comparison artifact?
+- Which model-comparison cadence should keep `all-mpnet-base-v2` and other quality-ceiling candidates honest against the built-in `BAAI/bge-small-en-v1.5` default?
 - Which Ratatui workbench workflows should land before retiring the Ink workbench?
 - Which current MCP tools should have first-class CLI equivalents before any runtime migration begins?
 - Which derived-tag editorial workflows are stable enough to model as Rust state machines now?
