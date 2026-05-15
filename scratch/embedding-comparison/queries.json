@@ -501,5 +501,126 @@
     "limit": 10,
     "filter": null,
     "review_guidance": "This is an exact-title fallback test for specific creature variants. Reward result sets that return Adult Black Dragon at or near rank 1. Penalize if other dragon colors or ages outrank the exact creature title."
+  },
+  {
+    "id": "earn-income-performance-task",
+    "category": "long-document-section",
+    "query": "downtime earn income task for staging a performance",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results surface the Earn Income downtime rule or a specific performance-based Earn Income task section. Prefer records that explain earning income through performance over generic Performance skill options or unrelated downtime records."
+  },
+  {
+    "id": "earn-income-crafting-market",
+    "category": "long-document-section",
+    "query": "downtime earn income crafting goods for the market",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results surface the Earn Income rule or a section about crafting goods for market income. Prefer downtime income procedure content over generic Craft actions, crafting feats, or unrelated item creation rules."
+  },
+  {
+    "id": "retraining-class-features",
+    "category": "long-document-section",
+    "query": "retraining class features during downtime",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results help explain retraining class features during downtime. Prefer the Retraining rule or a class-feature retraining section over generic class features, downtime activities, or unrelated rebuilding advice."
+  },
+  {
+    "id": "vampire-stake-sunlight-weaknesses",
+    "category": "long-document-section",
+    "query": "vampire destroyed by stake sunlight running water weaknesses",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results surface vampire vulnerability rules involving stakes, sunlight, revulsion, running water, or related destruction constraints. Prefer vampire weakness glossary content over unrelated undead or sunlight effects."
+  },
+  {
+    "id": "inventor-construct-amphibious",
+    "category": "long-document-section",
+    "query": "inventor construct innovation amphibious construction modification",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface Construct Innovation or inventor innovation options involving amphibious construction or construct modification. Prefer the specific innovation option content over generic construct creatures or unrelated inventor feats."
+  },
+  {
+    "id": "inventor-weapon-one-handed-melee",
+    "category": "long-document-section",
+    "query": "weapon innovation one handed melee weapon modification",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface inventor Weapon Innovation modification options for one-handed melee weapons. Prefer the long innovation option record or relevant option section over generic weapons, weapon traits, or unrelated inventor feats."
+  },
+  {
+    "id": "swarm-eidolon-sickening-form",
+    "category": "long-document-section",
+    "query": "swarm eidolon sickening form evolution",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface Swarm Eidolon content, especially the Sickening Form evolution section. Prefer eidolon feature records or sections over generic swarm spells, swarm creatures, or unrelated summoner content."
+  },
+  {
+    "id": "summoner-repertoire-swapping-spells",
+    "category": "long-document-section",
+    "query": "summoner spell repertoire swapping spells",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface Summoner spell repertoire rules, especially swapping spells in the repertoire. Prefer summoner class feature sections over generic spellcasting, spell lists, or unrelated repertoire mentions."
+  },
+  {
+    "id": "wizard-spellbook-cantrips-heightening",
+    "category": "long-document-section",
+    "query": "wizard spellbook cantrips heightening spells",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface Wizard Spellcasting sections about spellbooks, cantrips, or heightening. Prefer wizard class feature content over generic spell records or unrelated spellcasting classes."
+  },
+  {
+    "id": "focus-spells-non-spellcasters",
+    "category": "long-document-section",
+    "query": "focus spells for non spellcasters",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "feat"
+    },
+    "review_guidance": "Assess whether the results surface Focus Spells class feature content explaining non-spellcasters with focus spells. Prefer focus-point/focus-spell rules or relevant class feature sections over individual focus spells."
+  },
+  {
+    "id": "pursue-lead-active-investigations",
+    "category": "long-document-section",
+    "query": "pursue a lead active investigations bonus",
+    "limit": 10,
+    "filter": {
+      "kind": "record_family",
+      "value": "rule"
+    },
+    "review_guidance": "Assess whether the results surface Pursue a Lead rules about active investigations or investigation bonuses. Prefer the core action or relevant section over generic investigator feats or unrelated investigation-themed records."
   }
 ]
