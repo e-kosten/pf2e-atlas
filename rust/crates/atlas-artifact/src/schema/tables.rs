@@ -532,16 +532,10 @@ pub mod record_vector_index {
     pub mod columns {
         use super::{Column, TABLE};
 
-        pub const EMBEDDING_UNIT_KEY: Column = Column::new(TABLE, "embedding_unit_key");
-        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
         pub const EMBEDDING: Column = Column::new(TABLE, "embedding");
     }
 
-    pub const ALL_COLUMNS: &[Column] = &[
-        columns::EMBEDDING_UNIT_KEY,
-        columns::RECORD_KEY,
-        columns::EMBEDDING,
-    ];
+    pub const ALL_COLUMNS: &[Column] = &[columns::EMBEDDING];
 }
 
 pub const TABLE_ARTIFACT_METADATA: &str = artifact_metadata::TABLE.name();

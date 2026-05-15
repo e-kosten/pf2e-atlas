@@ -588,12 +588,17 @@ fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::
 
     assert!(compiled.sql.contains("WITH eligible(record_key) AS"));
     assert!(compiled.sql.contains("FROM record_vector_index v"));
+    assert!(
+        compiled
+            .sql
+            .contains("JOIN document_embedding_cache e ON e.rowid = v.rowid")
+    );
     assert!(compiled.sql.contains("v.embedding MATCH ?3"));
     assert!(compiled.sql.contains("AND k = ?4"));
     assert!(
         compiled
             .sql
-            .contains("v.record_key IN (SELECT record_key FROM eligible)")
+            .contains("v.rowid IN (\n             SELECT candidate.rowid")
     );
     assert_eq!(compiled.parameters.len(), 4);
     assert_eq!(
