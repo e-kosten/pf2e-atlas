@@ -21,6 +21,7 @@ const embeddingCachePath = path.resolve(repoRoot, options.embeddingCachePath ?? 
 const atlasLogDetail = options.atlasLogDetail ?? "summary";
 const skipAtlasBuild = Boolean(options.skipAtlasBuild);
 const quiet = Boolean(options.quiet);
+const semanticModes = parseSemanticModes(options.semanticModes ?? "weighted-chunks");
 
 if (!options.atlas && !skipAtlasBuild) {
   buildDefaultAtlasBinary();
@@ -40,6 +41,11 @@ if (!atlasCapabilities.search_semantic_embedding_model) {
     `atlas binary at ${atlasPath} does not support search semantic --embedding-model; run: cd rust && cargo build --release -p atlas-cli`,
   );
 }
+if (!atlasCapabilities.search_semantic_mode) {
+  throw new Error(
+    `atlas binary at ${atlasPath} does not support search semantic --semantic-mode; run: cd rust && cargo build --release -p atlas-cli`,
+  );
+}
 
 const models = readJson(modelsPath).filter((model) => model.enabled !== false);
 const queries = readJson(queriesPath);
@@ -47,7 +53,9 @@ if (models.length === 0) {
   throw new Error(`no enabled models found in ${modelsPath}`);
 }
 
-log(`starting search-only embedding comparison: ${models.length} model(s), ${queries.length} queries`);
+log(
+  `starting search-only embedding comparison: ${models.length} model(s), ${semanticModes.length} semantic mode(s), ${queries.length} queries`,
+);
 log(`source run: ${path.relative(repoRoot, sourceRunRoot)}`);
 log(`output: ${path.relative(repoRoot, outputRoot)}`);
 
@@ -102,6 +110,7 @@ writeJson(path.join(outputRoot, "run-config.json"), {
   embedding_cache_path: embeddingCachePath,
   atlas_log_detail: atlasLogDetail,
   skip_atlas_build: skipAtlasBuild,
+  semantic_modes: semanticModes,
 });
 
 const modelSummaries = [];
@@ -119,24 +128,41 @@ for (const [modelIndex, model] of models.entries()) {
     artifact: sourceArtifactPath,
   });
 
-  const modelQuerySummaries = [];
-  logModelStep(modelIndex, models.length, model.id, `running ${queries.length} queries`);
-  for (const [queryIndex, query] of queries.entries()) {
-    logQueryStep(modelIndex, models.length, model.id, queryIndex, queries.length, query.id);
-    const queryResult = await runQuery({ model, modelDir, artifactPath: sourceArtifactPath, query });
-    modelQuerySummaries.push(queryResult.summary);
-    querySummaries.push(queryResult.summary);
-    queryResultsById.get(query.id)?.push(queryResult.packetEntry);
-  }
+  for (const semanticMode of semanticModes) {
+    const variantId = variantIdFor(model, semanticMode);
+    const modelQuerySummaries = [];
+    logModelStep(
+      modelIndex,
+      models.length,
+      model.id,
+      `running ${queries.length} queries with semantic mode ${semanticMode}`,
+    );
+    for (const [queryIndex, query] of queries.entries()) {
+      logQueryStep(modelIndex, models.length, model.id, semanticMode, queryIndex, queries.length, query.id);
+      const queryResult = await runQuery({
+        model,
+        modelDir,
+        artifactPath: sourceArtifactPath,
+        query,
+        semanticMode,
+        variantId,
+      });
+      modelQuerySummaries.push(queryResult.summary);
+      querySummaries.push(queryResult.summary);
+      queryResultsById.get(query.id)?.push(queryResult.packetEntry);
+    }
 
-  modelSummaries.push({
-    model_id: model.id,
-    status: "ok",
-    source_run: sourceRunRoot,
-    artifact_source: sourceArtifactPath,
-    artifact_bytes: fileSizeOrNull(sourceArtifactPath),
-    query_count: modelQuerySummaries.length,
-  });
+    modelSummaries.push({
+      model_id: variantId,
+      base_model_id: model.id,
+      semantic_mode: semanticMode,
+      status: "ok",
+      source_run: sourceRunRoot,
+      artifact_source: sourceArtifactPath,
+      artifact_bytes: fileSizeOrNull(sourceArtifactPath),
+      query_count: modelQuerySummaries.length,
+    });
+  }
   logModelStep(modelIndex, models.length, model.id, "model complete");
 }
 
@@ -162,7 +188,7 @@ fs.writeFileSync(path.join(outputRoot, "summary.md"), summaryMarkdown(summary));
 
 console.log(`wrote search-only embedding comparison run to ${outputRoot}`);
 
-async function runQuery({ model, modelDir, artifactPath, query }) {
+async function runQuery({ model, modelDir, artifactPath, query, semanticMode, variantId }) {
   const queryDir = path.join(modelDir, "queries");
   const args = [
     "search",
@@ -177,6 +203,8 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
     query.query,
     "--limit",
     String(query.limit ?? 10),
+    "--semantic-mode",
+    semanticMode,
     "--json",
   ];
   if (query.filter) {
@@ -184,27 +212,32 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
   }
 
   const output = await runCommand(atlasPath, args, repoRoot, {
-    logPrefix: `[atlas ${model.id} query ${query.id}]`,
+    logPrefix: `[atlas ${model.id} ${semanticMode} query ${query.id}]`,
     streamStderr: atlasLogDetail === "full",
   });
-  fs.writeFileSync(path.join(queryDir, `${query.id}.stdout.json`), output.stdout);
-  fs.writeFileSync(path.join(queryDir, `${query.id}.stderr.log`), output.stderr);
+  const queryFileStem = semanticModes.length > 1 ? `${query.id}.${semanticMode}` : query.id;
+  fs.writeFileSync(path.join(queryDir, `${queryFileStem}.stdout.json`), output.stdout);
+  fs.writeFileSync(path.join(queryDir, `${queryFileStem}.stderr.log`), output.stderr);
 
   if (output.status !== 0) {
     const failed = {
       status: "error",
-      model_id: model.id,
+      model_id: variantId,
+      base_model_id: model.id,
+      semantic_mode: semanticMode,
       query_id: query.id,
       duration_ms: output.duration_ms,
       status_code: output.status,
       stderr: output.stderr,
       stderr_excerpt: excerpt(output.stderr),
     };
-    writeJson(path.join(queryDir, `${query.id}.json`), failed);
+    writeJson(path.join(queryDir, `${queryFileStem}.json`), failed);
     return {
       summary: failed,
       packetEntry: {
-        model_id: model.id,
+        model_id: variantId,
+        base_model_id: model.id,
+        semantic_mode: semanticMode,
         status: "error",
         results: [],
       },
@@ -216,7 +249,9 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
   const timing = searchReport.timing ?? {};
   const result = {
     status: "ok",
-    model_id: model.id,
+    model_id: variantId,
+    base_model_id: model.id,
+    semantic_mode: semanticMode,
     query_id: query.id,
     query: query.query,
     query_category: query.category ?? null,
@@ -229,12 +264,14 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
     hit_count: enrichedHits.length,
     hits: enrichedHits,
   };
-  writeJson(path.join(queryDir, `${query.id}.json`), result);
+  writeJson(path.join(queryDir, `${queryFileStem}.json`), result);
 
   return {
     summary: {
       status: "ok",
-      model_id: model.id,
+      model_id: variantId,
+      base_model_id: model.id,
+      semantic_mode: semanticMode,
       query_id: query.id,
       query_category: query.category ?? null,
       query_length: queryLength(query.query),
@@ -245,7 +282,9 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
       top_rank_distance: enrichedHits[0]?.rank_distance ?? null,
     },
     packetEntry: {
-      model_id: model.id,
+      model_id: variantId,
+      base_model_id: model.id,
+      semantic_mode: semanticMode,
       status: "ok",
       duration_ms: output.duration_ms,
       rust_timing: timing,
@@ -315,6 +354,8 @@ function writeReviewPacket(root, query, entries) {
   const mapping = entries.map((entry, index) => ({
     candidate_set: labels[index],
     model_id: entry.model_id,
+    base_model_id: entry.base_model_id ?? entry.model_id,
+    semantic_mode: entry.semantic_mode ?? "weighted-chunks",
     status: entry.status,
   }));
   writeJson(path.join(root, "review-packets", `${query.id}.mapping.json`), mapping);
@@ -522,8 +563,10 @@ function logModelStep(modelIndex, modelCount, modelId, message) {
   log(`[model ${modelIndex + 1}/${modelCount}] ${modelId}: ${message}`);
 }
 
-function logQueryStep(modelIndex, modelCount, modelId, queryIndex, queryCount, queryId) {
-  log(`[model ${modelIndex + 1}/${modelCount}] ${modelId}: query ${queryIndex + 1}/${queryCount} ${queryId}`);
+function logQueryStep(modelIndex, modelCount, modelId, semanticMode, queryIndex, queryCount, queryId) {
+  log(
+    `[model ${modelIndex + 1}/${modelCount}] ${modelId} ${semanticMode}: query ${queryIndex + 1}/${queryCount} ${queryId}`,
+  );
 }
 
 function readAtlasCapabilities(command) {
@@ -532,6 +575,8 @@ function readAtlasCapabilities(command) {
     search_semantic_help_status: searchSemanticHelp.status,
     search_semantic_embedding_model:
       searchSemanticHelp.status === 0 && searchSemanticHelp.stdout.includes("--embedding-model"),
+    search_semantic_mode:
+      searchSemanticHelp.status === 0 && searchSemanticHelp.stdout.includes("--semantic-mode"),
   };
 }
 
@@ -595,6 +640,24 @@ function parseArgs(args) {
     }
   }
   return parsed;
+}
+
+function parseSemanticModes(value) {
+  const modes = String(value)
+    .split(",")
+    .map((mode) => mode.trim())
+    .filter(Boolean);
+  const allowed = new Set(["parent-only", "chunks", "weighted-chunks"]);
+  for (const mode of modes) {
+    if (!allowed.has(mode)) {
+      throw new Error(`invalid --semantic-modes value: ${mode}`);
+    }
+  }
+  return modes.length > 0 ? modes : ["weighted-chunks"];
+}
+
+function variantIdFor(model, semanticMode) {
+  return semanticModes.length === 1 ? model.id : `${model.id}__${semanticMode}`;
 }
 
 function requiredOption(key) {

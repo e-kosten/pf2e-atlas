@@ -36,6 +36,32 @@ pub struct VectorSearchHit {
     pub rank_distance: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum VectorSearchMode {
+    ParentOnly,
+    Chunks,
+    WeightedChunks,
+}
+
+impl VectorSearchMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ParentOnly => "parent-only",
+            Self::Chunks => "chunks",
+            Self::WeightedChunks => "weighted-chunks",
+        }
+    }
+
+    fn includes_child_units(self) -> bool {
+        !matches!(self, Self::ParentOnly)
+    }
+
+    fn uses_rank_weights(self) -> bool {
+        matches!(self, Self::WeightedChunks)
+    }
+}
+
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum VectorQueryError {
     #[error("vector query limit must be greater than zero")]
@@ -52,6 +78,7 @@ pub fn compile_vector_knn_query(
     query_vector: &[f32],
     filter: Option<&SearchFilterNode>,
     limit: u32,
+    mode: VectorSearchMode,
 ) -> Result<VectorKnnQuery, VectorQueryError> {
     if limit == 0 {
         return Err(VectorQueryError::InvalidLimit);
@@ -68,6 +95,11 @@ pub fn compile_vector_knn_query(
     );
     let unit_limit = limit.saturating_mul(20).max(limit).min(1000);
     let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(unit_limit)));
+    let unit_filter = if mode.includes_child_units() {
+        ""
+    } else {
+        "AND candidate.unit_kind = 'parent'"
+    };
     let sql = format!(
         "WITH eligible(record_key) AS ({eligible_sql})
          SELECT e.embedding_unit_key, e.record_key, e.unit_kind, e.label, v.distance
@@ -79,11 +111,13 @@ pub fn compile_vector_knn_query(
              SELECT candidate.rowid
              FROM {cache_table} candidate
              WHERE candidate.record_key IN (SELECT record_key FROM eligible)
+               {unit_filter}
            )
          ORDER BY v.distance ASC",
         eligible_sql = eligible.sql,
         vector_table = TABLE_RECORD_VECTOR_INDEX,
         cache_table = TABLE_DOCUMENT_EMBEDDING_CACHE,
+        unit_filter = unit_filter,
     );
 
     Ok(VectorKnnQuery { sql, parameters })
@@ -94,8 +128,9 @@ pub fn query_vector_index(
     query_vector: &[f32],
     filter: Option<&SearchFilterNode>,
     limit: u32,
+    mode: VectorSearchMode,
 ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
-    let compiled = compile_vector_knn_query(query_vector, filter, limit)?;
+    let compiled = compile_vector_knn_query(query_vector, filter, limit, mode)?;
     let mut statement = connection
         .prepare(&compiled.sql)
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
@@ -114,28 +149,36 @@ pub fn query_vector_index(
     let rows = rows
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    Ok(collapse_vector_hits(rows, limit as usize))
+    Ok(collapse_vector_hits(rows, limit as usize, mode))
 }
 
-fn collapse_vector_hits(rows: Vec<VectorSearchHit>, limit: usize) -> Vec<VectorSearchHit> {
+fn collapse_vector_hits(
+    rows: Vec<VectorSearchHit>,
+    limit: usize,
+    mode: VectorSearchMode,
+) -> Vec<VectorSearchHit> {
     let mut grouped = std::collections::BTreeMap::<String, Vec<VectorSearchHit>>::new();
     for hit in rows {
         grouped.entry(hit.record_key.clone()).or_default().push(hit);
     }
     let mut collapsed = grouped
         .into_values()
-        .filter_map(best_record_hit)
+        .filter_map(|hits| best_record_hit(hits, mode))
         .collect::<Vec<_>>();
     collapsed.sort_by(compare_vector_hits_for_rank);
     collapsed.truncate(limit);
     collapsed
 }
 
-fn best_record_hit(hits: Vec<VectorSearchHit>) -> Option<VectorSearchHit> {
+fn best_record_hit(hits: Vec<VectorSearchHit>, mode: VectorSearchMode) -> Option<VectorSearchHit> {
     let has_parent = hits.iter().any(|hit| hit.unit_kind == "parent");
     hits.into_iter()
         .map(|mut hit| {
-            hit.rank_distance = adjusted_rank_distance(&hit, has_parent);
+            hit.rank_distance = if mode.uses_rank_weights() {
+                adjusted_rank_distance(&hit, has_parent)
+            } else {
+                hit.distance
+            };
             hit
         })
         .min_by(compare_vector_hits_for_rank)
@@ -501,6 +544,7 @@ mod tests {
                 hit("records:c#parent", "records:c", "parent", 0.4),
             ],
             2,
+            VectorSearchMode::WeightedChunks,
         );
 
         assert_eq!(
@@ -528,6 +572,7 @@ mod tests {
                 hit("records:a#parent", "records:a", "parent", 0.130),
             ],
             10,
+            VectorSearchMode::WeightedChunks,
         );
 
         assert_eq!(collapsed[0].embedding_unit_key, "records:a#parent");
@@ -548,6 +593,7 @@ mod tests {
                 hit("records:a#parent", "records:a", "parent", 0.200),
             ],
             10,
+            VectorSearchMode::WeightedChunks,
         );
 
         assert_eq!(
@@ -576,6 +622,7 @@ mod tests {
                 ),
             ],
             10,
+            VectorSearchMode::WeightedChunks,
         );
 
         assert_eq!(
@@ -603,6 +650,7 @@ mod tests {
                 hit("records:b#parent", "records:b", "parent", 0.145),
             ],
             10,
+            VectorSearchMode::WeightedChunks,
         );
 
         assert_eq!(collapsed[0].embedding_unit_key, "records:b#parent");
@@ -612,5 +660,28 @@ mod tests {
             "records:a#heading_section:1"
         );
         assert_eq!(collapsed[1].rank_distance, 0.150);
+    }
+
+    #[test]
+    fn collapse_vector_hits_can_rank_chunks_without_unit_weights() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.100,
+                ),
+                hit("records:a#parent", "records:a", "parent", 0.120),
+            ],
+            10,
+            VectorSearchMode::Chunks,
+        );
+
+        assert_eq!(
+            collapsed[0].embedding_unit_key,
+            "records:a#heading_section:1"
+        );
+        assert_eq!(collapsed[0].rank_distance, 0.100);
     }
 }

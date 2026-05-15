@@ -4,7 +4,9 @@ use atlas_domain::SearchFilterNode;
 use rusqlite::{Connection, OpenFlags};
 
 use crate::vector::register_sqlite_vec_extension;
-use crate::{IndexValidationError, VectorQueryError, VectorSearchHit, query_vector_index};
+use crate::{
+    IndexValidationError, VectorQueryError, VectorSearchHit, VectorSearchMode, query_vector_index,
+};
 
 pub struct AtlasIndex {
     connection: Connection,
@@ -24,7 +26,8 @@ impl AtlasIndex {
         query_vector: &[f32],
         filter: Option<&SearchFilterNode>,
         limit: u32,
+        mode: VectorSearchMode,
     ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
-        query_vector_index(&self.connection, query_vector, filter, limit)
+        query_vector_index(&self.connection, query_vector, filter, limit, mode)
     }
 }
