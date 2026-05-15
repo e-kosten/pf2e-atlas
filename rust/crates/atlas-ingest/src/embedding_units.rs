@@ -30,6 +30,12 @@ struct ListItem {
     body: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TitledOptionCandidate {
+    label: String,
+    body: String,
+}
+
 pub(crate) fn extract_structured_embedding_units(
     record_name: &str,
     markup: &str,
@@ -141,6 +147,10 @@ fn render_heading_body(
                 continue;
             }
         }
+        if let Some(skip_end) = titled_option_skip_end(blocks, index, end) {
+            index = skip_end;
+            continue;
+        }
         rendered.push(render_blocks_for_unit(&blocks[index..index + 1]));
         index += 1;
     }
@@ -153,35 +163,107 @@ fn extract_titled_option_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddin
         let MarkupBlock::List(items) = block else {
             continue;
         };
-        let qualifying = items
-            .iter()
-            .filter(|item| {
-                item.label
-                    .as_deref()
-                    .map(|label| !normalize_split_label(label).is_empty())
-                    .unwrap_or(false)
-                    && normalized_token_count(&item.body) >= 20
-            })
-            .count();
-        if qualifying < 3 {
+        let candidates = titled_option_candidates_from_list(items);
+        if candidates.len() < 3 {
             continue;
         }
-        for (item_index, item) in items.iter().enumerate() {
-            let Some(label) = item.label.as_ref() else {
-                continue;
-            };
-            if normalize_split_label(label).is_empty() || normalized_token_count(&item.body) < 20 {
-                continue;
-            }
+        for (item_index, candidate) in candidates.into_iter().enumerate() {
             units.push(StructuredEmbeddingUnit {
                 kind: EmbeddingUnitKind::TitledOption,
-                label: label.clone(),
+                label: candidate.label,
                 ordinal: block_index * 10_000 + item_index + 1,
-                body: item.body.clone(),
+                body: candidate.body,
             });
         }
     }
+    let mut index = 0;
+    while index < blocks.len() {
+        let start = index;
+        let candidates = collect_titled_paragraph_candidates(blocks, index, blocks.len());
+        if candidates.len() < 3 {
+            index += candidates.len().max(1);
+            continue;
+        }
+        let candidate_count = candidates.len();
+        for (candidate_index, candidate) in candidates.into_iter().enumerate() {
+            units.push(StructuredEmbeddingUnit {
+                kind: EmbeddingUnitKind::TitledOption,
+                label: candidate.label,
+                ordinal: start * 10_000 + candidate_index + 1,
+                body: candidate.body,
+            });
+        }
+        index = start + candidate_count;
+    }
     dedupe_units(units)
+}
+
+fn titled_option_skip_end(blocks: &[MarkupBlock], start: usize, end: usize) -> Option<usize> {
+    if let MarkupBlock::List(items) = &blocks[start]
+        && titled_option_candidates_from_list(items).len() >= 3
+    {
+        return Some(start + 1);
+    }
+    let candidates = collect_titled_paragraph_candidates(blocks, start, end);
+    (candidates.len() >= 3).then_some(start + candidates.len())
+}
+
+fn collect_titled_paragraph_candidates(
+    blocks: &[MarkupBlock],
+    start: usize,
+    end: usize,
+) -> Vec<TitledOptionCandidate> {
+    let mut candidates = Vec::new();
+    let mut index = start;
+    while index < end {
+        let Some(candidate) = titled_option_candidate_from_paragraph(&blocks[index]) else {
+            break;
+        };
+        candidates.push(candidate);
+        index += 1;
+    }
+    candidates
+}
+
+fn titled_option_candidates_from_list(items: &[ListItem]) -> Vec<TitledOptionCandidate> {
+    items
+        .iter()
+        .filter_map(|item| {
+            let label = clean_option_label(item.label.as_deref()?)?;
+            (normalized_token_count(&item.body) >= 20).then_some(TitledOptionCandidate {
+                label,
+                body: item.body.clone(),
+            })
+        })
+        .collect()
+}
+
+fn titled_option_candidate_from_paragraph(block: &MarkupBlock) -> Option<TitledOptionCandidate> {
+    let MarkupBlock::Paragraph {
+        text,
+        first_label: Some(label),
+    } = block
+    else {
+        return None;
+    };
+    let label = clean_option_label(label)?;
+    (normalized_token_count(text) >= 20).then_some(TitledOptionCandidate {
+        label,
+        body: text.clone(),
+    })
+}
+
+fn clean_option_label(label: &str) -> Option<String> {
+    let label = label.trim().trim_end_matches(':').trim();
+    let normalized = normalize_split_label(label);
+    (!normalized.is_empty() && !is_mechanics_result_label(&normalized)).then(|| label.to_string())
+}
+
+fn is_mechanics_result_label(normalized_label: &str) -> bool {
+    matches!(
+        normalized_label,
+        "critical success" | "success" | "failure" | "critical failure"
+    )
 }
 
 fn extract_activation_block_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddingUnit> {
@@ -547,92 +629,4 @@ fn normalize_split_label(value: &str) -> String {
 
 fn normalized_token_count(value: &str) -> usize {
     normalize_split_label(value).split_whitespace().count()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn heading_equal_to_record_name_does_not_create_child_unit() {
-        let units = extract_structured_embedding_units(
-            "Earn Income",
-            "<h2>Earn Income</h2><p>This text is long enough to pass the token threshold because it describes the parent action rather than a distinct child section with a separate user intent.</p><h2>Ending or Interrupting Tasks</h2><p>When a task is complete, or if you stop in the middle of one, you normally need to find a new task before you can keep earning income from downtime work.</p>",
-        );
-
-        assert_eq!(units.len(), 1);
-        assert_eq!(units[0].kind, EmbeddingUnitKind::HeadingSection);
-        assert_eq!(units[0].label, "Ending or Interrupting Tasks");
-    }
-
-    #[test]
-    fn strong_result_labels_do_not_create_heading_units() {
-        let units = extract_structured_embedding_units(
-            "Craft",
-            "<p><strong>Critical Success</strong> Your attempt is successful. Each additional day spent Crafting reduces the materials needed to complete the item.</p><p><strong>Success</strong> Your attempt is successful. Each additional day spent Crafting reduces the materials needed to complete the item.</p>",
-        );
-
-        assert!(units.is_empty());
-    }
-
-    #[test]
-    fn titled_option_lists_create_units_when_siblings_qualify() {
-        let units = extract_structured_embedding_units(
-            "Avatar",
-            "<ul><li><strong>Abadar</strong><ul><li>Speed 50 feet, burrow Speed 30 feet, immune to immobilized.</li><li>Ranged crossbow with a long range increment and piercing damage for the deity form.</li></ul></li><li><strong>Achaekek</strong><ul><li>Speed 70 feet and climb Speed 50 feet, ignoring difficult terrain.</li><li>Melee mantis claw and ranged spine volley attacks for the deity form.</li></ul></li><li><strong>Asmodeus</strong><ul><li>Speed 70 feet and fly, with mace and hell fire attacks.</li><li>The battle form uses the spell attack modifier and listed fire damage.</li></ul></li></ul>",
-        );
-
-        assert_eq!(
-            units
-                .iter()
-                .map(|unit| (unit.kind, unit.label.as_str()))
-                .collect::<Vec<_>>(),
-            vec![
-                (EmbeddingUnitKind::TitledOption, "Abadar"),
-                (EmbeddingUnitKind::TitledOption, "Achaekek"),
-                (EmbeddingUnitKind::TitledOption, "Asmodeus"),
-            ]
-        );
-    }
-
-    #[test]
-    fn titled_option_lists_ignore_nested_list_items() {
-        let units = extract_structured_embedding_units(
-            "Avatar",
-            "<ul><li><strong>Abadar</strong> The Abadar avatar form includes a nested list of movement and attack details that should stay part of the Abadar unit.<ul><li><strong>Nested Speed</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Strike</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li><li><strong>Achaekek</strong> The Achaekek avatar form includes a nested list of movement and attack details that should stay part of the Achaekek unit.<ul><li><strong>Nested Climb</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Spine</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li><li><strong>Asmodeus</strong> The Asmodeus avatar form includes a nested list of movement and attack details that should stay part of the Asmodeus unit.<ul><li><strong>Nested Fire</strong> This nested option has enough words to qualify if nested list items were treated as top-level siblings.</li><li><strong>Nested Mace</strong> This nested option also has enough words to qualify if nested list items were treated as top-level siblings.</li></ul></li></ul>",
-        );
-
-        assert_eq!(
-            units
-                .iter()
-                .map(|unit| unit.label.as_str())
-                .collect::<Vec<_>>(),
-            vec!["Abadar", "Achaekek", "Asmodeus"]
-        );
-    }
-
-    #[test]
-    fn activation_blocks_group_activate_through_effect() {
-        let units = extract_structured_embedding_units(
-            "Void Mirror",
-            "<p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> Accumulate 12 RP by making Occultism checks.</p><p><strong>Frequency</strong> once per month</p><p><strong>Effect</strong> The first activation ritual is known as \"Speak to the Void\" and allows the user to contact an intelligence in a distant part of the universe. The alien intelligence infuses the user's mind with answers, allowing Recall Knowledge with legendary proficiency, but failed checks deal mental damage.</p><p><strong>Activate</strong> 1 hour (Interact)</p><p><strong>Research</strong> Accumulate 12 RP by making more difficult Occultism checks over a longer downtime interval.</p><p><strong>Frequency</strong> once per year</p><p><strong>Effect</strong> The second activation ritual is known as \"Call from the Void\" and draws a creature across the universe with attitude determined by the user's Occultism result and Will DC. The creature can arrive helpful, indifferent, hostile, or with magical feedback depending on the outcome.</p>",
-        );
-
-        assert_eq!(units.len(), 2);
-        assert_eq!(units[0].kind, EmbeddingUnitKind::ActivationBlock);
-        assert_eq!(units[0].label, "Speak to the Void");
-        assert_eq!(units[1].label, "Call from the Void");
-    }
-
-    #[test]
-    fn tables_keep_headers_and_drop_body_cells() {
-        let rendered = strip_markup_for_embedding_units(
-            "<h2>Table 4-2: Income Earned</h2><table><thead><tr><th>Task Level</th><th>Trained</th></tr></thead><tbody><tr><td>1</td><td>2 sp</td></tr></tbody></table>",
-        );
-
-        assert!(rendered.contains("Table 4-2: Income Earned"));
-        assert!(rendered.contains("Task Level"));
-        assert!(rendered.contains("Trained"));
-        assert!(!rendered.contains("2 sp"));
-    }
 }

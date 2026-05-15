@@ -10,6 +10,8 @@ use atlas_embedding::{EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokeniz
 mod aliases;
 mod embedding_reuse;
 mod embedding_units;
+#[cfg(test)]
+mod embedding_units_tests;
 mod embeddings;
 mod generated_affliction_identity;
 mod generated_affliction_model;
