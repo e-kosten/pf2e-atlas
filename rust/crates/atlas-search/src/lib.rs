@@ -23,6 +23,7 @@ pub struct SemanticSearchHit {
     pub unit_kind: String,
     pub label: Option<String>,
     pub distance: f64,
+    pub rank_distance: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -102,6 +103,7 @@ impl From<VectorSearchHit> for SemanticSearchHit {
             unit_kind: hit.unit_kind,
             label: hit.label,
             distance: hit.distance,
+            rank_distance: hit.rank_distance,
         }
     }
 }

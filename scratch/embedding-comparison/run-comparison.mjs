@@ -352,6 +352,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
       rust_timing: timing,
       hit_count: enrichedHits.length,
       top_distance: enrichedHits[0]?.distance ?? null,
+      top_rank_distance: enrichedHits[0]?.rank_distance ?? null,
     },
     packetEntry: {
       model_id: model.id,
@@ -368,13 +369,17 @@ function enrichHits(artifactPath, hits) {
     return [];
   }
   const values = hits
-    .map((hit, index) => `(${index + 1}, ${sqlString(hit.embedding_unit_key)}, ${Number(hit.distance)})`)
+    .map(
+      (hit, index) =>
+        `(${index + 1}, ${sqlString(hit.embedding_unit_key)}, ${Number(hit.distance)}, ${Number(hit.rank_distance ?? hit.distance)})`,
+    )
     .join(", ");
   const sql = `
-WITH hits(rank, embedding_unit_key, distance) AS (VALUES ${values})
+WITH hits(rank, embedding_unit_key, distance, rank_distance) AS (VALUES ${values})
 SELECT
   hits.rank,
   hits.distance,
+  hits.rank_distance,
   hits.embedding_unit_key,
   document_embedding_cache.unit_kind,
   document_embedding_cache.label AS unit_label,
@@ -405,6 +410,7 @@ ORDER BY hits.rank;
     unit_label: row.unit_label,
     record_key: row.record_key,
     distance: row.distance,
+    rank_distance: row.rank_distance,
     name: row.name,
     record_family: row.record_family,
     level: row.level,
@@ -455,6 +461,9 @@ function writeReviewPacket(root, query, entries) {
         );
       }
       lines.push(`   Distance: ${hit.distance}`);
+      if (hit.rank_distance !== undefined && hit.rank_distance !== hit.distance) {
+        lines.push(`   Rank distance: ${hit.rank_distance}`);
+      }
       if (hit.traits?.length) {
         lines.push(`   Traits: ${hit.traits.join(", ")}`);
       }

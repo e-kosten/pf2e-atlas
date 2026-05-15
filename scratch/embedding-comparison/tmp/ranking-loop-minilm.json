@@ -1,0 +1,13 @@
+[
+  {
+    "id": "minilm-l12-v2",
+    "label": "MiniLM L12 v2",
+    "enabled": true,
+    "runtime_model": "minilm-l12-v2",
+    "model_id": "Xenova/all-MiniLM-L12-v2",
+    "dimensions": 384,
+    "document_prefix": "",
+    "query_prefix": "",
+    "notes": "Current Rust Phase 4 baseline."
+  }
+]
