@@ -10,11 +10,7 @@ pub enum EmbeddingModelId {
     NomicEmbedTextV15,
     JinaEmbeddingsV2SmallEn,
     JinaEmbeddingsV3,
-    GteModernbertBase,
     Qwen3Embedding06b,
-    SnowflakeArcticEmbedXs,
-    SnowflakeArcticEmbedMV15,
-    MxbaiEmbedLargeV1,
     EmbeddingGemma300m,
     E5SmallV2,
     MpnetBaseV2,
@@ -29,11 +25,7 @@ impl EmbeddingModelId {
             Self::NomicEmbedTextV15 => "nomic-embed-text-v1.5",
             Self::JinaEmbeddingsV2SmallEn => "jina-embeddings-v2-small-en",
             Self::JinaEmbeddingsV3 => "jina-embeddings-v3",
-            Self::GteModernbertBase => "gte-modernbert-base",
             Self::Qwen3Embedding06b => "qwen3-embedding-0.6b",
-            Self::SnowflakeArcticEmbedXs => "snowflake-arctic-embed-xs",
-            Self::SnowflakeArcticEmbedMV15 => "snowflake-arctic-embed-m-v1.5",
-            Self::MxbaiEmbedLargeV1 => "mxbai-embed-large-v1",
             Self::EmbeddingGemma300m => "embeddinggemma-300m",
             Self::E5SmallV2 => "e5-small-v2",
             Self::MpnetBaseV2 => "all-mpnet-base-v2",
@@ -66,20 +58,8 @@ impl FromStr for EmbeddingModelId {
             "jina-v3" | "jina-embeddings-v3" | "jinaai/jina-embeddings-v3" => {
                 Ok(Self::JinaEmbeddingsV3)
             }
-            "gte-modernbert" | "gte-modernbert-base" | "Alibaba-NLP/gte-modernbert-base" => {
-                Ok(Self::GteModernbertBase)
-            }
             "qwen3-0.6b" | "qwen3-embedding-0.6b" | "Qwen/Qwen3-Embedding-0.6B" => {
                 Ok(Self::Qwen3Embedding06b)
-            }
-            "snowflake-xs"
-            | "snowflake-arctic-embed-xs"
-            | "Snowflake/snowflake-arctic-embed-xs" => Ok(Self::SnowflakeArcticEmbedXs),
-            "snowflake-m-v1.5"
-            | "snowflake-arctic-embed-m-v1.5"
-            | "Snowflake/snowflake-arctic-embed-m-v1.5" => Ok(Self::SnowflakeArcticEmbedMV15),
-            "mxbai-large" | "mxbai-embed-large-v1" | "mixedbread-ai/mxbai-embed-large-v1" => {
-                Ok(Self::MxbaiEmbedLargeV1)
             }
             "embeddinggemma" | "embeddinggemma-300m" | "google/embeddinggemma-300m" => {
                 Ok(Self::EmbeddingGemma300m)
@@ -182,11 +162,7 @@ pub const ALL_EMBEDDING_MODELS: &[EmbeddingModelId] = &[
     EmbeddingModelId::NomicEmbedTextV15,
     EmbeddingModelId::JinaEmbeddingsV2SmallEn,
     EmbeddingModelId::JinaEmbeddingsV3,
-    EmbeddingModelId::GteModernbertBase,
     EmbeddingModelId::Qwen3Embedding06b,
-    EmbeddingModelId::SnowflakeArcticEmbedXs,
-    EmbeddingModelId::SnowflakeArcticEmbedMV15,
-    EmbeddingModelId::MxbaiEmbedLargeV1,
     EmbeddingModelId::EmbeddingGemma300m,
     EmbeddingModelId::E5SmallV2,
     EmbeddingModelId::MpnetBaseV2,
@@ -278,20 +254,6 @@ pub const fn embedding_model_spec(model: EmbeddingModelId) -> EmbeddingModelSpec
             document_prefix: "",
             query_prefix: "",
         },
-        EmbeddingModelId::GteModernbertBase => EmbeddingModelSpec {
-            provider_family: "onnx-mean-pooling",
-            model_id: "Alibaba-NLP/gte-modernbert-base",
-            model_revision: "main",
-            tokenizer_id: "Alibaba-NLP/gte-modernbert-base",
-            max_input_tokens: Some(8192),
-            pooling: PoolingStrategy::Mean,
-            normalization: Normalization::L2,
-            dimensions: 768,
-            dtype: VectorDType::F32,
-            distance_metric: DistanceMetric::Cosine,
-            document_prefix: "",
-            query_prefix: "",
-        },
         EmbeddingModelId::Qwen3Embedding06b => EmbeddingModelSpec {
             provider_family: "onnx-mean-pooling",
             model_id: "Qwen/Qwen3-Embedding-0.6B",
@@ -305,48 +267,6 @@ pub const fn embedding_model_spec(model: EmbeddingModelId) -> EmbeddingModelSpec
             distance_metric: DistanceMetric::Cosine,
             document_prefix: "",
             query_prefix: "",
-        },
-        EmbeddingModelId::SnowflakeArcticEmbedXs => EmbeddingModelSpec {
-            provider_family: "onnx-mean-pooling",
-            model_id: "Snowflake/snowflake-arctic-embed-xs",
-            model_revision: "main",
-            tokenizer_id: "Snowflake/snowflake-arctic-embed-xs",
-            max_input_tokens: Some(512),
-            pooling: PoolingStrategy::Mean,
-            normalization: Normalization::L2,
-            dimensions: 384,
-            dtype: VectorDType::F32,
-            distance_metric: DistanceMetric::Cosine,
-            document_prefix: "",
-            query_prefix: "",
-        },
-        EmbeddingModelId::SnowflakeArcticEmbedMV15 => EmbeddingModelSpec {
-            provider_family: "onnx-mean-pooling",
-            model_id: "Snowflake/snowflake-arctic-embed-m-v1.5",
-            model_revision: "main",
-            tokenizer_id: "Snowflake/snowflake-arctic-embed-m-v1.5",
-            max_input_tokens: Some(512),
-            pooling: PoolingStrategy::Mean,
-            normalization: Normalization::L2,
-            dimensions: 768,
-            dtype: VectorDType::F32,
-            distance_metric: DistanceMetric::Cosine,
-            document_prefix: "",
-            query_prefix: "",
-        },
-        EmbeddingModelId::MxbaiEmbedLargeV1 => EmbeddingModelSpec {
-            provider_family: "onnx-mean-pooling",
-            model_id: "mixedbread-ai/mxbai-embed-large-v1",
-            model_revision: "main",
-            tokenizer_id: "mixedbread-ai/mxbai-embed-large-v1",
-            max_input_tokens: Some(512),
-            pooling: PoolingStrategy::Mean,
-            normalization: Normalization::L2,
-            dimensions: 1024,
-            dtype: VectorDType::F32,
-            distance_metric: DistanceMetric::Cosine,
-            document_prefix: "",
-            query_prefix: "Represent this sentence for searching relevant passages: ",
         },
         EmbeddingModelId::EmbeddingGemma300m => EmbeddingModelSpec {
             provider_family: "onnx-mean-pooling",
