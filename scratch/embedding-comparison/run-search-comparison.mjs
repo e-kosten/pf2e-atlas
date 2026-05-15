@@ -9,18 +9,16 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const options = parseArgs(process.argv.slice(2));
-const sourceRoot = path.resolve(repoRoot, options.source ?? "vendor/pf2e");
+const sourceRunRoot = path.resolve(repoRoot, requiredOption("sourceRun"));
 const modelsPath = path.resolve(repoRoot, options.models ?? "scratch/embedding-comparison/models.json");
 const queriesPath = path.resolve(repoRoot, options.queries ?? "scratch/embedding-comparison/queries.json");
 const outputRoot = path.resolve(
   repoRoot,
-  options.output ?? `scratch/embedding-comparison/runs/${timestampRunId()}`,
+  options.output ?? `scratch/embedding-comparison/runs/search-${timestampRunId()}`,
 );
 const atlasPath = path.resolve(repoRoot, options.atlas ?? "rust/target/release/atlas");
 const embeddingCachePath = path.resolve(repoRoot, options.embeddingCachePath ?? ".cache/hf-models");
-const embeddingBatchSize = Number(options.embeddingBatchSize ?? 32);
 const atlasLogDetail = options.atlasLogDetail ?? "summary";
-const allowMissingModels = Boolean(options.allowMissingModels);
 const skipAtlasBuild = Boolean(options.skipAtlasBuild);
 const quiet = Boolean(options.quiet);
 
@@ -31,14 +29,12 @@ if (!options.atlas && !skipAtlasBuild) {
 if (!fs.existsSync(atlasPath)) {
   throw new Error(`atlas binary not found at ${atlasPath}; run: cd rust && cargo build --release -p atlas-cli`);
 }
+if (!fs.existsSync(sourceRunRoot)) {
+  throw new Error(`source run not found at ${sourceRunRoot}`);
+}
 
 log(`checking atlas binary: ${path.relative(repoRoot, atlasPath)}`);
 const atlasCapabilities = readAtlasCapabilities(atlasPath);
-if (!atlasCapabilities.index_build_embedding_model) {
-  throw new Error(
-    `atlas binary at ${atlasPath} does not support index build --embedding-model; run: cd rust && cargo build --release -p atlas-cli`,
-  );
-}
 if (!atlasCapabilities.search_semantic_embedding_model) {
   throw new Error(
     `atlas binary at ${atlasPath} does not support search semantic --embedding-model; run: cd rust && cargo build --release -p atlas-cli`,
@@ -47,28 +43,27 @@ if (!atlasCapabilities.search_semantic_embedding_model) {
 
 const models = readJson(modelsPath).filter((model) => model.enabled !== false);
 const queries = readJson(queriesPath);
-
 if (models.length === 0) {
   throw new Error(`no enabled models found in ${modelsPath}`);
 }
 
-log(`starting embedding comparison: ${models.length} model(s), ${queries.length} queries`);
-log(`source: ${path.relative(repoRoot, sourceRoot)}`);
+log(`starting search-only embedding comparison: ${models.length} model(s), ${queries.length} queries`);
+log(`source run: ${path.relative(repoRoot, sourceRunRoot)}`);
 log(`output: ${path.relative(repoRoot, outputRoot)}`);
-log(`atlas log detail: ${atlasLogDetail}; raw child stderr is still written to each command log`);
 
 fs.mkdirSync(outputRoot, { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "models"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-packets"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "review-scores"), { recursive: true });
 fs.mkdirSync(path.join(outputRoot, "score-templates"), { recursive: true });
-fs.copyFileSync(
-  path.join(repoRoot, "scratch/embedding-comparison/scoring-rubric.json"),
-  path.join(outputRoot, "scoring-rubric.json"),
-);
+
+const rubricPath = path.join(repoRoot, "scratch/embedding-comparison/scoring-rubric.json");
+if (fs.existsSync(rubricPath)) {
+  fs.copyFileSync(rubricPath, path.join(outputRoot, "scoring-rubric.json"));
+}
 
 const preflight = {
-  source_exists: fs.existsSync(sourceRoot),
+  source_run_exists: fs.existsSync(sourceRunRoot),
   atlas_exists: fs.existsSync(atlasPath),
   atlas_capabilities: atlasCapabilities,
   embedding_cache_path: embeddingCachePath,
@@ -78,44 +73,34 @@ const preflight = {
 };
 writeJson(path.join(outputRoot, "preflight.json"), preflight);
 
-const missingModels = preflight.models.filter((model) => !model.ready);
-if (missingModels.length > 0 && !allowMissingModels) {
-  const missing = missingModels
-    .map((model) => {
-      const missingFiles = [
-        model.model_cache_exists ? null : "model cache directory",
-        model.tokenizer_json_exists ? null : "tokenizer.json",
-        model.onnx_model_exists ? null : "onnx/model.onnx",
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return `- ${model.model_id} (${model.runtime_model}): missing ${missingFiles}`;
-    })
-    .join("\n");
+const notReady = preflight.models.filter((model) => !model.ready || !model.source_artifact_exists);
+if (notReady.length > 0) {
   throw new Error(
     [
-      "embedding comparison cannot start because selected models are missing local assets:",
-      missing,
-      "",
-      "Prepare the selected model caches first:",
-      `node scratch/embedding-comparison/prepare-models.mjs --models ${path.relative(repoRoot, modelsPath)} --embedding-cache-path ${path.relative(repoRoot, embeddingCachePath)}`,
-      "",
-      "Pass --allow-missing-models only for intentional failure-path smoke tests.",
+      "search-only comparison cannot start because selected models are not ready:",
+      ...notReady.map((model) => {
+        const missing = [
+          model.ready ? null : "local model assets",
+          model.source_artifact_exists ? null : "source artifact",
+        ]
+          .filter(Boolean)
+          .join(", ");
+        return `- ${model.model_id} (${model.runtime_model}): missing ${missing}`;
+      }),
     ].join("\n"),
   );
 }
 
 writeJson(path.join(outputRoot, "run-config.json"), {
   started_at: new Date().toISOString(),
-  source: sourceRoot,
+  mode: "search-only",
+  source_run: sourceRunRoot,
   models_path: modelsPath,
   queries_path: queriesPath,
   output: outputRoot,
   atlas: atlasPath,
   embedding_cache_path: embeddingCachePath,
-  embedding_batch_size: embeddingBatchSize,
   atlas_log_detail: atlasLogDetail,
-  allow_missing_models: allowMissingModels,
   skip_atlas_build: skipAtlasBuild,
 });
 
@@ -125,111 +110,20 @@ const queryResultsById = new Map(queries.map((query) => [query.id, []]));
 
 for (const [modelIndex, model] of models.entries()) {
   const modelDir = path.join(outputRoot, "models", model.id);
-  fs.mkdirSync(modelDir, { recursive: true });
-  fs.mkdirSync(path.join(modelDir, "queries"), { recursive: true });
+  const queryDir = path.join(modelDir, "queries");
+  const sourceArtifactPath = sourceArtifactFor(model);
+  fs.mkdirSync(queryDir, { recursive: true });
   writeJson(path.join(modelDir, "model-config.json"), model);
-
-  const runtimeModel = model.runtime_model ?? "default";
-  const artifactPath = path.join(modelDir, "artifact.sqlite");
-  const buildArgs = [
-    "index",
-    "build",
-    "--source",
-    sourceRoot,
-    "--output",
-    artifactPath,
-    "--embedding-model",
-    runtimeModel,
-    "--embedding-cache-path",
-    embeddingCachePath,
-    "--embedding-batch-size",
-    String(embeddingBatchSize),
-    "--no-reuse-embeddings",
-    "--json",
-  ];
-  writeJson(path.join(modelDir, "build-command.json"), { command: atlasPath, args: buildArgs });
-
-  logModelStep(modelIndex, models.length, model.id, `building index with ${runtimeModel}`);
-  const build = await runCommand(atlasPath, buildArgs, repoRoot, {
-    logPrefix: `[atlas ${model.id} build]`,
-    repaintProgress: true,
+  writeJson(path.join(modelDir, "artifact-source.json"), {
+    source_run: sourceRunRoot,
+    artifact: sourceArtifactPath,
   });
-  fs.writeFileSync(path.join(modelDir, "build.stdout.json"), build.stdout);
-  fs.writeFileSync(path.join(modelDir, "build.stderr.log"), build.stderr);
-  if (build.status !== 0) {
-    logModelStep(modelIndex, models.length, model.id, `build failed after ${formatDuration(build.duration_ms)}`);
-    writeJson(path.join(modelDir, "build-error.json"), build);
-    modelSummaries.push({
-      model_id: model.id,
-      status: "build_failed",
-      status_code: build.status,
-      preflight: modelPreflight(model),
-      stderr_excerpt: excerpt(build.stderr),
-      stdout_excerpt: excerpt(build.stdout),
-    });
-    continue;
-  }
-
-  const buildReport = parseJsonOutput(build.stdout, `build output for ${model.id}`);
-  logModelStep(
-    modelIndex,
-    models.length,
-    model.id,
-    `index built in ${formatDuration(build.duration_ms)}; generated ${buildReport.generated_document_embedding_count ?? "unknown"} embedding(s)`,
-  );
-  logModelStep(modelIndex, models.length, model.id, "building vector index");
-  const buildVectors = await runCommand(
-    atlasPath,
-    ["index", "build-vectors", "--index", artifactPath, "--json"],
-    repoRoot,
-    { logPrefix: `[atlas ${model.id} build-vectors]` },
-  );
-  fs.writeFileSync(path.join(modelDir, "build-vectors.stdout.json"), buildVectors.stdout);
-  fs.writeFileSync(path.join(modelDir, "build-vectors.stderr.log"), buildVectors.stderr);
-  const buildVectorsReport = buildVectors.stdout.trim()
-    ? parseJsonOutput(buildVectors.stdout, `build-vectors output for ${model.id}`)
-    : { status: "error", stderr: buildVectors.stderr };
-  writeJson(path.join(modelDir, "build-vectors-report.json"), buildVectorsReport);
-  logModelStep(
-    modelIndex,
-    models.length,
-    model.id,
-    `vector index ${buildVectorsReport.status ?? "finished"} in ${formatDuration(buildVectors.duration_ms)}`,
-  );
-
-  const embeddingMetrics = embeddingMetricsFor({
-    model,
-    build,
-    buildReport,
-    buildVectors,
-    buildVectorsReport,
-    artifactPath,
-    embeddingCachePath,
-  });
-  writeJson(path.join(modelDir, "build-report.json"), buildReport);
-  writeJson(path.join(modelDir, "embedding-metrics.json"), embeddingMetrics);
-
-  logModelStep(modelIndex, models.length, model.id, "validating vectors");
-  const validateVectors = await runCommand(
-    atlasPath,
-    ["index", "validate-vectors", "--index", artifactPath, "--json"],
-    repoRoot,
-    { logPrefix: `[atlas ${model.id} validate-vectors]` },
-  );
-  fs.writeFileSync(path.join(modelDir, "validate-vectors.stdout.json"), validateVectors.stdout);
-  fs.writeFileSync(path.join(modelDir, "validate-vectors.stderr.log"), validateVectors.stderr);
-  writeJson(
-    path.join(modelDir, "validate-vectors-report.json"),
-    validateVectors.stdout.trim()
-      ? parseJsonOutput(validateVectors.stdout, `validate-vectors output for ${model.id}`)
-      : { status: "error", stderr: validateVectors.stderr },
-  );
 
   const modelQuerySummaries = [];
   logModelStep(modelIndex, models.length, model.id, `running ${queries.length} queries`);
   for (const [queryIndex, query] of queries.entries()) {
     logQueryStep(modelIndex, models.length, model.id, queryIndex, queries.length, query.id);
-    const queryResult = await runQuery({ model, modelDir, artifactPath, query });
+    const queryResult = await runQuery({ model, modelDir, artifactPath: sourceArtifactPath, query });
     modelQuerySummaries.push(queryResult.summary);
     querySummaries.push(queryResult.summary);
     queryResultsById.get(query.id)?.push(queryResult.packetEntry);
@@ -238,16 +132,9 @@ for (const [modelIndex, model] of models.entries()) {
   modelSummaries.push({
     model_id: model.id,
     status: "ok",
-    build_duration_ms: build.duration_ms,
-    artifact_bytes: embeddingMetrics.artifact_bytes,
-    generated_document_embedding_count: buildReport.generated_document_embedding_count,
-    reused_document_embedding_count: buildReport.reused_document_embedding_count,
-    vector_build_status: buildVectorsReport.status,
-    truncated_document_count: buildReport.document_embedding_tokenization?.truncated_document_count ?? null,
-    unit_kind_truncations: embeddingMetrics.tokenization.unit_kind_truncations,
-    record_truncation_coverage: embeddingMetrics.tokenization.record_truncation_coverage,
-    total_tokens_over_limit: buildReport.document_embedding_tokenization?.total_tokens_over_limit ?? null,
-    tokens_over_limit_rate: embeddingMetrics.tokenization.tokens_over_limit_rate,
+    source_run: sourceRunRoot,
+    artifact_source: sourceArtifactPath,
+    artifact_bytes: fileSizeOrNull(sourceArtifactPath),
     query_count: modelQuerySummaries.length,
   });
   logModelStep(modelIndex, models.length, model.id, "model complete");
@@ -262,6 +149,8 @@ writeRunReviewInstructions(outputRoot);
 
 const summary = {
   status: "ok",
+  mode: "search-only",
+  source_run: sourceRunRoot,
   output: outputRoot,
   model_count: modelSummaries.length,
   query_count: queries.length,
@@ -271,7 +160,7 @@ const summary = {
 writeJson(path.join(outputRoot, "summary.json"), summary);
 fs.writeFileSync(path.join(outputRoot, "summary.md"), summaryMarkdown(summary));
 
-console.log(`wrote embedding comparison run to ${outputRoot}`);
+console.log(`wrote search-only embedding comparison run to ${outputRoot}`);
 
 async function runQuery({ model, modelDir, artifactPath, query }) {
   const queryDir = path.join(modelDir, "queries");
@@ -334,6 +223,7 @@ async function runQuery({ model, modelDir, artifactPath, query }) {
     query_length: queryLength(query.query),
     filter: query.filter ?? null,
     review_guidance: query.review_guidance,
+    source_artifact: artifactPath,
     duration_ms: output.duration_ms,
     rust_timing: timing,
     hit_count: enrichedHits.length,
@@ -514,131 +404,16 @@ function writeRunReviewInstructions(root) {
   fs.writeFileSync(path.join(root, "REVIEW.md"), lines.join("\n"));
 }
 
-function embeddingMetricsFor({
-  model,
-  build,
-  buildReport,
-  buildVectors,
-  buildVectorsReport,
-  artifactPath,
-  embeddingCachePath,
-}) {
-  const tokenization = buildReport.document_embedding_tokenization ?? {};
-  const timing = buildReport.embedding_timing ?? {};
-  const documentCount = tokenization.document_count ?? 0;
-  const truncatedDocumentCount = tokenization.truncated_document_count ?? 0;
-  const generated = buildReport.generated_document_embedding_count ?? 0;
-  const durationSeconds = build.duration_ms / 1000;
-  const unitMetrics = embeddingUnitMetrics(artifactPath);
-  return {
-    model_id: model.id,
-    runtime_model: model.runtime_model ?? "default",
-    model_cache_path: path.join(embeddingCachePath, model.model_id ?? ""),
-    model_cache_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "")),
-    onnx_model_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "", "onnx", "model.onnx")),
-    tokenizer_json_exists: fs.existsSync(path.join(embeddingCachePath, model.model_id ?? "", "tokenizer.json")),
-    build_duration_ms: buildReport.build_duration_ms,
-    orchestrator_build_duration_ms: build.duration_ms,
-    pending_document_embedding_count: buildReport.pending_document_embedding_count,
-    document_embedding_count: buildReport.document_embedding_count,
-    generated_document_embedding_count: generated,
-    reused_document_embedding_count: buildReport.reused_document_embedding_count,
-    embedding_units: unitMetrics,
-    generated_docs_per_second_coarse: durationSeconds > 0 ? generated / durationSeconds : null,
-    embedding_timing: {
-      tokenization_duration_ms: timing.tokenization_duration_ms ?? null,
-      model_load_duration_ms: timing.model_load_duration_ms ?? null,
-      generation_duration_ms: timing.generation_duration_ms ?? null,
-      batch_count: timing.batch_count ?? null,
-      batch_duration_min_ms: timing.batch_duration_min_ms ?? null,
-      batch_duration_p50_ms: timing.batch_duration_p50_ms ?? null,
-      batch_duration_p95_ms: timing.batch_duration_p95_ms ?? null,
-      batch_duration_max_ms: timing.batch_duration_max_ms ?? null,
-      generated_docs_per_second:
-        (timing.generation_duration_ms ?? 0) > 0 ? generated / (timing.generation_duration_ms / 1000) : null,
-    },
-    artifact_bytes: fileSizeOrNull(artifactPath),
-    model_cache_bytes: directorySizeOrNull(path.join(embeddingCachePath, model.model_id ?? "")),
-    vector_index: {
-      status: buildVectorsReport.status ?? null,
-      code: buildVectorsReport.code ?? null,
-      duration_ms: buildVectors.duration_ms,
-    },
-    tokenization: {
-      document_count: documentCount,
-      max_token_count: tokenization.max_token_count ?? null,
-      max_observed_token_count: tokenization.max_observed_token_count ?? null,
-      total_observed_token_count: tokenization.total_observed_token_count ?? null,
-      total_tokens_over_limit: tokenization.total_tokens_over_limit ?? null,
-      unit_kind_truncations: tokenization.unit_kind_truncations ?? [],
-      record_truncation_coverage: tokenization.record_truncation_coverage ?? null,
-      section_truncations: tokenization.section_truncations ?? [],
-      truncated_document_count: truncatedDocumentCount,
-      truncation_rate: documentCount > 0 ? truncatedDocumentCount / documentCount : null,
-      tokens_over_limit_rate:
-        (tokenization.total_observed_token_count ?? 0) > 0
-          ? (tokenization.total_tokens_over_limit ?? 0) / tokenization.total_observed_token_count
-          : null,
-      truncated_examples: tokenization.truncated_examples ?? [],
-    },
-    unavailable_metrics: [
-      "peak_rss_bytes",
-    ],
-  };
-}
-
-function embeddingUnitMetrics(artifactPath) {
-  const byKindSql = `
-SELECT
-  unit_kind,
-  COUNT(*) AS count,
-  COUNT(DISTINCT record_key) AS record_count
-FROM document_embedding_cache
-GROUP BY unit_kind
-ORDER BY unit_kind;
-`;
-  const totalsSql = `
-SELECT
-  COUNT(*) AS total_units,
-  COUNT(DISTINCT record_key) AS records_with_units,
-  SUM(CASE WHEN unit_kind <> 'parent' THEN 1 ELSE 0 END) AS child_units
-FROM document_embedding_cache;
-`;
-  const byKindOutput = spawnSync("sqlite3", ["-json", artifactPath, byKindSql], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  const totalsOutput = spawnSync("sqlite3", ["-json", artifactPath, totalsSql], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  if (byKindOutput.status !== 0 || totalsOutput.status !== 0) {
-    return { error: byKindOutput.stderr || totalsOutput.stderr };
-  }
-  const totals = (JSON.parse(totalsOutput.stdout || "[]") ?? [])[0] ?? {};
-  const byKind = JSON.parse(byKindOutput.stdout || "[]").map((row) => ({
-      unit_kind: row.unit_kind,
-      count: row.count,
-      record_count: row.record_count,
-  }));
-  return {
-    total_units: totals.total_units ?? null,
-    parent_units: byKind.find((row) => row.unit_kind === "parent")?.count ?? 0,
-    child_units: totals.child_units ?? 0,
-    records_with_units: totals.records_with_units ?? null,
-    units_per_record:
-      (totals.records_with_units ?? 0) > 0 ? (totals.total_units ?? 0) / totals.records_with_units : null,
-    by_kind: byKind,
-  };
-}
-
 function modelPreflight(model) {
   const modelCachePath = path.join(embeddingCachePath, model.model_id ?? "");
   const tokenizerPath = path.join(modelCachePath, "tokenizer.json");
   const onnxPath = path.join(modelCachePath, "onnx", "model.onnx");
+  const sourceArtifactPath = sourceArtifactFor(model);
   return {
     model_id: model.id,
     runtime_model: model.runtime_model ?? "default",
+    source_artifact: sourceArtifactPath,
+    source_artifact_exists: fs.existsSync(sourceArtifactPath),
     model_cache_path: modelCachePath,
     model_cache_exists: fs.existsSync(modelCachePath),
     tokenizer_json_exists: fs.existsSync(tokenizerPath),
@@ -648,11 +423,8 @@ function modelPreflight(model) {
   };
 }
 
-function queryLength(query) {
-  return {
-    character_count: query.length,
-    word_count: query.trim().split(/\s+/).filter(Boolean).length,
-  };
+function sourceArtifactFor(model) {
+  return path.join(sourceRunRoot, "models", model.id, "artifact.sqlite");
 }
 
 function runCommand(command, args, cwd, options = {}) {
@@ -664,9 +436,7 @@ function runCommand(command, args, cwd, options = {}) {
   const stdoutChunks = [];
   const stderrChunks = [];
   const streamStderr = options.streamStderr !== false;
-  const stderrStreamer = createLineStreamer(options.logPrefix, {
-    repaintProgress: Boolean(options.repaintProgress),
-  });
+  const stderrStreamer = createLineStreamer(options.logPrefix);
 
   child.stdout.on("data", (chunk) => {
     stdoutChunks.push(chunk);
@@ -695,6 +465,53 @@ function runCommand(command, args, cwd, options = {}) {
   });
 }
 
+function createLineStreamer(prefix = "[atlas]") {
+  let buffered = "";
+  const streamLine = (line) => {
+    if (!shouldStreamAtlasLine(line)) {
+      return;
+    }
+    console.error(`${prefix} ${line}`);
+  };
+  return {
+    write(chunk) {
+      if (quiet) {
+        return;
+      }
+      buffered += chunk.toString("utf8");
+      const lines = buffered.split(/\r?\n/);
+      buffered = lines.pop() ?? "";
+      for (const line of lines) {
+        streamLine(line);
+      }
+    },
+    flush() {
+      if (!quiet) {
+        streamLine(buffered);
+      }
+      buffered = "";
+    },
+  };
+}
+
+function shouldStreamAtlasLine(line) {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+  if (atlasLogDetail === "full") {
+    return true;
+  }
+  return !/\b(?:Scanning|Loading|Finished) source pack:/.test(trimmed);
+}
+
+function queryLength(query) {
+  return {
+    character_count: query.length,
+    word_count: query.trim().split(/\s+/).filter(Boolean).length,
+  };
+}
+
 function log(message) {
   if (!quiet) {
     console.error(`[embedding-comparison] ${new Date().toISOString()} ${message}`);
@@ -709,21 +526,10 @@ function logQueryStep(modelIndex, modelCount, modelId, queryIndex, queryCount, q
   log(`[model ${modelIndex + 1}/${modelCount}] ${modelId}: query ${queryIndex + 1}/${queryCount} ${queryId}`);
 }
 
-function formatDuration(durationMs) {
-  if (durationMs < 1000) {
-    return `${Math.round(durationMs)}ms`;
-  }
-  return `${(durationMs / 1000).toFixed(1)}s`;
-}
-
 function readAtlasCapabilities(command) {
-  const indexBuildHelp = runCommandSync(command, ["index", "build", "--help"], repoRoot);
   const searchSemanticHelp = runCommandSync(command, ["search", "semantic", "--help"], repoRoot);
   return {
-    index_build_help_status: indexBuildHelp.status,
     search_semantic_help_status: searchSemanticHelp.status,
-    index_build_embedding_model:
-      indexBuildHelp.status === 0 && indexBuildHelp.stdout.includes("--embedding-model"),
     search_semantic_embedding_model:
       searchSemanticHelp.status === 0 && searchSemanticHelp.stdout.includes("--embedding-model"),
   };
@@ -765,87 +571,6 @@ function runCommandSync(command, args, cwd) {
   };
 }
 
-function createLineStreamer(prefix = "[atlas]", options = {}) {
-  let buffered = "";
-  let pendingCapturedProgressLine = null;
-  let hasRepaintedLine = false;
-  const repaintProgress = options.repaintProgress && atlasLogDetail !== "full" && process.stderr.isTTY;
-  const collapseCapturedProgress = options.repaintProgress && atlasLogDetail !== "full" && !process.stderr.isTTY;
-  const flushRepaintedLine = () => {
-    if (!hasRepaintedLine) {
-      return;
-    }
-    process.stderr.write("\n");
-    hasRepaintedLine = false;
-  };
-  const flushCapturedProgressLine = () => {
-    if (!pendingCapturedProgressLine) {
-      return;
-    }
-    console.error(`${prefix} ${pendingCapturedProgressLine}`);
-    pendingCapturedProgressLine = null;
-  };
-  const streamLine = (line) => {
-    if (repaintProgress) {
-      if (!shouldStreamAtlasLine(line, { repaintProgress })) {
-        return;
-      }
-      process.stderr.write(`\r\x1b[2K${prefix} ${line}`);
-      hasRepaintedLine = true;
-      return;
-    }
-    if (collapseCapturedProgress && shouldCollapseCapturedProgressLine(line)) {
-      pendingCapturedProgressLine = line;
-      return;
-    }
-    if (!shouldStreamAtlasLine(line)) {
-      return;
-    }
-    flushRepaintedLine();
-    flushCapturedProgressLine();
-    console.error(`${prefix} ${line}`);
-  };
-  return {
-    write(chunk) {
-      if (quiet) {
-        return;
-      }
-      buffered += chunk.toString("utf8");
-      const lines = buffered.split(/\r?\n/);
-      buffered = lines.pop() ?? "";
-      for (const line of lines) {
-        streamLine(line);
-      }
-    },
-    flush() {
-      if (!quiet) {
-        streamLine(buffered);
-        flushRepaintedLine();
-        flushCapturedProgressLine();
-      }
-      buffered = "";
-    },
-  };
-}
-
-function shouldStreamAtlasLine(line, options = {}) {
-  const trimmed = line.trim();
-  if (trimmed.length === 0) {
-    return false;
-  }
-  if (options.collapseCapturedProgress || options.repaintProgress) {
-    return true;
-  }
-  if (atlasLogDetail === "full") {
-    return true;
-  }
-  return !/\b(?:Scanning|Loading|Finished) source pack:/.test(trimmed);
-}
-
-function shouldCollapseCapturedProgressLine(line) {
-  return line.includes("Prepared document embedding batch through:");
-}
-
 function sqlite3Available() {
   const output = spawnSync("sqlite3", ["-version"], {
     encoding: "utf8",
@@ -870,6 +595,13 @@ function parseArgs(args) {
     }
   }
   return parsed;
+}
+
+function requiredOption(key) {
+  if (!options[key]) {
+    throw new Error(`missing required option --${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`);
+  }
+  return options[key];
 }
 
 function readJson(filePath) {
@@ -941,14 +673,14 @@ function timestampRunId() {
 }
 
 function summaryMarkdown(summary) {
-  const lines = ["# Embedding Comparison Summary", ""];
+  const lines = ["# Search-Only Embedding Comparison Summary", ""];
+  lines.push(`Source run: ${summary.source_run}`, "");
   lines.push(`Output: ${summary.output}`, "");
-  lines.push("| Model | Status | Build ms | Artifact bytes | Truncated units | Truncated parent records | Parent truncated with child coverage | Parent truncated without child units | Tokens over limit | Queries |");
-  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| Model | Status | Artifact bytes | Queries |");
+  lines.push("| --- | --- | ---: | ---: |");
   for (const model of summary.models) {
-    const coverage = model.record_truncation_coverage ?? {};
     lines.push(
-      `| ${model.model_id} | ${model.status} | ${model.build_duration_ms ?? ""} | ${model.artifact_bytes ?? ""} | ${model.truncated_document_count ?? ""} | ${coverage.records_with_truncated_parent_unit ?? ""} | ${coverage.records_with_truncated_parent_and_all_child_units_fit ?? ""} | ${coverage.records_with_truncated_parent_without_child_units ?? ""} | ${model.total_tokens_over_limit ?? ""} | ${model.query_count ?? ""} |`,
+      `| ${model.model_id} | ${model.status} | ${model.artifact_bytes ?? ""} | ${model.query_count ?? ""} |`,
     );
   }
   lines.push("");

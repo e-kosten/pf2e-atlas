@@ -33,6 +33,7 @@ pub struct VectorSearchHit {
     pub unit_kind: String,
     pub label: Option<String>,
     pub distance: f64,
+    pub rank_distance: f64,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -106,6 +107,7 @@ pub fn query_vector_index(
                 unit_kind: row.get(2)?,
                 label: row.get(3)?,
                 distance: row.get(4)?,
+                rank_distance: row.get(4)?,
             })
         })
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
@@ -116,17 +118,50 @@ pub fn query_vector_index(
 }
 
 fn collapse_vector_hits(rows: Vec<VectorSearchHit>, limit: usize) -> Vec<VectorSearchHit> {
-    let mut seen = std::collections::BTreeSet::new();
-    let mut collapsed = Vec::new();
+    let mut grouped = std::collections::BTreeMap::<String, Vec<VectorSearchHit>>::new();
     for hit in rows {
-        if seen.insert(hit.record_key.clone()) {
-            collapsed.push(hit);
-            if collapsed.len() == limit {
-                break;
-            }
-        }
+        grouped.entry(hit.record_key.clone()).or_default().push(hit);
     }
+    let mut collapsed = grouped
+        .into_values()
+        .filter_map(best_record_hit)
+        .collect::<Vec<_>>();
+    collapsed.sort_by(compare_vector_hits_for_rank);
+    collapsed.truncate(limit);
     collapsed
+}
+
+fn best_record_hit(hits: Vec<VectorSearchHit>) -> Option<VectorSearchHit> {
+    let has_parent = hits.iter().any(|hit| hit.unit_kind == "parent");
+    hits.into_iter()
+        .map(|mut hit| {
+            hit.rank_distance = adjusted_rank_distance(&hit, has_parent);
+            hit
+        })
+        .min_by(compare_vector_hits_for_rank)
+}
+
+fn adjusted_rank_distance(hit: &VectorSearchHit, has_parent: bool) -> f64 {
+    let unit_penalty = match hit.unit_kind.as_str() {
+        "parent" => 0.0,
+        "heading_section" => 0.025,
+        "titled_option" => 0.040,
+        "activation_block" => 0.055,
+        _ => 0.060,
+    };
+    let missing_parent_penalty = if has_parent { 0.0 } else { 0.025 };
+    hit.distance + unit_penalty + missing_parent_penalty
+}
+
+fn compare_vector_hits_for_rank(
+    left: &VectorSearchHit,
+    right: &VectorSearchHit,
+) -> std::cmp::Ordering {
+    left.rank_distance
+        .total_cmp(&right.rank_distance)
+        .then_with(|| left.distance.total_cmp(&right.distance))
+        .then_with(|| left.record_key.cmp(&right.record_key))
+        .then_with(|| left.embedding_unit_key.cmp(&right.embedding_unit_key))
 }
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
@@ -440,24 +475,30 @@ fn metadata_summary_from_report(report: &ArtifactValidationReport) -> ArtifactMe
 mod tests {
     use super::*;
 
-    fn hit(unit: &str, record: &str, distance: f64) -> VectorSearchHit {
+    fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
         VectorSearchHit {
             embedding_unit_key: unit.to_string(),
             record_key: record.to_string(),
-            unit_kind: "full_record".to_string(),
+            unit_kind: unit_kind.to_string(),
             label: None,
             distance,
+            rank_distance: distance,
         }
     }
 
     #[test]
-    fn collapse_vector_hits_keeps_best_unit_per_record() {
+    fn collapse_vector_hits_keeps_one_unit_per_record() {
         let collapsed = collapse_vector_hits(
             vec![
-                hit("records:a:full_record:1", "records:a", 0.1),
-                hit("records:a:heading_section:1", "records:a", 0.2),
-                hit("records:b:full_record:1", "records:b", 0.3),
-                hit("records:c:full_record:1", "records:c", 0.4),
+                hit("records:a#parent", "records:a", "parent", 0.1),
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.2,
+                ),
+                hit("records:b#parent", "records:b", "parent", 0.3),
+                hit("records:c#parent", "records:c", "parent", 0.4),
             ],
             2,
         );
@@ -468,9 +509,108 @@ mod tests {
                 .map(|hit| (hit.embedding_unit_key.as_str(), hit.record_key.as_str()))
                 .collect::<Vec<_>>(),
             vec![
-                ("records:a:full_record:1", "records:a"),
-                ("records:b:full_record:1", "records:b"),
+                ("records:a#parent", "records:a"),
+                ("records:b#parent", "records:b"),
             ]
         );
+    }
+
+    #[test]
+    fn collapse_vector_hits_keeps_parent_over_slightly_closer_activation_block() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#activation_block:1",
+                    "records:a",
+                    "activation_block",
+                    0.100,
+                ),
+                hit("records:a#parent", "records:a", "parent", 0.130),
+            ],
+            10,
+        );
+
+        assert_eq!(collapsed[0].embedding_unit_key, "records:a#parent");
+        assert_eq!(collapsed[0].distance, 0.130);
+        assert_eq!(collapsed[0].rank_distance, 0.130);
+    }
+
+    #[test]
+    fn collapse_vector_hits_allows_much_closer_child_to_recover_record() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#activation_block:1",
+                    "records:a",
+                    "activation_block",
+                    0.100,
+                ),
+                hit("records:a#parent", "records:a", "parent", 0.200),
+            ],
+            10,
+        );
+
+        assert_eq!(
+            collapsed[0].embedding_unit_key,
+            "records:a#activation_block:1"
+        );
+        assert_eq!(collapsed[0].distance, 0.100);
+        assert_eq!(collapsed[0].rank_distance, 0.155);
+    }
+
+    #[test]
+    fn collapse_vector_hits_prefers_heading_section_over_activation_block_at_similar_distance() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#activation_block:1",
+                    "records:a",
+                    "activation_block",
+                    0.100,
+                ),
+                hit(
+                    "records:b#heading_section:1",
+                    "records:b",
+                    "heading_section",
+                    0.105,
+                ),
+            ],
+            10,
+        );
+
+        assert_eq!(
+            collapsed[0].embedding_unit_key,
+            "records:b#heading_section:1"
+        );
+        assert_eq!(collapsed[0].rank_distance, 0.155);
+        assert_eq!(
+            collapsed[1].embedding_unit_key,
+            "records:a#activation_block:1"
+        );
+        assert_eq!(collapsed[1].rank_distance, 0.180);
+    }
+
+    #[test]
+    fn collapse_vector_hits_penalizes_records_without_parent_hit() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.100,
+                ),
+                hit("records:b#parent", "records:b", "parent", 0.145),
+            ],
+            10,
+        );
+
+        assert_eq!(collapsed[0].embedding_unit_key, "records:b#parent");
+        assert_eq!(collapsed[0].rank_distance, 0.145);
+        assert_eq!(
+            collapsed[1].embedding_unit_key,
+            "records:a#heading_section:1"
+        );
+        assert_eq!(collapsed[1].rank_distance, 0.150);
     }
 }

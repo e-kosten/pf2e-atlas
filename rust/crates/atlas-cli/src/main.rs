@@ -549,6 +549,7 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
                         "unit_kind": hit.unit_kind,
                         "label": hit.label,
                         "distance": hit.distance,
+                        "rank_distance": hit.rank_distance,
                     })
                 }).collect::<Vec<_>>()
             }))

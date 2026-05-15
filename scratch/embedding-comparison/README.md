@@ -36,6 +36,20 @@ node scratch/embedding-comparison/run-comparison.mjs \
 
 Use `--allow-missing-models` only for intentional failure-path smoke tests.
 
+For search-only ranking changes, reuse artifacts from an existing run instead of
+rebuilding embeddings:
+
+```bash
+node scratch/embedding-comparison/run-search-comparison.mjs \
+  --source-run scratch/embedding-comparison/runs/full-segmented-rowid \
+  --models scratch/embedding-comparison/tmp/ranking-loop-minilm.json \
+  --queries scratch/embedding-comparison/tmp/ranking-loop-queries.json \
+  --output scratch/embedding-comparison/runs/search-ranking-minilm
+```
+
+Use `tmp/ranking-loop-models.json` for the two-model MiniLM + MPNet confirmation
+loop once the single-model run looks promising.
+
 By default the script uses `rust/target/release/atlas`. If the binary is absent, build it first:
 
 ```bash
@@ -70,6 +84,9 @@ scratch/embedding-comparison/runs/<run-id>/
   score-templates/<query-id>.json
   review-scores/
 ```
+
+Search-only runs write the same query and review-packet shape, but each model
+directory contains `artifact-source.json` instead of a rebuilt `artifact.sqlite`.
 
 Review scores are intentionally not produced by the harness. Put scoring JSON files under
 `review-scores/` and aggregate them with the deterministic metrics:
