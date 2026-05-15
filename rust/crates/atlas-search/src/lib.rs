@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub use atlas_embedding::EmbeddingRuntimeConfig;
+pub use atlas_index::VectorSearchMode as SemanticSearchMode;
 
 pub struct SemanticSearchService {
     index: AtlasIndex,
@@ -65,8 +66,9 @@ impl SemanticSearchService {
         query: &str,
         filter: Option<&SearchFilterNode>,
         limit: u32,
+        mode: SemanticSearchMode,
     ) -> Result<Vec<SemanticSearchHit>, SearchError> {
-        Ok(self.semantic_with_timing(query, filter, limit)?.hits)
+        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
     }
 
     pub fn semantic_with_timing(
@@ -74,6 +76,7 @@ impl SemanticSearchService {
         query: &str,
         filter: Option<&SearchFilterNode>,
         limit: u32,
+        mode: SemanticSearchMode,
     ) -> Result<SemanticSearchResult, SearchError> {
         let total_started_at = Instant::now();
         let embedding_started_at = Instant::now();
@@ -82,7 +85,7 @@ impl SemanticSearchService {
         let vector_started_at = Instant::now();
         let hits = self
             .index
-            .query_vector_index(&query_vector, filter, limit)?;
+            .query_vector_index(&query_vector, filter, limit, mode)?;
         let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
         Ok(SemanticSearchResult {
             hits: hits.into_iter().map(SemanticSearchHit::from).collect(),

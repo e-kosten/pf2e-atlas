@@ -19,7 +19,7 @@ use crate::filters::{
 };
 use crate::records::{load_persisted_record_set, load_persisted_records};
 use crate::{
-    ArtifactContractFamily, ValidationCode, ValidationStatus, VectorQueryError,
+    ArtifactContractFamily, ValidationCode, ValidationStatus, VectorQueryError, VectorSearchMode,
     compile_vector_knn_query, validate_index, validate_vector_index,
     validate_vector_index_with_loader, write_vector_index, write_vector_index_with_loader,
 };
@@ -584,7 +584,12 @@ fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::
         atlas_domain::SearchFilterNode::pack("actions"),
     ]);
 
-    let compiled = compile_vector_knn_query(&[0.25, 0.5, 0.75], Some(&filter), 12)?;
+    let compiled = compile_vector_knn_query(
+        &[0.25, 0.5, 0.75],
+        Some(&filter),
+        12,
+        VectorSearchMode::WeightedChunks,
+    )?;
 
     assert!(compiled.sql.contains("WITH eligible(record_key) AS"));
     assert!(compiled.sql.contains("FROM record_vector_index v"));
@@ -618,6 +623,15 @@ fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::
 }
 
 #[test]
+fn parent_only_vector_knn_query_restricts_candidate_units() -> Result<(), Box<dyn std::error::Error>>
+{
+    let compiled = compile_vector_knn_query(&[1.0], None, 5, VectorSearchMode::ParentOnly)?;
+
+    assert!(compiled.sql.contains("candidate.unit_kind = 'parent'"));
+    Ok(())
+}
+
+#[test]
 fn rejects_invalid_vector_knn_queries() {
     let unsupported = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
         field: MetadataSetField::DerivedTags,
@@ -626,15 +640,21 @@ fn rejects_invalid_vector_knn_queries() {
     });
 
     assert_eq!(
-        compile_vector_knn_query(&[1.0], None, 0).unwrap_err(),
+        compile_vector_knn_query(&[1.0], None, 0, VectorSearchMode::WeightedChunks).unwrap_err(),
         VectorQueryError::InvalidLimit
     );
     assert_eq!(
-        compile_vector_knn_query(&[], None, 10).unwrap_err(),
+        compile_vector_knn_query(&[], None, 10, VectorSearchMode::WeightedChunks).unwrap_err(),
         VectorQueryError::EmptyQueryVector
     );
     assert!(matches!(
-        compile_vector_knn_query(&[1.0], Some(&unsupported), 10).unwrap_err(),
+        compile_vector_knn_query(
+            &[1.0],
+            Some(&unsupported),
+            10,
+            VectorSearchMode::WeightedChunks
+        )
+        .unwrap_err(),
         VectorQueryError::Filter(FilterCompileError::Unsupported { .. })
     ));
 }

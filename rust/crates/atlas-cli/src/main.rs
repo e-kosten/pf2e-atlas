@@ -16,8 +16,8 @@ use atlas_index::{
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
-use atlas_search::{EmbeddingRuntimeConfig, SemanticSearchService};
-use clap::{Args, Parser, Subcommand};
+use atlas_search::{EmbeddingRuntimeConfig, SemanticSearchMode, SemanticSearchService};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde_json::json;
 use tracing::{Event, Level, Subscriber};
@@ -127,8 +127,27 @@ struct SemanticSearchOptions {
     embedding_cache_path: PathBuf,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
     embedding_model: EmbeddingModelId,
+    #[arg(long, value_enum, default_value_t = CliSemanticMode::WeightedChunks)]
+    semantic_mode: CliSemanticMode,
     #[arg(long)]
     json: bool,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum CliSemanticMode {
+    ParentOnly,
+    Chunks,
+    WeightedChunks,
+}
+
+impl From<CliSemanticMode> for SemanticSearchMode {
+    fn from(mode: CliSemanticMode) -> Self {
+        match mode {
+            CliSemanticMode::ParentOnly => Self::ParentOnly,
+            CliSemanticMode::Chunks => Self::Chunks,
+            CliSemanticMode::WeightedChunks => Self::WeightedChunks,
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -523,8 +542,14 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
     let mut search =
         SemanticSearchService::open(&options.index, &config).map_err(|error| error.to_string())?;
     let service_open_duration_ms = service_open_started_at.elapsed().as_millis();
+    let semantic_mode = SemanticSearchMode::from(options.semantic_mode);
     let result = search
-        .semantic_with_timing(&options.query, filter.as_ref(), options.limit)
+        .semantic_with_timing(
+            &options.query,
+            filter.as_ref(),
+            options.limit,
+            semantic_mode,
+        )
         .map_err(|error| error.to_string())?;
     let hits = result.hits;
 
@@ -535,6 +560,7 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
                 "status": "ok",
                 "query": options.query,
                 "limit": options.limit,
+                "semantic_mode": semantic_mode.as_str(),
                 "timing": {
                     "service_open_duration_ms": service_open_duration_ms,
                     "query_embedding_duration_ms": result.timing.query_embedding_duration_ms,
