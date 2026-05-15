@@ -1,9 +1,10 @@
 #![deny(unsafe_code)]
 
 use std::fmt::{self, Write as FmtWrite};
+use std::fs;
 use std::io::IsTerminal;
-use std::path::PathBuf;
-use std::process::ExitCode;
+use std::path::{Path, PathBuf};
+use std::process::{Command as ProcessCommand, ExitCode};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -35,6 +36,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    #[command(about = "Check or prepare local Atlas data and model paths")]
+    Setup(SetupOptions),
     #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
     Index(IndexArgs),
     #[command(about = "Run Atlas search commands")]
@@ -51,6 +54,22 @@ struct IndexArgs {
 struct SearchArgs {
     #[command(subcommand)]
     command: SearchCommand,
+}
+
+#[derive(Debug, Args)]
+struct SetupOptions {
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
+    #[arg(long)]
+    source: Option<PathBuf>,
+    #[arg(long)]
+    embedding_cache_path: Option<PathBuf>,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long)]
+    fetch_source: bool,
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -78,7 +97,9 @@ enum SearchCommand {
 #[derive(Debug, Args)]
 struct AnalyzeIndexOptions {
     #[arg(long)]
-    source: PathBuf,
+    source: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
     #[arg(long)]
     manifest: Option<PathBuf>,
     #[arg(long)]
@@ -88,9 +109,11 @@ struct AnalyzeIndexOptions {
 #[derive(Debug, Args)]
 struct BuildIndexOptions {
     #[arg(long)]
-    source: PathBuf,
+    source: Option<PathBuf>,
     #[arg(long)]
-    output: PathBuf,
+    output: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
     #[arg(long)]
     manifest: Option<PathBuf>,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
@@ -102,13 +125,17 @@ struct BuildIndexOptions {
     #[arg(long)]
     no_reuse_embeddings: bool,
     #[arg(long)]
+    no_embeddings: bool,
+    #[arg(long)]
     json: bool,
 }
 
 #[derive(Debug, Args)]
 struct IndexPathOptions {
     #[arg(long)]
-    index: PathBuf,
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
     #[arg(long)]
     json: bool,
 }
@@ -116,15 +143,17 @@ struct IndexPathOptions {
 #[derive(Debug, Args)]
 struct SemanticSearchOptions {
     #[arg(long)]
-    index: PathBuf,
+    index: Option<PathBuf>,
     #[arg(long)]
     query: String,
     #[arg(long, default_value_t = 10)]
     limit: u32,
     #[arg(long)]
     filter_json: Option<String>,
-    #[arg(long, default_value = ".cache/hf-models")]
-    embedding_cache_path: PathBuf,
+    #[arg(long)]
+    embedding_cache_path: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
     embedding_model: EmbeddingModelId,
     #[arg(long, value_enum, default_value_t = CliSemanticMode::WeightedChunks)]
@@ -138,6 +167,13 @@ enum CliSemanticMode {
     ParentOnly,
     Chunks,
     WeightedChunks,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliPathMode {
+    Auto,
+    Repo,
+    User,
 }
 
 impl From<CliSemanticMode> for SemanticSearchMode {
@@ -338,6 +374,7 @@ fn elapsed_prefix(elapsed: Duration) -> String {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
+        Command::Setup(options) => run_setup(options),
         Command::Index(index) => match index.command {
             IndexCommand::Analyze(options) => run_index_analyze(options),
             IndexCommand::Build(options) => run_index_build(options),
@@ -352,8 +389,120 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
     }
 }
 
+fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
+    let paths = resolve_atlas_paths(
+        options.path_mode,
+        AtlasPathOverrides {
+            source_root: options.source,
+            embedding_cache_root: options.embedding_cache_path,
+            index_path: options.index,
+        },
+    )?;
+
+    if options.fetch_source {
+        fetch_pf2e_source(&paths.source_root)?;
+    }
+
+    let source_exists = paths.source_root.is_dir();
+    let model_status = embedding_model_cache_status(&paths.embedding_cache_root);
+    let index_exists = paths.index_path.is_file();
+    let ready = source_exists && model_status.ready;
+
+    if options.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "status": if ready { "ready" } else { "not_ready" },
+                "path_mode": paths.mode.as_str(),
+                "repo_root": paths.repo_root.as_ref().map(|path| path.display().to_string()),
+                "source": {
+                    "path": paths.source_root.display().to_string(),
+                    "exists": source_exists,
+                },
+                "embedding": {
+                    "model": DEFAULT_EMBEDDING_MODEL.to_string(),
+                    "cache_root": paths.embedding_cache_root.display().to_string(),
+                    "model_path": model_status.model_dir.display().to_string(),
+                    "ready": model_status.ready,
+                    "missing_files": model_status
+                        .missing_files
+                        .iter()
+                        .map(|path| path.display().to_string())
+                        .collect::<Vec<_>>(),
+                },
+                "index": {
+                    "path": paths.index_path.display().to_string(),
+                    "exists": index_exists,
+                },
+                "next": {
+                    "build_index": format!(
+                        "atlas index build --path-mode {}",
+                        paths.mode.suggested_path_mode()
+                    ),
+                },
+            }))
+            .map_err(|error| error.to_string())?
+        );
+    } else {
+        println!("mode: {}", paths.mode.label());
+        if let Some(repo_root) = &paths.repo_root {
+            println!("repo root: {}", repo_root.display());
+        }
+        println!(
+            "source: {} {}",
+            status_label(source_exists),
+            paths.source_root.display()
+        );
+        println!("embedding model: {}", DEFAULT_EMBEDDING_MODEL);
+        println!(
+            "embedding cache: {} {}",
+            status_label(model_status.ready),
+            model_status.model_dir.display()
+        );
+        for missing_file in &model_status.missing_files {
+            println!("missing model file: {}", missing_file.display());
+        }
+        println!(
+            "index: {} {}",
+            status_label(index_exists),
+            paths.index_path.display()
+        );
+        if ready {
+            println!();
+            println!("ready:");
+            println!(
+                "  atlas index build --path-mode {}",
+                paths.mode.suggested_path_mode()
+            );
+        } else {
+            println!();
+            println!("not ready:");
+            if !source_exists {
+                println!("  run atlas setup --fetch-source");
+            }
+            if !model_status.ready {
+                println!("  prepare the default embedding model cache, then rerun atlas setup");
+            }
+        }
+    }
+
+    Ok(if ready {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    })
+}
+
 fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
-    let report = analyze_foundry_source(&options.source, options.manifest.as_deref())
+    let paths = resolve_atlas_paths(
+        options.path_mode,
+        AtlasPathOverrides {
+            source_root: options.source,
+            embedding_cache_root: None,
+            index_path: None,
+        },
+    )?;
+    let report = analyze_foundry_source(&paths.source_root, options.manifest.as_deref())
         .map_err(|error| error.to_string())?;
 
     if options.json {
@@ -394,12 +543,24 @@ fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
+    let paths = resolve_atlas_paths(
+        options.path_mode,
+        AtlasPathOverrides {
+            source_root: options.source,
+            embedding_cache_root: options.embedding_cache_path,
+            index_path: options.output,
+        },
+    )?;
     let report = build_artifact(BuildArtifactOptions {
-        source_root: options.source,
-        output_path: options.output,
+        source_root: paths.source_root,
+        output_path: paths.index_path,
         manifest_path: options.manifest,
         embedding_model: options.embedding_model,
-        embedding_cache_root: options.embedding_cache_path,
+        embedding_cache_root: if options.no_embeddings {
+            None
+        } else {
+            Some(paths.embedding_cache_root)
+        },
         reuse_embeddings: !options.no_reuse_embeddings,
         embedding_batch_size: options.embedding_batch_size,
     })
@@ -480,7 +641,8 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let report = inspect_index(&options.index).map_err(|error| error.to_string())?;
+    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let report = inspect_index(&paths.index_path).map_err(|error| error.to_string())?;
 
     if options.json {
         let body = serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?;
@@ -511,17 +673,20 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let report = validate_index_report(&options.index);
+    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let report = validate_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
 
 fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let report = validate_vector_index_report(&options.index);
+    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let report = validate_vector_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
 
 fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let report = write_vector_index_report(&options.index);
+    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let report = write_vector_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
 
@@ -536,11 +701,18 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
         })
         .transpose()?;
 
-    let config =
-        EmbeddingRuntimeConfig::new(options.embedding_model, &options.embedding_cache_path);
+    let paths = resolve_atlas_paths(
+        options.path_mode,
+        AtlasPathOverrides {
+            source_root: None,
+            embedding_cache_root: options.embedding_cache_path,
+            index_path: options.index,
+        },
+    )?;
+    let config = EmbeddingRuntimeConfig::new(options.embedding_model, &paths.embedding_cache_root);
     let service_open_started_at = Instant::now();
-    let mut search =
-        SemanticSearchService::open(&options.index, &config).map_err(|error| error.to_string())?;
+    let mut search = SemanticSearchService::open(&paths.index_path, &config)
+        .map_err(|error| error.to_string())?;
     let service_open_duration_ms = service_open_started_at.elapsed().as_millis();
     let semantic_mode = SemanticSearchMode::from(options.semantic_mode);
     let result = search
@@ -589,6 +761,263 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Debug, Clone, Default)]
+struct AtlasPathOverrides {
+    source_root: Option<PathBuf>,
+    embedding_cache_root: Option<PathBuf>,
+    index_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedAtlasPaths {
+    mode: ResolvedPathMode,
+    repo_root: Option<PathBuf>,
+    source_root: PathBuf,
+    embedding_cache_root: PathBuf,
+    index_path: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResolvedPathMode {
+    Repo,
+    User,
+}
+
+impl ResolvedPathMode {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Repo => "repo",
+            Self::User => "user",
+        }
+    }
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Repo => "repo checkout",
+            Self::User => "user install",
+        }
+    }
+
+    const fn suggested_path_mode(self) -> &'static str {
+        self.as_str()
+    }
+}
+
+struct EmbeddingModelCacheStatus {
+    model_dir: PathBuf,
+    ready: bool,
+    missing_files: Vec<PathBuf>,
+}
+
+fn resolve_index_path(
+    path_mode: CliPathMode,
+    index_override: Option<PathBuf>,
+) -> Result<ResolvedAtlasPaths, String> {
+    resolve_atlas_paths(
+        path_mode,
+        AtlasPathOverrides {
+            source_root: None,
+            embedding_cache_root: None,
+            index_path: index_override,
+        },
+    )
+}
+
+fn resolve_atlas_paths(
+    path_mode: CliPathMode,
+    overrides: AtlasPathOverrides,
+) -> Result<ResolvedAtlasPaths, String> {
+    let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
+    let repo_root = find_git_repo_root(&current_dir);
+    let resolved_mode = match path_mode {
+        CliPathMode::Auto => {
+            if repo_root.is_some() {
+                ResolvedPathMode::Repo
+            } else {
+                ResolvedPathMode::User
+            }
+        }
+        CliPathMode::Repo => {
+            if repo_root.is_none() {
+                return Err(
+                    "--path-mode repo requires running inside a git checkout with rust/Cargo.toml"
+                        .to_string(),
+                );
+            }
+            ResolvedPathMode::Repo
+        }
+        CliPathMode::User => ResolvedPathMode::User,
+    };
+
+    let defaults = match resolved_mode {
+        ResolvedPathMode::Repo => {
+            let repo_root = repo_root
+                .clone()
+                .expect("repo path mode only selected when repo root exists");
+            AtlasPathOverrides {
+                source_root: Some(repo_root.join("vendor").join("pf2e")),
+                embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
+                index_path: Some(repo_root.join(".cache").join("pf2e-rust-index.sqlite")),
+            }
+        }
+        ResolvedPathMode::User => {
+            let cache_root = platform_cache_root()?.join("pf2e-atlas");
+            AtlasPathOverrides {
+                source_root: Some(cache_root.join("vendor").join("pf2e")),
+                embedding_cache_root: Some(cache_root.join("hf-models")),
+                index_path: Some(cache_root.join("pf2e-rust-index.sqlite")),
+            }
+        }
+    };
+
+    Ok(ResolvedAtlasPaths {
+        mode: resolved_mode,
+        repo_root: if resolved_mode == ResolvedPathMode::Repo {
+            repo_root
+        } else {
+            None
+        },
+        source_root: overrides
+            .source_root
+            .or(defaults.source_root)
+            .expect("source default is always resolved"),
+        embedding_cache_root: overrides
+            .embedding_cache_root
+            .or(defaults.embedding_cache_root)
+            .expect("embedding cache default is always resolved"),
+        index_path: overrides
+            .index_path
+            .or(defaults.index_path)
+            .expect("index default is always resolved"),
+    })
+}
+
+fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
+    let output = ProcessCommand::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(current_dir)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    let root = PathBuf::from(stdout.trim());
+    if root.join("rust").join("Cargo.toml").is_file()
+        && root
+            .join("rust")
+            .join("crates")
+            .join("atlas-cli")
+            .join("Cargo.toml")
+            .is_file()
+    {
+        Some(root)
+    } else {
+        None
+    }
+}
+
+fn platform_cache_root() -> Result<PathBuf, String> {
+    if cfg!(target_os = "macos") {
+        return home_dir()
+            .map(|home| home.join("Library").join("Caches"))
+            .ok_or_else(|| "could not resolve HOME for user cache path".to_string());
+    }
+    if cfg!(target_os = "windows") {
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            return Ok(PathBuf::from(local_app_data));
+        }
+        return home_dir()
+            .map(|home| home.join("AppData").join("Local"))
+            .ok_or_else(|| "could not resolve LOCALAPPDATA or USERPROFILE".to_string());
+    }
+    if let Some(cache_home) = std::env::var_os("XDG_CACHE_HOME") {
+        return Ok(PathBuf::from(cache_home));
+    }
+    home_dir()
+        .map(|home| home.join(".cache"))
+        .ok_or_else(|| "could not resolve HOME for user cache path".to_string())
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+fn embedding_model_cache_status(cache_root: &Path) -> EmbeddingModelCacheStatus {
+    let config = EmbeddingRuntimeConfig::new(DEFAULT_EMBEDDING_MODEL, cache_root);
+    let model_dir = config.model_dir();
+    let required_files = [
+        model_dir.join("tokenizer.json"),
+        model_dir.join("onnx").join("model.onnx"),
+    ];
+    let missing_files = required_files
+        .into_iter()
+        .filter(|path| !path.is_file())
+        .collect::<Vec<_>>();
+    EmbeddingModelCacheStatus {
+        model_dir,
+        ready: missing_files.is_empty(),
+        missing_files,
+    }
+}
+
+fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
+    if source_root.exists() {
+        if source_root.join(".git").exists() {
+            let status = ProcessCommand::new("git")
+                .args([
+                    "-C",
+                    &source_root.display().to_string(),
+                    "pull",
+                    "--ff-only",
+                ])
+                .status()
+                .map_err(|error| format!("failed to run git pull: {error}"))?;
+            if status.success() {
+                return Ok(());
+            }
+            return Err(format!(
+                "failed to update PF2E source at {}",
+                source_root.display()
+            ));
+        }
+        return Err(format!(
+            "source path already exists but is not a git checkout: {}",
+            source_root.display()
+        ));
+    }
+    if let Some(parent) = source_root.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "failed to create source parent directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+    let status = ProcessCommand::new("git")
+        .args([
+            "clone",
+            "https://github.com/foundryvtt/pf2e.git",
+            &source_root.display().to_string(),
+        ])
+        .status()
+        .map_err(|error| format!("failed to run git clone: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "failed to clone PF2E source into {}",
+            source_root.display()
+        ))
+    }
+}
+
+fn status_label(ok: bool) -> &'static str {
+    if ok { "ok" } else { "missing" }
 }
 
 fn write_validation_report(

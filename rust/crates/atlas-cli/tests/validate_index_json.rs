@@ -7,6 +7,61 @@ use rusqlite::Connection;
 use serde_json::{Value, json};
 
 #[test]
+fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_source_root("cli-setup");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    fs::create_dir_all(&source)?;
+    fs::create_dir_all(cache.join("BAAI").join("bge-small-en-v1.5").join("onnx"))?;
+    fs::write(
+        cache
+            .join("BAAI")
+            .join("bge-small-en-v1.5")
+            .join("tokenizer.json"),
+        "{}",
+    )?;
+    fs::write(
+        cache
+            .join("BAAI")
+            .join("bge-small-en-v1.5")
+            .join("onnx")
+            .join("model.onnx"),
+        "",
+    )?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["setup", "--path-mode", "user", "--source"])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert!(output.status.success());
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(actual["status"], "ready");
+    assert_eq!(actual["path_mode"], "user");
+    assert_eq!(actual["source"]["path"], source.display().to_string());
+    assert_eq!(actual["source"]["exists"], true);
+    assert_eq!(actual["embedding"]["model"], "bge-small-en-v1.5");
+    assert_eq!(
+        actual["embedding"]["cache_root"],
+        cache.display().to_string()
+    );
+    assert_eq!(actual["embedding"]["ready"], true);
+    assert_eq!(actual["embedding"]["missing_files"], json!([]));
+    assert_eq!(actual["index"]["path"], index.display().to_string());
+    assert_eq!(actual["index"]["exists"], false);
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-build");
     write_fixture_source(&root)?;
@@ -17,6 +72,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         .arg(&root)
         .args(["--output"])
         .arg(&index_path)
+        .arg("--no-embeddings")
         .arg("--json")
         .output()?;
 
