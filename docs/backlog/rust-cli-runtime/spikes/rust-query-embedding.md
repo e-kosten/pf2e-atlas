@@ -16,7 +16,7 @@ Semantic search is a core feasibility gate for a Rust runtime. If Rust cannot pr
 ## Prototype Scope
 
 - Build a disposable Rust prototype under `scratch/spikes/` or an experimental worktree.
-- Test the current default model contract: `Xenova/all-MiniLM-L12-v2`, mean pooling, normalized vectors, 384 dimensions.
+- Test the then-current MiniLM parity contract: `Xenova/all-MiniLM-L12-v2`, mean pooling, normalized vectors, 384 dimensions.
 - Test at least one likely upgrade candidate such as `BAAI/bge-small-en-v1.5`.
 - Use a tiny embedding fixture for fast checks and a representative PF2E query slice for relevance checks.
 - Compare against the current TypeScript embedding provider output where feasible.

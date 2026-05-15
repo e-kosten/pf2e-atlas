@@ -44,9 +44,8 @@ impl FromStr for EmbeddingModelId {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "default" | "minilm" | "minilm-l12-v2" | "Xenova/all-MiniLM-L12-v2" => {
-                Ok(Self::MiniLmL12V2)
-            }
+            "default" => Ok(DEFAULT_EMBEDDING_MODEL),
+            "minilm" | "minilm-l12-v2" | "Xenova/all-MiniLM-L12-v2" => Ok(Self::MiniLmL12V2),
             "bge-small" | "bge-small-en-v1.5" | "BAAI/bge-small-en-v1.5" => Ok(Self::BgeSmallEnV15),
             "bge-base" | "bge-base-en-v1.5" | "BAAI/bge-base-en-v1.5" => Ok(Self::BgeBaseEnV15),
             "nomic" | "nomic-embed-text-v1.5" | "nomic-ai/nomic-embed-text-v1.5" => {
@@ -154,7 +153,7 @@ impl EmbeddingModelSpec {
     }
 }
 
-pub const DEFAULT_EMBEDDING_MODEL: EmbeddingModelId = EmbeddingModelId::MiniLmL12V2;
+pub const DEFAULT_EMBEDDING_MODEL: EmbeddingModelId = EmbeddingModelId::BgeSmallEnV15;
 pub const ALL_EMBEDDING_MODELS: &[EmbeddingModelId] = &[
     EmbeddingModelId::MiniLmL12V2,
     EmbeddingModelId::BgeSmallEnV15,
