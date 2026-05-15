@@ -67,6 +67,8 @@ Ingest prepares embedding units only for default-visible searchable records; hid
 
 Rust artifact rebuilds reuse existing `document_embedding_cache` rows by default when the output artifact already exists, embedding identity metadata matches the active model catalog, and the row's `semantic_input_hash` and dimensions match the newly prepared input. The build command exposes an explicit opt-out for full regeneration. Reuse is limited to the normal SQLite cache table; `record_vector_index` is still rebuilt from `document_embedding_cache` through the vector capability path.
 
+The Rust CLI resolves source, embedding-cache, and index paths through one shared path resolver. In `auto` mode, it uses repo-local paths only when `git rev-parse --show-toplevel` succeeds and the git root contains `rust/Cargo.toml` plus `rust/crates/atlas-cli/Cargo.toml`; otherwise it uses platform user cache paths under a `pf2e-atlas` directory. `repo` mode requires that git-backed workspace detection, and `user` mode always uses platform cache paths. Direct path flags override the resolver for the command that receives them. `atlas setup` reports the resolved paths and can clone or fast-forward the PF2E source with `--fetch-source`; embedding model downloads remain a separate model-registry follow-up.
+
 Long-running Rust CLI index operations initialize `tracing` and emit progress events to stderr. JSON command output remains reserved for the command result on stdout, so automation can parse reports without stripping progress text.
 
 ## Validation Families

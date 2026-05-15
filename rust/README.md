@@ -37,13 +37,14 @@ Current TypeScript-built indexes are expected to report a legacy-contract diagno
 The first Rust writer behavior is:
 
 ```bash
-cargo run -p atlas-cli -- index build --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json
+cargo run -p atlas-cli -- setup
+cargo run -p atlas-cli -- index build --json
 ```
 
 The read-only source analysis behavior is:
 
 ```bash
-cargo run -p atlas-cli -- index analyze --source ../vendor/pf2e --json
+cargo run -p atlas-cli -- index analyze --json
 ```
 
 Use Cargo's release profile for ingest or query performance measurements:
@@ -54,6 +55,8 @@ cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
 
 The default Cargo dev profile is useful for edit/build loops, but its runtime timings should not be compared against the TypeScript implementation.
 `atlas index build` generates BGE small document embeddings in batches by default; pass `--embedding-model <model>` to compare catalog models and `--embedding-batch-size <count>` to compare batch sizes during performance work.
+
+`atlas setup`, `atlas index build`, index path commands, and semantic search share the same path resolver. With `--path-mode auto` (the default), the CLI uses repo-local paths when `git rev-parse --show-toplevel` finds this Rust workspace, otherwise it uses platform user cache paths. Use `--path-mode repo` to require repo-local paths or `--path-mode user` to force platform user paths. Direct flags such as `--source`, `--output`, `--index`, and `--embedding-cache-path` override the resolver for that command. `atlas setup --fetch-source` clones or fast-forwards the PF2E source checkout, but embedding model downloads are still a separate preparation step. `atlas index build --no-embeddings` is available for fixture and contract builds that intentionally skip semantic vectors.
 
 The current writer is a Phase 3 slice. It loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, `record_aliases`, `record_traits`, `reference_edges`, `remaster_links`, unified `record_metrics`, metric catalogs, actor/item/spell side-data tables, and `records_fts`. It also extracts selected direct `system_*` paths, raw price JSON, normalized copper price, activation time, separate effect duration, exact Foundry inline reference links resolved against loaded records, source-backed lookup aliases, premaster-to-remaster bridges from remaster journals and migration rename files, and variant family metadata. Source-backed aliases and variant family metadata are separate concepts; broad variant base-name aliases should be handled as variant-aware lookup behavior rather than `record_aliases`. Index readers can deserialize the durable record table family into `atlas-record::PersistedRecord` and relationship-bearing `PersistedRecordSet` values; ingest-only construction state stays out of the persisted read shape. Embeddings and vector rows are a Phase 4 concern. Derived tags are a Phase 10 redesign concern because the Rust model changes require a separate design pass for that surface.
 
