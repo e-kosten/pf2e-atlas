@@ -69,12 +69,16 @@ pub fn compile_vector_knn_query(
     let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(unit_limit)));
     let sql = format!(
         "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT v.embedding_unit_key, v.record_key, e.unit_kind, e.label, v.distance
+         SELECT e.embedding_unit_key, e.record_key, e.unit_kind, e.label, v.distance
          FROM {vector_table} v
-         JOIN {cache_table} e ON e.embedding_unit_key = v.embedding_unit_key
+         JOIN {cache_table} e ON e.rowid = v.rowid
          WHERE v.embedding MATCH {vector_placeholder}
            AND k = {limit_placeholder}
-           AND v.record_key IN (SELECT record_key FROM eligible)
+           AND v.rowid IN (
+             SELECT candidate.rowid
+             FROM {cache_table} candidate
+             WHERE candidate.record_key IN (SELECT record_key FROM eligible)
+           )
          ORDER BY v.distance ASC",
         eligible_sql = eligible.sql,
         vector_table = TABLE_RECORD_VECTOR_INDEX,
@@ -297,30 +301,22 @@ fn create_and_populate_vector_index(
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut select = connection
         .prepare(
-            "SELECT embedding_unit_key, record_key, vector_blob
+            "SELECT rowid, vector_blob
              FROM document_embedding_cache
              ORDER BY embedding_unit_key",
         )
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let rows = select
         .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Vec<u8>>(2)?,
-            ))
+            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut row_count = 0usize;
     for row in rows {
-        let (embedding_unit_key, record_key, vector_blob) =
+        let (rowid, vector_blob) =
             row.map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
         insert
-            .execute((
-                embedding_unit_key.as_str(),
-                record_key.as_str(),
-                vector_blob,
-            ))
+            .execute((rowid, vector_blob))
             .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
         row_count += 1;
     }
@@ -382,9 +378,9 @@ fn validate_vector_index_coverage(
             "record_vector_index:missing_rows",
             "SELECT COUNT(*)
              FROM (
-               SELECT embedding_unit_key FROM document_embedding_cache
+               SELECT rowid FROM document_embedding_cache
                EXCEPT
-               SELECT embedding_unit_key FROM record_vector_index
+               SELECT rowid FROM record_vector_index
              )",
             "every document embedding has a vector index row",
         ),
@@ -392,9 +388,9 @@ fn validate_vector_index_coverage(
             "record_vector_index:stale_rows",
             "SELECT COUNT(*)
              FROM (
-               SELECT embedding_unit_key FROM record_vector_index
+               SELECT rowid FROM record_vector_index
                EXCEPT
-               SELECT embedding_unit_key FROM document_embedding_cache
+               SELECT rowid FROM document_embedding_cache
              )",
             "every vector index row has a document embedding cache row",
         ),

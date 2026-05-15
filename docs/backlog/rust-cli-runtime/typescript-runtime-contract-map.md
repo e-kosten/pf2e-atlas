@@ -54,7 +54,7 @@ Primary TypeScript sources:
 | `metric_value_catalog` | Precomputed text/boolean metric values by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be part of Phase 3 or a blocking prerequisite for Phase 7. |
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
 | `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
-| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores `record_key` plus embedding only; full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
+| `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores only rowid plus embedding; rowid maps back to embedding-unit metadata through `document_embedding_cache`. Full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
 | `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `linksTo`, `linkedFrom`, graph, and rule context. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
@@ -121,8 +121,8 @@ Before Phase 7 discovery starts:
 Before Phase 4 embedding/vector work starts:
 
 - Use Rust-owned physical table names `document_embedding_cache` and `record_vector_index`; do not copy the TypeScript `embeddings` / `record_embeddings` names into the Rust artifact.
-- Keep `record_vector_index` key-and-vector only for the baseline. Do not add `record_family` or other filter projection columns before performance validation proves they are needed.
-- Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_key IN (SELECT record_key FROM eligible)`. Do not use ordinary joins around the vec scan for exact filtered KNN.
+- Keep `record_vector_index` rowid-and-vector only for the baseline. Do not add `record_key`, `embedding_unit_key`, `record_family`, or other filter projection columns before performance validation proves they are needed.
+- Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_vector_index.rowid` values resolved through `document_embedding_cache`. Do not use ordinary joins around the vec scan for exact filtered KNN.
 - Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
 - Add an `atlas-embedding` model catalog as the single owner of the active/default model decision and identity fields. Ingest, validation, and search should consume catalog specs rather than repeating raw model strings.
 - Preserve MiniLM compatibility unless a new ADR changes the baseline.

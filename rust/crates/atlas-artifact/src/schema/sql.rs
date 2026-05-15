@@ -1,10 +1,10 @@
 use super::{
     ACTOR_RECORD_COLUMNS, Column, DOCUMENT_EMBEDDING_CACHE_COLUMNS, ITEM_RECORD_COLUMNS,
     PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_METRIC_COLUMNS,
-    RECORD_TRAIT_COLUMNS, RECORD_VECTOR_INDEX_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS,
-    REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache,
-    item_records, record_aliases, record_metrics, record_traits, record_vector_index, records,
-    records_fts, reference_edges, remaster_links, spell_records,
+    RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS,
+    SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache, item_records,
+    record_aliases, record_metrics, record_traits, record_vector_index, records, records_fts,
+    reference_edges, remaster_links, spell_records,
 };
 
 pub fn record_insert_sql() -> String {
@@ -44,13 +44,16 @@ pub fn document_embedding_cache_insert_sql() -> String {
 
 pub fn record_vector_index_create_sql(dimensions: usize) -> String {
     format!(
-        "CREATE VIRTUAL TABLE {} USING vec0(embedding_unit_key TEXT PRIMARY KEY, record_key TEXT, embedding FLOAT[{dimensions}])",
+        "CREATE VIRTUAL TABLE {} USING vec0(embedding FLOAT[{dimensions}])",
         record_vector_index::TABLE.name()
     )
 }
 
 pub fn record_vector_index_insert_sql() -> String {
-    insert_sql(record_vector_index::TABLE, RECORD_VECTOR_INDEX_COLUMNS)
+    format!(
+        "INSERT INTO {} (rowid, embedding) VALUES (?1, ?2)",
+        record_vector_index::TABLE.name()
+    )
 }
 
 pub fn persisted_record_select_sql() -> String {
@@ -454,11 +457,11 @@ mod tests {
         );
         assert_eq!(
             record_vector_index_insert_sql(),
-            "INSERT INTO record_vector_index (embedding_unit_key, record_key, embedding) VALUES (?1, ?2, ?3)"
+            "INSERT INTO record_vector_index (rowid, embedding) VALUES (?1, ?2)"
         );
         assert_eq!(
             record_vector_index_create_sql(384),
-            "CREATE VIRTUAL TABLE record_vector_index USING vec0(embedding_unit_key TEXT PRIMARY KEY, record_key TEXT, embedding FLOAT[384])"
+            "CREATE VIRTUAL TABLE record_vector_index USING vec0(embedding FLOAT[384])"
         );
     }
 
