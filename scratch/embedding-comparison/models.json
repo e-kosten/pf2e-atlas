@@ -66,17 +66,6 @@
     "notes": "Long-context multitask candidate; may require provider-specific task handling. Disabled for current Rust bakeoff: Transformers.js expects external ONNX data files; current Rust loader only validates onnx/model.onnx layout."
   },
   {
-    "id": "gte-modernbert-base",
-    "label": "GTE ModernBERT Base",
-    "enabled": true,
-    "runtime_model": "gte-modernbert-base",
-    "model_id": "Alibaba-NLP/gte-modernbert-base",
-    "dimensions": 768,
-    "document_prefix": "",
-    "query_prefix": "",
-    "notes": "Modern long-context retrieval candidate."
-  },
-  {
     "id": "qwen3-embedding-0.6b",
     "label": "Qwen3 Embedding 0.6B",
     "enabled": false,
@@ -86,39 +75,6 @@
     "document_prefix": "",
     "query_prefix": "",
     "notes": "Heavier quality-ceiling candidate; likely to expose packaging/runtime cost. Disabled for current Rust bakeoff: no default onnx/model.onnx is available from the Hugging Face repo."
-  },
-  {
-    "id": "snowflake-arctic-embed-xs",
-    "label": "Snowflake Arctic Embed XS",
-    "enabled": true,
-    "runtime_model": "snowflake-arctic-embed-xs",
-    "model_id": "Snowflake/snowflake-arctic-embed-xs",
-    "dimensions": 384,
-    "document_prefix": "",
-    "query_prefix": "",
-    "notes": "Small efficiency candidate."
-  },
-  {
-    "id": "snowflake-arctic-embed-m-v1.5",
-    "label": "Snowflake Arctic Embed M v1.5",
-    "enabled": true,
-    "runtime_model": "snowflake-arctic-embed-m-v1.5",
-    "model_id": "Snowflake/snowflake-arctic-embed-m-v1.5",
-    "dimensions": 768,
-    "document_prefix": "",
-    "query_prefix": "",
-    "notes": "Mid-sized retrieval candidate."
-  },
-  {
-    "id": "mxbai-embed-large-v1",
-    "label": "Mixedbread Embed Large v1",
-    "enabled": true,
-    "runtime_model": "mxbai-embed-large-v1",
-    "model_id": "mixedbread-ai/mxbai-embed-large-v1",
-    "dimensions": 1024,
-    "document_prefix": "",
-    "query_prefix": "Represent this sentence for searching relevant passages: ",
-    "notes": "Strong retrieval candidate; may require provider-specific cache/export work."
   },
   {
     "id": "embeddinggemma-300m",
