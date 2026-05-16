@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Commit"
+  short_description: "Review and validate before committing"
+  default_prompt: "Use $prepare-commit to validate this milestone, re-check fixes, run a final fresh review, and create a clean commit."

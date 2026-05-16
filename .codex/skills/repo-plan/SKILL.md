@@ -1,6 +1,6 @@
 ---
 name: repo-plan
-description: "Use when planning implementation work in this repository. This skill is for repo-specific planning workflow: shaping work on main without commits, writing a new scratch/plans file, grounding the plan in existing backlog intent or creating a new backlog item, reading the relevant architecture docs first, using sub-agent orchestration for large-task research and validation, and producing an execution-ready plan that encodes slices, docs follow-through, validation, worktree usage, and end-state checks."
+description: "Use when planning implementation work in this repository. This skill is for repo-specific planning workflow: shaping work without commits, writing a new scratch/plans file, grounding the plan in existing backlog intent or creating a new backlog item, reading the relevant architecture docs first, using sub-agent orchestration for large-task research and validation, and producing an execution-ready plan that encodes slices, docs follow-through, validation, optional worktree usage, and end-state checks."
 ---
 
 # Repo Plan
@@ -25,7 +25,7 @@ This skill is specifically about how planning should happen here. It is not a ge
    If the plan introduces a new durable follow-up or architectural intent, add or refine a backlog item once the shape is clear.
 5. Keep planning uncommitted.
    Do not commit while the task is still in planning. The plan file is a working artifact.
-6. Move tracked implementation edits to a dedicated `<repo-root>/.worktrees` git worktree once the plan is stable enough to execute.
+6. Decide whether implementation should stay in the current checkout or use an explicit `$worktree` checkout. Use a worktree when the plan needs parallel agents, risky isolation, or a preserved main checkout; otherwise plan for the current checkout.
 
 ## What the Plan Must Contain
 
@@ -38,7 +38,7 @@ A good plan in this repo is execution-ready. It should usually include:
 - validation ownership for each slice
 - required docs and ADR follow-through
 - refactor end-state requirements when replacing shared infrastructure
-- worktree and landing expectations
+- checkout, optional worktree, and landing expectations
 - blockers, assumptions, and open questions
 
 Do not produce a vague task list that leaves architecture, ownership, or validation implicit.
@@ -73,19 +73,24 @@ Plans should not float separately from project intent.
 
 Do not leave durable follow-up work implied only in the plan file.
 
-## Main vs Worktree Boundary
+## Checkout and Worktree Boundary
 
-Use this boundary strictly:
+Use this boundary deliberately:
 
-- allowed on `main` during planning:
+- allowed in the current checkout during planning:
   - reading code and docs
   - writing a new `scratch/plans/...` file
   - shaping or revising backlog intent while the work is still being framed
-- not allowed on `main` once tracked implementation work starts:
-  - editing tracked source files for implementation
-  - mixing implementation changes into the shared checkout
+- allowed in the current checkout during implementation:
+  - small or serial tracked edits where checkout isolation is unnecessary
+  - follow-up fixes where no other agent is editing the same files
+- prefer an explicit `$worktree` checkout when:
+  - multiple agents need to edit tracked files concurrently
+  - the task is risky, long-running, or likely to pause mid-state
+  - the user wants the main checkout preserved
+  - the plan needs isolated validation or landing from a branch
 
-Once the shape is clear and tracked implementation is about to begin, create a dedicated worktree under `<repo-root>/.worktrees`.
+If the plan chooses a worktree, state the reason and invoke `$worktree` before tracked implementation begins.
 
 ## Required Plan Sections
 

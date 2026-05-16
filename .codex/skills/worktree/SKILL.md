@@ -1,11 +1,21 @@
 ---
-name: pathfinder-worktree-lifecycle
-description: Use for Pathfinder MCP implementation work that creates, validates, commits, lands, or cleans up git worktrees; prevents wrong-root worktrees, premature merges, missing lint/build/test validation, unsafe git writes, and approval prompts caused by paths outside the active writable roots.
+name: worktree
+description: Use when the user explicitly asks to use a worktree or when a task has a concrete need for isolated checkout work, such as parallel implementation agents, risky long-running edits, preserving a dirty main checkout, or landing a branch from a task worktree.
 ---
 
-# Pathfinder Worktree Lifecycle
+# Worktree
 
-Use this skill before any tracked implementation edit in this repository, and again before committing, landing, or cleaning up a task worktree.
+Use this skill only when the user asks for a worktree or the task has a specific isolation need. Do not use it as the default for every implementation task.
+
+Good reasons to use a worktree:
+
+- parallel agents need to edit tracked files
+- the current checkout has unrelated changes that should not mix with the task
+- the task is long-running, risky, or likely to pause mid-state
+- the user wants work isolated on a branch
+- the task needs the repo landing script for a linked worktree
+
+If none of those apply, work in the current checkout and do not create a worktree.
 
 ## Root Selection
 
@@ -22,15 +32,15 @@ Before creating a worktree:
 - inspect the active permissions instructions for writable roots
 - prefer `<repo-root>/.worktrees` when writable
 - if that path is unavailable, use an allowed writable root from environment instructions with the same deterministic shape
-- use a deterministic child path such as `<repo-root>/.worktrees/<task-slug>` (or the fallback root equivalent)
+- use a deterministic child path such as `<repo-root>/.worktrees/<task-slug>` or the fallback root equivalent
 - do not use symlink-resolved alternates such as `/private/tmp/...`
 - if the chosen path is not under an allowed root, stop before running `git worktree add`
 
-State the chosen worktree path in a short update before editing tracked files.
+State the chosen worktree path and the reason for using a worktree before editing tracked files there.
 
 ## Creation
 
-Create implementation branches from the shared main checkout, but do all tracked edits in the task worktree.
+Create implementation branches from the shared main checkout, but do tracked edits for the isolated task in the task worktree.
 
 Use serialized git write commands:
 
@@ -54,36 +64,16 @@ If a command tries to write outside the allowed root or asks for approval, treat
 
 ## During Work
 
-- Keep implementation edits inside the task worktree.
-- Keep planning-only untracked files under `scratch/plans/` in main only when the user requested planning.
+- Keep isolated task edits inside the task worktree.
+- Do not share a checkout with another running agent.
 - Do not run git write commands in parallel.
 - Do not run `git status` in parallel with git write commands in the same repo.
 - Do not revert unrelated main or worktree changes.
 - If a worktree is found in the wrong place, stop, inspect its status, remove it with `git worktree remove --force <path>` only if it contains no needed work, delete the temporary branch if empty, and recreate under the allowed root.
 
-## Validation Gate
-
-Before saying implementation is complete, run the validation required by the task plus the repo landing gate.
-
-For implementation work, the minimum gate is:
-
-```bash
-cd scripts && npm run lint
-npm run build
-cd scripts && npm test
-```
-
-For plan-driven work, also validate directly against the plan file:
-
-- every slice or checklist item is complete
-- docs and ADR follow-through are complete
-- no plan item is deferred, partial, or hidden as follow-up
-- refactors have no compatibility shims, duplicate paths, or mixed old/new ownership left behind
-- any required grep/code-audit checks have been run and recorded
-
-Do not commit a failing implementation unless the user explicitly asks for that state.
-
 ## Commit Gate
+
+Commit only after the user explicitly asks to prepare a commit and the `$prepare-commit` skill has completed its validator loop.
 
 Before committing:
 
@@ -116,11 +106,11 @@ After landing, rerun the same lint/build/test gate on `main`.
 
 ## Cleanup Gate
 
-Before reporting done:
+Before reporting a worktree-backed task done:
 
 - remove every temporary worktree created for the task
 - verify `git worktree list` no longer shows stale task worktrees
-- report the commit SHA and commit message for completed implementation work
+- report the commit SHA and commit message after a prepare-commit workflow creates one
 - note any skipped validation, refresh step, data/index implication, or remaining blocker
 
-Cleanup is part of done. Do not leave temporary worktrees behind unless the user explicitly asks to keep them.
+Cleanup is part of done for worktree-backed tasks. Do not leave temporary worktrees behind unless the user explicitly asks to keep them.
