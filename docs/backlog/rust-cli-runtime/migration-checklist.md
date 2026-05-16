@@ -268,28 +268,33 @@ Acceptance:
 - Runtime fails clearly on embedding identity mismatch.
 - Semantic search can be disabled or rejected without corrupting lexical/structured commands.
 
-## Phase 5: Lookup And Record Presentation
+## Phase 5: Record Retrieval And Structured Search Foundation
 
-Goal: make exact lookup the first production-quality Rust command.
+Goal: establish the first production-quality Rust retrieval surface using the CLI shape accepted in ADR 0019.
 
-- [ ] Implement typed row loading from `records`.
-- [ ] Implement lookup by canonical key.
-- [ ] Implement exact lookup by name.
-- [ ] Implement variant-aware exact lookup from `variant_*` metadata without broad base-name alias rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
-- [ ] Implement controlled alternatives for ambiguous lookup.
-- [ ] Preserve safe no-result behavior: exact miss does not return fuzzy unrelated records.
-- [ ] Add compact record output.
-- [ ] Add standard record output.
-- [ ] Add full record output.
+- [x] Implement broad typed row loading from `records` and side tables.
+- [ ] Expose targeted typed readers for exact record-key lookup and ordered multi-key lookup.
+- [ ] Add `atlas record get <record-key> --json`.
+- [ ] Add persisted-record detail projection shared by `record get`, `record resolve`, and `search` results.
+- [ ] Add `minimal`, `standard`, and `full` record output; do not add `compact` as a wire detail value.
 - [ ] Resolve or pre-resolve localization according to the artifact policy.
-- [ ] Add golden output tests for `atlas lookup`.
-- [ ] Add CLI exit code tests.
+- [ ] Add `atlas search` filter-only behavior that routes to deterministic list mode when no text is supplied.
+- [ ] Reuse canonical `SearchFilterNode` lowering for filter-only search and record-resolution narrowing.
+- [ ] Add pagination and deterministic sort modes for filter-only `atlas search`.
+- [ ] Add `atlas record resolve <name> --json` for strict name, normalized-name, verified-alias, and exact full-variant-name resolution.
+- [ ] Implement controlled alternatives for ambiguous record resolution.
+- [ ] Preserve safe record-resolution behavior: a strict miss exits nonzero and does not return fuzzy unrelated records.
+- [ ] Keep fuzzy name matching and variant-family expansion opt-in, such as `--fuzzy`, `--include-variants`, or `--alternatives`.
+- [ ] Implement variant-aware resolution from `variant_*` metadata without broad base-name alias rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
+- [ ] Add golden output tests for `atlas record get`, `atlas record resolve`, and filter-only `atlas search`.
+- [ ] Add CLI exit code tests for invalid record keys, strict resolve misses, ambiguity, and invalid filter JSON.
 - [ ] Compare `Treat Wounds`, `Grabbed`, and `Antidote (Lesser)` against current MCP/TypeScript behavior.
 
 Acceptance:
-- `atlas lookup` is usable for known named records.
-- Missing names exit nonzero with concise diagnostics.
-- Output size stays compact by default.
+- `atlas record get` is usable for known canonical record keys.
+- `atlas record resolve` is usable for known named records and returns nonzero with concise diagnostics on strict misses.
+- `atlas search` with filters and no text returns deterministic filtered lists.
+- Output size stays compact by default while using the `minimal` detail wire value.
 
 ## Phase 6: Rule Graph And Rule Context
 
@@ -332,20 +337,19 @@ Acceptance:
 
 ## Phase 8: Search And Browse Runtime
 
-Goal: implement the first Rust search baseline using SQLite-centered hybrid retrieval.
+Goal: extend the unified `atlas search` surface with ranked text retrieval using SQLite-centered hybrid retrieval.
 
-- [ ] Implement browse mode.
-- [ ] Implement pagination.
-- [ ] Implement deterministic sort modes.
+- [ ] Keep filter-only list behavior aligned with the Phase 5 `atlas search` foundation.
 - [x] Implement canonical filter lowering to SQL eligible keysets.
-- [ ] Wire structured filter SQL into browse and search execution.
+- [ ] Wire structured filter SQL into ranked text search execution.
 - [ ] Implement FTS lexical retrieval.
 - [ ] Implement query analysis.
 - [ ] Implement sqlite-vec semantic retrieval.
 - [ ] Implement hybrid candidate fusion.
+- [ ] Boost strong name and verified-alias matches above broader lexical and semantic matches in normal `atlas search <text>` results.
 - [ ] Implement rerank adjustments needed for current quality.
 - [ ] Implement `search.exclude`.
-- [ ] Implement search profiles.
+- [ ] Implement search profiles as flags, such as `--profile lexical|semantic|hybrid`, rather than separate default product commands.
 - [ ] Implement explain output if still useful.
 - [ ] Add top-k quality fixtures from the search-quality bakeoff.
 - [ ] Add parity or accepted-difference reports against TypeScript.
@@ -374,8 +378,10 @@ Goal: make the Rust CLI the default local agent interface.
 - [ ] Add command golden tests.
 - [ ] Add a production Codex skill for PF2e Atlas CLI workflows.
 - [ ] Include command-choice rules:
-  - [ ] lookup for exact names
-  - [ ] search for concepts
+  - [ ] `record get` for exact record keys
+  - [ ] `record resolve` for strict names and verified aliases
+  - [ ] `search` for result sets, including text queries and filter-only listing
+  - [ ] `--profile` for lexical, semantic, or hybrid retrieval tuning
   - [ ] rule-context for rules answers
   - [ ] schema/filters for discovery
 - [ ] Re-run the CLI-vs-MCP evaluation tasks.
