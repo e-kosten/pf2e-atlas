@@ -31,7 +31,7 @@ pub struct VectorKnnQuery {
 pub struct VectorSearchHit {
     pub embedding_unit_key: String,
     pub record_key: String,
-    pub unit_kind: EmbeddingUnitKind,
+    pub unit_kind: String,
     pub label: Option<String>,
     pub distance: f64,
 }
@@ -114,7 +114,7 @@ pub fn query_vector_index(
             Ok(VectorSearchHit {
                 embedding_unit_key: row.get(0)?,
                 record_key: row.get(1)?,
-                unit_kind: parse_embedding_unit_kind(row.get(2)?)?,
+                unit_kind: row.get(2)?,
                 label: row.get(3)?,
                 distance: row.get(4)?,
             })
@@ -123,17 +123,19 @@ pub fn query_vector_index(
     let rows = rows
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    Ok(rows)
+    rows.into_iter()
+        .map(|mut hit| {
+            hit.unit_kind = parse_embedding_unit_kind(hit.unit_kind)?;
+            Ok(hit)
+        })
+        .collect()
 }
 
-fn parse_embedding_unit_kind(value: String) -> Result<EmbeddingUnitKind, rusqlite::Error> {
-    value.parse::<EmbeddingUnitKind>().map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(
-            value.len(),
-            rusqlite::types::Type::Text,
-            Box::new(error),
-        )
-    })
+fn parse_embedding_unit_kind(value: String) -> Result<String, VectorQueryError> {
+    value
+        .parse::<EmbeddingUnitKind>()
+        .map(|unit_kind| unit_kind.as_str().to_string())
+        .map_err(|_| VectorQueryError::InvalidUnitKind(value))
 }
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
@@ -448,11 +450,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_known_embedding_unit_kind() {
+    fn parses_known_embedding_unit_kind_to_public_string() {
         assert_eq!(
             parse_embedding_unit_kind("heading_section".to_string())
                 .expect("known unit kind should parse"),
-            EmbeddingUnitKind::HeadingSection
+            "heading_section"
         );
+    }
+
+    #[test]
+    fn rejects_unknown_embedding_unit_kind() {
+        assert!(parse_embedding_unit_kind("unknown".to_string()).is_err());
     }
 }

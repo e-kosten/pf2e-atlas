@@ -1,6 +1,4 @@
-use atlas_domain::{
-    MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TextStatus,
-};
+use atlas_domain::{MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
 
 use crate::{
     ActorSideData, MetricRow, MetricValue, NormalizedRecord, PresentationBlock,
@@ -54,10 +52,8 @@ fn base_record(record_family: RecordFamily) -> NormalizedRecord {
         variant_confidence: None,
         variant_source: "none".to_string(),
         source_path: "packs/test-pack/TestRecord.json".to_string(),
-        text_status: TextStatus::Resolved,
         is_default_visible: true,
         search_text_projection: "Test Record healing vitality".to_string(),
-        reference_candidates: Vec::new(),
         raw_json: "{}".to_string(),
     }
 }
