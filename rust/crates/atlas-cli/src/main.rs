@@ -1,12 +1,8 @@
 #![deny(unsafe_code)]
 
-use std::fmt::{self, Write as FmtWrite};
-use std::fs;
-use std::io::IsTerminal;
-use std::path::{Path, PathBuf};
-use std::process::{Command as ProcessCommand, ExitCode};
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::path::PathBuf;
+use std::process::ExitCode;
+use std::time::Instant;
 
 use atlas_domain::SearchFilterNode;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
@@ -17,14 +13,15 @@ use atlas_index::{
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
 };
+use atlas_runtime::{
+    AtlasPathMode, AtlasPathOverrides, check_setup_status, fetch_pf2e_source, resolve_atlas_paths,
+    resolve_index_path,
+};
 use atlas_search::{EmbeddingRuntimeConfig, SemanticSearchMode, SemanticSearchService};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use serde_json::json;
-use tracing::{Event, Level, Subscriber};
-use tracing_subscriber::Layer;
-use tracing_subscriber::layer::Context;
-use tracing_subscriber::prelude::*;
+
+mod progress;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
@@ -186,8 +183,18 @@ impl From<CliSemanticMode> for SemanticSearchMode {
     }
 }
 
+impl From<CliPathMode> for AtlasPathMode {
+    fn from(mode: CliPathMode) -> Self {
+        match mode {
+            CliPathMode::Auto => Self::Auto,
+            CliPathMode::Repo => Self::Repo,
+            CliPathMode::User => Self::User,
+        }
+    }
+}
+
 fn main() -> ExitCode {
-    init_tracing();
+    progress::init_tracing();
     match run(Cli::parse()) {
         Ok(code) => code,
         Err(error) => {
@@ -195,181 +202,6 @@ fn main() -> ExitCode {
             ExitCode::from(2)
         }
     }
-}
-
-fn init_tracing() {
-    let subscriber = tracing_subscriber::registry().with(CliProgressLayer::new());
-    let _ = tracing::subscriber::set_global_default(subscriber);
-}
-
-struct CliProgressLayer {
-    state: Mutex<CliProgressState>,
-}
-
-#[derive(Debug)]
-struct CliProgressState {
-    is_interactive: bool,
-    started_at: Instant,
-    progress_bar: Option<ProgressBar>,
-    progress_phase: Option<String>,
-}
-
-#[derive(Default)]
-struct EventFields {
-    message: Option<String>,
-    phase: Option<String>,
-    current: Option<u64>,
-    total: Option<u64>,
-    fields: Vec<(String, String)>,
-}
-
-impl CliProgressLayer {
-    fn new() -> Self {
-        Self {
-            state: Mutex::new(CliProgressState {
-                is_interactive: std::io::stderr().is_terminal(),
-                started_at: Instant::now(),
-                progress_bar: None,
-                progress_phase: None,
-            }),
-        }
-    }
-}
-
-impl<S> Layer<S> for CliProgressLayer
-where
-    S: Subscriber,
-{
-    fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
-        if *event.metadata().level() > Level::INFO {
-            return;
-        }
-        let target = event.metadata().target();
-        if target != "atlas_progress" && !target.starts_with("atlas_") {
-            return;
-        }
-
-        let mut fields = EventFields::default();
-        event.record(&mut fields);
-        let message = fields
-            .message
-            .as_deref()
-            .map(str::to_string)
-            .unwrap_or_else(|| event.metadata().name().to_string());
-
-        let mut state = self.state.lock().expect("progress state is not poisoned");
-        if target == "atlas_progress" {
-            state.progress(&message, &fields);
-        } else {
-            state.log(&message, &fields.fields);
-        }
-    }
-}
-
-impl CliProgressState {
-    fn progress(&mut self, message: &str, fields: &EventFields) {
-        let Some(total) = fields.total else {
-            self.log(message, &fields.fields);
-            return;
-        };
-        let current = fields.current.unwrap_or(0);
-        if !self.is_interactive {
-            eprintln!(
-                "{} INFO {message}",
-                elapsed_prefix(self.started_at.elapsed())
-            );
-            return;
-        }
-
-        let phase_changed = fields.phase.as_ref() != self.progress_phase.as_ref();
-        if phase_changed {
-            if let Some(progress_bar) = self.progress_bar.take() {
-                progress_bar.finish_and_clear();
-            }
-            let progress_bar =
-                ProgressBar::with_draw_target(Some(total), ProgressDrawTarget::stderr_with_hz(10));
-            progress_bar.set_style(progress_style());
-            self.progress_bar = Some(progress_bar);
-            self.progress_phase = fields.phase.clone();
-        } else if let Some(progress_bar) = &self.progress_bar {
-            progress_bar.set_length(total);
-        }
-
-        if let Some(progress_bar) = &self.progress_bar {
-            progress_bar.set_position(current);
-            progress_bar.set_message(message.to_string());
-            if current >= total {
-                progress_bar.finish_and_clear();
-                self.progress_bar = None;
-                self.progress_phase = None;
-            }
-        }
-    }
-
-    fn log(&mut self, message: &str, fields: &[(String, String)]) {
-        let line = format_log_line(self.started_at.elapsed(), message, fields);
-        if let Some(progress_bar) = &self.progress_bar {
-            progress_bar.suspend(|| eprintln!("{line}"));
-        } else {
-            eprintln!("{line}");
-        }
-    }
-}
-
-impl tracing::field::Visit for EventFields {
-    fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
-        match field.name() {
-            "current" => self.current = Some(value),
-            "total" => self.total = Some(value),
-            name => self.fields.push((name.to_string(), value.to_string())),
-        }
-    }
-
-    fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        if let Ok(value) = u64::try_from(value) {
-            self.record_u64(field, value);
-        }
-    }
-
-    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-        match field.name() {
-            "message" => self.message = Some(value.to_string()),
-            "phase" => self.phase = Some(value.to_string()),
-            name => self.fields.push((name.to_string(), value.to_string())),
-        }
-    }
-
-    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
-        let value = format!("{value:?}");
-        match field.name() {
-            "message" => self.message = Some(value),
-            "phase" => self.phase = Some(value),
-            name => self.fields.push((name.to_string(), value)),
-        }
-    }
-}
-
-fn progress_style() -> ProgressStyle {
-    ProgressStyle::with_template("[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-        .expect("progress template is valid")
-        .progress_chars("=> ")
-}
-
-fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
-    let mut line = format!("{} INFO {message}", elapsed_prefix(elapsed));
-    for (name, value) in fields {
-        let _ = write!(line, " {name}={value}");
-    }
-    line
-}
-
-fn elapsed_prefix(elapsed: Duration) -> String {
-    let total_millis = elapsed.as_millis();
-    let total_seconds = total_millis / 1000;
-    let millis = total_millis % 1000;
-    let minutes = total_seconds / 60;
-    let seconds = total_seconds % 60;
-    format!("[{minutes:02}:{seconds:02}.{millis:03}]")
 }
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
@@ -391,7 +223,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
 
 fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
     let paths = resolve_atlas_paths(
-        options.path_mode,
+        options.path_mode.into(),
         AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
@@ -403,10 +235,8 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
         fetch_pf2e_source(&paths.source_root)?;
     }
 
-    let source_exists = paths.source_root.is_dir();
-    let model_status = embedding_model_cache_status(&paths.embedding_cache_root);
-    let index_exists = paths.index_path.is_file();
-    let ready = source_exists && model_status.ready;
+    let status = check_setup_status(&paths);
+    let ready = status.ready();
 
     if options.json {
         println!(
@@ -417,14 +247,14 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
                 "repo_root": paths.repo_root.as_ref().map(|path| path.display().to_string()),
                 "source": {
                     "path": paths.source_root.display().to_string(),
-                    "exists": source_exists,
+                    "exists": status.source_exists,
                 },
                 "embedding": {
-                    "model": DEFAULT_EMBEDDING_MODEL.to_string(),
+                    "model": status.embedding_model,
                     "cache_root": paths.embedding_cache_root.display().to_string(),
-                    "model_path": model_status.model_dir.display().to_string(),
-                    "ready": model_status.ready,
-                    "missing_files": model_status
+                    "model_path": status.model_cache.model_dir.display().to_string(),
+                    "ready": status.model_cache.ready,
+                    "missing_files": status.model_cache
                         .missing_files
                         .iter()
                         .map(|path| path.display().to_string())
@@ -432,7 +262,7 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
                 },
                 "index": {
                     "path": paths.index_path.display().to_string(),
-                    "exists": index_exists,
+                    "exists": status.index_exists,
                 },
                 "next": {
                     "build_index": format!(
@@ -450,21 +280,21 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
         }
         println!(
             "source: {} {}",
-            status_label(source_exists),
+            status_label(status.source_exists),
             paths.source_root.display()
         );
-        println!("embedding model: {}", DEFAULT_EMBEDDING_MODEL);
+        println!("embedding model: {}", status.embedding_model);
         println!(
             "embedding cache: {} {}",
-            status_label(model_status.ready),
-            model_status.model_dir.display()
+            status_label(status.model_cache.ready),
+            status.model_cache.model_dir.display()
         );
-        for missing_file in &model_status.missing_files {
+        for missing_file in &status.model_cache.missing_files {
             println!("missing model file: {}", missing_file.display());
         }
         println!(
             "index: {} {}",
-            status_label(index_exists),
+            status_label(status.index_exists),
             paths.index_path.display()
         );
         if ready {
@@ -477,10 +307,10 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
         } else {
             println!();
             println!("not ready:");
-            if !source_exists {
+            if !status.source_exists {
                 println!("  run atlas setup --fetch-source");
             }
-            if !model_status.ready {
+            if !status.model_cache.ready {
                 println!("  prepare the default embedding model cache, then rerun atlas setup");
             }
         }
@@ -495,7 +325,7 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
 
 fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
     let paths = resolve_atlas_paths(
-        options.path_mode,
+        options.path_mode.into(),
         AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: None,
@@ -544,7 +374,7 @@ fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
 
 fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     let paths = resolve_atlas_paths(
-        options.path_mode,
+        options.path_mode.into(),
         AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
@@ -641,7 +471,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
     let report = inspect_index(&paths.index_path).map_err(|error| error.to_string())?;
 
     if options.json {
@@ -673,19 +503,19 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
     let report = validate_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
 
 fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
     let report = validate_vector_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
 
 fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode, options.index)?;
+    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
     let report = write_vector_index_report(&paths.index_path);
     write_validation_report(report, options.json)
 }
@@ -702,7 +532,7 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
         .transpose()?;
 
     let paths = resolve_atlas_paths(
-        options.path_mode,
+        options.path_mode.into(),
         AtlasPathOverrides {
             source_root: None,
             embedding_cache_root: options.embedding_cache_path,
@@ -761,259 +591,6 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
     }
 
     Ok(ExitCode::SUCCESS)
-}
-
-#[derive(Debug, Clone, Default)]
-struct AtlasPathOverrides {
-    source_root: Option<PathBuf>,
-    embedding_cache_root: Option<PathBuf>,
-    index_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone)]
-struct ResolvedAtlasPaths {
-    mode: ResolvedPathMode,
-    repo_root: Option<PathBuf>,
-    source_root: PathBuf,
-    embedding_cache_root: PathBuf,
-    index_path: PathBuf,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResolvedPathMode {
-    Repo,
-    User,
-}
-
-impl ResolvedPathMode {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Repo => "repo",
-            Self::User => "user",
-        }
-    }
-
-    const fn label(self) -> &'static str {
-        match self {
-            Self::Repo => "repo checkout",
-            Self::User => "user install",
-        }
-    }
-
-    const fn suggested_path_mode(self) -> &'static str {
-        self.as_str()
-    }
-}
-
-struct EmbeddingModelCacheStatus {
-    model_dir: PathBuf,
-    ready: bool,
-    missing_files: Vec<PathBuf>,
-}
-
-fn resolve_index_path(
-    path_mode: CliPathMode,
-    index_override: Option<PathBuf>,
-) -> Result<ResolvedAtlasPaths, String> {
-    resolve_atlas_paths(
-        path_mode,
-        AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: index_override,
-        },
-    )
-}
-
-fn resolve_atlas_paths(
-    path_mode: CliPathMode,
-    overrides: AtlasPathOverrides,
-) -> Result<ResolvedAtlasPaths, String> {
-    let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
-    let repo_root = find_git_repo_root(&current_dir);
-    let resolved_mode = match path_mode {
-        CliPathMode::Auto => {
-            if repo_root.is_some() {
-                ResolvedPathMode::Repo
-            } else {
-                ResolvedPathMode::User
-            }
-        }
-        CliPathMode::Repo => {
-            if repo_root.is_none() {
-                return Err(
-                    "--path-mode repo requires running inside a git checkout with rust/Cargo.toml"
-                        .to_string(),
-                );
-            }
-            ResolvedPathMode::Repo
-        }
-        CliPathMode::User => ResolvedPathMode::User,
-    };
-
-    let defaults = match resolved_mode {
-        ResolvedPathMode::Repo => {
-            let repo_root = repo_root
-                .clone()
-                .expect("repo path mode only selected when repo root exists");
-            AtlasPathOverrides {
-                source_root: Some(repo_root.join("vendor").join("pf2e")),
-                embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
-                index_path: Some(repo_root.join(".cache").join("pf2e-rust-index.sqlite")),
-            }
-        }
-        ResolvedPathMode::User => {
-            let cache_root = platform_cache_root()?.join("pf2e-atlas");
-            AtlasPathOverrides {
-                source_root: Some(cache_root.join("vendor").join("pf2e")),
-                embedding_cache_root: Some(cache_root.join("hf-models")),
-                index_path: Some(cache_root.join("pf2e-rust-index.sqlite")),
-            }
-        }
-    };
-
-    Ok(ResolvedAtlasPaths {
-        mode: resolved_mode,
-        repo_root: if resolved_mode == ResolvedPathMode::Repo {
-            repo_root
-        } else {
-            None
-        },
-        source_root: overrides
-            .source_root
-            .or(defaults.source_root)
-            .expect("source default is always resolved"),
-        embedding_cache_root: overrides
-            .embedding_cache_root
-            .or(defaults.embedding_cache_root)
-            .expect("embedding cache default is always resolved"),
-        index_path: overrides
-            .index_path
-            .or(defaults.index_path)
-            .expect("index default is always resolved"),
-    })
-}
-
-fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
-    let output = ProcessCommand::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(current_dir)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8(output.stdout).ok()?;
-    let root = PathBuf::from(stdout.trim());
-    if root.join("rust").join("Cargo.toml").is_file()
-        && root
-            .join("rust")
-            .join("crates")
-            .join("atlas-cli")
-            .join("Cargo.toml")
-            .is_file()
-    {
-        Some(root)
-    } else {
-        None
-    }
-}
-
-fn platform_cache_root() -> Result<PathBuf, String> {
-    if cfg!(target_os = "macos") {
-        return home_dir()
-            .map(|home| home.join("Library").join("Caches"))
-            .ok_or_else(|| "could not resolve HOME for user cache path".to_string());
-    }
-    if cfg!(target_os = "windows") {
-        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
-            return Ok(PathBuf::from(local_app_data));
-        }
-        return home_dir()
-            .map(|home| home.join("AppData").join("Local"))
-            .ok_or_else(|| "could not resolve LOCALAPPDATA or USERPROFILE".to_string());
-    }
-    if let Some(cache_home) = std::env::var_os("XDG_CACHE_HOME") {
-        return Ok(PathBuf::from(cache_home));
-    }
-    home_dir()
-        .map(|home| home.join(".cache"))
-        .ok_or_else(|| "could not resolve HOME for user cache path".to_string())
-}
-
-fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-}
-
-fn embedding_model_cache_status(cache_root: &Path) -> EmbeddingModelCacheStatus {
-    let config = EmbeddingRuntimeConfig::new(DEFAULT_EMBEDDING_MODEL, cache_root);
-    let model_dir = config.model_dir();
-    let required_files = [
-        model_dir.join("tokenizer.json"),
-        model_dir.join("onnx").join("model.onnx"),
-    ];
-    let missing_files = required_files
-        .into_iter()
-        .filter(|path| !path.is_file())
-        .collect::<Vec<_>>();
-    EmbeddingModelCacheStatus {
-        model_dir,
-        ready: missing_files.is_empty(),
-        missing_files,
-    }
-}
-
-fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
-    if source_root.exists() {
-        if source_root.join(".git").exists() {
-            let status = ProcessCommand::new("git")
-                .args([
-                    "-C",
-                    &source_root.display().to_string(),
-                    "pull",
-                    "--ff-only",
-                ])
-                .status()
-                .map_err(|error| format!("failed to run git pull: {error}"))?;
-            if status.success() {
-                return Ok(());
-            }
-            return Err(format!(
-                "failed to update PF2E source at {}",
-                source_root.display()
-            ));
-        }
-        return Err(format!(
-            "source path already exists but is not a git checkout: {}",
-            source_root.display()
-        ));
-    }
-    if let Some(parent) = source_root.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "failed to create source parent directory {}: {error}",
-                parent.display()
-            )
-        })?;
-    }
-    let status = ProcessCommand::new("git")
-        .args([
-            "clone",
-            "https://github.com/foundryvtt/pf2e.git",
-            &source_root.display().to_string(),
-        ])
-        .status()
-        .map_err(|error| format!("failed to run git clone: {error}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(format!(
-            "failed to clone PF2E source into {}",
-            source_root.display()
-        ))
-    }
 }
 
 fn status_label(ok: bool) -> &'static str {

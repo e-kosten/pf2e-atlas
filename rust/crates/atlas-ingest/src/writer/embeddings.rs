@@ -81,7 +81,7 @@ mod tests {
         let embeddings = vec![GeneratedDocumentEmbedding {
             embedding_unit_key: "actions:testAction1#parent".to_string(),
             record_key: "actions:testAction1".to_string(),
-            unit_kind: crate::embeddings::EmbeddingUnitKind::Parent,
+            unit_kind: atlas_embedding::EmbeddingUnitKind::Parent,
             label: None,
             ordinal: 0,
             input_hash: "fixture-hash".to_string(),

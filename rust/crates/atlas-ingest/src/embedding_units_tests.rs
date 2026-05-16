@@ -1,7 +1,7 @@
 use crate::embedding_units::{
     extract_structured_embedding_units, strip_markup_for_embedding_units,
 };
-use crate::embeddings::EmbeddingUnitKind;
+use atlas_embedding::EmbeddingUnitKind;
 
 fn filler(word: &str, count: usize) -> String {
     std::iter::repeat_n(word, count)

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::embeddings::EmbeddingUnitKind;
+use atlas_embedding::EmbeddingUnitKind;
+
 use crate::normalize::strip_markup;
 
 const CHILD_SPLIT_DOCUMENT_TOKEN_THRESHOLD: usize = 384;
@@ -345,81 +346,6 @@ fn is_mechanics_result_label(normalized_label: &str) -> bool {
         normalized_label,
         "critical success" | "success" | "failure" | "critical failure"
     )
-}
-
-#[allow(dead_code)]
-fn extract_activation_block_units(blocks: &[MarkupBlock]) -> Vec<StructuredEmbeddingUnit> {
-    let mut units = Vec::new();
-    let mut index = 0;
-    let mut activation_ordinal = 0;
-    while index < blocks.len() {
-        if paragraph_first_label_is(&blocks[index], "activate") {
-            let end = blocks[index + 1..]
-                .iter()
-                .position(|block| {
-                    paragraph_first_label_is(block, "activate")
-                        || matches!(block, MarkupBlock::Heading { level: 1..=3, .. })
-                })
-                .map(|relative| index + 1 + relative)
-                .unwrap_or(blocks.len());
-            let has_effect = blocks[index + 1..end]
-                .iter()
-                .any(|block| paragraph_first_label_is(block, "effect"));
-            let body = render_blocks_for_unit(&blocks[index..end]);
-            if has_effect && normalized_token_count(&body) >= 40 {
-                activation_ordinal += 1;
-                let label = activation_label(&blocks[index..end], activation_ordinal);
-                units.push(StructuredEmbeddingUnit {
-                    kind: EmbeddingUnitKind::ActivationBlock,
-                    label,
-                    ordinal: index + 1,
-                    body,
-                });
-            }
-            index = end;
-        } else {
-            index += 1;
-        }
-    }
-    dedupe_units(units)
-}
-
-fn paragraph_first_label_is(block: &MarkupBlock, expected: &str) -> bool {
-    let MarkupBlock::Paragraph {
-        first_label: Some(label),
-        ..
-    } = block
-    else {
-        return false;
-    };
-    normalize_split_label(label) == expected
-}
-
-fn activation_label(blocks: &[MarkupBlock], ordinal: usize) -> String {
-    for block in blocks {
-        let MarkupBlock::Paragraph {
-            text,
-            first_label: Some(label),
-        } = block
-        else {
-            continue;
-        };
-        if normalize_split_label(label) != "effect" {
-            continue;
-        }
-        if let Some(quoted) = first_quoted_text_before_sentence_boundary(text) {
-            return quoted;
-        }
-    }
-    format!("Activation {ordinal}")
-}
-
-fn first_quoted_text_before_sentence_boundary(text: &str) -> Option<String> {
-    let first_sentence = text.split('.').next().unwrap_or(text);
-    let start = first_sentence.find('"')?;
-    let end = first_sentence[start + 1..].find('"')? + start + 1;
-    let quoted = first_sentence[start + 1..end].trim();
-    (!quoted.is_empty()).then(|| quoted.to_string())
 }
 
 fn dedupe_units(units: Vec<StructuredEmbeddingUnit>) -> Vec<StructuredEmbeddingUnit> {

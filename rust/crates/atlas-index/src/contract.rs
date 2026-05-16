@@ -7,6 +7,7 @@ use atlas_artifact::schema::{
     TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORDS, TABLE_RECORDS_FTS, invalid_boolean_column_sql,
     orphan_reference_sql,
 };
+use atlas_embedding::EmbeddingUnitKind;
 use rusqlite::Connection;
 
 use crate::sql::{count_rows, count_sql, table_columns, table_exists};
@@ -139,9 +140,7 @@ fn validate_document_embedding_cache(
         ),
         (
             "document_embedding_cache:invalid_unit_kind",
-            "SELECT COUNT(*)
-             FROM document_embedding_cache
-             WHERE unit_kind NOT IN ('parent', 'heading_section', 'titled_option', 'activation_block')",
+            &valid_embedding_unit_kind_sql(),
             "every document embedding row has a known unit kind",
         ),
     ] {
@@ -158,6 +157,17 @@ fn validate_document_embedding_cache(
     }
 
     Ok(())
+}
+
+fn valid_embedding_unit_kind_sql() -> String {
+    format!(
+        "SELECT COUNT(*)
+         FROM document_embedding_cache
+         WHERE unit_kind NOT IN ('{}', '{}', '{}')",
+        EmbeddingUnitKind::Parent.as_str(),
+        EmbeddingUnitKind::HeadingSection.as_str(),
+        EmbeddingUnitKind::TitledOption.as_str()
+    )
 }
 
 fn validate_required_tables(

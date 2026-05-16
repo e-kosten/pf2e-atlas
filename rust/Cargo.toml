@@ -7,6 +7,7 @@ members = [
   "crates/atlas-ingest",
   "crates/atlas-index",
   "crates/atlas-record",
+  "crates/atlas-runtime",
   "crates/atlas-search",
   "crates/atlas-sqlite-vec",
 ]
@@ -25,6 +26,7 @@ atlas-embedding = { path = "crates/atlas-embedding" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-record = { path = "crates/atlas-record" }
+atlas-runtime = { path = "crates/atlas-runtime" }
 atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 clap = { version = "4.5.53", features = ["derive"] }

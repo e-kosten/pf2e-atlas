@@ -14,6 +14,14 @@ use atlas_domain::{
 use rusqlite::types::Value;
 use thiserror::Error;
 
+mod sql_render;
+
+use sql_render::{
+    RECORDS_ALIAS, REFERENCE_EDGES_ALIAS, aliased_column, contains_like_pattern,
+    json_array_contains_sql, json_array_empty_sql, metric_operator_sql, push_integer_parameter,
+    record_column, record_key_column, side_table_for_column,
+};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct EligibleRecordsQuery {
     pub sql: String,
@@ -882,82 +890,4 @@ enum SetStorage {
         table: Table,
         column: Column,
     },
-}
-
-const RECORDS_ALIAS: &str = "r";
-const REFERENCE_EDGES_ALIAS: &str = "re";
-
-fn side_table_for_column(column: Column) -> Option<(&'static str, Table)> {
-    match column.table() {
-        table if table == actor_records::TABLE => Some(("a", actor_records::TABLE)),
-        table if table == item_records::TABLE => Some(("i", item_records::TABLE)),
-        table if table == spell_records::TABLE => Some(("s", spell_records::TABLE)),
-        _ => None,
-    }
-}
-
-fn record_key_column(table: Table) -> Column {
-    if table == actor_records::TABLE {
-        actor_records::columns::RECORD_KEY
-    } else if table == item_records::TABLE {
-        item_records::columns::RECORD_KEY
-    } else if table == spell_records::TABLE {
-        spell_records::columns::RECORD_KEY
-    } else if table == record_traits::TABLE {
-        record_traits::columns::RECORD_KEY
-    } else if table == record_metrics::TABLE {
-        record_metrics::columns::RECORD_KEY
-    } else {
-        records::columns::RECORD_KEY
-    }
-}
-
-fn record_column(column: Column) -> String {
-    aliased_column(RECORDS_ALIAS, column)
-}
-
-fn aliased_column(alias: &str, column: Column) -> String {
-    format!("{alias}.{}", column.name())
-}
-
-fn metric_operator_sql(op: MetricOperator) -> &'static str {
-    match op {
-        MetricOperator::Eq => "=",
-        MetricOperator::NotEq => "<>",
-        MetricOperator::Gt => ">",
-        MetricOperator::Gte => ">=",
-        MetricOperator::Lt => "<",
-        MetricOperator::Lte => "<=",
-    }
-}
-
-fn json_array_contains_sql(column: &str, placeholder: &str) -> String {
-    format!(
-        "EXISTS (SELECT 1 FROM json_each(COALESCE({column}, '[]')) j WHERE j.value = {placeholder})"
-    )
-}
-
-fn json_array_empty_sql(column: &str) -> String {
-    format!("NOT EXISTS (SELECT 1 FROM json_each(COALESCE({column}, '[]')))")
-}
-
-fn push_integer_parameter(parameters: &mut Vec<Value>, value: u32) -> String {
-    parameters.push(Value::Integer(i64::from(value)));
-    format!("?{}", parameters.len())
-}
-
-fn contains_like_pattern(value: &str) -> String {
-    let mut pattern = String::with_capacity(value.len() + 2);
-    pattern.push('%');
-    for character in value.chars() {
-        match character {
-            '%' | '_' | '\\' => {
-                pattern.push('\\');
-                pattern.push(character);
-            }
-            _ => pattern.push(character),
-        }
-    }
-    pattern.push('%');
-    pattern
 }
