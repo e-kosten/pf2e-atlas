@@ -192,19 +192,20 @@ Discovery is blocked on Rust-owned writes for the tables and catalogs that back 
 ## Product Surface Parity Map
 
 The Rust CLI can use different command names, but Phase 5 through Phase 10 should map to the current product surface
-instead of inventing PF2E capability. Any command that does not map to one of these rows needs a backlog or ADR decision
-before it becomes part of the durable CLI contract.
+instead of inventing PF2E capability. ADR 0019 defines the Rust CLI shape: `record get` and `record resolve` own strict
+record identification, while `search` owns ranked text search and filter-only listing. Any command that does not map to
+one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes part of the durable CLI contract.
 
 | Current product surface | Current behavior | Rust parity target |
 | --- | --- | --- |
-| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas lookup` or equivalent exact-name lookup command using Rust category and explicit metadata axes. |
-| `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch lookup command or a stable JSON input mode for `atlas lookup`. |
-| `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | Record-key lookup command; raw JSON remains debug/parity-only unless typed fields are missing. |
-| `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch record-key lookup with current detail semantics. |
+| `pf2e_lookup` | Best matching record by name with optional pack/category/TypeScript-subcategory hints and alternatives | `atlas record resolve` using Rust record families and explicit metadata axes for narrowing. Strict resolution should return a strong name, normalized-name, verified-alias, or exact full-variant-name match, or a clear miss/ambiguity diagnostic. |
+| `pf2e_lookup_many` | Batch exact-name resolution with compact output by default | Batch record resolution mode or stable JSON input for `atlas record resolve`; do not add a separate lookup backend. |
+| `pf2e_get_record_by_key` | Exact record fetch by canonical key, including raw JSON today | `atlas record get`; raw JSON remains debug/parity-only unless typed fields are missing. |
+| `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch key input for `atlas record get` or a stable JSON input mode with current detail semantics. |
 | `pf2e_list_packs` | Pack list, labels, document types, record counts, and startup warnings | Pack list command if CLI replaces the full MCP discovery surface. |
 | `pf2e_get_pack_metadata` | Metadata for one pack by name or label | Pack metadata command if pack discovery remains user-facing. |
-| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search` with the same query/profile/exclude/filter semantics. |
-| `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas browse` or `atlas list` with the same filter, sort, and pagination semantics. |
+| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query/profile/exclude/filter semantics. Strong name and verified-alias matches should rank ahead of broader lexical or semantic matches. |
+| `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
 | `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Search/schema discovery command such as `atlas schema search-filters`. |
 | `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. Preserve user-visible discovery capability through Rust category and explicit metadata axes. |
 | `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Rule-context command that returns context only; it should not synthesize an answer. |

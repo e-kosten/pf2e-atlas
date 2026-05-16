@@ -143,9 +143,11 @@ Phase 9, but first-pass commands should not add new PF2E capabilities unless the
 product change.
 
 ```bash
-atlas lookup "Treat Wounds" --category rule --json
-atlas search --query "low level healing spell" --category spell --limit 10 --json
-atlas browse --category creature --filter '<canonical-filter-json>' --json
+atlas record get actions:treat-wounds --json
+atlas record resolve "Treat Wounds" --family rule --json
+atlas search "low level healing spell" --family spell --limit 10 --json
+atlas search --filter-json '<canonical-filter-json>' --sort levelAsc --json
+atlas search "healing magic" --profile semantic --json
 atlas filters list-values --field traits --category creature --json
 atlas rule-context "Grab" --include-backlinks --json
 atlas graph get --record-key actions:abc123 --include-backlinks --json
@@ -159,6 +161,8 @@ CLI contracts should include:
 
 - stable JSON schemas
 - compact default output for agent use
+- one normal `search` surface for ranked text search and filter-only listing, with retrieval profiles exposed as flags instead of separate default product paths
+- strict record identification through `record get` and `record resolve`
 - optional human presentation only where it helps local use; JSON parity is the primary contract
 - predictable exit codes
 - concise stderr errors
@@ -296,17 +300,19 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 
 1. Port the canonical search request and filter tree.
 2. Implement filter normalization and lowering.
-3. Implement lexical search over FTS.
-4. Implement vector search using the Phase 4 embedding/vector artifact.
-5. Implement hybrid ranking.
-6. Add fixture parity tests against the existing TypeScript runtime for representative queries.
+3. Implement filter-only `atlas search` listing over the structured retrieval core.
+4. Implement lexical search over FTS.
+5. Implement vector search using the Phase 4 embedding/vector artifact.
+6. Implement hybrid ranking.
+7. Boost strong name and verified-alias matches within normal text search results.
+8. Add fixture parity tests against the existing TypeScript runtime for representative queries.
 
 ### Phase 5: CLI As Primary Agent Surface
 
 1. Implement the core command set:
-   - lookup
-   - search
-   - browse/list
+   - `record get`
+   - `record resolve`
+   - unified `search` for text queries and filter-only listing
    - filter value discovery
    - search semantics
    - rule graph
