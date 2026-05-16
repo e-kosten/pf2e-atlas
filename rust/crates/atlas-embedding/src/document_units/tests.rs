@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 
 use atlas_domain::{RecordFamily, RecordKey};
 use atlas_record::{
-    PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
-    PresentationSection, PresentationSectionKind, PresentationText, RecordPresentationDocument,
+    ContentBlock, ContentDocument, ContentInline, PresentationBadge, PresentationBadgeKind,
+    PresentationBlock, PresentationFact, PresentationSection, PresentationSectionKind,
+    PresentationText, RecordPresentationDocument,
 };
 
 use crate::document_input::hash_document_embedding_input;
@@ -11,10 +12,11 @@ use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
 use crate::document_units::builder::pending_embedding_unit;
 use crate::document_units::token_budget::summarize_document_embedding_tokenization;
 use crate::document_units::{
-    DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
-    DocumentEmbeddingSource, DocumentEmbeddingTruncationExample,
-    DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding, ReusableDocumentEmbedding,
-    build_document_embedding_units, generate_document_embeddings_with_reuse_using,
+    DocumentEmbeddingContentSource, DocumentEmbeddingRecordTruncationCoverage,
+    DocumentEmbeddingSectionTruncation, DocumentEmbeddingSource,
+    DocumentEmbeddingTruncationExample, DocumentEmbeddingUnitKindTruncation,
+    PendingDocumentEmbedding, ReusableDocumentEmbedding, build_document_embedding_units,
+    generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 use crate::tokenization::{EmbeddingInputTokenization, EmbeddingSectionTruncation};
@@ -27,7 +29,7 @@ fn builds_pending_inputs_from_document_sources() {
         record_name: "Visible Record".to_string(),
         document: test_document("packs:visible1", "Visible Record"),
         aliases: vec!["Legacy Visible".to_string()],
-        source_description_markup: None,
+        content_documents: Vec::new(),
     }]);
 
     assert_eq!(pending.len(), 1);
@@ -49,30 +51,50 @@ Aliases: Legacy Visible"
 }
 
 #[test]
-fn source_markup_overrides_parent_description_and_builds_child_units() {
-    let source_markup = format!(
-        "<h2>Visible Record</h2><p>{}</p><h2>Specific Section</h2><p>{}</p>",
-        std::iter::repeat_n("overview", 220)
-            .collect::<Vec<_>>()
-            .join(" "),
-        std::iter::repeat_n("section", 220)
-            .collect::<Vec<_>>()
-            .join(" ")
-    );
+fn content_documents_build_child_units() {
+    let content_document = ContentDocument::new(vec![
+        ContentBlock::Heading {
+            level: 2,
+            content: vec![ContentInline::Text {
+                text: "Visible Record".to_string(),
+            }],
+        },
+        paragraph_with_repeated_word("overview", 220),
+        ContentBlock::Heading {
+            level: 2,
+            content: vec![ContentInline::Text {
+                text: "Specific Section".to_string(),
+            }],
+        },
+        paragraph_with_repeated_word("section", 220),
+    ]);
     let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
         record_key: "packs:visible1".to_string(),
         record_name: "Visible Record".to_string(),
         document: test_document("packs:visible1", "Visible Record"),
         aliases: Vec::new(),
-        source_description_markup: Some(source_markup),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".to_string()),
+            document: content_document,
+        }],
     }]);
 
-    assert!(pending[0].input_text.contains("overview"));
     assert!(
         pending
             .iter()
             .any(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
     );
+}
+
+fn paragraph_with_repeated_word(word: &str, count: usize) -> ContentBlock {
+    ContentBlock::Paragraph {
+        content: vec![ContentInline::Text {
+            text: std::iter::repeat_n(word, count)
+                .collect::<Vec<_>>()
+                .join(" "),
+        }],
+    }
 }
 
 #[test]

@@ -54,7 +54,6 @@ fn collect_top_level_affliction_occurrence(
         child_raw: raw.clone(),
         family,
         name: record.name.clone(),
-        slug: slug.clone(),
         traits: variants::sorted_unique(
             [
                 vec![affliction_family_label(family).to_string()],
@@ -122,7 +121,6 @@ fn collect_embedded_affliction_occurrences(
             child_raw: item.clone(),
             family,
             name: name.clone(),
-            slug: slug.clone(),
             traits: variants::sorted_unique(
                 [
                     vec![affliction_family_label(family).to_string()],

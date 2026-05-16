@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordFamily;
+use atlas_record::render_plain_text;
 
 mod labels;
 
@@ -229,8 +230,8 @@ fn parse_creature_blurb_variant_candidate(
     index: &RecordReferenceIndex,
     known_creature_base_names: &BTreeSet<String>,
 ) -> Option<VariantCandidate> {
-    let blurb = record.blurb_text.as_ref()?;
-    let tokens = normalize_text(blurb)
+    let blurb = record.blurb.as_ref().map(render_plain_text)?;
+    let tokens = normalize_text(&blurb)
         .split_whitespace()
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();

@@ -1,6 +1,7 @@
 use super::{
     Column, Table, actor_records, document_embedding_cache, item_records, packs, record_aliases,
-    record_metrics, record_traits, records, reference_edges, remaster_links, spell_records,
+    record_content, record_metrics, record_traits, records, reference_edges, remaster_links,
+    spell_records,
 };
 
 pub struct BooleanColumn {
@@ -28,6 +29,18 @@ pub const BOOLEAN_COLUMNS: &[BooleanColumn] = &[
         table: record_metrics::TABLE,
         column: record_metrics::columns::BOOL_VALUE,
         nullable: true,
+    },
+    BooleanColumn {
+        key: "record_content.contributes_to_search",
+        table: record_content::TABLE,
+        column: record_content::columns::CONTRIBUTES_TO_SEARCH,
+        nullable: false,
+    },
+    BooleanColumn {
+        key: "record_content.contributes_to_references",
+        table: record_content::TABLE,
+        column: record_content::columns::CONTRIBUTES_TO_REFERENCES,
+        nullable: false,
     },
     BooleanColumn {
         key: "actor_records.is_complex",
@@ -69,6 +82,13 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         key: "record_traits.record_key",
         table: record_traits::TABLE,
         column: record_traits::columns::RECORD_KEY,
+        referenced_table: records::TABLE,
+        referenced_column: records::columns::RECORD_KEY,
+    },
+    RequiredReference {
+        key: "record_content.record_key",
+        table: record_content::TABLE,
+        column: record_content::columns::RECORD_KEY,
         referenced_table: records::TABLE,
         referenced_column: records::columns::RECORD_KEY,
     },

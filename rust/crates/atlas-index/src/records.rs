@@ -3,16 +3,17 @@ use std::path::Path;
 
 use atlas_artifact::schema::{
     actor_record_select_sql, item_record_select_sql, persisted_record_select_sql,
-    record_alias_select_sql, record_metric_select_sql, reference_edge_select_sql,
-    remaster_link_select_sql, spell_record_select_sql,
+    record_alias_select_sql, record_content_select_sql, record_metric_select_sql,
+    reference_edge_select_sql, remaster_link_select_sql, spell_record_select_sql,
 };
 use atlas_domain::{
     MetricDomain, MetricValueType, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
     RemasterLinkSource, TimeKind, TimeUnit,
 };
 use atlas_record::{
-    ActorSideData, AliasSource, ItemSideData, MetricRow, MetricValue, NormalizedTime,
-    PersistedRecord, PersistedRecordSet, RecordAlias, ReferenceEdge, RemasterLink, SpellSideData,
+    ActorSideData, AliasSource, ContentDocument, ContentSourceKind, ContentVisibility,
+    ItemSideData, MetricRow, MetricValue, NormalizedTime, PersistedRecord, PersistedRecordSet,
+    RecordAlias, ReferenceEdge, RemasterLink, SpellSideData, SupplementalContentDocument,
 };
 use rusqlite::{Connection, OpenFlags, Row};
 use thiserror::Error;
@@ -62,6 +63,7 @@ pub fn load_persisted_records_from_connection(
     let actor_data = read_actor_data(connection)?;
     let item_data = read_item_data(connection)?;
     let spell_data = read_spell_data(connection)?;
+    let supplemental_content = read_record_content(connection)?;
 
     for record in &mut records {
         let key = record.key.to_string();
@@ -69,6 +71,7 @@ pub fn load_persisted_records_from_connection(
         record.actor_data = actor_data.get(&key).cloned();
         record.item_data = item_data.get(&key).cloned();
         record.spell_data = spell_data.get(&key).cloned();
+        record.supplemental_content = supplemental_content.get(&key).cloned().unwrap_or_default();
     }
 
     Ok(records)
@@ -152,8 +155,13 @@ fn record_from_row(row: &Row<'_>) -> Result<PersistedRecord, RecordLoadError> {
             row,
             "publication_remaster",
         )?,
-        description_text: optional_string(row, "description_text")?,
-        blurb_text: optional_string(row, "blurb_text")?,
+        description: optional_content_document(
+            "records.description_json",
+            row,
+            "description_json",
+        )?,
+        blurb: optional_content_document("records.blurb_json", row, "blurb_json")?,
+        supplemental_content: Vec::new(),
         publication_family: parse_publication_family(&publication_family)?,
         folder_id: optional_string(row, "folder_id")?,
         taxonomy_families: json_string_array(
@@ -168,9 +176,41 @@ fn record_from_row(row: &Row<'_>) -> Result<PersistedRecord, RecordLoadError> {
         variant_source: required_string(row, "variant_source")?,
         source_path: required_string(row, "source_path")?,
         is_default_visible: bool_column("records.is_default_visible", row, "is_default_visible")?,
-        search_text_projection: required_string(row, "search_text_projection")?,
         raw_json: required_string(row, "raw_json")?,
     })
+}
+
+fn read_record_content(
+    connection: &Connection,
+) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
+    let mut statement = connection
+        .prepare(&record_content_select_sql())
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let mut rows = statement
+        .query([])
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let mut values: BTreeMap<String, Vec<SupplementalContentDocument>> = BTreeMap::new();
+    while let Some(row) = rows
+        .next()
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+    {
+        let record_key = required_string(row, "record_key")?;
+        let source_kind = parse_content_source_kind(&required_string(row, "source_kind")?)?;
+        let visibility = parse_content_visibility(&required_string(row, "visibility")?)?;
+        let content_json = required_string(row, "content_json")?;
+        values
+            .entry(record_key)
+            .or_default()
+            .push(SupplementalContentDocument {
+                source_kind,
+                visibility,
+                contributes_to_search: required_bool(row, "contributes_to_search")?,
+                contributes_to_references: required_bool(row, "contributes_to_references")?,
+                label: optional_string(row, "label")?,
+                document: content_document("record_content.content_json", &content_json)?,
+            });
+    }
+    Ok(values)
 }
 
 fn read_metrics(
@@ -355,6 +395,8 @@ fn read_reference_edges(connection: &Connection) -> Result<Vec<ReferenceEdge>, R
             to_record_key: parse_record_key(&required_string(row, "to_record_key")?)?,
             display_text: optional_string(row, "display_text")?,
             reference_text: required_string(row, "reference_text")?,
+            source_kind: parse_content_source_kind(&required_string(row, "source_kind")?)?,
+            visibility: parse_content_visibility(&required_string(row, "visibility")?)?,
         });
     }
     Ok(edges)
@@ -450,6 +492,10 @@ fn required_f64(row: &Row<'_>, column: &'static str) -> Result<f64, RecordLoadEr
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
 }
 
+fn required_bool(row: &Row<'_>, column: &'static str) -> Result<bool, RecordLoadError> {
+    bool_column(column, row, column)
+}
+
 fn bool_column(
     name: &'static str,
     row: &Row<'_>,
@@ -468,6 +514,23 @@ fn bool_column(
 fn json_string_array(name: &'static str, value: &str) -> Result<Vec<String>, RecordLoadError> {
     serde_json::from_str(value).map_err(|error| {
         RecordLoadError::InvalidData(format!("{name} must be a JSON string array: {error}"))
+    })
+}
+
+fn optional_content_document(
+    name: &'static str,
+    row: &Row<'_>,
+    column: &'static str,
+) -> Result<Option<ContentDocument>, RecordLoadError> {
+    optional_string(row, column)?
+        .as_deref()
+        .map(|value| content_document(name, value))
+        .transpose()
+}
+
+fn content_document(name: &'static str, value: &str) -> Result<ContentDocument, RecordLoadError> {
+    serde_json::from_str(value).map_err(|error| {
+        RecordLoadError::InvalidData(format!("{name} must be a content document JSON: {error}"))
     })
 }
 
@@ -498,6 +561,16 @@ fn parse_metric_value_type(value: &str) -> Result<MetricValueType, RecordLoadErr
 fn parse_alias_source(value: &str) -> Result<AliasSource, RecordLoadError> {
     AliasSource::from_canonical(value)
         .ok_or_else(|| invalid_value("record_aliases.source_kind", value.to_string()))
+}
+
+fn parse_content_source_kind(value: &str) -> Result<ContentSourceKind, RecordLoadError> {
+    ContentSourceKind::from_canonical(value)
+        .ok_or_else(|| invalid_value("content.source_kind", value.to_string()))
+}
+
+fn parse_content_visibility(value: &str) -> Result<ContentVisibility, RecordLoadError> {
+    ContentVisibility::from_canonical(value)
+        .ok_or_else(|| invalid_value("content.visibility", value.to_string()))
 }
 
 fn parse_remaster_link_source(value: &str) -> Result<RemasterLinkSource, RecordLoadError> {

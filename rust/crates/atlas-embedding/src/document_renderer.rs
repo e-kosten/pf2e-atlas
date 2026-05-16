@@ -171,6 +171,15 @@ fn render_section(chunks: &mut Vec<EmbeddingInputChunk>, section: &PresentationS
                     ),
                 );
             }
+            PresentationBlock::Content(document) => {
+                push_chunk(
+                    chunks,
+                    EmbeddingInputChunk::truncatable_line(
+                        embedding_section,
+                        format!("Description: {}", atlas_record::render_plain_text(document)),
+                    ),
+                );
+            }
             PresentationBlock::Relationships(relationships) => {
                 let references = relationships
                     .iter()

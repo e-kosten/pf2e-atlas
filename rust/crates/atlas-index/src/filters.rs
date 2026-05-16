@@ -186,7 +186,7 @@ impl FilterCompiler {
                 *r#match,
             ),
             SearchFilterNode::LinksTo { target } => Ok(format!(
-                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {record_key} AND {to_key} = {})",
+                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {record_key} AND {to_key} = {} AND {visibility} = 'public' AND {source_kind} NOT IN ('embedded_item_description', 'embedded_spell_description'))",
                 self.text(&target.to_string()),
                 table = reference_edges::TABLE.name(),
                 alias = REFERENCE_EDGES_ALIAS,
@@ -199,9 +199,13 @@ impl FilterCompiler {
                     REFERENCE_EDGES_ALIAS,
                     reference_edges::columns::TO_RECORD_KEY
                 ),
+                visibility =
+                    aliased_column(REFERENCE_EDGES_ALIAS, reference_edges::columns::VISIBILITY),
+                source_kind =
+                    aliased_column(REFERENCE_EDGES_ALIAS, reference_edges::columns::SOURCE_KIND),
             )),
             SearchFilterNode::LinkedFrom { source } => Ok(format!(
-                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {} AND {to_key} = {record_key})",
+                "EXISTS (SELECT 1 FROM {table} {alias} WHERE {from_key} = {} AND {to_key} = {record_key} AND {visibility} = 'public' AND {source_kind} NOT IN ('embedded_item_description', 'embedded_spell_description'))",
                 self.text(&source.to_string()),
                 table = reference_edges::TABLE.name(),
                 alias = REFERENCE_EDGES_ALIAS,
@@ -214,6 +218,10 @@ impl FilterCompiler {
                     reference_edges::columns::TO_RECORD_KEY
                 ),
                 record_key = record_column(records::columns::RECORD_KEY),
+                visibility =
+                    aliased_column(REFERENCE_EDGES_ALIAS, reference_edges::columns::VISIBILITY),
+                source_kind =
+                    aliased_column(REFERENCE_EDGES_ALIAS, reference_edges::columns::SOURCE_KIND),
             )),
             SearchFilterNode::MetadataPredicate { predicate } => self.metadata_predicate(predicate),
             SearchFilterNode::Metric { metric, op, value } => {

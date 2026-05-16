@@ -1,5 +1,7 @@
 use atlas_domain::{RecordFamily, RecordKey};
 
+use crate::ContentDocument;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordPresentationDocument {
     pub record_key: RecordKey,
@@ -77,6 +79,7 @@ impl PresentationSection {
 pub enum PresentationBlock {
     FactList(Vec<PresentationFact>),
     Prose(PresentationText),
+    Content(ContentDocument),
     Relationships(Vec<PresentationRelationship>),
 }
 

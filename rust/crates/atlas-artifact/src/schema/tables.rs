@@ -83,9 +83,8 @@ pub mod records {
         pub const DURATION_TEXT: Column = Column::new(TABLE, "duration_text");
         pub const PUBLICATION_TITLE: Column = Column::new(TABLE, "publication_title");
         pub const PUBLICATION_REMASTER: Column = Column::new(TABLE, "publication_remaster");
-        pub const DESCRIPTION_TEXT: Column = Column::new(TABLE, "description_text");
-        pub const BLURB_TEXT: Column = Column::new(TABLE, "blurb_text");
-        pub const DESCRIPTION_SNIPPET: Column = Column::new(TABLE, "description_snippet");
+        pub const DESCRIPTION_JSON: Column = Column::new(TABLE, "description_json");
+        pub const BLURB_JSON: Column = Column::new(TABLE, "blurb_json");
         pub const PUBLICATION_FAMILY: Column = Column::new(TABLE, "publication_family");
         pub const FOLDER_ID: Column = Column::new(TABLE, "folder_id");
         pub const TAXONOMY_FAMILIES_JSON: Column = Column::new(TABLE, "taxonomy_families_json");
@@ -97,7 +96,6 @@ pub mod records {
         pub const VARIANT_SOURCE: Column = Column::new(TABLE, "variant_source");
         pub const SOURCE_PATH: Column = Column::new(TABLE, "source_path");
         pub const IS_DEFAULT_VISIBLE: Column = Column::new(TABLE, "is_default_visible");
-        pub const SEARCH_TEXT_PROJECTION: Column = Column::new(TABLE, "search_text_projection");
         pub const RAW_JSON: Column = Column::new(TABLE, "raw_json");
     }
 
@@ -134,9 +132,8 @@ pub mod records {
         columns::DURATION_TEXT,
         columns::PUBLICATION_TITLE,
         columns::PUBLICATION_REMASTER,
-        columns::DESCRIPTION_TEXT,
-        columns::BLURB_TEXT,
-        columns::DESCRIPTION_SNIPPET,
+        columns::DESCRIPTION_JSON,
+        columns::BLURB_JSON,
         columns::PUBLICATION_FAMILY,
         columns::FOLDER_ID,
         columns::TAXONOMY_FAMILIES_JSON,
@@ -148,7 +145,6 @@ pub mod records {
         columns::VARIANT_SOURCE,
         columns::SOURCE_PATH,
         columns::IS_DEFAULT_VISIBLE,
-        columns::SEARCH_TEXT_PROJECTION,
         columns::RAW_JSON,
     ];
 
@@ -185,8 +181,8 @@ pub mod records {
         columns::DURATION_TEXT,
         columns::PUBLICATION_TITLE,
         columns::PUBLICATION_REMASTER,
-        columns::DESCRIPTION_TEXT,
-        columns::BLURB_TEXT,
+        columns::DESCRIPTION_JSON,
+        columns::BLURB_JSON,
         columns::PUBLICATION_FAMILY,
         columns::FOLDER_ID,
         columns::TAXONOMY_FAMILIES_JSON,
@@ -198,8 +194,38 @@ pub mod records {
         columns::VARIANT_SOURCE,
         columns::SOURCE_PATH,
         columns::IS_DEFAULT_VISIBLE,
-        columns::SEARCH_TEXT_PROJECTION,
         columns::RAW_JSON,
+    ];
+}
+
+pub mod record_content {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("record_content");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
+        pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
+        pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
+        pub const CONTRIBUTES_TO_SEARCH: Column = Column::new(TABLE, "contributes_to_search");
+        pub const CONTRIBUTES_TO_REFERENCES: Column =
+            Column::new(TABLE, "contributes_to_references");
+        pub const LABEL: Column = Column::new(TABLE, "label");
+        pub const CONTENT_JSON: Column = Column::new(TABLE, "content_json");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::ORDINAL,
+        columns::SOURCE_KIND,
+        columns::VISIBILITY,
+        columns::CONTRIBUTES_TO_SEARCH,
+        columns::CONTRIBUTES_TO_REFERENCES,
+        columns::LABEL,
+        columns::CONTENT_JSON,
     ];
 }
 
@@ -230,6 +256,8 @@ pub mod reference_edges {
         pub const TO_RECORD_KEY: Column = Column::new(TABLE, "to_record_key");
         pub const DISPLAY_TEXT: Column = Column::new(TABLE, "display_text");
         pub const REFERENCE_TEXT: Column = Column::new(TABLE, "reference_text");
+        pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
+        pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
@@ -237,6 +265,8 @@ pub mod reference_edges {
         columns::TO_RECORD_KEY,
         columns::DISPLAY_TEXT,
         columns::REFERENCE_TEXT,
+        columns::SOURCE_KIND,
+        columns::VISIBILITY,
     ];
 }
 
@@ -483,14 +513,26 @@ pub mod records_fts {
         use super::{Column, TABLE};
 
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
-        pub const NAME: Column = Column::new(TABLE, "name");
-        pub const SEARCH_TEXT_PROJECTION: Column = Column::new(TABLE, "search_text_projection");
+        pub const TITLE: Column = Column::new(TABLE, "title");
+        pub const ALIASES: Column = Column::new(TABLE, "aliases");
+        pub const TRAITS: Column = Column::new(TABLE, "traits");
+        pub const HEADINGS: Column = Column::new(TABLE, "headings");
+        pub const BODY: Column = Column::new(TABLE, "body");
+        pub const FACTS: Column = Column::new(TABLE, "facts");
+        pub const REFERENCE_TERMS: Column = Column::new(TABLE, "reference_terms");
+        pub const EMBEDDED_CONTENT: Column = Column::new(TABLE, "embedded_content");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::RECORD_KEY,
-        columns::NAME,
-        columns::SEARCH_TEXT_PROJECTION,
+        columns::TITLE,
+        columns::ALIASES,
+        columns::TRAITS,
+        columns::HEADINGS,
+        columns::BODY,
+        columns::FACTS,
+        columns::REFERENCE_TERMS,
+        columns::EMBEDDED_CONTENT,
     ];
 }
 
@@ -541,6 +583,7 @@ pub mod record_vector_index {
 pub const TABLE_ARTIFACT_METADATA: &str = artifact_metadata::TABLE.name();
 pub const TABLE_PACKS: &str = packs::TABLE.name();
 pub const TABLE_RECORDS: &str = records::TABLE.name();
+pub const TABLE_RECORD_CONTENT: &str = record_content::TABLE.name();
 pub const TABLE_RECORD_TRAITS: &str = record_traits::TABLE.name();
 pub const TABLE_REFERENCE_EDGES: &str = reference_edges::TABLE.name();
 pub const TABLE_RECORD_ALIASES: &str = record_aliases::TABLE.name();
@@ -559,6 +602,7 @@ pub const REQUIRED_TABLES: &[Table] = &[
     artifact_metadata::TABLE,
     packs::TABLE,
     records::TABLE,
+    record_content::TABLE,
     record_traits::TABLE,
     reference_edges::TABLE,
     record_aliases::TABLE,
@@ -575,6 +619,7 @@ pub const REQUIRED_TABLES: &[Table] = &[
 
 pub const RECORD_COLUMNS: &[Column] = records::ALL_COLUMNS;
 pub const PERSISTED_RECORD_COLUMNS: &[Column] = records::PERSISTED_COLUMNS;
+pub const RECORD_CONTENT_COLUMNS: &[Column] = record_content::ALL_COLUMNS;
 pub const RECORD_TRAIT_COLUMNS: &[Column] = record_traits::ALL_COLUMNS;
 pub const REFERENCE_EDGE_COLUMNS: &[Column] = reference_edges::ALL_COLUMNS;
 pub const RECORD_ALIAS_COLUMNS: &[Column] = record_aliases::ALL_COLUMNS;
@@ -591,6 +636,7 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (artifact_metadata::TABLE, artifact_metadata::ALL_COLUMNS),
     (packs::TABLE, packs::ALL_COLUMNS),
     (records::TABLE, RECORD_COLUMNS),
+    (record_content::TABLE, RECORD_CONTENT_COLUMNS),
     (record_traits::TABLE, RECORD_TRAIT_COLUMNS),
     (reference_edges::TABLE, REFERENCE_EDGE_COLUMNS),
     (record_aliases::TABLE, RECORD_ALIAS_COLUMNS),

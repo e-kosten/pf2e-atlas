@@ -10,11 +10,11 @@ pub use generation::{
     generate_document_embeddings_with_reuse_using_batch,
 };
 pub use model::{
-    DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
-    DocumentEmbeddingSource, DocumentEmbeddingTokenizationTelemetry,
-    DocumentEmbeddingTruncationExample, DocumentEmbeddingUnitKindTruncation,
-    GeneratedDocumentEmbedding, GeneratedDocumentEmbeddings, PendingDocumentEmbedding,
-    ReusableDocumentEmbedding,
+    DocumentEmbeddingContentSource, DocumentEmbeddingRecordTruncationCoverage,
+    DocumentEmbeddingSectionTruncation, DocumentEmbeddingSource,
+    DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
+    DocumentEmbeddingUnitKindTruncation, GeneratedDocumentEmbedding, GeneratedDocumentEmbeddings,
+    PendingDocumentEmbedding, ReusableDocumentEmbedding,
 };
 pub use token_budget::apply_document_embedding_token_budget;
 

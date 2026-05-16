@@ -6,6 +6,8 @@ pub use atlas_record::{
     NormalizedTime, RecordAlias, ReferenceEdge, RemasterLink, SpellSideData,
 };
 
+use crate::source::normalize::ContentParseDiagnostics;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReferenceCandidate {
     pub(crate) raw_target: String,
@@ -27,8 +29,7 @@ impl LoadedSourceRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SourceConstructionFacts {
-    pub(crate) reference_candidates: Vec<ReferenceCandidate>,
-    pub(crate) source_description_markup: Option<String>,
+    pub(crate) content_parse_diagnostics: Vec<ContentParseDiagnostics>,
 }
 
 #[derive(Debug, Clone, Default)]

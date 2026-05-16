@@ -4,6 +4,7 @@ pub(crate) mod metrics;
 pub(crate) mod references;
 pub(crate) mod taxonomy;
 pub(crate) mod variants;
+pub(crate) mod visibility;
 
 pub(crate) use loaded::{
     ActorSideData, AliasSource, ItemSideData, LoadedSourceRecord, MetricRow, MetricValue,

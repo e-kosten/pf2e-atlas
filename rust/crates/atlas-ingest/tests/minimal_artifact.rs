@@ -3,6 +3,7 @@ use std::fs;
 use atlas_index::{ValidationStatus, validate_index};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
 use rusqlite::Connection;
+use serde_json::Value;
 
 mod fixture_sources;
 
@@ -31,7 +32,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     );
     assert_eq!(report.pack_count, 4);
     assert_eq!(report.record_count, 5);
-    assert_eq!(report.relationships.reference_edges, 2);
+    assert_eq!(report.relationships.reference_edges, 1);
     assert_eq!(
         report.embeddings.pending_document_embeddings,
         report.default_visible_record_count
@@ -64,7 +65,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         treat_wounds_traits,
         treat_wounds_description,
     ): (String, String, String, String, String, String) = connection.query_row(
-        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json, description_text
+        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json,
+                json_extract(description_json, '$.blocks[0].content[0].text')
          FROM records WHERE record_key = 'actions:testAction0001'",
         [],
         |row| {
@@ -91,7 +93,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
          WHERE from_record_key = 'actions:testAction0002'
            AND to_record_key = 'spells:testSpell0001'
            AND display_text = 'Heal Spell'
-           AND reference_text = '@UUID[Compendium.pf2e.spells.Item.Heal]{Heal Spell}'",
+           AND reference_text = 'Compendium.pf2e.spells.Item.Heal'
+           AND source_kind = 'public_notes'",
         [],
         |row| row.get(0),
     )?;
@@ -102,19 +105,34 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(treat_wounds_traits, "[\"exploration\",\"healing\"]");
     assert_eq!(
         treat_wounds_description,
-        "You spend 10 minutes treating one injured living creature."
+        "You spend 10 minutes treating one injured living creature with "
     );
     assert_eq!(reference_to, "spells:testSpell0001");
     assert_eq!(reference_display, "Heal");
-    assert_eq!(
-        reference_text,
-        "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}"
-    );
-    assert_eq!(demoralize_reference_count, 1);
+    assert_eq!(reference_text, "Compendium.pf2e.spells.Item.testSpell0001");
+    assert_eq!(demoralize_reference_count, 0);
 
     drop(connection);
     fs::remove_dir_all(root)?;
     Ok(())
+}
+
+fn raw_reference_candidate_count(
+    path: &std::path::Path,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let raw: Value = serde_json::from_str(&fs::read_to_string(path)?)?;
+    Ok(count_raw_reference_candidates(&raw))
+}
+
+fn count_raw_reference_candidates(value: &Value) -> usize {
+    match value {
+        Value::String(text) => {
+            text.matches("@UUID[").count() + text.matches("@Compendium[").count()
+        }
+        Value::Array(values) => values.iter().map(count_raw_reference_candidates).sum(),
+        Value::Object(values) => values.values().map(count_raw_reference_candidates).sum(),
+        Value::Null | Value::Bool(_) | Value::Number(_) => 0,
+    }
 }
 
 #[test]
@@ -148,19 +166,76 @@ fn reports_dropped_inline_macro_diagnostics() -> Result<(), Box<dyn std::error::
 
     assert_eq!(
         report.diagnostics["dropped_inline_macros"],
-        serde_json::json!([
-            {
-                "name": "Template",
-                "count": 1,
-                "examples": ["@Template[type:burst|distance:10]"]
-            },
-            {
-                "name": "UUID",
-                "count": 1,
-                "examples": ["@UUID[Compendium.pf2e.conditionitems.Item.Sickened]"]
-            }
-        ])
+        serde_json::json!([])
     );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn explicit_content_edges_replace_broad_raw_json_reference_scan()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("raw-scan-comparison");
+    fs::create_dir_all(root.join("packs/actions"))?;
+    fs::create_dir_all(root.join("packs/spells"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" },
+            { "name": "spells", "label": "Spells", "type": "Item", "path": "packs/spells" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/content-edge.json"),
+        r#"{
+          "_id": "contentEdge01",
+          "name": "Content Edge",
+          "type": "action",
+          "system": {
+            "rules": [
+              {
+                "key": "Note",
+                "text": "@UUID[Compendium.pf2e.spells.Item.ruleOnly01]{Rule Only}"
+              }
+            ],
+            "description": {
+              "value": "<p>Use @UUID[Compendium.pf2e.spells.Item.contentSpell01]{Content Spell}.</p>"
+            }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/spells/content-spell.json"),
+        r#"{
+          "_id": "contentSpell01",
+          "name": "Content Spell",
+          "type": "spell",
+          "system": {
+            "description": { "value": "<p>A public spell.</p>" }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/spells/rule-only.json"),
+        r#"{
+          "_id": "ruleOnly01",
+          "name": "Rule Only",
+          "type": "spell",
+          "system": {
+            "description": { "value": "<p>A rule-element-only spell.</p>" }
+          }
+        }"#,
+    )?;
+
+    let broad_scan_candidates =
+        raw_reference_candidate_count(&root.join("packs/actions/content-edge.json"))?;
+    let report = analyze_foundry_source(&root, None)?;
+
+    assert_eq!(broad_scan_candidates, 2);
+    assert_eq!(report.relationships.reference_edges, 1);
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -485,7 +560,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.source_record_count, 1);
     assert_eq!(report.artifact_record_count, 3);
     assert_eq!(report.generated_record_count, 2);
-    assert_eq!(report.pending_document_embedding_count, 2);
+    assert_eq!(report.pending_document_embedding_count, 5);
     assert_eq!(report.document_embedding_count, 0);
     let validation = validate_index(&output_path)?;
     assert_eq!(validation.status, ValidationStatus::Ok);
@@ -750,13 +825,10 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(actor_side_count, 1);
     assert_eq!(item_side_count, 4);
     assert_eq!(spell_side_count, 1);
-    assert_eq!(reference_edge_count, 2);
+    assert_eq!(reference_edge_count, 1);
     assert_eq!(reference_to, "spells:testSpell0001");
     assert_eq!(reference_display, "Heal");
-    assert_eq!(
-        reference_text,
-        "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}"
-    );
+    assert_eq!(reference_text, "Compendium.pf2e.spells.Item.testSpell0001");
     assert_eq!(action_count, 1);
     assert_eq!(action_price, 30);
     assert_eq!(action_usage, "held-in-one-hand");
