@@ -32,4 +32,4 @@ This item intentionally focuses on the remaining detail-page work, not on the al
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../architecture/node/tui.md)

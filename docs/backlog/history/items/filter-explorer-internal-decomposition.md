@@ -92,6 +92,6 @@ The landed refactor matters because filter-explorer behavior can now evolve with
 - [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md)
 - [Structured query summary model](./structured-query-summary-model.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)
 - [ADR 0009: Shared list/detail presentation layer](../../../architecture/decisions/0009-shared-list-detail-presentation-layer.md)

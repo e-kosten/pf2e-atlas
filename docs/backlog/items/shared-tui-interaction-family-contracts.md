@@ -123,8 +123,8 @@ This item is also adjacent to the broader boundary-enforcement question:
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
 - [Shared list/detail behavior contracts](./shared-list-detail-behavior-contracts.md)
 - [Shared menu/editor behavior contracts](./shared-menu-editor-behavior-contracts.md)
 - [Search interaction cleanup](./search-interaction-cleanup.md)

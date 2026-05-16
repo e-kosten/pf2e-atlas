@@ -129,4 +129,4 @@ The first option is less disruptive to existing record-key assumptions. The seco
 - [Rust Content Document And Reference Refactor Plan](../../../scratch/plans/2026-05-16-rust-content-document-reference-refactor.md)
 - [Reference Edge Extraction Expansion](./reference-edge-extraction-expansion.md)
 - [View pages and detail presentation](./view-pages-and-details.md)
-- [Rust artifact contract](../../architecture/rust-artifact-contract.md)
+- [Rust artifact contract](../../architecture/artifact-contract.md)

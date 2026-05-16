@@ -39,5 +39,5 @@ The scratch note specifically called out modules like `two-pane-state`, `action-
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)

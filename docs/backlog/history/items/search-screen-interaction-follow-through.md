@@ -64,7 +64,7 @@ Future regressions should be checked against:
 ## Related
 
 - [Backlog: Search interaction cleanup](../../backlog.md)
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)
 - [ADR 0006: Shared TUI interaction contracts](../../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
 - [ADR 0009: Shared list/detail presentation layer](../../../architecture/decisions/0009-shared-list-detail-presentation-layer.md)

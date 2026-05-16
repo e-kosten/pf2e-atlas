@@ -51,4 +51,4 @@ The implementation should decide whether the app owns copied text directly or on
 - [Pointer target hit testing](./pointer-target-hit-testing.md)
 - [Shared TUI interaction family contracts](./shared-tui-interaction-family-contracts.md)
 - [Search result list viewport behavior](./search-result-list-viewport-behavior.md)
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../architecture/node/tui.md)

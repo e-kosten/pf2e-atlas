@@ -29,5 +29,5 @@ The original naming cleanup is done. Any future wording work should be a narrowe
 
 ## Related
 
-- [TUI architecture](../../../architecture/tui.md)
-- [Search architecture](../../../architecture/search.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Search architecture](../../../architecture/node/search.md)

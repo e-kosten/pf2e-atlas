@@ -32,7 +32,7 @@ Python or Node prep is low-cost only if runtime artifacts are durable, validated
 
 ## Durable Output
 
-The runtime artifact boundary is now defined in [Rust Artifact Contract](../../../architecture/rust-artifact-contract.md). That architecture document is the source of truth for the first Rust artifact contract version, required metadata keys, and validation diagnostic families.
+The runtime artifact boundary is now defined in [Rust Artifact Contract](../../../architecture/artifact-contract.md). That architecture document is the source of truth for the first Rust artifact contract version, required metadata keys, and validation diagnostic families.
 
 ## Original Outputs
 

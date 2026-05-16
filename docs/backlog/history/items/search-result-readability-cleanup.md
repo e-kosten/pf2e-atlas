@@ -30,5 +30,5 @@ This item was about readability and hierarchy, not about changing the underlying
 
 ## Related
 
-- [TUI architecture](../../../architecture/tui.md)
+- [TUI architecture](../../../architecture/node/tui.md)
 - [View pages and detail presentation](../../items/view-pages-and-details.md)

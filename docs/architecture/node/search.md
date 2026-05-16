@@ -1,6 +1,6 @@
 # Search Runtime Architecture
 
-Back to [Architecture Overview](./overview.md).
+Back to [Architecture Overview](../overview.md).
 
 This document focuses on the current runtime architecture for MCP search and lookup behavior. It describes how a request moves from registered MCP tools through `Pf2eDataService`, into the backend search service, through the shared runtime search pipeline, and back out through response presenters.
 

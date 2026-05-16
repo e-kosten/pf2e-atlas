@@ -44,5 +44,5 @@ This item exists so the repo can defer that expansion cleanly while keeping trac
 ## Related
 
 - [View pages and detail presentation](./view-pages-and-details.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Search runtime architecture](../../architecture/search.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Search runtime architecture](../../architecture/node/search.md)

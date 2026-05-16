@@ -41,5 +41,5 @@ This item is being closed based on spot verification after the shared ontology-l
 
 ## Related
 
-- [TUI architecture](../../../architecture/tui.md)
-- [Search architecture](../../../architecture/search.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Search architecture](../../../architecture/node/search.md)

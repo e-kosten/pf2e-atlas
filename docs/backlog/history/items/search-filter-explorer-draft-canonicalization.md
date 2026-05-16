@@ -87,6 +87,6 @@ In practice, the landed cleanup makes that later summary-model work easier and l
 
 - [Structured query summary model](./structured-query-summary-model.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
-- [Search architecture](../../../architecture/search.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)
+- [Search architecture](../../../architecture/node/search.md)

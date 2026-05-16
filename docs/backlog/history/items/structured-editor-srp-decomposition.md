@@ -29,8 +29,8 @@ Current owners:
 
 ## Related
 
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)
 - [ADR 0013: TUI canonical search state and derived editor projections](../../../architecture/decisions/0013-tui-canonical-search-state-and-derived-editor-projections.md)
 - [ADR 0015: shared explorer host contract and live group editing](../../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
 - [Structured editor continuation model convergence](./structured-editor-continuation-model-convergence.md)

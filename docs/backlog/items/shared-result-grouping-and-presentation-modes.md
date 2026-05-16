@@ -33,5 +33,5 @@ This item is intentionally deferred from the shared presentation vocabulary and 
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)

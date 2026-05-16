@@ -34,5 +34,5 @@ That follow-through should:
 
 ## Related
 
-- [Editorial architecture](../../architecture/editorial.md)
+- [Editorial architecture](../../architecture/node/editorial.md)
 - [Architecture overview](../../architecture/overview.md)

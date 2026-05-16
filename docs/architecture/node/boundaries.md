@@ -1,12 +1,14 @@
 # Architectural Boundaries
 
-This document records the architectural boundaries that future human and AI editors are expected to preserve. In this repository, "boundary" does not just mean design intent. Many of these rules are encoded directly in `eslint.config.js` and `eslint-local-rules.js`, so bypassing them is an architecture violation, not a style choice.
+This document records the TypeScript/Node architectural boundaries that future human and AI editors are expected to preserve. In this repository, "boundary" does not just mean design intent. Many of these rules are encoded directly in `eslint.config.js` and `eslint-local-rules.js`, so bypassing them is an architecture violation, not a style choice.
+
+Rust crate ownership is documented separately in the root [runtime architecture](../runtime.md) and [artifact contract](../artifact-contract.md). Do not treat the TypeScript folder/lint boundaries below as the Rust crate structure.
 
 The guiding rule is simple: once the repo has a stable shared abstraction, new code should go through that abstraction instead of reopening the lower-level path. If that path is meant to stay mandatory, the lint config should make the boundary explicit.
 
 ## Approved Layering
 
-The current codebase is intentionally layered around a small set of composition roots and service facades.
+The TypeScript implementation is intentionally layered around a small set of composition roots and service facades.
 
 ```mermaid
 flowchart TD
@@ -196,7 +198,7 @@ Second, TUI feature code should use shared framework primitives instead of rebui
 
 Those rules are not cosmetic. They encode a deliberate push toward reusable controllers, interaction routers, and screen-model helpers.
 
-Structured search-editor continuation is a TUI-internal workflow boundary. Child prompts and shared-explorer sessions may collect local values or generic explorer drafts, but the structured search host owns how child-flow outcomes become canonical query mutations and resume targets. New structured-editor continuation paths should route through the owners documented in `docs/architecture/tui.md`: the continuation and bounded host-mutation vocabulary, the resume-target state owner, structured-draft support projection, the pure host-mutation owner, and the prompt, explorer, structural, and entry-action owners.
+Structured search-editor continuation is a TUI-internal workflow boundary. Child prompts and shared-explorer sessions may collect local values or generic explorer drafts, but the structured search host owns how child-flow outcomes become canonical query mutations and resume targets. New structured-editor continuation paths should route through the owners documented in `docs/architecture/node/tui.md`: the continuation and bounded host-mutation vocabulary, the resume-target state owner, structured-draft support projection, the pure host-mutation owner, and the prompt, explorer, structural, and entry-action owners.
 
 The stable rule is:
 
@@ -294,4 +296,4 @@ Use the enforcement mechanism that matches the actual problem:
 - use `no-restricted-imports` for ownership and layering boundaries
 - use `no-restricted-syntax` for workflow-specific API use, copy, or controller patterns
 
-For a practical guide to choosing an owner, adding a facade, and deciding when new lint enforcement is warranted, see `docs/architecture/extending.md`.
+For a practical guide to choosing an owner, adding a facade, and deciding when new lint enforcement is warranted, see `docs/architecture/node/extending.md`.

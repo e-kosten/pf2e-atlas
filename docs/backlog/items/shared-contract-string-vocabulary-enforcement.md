@@ -52,5 +52,5 @@ Useful candidate families include:
 - [Shared UI model boundary enforcement](./shared-ui-model-boundary-enforcement.md)
 - [Shared menu/editor behavior contracts](./shared-menu-editor-behavior-contracts.md)
 - [Typed seams cleanup](./typed-seams-cleanup.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)

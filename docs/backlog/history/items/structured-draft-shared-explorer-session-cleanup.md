@@ -71,5 +71,5 @@ The goal was to remove lifecycle drift, not to unify those mutation models.
 
 - [Shared menu/editor behavior contracts](./shared-menu-editor-behavior-contracts.md)
 - [Search filter explorer API simplification](./search-filter-explorer-api-simplification.md)
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)

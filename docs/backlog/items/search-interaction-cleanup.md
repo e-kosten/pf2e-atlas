@@ -34,5 +34,5 @@ This item is a consolidation of several smaller interaction notes that all point
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Search architecture](../../architecture/search.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Search architecture](../../architecture/node/search.md)

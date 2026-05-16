@@ -1,0 +1,143 @@
+# Runtime Architecture
+
+This document describes the Rust implementation under `rust/`. It is the target runtime architecture for deterministic ingest, artifact validation, local CLI workflows, lexical and semantic search, and future Rust TUI/MCP surfaces. The TypeScript/Node implementation is documented separately in [TypeScript runtime architecture](./node/runtime.md).
+
+The Rust architecture is deliberately crate-oriented. Crates should expose only the public API needed by adjacent owners, and ingest/build-time policy should not leak into runtime query or presentation crates.
+
+## System Shape
+
+```mermaid
+flowchart TD
+    source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
+    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings"]
+
+    cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes"] --> runtime["atlas-runtime<br/>path and setup policy"]
+    cli --> search["atlas-search<br/>lookup/search orchestration"]
+    cli --> index["atlas-index<br/>artifact validation and readers"]
+
+    search --> index
+    search --> embedding["atlas-embedding<br/>query vectors, document units,<br/>model catalog"]
+    index --> artifact
+    embedding --> artifact
+    index --> sqliteVec["atlas-sqlite-vec<br/>sqlite-vec capability"]
+    sqliteVec --> artifact
+
+    subgraph SharedRustModels["Shared Rust models"]
+      domain["atlas-domain<br/>request/filter/output vocabulary"]
+      record["atlas-record<br/>normalized records, ContentDocument,<br/>presentation and projections"]
+      artifactSchema["atlas-artifact<br/>SQLite schema descriptors<br/>and contract constants"]
+    end
+
+    ingest --> domain
+    ingest --> record
+    ingest --> artifactSchema
+    index --> domain
+    index --> record
+    index --> artifactSchema
+    search --> domain
+    search --> embedding
+    cli --> domain
+```
+
+## Crate Ownership
+
+| Crate | Owns | Should not own |
+| --- | --- | --- |
+| `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
+| `atlas-record` | Storage-agnostic normalized records, `ContentDocument`, rich-content renderers, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
+| `atlas-artifact` | Physical SQLite table/column descriptors, artifact metadata keys, schema SQL helpers, and table contract constants. | Record normalization, writer policy, row hydration, user-facing search behavior. |
+| `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and artifact writing. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior. |
+| `atlas-index` | Artifact validation, row readers, filter-to-SQL keyset compilation, vector-index SQL boundaries, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy. |
+| `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, search result collapse policy. |
+| `atlas-search` | Runtime search orchestration over validated index handles, lexical/semantic composition, vector-hit collapse, and search ranking modes. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions. |
+| `atlas-runtime` | Repo/user path resolution and setup policy shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization. |
+| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, and exit codes. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
+| `atlas-sqlite-vec` | Unsafe sqlite-vec extension registration and capability boundary. | Domain/search logic or artifact metadata interpretation. |
+
+## Ingest And Artifact Flow
+
+```mermaid
+flowchart LR
+    raw["Foundry source records<br/>raw JSON + manifest packs"] --> load["atlas-ingest::source<br/>load packs and source signature"]
+    load --> normalize["normalize<br/>RecordKey, family, traits,<br/>metrics, side tables"]
+    normalize --> content["Foundry content parser<br/>HTML/macros -> ContentDocument"]
+    content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
+    enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
+    generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
+    enrich --> writer["atlas-ingest::artifact::writer<br/>write SQLite rows"]
+    embedPrep --> writer
+    writer --> sqlite["Rust SQLite artifact"]
+
+    record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
+    artifact["atlas-artifact<br/>table descriptors + insert SQL"] -. schema .-> writer
+    embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
+```
+
+`atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or `artifact`.
+
+## Content, Search, And Reference Projections
+
+```mermaid
+flowchart TD
+    markup["Known Foundry rich-text fields<br/>description, notes, hazard text,<br/>embedded item/spell descriptions"] --> parser["atlas-ingest parser<br/>Foundry HTML/macros"]
+    parser --> doc["atlas-record::ContentDocument<br/>blocks, inlines, references,<br/>visibility/source policy"]
+
+    doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
+    doc --> fts["RecordFtsProjection<br/>title, aliases, traits, headings,<br/>body, facts, references,<br/>embedded_content"]
+    doc --> tree["Content section tree<br/>headings, strong leads,<br/>table captions"]
+    doc --> refs["Resolved ContentReference nodes"]
+
+    presentation --> parentEmbedding["Embedding parent unit<br/>primary/default content;<br/>embedded capability content excluded"]
+    tree --> childEmbedding["Embedding child units<br/>source-tagged sections;<br/>embedded content lower priority"]
+    refs --> edges["reference_edges<br/>source_kind + visibility"]
+    fts --> recordsFts["records_fts<br/>weighted lexical search"]
+```
+
+The durable source of authored rich text is `ContentDocument`, not stripped text and not raw Foundry markup. Plain text, markdown-like CLI output, FTS rows, semantic chunks, and reference edges are projections from content and presentation models.
+
+Default public graph and backlink behavior uses public non-embedded reference edges. GM/private/internal and embedded-source edges remain stored with source metadata and require an expanded caller mode.
+
+## Runtime Query Flow
+
+```mermaid
+flowchart TD
+    command["atlas-cli command<br/>search, record, index"] --> search["atlas-search"]
+    search --> filters["atlas-index filter compiler<br/>SearchFilterNode -> eligible records"]
+    filters --> sqlite["SQLite artifact"]
+
+    search --> lexical["atlas-index lexical SQL<br/>records_fts weighted columns"]
+    lexical --> sqlite
+
+    search --> queryVec["atlas-embedding<br/>query text -> vector"]
+    queryVec --> vectorSql["atlas-index vector query<br/>eligible document_embedding_cache rowids"]
+    vectorSql --> sqliteVec["atlas-sqlite-vec capability"]
+    sqliteVec --> sqlite
+
+    lexical --> collapse["atlas-search result assembly"]
+    vectorSql --> collapse
+    collapse --> output["atlas-cli presentation<br/>JSON or terminal text"]
+```
+
+Filters compile to an authoritative SQL keyset before lexical or vector search. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
+
+## Artifact Families
+
+The Rust SQLite artifact is the runtime contract between ingest and search. The authoritative table-family definitions live in [artifact contract](./artifact-contract.md). The current families are:
+
+- artifact identity: `artifact_metadata`
+- source packs: `packs`
+- canonical records: `records`
+- supplemental content: `record_content`
+- aliases and remaster links: `record_aliases`, `remaster_links`
+- filterable projections: `record_traits`, actor/item/spell side tables
+- open metrics and catalogs: `record_metrics`, `metric_key_catalog`, `metric_value_catalog`
+- reference graph: `reference_edges`
+- lexical search: `records_fts`
+- semantic cache and vector index: `document_embedding_cache`, `record_vector_index`
+
+## Current Gaps And Deferred Shapes
+
+- Rust TUI and Rust MCP surfaces are future consumers. They should compose through `atlas-search`, `atlas-index`, `atlas-runtime`, and `atlas-record` rather than opening SQLite or embedding models directly.
+- Journal pages and table results are recognized as rich content but are deferred to [Rust content subdocuments for journal pages and table results](../backlog/items/rust-content-subdocuments-journal-table-results.md).
+- Derived-tag rows are intentionally deferred until the Rust artifact model has a dedicated derived-tag design.
+- Search quality tuning and broader full-corpus parity remain follow-up validation work, not reasons to reintroduce raw JSON scanning or duplicate markup parsing.

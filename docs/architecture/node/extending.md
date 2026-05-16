@@ -2,7 +2,7 @@
 
 This guide is for future human and AI editors adding features to the repository. The goal is not just to place code somewhere that works. The goal is to place it in the owning layer, thread it through the right facade, and tighten the boundary when the new path is meant to be the standard route.
 
-Read `docs/architecture/overview.md` first, then `docs/architecture/boundaries.md`, then start from the relevant composition root instead of from a random leaf file.
+Read `docs/architecture/overview.md` first, then `docs/architecture/node/boundaries.md`, then start from the relevant composition root instead of from a random leaf file.
 
 ## How To Choose The Owning Layer
 

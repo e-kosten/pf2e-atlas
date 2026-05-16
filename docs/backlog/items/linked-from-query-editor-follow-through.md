@@ -36,5 +36,5 @@ This item exists because canonical inverse-link filtering is useful outside the 
 ## Related
 
 - [View pages and detail presentation](./view-pages-and-details.md)
-- [Search runtime architecture](../../architecture/search.md)
+- [Search runtime architecture](../../architecture/node/search.md)
 - [Shared TUI interaction family contracts](./shared-tui-interaction-family-contracts.md)

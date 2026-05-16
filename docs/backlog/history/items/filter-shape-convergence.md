@@ -27,7 +27,7 @@ This cleanup landed as direct replacement work rather than a compatibility migra
 
 ## Related
 
-- [Search architecture](../../../architecture/search.md)
-- [TUI architecture](../../../architecture/tui.md)
+- [Search architecture](../../../architecture/node/search.md)
+- [TUI architecture](../../../architecture/node/tui.md)
 - [Structured query summary model](./structured-query-summary-model.md)
 - [Search filter explorer draft canonicalization](./search-filter-explorer-draft-canonicalization.md)

@@ -26,4 +26,4 @@ Choose and document a directory/file structure for authored assignments that:
 
 ## Related
 
-- [Editorial architecture](../../architecture/editorial.md)
+- [Editorial architecture](../../architecture/node/editorial.md)

@@ -1,6 +1,8 @@
 # Architecture Decisions
 
-This index is the quickest way to scan the accepted architecture decision records for this repo. Use it when you need to understand the architectural commitments behind the shared runtime, the editorial surface, or the enforced boundaries around derived-tag code.
+This index is the quickest way to scan the accepted architecture decision records for this repo. Use it when you need to understand the architectural commitments behind the TypeScript runtime, the Rust runtime, the editorial surface, or the enforced boundaries around derived-tag code.
+
+The implementation split is documented in [Architecture overview](../overview.md), [TypeScript runtime architecture](../node/runtime.md), and [runtime architecture](../runtime.md). ADRs 0001-0016 mostly describe the established TypeScript/shared-product architecture. ADRs 0017-0020 describe the Rust runtime direction and current Rust-specific design decisions.
 
 ## Current ADRs
 
@@ -28,3 +30,5 @@ This index is the quickest way to scan the accepted architecture decision record
 ## Reading Order
 
 Read ADR 0001 first for the top-level surface split, then ADR 0002 for ontology and storage boundaries, ADR 0003 for tag/editorial enforcement, ADR 0004 for the non-tag ownership import rules that keep broad shared pathways from regrowing, ADR 0005 for the converged search-semantics exploration model, ADR 0006 for the shared TUI interaction contract, ADR 0007 for render-ready route preparation and navigation-owned transition loading, ADR 0009 for the shared list/detail presentation layer that sits above those interaction primitives, ADR 0010 for the original shared semantic search-contract boundary, ADR 0011 for the current canonical search data model, ADR 0012 for the shared discovery boundary, ADR 0013 for TUI canonical search-state ownership, ADR 0014 for shared result-presentation capabilities, ADR 0015 for the shared explorer-host contract and live grouped search-editing rule, ADR 0017 for the Rust runtime migration direction, ADR 0018 for the default Rust embedding model decision, ADR 0019 for the Rust CLI search and record command shape, and ADR 0020 for the Rust content document model that feeds presentation, retrieval projections, and reference extraction.
+
+For Rust implementation work, read [runtime architecture](../runtime.md), [artifact contract](../artifact-contract.md), ADR 0017, ADR 0018, ADR 0019, and ADR 0020 before inferring anything from the TypeScript runtime shape.

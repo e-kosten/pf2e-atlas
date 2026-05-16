@@ -93,11 +93,14 @@ The codebase is organized around a few stable layers:
 Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
 
 - [`overview.md`](./docs/architecture/overview.md): architecture landing page with subsystem diagrams, request flow, and navigation into the rest of the docs
-- [`boundaries.md`](./docs/architecture/boundaries.md): lint-enforced and design-level boundaries that future editors should preserve
-- [`search.md`](./docs/architecture/search.md): ranked retrieval, filters, and search backend design
-- [`tui.md`](./docs/architecture/tui.md): terminal UI composition, workflows, and service seams
-- [`editorial.md`](./docs/architecture/editorial.md): derived-tag editorial and migration tooling
-- [`extending.md`](./docs/architecture/extending.md): where to add new tools, services, and runtime capabilities
+- [`runtime.md`](./docs/architecture/runtime.md): Rust crate ownership, ingest flow, projections, and runtime search architecture under `rust/`
+- [`artifact-contract.md`](./docs/architecture/artifact-contract.md): SQLite artifact schema and validation contract for the Rust runtime
+- [`node/runtime.md`](./docs/architecture/node/runtime.md): legacy TypeScript/Node runtime architecture under `src/`
+- [`node/boundaries.md`](./docs/architecture/node/boundaries.md): TypeScript lint-enforced and design-level boundaries that future editors should preserve
+- [`node/search.md`](./docs/architecture/node/search.md): ranked retrieval, filters, and search backend design
+- [`node/tui.md`](./docs/architecture/node/tui.md): terminal UI composition, workflows, and service seams
+- [`node/editorial.md`](./docs/architecture/node/editorial.md): derived-tag editorial and migration tooling
+- [`node/extending.md`](./docs/architecture/node/extending.md): where to add new tools, services, and runtime capabilities
 - [`decisions/`](./docs/architecture/decisions/README.md): architecture decision records and follow-up design notes
 
 ## Development

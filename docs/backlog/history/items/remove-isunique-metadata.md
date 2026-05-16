@@ -28,5 +28,5 @@ This cleanup landed as direct replacement work, not as a compatibility migration
 ## Related
 
 - [Filter shape convergence](./filter-shape-convergence.md)
-- [Search architecture](../../../architecture/search.md)
-- [TUI architecture](../../../architecture/tui.md)
+- [Search architecture](../../../architecture/node/search.md)
+- [TUI architecture](../../../architecture/node/tui.md)
