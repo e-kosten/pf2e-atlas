@@ -125,8 +125,8 @@ Before Phase 4 embedding/vector work starts:
 - Compile semantic-search filters into authoritative SQL eligible-record keysets and constrain sqlite-vec with `record_vector_index.rowid` values resolved through `document_embedding_cache`. Do not use ordinary joins around the vec scan for exact filtered KNN.
 - Treat filters that cannot compile to a SQL keyset as an error in the first Rust baseline.
 - Add an `atlas-embedding` model catalog as the single owner of the active/default model decision and identity fields. Ingest, validation, and search should consume catalog specs rather than repeating raw model strings.
-- Preserve MiniLM compatibility unless a new ADR changes the baseline.
-- Treat a future BGE or other model switch as a catalog/config change plus `document_embedding_cache`, `record_vector_index`, and metadata rebuild, followed by search-quality validation.
+- Preserve MiniLM compatibility for TypeScript parity and older artifacts. ADR 0018 changes the default baseline to BGE small.
+- Treat a future default-model switch as a catalog/config change plus `document_embedding_cache`, `record_vector_index`, and metadata rebuild, followed by search-quality validation.
 - Keep vector table capability checks out of artifact metadata validation; vector capability belongs to commands that need semantic retrieval.
 
 ## Indexing Stage Map
@@ -228,7 +228,7 @@ before it becomes part of the durable CLI contract.
 - `atlas-domain`: record keys, top-level category vocabulary, explicit metadata field vocabulary, search request/filter contracts, rule graph contracts, shared artifact metadata constants, common output envelope primitives when shared by multiple surfaces.
 - `atlas-index`: read-only artifact opening, metadata validation, table contract validation, typed row loading, prepared SQL owners, vector table capability checks.
 - `atlas-ingest`: Foundry source loading, normalization, reference/alias resolution, canonicalization, table writers, metric catalog writer, source signature generation.
-- `atlas-embedding`: MiniLM query/document embedding, tokenizer/model identity, reusable vector blob handling, sqlite-vec integration helpers.
+- `atlas-embedding`: catalog-backed query/document embedding, tokenizer/model identity, reusable vector blob handling, and sqlite-vec integration helpers. BGE small is the default per ADR 0018; MiniLM remains an explicit parity and older-artifact option.
 - `atlas-search`: request lowering, filter SQL, FTS retrieval, vector retrieval, hybrid fusion, rerank adjustments, discovery commands over index/catalog readers.
 - `atlas-tags`: read-only derived-tag runtime types, published ontology/assignment loading, tag filter support, later editorial state machines.
 - `atlas-cli`: command routing, argument parsing, stable JSON output, exit code policy, human-readable presentation.
@@ -297,7 +297,8 @@ Each later phase should update a durable parity note with source revision, comma
 
 - Phase 2 domain work must cite this map when adding each durable type.
 - Phase 3 writer work must update the SQLite artifact table contract before adding broad table writers.
-- Phase 4 embedding work owns `document_embedding_cache`, `record_vector_index`, keyset-prefiltered semantic retrieval, sqlite-vec capability checks, and MiniLM compatibility unless a new ADR changes the baseline.
+- Phase 4 embedding work owns `document_embedding_cache`, `record_vector_index`, keyset-prefiltered semantic retrieval, sqlite-vec capability checks, and catalog-backed embedding compatibility. ADR 0018 sets BGE small as the default while preserving explicit MiniLM parity support.
+- Phase 9 CLI product-surface work owns the final JSON envelope policy. It must either introduce a shared CLI envelope type or record why command-specific typed reports are the stable contract, with golden tests for representative success and failure output.
 - Phase 7 discovery work cannot introduce a new table or catalog dependency without adding it to this map and the artifact contract; derived-tag discovery is explicitly out of Phase 7.
 - Phase 10 owns any retained derived-tag runtime, filters, discovery, and editorial migration model.
 - Phase 13 retirement cannot start until each parity fixture group has a recorded pass, accepted difference, or explicit deferred defect.
