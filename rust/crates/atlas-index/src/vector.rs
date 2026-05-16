@@ -5,6 +5,7 @@ use atlas_artifact::schema::{
     record_vector_index_insert_sql,
 };
 use atlas_domain::SearchFilterNode;
+use atlas_embedding::EmbeddingUnitKind;
 use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 use thiserror::Error;
@@ -30,36 +31,9 @@ pub struct VectorKnnQuery {
 pub struct VectorSearchHit {
     pub embedding_unit_key: String,
     pub record_key: String,
-    pub unit_kind: String,
+    pub unit_kind: EmbeddingUnitKind,
     pub label: Option<String>,
     pub distance: f64,
-    pub rank_distance: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum VectorSearchMode {
-    ParentOnly,
-    Chunks,
-    WeightedChunks,
-}
-
-impl VectorSearchMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::ParentOnly => "parent-only",
-            Self::Chunks => "chunks",
-            Self::WeightedChunks => "weighted-chunks",
-        }
-    }
-
-    fn includes_child_units(self) -> bool {
-        !matches!(self, Self::ParentOnly)
-    }
-
-    fn uses_rank_weights(self) -> bool {
-        matches!(self, Self::WeightedChunks)
-    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -70,6 +44,8 @@ pub enum VectorQueryError {
     EmptyQueryVector,
     #[error("vector query failed: {0}")]
     QueryFailed(String),
+    #[error("vector query returned invalid unit kind: {0}")]
+    InvalidUnitKind(String),
     #[error(transparent)]
     Filter(#[from] FilterCompileError),
 }
@@ -78,7 +54,7 @@ pub fn compile_vector_knn_query(
     query_vector: &[f32],
     filter: Option<&SearchFilterNode>,
     limit: u32,
-    mode: VectorSearchMode,
+    include_child_units: bool,
 ) -> Result<VectorKnnQuery, VectorQueryError> {
     if limit == 0 {
         return Err(VectorQueryError::InvalidLimit);
@@ -93,9 +69,8 @@ pub fn compile_vector_knn_query(
         &mut parameters,
         Value::Blob(encode_f32_vector(query_vector)),
     );
-    let unit_limit = limit.saturating_mul(20).max(limit).min(1000);
-    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(unit_limit)));
-    let unit_filter = if mode.includes_child_units() {
+    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(limit)));
+    let unit_filter = if include_child_units {
         ""
     } else {
         "AND candidate.unit_kind = 'parent'"
@@ -128,9 +103,9 @@ pub fn query_vector_index(
     query_vector: &[f32],
     filter: Option<&SearchFilterNode>,
     limit: u32,
-    mode: VectorSearchMode,
+    include_child_units: bool,
 ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
-    let compiled = compile_vector_knn_query(query_vector, filter, limit, mode)?;
+    let compiled = compile_vector_knn_query(query_vector, filter, limit, include_child_units)?;
     let mut statement = connection
         .prepare(&compiled.sql)
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
@@ -139,72 +114,26 @@ pub fn query_vector_index(
             Ok(VectorSearchHit {
                 embedding_unit_key: row.get(0)?,
                 record_key: row.get(1)?,
-                unit_kind: row.get(2)?,
+                unit_kind: parse_embedding_unit_kind(row.get(2)?)?,
                 label: row.get(3)?,
                 distance: row.get(4)?,
-                rank_distance: row.get(4)?,
             })
         })
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
     let rows = rows
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    Ok(collapse_vector_hits(rows, limit as usize, mode))
+    Ok(rows)
 }
 
-fn collapse_vector_hits(
-    rows: Vec<VectorSearchHit>,
-    limit: usize,
-    mode: VectorSearchMode,
-) -> Vec<VectorSearchHit> {
-    let mut grouped = std::collections::BTreeMap::<String, Vec<VectorSearchHit>>::new();
-    for hit in rows {
-        grouped.entry(hit.record_key.clone()).or_default().push(hit);
-    }
-    let mut collapsed = grouped
-        .into_values()
-        .filter_map(|hits| best_record_hit(hits, mode))
-        .collect::<Vec<_>>();
-    collapsed.sort_by(compare_vector_hits_for_rank);
-    collapsed.truncate(limit);
-    collapsed
-}
-
-fn best_record_hit(hits: Vec<VectorSearchHit>, mode: VectorSearchMode) -> Option<VectorSearchHit> {
-    let has_parent = hits.iter().any(|hit| hit.unit_kind == "parent");
-    hits.into_iter()
-        .map(|mut hit| {
-            hit.rank_distance = if mode.uses_rank_weights() {
-                adjusted_rank_distance(&hit, has_parent)
-            } else {
-                hit.distance
-            };
-            hit
-        })
-        .min_by(compare_vector_hits_for_rank)
-}
-
-fn adjusted_rank_distance(hit: &VectorSearchHit, has_parent: bool) -> f64 {
-    let unit_penalty = match hit.unit_kind.as_str() {
-        "parent" => 0.0,
-        "heading_section" => 0.025,
-        "titled_option" => 0.040,
-        "activation_block" => 0.055,
-        _ => 0.060,
-    };
-    let missing_parent_penalty = if has_parent { 0.0 } else { 0.025 };
-    hit.distance + unit_penalty + missing_parent_penalty
-}
-
-fn compare_vector_hits_for_rank(
-    left: &VectorSearchHit,
-    right: &VectorSearchHit,
-) -> std::cmp::Ordering {
-    left.rank_distance
-        .total_cmp(&right.rank_distance)
-        .then_with(|| left.distance.total_cmp(&right.distance))
-        .then_with(|| left.record_key.cmp(&right.record_key))
-        .then_with(|| left.embedding_unit_key.cmp(&right.embedding_unit_key))
+fn parse_embedding_unit_kind(value: String) -> Result<EmbeddingUnitKind, rusqlite::Error> {
+    value.parse::<EmbeddingUnitKind>().map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(
+            value.len(),
+            rusqlite::types::Type::Text,
+            Box::new(error),
+        )
+    })
 }
 
 pub fn validate_vector_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
@@ -518,170 +447,12 @@ fn metadata_summary_from_report(report: &ArtifactValidationReport) -> ArtifactMe
 mod tests {
     use super::*;
 
-    fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
-        VectorSearchHit {
-            embedding_unit_key: unit.to_string(),
-            record_key: record.to_string(),
-            unit_kind: unit_kind.to_string(),
-            label: None,
-            distance,
-            rank_distance: distance,
-        }
-    }
-
     #[test]
-    fn collapse_vector_hits_keeps_one_unit_per_record() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit("records:a#parent", "records:a", "parent", 0.1),
-                hit(
-                    "records:a#heading_section:1",
-                    "records:a",
-                    "heading_section",
-                    0.2,
-                ),
-                hit("records:b#parent", "records:b", "parent", 0.3),
-                hit("records:c#parent", "records:c", "parent", 0.4),
-            ],
-            2,
-            VectorSearchMode::WeightedChunks,
-        );
-
+    fn parses_known_embedding_unit_kind() {
         assert_eq!(
-            collapsed
-                .iter()
-                .map(|hit| (hit.embedding_unit_key.as_str(), hit.record_key.as_str()))
-                .collect::<Vec<_>>(),
-            vec![
-                ("records:a#parent", "records:a"),
-                ("records:b#parent", "records:b"),
-            ]
+            parse_embedding_unit_kind("heading_section".to_string())
+                .expect("known unit kind should parse"),
+            EmbeddingUnitKind::HeadingSection
         );
-    }
-
-    #[test]
-    fn collapse_vector_hits_keeps_parent_over_slightly_closer_activation_block() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit(
-                    "records:a#activation_block:1",
-                    "records:a",
-                    "activation_block",
-                    0.100,
-                ),
-                hit("records:a#parent", "records:a", "parent", 0.130),
-            ],
-            10,
-            VectorSearchMode::WeightedChunks,
-        );
-
-        assert_eq!(collapsed[0].embedding_unit_key, "records:a#parent");
-        assert_eq!(collapsed[0].distance, 0.130);
-        assert_eq!(collapsed[0].rank_distance, 0.130);
-    }
-
-    #[test]
-    fn collapse_vector_hits_allows_much_closer_child_to_recover_record() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit(
-                    "records:a#activation_block:1",
-                    "records:a",
-                    "activation_block",
-                    0.100,
-                ),
-                hit("records:a#parent", "records:a", "parent", 0.200),
-            ],
-            10,
-            VectorSearchMode::WeightedChunks,
-        );
-
-        assert_eq!(
-            collapsed[0].embedding_unit_key,
-            "records:a#activation_block:1"
-        );
-        assert_eq!(collapsed[0].distance, 0.100);
-        assert_eq!(collapsed[0].rank_distance, 0.155);
-    }
-
-    #[test]
-    fn collapse_vector_hits_prefers_heading_section_over_activation_block_at_similar_distance() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit(
-                    "records:a#activation_block:1",
-                    "records:a",
-                    "activation_block",
-                    0.100,
-                ),
-                hit(
-                    "records:b#heading_section:1",
-                    "records:b",
-                    "heading_section",
-                    0.105,
-                ),
-            ],
-            10,
-            VectorSearchMode::WeightedChunks,
-        );
-
-        assert_eq!(
-            collapsed[0].embedding_unit_key,
-            "records:b#heading_section:1"
-        );
-        assert_eq!(collapsed[0].rank_distance, 0.155);
-        assert_eq!(
-            collapsed[1].embedding_unit_key,
-            "records:a#activation_block:1"
-        );
-        assert_eq!(collapsed[1].rank_distance, 0.180);
-    }
-
-    #[test]
-    fn collapse_vector_hits_penalizes_records_without_parent_hit() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit(
-                    "records:a#heading_section:1",
-                    "records:a",
-                    "heading_section",
-                    0.100,
-                ),
-                hit("records:b#parent", "records:b", "parent", 0.145),
-            ],
-            10,
-            VectorSearchMode::WeightedChunks,
-        );
-
-        assert_eq!(collapsed[0].embedding_unit_key, "records:b#parent");
-        assert_eq!(collapsed[0].rank_distance, 0.145);
-        assert_eq!(
-            collapsed[1].embedding_unit_key,
-            "records:a#heading_section:1"
-        );
-        assert_eq!(collapsed[1].rank_distance, 0.150);
-    }
-
-    #[test]
-    fn collapse_vector_hits_can_rank_chunks_without_unit_weights() {
-        let collapsed = collapse_vector_hits(
-            vec![
-                hit(
-                    "records:a#heading_section:1",
-                    "records:a",
-                    "heading_section",
-                    0.100,
-                ),
-                hit("records:a#parent", "records:a", "parent", 0.120),
-            ],
-            10,
-            VectorSearchMode::Chunks,
-        );
-
-        assert_eq!(
-            collapsed[0].embedding_unit_key,
-            "records:a#heading_section:1"
-        );
-        assert_eq!(collapsed[0].rank_distance, 0.100);
     }
 }

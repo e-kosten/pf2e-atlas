@@ -48,7 +48,7 @@ Do not compare TypeScript runtime timings against Rust dev-profile `cargo run` t
 ## Current Foundation
 
 - [x] Add `rust/` workspace.
-- [x] Add `atlas-domain`, `atlas-index`, `atlas-search`, and `atlas-cli`.
+- [x] Add `atlas-domain`, `atlas-index`, `atlas-search`, `atlas-runtime`, and `atlas-cli`.
 - [x] Pin Rust toolchain with `rust-toolchain.toml`.
 - [x] Track `Cargo.lock`.
 - [x] Deny `unsafe_code` in initial crates.

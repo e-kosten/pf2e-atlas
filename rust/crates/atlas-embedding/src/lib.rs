@@ -7,6 +7,7 @@ mod error;
 mod minilm;
 mod text;
 mod tokenization;
+mod unit_kind;
 mod vector_math;
 
 pub use catalog::{
@@ -27,6 +28,7 @@ pub use tokenization::{
     BudgetedEmbeddingInput, EmbeddingInputTokenization, EmbeddingSectionTruncation,
     TextEmbeddingTokenizer,
 };
+pub use unit_kind::{EmbeddingUnitKind, ParseEmbeddingUnitKindError};
 
 #[cfg(test)]
 mod tests;

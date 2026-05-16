@@ -30,7 +30,7 @@ pub use validation::{
     ArtifactValidationReport, ValidationCode, ValidationStatus,
 };
 pub use vector::{
-    VectorKnnQuery, VectorQueryError, VectorSearchHit, VectorSearchMode, compile_vector_knn_query,
+    VectorKnnQuery, VectorQueryError, VectorSearchHit, compile_vector_knn_query,
     query_vector_index, validate_vector_index, validate_vector_index_report,
     validate_vector_index_with_loader, write_vector_index, write_vector_index_report,
     write_vector_index_with_loader,

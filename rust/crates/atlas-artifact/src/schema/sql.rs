@@ -380,6 +380,8 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
 
 #[cfg(test)]
 mod tests {
+    use crate::schema::REQUIRED_COLUMNS;
+
     use super::*;
 
     #[test]
@@ -476,5 +478,33 @@ mod tests {
         );
         assert!(!PERSISTED_RECORD_COLUMNS.contains(&records::columns::DESCRIPTION_SNIPPET));
         assert!(RECORD_COLUMNS.contains(&records::columns::DESCRIPTION_SNIPPET));
+    }
+
+    #[test]
+    fn created_schema_contains_required_descriptor_columns() {
+        let connection =
+            rusqlite::Connection::open_in_memory().expect("in-memory database should open");
+        connection
+            .execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)
+            .expect("artifact schema should create");
+
+        for (table, columns) in REQUIRED_COLUMNS {
+            let table_name = table.name();
+            let mut statement = connection
+                .prepare(&format!("PRAGMA table_xinfo({table_name})"))
+                .expect("table info statement should prepare");
+            let present = statement
+                .query_map([], |row| row.get::<_, String>(1))
+                .expect("table info should query")
+                .collect::<Result<std::collections::BTreeSet<_>, _>>()
+                .expect("table info rows should load");
+            for column in *columns {
+                assert!(
+                    present.contains(column.name()),
+                    "created schema is missing descriptor column {}",
+                    column.key()
+                );
+            }
+        }
     }
 }

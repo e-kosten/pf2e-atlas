@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_embedding::{
     EmbeddingError, EmbeddingInputChunk, EmbeddingInputSection, EmbeddingInputTokenization,
-    EmbeddingSectionTruncation, TextEmbedder, TextEmbeddingTokenizer,
+    EmbeddingSectionTruncation, EmbeddingUnitKind, TextEmbedder, TextEmbeddingTokenizer,
     hash_document_embedding_input, render_embedding_chunks_for_embedding,
     render_presentation_document_embedding_chunks,
 };
@@ -25,25 +25,6 @@ pub struct PendingDocumentEmbedding {
     pub input_chunks: Vec<EmbeddingInputChunk>,
     pub input_text: String,
     pub input_hash: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum EmbeddingUnitKind {
-    Parent,
-    HeadingSection,
-    TitledOption,
-    ActivationBlock,
-}
-
-impl EmbeddingUnitKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Parent => "parent",
-            Self::HeadingSection => "heading_section",
-            Self::TitledOption => "titled_option",
-            Self::ActivationBlock => "activation_block",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

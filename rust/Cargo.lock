@@ -84,6 +84,9 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 [[package]]
 name = "atlas-artifact"
 version = "0.1.0"
+dependencies = [
+ "rusqlite",
+]
 
 [[package]]
 name = "atlas-cli"
@@ -94,6 +97,7 @@ dependencies = [
  "atlas-embedding",
  "atlas-index",
  "atlas-ingest",
+ "atlas-runtime",
  "atlas-search",
  "clap",
  "indicatif",
@@ -162,6 +166,13 @@ name = "atlas-record"
 version = "0.1.0"
 dependencies = [
  "atlas-domain",
+]
+
+[[package]]
+name = "atlas-runtime"
+version = "0.1.0"
+dependencies = [
+ "atlas-embedding",
 ]
 
 [[package]]
