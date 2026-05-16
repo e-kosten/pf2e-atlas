@@ -168,7 +168,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [x] anyOf/allOf/not
 - [x] Add rule graph contracts.
 - [x] Add metadata-field vocabulary.
-- [ ] Add CLI output envelope types if shared across commands.
+- [x] Defer shared CLI output envelope types to Phase 9, where the CLI product surface stabilizes.
 - [x] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
 
 Acceptance:
@@ -231,7 +231,7 @@ Comparison note:
 
 ## Phase 4: Embeddings And Vector Artifact
 
-Goal: keep the first Rust search baseline compatible with the existing MiniLM embedding space.
+Goal: keep Rust semantic search in a catalog-backed embedding space, preserve explicit MiniLM parity support, and use the accepted default embedding model from ADR 0018.
 
 - [x] Add `atlas-embedding` crate only when query or document embedding implementation starts.
 - [x] Add an `atlas-embedding` model catalog that owns the default model decision and all embedding identity fields used by ingest, validation, and query runtime.
@@ -258,12 +258,13 @@ Goal: keep the first Rust search baseline compatible with the existing MiniLM em
 - [x] Validate cache and vector-index key coverage against default-visible searchable records.
 - [x] Log and report tokenizer truncation telemetry for document embedding inputs.
 - [x] Performance-test keyset-prefiltered semantic search before adding vec metadata or partition columns.
-- [ ] Keep BGE as a deferred quality-bakeoff option, not the first migration baseline.
-- [ ] Ensure switching the active embedding model is a catalog/config change plus artifact rebuild, not scattered edits to storage, validation, ingest, and search code.
-- [ ] Evaluate longer-context embedding options after the Rust baseline is measurable, including BGE v1.5 and Nomic, against query quality, ingest speed, artifact size, vector dimensions, and runtime packaging.
+- [x] Select BGE small as the default Rust embedding model through ADR 0018, while keeping MiniLM as an explicit parity and older-artifact option.
+- [x] Ensure switching the active embedding model is a catalog/config change plus artifact rebuild, not scattered edits to storage, validation, ingest, and search code.
+- [ ] Evaluate longer-context and quality-ceiling embedding options after the Rust baseline is measurable, including Nomic and `all-mpnet-base-v2`, against query quality, ingest speed, artifact size, vector dimensions, and runtime packaging.
 
 Acceptance:
-- Rust MiniLM query vectors match existing TypeScript vectors for sampled queries.
+- Rust MiniLM query vectors match existing TypeScript vectors for sampled queries when MiniLM is selected.
+- The default Rust embedding metadata follows ADR 0018's BGE small contract.
 - Runtime fails clearly on embedding identity mismatch.
 - Semantic search can be disabled or rejected without corrupting lexical/structured commands.
 
@@ -348,7 +349,7 @@ Goal: implement the first Rust search baseline using SQLite-centered hybrid retr
 - [ ] Implement explain output if still useful.
 - [ ] Add top-k quality fixtures from the search-quality bakeoff.
 - [ ] Add parity or accepted-difference reports against TypeScript.
-- [ ] Keep Tantivy, LanceDB, BGE, and heavyweight rerankers deferred unless a new quality result justifies them.
+- [ ] Keep Tantivy, LanceDB, non-default embedding-model switches, and heavyweight rerankers deferred unless a new quality result justifies them.
 
 Acceptance:
 - Representative lookup/search/rule workflows pass against Rust.
@@ -360,7 +361,11 @@ Acceptance:
 Goal: make the Rust CLI the default local agent interface.
 
 - [ ] Stabilize command naming.
-- [ ] Stabilize JSON envelopes.
+- [ ] Stabilize JSON envelopes:
+  - [ ] decide whether CLI commands share one envelope type or use command-specific typed reports with consistent required fields
+  - [ ] if shared, add the envelope to the narrowest owner that needs it, normally `atlas-cli` unless another Rust surface consumes it directly
+  - [ ] define required success, error, diagnostic, pagination, and timing fields for commands that need them
+  - [ ] add golden tests for the chosen envelope policy across representative success and failure commands
 - [ ] Stabilize exit codes.
 - [ ] Add human-readable output mode if needed.
 - [ ] Add `--json` default policy or explicit always-JSON policy.

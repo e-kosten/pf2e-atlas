@@ -96,7 +96,7 @@ Using Python, Node, or TypeScript for exploratory analysis does not create the s
 - fast-changing clustering, discovery, and evaluation reports can iterate outside the Rust binary
 - migration parity scripts can compare Rust output to the existing TypeScript runtime while the cutover is underway
 
-The important constraint is that these helpers do not become the owner of canonical runtime artifacts. Deterministic Foundry ingest, normalized record construction, source signatures, SQLite table writes, and artifact metadata should move to Rust. A Python or Node query sidecar is not part of the target architecture; Rust query embeddings have been shown viable for the current MiniLM model.
+The important constraint is that these helpers do not become the owner of canonical runtime artifacts. Deterministic Foundry ingest, normalized record construction, source signatures, SQLite table writes, and artifact metadata should move to Rust. A Python or Node query sidecar is not part of the target architecture; Rust query embeddings have been shown viable for the catalog-backed embedding path.
 
 ## Target Shape
 
@@ -230,8 +230,8 @@ This migration is in staged implementation. The first foundation slice records t
 
 Spike findings:
 
-- [Rust query embedding spike](./spikes/rust-query-embedding.md): keep MiniLM for the first Rust embedding provider; Rust vectors match the TypeScript provider for sampled queries.
-- [Search quality bakeoff spike](./spikes/search-quality-bakeoff.md): keep a SQLite-centered hybrid retrieval baseline; defer Tantivy, LanceDB, better models, and heavyweight rerankers.
+- [Rust query embedding spike](./spikes/rust-query-embedding.md): MiniLM vectors match the TypeScript provider for sampled queries; ADR 0018 selects BGE small as the Rust default while keeping MiniLM as an explicit parity option.
+- [Search quality bakeoff spike](./spikes/search-quality-bakeoff.md): keep a SQLite-centered hybrid retrieval baseline; defer Tantivy, LanceDB, non-default model switches, and heavyweight rerankers.
 - [Tantivy lexical search spike](./spikes/tantivy-lexical-search.md): deferred before first migration baseline.
 - [LanceDB retrieval store spike](./spikes/lancedb-retrieval-store.md): do not add LanceDB as a parallel retrieval database for the current PF2E runtime.
 - [Rust CLI agent surface spike](./spikes/rust-cli-agent-surface.md): continue CLI plus skill as the primary local agent-surface direction, with schema/facet discovery and support shaping still required.
@@ -290,6 +290,7 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 4. Write reusable vector blobs to `document_embedding_cache` and lightweight sqlite-vec rows to `record_vector_index`.
 5. Use authoritative SQL keyset prefiltering for filtered semantic search instead of duplicating filter projection columns in the vector table.
 6. Add sqlite-vec capability checks and unavailable-vector diagnostics.
+7. Route default model selection through the embedding catalog; ADR 0018 currently selects BGE small as the default and retains MiniLM as a parity option.
 
 ### Later Search Runtime
 
