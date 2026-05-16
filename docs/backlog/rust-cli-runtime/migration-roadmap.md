@@ -365,9 +365,9 @@ Any implementation plan that comes from this item should include:
 ## Related
 
 - [Architecture overview](../../architecture/overview.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
-- [Search architecture](../../architecture/search.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Editorial architecture](../../architecture/editorial.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
+- [Search architecture](../../architecture/node/search.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Editorial architecture](../../architecture/node/editorial.md)
 - [Derived-tag index service layer](../items/derived-tag-index-service-layer.md)
 - [Tagging tooling reorganization](../items/tagging-tooling-reorg.md)

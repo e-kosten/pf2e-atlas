@@ -51,4 +51,4 @@ This backlog item tracks the richer follow-through where pointer input can also 
 
 - [View pages and detail presentation](./view-pages-and-details.md)
 - [Shared TUI interaction family contracts](./shared-tui-interaction-family-contracts.md)
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../architecture/node/tui.md)

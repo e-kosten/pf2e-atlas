@@ -26,5 +26,5 @@ Clarify the durable owner for metric-family availability in structured-editor me
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architecture boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architecture boundaries](../../architecture/node/boundaries.md)

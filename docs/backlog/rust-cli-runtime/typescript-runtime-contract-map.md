@@ -30,8 +30,8 @@ Primary TypeScript sources:
 - `src/domain/search-request-types.ts`: canonical request and filter tree.
 - `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts`: metadata fields and predicate contracts.
 - `src/domain/rule-types.ts`: rule graph and rule-context contracts.
-- `docs/architecture/search.md`: current search flow and owner boundaries.
-- `docs/architecture/editorial.md`: current derived-tag runtime/editorial split.
+- `docs/architecture/node/search.md`: current search flow and owner boundaries.
+- `docs/architecture/node/editorial.md`: current derived-tag runtime/editorial split.
 
 ## SQLite Artifact Table Map
 

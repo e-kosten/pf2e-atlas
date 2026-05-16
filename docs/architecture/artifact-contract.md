@@ -1,6 +1,8 @@
-# Rust Artifact Contract
+# Artifact Contract
 
 This document defines the first runtime artifact boundary for the Rust migration. The Rust runtime opens a prepared SQLite index read-only and validates normal SQLite metadata before loading vector tables or runtime search state.
+
+For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md). For the TypeScript/Node implementation, see [TypeScript runtime architecture](./node/runtime.md).
 
 ## Contract Version
 

@@ -50,7 +50,7 @@ Prompt seam friction is already tracked separately in [Typed seams cleanup](./ty
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
 - [ADR 0006: Shared TUI interaction contracts](../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
 - [Shared UI model boundary enforcement](./shared-ui-model-boundary-enforcement.md)

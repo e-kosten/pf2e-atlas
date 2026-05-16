@@ -36,4 +36,4 @@ This item is a follow-up to the entity-page and reference-navigation work. It sh
 
 - [View pages and detail presentation](./view-pages-and-details.md)
 - [Search result list viewport behavior](./search-result-list-viewport-behavior.md)
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../architecture/node/tui.md)

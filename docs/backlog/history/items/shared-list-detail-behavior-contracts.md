@@ -40,7 +40,7 @@ This item remains adjacent to the broader [Shared UI model boundary enforcement]
 
 ## Related
 
-- [TUI architecture](../../../architecture/tui.md)
-- [Architectural boundaries](../../../architecture/boundaries.md)
+- [TUI architecture](../../../architecture/node/tui.md)
+- [Architectural boundaries](../../../architecture/node/boundaries.md)
 - [Right-navigation feedback](./right-navigation-feedback.md)
 - [Shared UI model boundary enforcement](../../items/shared-ui-model-boundary-enforcement.md)

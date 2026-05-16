@@ -39,4 +39,4 @@ The original scratch note suggested taking `@typescript-eslint/require-await` as
 
 ## Related
 
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)

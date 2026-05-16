@@ -75,8 +75,8 @@ A future implementation should:
 
 - [Structured query summary model](../history/items/structured-query-summary-model.md)
 - [Search screen interaction follow-through](./search-screen-interaction-follow-through.md)
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
 - [ADR 0005: Live search-semantics exploration](../../architecture/decisions/0005-live-search-semantics-exploration.md)
 - [ADR 0007: Render-ready route transitions](../../architecture/decisions/0007-render-ready-route-transitions.md)
 - [ADR 0002: Readonly ontology and explicit storage boundary](../../architecture/decisions/0002-readonly-ontology-and-explicit-storage-boundary.md)

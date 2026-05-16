@@ -25,4 +25,4 @@ Add tooling that can:
 
 ## Related
 
-- [Editorial architecture](../../architecture/editorial.md)
+- [Editorial architecture](../../architecture/node/editorial.md)

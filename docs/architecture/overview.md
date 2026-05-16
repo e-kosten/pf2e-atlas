@@ -1,20 +1,30 @@
 # Architecture Overview
 
-This is the front door for the project architecture. Read it first when you need to understand how the MCP server, the shared data runtime, the terminal UI, and the editorial tooling fit together. Then follow the links into the focused documents for the subsystem you are changing.
+This is the front door for the project architecture. Read it first when you need to understand which implementation owns the area you are changing, then follow the implementation-specific and subsystem-specific documents.
 
 ## What This System Is
 
-This repository has one shared core and multiple execution surfaces:
+This repository currently has two implementation shapes:
 
-- a read-only MCP server over a prepared local PF2E SQLite index
-- a terminal UI for search, ontology browsing, and local workflows
-- an editorial/tooling surface for derived-tag discovery, migration, and review
+- the established TypeScript/Node runtime under `src/`
+- the target Rust runtime under `rust/`
 
-Those surfaces intentionally share the same backend data runtime instead of maintaining parallel retrieval stacks. The main architectural goal is to keep storage, normalization, lookup, rule graph, and search logic reusable while allowing each surface to evolve at its own boundary.
+The TypeScript runtime still owns the current mature MCP, terminal, and editorial product surfaces. The Rust runtime owns the new deterministic ingest/artifact/search direction and is where new Rust-specific architecture decisions should land.
+
+Do not silently apply the TypeScript layout to Rust. The TypeScript implementation is service/folder-oriented around `Pf2eDataService`; the Rust implementation is crate-oriented around explicit ownership of records, artifacts, ingest, index reading, embedding, search, runtime setup, and CLI presentation.
 
 ## At A Glance
 
-The shortest useful mental model is:
+Use these docs by implementation:
+
+- [TypeScript runtime architecture](./node/runtime.md): current `src/` MCP/TUI/editorial runtime shape.
+- [Runtime architecture](./runtime.md): current `rust/` crate ownership, ingest flow, content projections, and runtime query flow.
+- [Artifact contract](./artifact-contract.md): Rust SQLite schema, table families, validation contract, and embedding/vector artifact boundary.
+- [Architectural boundaries](./node/boundaries.md): enforced TypeScript layering and repo-wide editing rules.
+- [Search architecture](./node/search.md), [TUI architecture](./node/tui.md), and [Editorial architecture](./node/editorial.md): mature TypeScript subsystem docs.
+- [Architecture decisions](./decisions/README.md): accepted decisions, including Rust ADRs 0017-0020.
+
+The shortest useful TypeScript mental model is:
 
 - `src/index.ts` is the MCP composition root
 - `src/tui/app-services.ts` is the terminal/editorial composition root
@@ -31,7 +41,7 @@ The shortest useful mental model is:
 - `src/tags/reviews/` owns durable review registries and reviewed discovery state
 - `src/tags/editorial/` owns editorial state, session, writeback, and UI workflows
 - `src/tags/cli/` groups offline discovery, evaluation, and editorial entrypoints
-- `docs/architecture/rust-artifact-contract.md` owns the first Rust SQLite artifact contract and validation diagnostic families
+- `docs/architecture/artifact-contract.md` owns the first Rust SQLite artifact contract and validation diagnostic families
 - `src/search/filters/` owns execution-time metadata normalization, validation, and record-level matching; public metadata field semantics stay in `src/domain/metadata-field-catalog.ts`
 - `src/data/backend/search-sql.ts` and `src/data/backend/metadata-search-sql.ts` own SQL-facing filter assembly and metadata predicate SQL construction
 - `src/data/metadata-row-projection.ts` owns metadata row selection and hydration mapping for normalized records
@@ -40,66 +50,74 @@ The shortest useful mental model is:
 - `src/domain/` defines shared vocabulary and contracts
 - `src/shared/` stays intentionally small and only holds true cross-layer primitives
 
-If you remember only one rule, remember this one: transport and UI layers should stay thin, and shared retrieval behavior should flow through `Pf2eDataService` and the app-level facades instead of being rebuilt ad hoc.
+The shortest useful Rust mental model is:
+
+- `atlas-cli` owns command parsing, output, progress, and exit codes
+- `atlas-runtime` owns path/setup policy
+- `atlas-search` owns runtime search orchestration
+- `atlas-index` owns artifact validation, row readers, filter compilation, and vector SQL
+- `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors
+- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, and artifact writing
+- `atlas-record` owns normalized records, `ContentDocument`, presentation contracts, FTS projection, and section-tree projection
+- `atlas-artifact` owns physical SQLite table/column descriptors and contract constants
+- `atlas-domain` owns shared Rust request/filter/output vocabulary
+- `atlas-sqlite-vec` owns sqlite-vec registration and capability probing
+
+If you remember only one rule, remember this one: first identify which implementation you are changing. In TypeScript, transport and UI layers should stay thin and shared retrieval behavior should flow through `Pf2eDataService` and app-level facades. In Rust, CLI and future surfaces should stay thin and durable behavior should flow through the crate that owns the concern.
 
 ## System Overview
 
 ```mermaid
 flowchart TD
-    client["MCP client"] --> stdio["stdio transport"]
-    stdio --> server["src/index.ts<br/>MCP server bootstrap"]
-    server --> appRuntime["src/app/runtime.ts<br/>runtime assembly"]
+    pf2e["Vendored PF2E source"] --> nodeIndex["TypeScript index builder<br/>src/data/indexing"]
+    pf2e --> rustIngest["Rust ingest<br/>atlas-ingest"]
 
-    subgraph SharedCore["Shared runtime and backend core"]
-      appRuntime --> dataService["src/data/service.ts<br/>Pf2eDataService"]
-      appRuntime --> ranking["src/search/ranking-config.ts<br/>ranking config store"]
-      dataService --> catalog["src/data/backend/<br/>catalog + search + rule graph"]
-      catalog --> search["src/search/<br/>query analysis + ranking + runtime search"]
-      catalog --> db["Prepared SQLite index"]
-      db --> vendor["Vendored PF2E checkout<br/>and prepared embedding assets"]
+    nodeIndex --> legacyDb["Prepared SQLite index<br/>TypeScript contract"]
+    rustIngest --> rustDb["Rust SQLite artifact<br/>pf2e-atlas-artifact/v1"]
+
+    subgraph NodeRuntime["TypeScript/Node runtime under src/"]
+      mcp["MCP server<br/>src/index.ts + src/server"]
+      tui["Terminal/editorial UI<br/>src/tui + src/tags"]
+      data["Pf2eDataService<br/>src/data"]
+      tsSearch["Search mechanics<br/>src/search"]
+      mcp --> data
+      tui --> data
+      data --> tsSearch
+      data --> legacyDb
     end
 
-    server --> toolHandlers["src/server/<br/>tool schemas + presenters + registration"]
-    toolHandlers --> dataService
-
-    subgraph TerminalAndEditorial["Terminal and editorial surfaces"]
-      tuiRoot["src/tui/app-services.ts<br/>terminal composition"] --> ontology["src/app/ontology-service.ts"]
-      tuiRoot --> storage["src/app/storage-service.ts"]
-      tuiRoot --> tuiSearch["src/tui/search/service.ts"]
-      tuiRoot --> tagUi["src/tags/editorial/ui/<br/>workbench and review controllers"]
-      ontology --> dataService
-      tuiSearch --> dataService
-      storage --> db
-      tagUi --> storage
+    subgraph RustRuntime["Rust runtime under rust/"]
+      cli["atlas-cli"]
+      runtime["atlas-runtime"]
+      rustSearch["atlas-search"]
+      index["atlas-index"]
+      embedding["atlas-embedding"]
+      record["atlas-record"]
+      artifact["atlas-artifact"]
+      cli --> runtime
+      cli --> rustSearch
+      rustSearch --> index
+      rustSearch --> embedding
+      index --> rustDb
+      embedding --> rustDb
+      rustIngest --> record
+      rustIngest --> artifact
+      index --> record
+      index --> artifact
     end
 
-    subgraph Tags["Derived-tag subsystem"]
-      authored["src/tags/{ontology,rules,assignments,exemplars}<br/>authored source of truth"]
-      reviews["src/tags/reviews/<br/>review queues, memory, reviewed discovery state"]
-      runtime["src/tags/runtime/{publication,derivation,matcher,compat}<br/>published runtime ownership"]
-      editorial["src/tags/editorial/{state,sessions,writeback,ui}<br/>editorial execution ownership"]
-      cli["src/tags/cli/{discovery,evaluation,editorial,shared}<br/>grouped offline entrypoints"]
-
-      authored --> runtime
-      reviews --> editorial
-      reviews --> runtime
-      runtime --> editorial
-      cli --> editorial
-      cli --> storage
-      tagUi --> editorial
-    end
-
-    domain["src/domain/<br/>shared contracts and vocabularies"] -. supports .-> dataService
-    domain -. supports .-> search
-    domain -. supports .-> toolHandlers
-    domain -. supports .-> tuiSearch
+    rustFuture["Future Rust TUI/MCP surfaces"] -. should compose through .-> rustSearch
 ```
 
 ## Execution Surfaces
 
+For the TypeScript implementation, see [TypeScript runtime architecture](./node/runtime.md) for the full runtime diagram and the detailed `src/` ownership map.
+
+For the Rust implementation, see [runtime architecture](./runtime.md) for crate diagrams, ingest flow, content/search/reference projections, and runtime query flow.
+
 ### MCP Server
 
-The public product surface is the stdio MCP server in `src/index.ts`. It:
+The current public product surface is the TypeScript stdio MCP server in `src/index.ts`. It:
 
 1. loads config and ranking state via `src/app/runtime.ts`
 2. creates one long-lived `Pf2eDataService`
@@ -107,6 +125,8 @@ The public product surface is the stdio MCP server in `src/index.ts`. It:
 4. serves requests over stdio using thin tool handlers
 
 The server layer should own wire concerns such as schemas, descriptions, and response presentation. It should not own ranking policy, SQL access, or new storage lifecycles.
+
+A future Rust MCP surface should be thin over the Rust runtime crates. It should not copy TypeScript service internals into Rust or open SQLite/model resources directly from transport code.
 
 ### Terminal UI
 
@@ -117,6 +137,8 @@ The terminal application composes on top of the same runtime through `src/tui/ap
 - terminal framework and navigation state in `src/tui/framework/` and nearby screens
 
 The TUI is a consumer of the shared runtime, not a second backend.
+
+A future Rust TUI should consume the Rust runtime crates through search/index/runtime/presentation boundaries rather than rebuilding artifact or embedding access in screen code.
 
 ### Editorial And Tagging Tooling
 
@@ -129,9 +151,11 @@ The editorial subsystem under `src/tags/` is large because it supports assignmen
 - offline tooling is grouped under `cli/discovery/`, `cli/evaluation/`, `cli/editorial/`, and `cli/shared/`
 - non-editorial code should prefer `src/tags/runtime.ts`, `src/tags/editorial.ts`, or `src/tags/editorial-ui.ts` over arbitrary imports into tag leaf modules
 
-See [`editorial.md`](./editorial.md) for the deeper breakdown of the editorial subsystem.
+See [`editorial.md`](./node/editorial.md) for the deeper breakdown of the editorial subsystem.
 
-## Layer Responsibilities
+## TypeScript Layer Responsibilities
+
+The sections below describe the established TypeScript implementation under `src/`. For Rust crate responsibilities, use [runtime architecture](./runtime.md).
 
 ### `src/domain/`
 
@@ -348,12 +372,12 @@ If you are new to the repo, use this sequence:
 
 1. read [`README.md`](../../README.md)
 2. read this overview
-3. read [`boundaries.md`](./boundaries.md)
+3. read [`boundaries.md`](./node/boundaries.md)
 4. jump to the focused doc for your subsystem:
-   - [`search.md`](./search.md)
-   - [`tui.md`](./tui.md)
-   - [`editorial.md`](./editorial.md)
-   - [`extending.md`](./extending.md)
+   - [`search.md`](./node/search.md)
+   - [`tui.md`](./node/tui.md)
+   - [`editorial.md`](./node/editorial.md)
+   - [`extending.md`](./node/extending.md)
    - [`decisions/README.md`](./decisions/README.md)
 5. inspect the relevant composition root:
    - `src/index.ts` for MCP changes
@@ -362,11 +386,11 @@ If you are new to the repo, use this sequence:
 
 ### Which Document To Open Next
 
-- Open [`boundaries.md`](./boundaries.md) when you need to know what is intentionally restricted or lint-enforced.
-- Open [`search.md`](./search.md) when you are changing ranking, filter behavior, or retrieval flow.
-- Open [`tui.md`](./tui.md) when you are changing terminal composition, navigation, or TUI service seams.
-- Open [`editorial.md`](./editorial.md) when you are changing derived-tag workflows, review tooling, or migration flows.
-- Open [`extending.md`](./extending.md) when you are deciding where a new feature or abstraction belongs.
+- Open [`boundaries.md`](./node/boundaries.md) when you need to know what is intentionally restricted or lint-enforced.
+- Open [`search.md`](./node/search.md) when you are changing ranking, filter behavior, or retrieval flow.
+- Open [`tui.md`](./node/tui.md) when you are changing terminal composition, navigation, or TUI service seams.
+- Open [`editorial.md`](./node/editorial.md) when you are changing derived-tag workflows, review tooling, or migration flows.
+- Open [`extending.md`](./node/extending.md) when you are deciding where a new feature or abstraction belongs.
 - Open [`decisions/README.md`](./decisions/README.md) when a design choice depends on previous architectural commitments.
 
 ## Editing Guidance

@@ -2,11 +2,11 @@
 
 This document describes the current architecture of the derived-tag subsystem under `src/tags/` after the Wave 2 split. It explains which folders now own runtime publication, durable review inputs, editorial session state, writeback, review UI, and the grouped CLI layout.
 
-For broader project layering, read [overview.md](./overview.md) and [boundaries.md](./boundaries.md) first. For the non-obvious decisions this document relies on, see:
+For broader project layering, read [overview.md](../overview.md) and [boundaries.md](./boundaries.md) first. For the non-obvious decisions this document relies on, see:
 
-- [0001 Shared Backend, Separate MCP and Editorial Surfaces](./decisions/0001-shared-backend-separate-surfaces.md)
-- [0002 Readonly Ontology and Explicit Storage Boundaries](./decisions/0002-readonly-ontology-and-explicit-storage-boundary.md)
-- [0003 Lint-Enforced Derived-Tag Boundaries](./decisions/0003-lint-enforced-derived-tag-boundaries.md)
+- [0001 Shared Backend, Separate MCP and Editorial Surfaces](../decisions/0001-shared-backend-separate-surfaces.md)
+- [0002 Readonly Ontology and Explicit Storage Boundaries](../decisions/0002-readonly-ontology-and-explicit-storage-boundary.md)
+- [0003 Lint-Enforced Derived-Tag Boundaries](../decisions/0003-lint-enforced-derived-tag-boundaries.md)
 
 ## Purpose
 
@@ -360,7 +360,7 @@ The current codebase already encodes several intended boundaries:
 - discovery and evaluation can recommend changes, but `editorial/writeback/` owns writeback into authored files
 - TUI workbench composition flows through `src/tui/app-services.ts`, not direct feature-level imports of editorial internals
 
-Those boundaries are documented in `docs/architecture/boundaries.md` and reinforced by ESLint restrictions where the shared abstraction is already considered stable.
+Those boundaries are documented in `docs/architecture/node/boundaries.md` and reinforced by ESLint restrictions where the shared abstraction is already considered stable.
 
 ## End-To-End Editorial Flow
 

@@ -67,4 +67,4 @@ This item now tracks the remaining implementation gap between the landed live cu
 - [Derived-tag ontology future shape](./derived-tag-ontology-future-shape.md)
 - [Derived-tag ontology next review questions](./derived-tag-ontology-next-review-questions.md)
 - [Derived tag manifest tooling metadata](./derived-tag-manifest-tooling-metadata.md)
-- [Editorial architecture](../../architecture/editorial.md)
+- [Editorial architecture](../../architecture/node/editorial.md)

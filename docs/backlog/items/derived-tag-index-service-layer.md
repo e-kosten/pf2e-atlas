@@ -169,8 +169,8 @@ Evaluation CLI entrypoints that currently open the index directly:
 Documentation and boundary-enforcement follow-through:
 
 - `docs/architecture/overview.md`
-- `docs/architecture/boundaries.md`
-- `docs/architecture/editorial.md`
+- `docs/architecture/node/boundaries.md`
+- `docs/architecture/node/editorial.md`
 - relevant ADRs under `docs/architecture/decisions/`
 - `eslint.config.js`
 - `eslint-local-rules.js`
@@ -232,7 +232,7 @@ Future implementation work should explicitly validate:
 ## Related
 
 - [Architecture overview](../../architecture/overview.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
-- [Editorial architecture](../../architecture/editorial.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
+- [Editorial architecture](../../architecture/node/editorial.md)
 - [Tagging tooling reorganization](./tagging-tooling-reorg.md)
 - [Derived-tag concept model implementation](./derived-tag-concept-model-implementation.md)

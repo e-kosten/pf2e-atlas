@@ -149,12 +149,12 @@ These should not all be treated as one commit or one immediate refactor, but the
 2. Decide the intended ontology meaning of `matching` vs `catalog`, especially for derived-tag families and zero-count tag visibility.
 3. Fix the search-side empty derived-tag path for broad scoped requests so the prepared explorer remains a trustworthy semantic reference.
 4. Align ontology family counts, child lists, and action affordances to the chosen semantics.
-5. Update `docs/architecture/tui.md` and any relevant ADR if the internal builder split or discovery-mode contract changes materially.
+5. Update `docs/architecture/node/tui.md` and any relevant ADR if the internal builder split or discovery-mode contract changes materially.
 
 ## Related
 
-- [TUI architecture](../../architecture/tui.md)
-- [Architectural boundaries](../../architecture/boundaries.md)
+- [TUI architecture](../../architecture/node/tui.md)
+- [Architectural boundaries](../../architecture/node/boundaries.md)
 - [Search Semantics Explorer Completeness](./search-semantics-explorer-completeness.md)
 - [Shared TUI interaction family contracts](./shared-tui-interaction-family-contracts.md)
 - [ADR 0002: Readonly ontology and explicit storage boundary](../../architecture/decisions/0002-readonly-ontology-and-explicit-storage-boundary.md)

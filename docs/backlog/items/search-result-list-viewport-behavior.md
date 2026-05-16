@@ -51,4 +51,4 @@ This item should not silently broaden into pointer-target hit testing or unrelat
 - [View pages and detail presentation](./view-pages-and-details.md)
 - [Search interaction cleanup](./search-interaction-cleanup.md)
 - [Shared TUI interaction family contracts](./shared-tui-interaction-family-contracts.md)
-- [TUI architecture](../../architecture/tui.md)
+- [TUI architecture](../../architecture/node/tui.md)
