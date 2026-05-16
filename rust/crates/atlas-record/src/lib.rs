@@ -2,7 +2,7 @@
 
 use atlas_domain::{
     MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey,
-    RemasterLinkSource, TextStatus, TimeKind, TimeUnit,
+    RemasterLinkSource, TimeKind, TimeUnit,
 };
 
 pub mod presentation;
@@ -61,10 +61,8 @@ pub struct NormalizedRecord {
     pub variant_confidence: Option<f64>,
     pub variant_source: String,
     pub source_path: String,
-    pub text_status: TextStatus,
     pub is_default_visible: bool,
     pub search_text_projection: String,
-    pub reference_candidates: Vec<ReferenceCandidate>,
     pub raw_json: String,
 }
 
@@ -122,13 +120,6 @@ pub struct PersistedRecordSet {
     pub reference_edges: Vec<ReferenceEdge>,
     pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReferenceCandidate {
-    pub raw_target: String,
-    pub display_text: Option<String>,
-    pub reference_text: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

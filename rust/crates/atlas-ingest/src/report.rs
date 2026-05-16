@@ -5,13 +5,14 @@ use atlas_domain::{MetricDomain, PublicationFamily};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::{
-    BuildArtifactReport, DocumentEmbeddingTokenizationTelemetry,
-    DocumentEmbeddingTruncationExample, IngestDiagnostics, LoadedRecord, MetricValue,
-    SkippedRecord, SourceLoad,
+use crate::diagnostics::IngestDiagnostics;
+use crate::error::IngestError;
+use crate::records::{LoadedSourceRecord, MetricValue};
+use crate::source::model::{
+    BuildArtifactReport, DocumentEmbeddingTokenizationReport,
+    DocumentEmbeddingTruncationExampleReport, SkippedRecord, SourceLoad,
 };
-
-use crate::{IngestError, pipeline};
+use crate::source_pipeline;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SourceAnalysisReport {
@@ -88,7 +89,7 @@ pub fn analyze_foundry_source(
     manifest_path: Option<&Path>,
 ) -> Result<SourceAnalysisReport, IngestError> {
     let source_root = source_root.as_ref();
-    let source = pipeline::load_foundry_source(source_root, manifest_path)?;
+    let source = source_pipeline::load_foundry_source(source_root, manifest_path)?;
     Ok(analyze_source_load(source_root.to_path_buf(), source))
 }
 
@@ -104,7 +105,8 @@ pub(crate) fn analyze_source_load(
     let default_visible_record_count = source
         .records
         .iter()
-        .filter(|record| {
+        .filter(|loaded| {
+            let record = &loaded.record;
             record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string())
         })
         .count();
@@ -139,12 +141,12 @@ pub(crate) fn analyze_source_load(
             records_with_description: source
                 .records
                 .iter()
-                .filter(|record| record.description_text.is_some())
+                .filter(|loaded| loaded.record.description_text.is_some())
                 .count(),
             records_with_blurb: source
                 .records
                 .iter()
-                .filter(|record| record.blurb_text.is_some())
+                .filter(|loaded| loaded.record.blurb_text.is_some())
                 .count(),
         },
         embeddings: SourceAnalysisEmbeddingReport {
@@ -154,17 +156,17 @@ pub(crate) fn analyze_source_load(
             actor_records: source
                 .records
                 .iter()
-                .filter(|record| record.actor_data.is_some())
+                .filter(|loaded| loaded.record.actor_data.is_some())
                 .count(),
             item_records: source
                 .records
                 .iter()
-                .filter(|record| record.item_data.is_some())
+                .filter(|loaded| loaded.record.item_data.is_some())
                 .count(),
             spell_records: source
                 .records
                 .iter()
-                .filter(|record| record.spell_data.is_some())
+                .filter(|loaded| loaded.record.spell_data.is_some())
                 .count(),
         },
         metrics: metrics_report(&source.records, &hidden_record_keys),
@@ -180,7 +182,7 @@ pub(crate) fn analyze_source_load(
     }
 }
 
-pub fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
+pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
     json!({
         "taxonomy": {
             "folder_records": diagnostics.taxonomy_folder_records,
@@ -208,7 +210,7 @@ pub fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
     })
 }
 
-pub fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
+pub(crate) fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
     skipped_record_reports(skipped_records)
         .into_iter()
         .map(|record| json!(record))
@@ -250,9 +252,7 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
     })
 }
 
-fn document_embedding_tokenization_json(
-    telemetry: &DocumentEmbeddingTokenizationTelemetry,
-) -> Value {
+fn document_embedding_tokenization_json(telemetry: &DocumentEmbeddingTokenizationReport) -> Value {
     json!({
         "document_count": telemetry.document_count,
         "truncated_document_count": telemetry.truncated_document_count,
@@ -303,11 +303,11 @@ fn document_embedding_tokenization_json(
     })
 }
 
-fn truncation_example_json(example: &DocumentEmbeddingTruncationExample) -> Value {
+fn truncation_example_json(example: &DocumentEmbeddingTruncationExampleReport) -> Value {
     json!({
         "embedding_unit_key": example.embedding_unit_key,
         "record_key": example.record_key,
-        "unit_kind": example.unit_kind.as_str(),
+        "unit_kind": example.unit_kind,
         "label": example.label,
         "token_count": example.token_count,
         "max_token_count": example.max_token_count,
@@ -325,9 +325,10 @@ fn skipped_record_reports(skipped_records: &[SkippedRecord]) -> Vec<SkippedRecor
         .collect()
 }
 
-fn count_by_record_family(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+fn count_by_record_family(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
-    for record in records {
+    for loaded in records {
+        let record = &loaded.record;
         *counts
             .entry(record.record_family.as_str().to_string())
             .or_insert(0) += 1;
@@ -335,9 +336,10 @@ fn count_by_record_family(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
     counts
 }
 
-fn count_by_foundry_taxonomy(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+fn count_by_foundry_taxonomy(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
-    for record in records {
+    for loaded in records {
+        let record = &loaded.record;
         *counts
             .entry(format!(
                 "{}|{}",
@@ -348,9 +350,10 @@ fn count_by_foundry_taxonomy(records: &[LoadedRecord]) -> BTreeMap<String, usize
     counts
 }
 
-fn count_by_publication_family(records: &[LoadedRecord]) -> BTreeMap<String, usize> {
+fn count_by_publication_family(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
-    for record in records {
+    for loaded in records {
+        let record = &loaded.record;
         *counts
             .entry(publication_family_label(record.publication_family).to_string())
             .or_insert(0) += 1;
@@ -359,13 +362,14 @@ fn count_by_publication_family(records: &[LoadedRecord]) -> BTreeMap<String, usi
 }
 
 fn metrics_report(
-    records: &[LoadedRecord],
+    records: &[LoadedSourceRecord],
     hidden_record_keys: &BTreeSet<String>,
 ) -> SourceAnalysisMetricReport {
     let mut rows_by_domain = BTreeMap::<String, usize>::new();
     let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
     let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
-    for record in records {
+    for loaded in records {
+        let record = &loaded.record;
         let is_default_visible =
             record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string());
         for metric in &record.metrics {
@@ -411,7 +415,8 @@ fn metrics_report(
     }
 }
 
-fn is_generated_record(record: &LoadedRecord) -> bool {
+fn is_generated_record(loaded: &LoadedSourceRecord) -> bool {
+    let record = &loaded.record;
     matches!(
         record.pack_name.as_str(),
         "derived-afflictions" | "derived-affliction-instances"

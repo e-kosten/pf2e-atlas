@@ -2,10 +2,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use atlas_artifact::metadata::{ARTIFACT_METADATA_TABLE, artifact_metadata_keys};
-use atlas_embedding::{EmbeddingModelSpec, EmbeddingRuntimeConfig};
+use atlas_embedding::{EmbeddingModelSpec, EmbeddingRuntimeConfig, ReusableDocumentEmbedding};
 use rusqlite::{Connection, OpenFlags};
-
-use crate::ReusableDocumentEmbedding;
 
 pub(crate) fn load_reusable_document_embeddings(
     path: &Path,

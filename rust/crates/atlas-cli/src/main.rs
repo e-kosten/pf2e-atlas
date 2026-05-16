@@ -11,13 +11,13 @@ use atlas_index::{
     validate_index_report, validate_vector_index_report, write_vector_index_report,
 };
 use atlas_ingest::{
-    BuildArtifactOptions, analyze_foundry_source, build_artifact, report::build_artifact_json,
+    BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
 };
 use atlas_runtime::{
     AtlasPathMode, AtlasPathOverrides, check_setup_status, fetch_pf2e_source, resolve_atlas_paths,
     resolve_index_path,
 };
-use atlas_search::{EmbeddingRuntimeConfig, SemanticSearchMode, SemanticSearchService};
+use atlas_search::{SearchEmbeddingConfig, SemanticSearchMode, SemanticSearchService};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde_json::json;
 
@@ -385,7 +385,7 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
         source_root: paths.source_root,
         output_path: paths.index_path,
         manifest_path: options.manifest,
-        embedding_model: options.embedding_model,
+        embedding_model_id: options.embedding_model.to_string(),
         embedding_cache_root: if options.no_embeddings {
             None
         } else {
@@ -539,7 +539,10 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
             index_path: options.index,
         },
     )?;
-    let config = EmbeddingRuntimeConfig::new(options.embedding_model, &paths.embedding_cache_root);
+    let config = SearchEmbeddingConfig {
+        model_id: options.embedding_model.to_string(),
+        cache_root: paths.embedding_cache_root,
+    };
     let service_open_started_at = Instant::now();
     let mut search = SemanticSearchService::open(&paths.index_path, &config)
         .map_err(|error| error.to_string())?;

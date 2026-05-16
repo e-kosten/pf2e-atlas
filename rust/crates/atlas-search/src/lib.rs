@@ -1,15 +1,14 @@
 #![deny(unsafe_code)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::Instant;
 
 use atlas_domain::SearchFilterNode;
-use atlas_embedding::{EmbeddingError, EmbeddingUnitKind, TextEmbedder};
+use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, EmbeddingUnitKind, TextEmbedder};
 use atlas_index::{AtlasIndex, IndexValidationError, VectorQueryError, VectorSearchHit};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-pub use atlas_embedding::EmbeddingRuntimeConfig;
 
 pub struct SemanticSearchService {
     index: AtlasIndex,
@@ -69,20 +68,36 @@ pub struct SemanticSearchResult {
 pub enum SearchError {
     #[error(transparent)]
     Index(#[from] IndexValidationError),
-    #[error(transparent)]
-    Embedding(#[from] EmbeddingError),
+    #[error("invalid embedding model `{model}`: {message}")]
+    InvalidEmbeddingModel { model: String, message: String },
+    #[error("embedding operation failed: {0}")]
+    Embedding(String),
     #[error(transparent)]
     Vector(#[from] VectorQueryError),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchEmbeddingConfig {
+    pub model_id: String,
+    pub cache_root: PathBuf,
 }
 
 impl SemanticSearchService {
     pub fn open(
         index_path: impl AsRef<Path>,
-        embedding_config: &EmbeddingRuntimeConfig,
+        embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
+        let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
+            SearchError::InvalidEmbeddingModel {
+                model: embedding_config.model_id.clone(),
+                message: error.to_string(),
+            }
+        })?;
+        let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
         Ok(Self {
             index: AtlasIndex::open_read_only(index_path)?,
-            embedder: TextEmbedder::load(embedding_config)?,
+            embedder: TextEmbedder::load(&embedding_config)
+                .map_err(|error| SearchError::Embedding(error.to_string()))?,
         })
     }
 
@@ -105,7 +120,10 @@ impl SemanticSearchService {
     ) -> Result<SemanticSearchResult, SearchError> {
         let total_started_at = Instant::now();
         let embedding_started_at = Instant::now();
-        let query_vector = self.embedder.embed_query(query)?;
+        let query_vector = self
+            .embedder
+            .embed_query(query)
+            .map_err(|error| SearchError::Embedding(error.to_string()))?;
         let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
         let vector_started_at = Instant::now();
         let raw_limit = semantic_unit_limit(limit, mode);
@@ -159,7 +177,7 @@ fn best_record_hit(
 ) -> Option<SemanticSearchHit> {
     let has_parent = hits
         .iter()
-        .any(|hit| hit.unit_kind == EmbeddingUnitKind::Parent);
+        .any(|hit| parsed_unit_kind(hit) == Some(EmbeddingUnitKind::Parent));
     hits.into_iter()
         .map(|hit| {
             let rank_distance = rank_distance(&hit, has_parent, mode);
@@ -172,7 +190,7 @@ fn semantic_hit_from_vector_hit(hit: VectorSearchHit, rank_distance: f64) -> Sem
     SemanticSearchHit {
         record_key: hit.record_key,
         embedding_unit_key: hit.embedding_unit_key,
-        unit_kind: hit.unit_kind.as_str().to_string(),
+        unit_kind: hit.unit_kind,
         label: hit.label,
         distance: hit.distance,
         rank_distance,
@@ -183,13 +201,18 @@ fn rank_distance(hit: &VectorSearchHit, has_parent: bool, mode: SemanticSearchMo
     if !mode.uses_rank_weights() {
         return hit.distance;
     }
-    let unit_penalty = match hit.unit_kind {
-        EmbeddingUnitKind::Parent => 0.0,
-        EmbeddingUnitKind::HeadingSection => 0.025,
-        EmbeddingUnitKind::TitledOption => 0.040,
+    let unit_penalty = match parsed_unit_kind(hit) {
+        Some(EmbeddingUnitKind::Parent) => 0.0,
+        Some(EmbeddingUnitKind::HeadingSection) => 0.025,
+        Some(EmbeddingUnitKind::TitledOption) => 0.040,
+        _ => 0.050,
     };
     let missing_parent_penalty = if has_parent { 0.0 } else { 0.025 };
     hit.distance + unit_penalty + missing_parent_penalty
+}
+
+fn parsed_unit_kind(hit: &VectorSearchHit) -> Option<EmbeddingUnitKind> {
+    hit.unit_kind.parse().ok()
 }
 
 fn compare_semantic_hits_for_rank(
@@ -207,16 +230,11 @@ fn compare_semantic_hits_for_rank(
 mod tests {
     use super::*;
 
-    fn hit(
-        unit: &str,
-        record: &str,
-        unit_kind: EmbeddingUnitKind,
-        distance: f64,
-    ) -> VectorSearchHit {
+    fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
         VectorSearchHit {
             embedding_unit_key: unit.to_string(),
             record_key: record.to_string(),
-            unit_kind,
+            unit_kind: unit_kind.to_string(),
             label: None,
             distance,
         }
@@ -226,30 +244,15 @@ mod tests {
     fn collapse_vector_hits_keeps_one_unit_per_record() {
         let collapsed = collapse_vector_hits(
             vec![
-                hit(
-                    "records:a#parent",
-                    "records:a",
-                    EmbeddingUnitKind::Parent,
-                    0.1,
-                ),
+                hit("records:a#parent", "records:a", "parent", 0.1),
                 hit(
                     "records:a#heading_section:1",
                     "records:a",
-                    EmbeddingUnitKind::HeadingSection,
+                    "heading_section",
                     0.2,
                 ),
-                hit(
-                    "records:b#parent",
-                    "records:b",
-                    EmbeddingUnitKind::Parent,
-                    0.3,
-                ),
-                hit(
-                    "records:c#parent",
-                    "records:c",
-                    EmbeddingUnitKind::Parent,
-                    0.4,
-                ),
+                hit("records:b#parent", "records:b", "parent", 0.3),
+                hit("records:c#parent", "records:c", "parent", 0.4),
             ],
             2,
             SemanticSearchMode::WeightedChunks,
@@ -274,15 +277,10 @@ mod tests {
                 hit(
                     "records:a#heading_section:1",
                     "records:a",
-                    EmbeddingUnitKind::HeadingSection,
+                    "heading_section",
                     0.100,
                 ),
-                hit(
-                    "records:a#parent",
-                    "records:a",
-                    EmbeddingUnitKind::Parent,
-                    0.200,
-                ),
+                hit("records:a#parent", "records:a", "parent", 0.200),
             ],
             10,
             SemanticSearchMode::WeightedChunks,
@@ -303,15 +301,10 @@ mod tests {
                 hit(
                     "records:a#heading_section:1",
                     "records:a",
-                    EmbeddingUnitKind::HeadingSection,
+                    "heading_section",
                     0.100,
                 ),
-                hit(
-                    "records:b#parent",
-                    "records:b",
-                    EmbeddingUnitKind::Parent,
-                    0.145,
-                ),
+                hit("records:b#parent", "records:b", "parent", 0.145),
             ],
             10,
             SemanticSearchMode::WeightedChunks,
@@ -333,15 +326,10 @@ mod tests {
                 hit(
                     "records:a#heading_section:1",
                     "records:a",
-                    EmbeddingUnitKind::HeadingSection,
+                    "heading_section",
                     0.100,
                 ),
-                hit(
-                    "records:a#parent",
-                    "records:a",
-                    EmbeddingUnitKind::Parent,
-                    0.120,
-                ),
+                hit("records:a#parent", "records:a", "parent", 0.120),
             ],
             10,
             SemanticSearchMode::Chunks,
