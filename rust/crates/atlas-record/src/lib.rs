@@ -5,12 +5,20 @@ use atlas_domain::{
     RemasterLinkSource, TimeKind, TimeUnit,
 };
 
+pub mod content;
 pub mod presentation;
 mod presentation_format;
 mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
 
+pub use content::{
+    ContentBlock, ContentDefinitionItem, ContentDocument, ContentFtsField, ContentInline,
+    ContentReference, ContentReferenceLocator, ContentSectionNode, ContentSourceKind,
+    ContentVisibility, RecordFtsProjection, SupplementalContentDocument,
+    build_content_section_tree, build_record_fts_projection, iter_content_references,
+    render_markdown_like, render_plain_text, visit_content_references_mut,
+};
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
@@ -49,8 +57,9 @@ pub struct NormalizedRecord {
     pub spell_data: Option<SpellSideData>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
-    pub description_text: Option<String>,
-    pub blurb_text: Option<String>,
+    pub description: Option<ContentDocument>,
+    pub blurb: Option<ContentDocument>,
+    pub supplemental_content: Vec<SupplementalContentDocument>,
     pub publication_family: PublicationFamily,
     pub folder_id: Option<String>,
     pub taxonomy_families: Vec<String>,
@@ -62,7 +71,6 @@ pub struct NormalizedRecord {
     pub variant_source: String,
     pub source_path: String,
     pub is_default_visible: bool,
-    pub search_text_projection: String,
     pub raw_json: String,
 }
 
@@ -97,8 +105,9 @@ pub struct PersistedRecord {
     pub spell_data: Option<SpellSideData>,
     pub publication_title: Option<String>,
     pub publication_remaster: bool,
-    pub description_text: Option<String>,
-    pub blurb_text: Option<String>,
+    pub description: Option<ContentDocument>,
+    pub blurb: Option<ContentDocument>,
+    pub supplemental_content: Vec<SupplementalContentDocument>,
     pub publication_family: PublicationFamily,
     pub folder_id: Option<String>,
     pub taxonomy_families: Vec<String>,
@@ -110,7 +119,6 @@ pub struct PersistedRecord {
     pub variant_source: String,
     pub source_path: String,
     pub is_default_visible: bool,
-    pub search_text_projection: String,
     pub raw_json: String,
 }
 
@@ -128,6 +136,8 @@ pub struct ReferenceEdge {
     pub to_record_key: RecordKey,
     pub display_text: Option<String>,
     pub reference_text: String,
+    pub source_kind: ContentSourceKind,
+    pub visibility: ContentVisibility,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,4 +1,5 @@
 use atlas_domain::PublicationFamily;
+use atlas_record::ContentDocument;
 use serde_json::Value;
 
 use crate::records::{LoadedSourceRecord, NormalizedRecord, ReferenceEdge};
@@ -18,7 +19,6 @@ pub(crate) struct AfflictionOccurrence {
     pub(crate) child_raw: Value,
     pub(crate) family: AfflictionFamily,
     pub(crate) name: String,
-    pub(crate) slug: Option<String>,
     pub(crate) traits: Vec<String>,
     pub(crate) linked_names: Vec<String>,
     pub(crate) source_path: String,
@@ -39,8 +39,8 @@ pub(crate) struct DerivedAfflictionRecordInput {
     pub(crate) record_type: &'static str,
     pub(crate) family: AfflictionFamily,
     pub(crate) traits: Vec<String>,
-    pub(crate) description_text: Option<String>,
-    pub(crate) blurb_text: Option<String>,
+    pub(crate) description: Option<ContentDocument>,
+    pub(crate) blurb: Option<ContentDocument>,
     pub(crate) level: Option<i64>,
     pub(crate) rarity: Option<String>,
     pub(crate) publication_title: Option<String>,
@@ -48,6 +48,5 @@ pub(crate) struct DerivedAfflictionRecordInput {
     pub(crate) publication_family: PublicationFamily,
     pub(crate) source_path: String,
     pub(crate) is_default_visible: bool,
-    pub(crate) search_text_projection: String,
     pub(crate) raw: Value,
 }

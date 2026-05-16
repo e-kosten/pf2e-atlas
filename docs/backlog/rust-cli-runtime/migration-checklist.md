@@ -185,8 +185,8 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Normalize canonical record keys.
 - [x] Normalize canonical names.
 - [x] Map Foundry `document_type` plus record `type` into `record_family`, while preserving `foundry_document_type` and `foundry_record_type` source axes for the fixture writer.
-- [x] Extract description text.
-- [x] Strip or normalize Foundry HTML and UUID markup.
+- [x] Parse Foundry-authored description, blurb, public notes, rule-note text, and embedded item/spell text into `ContentDocument`.
+- [x] Preserve content references in the AST and derive plain-text/markdown/search projections from `ContentDocument`.
 - [x] Extract traits.
 - [x] Extract publication/source metadata.
 - [x] Report skipped source records with path and reason during ingest.
@@ -197,13 +197,14 @@ Goal: move deterministic Foundry JSON ingest and SQLite artifact construction to
 - [x] Extract source-backed aliases from remaster journals, migration rename files, and embedded compendium sources.
 - [x] Generate derived affliction canonicals and hidden provenance instances from staged action, consumable, and spell records.
 - [x] Extract variant family metadata (`variant_group_key`, `variant_base_name`, `variant_label`, `variant_axes`, confidence, and source).
-- [x] Extract reference edges without substring false positives.
+- [x] Extract reference edges from resolved content references without substring false positives.
 - [x] Write `artifact_metadata`.
 - [x] Split source, generated, and artifact record count metadata.
 - [x] Write `packs`.
 - [x] Write `records`.
-- [x] Write `records_fts`.
-- [x] Write `reference_edges`.
+- [x] Write weighted `records_fts` fields from content/presentation projections.
+- [x] Write `reference_edges` with source kind and visibility.
+- [x] Write `record_content` supplemental content rows.
 - [x] Write record traits.
 - [x] Write unified `record_metrics` with actor/item metric domains.
 - [x] Generate metric key/value catalogs from `record_metrics`.

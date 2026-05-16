@@ -10,9 +10,7 @@ use tracing::info;
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
 use crate::source::model::SkippedRecord;
-use crate::source::normalize::{
-    DroppedFoundryInlineMacro, dropped_foundry_inline_macros, normalize_record,
-};
+use crate::source::normalize::{ContentParseDiagnostics, DroppedContentMacro, normalize_record};
 use crate::source::{LoadedPack, ManifestPack, ParsedManifest, SourceLoad};
 
 const DROPPED_INLINE_MACRO_EXAMPLE_LIMIT: usize = 5;
@@ -115,7 +113,6 @@ pub(crate) fn load_foundry_source_records(
                 }
             };
             let normalize_started_at = Instant::now();
-            collect_dropped_inline_macros(&raw_record.value, &mut diagnostics);
             let normalized_record = normalize_record(
                 &manifest_pack,
                 &pack_name,
@@ -126,6 +123,10 @@ pub(crate) fn load_foundry_source_records(
             timing.normalize_duration += normalize_started_at.elapsed();
             match normalized_record {
                 Ok(record) => {
+                    collect_content_parse_diagnostics(
+                        &record.facts.content_parse_diagnostics,
+                        &mut diagnostics,
+                    );
                     source_signature_records.push(SourceSignatureRecord {
                         source_path: relative_source_path(source_root, path),
                         content_hash: raw_record.content_hash,
@@ -212,31 +213,18 @@ pub(crate) fn load_foundry_source_records(
     })
 }
 
-fn collect_dropped_inline_macros(raw: &Value, diagnostics: &mut IngestDiagnostics) {
-    match raw {
-        Value::Array(values) => {
-            for value in values {
-                collect_dropped_inline_macros(value, diagnostics);
-            }
+fn collect_content_parse_diagnostics(
+    parse_diagnostics: &[ContentParseDiagnostics],
+    diagnostics: &mut IngestDiagnostics,
+) {
+    for diagnostic in parse_diagnostics {
+        for dropped in &diagnostic.dropped_macros {
+            record_dropped_inline_macro(dropped.clone(), diagnostics);
         }
-        Value::Object(values) => {
-            for value in values.values() {
-                collect_dropped_inline_macros(value, diagnostics);
-            }
-        }
-        Value::String(value) => {
-            for dropped in dropped_foundry_inline_macros(value) {
-                record_dropped_inline_macro(dropped, diagnostics);
-            }
-        }
-        _ => {}
     }
 }
 
-fn record_dropped_inline_macro(
-    dropped: DroppedFoundryInlineMacro,
-    diagnostics: &mut IngestDiagnostics,
-) {
+fn record_dropped_inline_macro(dropped: DroppedContentMacro, diagnostics: &mut IngestDiagnostics) {
     let entry = diagnostics
         .dropped_inline_macros
         .entry(dropped.name)

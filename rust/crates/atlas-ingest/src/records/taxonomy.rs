@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 
+use atlas_record::{ContentReferenceLocator, iter_content_references};
+
 use crate::diagnostics::FolderDefinition;
 use crate::diagnostics::IngestDiagnostics;
 use crate::records::references::{reference_pack_and_locator, resolve_record_key};
@@ -18,6 +20,7 @@ pub(crate) fn assign_taxonomy_families(
     let glossary_families = build_glossary_family_map(records);
 
     for loaded in records {
+        let glossary_targets = glossary_reference_targets(loaded);
         let record = &mut loaded.record;
         let mut families = BTreeSet::new();
         let mut assigned_from_folder = false;
@@ -31,11 +34,7 @@ pub(crate) fn assign_taxonomy_families(
             assigned_from_folder = true;
         }
 
-        for candidate in &loaded.facts.reference_candidates {
-            let Some((pack_name, locator)) = reference_pack_and_locator(&candidate.raw_target)
-            else {
-                continue;
-            };
+        for (pack_name, locator) in glossary_targets {
             if pack_name != "bestiary-family-ability-glossary" {
                 continue;
             }
@@ -51,6 +50,41 @@ pub(crate) fn assign_taxonomy_families(
         record.taxonomy_families = families.into_iter().collect();
         diagnostics.taxonomy_folder_records += usize::from(assigned_from_folder);
         diagnostics.taxonomy_glossary_records += usize::from(assigned_from_glossary);
+    }
+}
+
+fn glossary_reference_targets(loaded: &LoadedSourceRecord) -> Vec<(String, String)> {
+    let mut targets = Vec::new();
+    let record = &loaded.record;
+    if let Some(document) = &record.description {
+        collect_glossary_targets(document, &mut targets);
+    }
+    if let Some(document) = &record.blurb {
+        collect_glossary_targets(document, &mut targets);
+    }
+    for supplemental in &record.supplemental_content {
+        collect_glossary_targets(&supplemental.document, &mut targets);
+    }
+    targets
+}
+
+fn collect_glossary_targets(
+    document: &atlas_record::ContentDocument,
+    targets: &mut Vec<(String, String)>,
+) {
+    for reference in iter_content_references(document) {
+        match &reference.locator {
+            ContentReferenceLocator::FoundryUuid { raw_target }
+            | ContentReferenceLocator::Compendium { raw_target } => {
+                if let Some(target) = reference_pack_and_locator(raw_target) {
+                    targets.push(target);
+                }
+            }
+            ContentReferenceLocator::PackAndLocator { pack_name, locator } => {
+                targets.push((pack_name.clone(), locator.clone()));
+            }
+            ContentReferenceLocator::Unknown { .. } => {}
+        }
     }
 }
 

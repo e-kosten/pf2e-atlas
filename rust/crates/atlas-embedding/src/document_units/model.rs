@@ -1,4 +1,4 @@
-use atlas_record::RecordPresentationDocument;
+use atlas_record::{ContentDocument, ContentSourceKind, RecordPresentationDocument};
 
 use crate::document_renderer::EmbeddingInputChunk;
 use crate::unit_kind::EmbeddingUnitKind;
@@ -9,7 +9,14 @@ pub struct DocumentEmbeddingSource {
     pub record_name: String,
     pub document: RecordPresentationDocument,
     pub aliases: Vec<String>,
-    pub source_description_markup: Option<String>,
+    pub content_documents: Vec<DocumentEmbeddingContentSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentEmbeddingContentSource {
+    pub source_kind: ContentSourceKind,
+    pub label: Option<String>,
+    pub document: ContentDocument,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -175,11 +175,11 @@ fn inspect_text(connection: &Connection) -> Result<TextCoverageReport, IndexVali
     Ok(TextCoverageReport {
         records_with_description: count_sql(
             connection,
-            "SELECT COUNT(*) FROM records WHERE description_text IS NOT NULL AND TRIM(description_text) <> ''",
+            "SELECT COUNT(*) FROM records WHERE description_json IS NOT NULL AND TRIM(description_json) <> ''",
         )?,
         records_with_blurb: count_sql(
             connection,
-            "SELECT COUNT(*) FROM records WHERE blurb_text IS NOT NULL AND TRIM(blurb_text) <> ''",
+            "SELECT COUNT(*) FROM records WHERE blurb_json IS NOT NULL AND TRIM(blurb_json) <> ''",
         )?,
     })
 }

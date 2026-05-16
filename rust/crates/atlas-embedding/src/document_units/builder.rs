@@ -1,15 +1,11 @@
 use atlas_record::{
-    PresentationBlock, PresentationSection, PresentationSectionKind, PresentationText,
-    RecordPresentationDocument,
+    ContentDocument, ContentSectionNode, build_content_section_tree, render_plain_text,
 };
 
 use crate::document_input::hash_document_embedding_input;
 use crate::document_renderer::{
     EmbeddingInputChunk, EmbeddingInputSection, render_embedding_chunks_for_embedding,
     render_presentation_document_embedding_chunks,
-};
-use crate::structured_units::{
-    StructuredEmbeddingUnit, extract_structured_embedding_units, strip_markup_for_embedding_units,
 };
 use crate::unit_kind::EmbeddingUnitKind;
 
@@ -25,12 +21,7 @@ pub fn build_document_embedding_units(
 }
 
 fn build_record_embedding_units(source: &DocumentEmbeddingSource) -> Vec<PendingDocumentEmbedding> {
-    let raw_description = source.source_description_markup.as_deref();
-    let compact_description = raw_description
-        .map(strip_markup_for_embedding_units)
-        .filter(|value| !value.trim().is_empty());
-    let document = document_with_description_override(&source.document, compact_description);
-    let parent_chunks = document_embedding_input_chunks(&document, &source.aliases);
+    let parent_chunks = document_embedding_input_chunks(&source.document, &source.aliases);
     let mut units = vec![pending_embedding_unit(
         format!("{}#parent", source.record_key),
         source.record_key.clone(),
@@ -40,31 +31,36 @@ fn build_record_embedding_units(source: &DocumentEmbeddingSource) -> Vec<Pending
         parent_chunks,
     )];
 
-    if let Some(markup) = raw_description {
-        let child_units: Vec<StructuredEmbeddingUnit> =
-            extract_structured_embedding_units(&source.record_name, markup);
-        let context = child_embedding_context_chunks(&document);
-        for child in child_units {
+    let context = child_embedding_context_chunks(&source.document);
+    let mut ordinal = 0;
+    for content_source in &source.content_documents {
+        let tree = build_content_section_tree(&content_source.document);
+        for section in content_tree_embedding_sections(&tree) {
+            ordinal += 1;
             let mut chunks = context.clone();
             chunks.push(EmbeddingInputChunk::line(
                 EmbeddingInputSection::Description,
-                format!("Section: {}", child.label),
+                format!(
+                    "Section: {} ({})",
+                    section.label,
+                    content_source.source_kind.as_str()
+                ),
             ));
             chunks.push(EmbeddingInputChunk::truncatable_line(
                 EmbeddingInputSection::Description,
-                format!("Description: {}", child.body),
+                format!("Description: {}", section.body),
             ));
             units.push(pending_embedding_unit(
                 format!(
                     "{}#{}:{}",
                     source.record_key,
-                    child.kind.as_str(),
-                    child.ordinal
+                    section.kind.as_str(),
+                    ordinal
                 ),
                 source.record_key.clone(),
-                child.kind,
-                Some(child.label),
-                child.ordinal,
+                section.kind,
+                Some(section.label),
+                ordinal,
                 chunks,
             ));
         }
@@ -126,22 +122,34 @@ fn child_embedding_context_chunks(
         .collect()
 }
 
-fn document_with_description_override(
-    document: &RecordPresentationDocument,
-    description: Option<String>,
-) -> RecordPresentationDocument {
-    let Some(description) = description else {
-        return document.clone();
-    };
-    let mut document = document.clone();
-    document
-        .sections
-        .retain(|section| section.kind != PresentationSectionKind::Description);
-    document.sections.push(PresentationSection::new(
-        PresentationSectionKind::Description,
-        vec![PresentationBlock::Prose(PresentationText {
-            text: description,
-        })],
-    ));
-    document
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ContentTreeEmbeddingSection {
+    kind: EmbeddingUnitKind,
+    label: String,
+    body: String,
+}
+
+fn content_tree_embedding_sections(root: &ContentSectionNode) -> Vec<ContentTreeEmbeddingSection> {
+    let mut sections = Vec::new();
+    collect_content_tree_embedding_sections(root, &mut sections);
+    sections
+}
+
+fn collect_content_tree_embedding_sections(
+    node: &ContentSectionNode,
+    sections: &mut Vec<ContentTreeEmbeddingSection>,
+) {
+    let body = render_plain_text(&ContentDocument::new(node.blocks.clone()));
+    if !body.trim().is_empty()
+        && let Some(label) = node.title.as_deref()
+    {
+        sections.push(ContentTreeEmbeddingSection {
+            kind: EmbeddingUnitKind::HeadingSection,
+            label: label.to_string(),
+            body,
+        });
+    }
+    for child in &node.children {
+        collect_content_tree_embedding_sections(child, sections);
+    }
 }

@@ -10,7 +10,9 @@ use crate::diagnostics::{
 use crate::embeddings;
 use crate::error::IngestError;
 use crate::generated::afflictions;
-use crate::records::references::{build_record_reference_index, resolve_reference_edges};
+use crate::records::references::{
+    build_record_reference_index, resolve_content_references, resolve_reference_edges,
+};
 use crate::records::{aliases, taxonomy, variants};
 use crate::source::loader::load_foundry_source_records;
 use crate::source::{LoadedPack, SourceLoad};
@@ -86,6 +88,7 @@ pub(crate) fn load_foundry_source(
         "assigning taxonomy families"
     );
     let reference_index = build_record_reference_index(&source.records);
+    resolve_content_references(&mut source.records, &reference_index);
     taxonomy::assign_taxonomy_families(
         &mut source.records,
         &source.packs,
@@ -99,24 +102,27 @@ pub(crate) fn load_foundry_source(
         &mut source.diagnostics,
     );
     info!("resolving reference edges");
-    source.references = resolve_reference_edges(&source.records, &reference_index);
+    source.references = resolve_reference_edges(&source.records);
     source.references.extend(generated_references);
     source.references.sort_by(|left, right| {
         (
             left.from_record_key.to_string(),
             left.to_record_key.to_string(),
             left.reference_text.as_str(),
+            left.source_kind.as_str(),
         )
             .cmp(&(
                 right.from_record_key.to_string(),
                 right.to_record_key.to_string(),
                 right.reference_text.as_str(),
+                right.source_kind.as_str(),
             ))
     });
     source.references.dedup_by(|left, right| {
         left.from_record_key == right.from_record_key
             && left.to_record_key == right.to_record_key
             && left.reference_text == right.reference_text
+            && left.source_kind == right.source_kind
     });
     info!(
         reference_edges = source.references.len(),

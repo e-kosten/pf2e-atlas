@@ -6,10 +6,7 @@ use crate::diagnostics::{
     DERIVED_AFFLICTIONS_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_NAME,
 };
 use crate::generated::afflictions::source_facts::affliction_family_label;
-use crate::generated::afflictions::{
-    AfflictionFamily, AfflictionOccurrence, DerivedAfflictionRecordInput,
-};
-use crate::records::variants;
+use crate::generated::afflictions::{AfflictionOccurrence, DerivedAfflictionRecordInput};
 use crate::records::{LoadedSourceRecord, NormalizedRecord, SourceConstructionFacts};
 use crate::source::normalize::normalize_text;
 
@@ -59,8 +56,9 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
         spell_data: None,
         publication_title: input.publication_title,
         publication_remaster: input.publication_remaster,
-        description_text: input.description_text,
-        blurb_text: input.blurb_text,
+        description: input.description,
+        blurb: input.blurb,
+        supplemental_content: Vec::new(),
         publication_family: input.publication_family,
         folder_id: None,
         taxonomy_families: Vec::new(),
@@ -72,14 +70,12 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
         variant_source: "none".to_string(),
         source_path: input.source_path,
         is_default_visible: input.is_default_visible,
-        search_text_projection: input.search_text_projection,
         raw_json,
     };
     LoadedSourceRecord::new(
         record,
         SourceConstructionFacts {
-            reference_candidates: Vec::new(),
-            source_description_markup: None,
+            content_parse_diagnostics: Vec::new(),
         },
     )
 }
@@ -107,47 +103,4 @@ pub(super) fn build_affliction_instance_raw(
         );
     }
     raw
-}
-
-pub(super) fn build_affliction_occurrence_search_text(
-    name: &str,
-    family: AfflictionFamily,
-    traits: &[String],
-    linked_names: &[String],
-) -> String {
-    variants::sorted_unique(
-        [
-            vec![
-                name.to_string(),
-                affliction_family_label(family).to_string(),
-            ],
-            traits.to_vec(),
-            linked_names.to_vec(),
-        ]
-        .concat(),
-    )
-    .join("\n")
-}
-
-pub(super) fn build_affliction_canonical_search_text(
-    name: &str,
-    family: AfflictionFamily,
-    traits: &[String],
-    slug: Option<&str>,
-    linked_names: &[String],
-) -> String {
-    let slug_alias = slug.map(|value| value.replace(['-', '_'], " "));
-    variants::sorted_unique(
-        [
-            vec![
-                name.to_string(),
-                affliction_family_label(family).to_string(),
-            ],
-            slug_alias.into_iter().collect(),
-            traits.to_vec(),
-            linked_names.to_vec(),
-        ]
-        .concat(),
-    )
-    .join("\n")
 }

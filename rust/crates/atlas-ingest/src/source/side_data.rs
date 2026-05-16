@@ -1,16 +1,17 @@
 use serde_json::Value;
 
+use atlas_record::render_plain_text;
+
 use crate::records::metrics::{first_number_like_at_paths, number_like_at_pointer};
 use crate::records::{ActorSideData, ItemSideData, SpellSideData};
 use crate::source::normalize::{
     extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
-    normalized_pointer_string, parse_bulk_value, parse_hands_requirement, pointer_bool,
-    pointer_string, string_array_at_pointer, strip_markup, typed_collection,
+    normalized_pointer_string, parse_bulk_value, parse_foundry_content, parse_hands_requirement,
+    pointer_bool, pointer_string, string_array_at_pointer, typed_collection,
 };
 
 pub(super) fn extract_actor_side_data(raw: &Value) -> ActorSideData {
-    let disable_text =
-        pointer_string(raw, "/system/details/disable").map(|value| strip_markup(&value));
+    let disable_text = pointer_string(raw, "/system/details/disable").and_then(content_text);
     ActorSideData {
         size: normalized_pointer_string(raw, "/system/traits/size/value"),
         languages: string_array_at_pointer(raw, "/system/details/languages/value"),
@@ -62,7 +63,7 @@ pub(super) fn extract_spell_side_data(raw: &Value, traits: &[String]) -> SpellSi
                 "/system/area/value",
             ],
         ),
-        target_text: pointer_string(raw, "/system/target/value").map(|value| strip_markup(&value)),
+        target_text: pointer_string(raw, "/system/target/value").and_then(content_text),
         area_type: normalized_pointer_string(raw, "/system/area/type"),
         area_value: number_like_at_pointer(raw, "/system/area/value"),
         save_type: normalized_pointer_string(raw, "/system/defense/save/statistic"),
@@ -70,4 +71,9 @@ pub(super) fn extract_spell_side_data(raw: &Value, traits: &[String]) -> SpellSi
         basic_save: pointer_bool(raw, "/system/defense/save/basic").unwrap_or(false),
         damage_types: extract_damage_types(raw),
     }
+}
+
+fn content_text(value: String) -> Option<String> {
+    let text = render_plain_text(&parse_foundry_content(&value).document);
+    (!text.trim().is_empty()).then_some(text)
 }

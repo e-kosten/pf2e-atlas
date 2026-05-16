@@ -10,8 +10,8 @@ pub(super) fn write_reference_edges(
     let mut insert_reference = connection
         .prepare(
             "INSERT OR IGNORE INTO reference_edges (
-              from_record_key, to_record_key, display_text, reference_text
-            ) VALUES (?1, ?2, ?3, ?4)",
+              from_record_key, to_record_key, display_text, reference_text, source_kind, visibility
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
@@ -22,6 +22,8 @@ pub(super) fn write_reference_edges(
                 reference.to_record_key.to_string(),
                 reference.display_text.as_deref(),
                 reference.reference_text.as_str(),
+                reference.source_kind.as_str(),
+                reference.visibility.as_str(),
             ))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }

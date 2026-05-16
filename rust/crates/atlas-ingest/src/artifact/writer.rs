@@ -53,7 +53,12 @@ pub(crate) fn write_artifact(
     info!(packs = source.packs.len(), "writing packs");
     write_packs(&transaction, &source.packs)?;
     info!(records = source.records.len(), "writing records");
-    write_records(&transaction, &source.records, &source.remaster_links)?;
+    write_records(
+        &transaction,
+        &source.records,
+        &source.aliases,
+        &source.remaster_links,
+    )?;
     info!(
         reference_edges = source.references.len(),
         "writing reference edges"

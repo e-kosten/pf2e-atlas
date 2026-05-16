@@ -21,14 +21,12 @@ use crate::generated::afflictions::identity::{
 };
 use crate::records::variants;
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
+use crate::source::normalize::parse_foundry_content;
 use clustering::{choose_affliction_authoritative_candidate, cluster_affliction_occurrences};
 use edges::generated_affliction_edges;
 use occurrences::collect_affliction_occurrences;
-use records::{
-    build_affliction_canonical_search_text, build_affliction_instance_raw,
-    build_affliction_occurrence_search_text, derived_affliction_record,
-};
-use source_facts::{affliction_family_label, record_description_markup, record_description_text};
+use records::{build_affliction_instance_raw, derived_affliction_record};
+use source_facts::{affliction_family_label, record_description_markup};
 
 pub(crate) fn build_generated_afflictions(
     records: &[LoadedSourceRecord],
@@ -81,8 +79,8 @@ pub(crate) fn build_generated_afflictions(
                 PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).expect("static pack name"),
                 RecordId::new(canonical_id.clone()).expect("hash id is valid"),
             );
-            let canonical_description_text =
-                authoritative_record.and_then(|record| record.description_text.clone());
+            let canonical_description =
+                authoritative_record.and_then(|record| record.description.clone());
             let canonical_description_markup =
                 authoritative_raw.and_then(record_description_markup);
             let representative_instance_key = cluster.first().map(|occurrence| {
@@ -124,8 +122,8 @@ pub(crate) fn build_generated_afflictions(
                 record_type: "affliction",
                 family,
                 traits: all_traits.clone(),
-                description_text: canonical_description_text,
-                blurb_text: authoritative_record.and_then(|record| record.blurb_text.clone()),
+                description: canonical_description,
+                blurb: authoritative_record.and_then(|record| record.blurb.clone()),
                 level: authoritative_record
                     .and_then(|record| record.level)
                     .or(representative.host_record.level),
@@ -143,13 +141,6 @@ pub(crate) fn build_generated_afflictions(
                     .unwrap_or(representative.host_record.publication_family),
                 source_path: format!("derived://afflictions/{}", canonical_key.id()),
                 is_default_visible: true,
-                search_text_projection: build_affliction_canonical_search_text(
-                    &representative.name,
-                    family,
-                    &all_traits,
-                    representative.slug.as_deref(),
-                    &all_linked_names,
-                ),
                 raw: canonical_raw,
             });
             generated_records.push(canonical_record.clone());
@@ -164,7 +155,9 @@ pub(crate) fn build_generated_afflictions(
                         .expect("static pack name"),
                     RecordId::new(instance_id.clone()).expect("hash id is valid"),
                 );
-                let instance_description_text = record_description_text(&occurrence.child_raw);
+                let instance_description = record_description_markup(&occurrence.child_raw)
+                    .map(|markup| parse_foundry_content(&markup).document)
+                    .filter(|document| !document.is_empty());
                 let instance_raw = build_affliction_instance_raw(
                     &instance_id,
                     occurrence,
@@ -178,8 +171,8 @@ pub(crate) fn build_generated_afflictions(
                     record_type: "affliction-instance",
                     family: occurrence.family,
                     traits: occurrence.traits.clone(),
-                    description_text: instance_description_text,
-                    blurb_text: None,
+                    description: instance_description,
+                    blurb: None,
                     level: occurrence
                         .source_record
                         .as_ref()
@@ -203,12 +196,6 @@ pub(crate) fn build_generated_afflictions(
                     publication_family: occurrence.host_record.publication_family,
                     source_path: occurrence.source_path.clone(),
                     is_default_visible: false,
-                    search_text_projection: build_affliction_occurrence_search_text(
-                        &occurrence.name,
-                        occurrence.family,
-                        &occurrence.traits,
-                        &occurrence.linked_names,
-                    ),
                     raw: instance_raw,
                 });
 
@@ -228,11 +215,13 @@ pub(crate) fn build_generated_afflictions(
             left.from_record_key.to_string(),
             left.to_record_key.to_string(),
             left.reference_text.as_str(),
+            left.source_kind.as_str(),
         )
             .cmp(&(
                 right.from_record_key.to_string(),
                 right.to_record_key.to_string(),
                 right.reference_text.as_str(),
+                right.source_kind.as_str(),
             ))
     });
     GeneratedAfflictionBuild {

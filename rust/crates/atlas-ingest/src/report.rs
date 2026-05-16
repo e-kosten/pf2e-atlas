@@ -97,18 +97,13 @@ pub(crate) fn analyze_source_load(
     source_root: PathBuf,
     source: SourceLoad,
 ) -> SourceAnalysisReport {
-    let hidden_record_keys = source
-        .remaster_links
-        .iter()
-        .map(|link| link.legacy_record_key.to_string())
-        .collect::<BTreeSet<_>>();
+    let retrieval_visibility = crate::records::visibility::RetrievalVisibility::from_remaster_links(
+        &source.remaster_links,
+    );
     let default_visible_record_count = source
         .records
         .iter()
-        .filter(|loaded| {
-            let record = &loaded.record;
-            record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string())
-        })
+        .filter(|loaded| retrieval_visibility.is_default_visible(&loaded.record))
         .count();
     let generated_record_count = source
         .records
@@ -141,12 +136,12 @@ pub(crate) fn analyze_source_load(
             records_with_description: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.description_text.is_some())
+                .filter(|loaded| loaded.record.description.is_some())
                 .count(),
             records_with_blurb: source
                 .records
                 .iter()
-                .filter(|loaded| loaded.record.blurb_text.is_some())
+                .filter(|loaded| loaded.record.blurb.is_some())
                 .count(),
         },
         embeddings: SourceAnalysisEmbeddingReport {
@@ -169,7 +164,7 @@ pub(crate) fn analyze_source_load(
                 .filter(|loaded| loaded.record.spell_data.is_some())
                 .count(),
         },
-        metrics: metrics_report(&source.records, &hidden_record_keys),
+        metrics: metrics_report(&source.records, &retrieval_visibility),
         relationships: SourceAnalysisRelationshipReport {
             reference_edges: source.references.len(),
             record_aliases: source.aliases.len(),
@@ -363,15 +358,14 @@ fn count_by_publication_family(records: &[LoadedSourceRecord]) -> BTreeMap<Strin
 
 fn metrics_report(
     records: &[LoadedSourceRecord],
-    hidden_record_keys: &BTreeSet<String>,
+    retrieval_visibility: &crate::records::visibility::RetrievalVisibility,
 ) -> SourceAnalysisMetricReport {
     let mut rows_by_domain = BTreeMap::<String, usize>::new();
     let mut keys_by_domain = BTreeMap::<String, BTreeSet<String>>::new();
     let mut text_boolean_values = BTreeSet::<(String, String, String, String)>::new();
     for loaded in records {
         let record = &loaded.record;
-        let is_default_visible =
-            record.is_default_visible && !hidden_record_keys.contains(&record.key.to_string());
+        let is_default_visible = retrieval_visibility.is_default_visible(record);
         for metric in &record.metrics {
             let domain = metric_domain_label(metric.domain).to_string();
             *rows_by_domain.entry(domain.clone()).or_insert(0) += 1;

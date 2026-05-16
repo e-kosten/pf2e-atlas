@@ -1,10 +1,10 @@
 use super::{
     ACTOR_RECORD_COLUMNS, Column, DOCUMENT_EMBEDDING_CACHE_COLUMNS, ITEM_RECORD_COLUMNS,
-    PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_METRIC_COLUMNS,
-    RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS,
-    SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache, item_records,
-    record_aliases, record_metrics, record_traits, record_vector_index, records, records_fts,
-    reference_edges, remaster_links, spell_records,
+    PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_CONTENT_COLUMNS,
+    RECORD_METRIC_COLUMNS, RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS,
+    REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache,
+    item_records, record_aliases, record_content, record_metrics, record_traits,
+    record_vector_index, records, records_fts, reference_edges, remaster_links, spell_records,
 };
 
 pub fn record_insert_sql() -> String {
@@ -13,6 +13,10 @@ pub fn record_insert_sql() -> String {
 
 pub fn record_trait_insert_sql() -> String {
     insert_sql(record_traits::TABLE, RECORD_TRAIT_COLUMNS)
+}
+
+pub fn record_content_insert_sql() -> String {
+    insert_sql(record_content::TABLE, RECORD_CONTENT_COLUMNS)
 }
 
 pub fn record_metric_insert_sql() -> String {
@@ -72,6 +76,17 @@ pub fn record_metric_select_sql() -> String {
             record_metrics::columns::RECORD_KEY,
             record_metrics::columns::METRIC_DOMAIN,
             record_metrics::columns::METRIC_KEY,
+        ],
+    )
+}
+
+pub fn record_content_select_sql() -> String {
+    ordered_select_sql(
+        record_content::TABLE,
+        RECORD_CONTENT_COLUMNS,
+        &[
+            record_content::columns::RECORD_KEY,
+            record_content::columns::ORDINAL,
         ],
     )
 }
@@ -212,9 +227,8 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
               duration_text TEXT,
               publication_title TEXT,
               publication_remaster INTEGER NOT NULL CHECK (publication_remaster IN (0, 1)),
-              description_text TEXT,
-              blurb_text TEXT,
-              description_snippet TEXT,
+              description_json TEXT,
+              blurb_json TEXT,
               publication_family TEXT NOT NULL,
               folder_id TEXT,
               taxonomy_families_json TEXT NOT NULL,
@@ -226,8 +240,20 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
               variant_source TEXT NOT NULL,
               source_path TEXT NOT NULL,
               is_default_visible INTEGER NOT NULL CHECK (is_default_visible IN (0, 1)),
-              search_text_projection TEXT NOT NULL,
               raw_json TEXT NOT NULL
+            );
+
+            CREATE TABLE record_content (
+              record_key TEXT NOT NULL,
+              ordinal INTEGER NOT NULL,
+              source_kind TEXT NOT NULL CHECK (source_kind IN ('description', 'blurb', 'disable', 'routine', 'reset', 'stealth_details', 'details_description', 'public_notes', 'gm_notes', 'private_notes', 'embedded_item_description', 'embedded_spell_description', 'generated_affliction')),
+              visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
+              contributes_to_search INTEGER NOT NULL CHECK (contributes_to_search IN (0, 1)),
+              contributes_to_references INTEGER NOT NULL CHECK (contributes_to_references IN (0, 1)),
+              label TEXT,
+              content_json TEXT NOT NULL,
+              PRIMARY KEY (record_key, ordinal),
+              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
 
             CREATE TABLE record_traits (
@@ -242,7 +268,9 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
               to_record_key TEXT NOT NULL,
               display_text TEXT,
               reference_text TEXT NOT NULL,
-              PRIMARY KEY (from_record_key, to_record_key, reference_text),
+              source_kind TEXT NOT NULL CHECK (source_kind IN ('description', 'blurb', 'disable', 'routine', 'reset', 'stealth_details', 'details_description', 'public_notes', 'gm_notes', 'private_notes', 'embedded_item_description', 'embedded_spell_description', 'generated_affliction')),
+              visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
+              PRIMARY KEY (from_record_key, to_record_key, reference_text, source_kind),
               FOREIGN KEY (from_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
               FOREIGN KEY (to_record_key) REFERENCES records(record_key) ON DELETE CASCADE
             );
@@ -346,8 +374,14 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
 
             CREATE VIRTUAL TABLE records_fts USING fts5(
               record_key UNINDEXED,
-              name,
-              search_text_projection
+              title,
+              aliases,
+              traits,
+              headings,
+              body,
+              facts,
+              reference_terms,
+              embedded_content
             );
 
             CREATE TABLE document_embedding_cache (
@@ -364,6 +398,8 @@ pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys 
 
             CREATE INDEX records_pack_name_idx ON records(pack_name);
             CREATE INDEX records_default_visible_idx ON records(is_default_visible);
+            CREATE INDEX record_content_record_idx ON record_content(record_key);
+            CREATE INDEX record_content_visibility_idx ON record_content(visibility, source_kind);
             CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key);
             CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
             CREATE INDEX record_aliases_canonical_idx ON record_aliases(canonical_record_key);
@@ -404,6 +440,10 @@ mod tests {
         assert_eq!(
             record_trait_insert_sql(),
             "INSERT INTO record_traits (record_key, trait) VALUES (?1, ?2)"
+        );
+        assert_eq!(
+            record_content_insert_sql(),
+            "INSERT INTO record_content (record_key, ordinal, source_kind, visibility, contributes_to_search, contributes_to_references, label, content_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
         );
         assert_eq!(
             record_metric_insert_sql(),
@@ -451,7 +491,7 @@ mod tests {
         );
         assert_eq!(
             records_fts_insert_sql(),
-            "INSERT INTO records_fts (record_key, name, search_text_projection) VALUES (?1, ?2, ?3)"
+            "INSERT INTO records_fts (record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
         );
         assert_eq!(
             document_embedding_cache_insert_sql(),
@@ -476,8 +516,8 @@ mod tests {
                 column_names(PERSISTED_RECORD_COLUMNS).join(", ")
             )
         );
-        assert!(!PERSISTED_RECORD_COLUMNS.contains(&records::columns::DESCRIPTION_SNIPPET));
-        assert!(RECORD_COLUMNS.contains(&records::columns::DESCRIPTION_SNIPPET));
+        assert!(PERSISTED_RECORD_COLUMNS.contains(&records::columns::DESCRIPTION_JSON));
+        assert!(PERSISTED_RECORD_COLUMNS.contains(&records::columns::BLURB_JSON));
     }
 
     #[test]

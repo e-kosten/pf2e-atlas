@@ -1,10 +1,13 @@
 use serde_json::Value;
 
+use atlas_record::render_plain_text;
+
 use crate::generated::afflictions::AfflictionFamily;
 use crate::records::references::extract_reference_candidates_from_text;
 use crate::records::variants;
 use crate::source::normalize::{
-    extract_traits, normalize_text, normalized_pointer_string, pointer_string, strip_markup,
+    extract_traits, normalize_text, normalized_pointer_string, parse_foundry_content,
+    pointer_string,
 };
 
 pub(super) fn detect_affliction_family(raw: &Value) -> Option<AfflictionFamily> {
@@ -38,7 +41,7 @@ pub(super) fn affliction_family_label(family: AfflictionFamily) -> &'static str 
 }
 
 pub(super) fn has_affliction_shape(raw: &Value) -> bool {
-    let Some(description) = record_description_text(raw) else {
+    let Some(description) = record_description_plain_text(raw) else {
         return false;
     };
     let normalized = normalize_text(&description);
@@ -57,9 +60,9 @@ pub(super) fn record_description_markup(raw: &Value) -> Option<String> {
     .filter(|value| !value.trim().is_empty())
 }
 
-pub(super) fn record_description_text(raw: &Value) -> Option<String> {
+pub(super) fn record_description_plain_text(raw: &Value) -> Option<String> {
     record_description_markup(raw)
-        .map(|value| strip_markup(&value))
+        .map(|value| render_plain_text(&parse_foundry_content(&value).document))
         .filter(|value| !value.trim().is_empty())
 }
 

@@ -684,9 +684,9 @@ fn insert_minimal_contract_rows(connection: &Connection) -> Result<(), Box<dyn s
               record_key, id, name, normalized_name, record_family, pack_name, pack_label,
               foundry_document_type, foundry_record_type, traits_json, publication_remaster,
               publication_family, taxonomy_families_json, variant_axes_json, variant_source,
-              source_path, is_default_visible, search_text_projection, raw_json
+              source_path, is_default_visible, raw_json
             ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
-              '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, ?3, '{}')",
+              '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, '{}')",
             [
                 record_key.as_str(),
                 record_id.as_str(),
@@ -696,8 +696,9 @@ fn insert_minimal_contract_rows(connection: &Connection) -> Result<(), Box<dyn s
             ],
         )?;
         connection.execute(
-            "INSERT INTO records_fts (record_key, name, search_text_projection)
-             VALUES (?1, ?2, ?2)",
+            "INSERT INTO records_fts (
+              record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content
+             ) VALUES (?1, ?2, '', '', '', ?2, '', '', '')",
             [record_key.as_str(), name.as_str()],
         )?;
     }

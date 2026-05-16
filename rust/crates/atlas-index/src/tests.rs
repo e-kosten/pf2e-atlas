@@ -383,8 +383,8 @@ fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::e
     create_contract_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "INSERT INTO reference_edges (from_record_key, to_record_key, display_text, reference_text)
-             VALUES ('actions:testAction1', 'actions:testAction2', 'Test Action 2', '@UUID[Compendium.pf2e.actions.Item.testAction2]')",
+        "INSERT INTO reference_edges (from_record_key, to_record_key, display_text, reference_text, source_kind, visibility)
+             VALUES ('actions:testAction1', 'actions:testAction2', 'Test Action 2', 'Compendium.pf2e.actions.Item.testAction2', 'description', 'public')",
         [],
     )?;
     connection.execute(
@@ -500,8 +500,18 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
     create_contract_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text)
-             VALUES ('actions:testAction1', 'actions:testAction2', '@UUID[fixture]')",
+        "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text, source_kind, visibility)
+             VALUES ('actions:testAction1', 'actions:testAction2', 'fixture', 'description', 'public')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text, source_kind, visibility)
+             VALUES ('actions:testAction3', 'actions:testAction2', 'private-fixture', 'private_notes', 'private')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text, source_kind, visibility)
+             VALUES ('actions:testAction2', 'actions:testAction2', 'embedded-fixture', 'embedded_item_description', 'public')",
         [],
     )?;
     connection.execute(
@@ -833,9 +843,9 @@ fn insert_minimal_contract_rows(connection: &Connection) -> Result<(), Box<dyn s
                   record_key, id, name, normalized_name, record_family, pack_name, pack_label,
                   foundry_document_type, foundry_record_type, traits_json, publication_remaster,
                   publication_family, taxonomy_families_json, variant_axes_json, variant_source,
-                  source_path, is_default_visible, search_text_projection, raw_json
+                  source_path, is_default_visible, raw_json
                 ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
-                  '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, ?3, '{}')",
+                  '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, '{}')",
             [
                 record_key.as_str(),
                 record_id.as_str(),
@@ -845,8 +855,9 @@ fn insert_minimal_contract_rows(connection: &Connection) -> Result<(), Box<dyn s
             ],
         )?;
         connection.execute(
-            "INSERT INTO records_fts (record_key, name, search_text_projection)
-                 VALUES (?1, ?2, ?2)",
+            "INSERT INTO records_fts (
+              record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content
+             ) VALUES (?1, ?2, '', '', '', ?2, '', '', '')",
             [record_key.as_str(), name.as_str()],
         )?;
     }

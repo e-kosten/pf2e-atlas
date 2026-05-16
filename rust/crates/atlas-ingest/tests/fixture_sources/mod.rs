@@ -119,7 +119,7 @@ pub(crate) fn write_family_fixture_source(root: &Path) -> Result<(), Box<dyn std
                 "text": "@UUID[Compendium.pf2e.bestiary-family-ability-glossary.Item.ghostAbility01]{Frightful Moans}"
               }
             ],
-            "description": { "value": "<p>A ghostly commoner.</p>" }
+            "description": { "value": "<p>A ghostly commoner with @UUID[Compendium.pf2e.bestiary-family-ability-glossary.Item.ghostAbility01]{Frightful Moans}.</p>" }
           }
         }"#,
     )?;
@@ -335,7 +335,7 @@ pub(crate) fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error
                 "text": "@UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal} @UUID[Compendium.pf2e.spells.Item.missingSpell]{Missing}"
               }
             ],
-            "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
+            "description": { "value": "<p>You spend 10 minutes treating one injured living creature with @UUID[Compendium.pf2e.spells.Item.testSpell0001]{Heal}.</p>" }
           }
         }"#,
     )?;

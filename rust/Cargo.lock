@@ -166,6 +166,8 @@ name = "atlas-record"
 version = "0.1.0"
 dependencies = [
  "atlas-domain",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

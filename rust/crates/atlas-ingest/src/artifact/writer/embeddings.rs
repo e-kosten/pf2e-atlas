@@ -72,10 +72,10 @@ mod tests {
                   record_key, id, name, normalized_name, record_family, pack_name, pack_label,
                   foundry_document_type, foundry_record_type, traits_json, publication_remaster,
                   publication_family, taxonomy_families_json, variant_axes_json, variant_source,
-                  source_path, is_default_visible, search_text_projection, raw_json
+                  source_path, is_default_visible, raw_json
                 ) VALUES ('actions:testAction1', 'testAction1', 'Test Action', 'test action',
                   'rule', 'actions', 'Actions', 'Item', 'action', '[]', 0, 'unknown', '[]',
-                  '[]', 'none', 'packs/actions/test-action.json', 1, 'Test Action', '{}')",
+                  '[]', 'none', 'packs/actions/test-action.json', 1, '{}')",
                 [],
             )
             .expect("record row should insert");

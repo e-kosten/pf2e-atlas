@@ -1,4 +1,5 @@
 use atlas_domain::RecordKey;
+use atlas_record::{ContentSourceKind, ContentVisibility};
 
 use crate::generated::afflictions::AfflictionOccurrence;
 use crate::records::ReferenceEdge;
@@ -14,12 +15,16 @@ pub(super) fn generated_affliction_edges(
             to_record_key: instance_key.clone(),
             display_text: Some(occurrence.name.clone()),
             reference_text: format!("derived-affliction-instance:{instance_key}"),
+            source_kind: ContentSourceKind::GeneratedAffliction,
+            visibility: ContentVisibility::Public,
         },
         ReferenceEdge {
             from_record_key: instance_key.clone(),
             to_record_key: canonical_key.clone(),
             display_text: Some(occurrence.name.clone()),
             reference_text: format!("derived-affliction-canonical:{canonical_key}"),
+            source_kind: ContentSourceKind::GeneratedAffliction,
+            visibility: ContentVisibility::Public,
         },
         ReferenceEdge {
             from_record_key: canonical_key.clone(),
@@ -29,6 +34,8 @@ pub(super) fn generated_affliction_edges(
                 "derived-affliction-host:{}:{instance_key}",
                 occurrence.host_record.key
             ),
+            source_kind: ContentSourceKind::GeneratedAffliction,
+            visibility: ContentVisibility::Public,
         },
     ]
 }

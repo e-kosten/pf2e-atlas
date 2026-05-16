@@ -78,6 +78,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Design-in-progress migration roadmap and decision spikes for a Rust-centered local runtime, CLI plus skills as the primary agent surface, improved retrieval quality, offline prep boundaries, and optional MCP compatibility. Status: in_progress.
 
+- [Rust content subdocuments for journal pages and table results](./items/rust-content-subdocuments-journal-table-results.md)
+  Preserve the deferred design question for journal-page and rollable-table-result rich text as child content rather than flattening broad parent records during the Rust content-document refactor. Status: deferred.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 

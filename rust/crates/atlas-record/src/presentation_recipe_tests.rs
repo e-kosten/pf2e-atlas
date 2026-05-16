@@ -1,9 +1,9 @@
 use atlas_domain::{MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
 
 use crate::{
-    ActorSideData, MetricRow, MetricValue, NormalizedRecord, PresentationBlock,
-    PresentationSection, PresentationSectionKind, SpellSideData,
-    build_record_presentation_document,
+    ActorSideData, ContentBlock, ContentDocument, ContentInline, MetricRow, MetricValue,
+    NormalizedRecord, PresentationBlock, PresentationSection, PresentationSectionKind,
+    SpellSideData, build_record_presentation_document,
 };
 
 fn base_record(record_family: RecordFamily) -> NormalizedRecord {
@@ -40,8 +40,9 @@ fn base_record(record_family: RecordFamily) -> NormalizedRecord {
         spell_data: None,
         publication_title: Some("Player Core".to_string()),
         publication_remaster: true,
-        description_text: Some("Restores vitality to a wounded ally.".to_string()),
-        blurb_text: None,
+        description: Some(text_document("Restores vitality to a wounded ally.")),
+        blurb: None,
+        supplemental_content: Vec::new(),
         publication_family: PublicationFamily::Core,
         folder_id: None,
         taxonomy_families: vec!["support".to_string()],
@@ -53,7 +54,6 @@ fn base_record(record_family: RecordFamily) -> NormalizedRecord {
         variant_source: "none".to_string(),
         source_path: "packs/test-pack/TestRecord.json".to_string(),
         is_default_visible: true,
-        search_text_projection: "Test Record healing vitality".to_string(),
         raw_json: "{}".to_string(),
     }
 }
@@ -140,7 +140,7 @@ fn creature_recipe_groups_defense_movement_and_offense_sections() {
 #[test]
 fn hazard_recipe_drops_empty_sections_and_keeps_disable_routine() {
     let mut record = base_record(RecordFamily::Hazard);
-    record.description_text = None;
+    record.description = None;
     record.actor_data = Some(ActorSideData {
         size: None,
         languages: Vec::new(),
@@ -180,12 +180,22 @@ fn metric(key: &str, value: f64) -> MetricRow {
     }
 }
 
+fn text_document(text: &str) -> ContentDocument {
+    ContentDocument::new(vec![ContentBlock::Paragraph {
+        content: vec![ContentInline::Text {
+            text: text.to_string(),
+        }],
+    }])
+}
+
 fn assert_section_facts_include(section: &PresentationSection, label: &str, value: &str) {
     let has_fact = section.blocks.iter().any(|block| match block {
         PresentationBlock::FactList(facts) => facts
             .iter()
             .any(|fact| fact.label == label && fact.value == value),
-        PresentationBlock::Prose(_) | PresentationBlock::Relationships(_) => false,
+        PresentationBlock::Prose(_)
+        | PresentationBlock::Content(_)
+        | PresentationBlock::Relationships(_) => false,
     });
     assert!(
         has_fact,
