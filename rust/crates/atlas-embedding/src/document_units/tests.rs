@@ -87,6 +87,130 @@ fn content_documents_build_child_units() {
     );
 }
 
+#[test]
+fn content_documents_do_not_build_child_units_from_synthetic_sections() {
+    let content_document = ContentDocument::new(vec![
+        ContentBlock::Paragraph {
+            content: vec![
+                ContentInline::Strong {
+                    content: vec![ContentInline::Text {
+                        text: "Critical Success".to_string(),
+                    }],
+                },
+                ContentInline::Text {
+                    text: " You win.".to_string(),
+                },
+            ],
+        },
+        ContentBlock::Table {
+            caption: Some(vec![ContentInline::Text {
+                text: "Treasure by Level".to_string(),
+            }]),
+            headers: vec![vec![ContentInline::Text {
+                text: "Level".to_string(),
+            }]],
+            rows: vec![vec![vec![ContentInline::Text {
+                text: "1".to_string(),
+            }]]],
+        },
+    ]);
+    let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
+        record_key: "packs:visible1".to_string(),
+        record_name: "Visible Record".to_string(),
+        document: test_document("packs:visible1", "Visible Record"),
+        aliases: Vec::new(),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".to_string()),
+            document: content_document,
+        }],
+    }]);
+
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].embedding_unit_key, "packs:visible1#parent");
+}
+
+#[test]
+fn explicit_heading_child_units_include_synthetic_section_blocks() {
+    let content_document = ContentDocument::new(vec![
+        ContentBlock::Heading {
+            level: 2,
+            content: vec![ContentInline::Text {
+                text: "Outcomes".to_string(),
+            }],
+        },
+        ContentBlock::Paragraph {
+            content: vec![ContentInline::Text {
+                text: "Intro text.".to_string(),
+            }],
+        },
+        ContentBlock::Paragraph {
+            content: vec![
+                ContentInline::Strong {
+                    content: vec![ContentInline::Text {
+                        text: "Critical Success".to_string(),
+                    }],
+                },
+                ContentInline::Text {
+                    text: " You win.".to_string(),
+                },
+            ],
+        },
+        ContentBlock::Table {
+            caption: Some(vec![ContentInline::Text {
+                text: "Treasure by Level".to_string(),
+            }]),
+            headers: vec![vec![ContentInline::Text {
+                text: "Level".to_string(),
+            }]],
+            rows: vec![vec![vec![ContentInline::Text {
+                text: "1".to_string(),
+            }]]],
+        },
+        ContentBlock::Paragraph {
+            content: vec![ContentInline::Text {
+                text: "Follow-up text.".to_string(),
+            }],
+        },
+    ]);
+    let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
+        record_key: "packs:visible1".to_string(),
+        record_name: "Visible Record".to_string(),
+        document: test_document("packs:visible1", "Visible Record"),
+        aliases: Vec::new(),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".to_string()),
+            document: content_document,
+        }],
+    }]);
+
+    assert_eq!(pending.len(), 2);
+    let heading = pending
+        .iter()
+        .find(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
+        .expect("explicit heading child unit exists");
+    assert_eq!(heading.label.as_deref(), Some("Outcomes"));
+    assert!(heading.input_text.contains("Critical Success You win."));
+    assert!(heading.input_text.contains("Treasure by Level"));
+    let intro_index = heading.input_text.find("Intro text.").expect("intro text");
+    let outcome_index = heading
+        .input_text
+        .find("Critical Success You win.")
+        .expect("synthetic strong-lead text");
+    let table_index = heading
+        .input_text
+        .find("Treasure by Level")
+        .expect("synthetic table text");
+    let follow_up_index = heading
+        .input_text
+        .find("Follow-up text.")
+        .expect("follow-up text");
+    assert!(intro_index < outcome_index);
+    assert!(outcome_index < table_index);
+    assert!(table_index < follow_up_index);
+}
+
 fn paragraph_with_repeated_word(word: &str, count: usize) -> ContentBlock {
     ContentBlock::Paragraph {
         content: vec![ContentInline::Text {

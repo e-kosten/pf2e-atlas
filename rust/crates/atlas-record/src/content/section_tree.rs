@@ -5,17 +5,30 @@ use super::{ContentBlock, ContentDocument, ContentInline};
 pub struct ContentSectionNode {
     pub title: Option<String>,
     pub level: u8,
+    pub origin: ContentSectionOrigin,
+    pub source_blocks: Vec<ContentBlock>,
     pub blocks: Vec<ContentBlock>,
     pub children: Vec<ContentSectionNode>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentSectionOrigin {
+    Root,
+    ExplicitHeading,
+    StrongLeadParagraph,
+    TableCaption,
 }
 
 pub fn build_content_section_tree(document: &ContentDocument) -> ContentSectionNode {
     let flat_sections = collect_flat_sections(document);
     let (children, _) = build_children(&flat_sections, 0, 0);
+    let root_blocks = leading_blocks(document);
     let mut root = ContentSectionNode {
         title: None,
         level: 0,
-        blocks: leading_blocks(document),
+        origin: ContentSectionOrigin::Root,
+        source_blocks: root_blocks.clone(),
+        blocks: root_blocks,
         children,
     };
     extract_synthetic_sections(&mut root);
@@ -71,12 +84,15 @@ fn build_children(
             break;
         }
 
+        let blocks: Vec<_> = std::iter::once(section.heading.clone())
+            .chain(section.blocks.clone())
+            .collect();
         let mut node = ContentSectionNode {
             title: Some(section.title.clone()),
             level: section.level,
-            blocks: std::iter::once(section.heading.clone())
-                .chain(section.blocks.clone())
-                .collect(),
+            origin: ContentSectionOrigin::ExplicitHeading,
+            source_blocks: blocks.clone(),
+            blocks,
             children: Vec::new(),
         };
         index += 1;
@@ -103,10 +119,12 @@ fn extract_synthetic_sections(node: &mut ContentSectionNode) {
             continue;
         }
 
-        if let Some(title) = synthetic_section_title(&block) {
+        if let Some((origin, title)) = synthetic_section_title(&block) {
             synthetic_children.push(ContentSectionNode {
                 title: Some(title),
                 level: node.level.saturating_add(1),
+                origin,
+                source_blocks: vec![block.clone()],
                 blocks: vec![block],
                 children: Vec::new(),
             });
@@ -120,13 +138,15 @@ fn extract_synthetic_sections(node: &mut ContentSectionNode) {
     node.children = synthetic_children;
 }
 
-fn synthetic_section_title(block: &ContentBlock) -> Option<String> {
+fn synthetic_section_title(block: &ContentBlock) -> Option<(ContentSectionOrigin, String)> {
     match block {
-        ContentBlock::Paragraph { content } => strong_lead_title(content),
+        ContentBlock::Paragraph { content } => strong_lead_title(content)
+            .map(|title| (ContentSectionOrigin::StrongLeadParagraph, title)),
         ContentBlock::Table {
             caption: Some(caption),
             ..
-        } => non_empty_title(render_inlines_plain(caption)),
+        } => non_empty_title(render_inlines_plain(caption))
+            .map(|title| (ContentSectionOrigin::TableCaption, title)),
         _ => None,
     }
 }
@@ -198,8 +218,16 @@ mod tests {
         assert_eq!(tree.children.len(), 2);
         assert_eq!(tree.children[0].title.as_deref(), Some("Actions"));
         assert_eq!(
+            tree.children[0].origin,
+            ContentSectionOrigin::ExplicitHeading
+        );
+        assert_eq!(
             tree.children[0].children[0].title.as_deref(),
             Some("One Action")
+        );
+        assert_eq!(
+            tree.children[0].children[0].origin,
+            ContentSectionOrigin::ExplicitHeading
         );
         assert_eq!(tree.children[1].title.as_deref(), Some("Aftermath"));
     }
@@ -243,8 +271,16 @@ mod tests {
             Some("Critical Success")
         );
         assert_eq!(
+            outcomes.children[0].origin,
+            ContentSectionOrigin::StrongLeadParagraph
+        );
+        assert_eq!(
             outcomes.children[1].title.as_deref(),
             Some("Treasure by Level")
+        );
+        assert_eq!(
+            outcomes.children[1].origin,
+            ContentSectionOrigin::TableCaption
         );
     }
 

@@ -1035,6 +1035,7 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
                 "embedding_distance_metric": "cosine",
                 "embedding_document_prefix": "",
                 "embedding_query_prefix": "",
+                "embedding_unit_policy_version": "explicit-heading-sections/v1",
                 "fts_tokenizer": "unicode61 remove_diacritics 2",
                 "adjacent_manifest_path": "manifest.json"
             }
@@ -1180,6 +1181,7 @@ fn validate_index_json_reports_embedding_mismatch() -> Result<(), Box<dyn std::e
                 "embedding_distance_metric": "cosine",
                 "embedding_document_prefix": "",
                 "embedding_query_prefix": "",
+                "embedding_unit_policy_version": "explicit-heading-sections/v1",
                 "fts_tokenizer": "unicode61 remove_diacritics 2",
                 "adjacent_manifest_path": "manifest.json",
                 "diagnostics": [
@@ -1235,6 +1237,7 @@ fn validate_index_json_reports_missing_required_key() -> Result<(), Box<dyn std:
                 "embedding_distance_metric": "cosine",
                 "embedding_document_prefix": "",
                 "embedding_query_prefix": "",
+                "embedding_unit_policy_version": "explicit-heading-sections/v1",
                 "fts_tokenizer": "unicode61 remove_diacritics 2",
                 "adjacent_manifest_path": "manifest.json",
                 "missing_keys": ["embedding_dtype"]
@@ -1282,6 +1285,7 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
                 "embedding_distance_metric": "cosine",
                 "embedding_document_prefix": "",
                 "embedding_query_prefix": "",
+                "embedding_unit_policy_version": "explicit-heading-sections/v1",
                 "fts_tokenizer": "unicode61 remove_diacritics 2",
                 "adjacent_manifest_path": "manifest.json",
                 "diagnostics": [
@@ -1339,6 +1343,7 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
                 "embedding_distance_metric": "cosine",
                 "embedding_document_prefix": "",
                 "embedding_query_prefix": "",
+                "embedding_unit_policy_version": "explicit-heading-sections/v1",
                 "fts_tokenizer": "unicode61 remove_diacritics 2",
                 "adjacent_manifest_path": "manifest.json",
                 "diagnostics": [

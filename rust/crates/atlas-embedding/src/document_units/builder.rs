@@ -1,5 +1,6 @@
 use atlas_record::{
-    ContentDocument, ContentSectionNode, build_content_section_tree, render_plain_text,
+    ContentDocument, ContentSectionNode, ContentSectionOrigin, build_content_section_tree,
+    render_plain_text,
 };
 
 use crate::document_input::hash_document_embedding_input;
@@ -139,8 +140,9 @@ fn collect_content_tree_embedding_sections(
     node: &ContentSectionNode,
     sections: &mut Vec<ContentTreeEmbeddingSection>,
 ) {
-    let body = render_plain_text(&ContentDocument::new(node.blocks.clone()));
+    let body = render_content_section_embedding_body(node);
     if !body.trim().is_empty()
+        && node.origin == ContentSectionOrigin::ExplicitHeading
         && let Some(label) = node.title.as_deref()
     {
         sections.push(ContentTreeEmbeddingSection {
@@ -152,4 +154,8 @@ fn collect_content_tree_embedding_sections(
     for child in &node.children {
         collect_content_tree_embedding_sections(child, sections);
     }
+}
+
+fn render_content_section_embedding_body(node: &ContentSectionNode) -> String {
+    render_plain_text(&ContentDocument::new(node.source_blocks.clone()))
 }

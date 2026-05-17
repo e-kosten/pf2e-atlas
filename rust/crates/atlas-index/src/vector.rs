@@ -330,6 +330,7 @@ fn metadata_summary_from_report(report: &ArtifactValidationReport) -> ArtifactMe
         embedding_distance_metric: report.embedding_distance_metric.clone(),
         embedding_document_prefix: report.embedding_document_prefix.clone(),
         embedding_query_prefix: report.embedding_query_prefix.clone(),
+        embedding_unit_policy_version: report.embedding_unit_policy_version.clone(),
         fts_tokenizer: report.fts_tokenizer.clone(),
         adjacent_manifest_path: report.adjacent_manifest_path.clone(),
     }

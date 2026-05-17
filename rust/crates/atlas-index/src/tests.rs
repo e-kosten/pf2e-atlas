@@ -12,7 +12,10 @@ use atlas_domain::metadata::{
     CollectionOperator, MetadataNumberField, MetadataPredicate, MetadataSetField, NumberOperator,
 };
 use atlas_domain::{MetricOperator, NumericMatch, RecordFamily, RecordKey, ScalarValue};
-use atlas_embedding::{EmbeddingModelId, default_embedding_model_spec, embedding_model_spec};
+use atlas_embedding::{
+    EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelId, default_embedding_model_spec,
+    embedding_model_spec,
+};
 use rusqlite::{Connection, params_from_iter};
 
 use crate::filters::{
@@ -116,6 +119,27 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(
         report.diagnostics[0].key.as_deref(),
         Some(artifact_metadata_keys::EMBEDDING_MODEL_ID)
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reports_embedding_unit_policy_mismatch() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("embedding-unit-policy-mismatch");
+    create_contract_database_with_override(
+        &path,
+        artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+        "legacy-child-sections/v0",
+    )?;
+
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
+    assert_eq!(
+        report.diagnostics[0].key.as_deref(),
+        Some(artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION)
     );
     fs::remove_file(path)?;
     Ok(())
@@ -744,6 +768,10 @@ fn valid_metadata_entries_for_embedding(
         (
             artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
             embedding_spec.query_prefix,
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+            EMBEDDING_UNIT_POLICY_VERSION,
         ),
         (
             artifact_metadata_keys::FTS_TOKENIZER,

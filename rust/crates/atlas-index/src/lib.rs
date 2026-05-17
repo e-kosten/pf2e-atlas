@@ -144,6 +144,7 @@ fn validation_report_from_error(
         embedding_distance_metric: None,
         embedding_document_prefix: None,
         embedding_query_prefix: None,
+        embedding_unit_policy_version: None,
         fts_tokenizer: None,
         adjacent_manifest_path: None,
         missing_keys: Vec::new(),

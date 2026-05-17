@@ -1,43 +1,127 @@
 # PF2e Atlas
 
-PF2e Atlas is an offline Pathfinder 2E search, reference, and editorial workbench built on a local clone of the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). It supports querying and exploring Foundry PF2E data locally through either an MCP server or a TUI.
-
-It provides several connected surfaces over the local Foundry PF2E data:
-- a stdio MCP server for external clients and agents
-- a TUI for exploration, search, and editorial workflows
-- local indexing, search-semantics, and derived-tag tooling for maintaining and refining the corpus
+PF2e Atlas is a local Pathfinder 2E search and reference runtime built from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). The Rust `atlas` CLI is the primary local interface in this branch: it installs and repairs local data, builds the SQLite artifact, validates readiness, and exposes record lookup, resolution, and search commands.
 
 ## Capabilities
 
-With it, you can:
+With `atlas`, you can:
 
-- browse and search across the PF2E corpus with category-first boundaries, structured filters, and hybrid retrieval
-- use the ontology browser to explore Pathfinder-native search semantics, metadata filters, and linked-rule traversal
-- connect external clients and agents to PF2E search and rules tools over MCP
-- look up detailed PF2E records by name and canonical key
-- refine derived tags through discovery, review, migration, and evaluation workflows for corpus maintenance
+- fetch and maintain the local Foundry PF2E source checkout
+- build and validate a local SQLite artifact for PF2E records
+- look up detailed PF2E records by canonical key
+- resolve names and verified aliases to canonical records
+- search and list records with structured filters
+- validate full semantic readiness, base record readiness, or focused embedding/vector readiness
 
 ## Quick Start
 
-Before you start:
+Before you start, install Rust and Cargo with [rustup](https://rustup.rs/) or your platform package manager.
 
-- install Node.js 20+
-- clone the Foundry PF2E repo into `vendor/pf2e`
+Install the local CLI from this clone:
 
-Set up the local runtime:
+```bash
+cd rust
+cargo install --path crates/atlas-cli --locked
+```
+
+Run the standard first-time setup:
+
+```bash
+atlas setup
+```
+
+`atlas setup` resolves the default paths, fetches or updates the Foundry PF2E source checkout, prepares the configured embedding model cache, builds or repairs the local SQLite artifact, and validates the result. Embeddings are required by default because semantic search depends on them.
+
+For a faster record-only setup, use:
+
+```bash
+atlas setup --no-embeddings
+```
+
+That produces a base artifact suitable for `record get`, `record resolve`, and filter-only listing, but not semantic search.
+
+## Try It
+
+After setup, commands use the resolved default artifact path automatically:
+
+```bash
+atlas record get actionspf2e:1kGNdIIhuglAjIp9
+atlas record get equipment-srd:s1vB3HdXjMigYAnY
+atlas record resolve "Treat Wounds" --filter-json '{"kind":"pack","value":"actionspf2e"}'
+atlas index validate
+```
+
+Useful setup and validation variants:
+
+```bash
+atlas setup --check
+atlas setup --offline
+atlas index validate --no-embeddings
+atlas index validate --embeddings-only
+```
+
+`atlas setup --check` reports readiness and planned actions without writing local runtime files. `atlas setup --offline` prevents network-backed source updates and embedding model preparation. `atlas index validate` validates full semantic readiness by default; `--no-embeddings` validates only the base artifact, and `--embeddings-only` runs focused embedding/vector diagnostics.
+
+## Paths And Data
+
+`atlas` uses the Rust runtime path resolver:
+
+- `--path-mode auto` is the default.
+- Inside this repository, auto mode uses repo-local paths:
+  - source: `vendor/pf2e`
+  - embedding model cache: `.cache/hf-models`
+  - SQLite artifact: `.cache/pf2e-rust-index.sqlite`
+- Outside a repository checkout, auto mode uses platform user cache paths under `pf2e-atlas`.
+- `--path-mode repo` requires repo-local paths.
+- `--path-mode user` forces platform user cache paths.
+
+Direct command flags override resolved paths for that command, such as:
+
+- `--source /path/to/pf2e`
+- `--output /path/to/pf2e-rust-index.sqlite`
+- `--index /path/to/pf2e-rust-index.sqlite`
+- `--embedding-cache-path /path/to/hf-models`
+
+The local SQLite artifact is reusable. Setup rebuilds or repairs it when validation fails, when the source signature is stale, when embedding metadata does not match the selected model, or when the embedding-unit policy changes.
+
+## JSON Output
+
+Most commands support `--json`. Successful command payloads are under `data`, and command failures are under `error`.
+
+Artifact validation against an invalid artifact is still a successful command invocation: it returns `status: "ok"` with `data.valid: false` and exits with code `3`.
+
+Example:
+
+```bash
+atlas index validate --json
+```
+
+## Manual Index Commands
+
+Standard users should run `atlas setup`. Manual index commands remain available for development and diagnostics:
+
+```bash
+cd rust
+cargo run -p atlas-cli -- index analyze --json
+cargo run -p atlas-cli -- index build --no-embeddings --json
+```
+
+Use Cargo's release profile for ingest or search performance measurements:
+
+```bash
+cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
+```
+
+## Transitional Node Surfaces
+
+The TypeScript/Node MCP server, TUI, and editorial tooling still exist in this repository while the Rust runtime is being promoted. Those surfaces use the older Node setup and index flow.
+
+For the Node surfaces:
 
 ```bash
 npm install
-git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
 npm run refresh-external
 npm run build
-```
-
-## Run
-
-Build once, then launch either main app surface from the repo root:
-
-```bash
 npm run tui
 npm run mcp
 ```
@@ -45,38 +129,11 @@ npm run mcp
 `npm run tui` runs the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
 `npm run mcp` runs the built stdio MCP server from `dist/index.js`.
 
-For deeper local developer and editorial tooling, use the script surfaces under [`scripts/`](./scripts/package.json) and [`src/tags/cli/`](./src/tags/cli/package.json). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the command layout.
-
-## Data And Index
-
-The application reads PF2E data from `vendor/pf2e` by default and builds a local SQLite index for querying, exploration, and editorial work.
-That index is cached and reused across restarts. When the PF2E source, embedding model, or index schema changes, rebuild it explicitly with `npm run refresh-index` or `npm run refresh-external`.
-
-Normal startup is offline-only. It does not refresh the vendored PF2E clone, download embedding assets, or rebuild the SQLite index for you.
-Refresh external dependencies explicitly when needed:
-
-```bash
-npm run refresh-data
-npm run refresh-embeddings
-npm run refresh-index
-
-# or run the full refresh flow at once
-npm run refresh-external
-```
-
-`refresh-index` rebuilds the local SQLite cache from the already-prepared PF2E checkout and embedding assets. Application startup expects that index to already exist and be current.
-
-Run `refresh-index` again whenever:
-
-- `refresh-data` changed the vendored PF2E checkout
-- `refresh-embeddings` changed the configured embedding model or revision
-- you pulled code that changed the index schema
-
-If startup is missing a prepared index or detects a stale one, it fails fast with an error telling you to run `npm run refresh-index` or `npm run refresh-external`.
+The Node runtime remains offline-only at startup. It expects its own prepared SQLite index and embedding assets. The Rust `atlas setup` flow described above is the intended first-run path for the Rust CLI artifact, not a replacement for the current Node MCP server configuration.
 
 ## MCP Client Config
 
-Example MCP client entry:
+The current MCP server is still the TypeScript stdio server. Build it first with `npm run build`, then configure the client to point at the built server entrypoint:
 
 ```json
 {
@@ -89,53 +146,13 @@ Example MCP client entry:
 }
 ```
 
-The MCP client should point at the built server entrypoint. Keep the full path as one JSON/TOML string or one shell argument; a line break inside the path makes Node try to load only the prefix before the break. Build first with `npm run build`, then use `npm run mcp` for manual local runs.
-
-## Configuration
-
-The normal workflow is to keep the PF2E data under `vendor/pf2e`, but an alternate path can be supplied if needed.
-
-You can also override the data path with:
-
-- `PF2E_DATA_PATH`
-- `--data-path /path/to/pf2e`
-
-Ranking config hot reload is off by default for reliable startup in agent environments with low file descriptor limits. Enable it with:
-
-- `PF2E_RANKING_CONFIG_WATCH=true`
-- `--ranking-config-watch true`
-
-The SQLite index path defaults to `.cache/pf2e-index.sqlite` under the current working directory. You can override it with:
-
-- `PF2E_INDEX_PATH`
-- `--index-path /path/to/index.sqlite`
-
-The embedding cache path defaults to `hf-models` beside the configured SQLite index path. You can override it with:
-
-- `PF2E_EMBEDDING_CACHE_PATH`
-- `--embedding-cache-path /path/to/hf-models`
-
-If you want to bypass local HF embeddings entirely, set:
-
-- `PF2E_EMBEDDING_PROVIDER=hash`
-
-That skips the HF model requirement, but you still need a prepared SQLite index for startup.
-
-## MCP And Search
-
-The MCP server is read-only and exposes a category-first search surface over the local PF2E corpus.
-
-- Use `pf2e_lookup` and `pf2e_lookup_many` for exact-name lookups.
-- Use `pf2e_search` for ranked retrieval with `searchProfile: "lexical" | "balanced" | "concept"`.
-- Use `pf2e_get_search_semantics` and `pf2e_list_filter_values` to discover categories, subcategories, tags, and live filter values before building structured queries.
-- Prefer `category`, `subcategory`, `scopes`, numeric bounds, and typed `metadata` predicates over raw Foundry record-type fields.
-
-For the full MCP tool catalog, response field reference, and detailed search behavior notes, see [docs/mcp-and-search.md](./docs/mcp-and-search.md).
+Keep the full path as one JSON/TOML string or one shell argument; a line break inside the path makes Node try to load only the prefix before the break.
 
 ## Further Reading
 
+- [rust/README.md](./rust/README.md) for Rust workspace layout, validation commands, and CLI details
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, developer commands, and repo layout
-- [docs/mcp-and-search.md](./docs/mcp-and-search.md) for MCP tool and search reference
+- [docs/mcp-and-search.md](./docs/mcp-and-search.md) for the current TypeScript MCP tool and search reference
 - [docs/architecture](./docs/architecture/overview.md) for architecture, boundaries, and subsystem docs
 
 ## Contact
