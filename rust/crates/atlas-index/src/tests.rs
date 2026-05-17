@@ -17,11 +17,9 @@ use crate::filters::{
     EligibleRecordsQuery, FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort,
     compile_eligible_records_query, compile_filtered_record_keys_query,
 };
-use crate::records::{load_persisted_record_set, load_persisted_records};
+use crate::vector::compile_vector_knn_query;
 use crate::{
-    ArtifactContractFamily, ValidationCode, ValidationStatus, VectorQueryError,
-    compile_vector_knn_query, validate_index, validate_vector_index,
-    validate_vector_index_with_loader, write_vector_index, write_vector_index_with_loader,
+    ArtifactContractFamily, AtlasIndex, ValidationCode, ValidationStatus, VectorQueryError,
 };
 
 #[test]
@@ -29,7 +27,7 @@ fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("valid");
     create_contract_database(&path)?;
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -56,7 +54,7 @@ fn reports_legacy_metadata_without_accepting_it_as_contract()
     )?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingArtifactMetadata);
@@ -70,7 +68,7 @@ fn reports_missing_required_metadata_key() -> Result<(), Box<dyn std::error::Err
     let path = temp_db_path("missing-key");
     create_contract_database_without(&path, artifact_metadata_keys::EMBEDDING_DTYPE)?;
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingRequiredMetadata);
@@ -91,7 +89,7 @@ fn reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
         "stale:fixture",
     )?;
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::StaleSourceSignature);
@@ -109,7 +107,7 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         "unknown/model",
     )?;
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -135,7 +133,7 @@ fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::err
     insert_minimal_contract_rows(&connection)?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -148,7 +146,7 @@ fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>
     let path = temp_db_path("unsupported-schema");
     create_contract_database_with_override(&path, artifact_metadata_keys::SCHEMA_VERSION, "2")?;
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
@@ -165,7 +163,7 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     connection.execute("DROP TABLE item_records", [])?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -190,7 +188,7 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -210,7 +208,7 @@ fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error:
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     fs::remove_file(path)?;
@@ -225,7 +223,7 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
     insert_document_embedding_cache_rows(&connection, 383, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -254,7 +252,7 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
     )?;
     drop(connection);
 
-    let report = validate_index(&path)?;
+    let report = AtlasIndex::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -271,7 +269,7 @@ fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::e
     let path = temp_db_path("vector-table-missing");
     create_contract_database(&path)?;
 
-    let report = validate_vector_index(&path)?;
+    let report = AtlasIndex::open_read_only_with_vectors(&path)?.validate_vector_index()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -284,60 +282,11 @@ fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::e
 }
 
 #[test]
-fn vector_validation_reports_loader_failure() -> Result<(), Box<dyn std::error::Error>> {
-    let path = temp_db_path("vector-loader-failure");
-    create_contract_database(&path)?;
-
-    let report =
-        validate_vector_index_with_loader(&path, || Err("fixture loader failed".to_string()))?;
-
-    assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
-    assert_eq!(
-        report.diagnostics[0].actual.as_deref(),
-        Some("fixture loader failed")
-    );
-    fs::remove_file(path)?;
-    Ok(())
-}
-
-#[test]
-fn vector_write_builds_and_validates_vector_index() -> Result<(), Box<dyn std::error::Error>> {
-    let path = temp_db_path("vector-write");
-    create_contract_database(&path)?;
-
-    let report = write_vector_index(&path)?;
-
-    assert_eq!(report.status, ValidationStatus::Ok);
-    assert_eq!(report.code, ValidationCode::Ok);
-    fs::remove_file(path)?;
-    Ok(())
-}
-
-#[test]
-fn vector_write_reports_loader_failure() -> Result<(), Box<dyn std::error::Error>> {
-    let path = temp_db_path("vector-write-loader-failure");
-    create_contract_database(&path)?;
-
-    let report =
-        write_vector_index_with_loader(&path, || Err("fixture loader failed".to_string()))?;
-
-    assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::VectorExtensionUnavailable);
-    assert_eq!(
-        report.diagnostics[0].actual.as_deref(),
-        Some("fixture loader failed")
-    );
-    fs::remove_file(path)?;
-    Ok(())
-}
-
-#[test]
 fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-records");
     create_contract_database(&path)?;
 
-    let records = load_persisted_records(&path)?;
+    let records = AtlasIndex::open_read_only(&path)?.load_records()?;
 
     assert_eq!(records.len(), 3);
     assert_eq!(records[0].key.to_string(), "actions:testAction1");
@@ -399,7 +348,7 @@ fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::e
     )?;
     drop(connection);
 
-    let record_set = load_persisted_record_set(&path)?;
+    let record_set = AtlasIndex::open_read_only(&path)?.load_record_set()?;
 
     assert_eq!(record_set.records.len(), 3);
     assert_eq!(record_set.reference_edges.len(), 1);

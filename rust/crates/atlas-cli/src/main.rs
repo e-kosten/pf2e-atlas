@@ -6,18 +6,12 @@ use std::time::Instant;
 
 use atlas_domain::SearchFilterNode;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
-use atlas_index::{
-    ArtifactValidationReport, ValidationCode, ValidationStatus, inspect_index,
-    validate_index_report, validate_vector_index_report, write_vector_index_report,
-};
+use atlas_index::{ArtifactValidationReport, ValidationCode, ValidationStatus};
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
 };
-use atlas_runtime::{
-    AtlasPathMode, AtlasPathOverrides, check_setup_status, fetch_pf2e_source, resolve_atlas_paths,
-    resolve_index_path,
-};
-use atlas_search::{SearchEmbeddingConfig, SemanticSearchMode, SemanticSearchService};
+use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
+use atlas_search::{AtlasSearchRequest, AtlasSearchResult, SemanticSearchMode};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde_json::json;
 
@@ -81,8 +75,6 @@ enum IndexCommand {
     Validate(IndexPathOptions),
     #[command(about = "Validate sqlite-vec availability and record_vector_index coherence")]
     ValidateVectors(IndexPathOptions),
-    #[command(about = "Build record_vector_index from document_embedding_cache")]
-    BuildVectors(IndexPathOptions),
 }
 
 #[derive(Debug, Subcommand)]
@@ -213,7 +205,6 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Inspect(options) => run_index_inspect(options),
             IndexCommand::Validate(options) => run_index_validate(options),
             IndexCommand::ValidateVectors(options) => run_index_validate_vectors(options),
-            IndexCommand::BuildVectors(options) => run_index_build_vectors(options),
         },
         Command::Search(search) => match search.command {
             SearchCommand::Semantic(options) => run_search_semantic(options),
@@ -222,20 +213,21 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
 }
 
 fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
-    let paths = resolve_atlas_paths(
-        options.path_mode.into(),
-        AtlasPathOverrides {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.index,
         },
-    )?;
+    })?;
 
     if options.fetch_source {
-        fetch_pf2e_source(&paths.source_root)?;
+        runtime.fetch_source()?;
     }
 
-    let status = check_setup_status(&paths);
+    let paths = runtime.paths();
+    let status = runtime.setup_status();
     let ready = status.ready();
 
     if options.json {
@@ -324,14 +316,15 @@ fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
-    let paths = resolve_atlas_paths(
-        options.path_mode.into(),
-        AtlasPathOverrides {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: None,
             index_path: None,
         },
-    )?;
+    })?;
+    let paths = runtime.paths();
     let report = analyze_foundry_source(&paths.source_root, options.manifest.as_deref())
         .map_err(|error| error.to_string())?;
 
@@ -373,23 +366,25 @@ fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
-    let paths = resolve_atlas_paths(
-        options.path_mode.into(),
-        AtlasPathOverrides {
+    let no_embeddings = options.no_embeddings;
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.output,
         },
-    )?;
+    })?;
+    let paths = runtime.paths();
     let report = build_artifact(BuildArtifactOptions {
-        source_root: paths.source_root,
-        output_path: paths.index_path,
+        source_root: paths.source_root.clone(),
+        output_path: paths.index_path.clone(),
         manifest_path: options.manifest,
         embedding_model_id: options.embedding_model.to_string(),
-        embedding_cache_root: if options.no_embeddings {
+        embedding_cache_root: if no_embeddings {
             None
         } else {
-            Some(paths.embedding_cache_root)
+            Some(paths.embedding_cache_root.clone())
         },
         reuse_embeddings: !options.no_reuse_embeddings,
         embedding_batch_size: options.embedding_batch_size,
@@ -471,8 +466,12 @@ fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
-    let report = inspect_index(&paths.index_path).map_err(|error| error.to_string())?;
+    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let report = runtime
+        .open_index()
+        .map_err(|error| error.to_string())?
+        .inspect()
+        .map_err(|error| error.to_string())?;
 
     if options.json {
         let body = serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?;
@@ -503,20 +502,14 @@ fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
 }
 
 fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
-    let report = validate_index_report(&paths.index_path);
+    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let report = runtime.validate_index_report();
     write_validation_report(report, options.json)
 }
 
 fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
-    let report = validate_vector_index_report(&paths.index_path);
-    write_validation_report(report, options.json)
-}
-
-fn run_index_build_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let paths = resolve_index_path(options.path_mode.into(), options.index)?;
-    let report = write_vector_index_report(&paths.index_path);
+    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let report = runtime.validate_vector_index_report();
     write_validation_report(report, options.json)
 }
 
@@ -531,30 +524,27 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
         })
         .transpose()?;
 
-    let paths = resolve_atlas_paths(
-        options.path_mode.into(),
-        AtlasPathOverrides {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
             source_root: None,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.index,
         },
-    )?;
-    let config = SearchEmbeddingConfig {
-        model_id: options.embedding_model.to_string(),
-        cache_root: paths.embedding_cache_root,
-    };
+    })?;
     let service_open_started_at = Instant::now();
-    let mut search = SemanticSearchService::open(&paths.index_path, &config)
+    let mut search = runtime
+        .open_retrieval_service_with_model(options.embedding_model.to_string())
         .map_err(|error| error.to_string())?;
     let service_open_duration_ms = service_open_started_at.elapsed().as_millis();
     let semantic_mode = SemanticSearchMode::from(options.semantic_mode);
-    let result = search
-        .semantic_with_timing(
-            &options.query,
-            filter.as_ref(),
-            options.limit,
-            semantic_mode,
-        )
+    let AtlasSearchResult::Semantic(result) = search
+        .search(AtlasSearchRequest::Semantic {
+            query: &options.query,
+            filter: filter.as_ref(),
+            limit: options.limit,
+            mode: semantic_mode,
+        })
         .map_err(|error| error.to_string())?;
     let hits = result.hits;
 
@@ -594,6 +584,17 @@ fn run_search_semantic(options: SemanticSearchOptions) -> Result<ExitCode, Strin
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<AtlasRuntime, String> {
+    AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode,
+        overrides: AtlasPathOverrides {
+            source_root: None,
+            embedding_cache_root: None,
+            index_path: index,
+        },
+    })
 }
 
 fn status_label(ok: bool) -> &'static str {

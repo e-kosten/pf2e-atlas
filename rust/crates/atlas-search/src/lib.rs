@@ -1,16 +1,35 @@
 #![deny(unsafe_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Instant;
 
 use atlas_domain::SearchFilterNode;
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, EmbeddingUnitKind, TextEmbedder};
-use atlas_index::{AtlasIndex, IndexValidationError, VectorQueryError, VectorSearchHit};
+use atlas_index::{
+    AtlasIndex, IndexValidationError, RecordLoadError, VectorQueryError, VectorSearchHit,
+};
+use atlas_record::PersistedRecord;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub struct SemanticSearchService {
+/// Initial top-level retrieval boundary for Rust runtime consumers.
+///
+/// The service owns product-facing retrieval entrypoints. The current Rust
+/// migration slice exposes semantic search first, while the semantic-only
+/// implementation remains a private component behind this boundary. Future
+/// record get/resolve, filter-only list, lexical, and hybrid behavior should
+/// be added here rather than as peer public services.
+pub struct AtlasRetrievalService {
+    semantic: SemanticSearchService,
+}
+
+/// Semantic-only retrieval component used to validate the embedding and
+/// sqlite-vec loop during the Rust migration.
+///
+/// Keep this type private to the crate so runtime consumers cannot bypass the
+/// `AtlasRetrievalService` boundary as additional retrieval patterns land.
+struct SemanticSearchService {
     index: AtlasIndex,
     embedder: TextEmbedder,
 }
@@ -64,14 +83,49 @@ pub struct SemanticSearchResult {
     pub timing: SemanticSearchTiming,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum AtlasSearchRequest<'a> {
+    Semantic {
+        query: &'a str,
+        filter: Option<&'a SearchFilterNode>,
+        limit: u32,
+        mode: SemanticSearchMode,
+    },
+    FilterOnly {
+        filter: Option<&'a SearchFilterNode>,
+        limit: u32,
+    },
+    Lexical {
+        query: &'a str,
+        filter: Option<&'a SearchFilterNode>,
+        limit: u32,
+    },
+    Hybrid {
+        query: &'a str,
+        filter: Option<&'a SearchFilterNode>,
+        limit: u32,
+        semantic_mode: SemanticSearchMode,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
+pub enum AtlasSearchResult {
+    Semantic(SemanticSearchResult),
+}
+
 #[derive(Debug, Error)]
 pub enum SearchError {
     #[error(transparent)]
     Index(#[from] IndexValidationError),
+    #[error(transparent)]
+    RecordLoad(#[from] RecordLoadError),
     #[error("invalid embedding model `{model}`: {message}")]
     InvalidEmbeddingModel { model: String, message: String },
     #[error("embedding operation failed: {0}")]
     Embedding(String),
+    #[error("retrieval pattern is not implemented yet: {0}")]
+    UnsupportedRetrievalPattern(&'static str),
     #[error(transparent)]
     Vector(#[from] VectorQueryError),
 }
@@ -82,22 +136,14 @@ pub struct SearchEmbeddingConfig {
     pub cache_root: PathBuf,
 }
 
-impl SemanticSearchService {
-    pub fn open(
-        index_path: impl AsRef<Path>,
+impl AtlasRetrievalService {
+    pub fn new(
+        index: AtlasIndex,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
-        let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
-            SearchError::InvalidEmbeddingModel {
-                model: embedding_config.model_id.clone(),
-                message: error.to_string(),
-            }
-        })?;
-        let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
+        index.validate_vector_index()?;
         Ok(Self {
-            index: AtlasIndex::open_read_only(index_path)?,
-            embedder: TextEmbedder::load(&embedding_config)
-                .map_err(|error| SearchError::Embedding(error.to_string()))?,
+            semantic: SemanticSearchService::new(index, embedding_config)?,
         })
     }
 
@@ -108,10 +154,84 @@ impl SemanticSearchService {
         limit: u32,
         mode: SemanticSearchMode,
     ) -> Result<Vec<SemanticSearchHit>, SearchError> {
-        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
+        self.semantic.semantic(query, filter, limit, mode)
     }
 
     pub fn semantic_with_timing(
+        &mut self,
+        query: &str,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        mode: SemanticSearchMode,
+    ) -> Result<SemanticSearchResult, SearchError> {
+        self.semantic
+            .semantic_with_timing(query, filter, limit, mode)
+    }
+
+    pub fn search(
+        &mut self,
+        request: AtlasSearchRequest<'_>,
+    ) -> Result<AtlasSearchResult, SearchError> {
+        match request {
+            AtlasSearchRequest::Semantic {
+                query,
+                filter,
+                limit,
+                mode,
+            } => self
+                .semantic_with_timing(query, filter, limit, mode)
+                .map(AtlasSearchResult::Semantic),
+            AtlasSearchRequest::FilterOnly { .. } => Err(SearchError::UnsupportedRetrievalPattern(
+                "filter-only search",
+            )),
+            AtlasSearchRequest::Lexical { .. } => {
+                Err(SearchError::UnsupportedRetrievalPattern("lexical search"))
+            }
+            AtlasSearchRequest::Hybrid { .. } => {
+                Err(SearchError::UnsupportedRetrievalPattern("hybrid search"))
+            }
+        }
+    }
+
+    pub fn get_record(&self, _record_key: &str) -> Result<PersistedRecord, SearchError> {
+        Err(SearchError::UnsupportedRetrievalPattern("record get"))
+    }
+
+    pub fn resolve_record(&self, _query: &str) -> Result<PersistedRecord, SearchError> {
+        Err(SearchError::UnsupportedRetrievalPattern("record resolve"))
+    }
+}
+
+impl SemanticSearchService {
+    fn new(
+        index: AtlasIndex,
+        embedding_config: &SearchEmbeddingConfig,
+    ) -> Result<Self, SearchError> {
+        let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
+            SearchError::InvalidEmbeddingModel {
+                model: embedding_config.model_id.clone(),
+                message: error.to_string(),
+            }
+        })?;
+        let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
+        Ok(Self {
+            index,
+            embedder: TextEmbedder::load(&embedding_config)
+                .map_err(|error| SearchError::Embedding(error.to_string()))?,
+        })
+    }
+
+    fn semantic(
+        &mut self,
+        query: &str,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        mode: SemanticSearchMode,
+    ) -> Result<Vec<SemanticSearchHit>, SearchError> {
+        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
+    }
+
+    fn semantic_with_timing(
         &mut self,
         query: &str,
         filter: Option<&SearchFilterNode>,
@@ -340,5 +460,19 @@ mod tests {
             "records:a#heading_section:1"
         );
         assert_eq!(collapsed[0].rank_distance, 0.100);
+    }
+
+    #[test]
+    fn unsupported_retrieval_patterns_are_typed_errors() {
+        let error = SearchError::UnsupportedRetrievalPattern("record get");
+
+        assert!(matches!(
+            error,
+            SearchError::UnsupportedRetrievalPattern("record get")
+        ));
+        assert_eq!(
+            error.to_string(),
+            "retrieval pattern is not implemented yet: record get"
+        );
     }
 }

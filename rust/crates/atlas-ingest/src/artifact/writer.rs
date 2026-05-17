@@ -14,6 +14,7 @@ mod metric_catalogs;
 mod packs;
 mod records;
 mod relationships;
+mod vector_index;
 
 use embeddings::write_document_embedding_cache;
 use metadata::write_artifact_metadata;
@@ -21,6 +22,7 @@ use metric_catalogs::write_metric_catalogs;
 use packs::write_packs;
 use records::write_records;
 use relationships::{write_record_aliases, write_reference_edges, write_remaster_links};
+use vector_index::write_record_vector_index;
 
 use crate::artifact::schema;
 use crate::error::IngestError;
@@ -34,6 +36,10 @@ pub(crate) fn write_artifact(
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
 
+    if !source.document_embeddings.is_empty() {
+        atlas_sqlite_vec::register_sqlite_vec_auto_extension()
+            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    }
     let mut connection = Connection::open(output.temp_path())
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let transaction = connection
@@ -76,6 +82,13 @@ pub(crate) fn write_artifact(
         "writing document embedding cache"
     );
     write_document_embedding_cache(&transaction, &source.document_embeddings)?;
+    if !source.document_embeddings.is_empty() {
+        info!(
+            document_embeddings = source.document_embeddings.len(),
+            "writing record vector index"
+        );
+        write_record_vector_index(&transaction)?;
+    }
     info!("writing metric catalogs");
     write_metric_catalogs(&transaction)?;
     info!("committing artifact");

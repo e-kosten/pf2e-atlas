@@ -153,6 +153,7 @@ dependencies = [
  "atlas-embedding",
  "atlas-index",
  "atlas-record",
+ "atlas-sqlite-vec",
  "rusqlite",
  "serde",
  "serde_json",
@@ -175,6 +176,8 @@ name = "atlas-runtime"
 version = "0.1.0"
 dependencies = [
  "atlas-embedding",
+ "atlas-index",
+ "atlas-search",
 ]
 
 [[package]]
@@ -184,6 +187,7 @@ dependencies = [
  "atlas-domain",
  "atlas-embedding",
  "atlas-index",
+ "atlas-record",
  "serde",
  "thiserror",
 ]

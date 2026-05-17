@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command as ProcessCommand;
 
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingRuntimeConfig};
+use atlas_search::{AtlasRetrievalService, SearchEmbeddingConfig, SearchError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtlasPathMode {
@@ -18,6 +19,97 @@ pub struct AtlasPathOverrides {
     pub source_root: Option<PathBuf>,
     pub embedding_cache_root: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AtlasRuntimeOptions {
+    pub path_mode: AtlasPathMode,
+    pub overrides: AtlasPathOverrides,
+}
+
+impl Default for AtlasRuntimeOptions {
+    fn default() -> Self {
+        Self {
+            path_mode: AtlasPathMode::Auto,
+            overrides: AtlasPathOverrides::default(),
+        }
+    }
+}
+
+pub struct AtlasRuntime {
+    paths: ResolvedAtlasPaths,
+}
+
+impl AtlasRuntime {
+    pub fn resolve(options: AtlasRuntimeOptions) -> Result<Self, String> {
+        Ok(Self {
+            paths: resolve_atlas_paths(options.path_mode, options.overrides)?,
+        })
+    }
+
+    pub fn paths(&self) -> &ResolvedAtlasPaths {
+        &self.paths
+    }
+
+    pub fn source_root(&self) -> &Path {
+        &self.paths.source_root
+    }
+
+    pub fn embedding_cache_root(&self) -> &Path {
+        &self.paths.embedding_cache_root
+    }
+
+    pub fn index_path(&self) -> &Path {
+        &self.paths.index_path
+    }
+
+    pub fn setup_status(&self) -> SetupStatus {
+        check_setup_status(&self.paths)
+    }
+
+    pub fn fetch_source(&self) -> Result<(), String> {
+        fetch_pf2e_source(&self.paths.source_root)
+    }
+
+    pub fn open_index(&self) -> Result<atlas_index::AtlasIndex, atlas_index::IndexValidationError> {
+        atlas_index::AtlasIndex::open_read_only(&self.paths.index_path)
+    }
+
+    pub fn validate_index_report(&self) -> atlas_index::ArtifactValidationReport {
+        match self.open_index() {
+            Ok(index) => index.validate_report(),
+            Err(error) => atlas_index::validation_report_for_error(&self.paths.index_path, error),
+        }
+    }
+
+    pub fn validate_vector_index_report(&self) -> atlas_index::ArtifactValidationReport {
+        match self.open_search_index() {
+            Ok(index) => index.vector_validation_report(),
+            Err(error) => atlas_index::validation_report_for_error(&self.paths.index_path, error),
+        }
+    }
+
+    pub fn open_search_index(
+        &self,
+    ) -> Result<atlas_index::AtlasIndex, atlas_index::IndexValidationError> {
+        atlas_index::AtlasIndex::open_read_only_with_vectors(&self.paths.index_path)
+    }
+
+    pub fn open_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
+        self.open_retrieval_service_with_model(DEFAULT_EMBEDDING_MODEL.to_string())
+    }
+
+    pub fn open_retrieval_service_with_model(
+        &self,
+        model_id: impl Into<String>,
+    ) -> Result<AtlasRetrievalService, SearchError> {
+        let index = self.open_search_index()?;
+        let config = SearchEmbeddingConfig {
+            model_id: model_id.into(),
+            cache_root: self.paths.embedding_cache_root.clone(),
+        };
+        AtlasRetrievalService::new(index, &config)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -76,21 +168,7 @@ pub struct EmbeddingModelCacheStatus {
     pub missing_files: Vec<PathBuf>,
 }
 
-pub fn resolve_index_path(
-    path_mode: AtlasPathMode,
-    index_override: Option<PathBuf>,
-) -> Result<ResolvedAtlasPaths, String> {
-    resolve_atlas_paths(
-        path_mode,
-        AtlasPathOverrides {
-            source_root: None,
-            embedding_cache_root: None,
-            index_path: index_override,
-        },
-    )
-}
-
-pub fn resolve_atlas_paths(
+fn resolve_atlas_paths(
     path_mode: AtlasPathMode,
     overrides: AtlasPathOverrides,
 ) -> Result<ResolvedAtlasPaths, String> {
@@ -159,7 +237,7 @@ pub fn resolve_atlas_paths(
     })
 }
 
-pub fn check_setup_status(paths: &ResolvedAtlasPaths) -> SetupStatus {
+fn check_setup_status(paths: &ResolvedAtlasPaths) -> SetupStatus {
     SetupStatus {
         source_exists: paths.source_root.is_dir(),
         embedding_model: DEFAULT_EMBEDDING_MODEL.to_string(),
@@ -168,7 +246,7 @@ pub fn check_setup_status(paths: &ResolvedAtlasPaths) -> SetupStatus {
     }
 }
 
-pub fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
+fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
     let output = ProcessCommand::new("git")
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(current_dir)
@@ -193,7 +271,7 @@ pub fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
     }
 }
 
-pub fn platform_cache_root() -> Result<PathBuf, String> {
+fn platform_cache_root() -> Result<PathBuf, String> {
     if cfg!(target_os = "macos") {
         return home_dir()
             .map(|home| home.join("Library").join("Caches"))
@@ -215,7 +293,7 @@ pub fn platform_cache_root() -> Result<PathBuf, String> {
         .ok_or_else(|| "could not resolve HOME for user cache path".to_string())
 }
 
-pub fn embedding_model_cache_status(cache_root: &Path) -> EmbeddingModelCacheStatus {
+fn embedding_model_cache_status(cache_root: &Path) -> EmbeddingModelCacheStatus {
     let config = EmbeddingRuntimeConfig::new(DEFAULT_EMBEDDING_MODEL, cache_root);
     let model_dir = config.model_dir();
     let required_files = [
@@ -233,7 +311,7 @@ pub fn embedding_model_cache_status(cache_root: &Path) -> EmbeddingModelCacheSta
     }
 }
 
-pub fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
+fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
     if source_root.exists() {
         if source_root.join(".git").exists() {
             let status = ProcessCommand::new("git")
