@@ -79,7 +79,8 @@ pub(crate) fn normalize_record(
     let duration = system_duration_value
         .as_deref()
         .and_then(normalize_time_text);
-    let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type);
+    let metrics = metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
+        .map_err(|message| normalization_error(path, &message))?;
     let actor_data =
         (manifest_pack.document_type == "Actor").then(|| side_data::extract_actor_side_data(&raw));
     let item_data = (manifest_pack.document_type == "Item").then(|| {

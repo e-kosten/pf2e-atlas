@@ -159,11 +159,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
                     "instance_records": 0,
                     "reference_edges": 0
                 },
-                "dropped_inline_macros": [],
-                "metric_audit": {
-                    "unknown_emitted_metrics": [],
-                    "unemitted_source_metric_candidates": []
-                }
+                "dropped_inline_macros": []
             },
             "skipped_record_count": 0,
             "skipped_records": [],

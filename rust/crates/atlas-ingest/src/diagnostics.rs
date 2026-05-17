@@ -20,18 +20,10 @@ pub struct IngestDiagnostics {
     pub generated_affliction_instance_records: usize,
     pub generated_affliction_reference_edges: usize,
     pub dropped_inline_macros: BTreeMap<String, DroppedInlineMacroDiagnostic>,
-    pub unknown_emitted_metrics: BTreeMap<String, MetricAuditDiagnostic>,
-    pub unemitted_source_metric_candidates: BTreeMap<String, MetricAuditDiagnostic>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DroppedInlineMacroDiagnostic {
-    pub count: usize,
-    pub examples: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct MetricAuditDiagnostic {
     pub count: usize,
     pub examples: Vec<String>,
 }

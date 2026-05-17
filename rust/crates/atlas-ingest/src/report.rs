@@ -231,22 +231,6 @@ pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
                 "examples": diagnostic.examples,
             })
         }).collect::<Vec<_>>(),
-        "metric_audit": {
-            "unknown_emitted_metrics": diagnostics.unknown_emitted_metrics.iter().map(|(key, diagnostic)| {
-                json!({
-                    "key": key,
-                    "count": diagnostic.count,
-                    "examples": diagnostic.examples,
-                })
-            }).collect::<Vec<_>>(),
-            "unemitted_source_metric_candidates": diagnostics.unemitted_source_metric_candidates.iter().map(|(key, diagnostic)| {
-                json!({
-                    "key": key,
-                    "count": diagnostic.count,
-                    "examples": diagnostic.examples,
-                })
-            }).collect::<Vec<_>>(),
-        }
     })
 }
 
