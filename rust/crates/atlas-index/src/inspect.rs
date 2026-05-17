@@ -1,6 +1,6 @@
 use atlas_artifact::schema::{
-    REQUIRED_TABLES, TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
-    TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
+    TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
+    TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS, required_tables,
 };
 use rusqlite::Connection;
 use serde::Serialize;
@@ -126,7 +126,7 @@ fn inspect_tables(
     connection: &Connection,
 ) -> Result<BTreeMap<String, usize>, IndexValidationError> {
     let mut tables = BTreeMap::new();
-    for table in REQUIRED_TABLES {
+    for table in required_tables() {
         let table_name = table.name();
         tables.insert(table_name.to_string(), count_rows(connection, table_name)?);
     }

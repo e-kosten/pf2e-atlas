@@ -6,11 +6,13 @@ use atlas_domain::{
 };
 
 pub mod content;
+pub mod metrics;
 pub mod presentation;
 mod presentation_format;
 mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
+pub mod reference_policy;
 
 pub use content::{
     ContentBlock, ContentDefinitionItem, ContentDocument, ContentFtsField, ContentInline,
@@ -19,12 +21,22 @@ pub use content::{
     build_content_section_tree, build_record_fts_projection, iter_content_references,
     render_markdown_like, render_plain_text, visit_content_references_mut,
 };
+pub use metrics::{
+    MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
+    MetricKeyPattern, MetricKeySegment, MetricLabelTemplate, MetricVariableVocabulary,
+    PatternMetricDefinition, StaticMetricDefinition, all_definitions, definition_for, is_known_key,
+    label_for_row,
+};
 pub use presentation::{
     PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
     PresentationRelationship, PresentationRelationshipKind, PresentationSection,
     PresentationSectionKind, PresentationText, RecordPresentationDocument,
 };
 pub use presentation_recipe::build_record_presentation_document;
+pub use reference_policy::{
+    DEFAULT_EXCLUDED_SOURCE_KINDS, ReferenceEdgeFacts, ReferenceGraphMode, ReferenceGraphPolicy,
+    ReferenceVisibilityPolicy, reference_edge_matches_mode, reference_graph_policy,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NormalizedRecord {

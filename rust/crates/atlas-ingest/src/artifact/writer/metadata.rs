@@ -1,8 +1,8 @@
 use atlas_artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_METADATA_TABLE, ARTIFACT_SCHEMA_VERSION,
-    EXPECTED_CONTENT_HASH_ALGORITHM, EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND,
-    artifact_metadata_keys,
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_CONTENT_HASH_ALGORITHM,
+    EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
+use atlas_artifact::schema::artifact_metadata_insert_sql;
 use atlas_embedding::{EmbeddingModelId, embedding_model_spec};
 use rusqlite::Connection;
 
@@ -108,12 +108,10 @@ pub(super) fn write_artifact_metadata(
         ),
     ];
 
+    let insert_sql = artifact_metadata_insert_sql();
     for (key, value) in metadata {
         connection
-            .execute(
-                &format!("INSERT INTO {ARTIFACT_METADATA_TABLE} (key, value) VALUES (?1, ?2)"),
-                (key, value),
-            )
+            .execute(&insert_sql, (key, value))
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
     Ok(())

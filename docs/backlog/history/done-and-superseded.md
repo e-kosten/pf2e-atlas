@@ -36,6 +36,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Actor metrics search orchestration](./items/actor-metrics-search-orchestration.md)
   Actor and item metric predicates now run through the shared search/filter pipeline and are wired through both MCP semantics and TUI compose flows. Status: done.
 
+- [Rust artifact ownership hardening](./items/rust-artifact-ownership-hardening.md)
+  Artifact schema descriptors now generate SQLite DDL and drive writer, reader, validation, vector storage, typed metric, and reference graph policy boundaries for the Rust runtime migration. Status: done.
+
 - [Remove isUnique metadata](./items/remove-isunique-metadata.md)
   Search/filter vocabulary no longer exposes `isUnique` as a standalone public metadata concept; rarity remains the durable public owner of uniqueness semantics. Status: done.
 

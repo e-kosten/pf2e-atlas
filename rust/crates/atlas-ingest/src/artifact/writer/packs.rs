@@ -1,3 +1,4 @@
+use atlas_artifact::schema::pack_insert_sql;
 use rusqlite::Connection;
 
 use crate::error::IngestError;
@@ -8,10 +9,7 @@ pub(super) fn write_packs(
     packs: &[LoadedPack],
 ) -> Result<(), IngestError> {
     let mut statement = connection
-        .prepare(
-            "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        )
+        .prepare(&pack_insert_sql())
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     for pack in packs {
         statement

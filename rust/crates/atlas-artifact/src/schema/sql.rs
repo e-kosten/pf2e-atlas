@@ -1,48 +1,115 @@
 use super::{
-    ACTOR_RECORD_COLUMNS, Column, DOCUMENT_EMBEDDING_CACHE_COLUMNS, ITEM_RECORD_COLUMNS,
-    PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_COLUMNS, RECORD_CONTENT_COLUMNS,
-    RECORD_METRIC_COLUMNS, RECORD_TRAIT_COLUMNS, RECORDS_FTS_COLUMNS, REFERENCE_EDGE_COLUMNS,
-    REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS, Table, actor_records, document_embedding_cache,
-    item_records, record_aliases, record_content, record_metrics, record_traits,
+    ACTOR_RECORD_COLUMNS, Column, ColumnCheck, ColumnDescriptor, ForeignKeyAction,
+    ITEM_RECORD_COLUMNS, PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_CONTENT_COLUMNS,
+    RECORD_METRIC_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS,
+    SqlType, TABLE_DESCRIPTORS, Table, TableConstraint, TableDescriptor, TableKind, actor_records,
+    artifact_metadata, document_embedding_cache, item_records, metric_key_catalog,
+    metric_value_catalog, packs, record_aliases, record_content, record_metrics, record_traits,
     record_vector_index, records, records_fts, reference_edges, remaster_links, spell_records,
+    table_descriptor,
 };
 
+pub fn artifact_metadata_insert_sql() -> String {
+    insert_sql_for_table(artifact_metadata::TABLE)
+}
+
+pub fn pack_insert_sql() -> String {
+    insert_sql_for_table(packs::TABLE)
+}
+
 pub fn record_insert_sql() -> String {
-    insert_sql(records::TABLE, RECORD_COLUMNS)
+    insert_sql_for_table(records::TABLE)
 }
 
 pub fn record_trait_insert_sql() -> String {
-    insert_sql(record_traits::TABLE, RECORD_TRAIT_COLUMNS)
+    insert_sql_for_table(record_traits::TABLE)
 }
 
 pub fn record_content_insert_sql() -> String {
-    insert_sql(record_content::TABLE, RECORD_CONTENT_COLUMNS)
+    insert_sql_for_table(record_content::TABLE)
 }
 
 pub fn record_metric_insert_sql() -> String {
-    insert_sql(record_metrics::TABLE, RECORD_METRIC_COLUMNS)
+    insert_sql_for_table(record_metrics::TABLE)
 }
 
 pub fn actor_record_insert_sql() -> String {
-    insert_sql(actor_records::TABLE, ACTOR_RECORD_COLUMNS)
+    insert_sql_for_table(actor_records::TABLE)
 }
 
 pub fn item_record_insert_sql() -> String {
-    insert_sql(item_records::TABLE, ITEM_RECORD_COLUMNS)
+    insert_sql_for_table(item_records::TABLE)
 }
 
 pub fn spell_record_insert_sql() -> String {
-    insert_sql(spell_records::TABLE, SPELL_RECORD_COLUMNS)
+    insert_sql_for_table(spell_records::TABLE)
 }
 
 pub fn records_fts_insert_sql() -> String {
-    insert_sql(records_fts::TABLE, RECORDS_FTS_COLUMNS)
+    insert_sql_for_table(records_fts::TABLE)
 }
 
 pub fn document_embedding_cache_insert_sql() -> String {
-    insert_sql(
-        document_embedding_cache::TABLE,
-        DOCUMENT_EMBEDDING_CACHE_COLUMNS,
+    insert_sql_for_table(document_embedding_cache::TABLE)
+}
+
+pub fn reference_edge_insert_sql() -> String {
+    insert_or_ignore_sql_for_table(reference_edges::TABLE)
+}
+
+pub fn record_alias_insert_sql() -> String {
+    insert_or_ignore_sql_for_table(record_aliases::TABLE)
+}
+
+pub fn remaster_link_insert_sql() -> String {
+    insert_or_ignore_sql_for_table(remaster_links::TABLE)
+}
+
+pub fn metric_key_catalog_insert_select_sql() -> String {
+    format!(
+        "INSERT INTO {table} ({columns})
+            SELECT
+              rm.metric_domain,
+              r.record_family,
+              CASE
+                WHEN instr(rm.metric_key, '.') > 0 THEN substr(rm.metric_key, 1, instr(rm.metric_key, '.'))
+                ELSE ''
+              END AS namespace_prefix,
+              rm.metric_key,
+              rm.value_type,
+              COUNT(*) AS catalog_count,
+              CASE WHEN rm.value_type = 'number' THEN MIN(rm.number_value) ELSE NULL END AS numeric_min,
+              CASE WHEN rm.value_type = 'number' THEN MAX(rm.number_value) ELSE NULL END AS numeric_max
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_default_visible = 1
+            GROUP BY rm.metric_domain, r.record_family, namespace_prefix, rm.metric_key, rm.value_type",
+        table = metric_key_catalog::TABLE.name(),
+        columns = column_names(metric_key_catalog::ALL_COLUMNS).join(", ")
+    )
+}
+
+pub fn metric_value_catalog_insert_select_sql() -> String {
+    format!(
+        "INSERT INTO {table} ({columns})
+            SELECT
+              rm.metric_domain,
+              r.record_family,
+              rm.metric_key,
+              CASE
+                WHEN rm.value_type = 'text' THEN rm.text_value
+                WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+                ELSE NULL
+              END AS value,
+              COUNT(*) AS catalog_count
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_default_visible = 1
+              AND rm.value_type IN ('text', 'boolean')
+              AND value IS NOT NULL
+            GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value",
+        table = metric_value_catalog::TABLE.name(),
+        columns = column_names(metric_value_catalog::ALL_COLUMNS).join(", ")
     )
 }
 
@@ -178,245 +245,173 @@ fn column_names(columns: &[Column]) -> Vec<&'static str> {
     columns.iter().map(|column| column.name()).collect()
 }
 
-pub const CREATE_ARTIFACT_SCHEMA_SQL: &str = r#"            PRAGMA foreign_keys = ON;
+pub fn create_artifact_schema_sql() -> String {
+    let mut statements = vec!["PRAGMA foreign_keys = ON".to_string()];
+    statements.extend(TABLE_DESCRIPTORS.iter().map(create_table_sql));
+    statements.extend(
+        ARTIFACT_INDEX_SQL
+            .iter()
+            .map(|statement| (*statement).to_string()),
+    );
+    format!("{};", statements.join(";\n\n"))
+}
 
-            CREATE TABLE artifact_metadata (
-              key TEXT PRIMARY KEY,
-              value TEXT NOT NULL
+fn insert_sql_for_table(table: Table) -> String {
+    let descriptor = table_descriptor(table).expect("artifact table descriptor should exist");
+    insert_sql(table, &descriptor.columns())
+}
+
+fn insert_or_ignore_sql_for_table(table: Table) -> String {
+    let descriptor = table_descriptor(table).expect("artifact table descriptor should exist");
+    insert_or_ignore_sql(table, &descriptor.columns())
+}
+
+pub fn insert_or_ignore_sql(table: Table, columns: &[Column]) -> String {
+    let placeholders = (1..=columns.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})",
+        table = table.name(),
+        columns = column_names(columns).join(", ")
+    )
+}
+
+fn create_table_sql(descriptor: &TableDescriptor) -> String {
+    match descriptor.kind {
+        TableKind::Ordinary => ordinary_create_table_sql(descriptor),
+        TableKind::Fts5 { unindexed } => fts5_create_table_sql(descriptor, unindexed),
+        TableKind::Vector => panic!("vec tables require runtime dimensions"),
+    }
+}
+
+fn ordinary_create_table_sql(descriptor: &TableDescriptor) -> String {
+    let mut clauses = descriptor
+        .column_descriptors
+        .iter()
+        .map(column_definition_sql)
+        .collect::<Vec<_>>();
+    clauses.extend(
+        descriptor
+            .table_constraints
+            .iter()
+            .map(table_constraint_sql),
+    );
+    format!(
+        "CREATE TABLE {} ({})",
+        descriptor.table.name(),
+        clauses.join(", ")
+    )
+}
+
+fn fts5_create_table_sql(descriptor: &TableDescriptor, unindexed: &[Column]) -> String {
+    let columns = descriptor
+        .column_descriptors
+        .iter()
+        .map(|column| {
+            if unindexed.contains(&column.column) {
+                format!("{} UNINDEXED", column.column.name())
+            } else {
+                column.column.name().to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "CREATE VIRTUAL TABLE {} USING fts5({columns})",
+        descriptor.table.name()
+    )
+}
+
+fn column_definition_sql(descriptor: &ColumnDescriptor) -> String {
+    let mut parts = vec![
+        descriptor.column.name().to_string(),
+        sql_type_name(descriptor.sql_type).to_string(),
+    ];
+    if descriptor.primary_key {
+        parts.push("PRIMARY KEY".to_string());
+    }
+    if !descriptor.nullable {
+        parts.push("NOT NULL".to_string());
+    }
+    if let Some(check) = descriptor.check {
+        parts.push(column_check_sql(descriptor.column, check));
+    }
+    parts.join(" ")
+}
+
+fn sql_type_name(sql_type: SqlType) -> &'static str {
+    match sql_type {
+        SqlType::Text => "TEXT",
+        SqlType::Integer => "INTEGER",
+        SqlType::Real => "REAL",
+        SqlType::Blob => "BLOB",
+    }
+}
+
+fn column_check_sql(column: Column, check: ColumnCheck) -> String {
+    match check {
+        ColumnCheck::Boolean => format!("CHECK ({} IN (0, 1))", column.name()),
+        ColumnCheck::ClosedSet(values) => format!(
+            "CHECK ({} IN ({}))",
+            column.name(),
+            values
+                .iter()
+                .map(|value| format!("'{value}'"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+fn table_constraint_sql(constraint: &TableConstraint) -> String {
+    match constraint {
+        TableConstraint::PrimaryKey(columns) => {
+            format!("PRIMARY KEY ({})", column_names(columns).join(", "))
+        }
+        TableConstraint::ForeignKey {
+            columns,
+            target_table,
+            target_columns,
+            on_delete,
+        } => {
+            let mut sql = format!(
+                "FOREIGN KEY ({}) REFERENCES {}({})",
+                column_names(columns).join(", "),
+                target_table.name(),
+                column_names(target_columns).join(", ")
             );
+            if matches!(on_delete, Some(ForeignKeyAction::Cascade)) {
+                sql.push_str(" ON DELETE CASCADE");
+            }
+            sql
+        }
+    }
+}
 
-            CREATE TABLE packs (
-              name TEXT PRIMARY KEY,
-              label TEXT NOT NULL,
-              document_type TEXT NOT NULL,
-              declared_path TEXT NOT NULL,
-              resolved_path TEXT NOT NULL,
-              record_count INTEGER NOT NULL
-            );
-
-            CREATE TABLE records (
-              record_key TEXT PRIMARY KEY,
-              id TEXT NOT NULL,
-              name TEXT NOT NULL,
-              normalized_name TEXT NOT NULL,
-              record_family TEXT NOT NULL,
-              pack_name TEXT NOT NULL,
-              pack_label TEXT NOT NULL,
-              foundry_document_type TEXT NOT NULL,
-              foundry_record_type TEXT NOT NULL,
-              level INTEGER,
-              rarity TEXT,
-              traits_json TEXT NOT NULL,
-              system_category TEXT,
-              system_group TEXT,
-              system_base_item TEXT,
-              system_usage TEXT,
-              system_price_json TEXT,
-              system_actions_value INTEGER,
-              system_time_value TEXT,
-              system_duration_value TEXT,
-              price_cp INTEGER,
-              activation_time_kind TEXT,
-              activation_time_actions INTEGER,
-              activation_time_duration_value INTEGER,
-              activation_time_duration_unit TEXT,
-              activation_time_text TEXT,
-              duration_kind TEXT,
-              duration_value INTEGER,
-              duration_unit TEXT,
-              duration_text TEXT,
-              publication_title TEXT,
-              publication_remaster INTEGER NOT NULL CHECK (publication_remaster IN (0, 1)),
-              description_json TEXT,
-              blurb_json TEXT,
-              publication_family TEXT NOT NULL,
-              folder_id TEXT,
-              taxonomy_families_json TEXT NOT NULL,
-              variant_group_key TEXT,
-              variant_base_name TEXT,
-              variant_label TEXT,
-              variant_axes_json TEXT NOT NULL,
-              variant_confidence REAL,
-              variant_source TEXT NOT NULL,
-              source_path TEXT NOT NULL,
-              is_default_visible INTEGER NOT NULL CHECK (is_default_visible IN (0, 1)),
-              raw_json TEXT NOT NULL
-            );
-
-            CREATE TABLE record_content (
-              record_key TEXT NOT NULL,
-              ordinal INTEGER NOT NULL,
-              source_kind TEXT NOT NULL CHECK (source_kind IN ('description', 'blurb', 'disable', 'routine', 'reset', 'stealth_details', 'details_description', 'public_notes', 'gm_notes', 'private_notes', 'embedded_item_description', 'embedded_spell_description', 'generated_affliction')),
-              visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
-              contributes_to_search INTEGER NOT NULL CHECK (contributes_to_search IN (0, 1)),
-              contributes_to_references INTEGER NOT NULL CHECK (contributes_to_references IN (0, 1)),
-              label TEXT,
-              content_json TEXT NOT NULL,
-              PRIMARY KEY (record_key, ordinal),
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE record_traits (
-              record_key TEXT NOT NULL,
-              trait TEXT NOT NULL,
-              PRIMARY KEY (record_key, trait),
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE reference_edges (
-              from_record_key TEXT NOT NULL,
-              to_record_key TEXT NOT NULL,
-              display_text TEXT,
-              reference_text TEXT NOT NULL,
-              source_kind TEXT NOT NULL CHECK (source_kind IN ('description', 'blurb', 'disable', 'routine', 'reset', 'stealth_details', 'details_description', 'public_notes', 'gm_notes', 'private_notes', 'embedded_item_description', 'embedded_spell_description', 'generated_affliction')),
-              visibility TEXT NOT NULL CHECK (visibility IN ('public', 'gm_only', 'private', 'internal')),
-              PRIMARY KEY (from_record_key, to_record_key, reference_text, source_kind),
-              FOREIGN KEY (from_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
-              FOREIGN KEY (to_record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE record_aliases (
-              canonical_record_key TEXT NOT NULL,
-              alias_text TEXT NOT NULL,
-              normalized_alias TEXT NOT NULL,
-              source_kind TEXT NOT NULL CHECK (source_kind IN ('remaster_journal', 'migration', 'compendium_source')),
-              source_ref TEXT NOT NULL,
-              PRIMARY KEY (canonical_record_key, normalized_alias, source_kind, source_ref),
-              FOREIGN KEY (canonical_record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE remaster_links (
-              remaster_record_key TEXT NOT NULL,
-              legacy_record_key TEXT NOT NULL,
-              source_kind TEXT NOT NULL CHECK (source_kind IN ('remaster_journal', 'migration')),
-              source_ref TEXT NOT NULL,
-              PRIMARY KEY (remaster_record_key, legacy_record_key, source_kind, source_ref),
-              FOREIGN KEY (remaster_record_key) REFERENCES records(record_key) ON DELETE CASCADE,
-              FOREIGN KEY (legacy_record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE record_metrics (
-              record_key TEXT NOT NULL,
-              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
-              metric_key TEXT NOT NULL,
-              value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
-              number_value REAL,
-              text_value TEXT,
-              bool_value INTEGER CHECK (bool_value IN (0, 1)),
-              PRIMARY KEY (record_key, metric_domain, metric_key),
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE metric_key_catalog (
-              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
-              record_family TEXT NOT NULL,
-              namespace_prefix TEXT NOT NULL,
-              metric_key TEXT NOT NULL,
-              value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
-              catalog_count INTEGER NOT NULL,
-              numeric_min REAL,
-              numeric_max REAL,
-              PRIMARY KEY (metric_domain, record_family, metric_key)
-            );
-
-            CREATE TABLE metric_value_catalog (
-              metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
-              record_family TEXT NOT NULL,
-              metric_key TEXT NOT NULL,
-              value TEXT NOT NULL,
-              catalog_count INTEGER NOT NULL,
-              PRIMARY KEY (metric_domain, record_family, metric_key, value)
-            );
-
-            CREATE TABLE actor_records (
-              record_key TEXT PRIMARY KEY,
-              size TEXT,
-              languages_json TEXT NOT NULL,
-              speed_types_json TEXT NOT NULL,
-              senses_json TEXT NOT NULL,
-              immunities_json TEXT NOT NULL,
-              resistances_json TEXT NOT NULL,
-              weaknesses_json TEXT NOT NULL,
-              disable_text TEXT,
-              disable_skills_json TEXT NOT NULL,
-              is_complex INTEGER NOT NULL CHECK (is_complex IN (0, 1)),
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE item_records (
-              record_key TEXT PRIMARY KEY,
-              system_category TEXT,
-              system_base_item TEXT,
-              system_group TEXT,
-              system_usage TEXT,
-              price_cp INTEGER,
-              bulk_value REAL,
-              hands_requirement TEXT,
-              damage_types_json TEXT NOT NULL,
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE TABLE spell_records (
-              record_key TEXT PRIMARY KEY,
-              traditions_json TEXT NOT NULL,
-              spell_kinds_json TEXT NOT NULL,
-              range_text TEXT,
-              range_value REAL,
-              target_text TEXT,
-              area_type TEXT,
-              area_value REAL,
-              save_type TEXT,
-              sustained INTEGER NOT NULL CHECK (sustained IN (0, 1)),
-              basic_save INTEGER NOT NULL CHECK (basic_save IN (0, 1)),
-              damage_types_json TEXT NOT NULL,
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE VIRTUAL TABLE records_fts USING fts5(
-              record_key UNINDEXED,
-              title,
-              aliases,
-              traits,
-              headings,
-              body,
-              facts,
-              reference_terms,
-              embedded_content
-            );
-
-            CREATE TABLE document_embedding_cache (
-              embedding_unit_key TEXT PRIMARY KEY,
-              record_key TEXT NOT NULL,
-              unit_kind TEXT NOT NULL,
-              label TEXT,
-              ordinal INTEGER NOT NULL,
-              semantic_input_hash TEXT NOT NULL,
-              dimensions INTEGER NOT NULL,
-              vector_blob BLOB NOT NULL,
-              FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
-            );
-
-            CREATE INDEX records_pack_name_idx ON records(pack_name);
-            CREATE INDEX records_default_visible_idx ON records(is_default_visible);
-            CREATE INDEX record_content_record_idx ON record_content(record_key);
-            CREATE INDEX record_content_visibility_idx ON record_content(visibility, source_kind);
-            CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key);
-            CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key);
-            CREATE INDEX record_aliases_canonical_idx ON record_aliases(canonical_record_key);
-            CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias);
-            CREATE INDEX remaster_links_remaster_idx ON remaster_links(remaster_record_key);
-            CREATE INDEX remaster_links_legacy_idx ON remaster_links(legacy_record_key);
-            CREATE INDEX record_metrics_record_idx ON record_metrics(record_key);
-            CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type);
-            CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key);
-            CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value);
-            CREATE INDEX document_embedding_cache_record_idx ON document_embedding_cache(record_key);
-            CREATE INDEX document_embedding_cache_hash_idx ON document_embedding_cache(semantic_input_hash);
-"#;
+const ARTIFACT_INDEX_SQL: &[&str] = &[
+    "CREATE INDEX records_pack_name_idx ON records(pack_name)",
+    "CREATE INDEX records_default_visible_idx ON records(is_default_visible)",
+    "CREATE INDEX record_content_record_idx ON record_content(record_key)",
+    "CREATE INDEX record_content_visibility_idx ON record_content(visibility, source_kind)",
+    "CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key)",
+    "CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key)",
+    "CREATE INDEX record_aliases_canonical_idx ON record_aliases(canonical_record_key)",
+    "CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias)",
+    "CREATE INDEX remaster_links_remaster_idx ON remaster_links(remaster_record_key)",
+    "CREATE INDEX remaster_links_legacy_idx ON remaster_links(legacy_record_key)",
+    "CREATE INDEX record_metrics_record_idx ON record_metrics(record_key)",
+    "CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type)",
+    "CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key)",
+    "CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value)",
+    "CREATE INDEX document_embedding_cache_record_idx ON document_embedding_cache(record_key)",
+    "CREATE INDEX document_embedding_cache_hash_idx ON document_embedding_cache(semantic_input_hash)",
+];
 
 #[cfg(test)]
 mod tests {
-    use crate::schema::REQUIRED_COLUMNS;
+    use crate::schema::{RECORD_COLUMNS, required_columns};
 
     use super::*;
 
@@ -521,30 +516,36 @@ mod tests {
     }
 
     #[test]
-    fn created_schema_contains_required_descriptor_columns() {
+    fn created_schema_columns_match_descriptor_order() {
         let connection =
             rusqlite::Connection::open_in_memory().expect("in-memory database should open");
         connection
-            .execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)
+            .execute_batch(&create_artifact_schema_sql())
             .expect("artifact schema should create");
 
-        for (table, columns) in REQUIRED_COLUMNS {
+        for (table, columns) in required_columns() {
             let table_name = table.name();
             let mut statement = connection
                 .prepare(&format!("PRAGMA table_xinfo({table_name})"))
                 .expect("table info statement should prepare");
             let present = statement
-                .query_map([], |row| row.get::<_, String>(1))
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(1)?, row.get::<_, i64>(6)?))
+                })
                 .expect("table info should query")
-                .collect::<Result<std::collections::BTreeSet<_>, _>>()
-                .expect("table info rows should load");
-            for column in *columns {
-                assert!(
-                    present.contains(column.name()),
-                    "created schema is missing descriptor column {}",
-                    column.key()
-                );
-            }
+                .collect::<Result<Vec<_>, _>>()
+                .expect("table info rows should load")
+                .into_iter()
+                .filter_map(|(name, hidden)| (hidden == 0).then_some(name))
+                .collect::<Vec<_>>();
+            let expected = columns
+                .iter()
+                .map(|column| column.name().to_string())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                present, expected,
+                "created schema columns drifted from descriptor columns for {table_name}"
+            );
         }
     }
 }

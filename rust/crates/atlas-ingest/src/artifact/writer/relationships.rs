@@ -8,11 +8,7 @@ pub(super) fn write_reference_edges(
     references: &[ReferenceEdge],
 ) -> Result<(), IngestError> {
     let mut insert_reference = connection
-        .prepare(
-            "INSERT OR IGNORE INTO reference_edges (
-              from_record_key, to_record_key, display_text, reference_text, source_kind, visibility
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        )
+        .prepare(&atlas_artifact::schema::reference_edge_insert_sql())
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for reference in references {
@@ -35,11 +31,7 @@ pub(super) fn write_record_aliases(
     aliases: &[RecordAlias],
 ) -> Result<(), IngestError> {
     let mut insert_alias = connection
-        .prepare(
-            "INSERT OR IGNORE INTO record_aliases (
-              canonical_record_key, alias_text, normalized_alias, source_kind, source_ref
-            ) VALUES (?1, ?2, ?3, ?4, ?5)",
-        )
+        .prepare(&atlas_artifact::schema::record_alias_insert_sql())
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for alias in aliases {
@@ -61,11 +53,7 @@ pub(super) fn write_remaster_links(
     remaster_links: &[RemasterLink],
 ) -> Result<(), IngestError> {
     let mut insert_link = connection
-        .prepare(
-            "INSERT OR IGNORE INTO remaster_links (
-              remaster_record_key, legacy_record_key, source_kind, source_ref
-            ) VALUES (?1, ?2, ?3, ?4)",
-        )
+        .prepare(&atlas_artifact::schema::remaster_link_insert_sql())
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
 
     for link in remaster_links {

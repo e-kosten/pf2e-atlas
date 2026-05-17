@@ -1,4 +1,6 @@
-use atlas_artifact::schema::document_embedding_cache_insert_sql;
+use atlas_artifact::{
+    schema::document_embedding_cache_insert_sql, storage::encode_f32_vector_blob,
+};
 use atlas_embedding::GeneratedDocumentEmbedding;
 use rusqlite::{Connection, params};
 
@@ -23,7 +25,7 @@ pub(super) fn write_document_embedding_cache(
                 embedding.ordinal as i64,
                 embedding.input_hash.as_str(),
                 embedding.dimensions as i64,
-                encode_vector_blob(&embedding.vector),
+                encode_f32_vector_blob(&embedding.vector),
             ])
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
@@ -31,33 +33,17 @@ pub(super) fn write_document_embedding_cache(
     Ok(())
 }
 
-fn encode_vector_blob(vector: &[f32]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(std::mem::size_of_val(vector));
-    for value in vector {
-        bytes.extend_from_slice(&value.to_le_bytes());
-    }
-    bytes
-}
-
 #[cfg(test)]
 mod tests {
-    use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
+    use atlas_artifact::schema::create_artifact_schema_sql;
 
     use super::*;
-
-    #[test]
-    fn encodes_vectors_as_little_endian_f32_blobs() {
-        assert_eq!(
-            encode_vector_blob(&[1.0, -2.5]),
-            [1.0f32.to_le_bytes(), (-2.5f32).to_le_bytes()].concat()
-        );
-    }
 
     #[test]
     fn writes_document_embedding_cache_rows() {
         let connection = Connection::open_in_memory().expect("in-memory database should open");
         connection
-            .execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)
+            .execute_batch(&create_artifact_schema_sql())
             .expect("schema should create");
         connection
             .execute(
@@ -104,6 +90,6 @@ mod tests {
             .expect("document embedding row should be readable");
         assert_eq!(row.0, "fixture-hash");
         assert_eq!(row.1, 2);
-        assert_eq!(row.2, encode_vector_blob(&[1.0, -2.5]));
+        assert_eq!(row.2, encode_f32_vector_blob(&[1.0, -2.5]));
     }
 }

@@ -10,6 +10,7 @@ use crate::diagnostics::{
 use crate::embeddings;
 use crate::error::IngestError;
 use crate::generated::afflictions;
+use crate::records::metric_audit;
 use crate::records::references::{
     build_record_reference_index, resolve_content_references, resolve_reference_edges,
 };
@@ -138,6 +139,10 @@ pub(crate) fn load_foundry_source(
         remaster_links = source.remaster_links.len(),
         "resolved aliases and remaster links"
     );
+    info!("auditing emitted metric definitions");
+    let mut diagnostics = std::mem::take(&mut source.diagnostics);
+    metric_audit::audit_emitted_metrics(&source.records, &mut diagnostics, &mut source.warnings);
+    source.diagnostics = diagnostics;
     info!("preparing document embedding inputs");
     source.pending_document_embeddings = embeddings::build_pending_document_embeddings(
         &source.records,
