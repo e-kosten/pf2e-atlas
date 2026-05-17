@@ -6,7 +6,8 @@ use atlas_artifact::metadata::{
     EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
 use atlas_embedding::{
-    embedding_model_for_model_id, embedding_model_spec, supported_embedding_model_ids,
+    EMBEDDING_UNIT_POLICY_VERSION, embedding_model_for_model_id, embedding_model_spec,
+    supported_embedding_model_ids,
 };
 use rusqlite::Connection;
 
@@ -106,6 +107,9 @@ pub(crate) fn summarize_metadata(metadata: &BTreeMap<String, String>) -> Artifac
             .cloned(),
         embedding_query_prefix: metadata
             .get(artifact_metadata_keys::EMBEDDING_QUERY_PREFIX)
+            .cloned(),
+        embedding_unit_policy_version: metadata
+            .get(artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION)
             .cloned(),
         fts_tokenizer: metadata.get(artifact_metadata_keys::FTS_TOKENIZER).cloned(),
         adjacent_manifest_path: metadata
@@ -279,6 +283,14 @@ pub(crate) fn validate_metadata_values(
         metadata,
         artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
         embedding_spec.query_prefix,
+        ValidationCode::EmbeddingMismatch,
+        ArtifactContractFamily::Embedding,
+        &mut diagnostics,
+    );
+    require_value(
+        metadata,
+        artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+        EMBEDDING_UNIT_POLICY_VERSION,
         ValidationCode::EmbeddingMismatch,
         ArtifactContractFamily::Embedding,
         &mut diagnostics,

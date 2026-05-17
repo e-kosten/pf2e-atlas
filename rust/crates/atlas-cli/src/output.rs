@@ -141,6 +141,11 @@ fn validation_report_data(report: &ArtifactValidationReport) -> Value {
         "embedding_query_prefix",
         &report.embedding_query_prefix,
     );
+    insert_optional(
+        object,
+        "embedding_unit_policy_version",
+        &report.embedding_unit_policy_version,
+    );
     insert_optional(object, "fts_tokenizer", &report.fts_tokenizer);
     insert_optional(
         object,

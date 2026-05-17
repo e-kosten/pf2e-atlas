@@ -103,6 +103,8 @@ pub struct ArtifactValidationReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_query_prefix: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedding_unit_policy_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fts_tokenizer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adjacent_manifest_path: Option<String>,
@@ -140,6 +142,7 @@ impl ArtifactValidationReport {
             embedding_distance_metric: metadata.embedding_distance_metric.clone(),
             embedding_document_prefix: metadata.embedding_document_prefix.clone(),
             embedding_query_prefix: metadata.embedding_query_prefix.clone(),
+            embedding_unit_policy_version: metadata.embedding_unit_policy_version.clone(),
             fts_tokenizer: metadata.fts_tokenizer.clone(),
             adjacent_manifest_path: metadata.adjacent_manifest_path.clone(),
             missing_keys: Vec::new(),
@@ -174,6 +177,7 @@ impl ArtifactValidationReport {
             embedding_distance_metric: None,
             embedding_document_prefix: None,
             embedding_query_prefix: None,
+            embedding_unit_policy_version: None,
             fts_tokenizer: None,
             adjacent_manifest_path: None,
             missing_keys: Vec::new(),
@@ -211,6 +215,7 @@ impl ArtifactValidationReport {
             embedding_distance_metric: metadata.embedding_distance_metric.clone(),
             embedding_document_prefix: metadata.embedding_document_prefix.clone(),
             embedding_query_prefix: metadata.embedding_query_prefix.clone(),
+            embedding_unit_policy_version: metadata.embedding_unit_policy_version.clone(),
             fts_tokenizer: metadata.fts_tokenizer.clone(),
             adjacent_manifest_path: metadata.adjacent_manifest_path.clone(),
             missing_keys,
@@ -252,6 +257,7 @@ impl ArtifactValidationReport {
             embedding_distance_metric: metadata.embedding_distance_metric.clone(),
             embedding_document_prefix: metadata.embedding_document_prefix.clone(),
             embedding_query_prefix: metadata.embedding_query_prefix.clone(),
+            embedding_unit_policy_version: metadata.embedding_unit_policy_version.clone(),
             fts_tokenizer: metadata.fts_tokenizer.clone(),
             adjacent_manifest_path: metadata.adjacent_manifest_path.clone(),
             missing_keys: Vec::new(),
@@ -282,6 +288,7 @@ pub struct ArtifactMetadataSummary {
     pub embedding_distance_metric: Option<String>,
     pub embedding_document_prefix: Option<String>,
     pub embedding_query_prefix: Option<String>,
+    pub embedding_unit_policy_version: Option<String>,
     pub fts_tokenizer: Option<String>,
     pub adjacent_manifest_path: Option<String>,
 }

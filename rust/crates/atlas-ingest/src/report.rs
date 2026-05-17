@@ -56,6 +56,13 @@ pub struct SourceAnalysisTextReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceAnalysisEmbeddingReport {
     pub pending_document_embeddings: usize,
+    pub parent_units: usize,
+    pub child_units: usize,
+    pub records_with_child_units: usize,
+    pub records_over_20_child_units: usize,
+    pub records_over_50_child_units: usize,
+    pub records_over_100_child_units: usize,
+    pub max_child_units_per_record: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -147,9 +154,7 @@ pub(crate) fn analyze_source_load(
                 .filter(|loaded| loaded.record.blurb.is_some())
                 .count(),
         },
-        embeddings: SourceAnalysisEmbeddingReport {
-            pending_document_embeddings: source.pending_document_embeddings.len(),
-        },
+        embeddings: embedding_report(&source.pending_document_embeddings),
         side_data: SourceAnalysisSideDataReport {
             actor_records: source
                 .records
@@ -347,6 +352,22 @@ fn skipped_record_reports(skipped_records: &[SkippedRecord]) -> Vec<SkippedRecor
             reason: record.reason.clone(),
         })
         .collect()
+}
+
+fn embedding_report(
+    pending: &[atlas_embedding::PendingDocumentEmbedding],
+) -> SourceAnalysisEmbeddingReport {
+    let summary = crate::embeddings::summarize_pending_document_embeddings(pending);
+    SourceAnalysisEmbeddingReport {
+        pending_document_embeddings: summary.total_units,
+        parent_units: summary.parent_units,
+        child_units: summary.child_units,
+        records_with_child_units: summary.records_with_child_units,
+        records_over_20_child_units: summary.records_over_20_child_units,
+        records_over_50_child_units: summary.records_over_50_child_units,
+        records_over_100_child_units: summary.records_over_100_child_units,
+        max_child_units_per_record: summary.max_child_units_per_record,
+    }
 }
 
 fn count_by_record_family(records: &[LoadedSourceRecord]) -> BTreeMap<String, usize> {

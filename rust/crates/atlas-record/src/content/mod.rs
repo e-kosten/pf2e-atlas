@@ -8,7 +8,7 @@ mod traversal;
 
 pub use render::{render_markdown_like, render_plain_text};
 pub use search_projection::{RecordFtsProjection, build_record_fts_projection};
-pub use section_tree::{ContentSectionNode, build_content_section_tree};
+pub use section_tree::{ContentSectionNode, ContentSectionOrigin, build_content_section_tree};
 pub use traversal::{ContentReferenceIter, iter_content_references, visit_content_references_mut};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]

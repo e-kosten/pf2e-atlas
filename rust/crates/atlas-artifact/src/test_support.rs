@@ -125,6 +125,10 @@ pub fn legacy_minilm_metadata_entries() -> Vec<(&'static str, &'static str)> {
         (artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX, ""),
         (artifact_metadata_keys::EMBEDDING_QUERY_PREFIX, ""),
         (
+            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+            "explicit-heading-sections/v1",
+        ),
+        (
             artifact_metadata_keys::FTS_TOKENIZER,
             "unicode61 remove_diacritics 2",
         ),

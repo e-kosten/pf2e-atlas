@@ -3,7 +3,7 @@ use atlas_artifact::metadata::{
     EXPECTED_FTS_TOKENIZER, EXPECTED_SOURCE_KIND, artifact_metadata_keys,
 };
 use atlas_artifact::schema::artifact_metadata_insert_sql;
-use atlas_embedding::{EmbeddingModelId, embedding_model_spec};
+use atlas_embedding::{EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelId, embedding_model_spec};
 use rusqlite::Connection;
 
 use crate::error::IngestError;
@@ -97,6 +97,10 @@ pub(super) fn write_artifact_metadata(
         (
             artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
             metadata_value(embedding_spec.query_prefix),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+            metadata_value(EMBEDDING_UNIT_POLICY_VERSION),
         ),
         (
             artifact_metadata_keys::FTS_TOKENIZER,

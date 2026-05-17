@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use atlas_embedding::{
-    DocumentEmbeddingContentSource, DocumentEmbeddingSource, PendingDocumentEmbedding,
-    build_document_embedding_units,
+    DocumentEmbeddingContentSource, DocumentEmbeddingSource, EmbeddingUnitKind,
+    PendingDocumentEmbedding, build_document_embedding_units,
 };
 use atlas_record::{ContentSourceKind, NormalizedRecord, build_record_presentation_document};
 
@@ -10,6 +10,18 @@ use crate::records::visibility::RetrievalVisibility;
 use crate::records::{LoadedSourceRecord, RecordAlias, RemasterLink};
 
 pub(crate) mod generation;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct DocumentEmbeddingUnitSummary {
+    pub total_units: usize,
+    pub parent_units: usize,
+    pub child_units: usize,
+    pub records_with_child_units: usize,
+    pub records_over_20_child_units: usize,
+    pub records_over_50_child_units: usize,
+    pub records_over_100_child_units: usize,
+    pub max_child_units_per_record: usize,
+}
 
 pub(crate) fn build_pending_document_embeddings(
     records: &[LoadedSourceRecord],
@@ -43,6 +55,34 @@ pub(crate) fn build_pending_document_embeddings(
     build_document_embedding_units(&sources)
 }
 
+pub(crate) fn summarize_pending_document_embeddings(
+    pending: &[PendingDocumentEmbedding],
+) -> DocumentEmbeddingUnitSummary {
+    let mut child_units_by_record = BTreeMap::<&str, usize>::new();
+    let mut summary = DocumentEmbeddingUnitSummary {
+        total_units: pending.len(),
+        ..Default::default()
+    };
+    for unit in pending {
+        if unit.unit_kind == EmbeddingUnitKind::Parent {
+            summary.parent_units += 1;
+        } else {
+            summary.child_units += 1;
+            *child_units_by_record
+                .entry(unit.record_key.as_str())
+                .or_default() += 1;
+        }
+    }
+    summary.records_with_child_units = child_units_by_record.len();
+    for child_units in child_units_by_record.values().copied() {
+        summary.max_child_units_per_record = summary.max_child_units_per_record.max(child_units);
+        summary.records_over_20_child_units += usize::from(child_units > 20);
+        summary.records_over_50_child_units += usize::from(child_units > 50);
+        summary.records_over_100_child_units += usize::from(child_units > 100);
+    }
+    summary
+}
+
 fn embedding_parent_record(record: &NormalizedRecord) -> NormalizedRecord {
     let mut record = record.clone();
     record
@@ -71,7 +111,7 @@ fn embedding_content_documents(record: &NormalizedRecord) -> Vec<DocumentEmbeddi
         record
             .supplemental_content
             .iter()
-            .filter(|content| content.contributes_to_search)
+            .filter(|content| content.contributes_to_search && !content.source_kind.is_embedded())
             .map(|content| DocumentEmbeddingContentSource {
                 source_kind: content.source_kind,
                 label: content
@@ -107,10 +147,10 @@ mod tests {
         NormalizedRecord, SupplementalContentDocument,
     };
 
-    use super::build_pending_document_embeddings;
+    use super::{build_pending_document_embeddings, summarize_pending_document_embeddings};
 
     #[test]
-    fn embedded_content_is_child_only_for_embedding_inputs() {
+    fn embedded_content_is_excluded_from_embedding_inputs_until_promoted() {
         let mut record = base_record();
         record.description = Some(text_document("Primary description"));
         record
@@ -150,11 +190,52 @@ mod tests {
             .find(|unit| unit.embedding_unit_key == "test-pack:TestRecord#parent")
             .expect("parent unit exists");
         assert!(!parent.input_text.contains("Embedded capability text"));
-        assert!(pending.iter().any(|unit| {
-            unit.embedding_unit_key == "test-pack:TestRecord#heading_section:1"
-                && unit.input_text.contains("embedded_item_description")
-                && unit.input_text.contains("Embedded capability text")
-        }));
+        assert_eq!(pending.len(), 1);
+    }
+
+    #[test]
+    fn summarizes_embedding_unit_fanout() {
+        let mut record = base_record();
+        record.description = Some(ContentDocument::new(vec![
+            ContentBlock::Heading {
+                level: 2,
+                content: vec![ContentInline::Text {
+                    text: "First".to_string(),
+                }],
+            },
+            ContentBlock::Paragraph {
+                content: vec![ContentInline::Text {
+                    text: "First section text".to_string(),
+                }],
+            },
+            ContentBlock::Heading {
+                level: 2,
+                content: vec![ContentInline::Text {
+                    text: "Second".to_string(),
+                }],
+            },
+            ContentBlock::Paragraph {
+                content: vec![ContentInline::Text {
+                    text: "Second section text".to_string(),
+                }],
+            },
+        ]));
+        let pending = build_pending_document_embeddings(
+            &[crate::records::LoadedSourceRecord::new(
+                record,
+                crate::records::SourceConstructionFacts::empty(),
+            )],
+            &[],
+            &[],
+        );
+
+        let summary = summarize_pending_document_embeddings(&pending);
+
+        assert_eq!(summary.total_units, 3);
+        assert_eq!(summary.parent_units, 1);
+        assert_eq!(summary.child_units, 2);
+        assert_eq!(summary.records_with_child_units, 1);
+        assert_eq!(summary.max_child_units_per_record, 2);
     }
 
     fn text_document(text: &str) -> ContentDocument {

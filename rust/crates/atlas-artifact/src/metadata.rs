@@ -19,6 +19,7 @@ pub mod artifact_metadata_keys {
     pub const EMBEDDING_PROVIDER_FAMILY: &str = "embedding_provider_family";
     pub const EMBEDDING_QUERY_PREFIX: &str = "embedding_query_prefix";
     pub const EMBEDDING_TOKENIZER_ID: &str = "embedding_tokenizer_id";
+    pub const EMBEDDING_UNIT_POLICY_VERSION: &str = "embedding_unit_policy_version";
     pub const FTS_TOKENIZER: &str = "fts_tokenizer";
     pub const SCHEMA_VERSION: &str = "schema_version";
     pub const GENERATED_RECORD_COUNT: &str = "generated_record_count";
@@ -47,6 +48,7 @@ pub const REQUIRED_ARTIFACT_METADATA_KEYS: &[&str] = &[
     artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC,
     artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX,
     artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
+    artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
     artifact_metadata_keys::FTS_TOKENIZER,
     artifact_metadata_keys::ADJACENT_MANIFEST_PATH,
 ];

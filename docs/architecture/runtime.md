@@ -87,11 +87,11 @@ flowchart TD
 
     doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
     doc --> fts["RecordFtsProjection<br/>title, aliases, traits, headings,<br/>body, facts, references,<br/>embedded_content"]
-    doc --> tree["Content section tree<br/>headings, strong leads,<br/>table captions"]
+    doc --> tree["Content section tree<br/>explicit headings,<br/>synthetic run-in labels,<br/>table captions"]
     doc --> refs["Resolved ContentReference nodes"]
 
     presentation --> parentEmbedding["Embedding parent unit<br/>primary/default content;<br/>embedded capability content excluded"]
-    tree --> childEmbedding["Embedding child units<br/>source-tagged sections;<br/>embedded content lower priority"]
+    tree --> childEmbedding["Embedding child units<br/>explicit headings only;<br/>unpromoted embedded content excluded"]
     refs --> edges["reference_edges<br/>source_kind + visibility"]
     fts --> recordsFts["records_fts<br/>weighted lexical search"]
 ```

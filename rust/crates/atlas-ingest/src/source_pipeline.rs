@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use atlas_domain::PackName;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::diagnostics::{
     DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
@@ -143,6 +143,19 @@ pub(crate) fn load_foundry_source(
         &source.records,
         &source.aliases,
         &source.remaster_links,
+    );
+    let embedding_unit_summary =
+        embeddings::summarize_pending_document_embeddings(&source.pending_document_embeddings);
+    debug!(
+        total_units = embedding_unit_summary.total_units,
+        parent_units = embedding_unit_summary.parent_units,
+        child_units = embedding_unit_summary.child_units,
+        records_with_child_units = embedding_unit_summary.records_with_child_units,
+        records_over_20_child_units = embedding_unit_summary.records_over_20_child_units,
+        records_over_50_child_units = embedding_unit_summary.records_over_50_child_units,
+        records_over_100_child_units = embedding_unit_summary.records_over_100_child_units,
+        max_child_units_per_record = embedding_unit_summary.max_child_units_per_record,
+        "document embedding unit fanout diagnostics"
     );
     info!(
         pending_document_embeddings = source.pending_document_embeddings.len(),

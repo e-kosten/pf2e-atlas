@@ -17,8 +17,8 @@ pub mod reference_policy;
 
 pub use content::{
     ContentBlock, ContentDefinitionItem, ContentDocument, ContentFtsField, ContentInline,
-    ContentReference, ContentReferenceLocator, ContentSectionNode, ContentSourceKind,
-    ContentVisibility, RecordFtsProjection, SupplementalContentDocument,
+    ContentReference, ContentReferenceLocator, ContentSectionNode, ContentSectionOrigin,
+    ContentSourceKind, ContentVisibility, RecordFtsProjection, SupplementalContentDocument,
     build_content_section_tree, build_record_fts_projection, iter_content_references,
     render_markdown_like, render_plain_text, visit_content_references_mut,
 };

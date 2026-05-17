@@ -3,7 +3,10 @@ use std::path::Path;
 
 use atlas_artifact::metadata::{ARTIFACT_METADATA_TABLE, artifact_metadata_keys};
 use atlas_artifact::storage::{decode_f32_vector_blob, f32_vector_blob_len};
-use atlas_embedding::{EmbeddingModelSpec, EmbeddingRuntimeConfig, ReusableDocumentEmbedding};
+use atlas_embedding::{
+    EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelSpec, EmbeddingRuntimeConfig,
+    ReusableDocumentEmbedding,
+};
 use rusqlite::{Connection, OpenFlags};
 
 pub(crate) fn load_reusable_document_embeddings(
@@ -103,6 +106,10 @@ fn validate_embedding_identity(
         (
             artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
             spec.query_prefix.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+            EMBEDDING_UNIT_POLICY_VERSION.to_string(),
         ),
     ] {
         let actual = metadata_value(connection, key)?;
