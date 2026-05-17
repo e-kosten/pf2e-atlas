@@ -1,21 +1,28 @@
 use std::path::Path;
 
 use atlas_domain::{PackName, RecordId, RecordKey};
-use atlas_record::{ContentDocument, ContentSourceKind, SupplementalContentDocument};
 use serde_json::Value;
 
 mod content;
 mod content_diagnostics;
 mod content_html;
+mod content_sources;
 #[cfg(test)]
 mod content_tests;
+mod embedded_items;
 mod family;
+mod journal_pages;
 mod json;
 mod publication;
 #[cfg(test)]
 mod source_facts_tests;
+mod system;
 mod text;
 mod time;
+
+use content_sources::extract_content_sources;
+use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
+use journal_pages::extract_journal_page_facts;
 
 pub(crate) use content::parse_foundry_content;
 pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
@@ -25,15 +32,17 @@ pub(crate) use json::{
     string_field, typed_collection,
 };
 pub(crate) use publication::publication_family;
+pub(crate) use system::{
+    extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
+    extract_traits, normalize_price_cp, parse_bulk_value, parse_hands_requirement,
+};
 pub(crate) use text::normalize_text;
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::error::IngestError;
 use crate::records::metrics;
 use crate::records::{
-    EmbeddedItemContentRef, EmbeddedItemFact, JournalPageFact, JournalPageSkipReason,
-    LoadedSourceRecord, NormalizedRecord, SkippedJournalPageFact, SourceConstructionFacts,
-    SourceRecordFacts,
+    LoadedSourceRecord, NormalizedRecord, SourceConstructionFacts, SourceRecordFacts,
 };
 use crate::source::ManifestPack;
 use crate::source::side_data;
@@ -106,33 +115,21 @@ pub(crate) fn normalize_record(
     let publication_remaster = pointer_bool(&raw, "/system/publication/remaster")
         .or_else(|| pointer_bool(&raw, "/system/details/publication/remaster"))
         .unwrap_or(false);
-    let source_description_raw = pointer_string(&raw, "/system/description/value");
-    let parsed_description = source_description_raw.as_deref().map(parse_foundry_content);
-    let description = parsed_description
-        .as_ref()
-        .map(|parsed| parsed.document.clone())
-        .filter(non_empty_document);
-    let source_blurb_markup = pointer_string(&raw, "/system/details/blurb");
-    let parsed_blurb = source_blurb_markup.as_deref().map(parse_foundry_content);
-    let blurb = parsed_blurb
-        .as_ref()
-        .map(|parsed| parsed.document.clone())
-        .filter(non_empty_document);
+    let content_sources = extract_content_sources(&raw);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),
         compendium_source: normalized_pointer_string(&raw, "/_stats/compendiumSource"),
         ..SourceRecordFacts::default()
     };
-    let (supplemental_content, supplemental_diagnostics) =
-        extract_supplemental_content(&raw, source_description_raw.as_deref());
-    for (local_key, document) in &supplemental_content {
+    for (local_key, document) in &content_sources.supplemental_content {
         if let Some(local_key) = local_key {
             source_facts
                 .source_content
                 .insert(local_key.clone(), document.clone());
         }
     }
-    let mut supplemental_content = supplemental_content
+    let mut supplemental_content = content_sources
+        .supplemental_content
         .into_iter()
         .map(|(_, document)| document)
         .collect::<Vec<_>>();
@@ -186,8 +183,8 @@ pub(crate) fn normalize_record(
         spell_data,
         publication_title,
         publication_remaster,
-        description,
-        blurb,
+        description: content_sources.description,
+        blurb: content_sources.blurb,
         supplemental_content: std::mem::take(&mut supplemental_content),
         publication_family,
         folder_id,
@@ -203,11 +200,9 @@ pub(crate) fn normalize_record(
         raw_json,
     };
     let facts = SourceConstructionFacts {
-        content_parse_diagnostics: parsed_description
+        content_parse_diagnostics: content_sources
+            .diagnostics
             .into_iter()
-            .chain(parsed_blurb)
-            .map(|parsed| parsed.diagnostics)
-            .chain(supplemental_diagnostics)
             .chain(journal_diagnostics)
             .collect(),
         source_facts,
@@ -216,478 +211,9 @@ pub(crate) fn normalize_record(
     Ok(LoadedSourceRecord::new(record, facts))
 }
 
-fn non_empty_document(document: &ContentDocument) -> bool {
-    !document.is_empty()
-}
-
-fn extract_supplemental_content(
-    raw: &Value,
-    source_description_raw: Option<&str>,
-) -> (
-    Vec<(Option<String>, SupplementalContentDocument)>,
-    Vec<ContentParseDiagnostics>,
-) {
-    let mut content = Vec::new();
-    let mut diagnostics = Vec::new();
-    collect_content_at_pointer(
-        raw,
-        "/system/details/disable",
-        ContentSourceKind::Disable,
-        None,
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/details/routine",
-        ContentSourceKind::Routine,
-        None,
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/details/reset",
-        ContentSourceKind::Reset,
-        None,
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/attributes/stealth/details",
-        ContentSourceKind::StealthDetails,
-        Some("Stealth".to_string()),
-        &mut content,
-        &mut diagnostics,
-    );
-    if pointer_string(raw, "/system/details/description").as_deref() != source_description_raw {
-        collect_content_at_pointer(
-            raw,
-            "/system/details/description",
-            ContentSourceKind::DetailsDescription,
-            None,
-            &mut content,
-            &mut diagnostics,
-        );
-    }
-    collect_content_at_pointer(
-        raw,
-        "/system/details/publicNotes",
-        ContentSourceKind::PublicNotes,
-        Some("Public Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/description/gm",
-        ContentSourceKind::GmNotes,
-        Some("GM Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/details/gmNotes",
-        ContentSourceKind::GmNotes,
-        Some("GM Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_content_at_pointer(
-        raw,
-        "/system/details/privateNotes",
-        ContentSourceKind::PrivateNotes,
-        Some("Private Notes".to_string()),
-        &mut content,
-        &mut diagnostics,
-    );
-    collect_embedded_item_content(raw, &mut content, &mut diagnostics);
-    (content, diagnostics)
-}
-
-fn collect_content_at_pointer(
-    raw: &Value,
-    pointer: &str,
-    source_kind: ContentSourceKind,
-    label: Option<String>,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
-) {
-    let Some(markup) = pointer_string(raw, pointer) else {
-        return;
-    };
-    let parsed = parse_foundry_content(&markup);
-    if parsed.document.is_empty() {
-        return;
-    }
-    diagnostics.push(parsed.diagnostics.clone());
-    content.push((
-        None,
-        supplemental_content(source_kind, label, parsed.document),
-    ));
-}
-
-fn collect_embedded_item_content(
-    raw: &Value,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
-) {
-    let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
-        return;
-    };
-    for (index, item) in items.iter().enumerate() {
-        let label = string_field(item, "name");
-        let item_id = embedded_item_id(item, index);
-        collect_embedded_content_at_pointer(
-            item,
-            "/system/description/value",
-            ContentSourceKind::EmbeddedItemDescription,
-            label.clone(),
-            embedded_item_content_key(&item_id, "description"),
-            content,
-            diagnostics,
-        );
-        collect_embedded_content_at_pointer(
-            item,
-            "/system/spell/system/description/value",
-            ContentSourceKind::EmbeddedSpellDescription,
-            label,
-            embedded_item_content_key(&item_id, "spell-description"),
-            content,
-            diagnostics,
-        );
-    }
-}
-
-fn collect_embedded_content_at_pointer(
-    raw: &Value,
-    pointer: &str,
-    source_kind: ContentSourceKind,
-    label: Option<String>,
-    local_key: String,
-    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
-    diagnostics: &mut Vec<ContentParseDiagnostics>,
-) {
-    let Some(markup) = pointer_string(raw, pointer) else {
-        return;
-    };
-    let parsed = parse_foundry_content(&markup);
-    if parsed.document.is_empty() {
-        return;
-    }
-    diagnostics.push(parsed.diagnostics.clone());
-    content.push((
-        Some(local_key),
-        supplemental_content(source_kind, label, parsed.document),
-    ));
-}
-
-fn supplemental_content(
-    source_kind: ContentSourceKind,
-    label: Option<String>,
-    document: ContentDocument,
-) -> SupplementalContentDocument {
-    SupplementalContentDocument {
-        source_kind,
-        visibility: source_kind.default_visibility(),
-        contributes_to_search: source_kind.default_contributes_to_search(),
-        contributes_to_references: source_kind.default_contributes_to_references(),
-        label,
-        document,
-    }
-}
-
-fn embedded_item_content_key(item_id: &str, suffix: &str) -> String {
-    format!("#item:{item_id}:{suffix}")
-}
-
-fn embedded_item_id(item: &Value, index: usize) -> String {
-    string_field(item, "_id").unwrap_or_else(|| format!("item-{index}"))
-}
-
-fn extract_embedded_item_facts(raw: &Value, host_record_key: &RecordKey) -> Vec<EmbeddedItemFact> {
-    let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
-        return Vec::new();
-    };
-    items
-        .iter()
-        .enumerate()
-        .filter_map(|(index, item)| embedded_item_fact(item, host_record_key, index))
-        .collect()
-}
-
-fn embedded_item_fact(
-    item: &Value,
-    host_record_key: &RecordKey,
-    index: usize,
-) -> Option<EmbeddedItemFact> {
-    let name = string_field(item, "name")?.trim().to_string();
-    if name.is_empty() {
-        return None;
-    }
-    let item_id = embedded_item_id(item, index);
-    let foundry_item_type = string_field(item, "type").unwrap_or_default();
-    Some(EmbeddedItemFact {
-        host_record_key: host_record_key.clone(),
-        item_id,
-        name: name.clone(),
-        normalized_name: normalize_text(&name),
-        foundry_item_type,
-        traits: extract_traits(item),
-        system_category: normalized_pointer_string(item, "/system/category"),
-        slug: normalized_pointer_string(item, "/system/slug"),
-        compendium_source: normalized_pointer_string(item, "/_stats/compendiumSource"),
-        publication_remaster: pointer_bool(item, "/system/publication/remaster").unwrap_or(false),
-        content_refs: Vec::new(),
-        raw_provenance: Some(item.clone()),
-    })
-}
-
-fn attach_embedded_content_refs(
-    embedded_items: &mut [EmbeddedItemFact],
-    source_content: &std::collections::BTreeMap<String, SupplementalContentDocument>,
-) {
-    for item in embedded_items {
-        for (source_kind, suffix) in [
-            (ContentSourceKind::EmbeddedItemDescription, "description"),
-            (
-                ContentSourceKind::EmbeddedSpellDescription,
-                "spell-description",
-            ),
-        ] {
-            let local_key = embedded_item_content_key(&item.item_id, suffix);
-            if source_content.contains_key(&local_key) {
-                item.content_refs.push(EmbeddedItemContentRef {
-                    source_kind,
-                    local_key,
-                });
-            }
-        }
-    }
-}
-
-fn extract_journal_page_facts(
-    raw: &Value,
-    host_record_key: &RecordKey,
-) -> (
-    Vec<JournalPageFact>,
-    Vec<SkippedJournalPageFact>,
-    Vec<ContentParseDiagnostics>,
-) {
-    let Some(pages) = raw.pointer("/pages").and_then(Value::as_array) else {
-        return (Vec::new(), Vec::new(), Vec::new());
-    };
-    let mut facts = Vec::new();
-    let mut skipped = Vec::new();
-    let mut diagnostics = Vec::new();
-    for (index, page) in pages.iter().enumerate() {
-        let name = string_field(page, "name").unwrap_or_else(|| format!("Page {}", index + 1));
-        let page_id = string_field(page, "_id");
-        let Some(markup) = pointer_string(page, "/text/content") else {
-            skipped.push(skipped_journal_page(
-                host_record_key,
-                page_id,
-                name,
-                index,
-                JournalPageSkipReason::MissingTextContent,
-            ));
-            continue;
-        };
-        if markup.trim().is_empty() {
-            skipped.push(skipped_journal_page(
-                host_record_key,
-                page_id,
-                name,
-                index,
-                JournalPageSkipReason::EmptyTextContent,
-            ));
-            continue;
-        }
-        let parsed = parse_foundry_content(&markup);
-        if parsed.document.is_empty() {
-            skipped.push(skipped_journal_page(
-                host_record_key,
-                page_id,
-                name,
-                index,
-                JournalPageSkipReason::EmptyParsedDocument,
-            ));
-            continue;
-        }
-        diagnostics.push(parsed.diagnostics.clone());
-        facts.push(JournalPageFact {
-            host_record_key: host_record_key.clone(),
-            page_id,
-            normalized_name: normalize_text(&name),
-            source_ref: format!("journal:{name}"),
-            name,
-            ordinal: index as i64,
-            source_markup: markup,
-            document: parsed.document,
-        });
-    }
-    (facts, skipped, diagnostics)
-}
-
-fn skipped_journal_page(
-    host_record_key: &RecordKey,
-    page_id: Option<String>,
-    name: String,
-    index: usize,
-    reason: JournalPageSkipReason,
-) -> SkippedJournalPageFact {
-    SkippedJournalPageFact {
-        host_record_key: host_record_key.clone(),
-        page_id,
-        normalized_name: normalize_text(&name),
-        name,
-        ordinal: index as i64,
-        reason,
-    }
-}
-
 pub(crate) fn normalization_error(path: &Path, message: &str) -> IngestError {
     IngestError::RecordNormalizationFailed {
         path: path.display().to_string(),
         message: message.to_string(),
     }
-}
-
-pub(crate) fn normalize_price_cp(value: Option<&Value>) -> Option<i64> {
-    let object = value?.as_object()?;
-    let platinum = object.get("pp").and_then(Value::as_i64).unwrap_or(0);
-    let gold = object.get("gp").and_then(Value::as_i64).unwrap_or(0);
-    let silver = object.get("sp").and_then(Value::as_i64).unwrap_or(0);
-    let copper = object.get("cp").and_then(Value::as_i64).unwrap_or(0);
-    let total = platinum * 1000 + gold * 100 + silver * 10 + copper;
-    (total > 0).then_some(total)
-}
-
-pub(crate) fn extract_speed_types(raw: &Value) -> Vec<String> {
-    let mut values = vec!["land".to_string()];
-    if let Some(other_speeds) = raw
-        .pointer("/system/attributes/speed/otherSpeeds")
-        .and_then(Value::as_array)
-    {
-        values.extend(
-            other_speeds
-                .iter()
-                .filter_map(|speed| normalized_pointer_string(speed, "/type")),
-        );
-    }
-    values.sort();
-    values.dedup();
-    values
-}
-
-pub(crate) fn extract_sense_types(raw: &Value) -> Vec<String> {
-    let mut values = raw
-        .pointer("/system/perception/senses")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|sense| normalized_pointer_string(sense, "/type"))
-        .map(|value| metrics::slugify_metric_segment(&value).replace('_', " "))
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>();
-    values.sort();
-    values.dedup();
-    values
-}
-
-pub(crate) fn parse_bulk_value(value: &Value) -> Option<f64> {
-    match value {
-        Value::Number(number) => number.as_f64(),
-        Value::String(text) if text == "L" => Some(0.1),
-        Value::String(text) => text.trim().parse::<f64>().ok(),
-        _ => None,
-    }
-}
-
-pub(crate) fn parse_hands_requirement(usage: &str) -> Option<String> {
-    if usage.contains("held-in-two-hands") {
-        Some("two_hands".to_string())
-    } else if usage.contains("held-in-one-plus-hands") {
-        Some("one_plus_hands".to_string())
-    } else if usage.contains("held-in-one-hand") {
-        Some("one_hand".to_string())
-    } else {
-        None
-    }
-}
-
-pub(crate) fn extract_damage_types(raw: &Value) -> Vec<String> {
-    let mut values = Vec::new();
-    if let Some(value) = normalized_pointer_string(raw, "/system/damage/damageType") {
-        values.push(value);
-    }
-    if let Some(entries) = raw
-        .pointer("/system/damageRolls")
-        .and_then(Value::as_object)
-    {
-        values.extend(
-            entries
-                .values()
-                .filter_map(|entry| normalized_pointer_string(entry, "/damageType")),
-        );
-    }
-    if let Some(entries) = raw.pointer("/system/damage").and_then(Value::as_object) {
-        values.extend(
-            entries
-                .values()
-                .filter_map(|entry| normalized_pointer_string(entry, "/type")),
-        );
-    }
-    values.sort();
-    values.dedup();
-    values
-}
-
-pub(crate) fn extract_disable_skills(raw: &Value) -> Vec<String> {
-    let Some(markup) = pointer_string(raw, "/system/details/disable") else {
-        return Vec::new();
-    };
-    let mut skills = Vec::new();
-    for skill in [
-        "acrobatics",
-        "arcana",
-        "athletics",
-        "crafting",
-        "deception",
-        "diplomacy",
-        "intimidation",
-        "medicine",
-        "nature",
-        "occultism",
-        "performance",
-        "religion",
-        "society",
-        "stealth",
-        "survival",
-        "thievery",
-    ] {
-        if markup.to_lowercase().contains(skill) {
-            skills.push(skill.to_string());
-        }
-    }
-    skills.sort();
-    skills.dedup();
-    skills
-}
-
-pub(crate) fn extract_traits(raw: &Value) -> Vec<String> {
-    let mut traits = raw
-        .pointer("/system/traits/value")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(normalize_text)
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>();
-    traits.sort();
-    traits.dedup();
-    traits
 }
