@@ -66,7 +66,7 @@ Phase 5 should be reframed around record retrieval and structured search foundat
 
 - exact key retrieval through `atlas record get`
 - strict name/alias resolution through `atlas record resolve`
-- shared record detail output for `minimal`, `standard`, and `full`
+- shared record detail output for `summary`, `standard`, and `full`
 - filter-only `atlas search` behavior that routes to deterministic list mode when no text is supplied
 
 Later ranked search work should extend the same `atlas search` command rather than adding separate default commands for FTS and semantic search. Power-user profile selection can expose `lexical`, `semantic`, and `hybrid` behavior as flags.

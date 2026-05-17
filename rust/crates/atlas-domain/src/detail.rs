@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DetailLevel {
-    Minimal,
+    Summary,
     Standard,
     Full,
 }
@@ -14,7 +14,7 @@ pub enum DetailLevel {
 impl DetailLevel {
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Minimal => "minimal",
+            Self::Summary => "summary",
             Self::Standard => "standard",
             Self::Full => "full",
         }
@@ -32,7 +32,7 @@ impl FromStr for DetailLevel {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim() {
-            "minimal" => Ok(Self::Minimal),
+            "summary" => Ok(Self::Summary),
             "standard" => Ok(Self::Standard),
             "full" => Ok(Self::Full),
             _ => Err(DetailLevelParseError {
@@ -60,10 +60,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn keeps_current_ts_detail_wire_values() {
+    fn keeps_rust_cli_detail_wire_values() {
         assert_eq!(
-            serde_json::to_string(&DetailLevel::Minimal).expect("detail serializes"),
-            "\"minimal\""
+            serde_json::to_string(&DetailLevel::Summary).expect("detail serializes"),
+            "\"summary\""
         );
         assert_eq!(
             serde_json::to_string(&DetailLevel::Standard).expect("detail serializes"),
@@ -80,5 +80,12 @@ mod tests {
         let result: Result<DetailLevel, _> = serde_json::from_str("\"compact\"");
         assert!(result.is_err());
         assert!("compact".parse::<DetailLevel>().is_err());
+    }
+
+    #[test]
+    fn does_not_accept_minimal_as_wire_value() {
+        let result: Result<DetailLevel, _> = serde_json::from_str("\"minimal\"");
+        assert!(result.is_err());
+        assert!("minimal".parse::<DetailLevel>().is_err());
     }
 }

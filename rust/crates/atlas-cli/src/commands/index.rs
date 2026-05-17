@@ -6,7 +6,7 @@ use atlas_ingest::{
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
-use crate::output::write_validation_report;
+use crate::output::{write_json_data, write_validation_report};
 use crate::{AnalyzeIndexOptions, BuildIndexOptions, IndexPathOptions};
 
 pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
@@ -23,10 +23,7 @@ pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode
         .map_err(|error| error.to_string())?;
 
     if options.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?
-        );
+        write_json_data(&report)?;
     } else {
         println!(
             "ok: analyzed {} records from {} packs in {}",
@@ -86,11 +83,11 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     .map_err(|error| error.to_string())?;
 
     if options.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&build_artifact_json(&report))
-                .map_err(|error| error.to_string())?
-        );
+        let mut data = build_artifact_json(&report);
+        data.as_object_mut()
+            .expect("build artifact JSON should be an object")
+            .remove("status");
+        write_json_data(data)?;
     } else {
         println!(
             "ok: wrote {} records from {} packs to {}",
@@ -168,8 +165,7 @@ pub(crate) fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, S
         .map_err(|error| error.to_string())?;
 
     if options.json {
-        let body = serde_json::to_string_pretty(&report).map_err(|error| error.to_string())?;
-        println!("{body}");
+        write_json_data(&report)?;
     } else {
         println!(
             "ok: inspected {} records in {}",

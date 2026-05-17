@@ -10,9 +10,9 @@ mod sql_render;
 use compiler::FilterCompiler;
 
 pub use error::FilterCompileError;
-pub(crate) use query::compile_eligible_records_query;
 #[cfg(test)]
+pub(crate) use query::EligibleRecordsQuery;
 pub(crate) use query::{
-    EligibleRecordsQuery, FilteredRecordKeysQuery, FilteredRecordSort,
+    FilteredRecordKeysQuery, FilteredRecordSort, compile_eligible_records_query,
     compile_filtered_record_keys_query,
 };

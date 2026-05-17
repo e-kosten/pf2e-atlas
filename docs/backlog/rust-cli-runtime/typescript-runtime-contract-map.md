@@ -82,7 +82,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | Current TS `record_legacy_links` is a real table beside canonical aliases | The concept is useful for PF2E remaster navigation, but the current name makes it sound like generic compatibility | Keep the concept as `remaster_links` or edition links. Rust lookup should prefer canonical keys and aliases, while record detail can expose explicit remaster bridge relationships. |
 | Search canonicality is stored as `is_search_canonical` | Necessary for variants/generated records, but easy to misuse | Rust stores the first policy projection as `is_default_visible`, meaning participation in default user-facing retrieval surfaces. Records remain addressable by direct key, links, and inspection when this is false. Decide later whether generated afflictions, variants, and aliases need a richer policy enum. |
 | FTS text is stored as `search_text` on `records` and repeated in `records_fts` | Practical for ranking/debugging, but duplicated | Keep for first parity. Rust writer should generate both from a single search-text artifact and validate row-key coverage. |
-| Detail/output vocabulary differs between current TS (`minimal`, `standard`, `full`) and roadmap draft (`compact`, `full`, `answerable`) | Output contract drift can leak into CLI docs and tests; `answerable` is not a current runtime concept | Keep the current TypeScript wire values `minimal`, `standard`, and `full`. Do not add `answerable` as a generic detail level. Treat `compact` as descriptive copy only, not a wire value. |
+| Detail/output vocabulary differs between current TS (`minimal`, `standard`, `full`) and the accepted Rust CLI contract (`summary`, `standard`, `full`) | Output contract drift can leak into CLI docs and tests; `answerable` is not a current runtime concept | Use Rust wire values `summary`, `standard`, and `full`. Do not add `minimal`, `compact`, or `answerable` as Rust CLI detail values. Treat `compact` as descriptive copy only, not a wire value. |
 
 ### Rust Type Principles For The Migration
 
@@ -99,7 +99,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 
 Before Phase 2 is complete:
 
-- Keep Rust detail vocabulary aligned with the current TypeScript wire values: `minimal`, `standard`, and `full`.
+- Keep Rust detail vocabulary aligned with the accepted Rust CLI contract: `summary`, `standard`, and `full`.
 - Decide which text columns are required for compact lookup versus full record output.
 - Decide which TypeScript string aliases remain accepted CLI inputs.
 
@@ -157,7 +157,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | `SearchSubcategory` and aliases | Removed from Rust contracts; replace with explicit metadata/filter axes | `atlas-domain`, `atlas-ingest`, later `atlas-search` | retired | Do not keep a compatibility projection. Useful source-authored or collapsed signals should become well-named fields; trait-derived groups should remain trait filters. |
 | `SourceCategory` | `SourceCategory` enum | `atlas-domain` | parity | Values: `core`, `rules`, `adventure`, `unknown`. |
 | `VariantSource` | `VariantSource` enum | `atlas-domain` | parity | Keep until variant parity is classified. |
-| `RecordDetail` | `DetailLevel` enum | `atlas-domain` | rust redesign | Current TS values are `minimal`, `standard`, `full`, and Rust keeps those as wire values. `standard` is current full record content minus `sourcePath`; `full` adds source provenance. Do not add `answerable` as a generic detail level. |
+| `RecordDetail` | `DetailLevel` enum | `atlas-domain` | rust redesign | Current TS values are `minimal`, `standard`, `full`, but Rust uses `summary`, `standard`, `full` as its CLI wire values. `summary` is the compact default projection, `standard` hydrates the normal presentation record, and `full` adds source provenance. Do not add `minimal`, `compact`, or `answerable` as Rust CLI detail values. |
 | `NormalizedRecord` | `RecordSummary`, later `RecordDetail`, side-data structs | `atlas-domain` | rust redesign | `RecordSummary` owns lightweight list/preview facts: identity, name, top-level category, optional level/rarity/action cost, traits, publication/source summary, text status, and optional summary text. Explicit type axes belong in named metadata or side-data. Avoid one overgrown public struct when command outputs need smaller typed envelopes. |
 | rarity, level, action cost, source/publication facts | `Rarity`, `Level`, `ActionCost`, `Publication`, `SourceProvenance`, `TextStatus` | `atlas-domain` | rust redesign | `Rarity` is closed. `Level` is a numeric alias unless later invariants justify a newtype. `ActionCost` preserves numeric action counts and non-numeric free/reaction/passive/variable/other source values. Publication/source titles and paths remain free text; only normalized `SourceCategory` is a closed bucket. `TextStatus` is an internal diagnostic, not a user-facing answerability level. |
 | `SearchRequest` | tagged enum: browse/search/lookup | `atlas-domain` | parity semantics, Rust-owned shape | Preserve mode semantics. Do not bake TypeScript camelCase request JSON into core domain serde; put TS compatibility, if needed, in a removable adapter. |

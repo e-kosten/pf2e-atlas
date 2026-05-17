@@ -33,6 +33,8 @@ The first CLI behavior is:
 cargo run -p atlas-cli -- index validate --index ../.cache/pf2e-index.sqlite --json
 ```
 
+JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. Artifact validation that runs against an invalid artifact still returns `status: "ok"` with `data.valid: false` and exits with code `3`.
+
 Current TypeScript-built indexes are expected to report a legacy-contract diagnostic until the Rust artifact contract is implemented by the index builder.
 
 The first Rust writer behavior is:
@@ -69,18 +71,20 @@ The first Rust artifact contract is `pf2e-atlas-artifact/v1` with SQLite schema 
 
 | Code | Meaning |
 | --- | --- |
-| `OK` | The artifact metadata matches the supported Rust runtime contract. |
-| `INDEX_UNAVAILABLE` | The SQLite file could not be opened read-only. |
-| `MISSING_ARTIFACT_METADATA` | The index does not contain the Rust `artifact_metadata` table. Current TypeScript-built indexes are expected to fail this way. |
-| `MISSING_REQUIRED_METADATA` | The `artifact_metadata` table exists but omits one or more required keys. |
-| `UNSUPPORTED_CONTRACT_VERSION` | `artifact_contract_version` is not supported by this runtime. |
-| `UNSUPPORTED_SCHEMA_VERSION` | `schema_version` is not supported by this runtime. |
-| `INVALID_SOURCE_METADATA` | Source identity, source record count, or source hashing metadata is malformed or incompatible. |
-| `STALE_SOURCE_SIGNATURE` | The source signature marks the artifact as stale. |
-| `EMBEDDING_MISMATCH` | Embedding provider, model, tokenizer, pooling, normalization, dimensions, dtype, distance metric, or prefixes do not match the runtime baseline. |
-| `FTS_MISMATCH` | The artifact was built with an unsupported FTS tokenizer contract. |
-| `MANIFEST_MISMATCH` | The adjacent manifest path is not a valid relative artifact path. |
-| `QUERY_FAILED` | Metadata validation could not complete because a SQLite query failed. |
+| `ok` | The artifact metadata matches the supported Rust runtime contract. |
+| `index_unavailable` | The SQLite file could not be opened read-only. |
+| `missing_artifact_metadata` | The index does not contain the Rust `artifact_metadata` table. Current TypeScript-built indexes are expected to fail this way. |
+| `missing_required_metadata` | The `artifact_metadata` table exists but omits one or more required keys. |
+| `unsupported_contract_version` | `artifact_contract_version` is not supported by this runtime. |
+| `unsupported_schema_version` | `schema_version` is not supported by this runtime. |
+| `artifact_contract_violation` | The artifact shape violates the Rust artifact contract. |
+| `invalid_source_metadata` | Source identity, source record count, or source hashing metadata is malformed or incompatible. |
+| `stale_source_signature` | The source signature marks the artifact as stale. |
+| `embedding_mismatch` | Embedding provider, model, tokenizer, pooling, normalization, dimensions, dtype, distance metric, or prefixes do not match the runtime baseline. |
+| `fts_mismatch` | The artifact was built with an unsupported FTS tokenizer contract. |
+| `manifest_mismatch` | The adjacent manifest path is not a valid relative artifact path. |
+| `vector_extension_unavailable` | The runtime could not load the required SQLite vector extension. |
+| `query_failed` | Metadata validation could not complete because a SQLite query failed. |
 
 ## Lint Policy
 

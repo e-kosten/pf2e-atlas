@@ -4,12 +4,13 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Instant;
 
-use atlas_domain::SearchFilterNode;
+use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, EmbeddingUnitKind, TextEmbedder};
 use atlas_index::{
-    AtlasIndex, IndexValidationError, RecordLoadError, VectorQueryError, VectorSearchHit,
+    AtlasIndex, FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort,
+    IndexValidationError, RecordLoadError, VectorQueryError, VectorSearchHit,
 };
-use atlas_record::PersistedRecord;
+use atlas_record::{PersistedRecord, RecordAlias};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -21,17 +22,8 @@ use thiserror::Error;
 /// record get/resolve, filter-only list, lexical, and hybrid behavior should
 /// be added here rather than as peer public services.
 pub struct AtlasRetrievalService {
-    semantic: SemanticSearchService,
-}
-
-/// Semantic-only retrieval component used to validate the embedding and
-/// sqlite-vec loop during the Rust migration.
-///
-/// Keep this type private to the crate so runtime consumers cannot bypass the
-/// `AtlasRetrievalService` boundary as additional retrieval patterns land.
-struct SemanticSearchService {
     index: AtlasIndex,
-    embedder: TextEmbedder,
+    embedder: Option<TextEmbedder>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +75,44 @@ pub struct SemanticSearchResult {
     pub timing: SemanticSearchTiming,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordResolutionResult {
+    pub query: String,
+    pub normalized_query: String,
+    pub match_kind: RecordResolutionMatchKind,
+    pub matched_text: String,
+    pub alias_source: Option<String>,
+    pub alias_source_ref: Option<String>,
+    pub record: PersistedRecord,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordResolutionMatchKind {
+    Name,
+    NormalizedName,
+    Alias,
+    VariantName,
+}
+
+impl RecordResolutionMatchKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Name => "name",
+            Self::NormalizedName => "normalized_name",
+            Self::Alias => "alias",
+            Self::VariantName => "variant_name",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FilterOnlyRecordPage {
+    pub record_keys: Vec<RecordKey>,
+    pub records: Vec<PersistedRecord>,
+    pub total: u64,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum AtlasSearchRequest<'a> {
     Semantic {
@@ -127,6 +157,8 @@ pub enum SearchError {
     #[error("retrieval pattern is not implemented yet: {0}")]
     UnsupportedRetrievalPattern(&'static str),
     #[error(transparent)]
+    Filter(#[from] FilterCompileError),
+    #[error(transparent)]
     Vector(#[from] VectorQueryError),
 }
 
@@ -143,8 +175,16 @@ impl AtlasRetrievalService {
     ) -> Result<Self, SearchError> {
         index.validate_vector_index()?;
         Ok(Self {
-            semantic: SemanticSearchService::new(index, embedding_config)?,
+            embedder: Some(load_embedder(embedding_config)?),
+            index,
         })
+    }
+
+    pub fn without_embeddings(index: AtlasIndex) -> Self {
+        Self {
+            index,
+            embedder: None,
+        }
     }
 
     pub fn semantic(
@@ -154,7 +194,7 @@ impl AtlasRetrievalService {
         limit: u32,
         mode: SemanticSearchMode,
     ) -> Result<Vec<SemanticSearchHit>, SearchError> {
-        self.semantic.semantic(query, filter, limit, mode)
+        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
     }
 
     pub fn semantic_with_timing(
@@ -164,8 +204,33 @@ impl AtlasRetrievalService {
         limit: u32,
         mode: SemanticSearchMode,
     ) -> Result<SemanticSearchResult, SearchError> {
-        self.semantic
-            .semantic_with_timing(query, filter, limit, mode)
+        let total_started_at = Instant::now();
+        let embedding_started_at = Instant::now();
+        let embedder = self
+            .embedder
+            .as_mut()
+            .ok_or(SearchError::UnsupportedRetrievalPattern("semantic search"))?;
+        let query_vector = embedder
+            .embed_query(query)
+            .map_err(|error| SearchError::Embedding(error.to_string()))?;
+        let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
+        let vector_started_at = Instant::now();
+        let raw_limit = semantic_unit_limit(limit, mode);
+        let hits = self.index.query_vector_index(
+            &query_vector,
+            filter,
+            raw_limit,
+            mode.includes_child_units(),
+        )?;
+        let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
+        Ok(SemanticSearchResult {
+            hits: collapse_vector_hits(hits, limit as usize, mode),
+            timing: SemanticSearchTiming {
+                query_embedding_duration_ms,
+                vector_search_duration_ms,
+                total_duration_ms: total_started_at.elapsed().as_millis(),
+            },
+        })
     }
 
     pub fn search(
@@ -193,76 +258,128 @@ impl AtlasRetrievalService {
         }
     }
 
-    pub fn get_record(&self, _record_key: &str) -> Result<PersistedRecord, SearchError> {
-        Err(SearchError::UnsupportedRetrievalPattern("record get"))
+    pub fn get_records(
+        &self,
+        record_keys: &[RecordKey],
+    ) -> Result<Vec<PersistedRecord>, SearchError> {
+        Ok(self.index.load_records_by_key(record_keys)?)
     }
 
-    pub fn resolve_record(&self, _query: &str) -> Result<PersistedRecord, SearchError> {
-        Err(SearchError::UnsupportedRetrievalPattern("record resolve"))
+    pub fn get_record(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Option<PersistedRecord>, SearchError> {
+        Ok(self
+            .index
+            .load_records_by_key(std::slice::from_ref(record_key))?
+            .into_iter()
+            .next())
+    }
+
+    pub fn resolve_record(
+        &self,
+        query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordResolutionResult>, SearchError> {
+        let normalized_query = normalize_record_query(query);
+        let mut record_set = self.index.load_record_set()?;
+        record_set
+            .records
+            .retain(|record| record.is_default_visible);
+        let default_visible_keys = record_set
+            .records
+            .iter()
+            .map(|record| record.key.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        record_set
+            .aliases
+            .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
+        if let Some(filter) = filter {
+            let allowed = self
+                .index
+                .list_filtered_record_keys(
+                    Some(filter),
+                    FilteredRecordSort::RecordKey,
+                    u32::MAX,
+                    0,
+                )?
+                .record_keys
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>();
+            record_set
+                .records
+                .retain(|record| allowed.contains(&record.key));
+            record_set
+                .aliases
+                .retain(|alias| allowed.contains(&alias.canonical_record_key));
+        }
+
+        let mut matches = resolution_matches_for_kind(
+            query,
+            &normalized_query,
+            RecordResolutionMatchKind::Name,
+            &record_set.records,
+            &record_set.aliases,
+        );
+        if matches.is_empty() {
+            matches = resolution_matches_for_kind(
+                query,
+                &normalized_query,
+                RecordResolutionMatchKind::NormalizedName,
+                &record_set.records,
+                &record_set.aliases,
+            );
+        }
+        if matches.is_empty() {
+            matches = resolution_matches_for_kind(
+                query,
+                &normalized_query,
+                RecordResolutionMatchKind::Alias,
+                &record_set.records,
+                &record_set.aliases,
+            );
+        }
+        if matches.is_empty() {
+            matches = resolution_matches_for_kind(
+                query,
+                &normalized_query,
+                RecordResolutionMatchKind::VariantName,
+                &record_set.records,
+                &record_set.aliases,
+            );
+        }
+
+        Ok(matches)
+    }
+
+    pub fn filter_only_records(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        sort: FilteredRecordSort,
+        limit: u32,
+        offset: u32,
+    ) -> Result<FilterOnlyRecordPage, SearchError> {
+        let FilteredRecordKeyPage { record_keys, total } = self
+            .index
+            .list_filtered_record_keys(filter, sort, limit, offset)?;
+        let records = self.index.load_records_by_key(&record_keys)?;
+        Ok(FilterOnlyRecordPage {
+            record_keys,
+            records,
+            total,
+        })
     }
 }
 
-impl SemanticSearchService {
-    fn new(
-        index: AtlasIndex,
-        embedding_config: &SearchEmbeddingConfig,
-    ) -> Result<Self, SearchError> {
-        let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
-            SearchError::InvalidEmbeddingModel {
-                model: embedding_config.model_id.clone(),
-                message: error.to_string(),
-            }
-        })?;
-        let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
-        Ok(Self {
-            index,
-            embedder: TextEmbedder::load(&embedding_config)
-                .map_err(|error| SearchError::Embedding(error.to_string()))?,
-        })
-    }
-
-    fn semantic(
-        &mut self,
-        query: &str,
-        filter: Option<&SearchFilterNode>,
-        limit: u32,
-        mode: SemanticSearchMode,
-    ) -> Result<Vec<SemanticSearchHit>, SearchError> {
-        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
-    }
-
-    fn semantic_with_timing(
-        &mut self,
-        query: &str,
-        filter: Option<&SearchFilterNode>,
-        limit: u32,
-        mode: SemanticSearchMode,
-    ) -> Result<SemanticSearchResult, SearchError> {
-        let total_started_at = Instant::now();
-        let embedding_started_at = Instant::now();
-        let query_vector = self
-            .embedder
-            .embed_query(query)
-            .map_err(|error| SearchError::Embedding(error.to_string()))?;
-        let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
-        let vector_started_at = Instant::now();
-        let raw_limit = semantic_unit_limit(limit, mode);
-        let hits = self.index.query_vector_index(
-            &query_vector,
-            filter,
-            raw_limit,
-            mode.includes_child_units(),
-        )?;
-        let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
-        Ok(SemanticSearchResult {
-            hits: collapse_vector_hits(hits, limit as usize, mode),
-            timing: SemanticSearchTiming {
-                query_embedding_duration_ms,
-                vector_search_duration_ms,
-                total_duration_ms: total_started_at.elapsed().as_millis(),
-            },
-        })
-    }
+fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedder, SearchError> {
+    let model = EmbeddingModelId::from_str(&embedding_config.model_id).map_err(|error| {
+        SearchError::InvalidEmbeddingModel {
+            model: embedding_config.model_id.clone(),
+            message: error.to_string(),
+        }
+    })?;
+    let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
+    TextEmbedder::load(&embedding_config).map_err(|error| SearchError::Embedding(error.to_string()))
 }
 
 fn semantic_unit_limit(limit: u32, mode: SemanticSearchMode) -> u32 {
@@ -270,6 +387,124 @@ fn semantic_unit_limit(limit: u32, mode: SemanticSearchMode) -> u32 {
         limit.saturating_mul(20).max(limit).min(1000)
     } else {
         limit
+    }
+}
+
+fn normalize_record_query(value: &str) -> String {
+    value
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn resolution_matches_for_kind(
+    query: &str,
+    normalized_query: &str,
+    kind: RecordResolutionMatchKind,
+    records: &[PersistedRecord],
+    aliases: &[RecordAlias],
+) -> Vec<RecordResolutionResult> {
+    let mut matches = Vec::new();
+    match kind {
+        RecordResolutionMatchKind::Name => {
+            matches.extend(
+                records
+                    .iter()
+                    .filter(|record| record.name == query)
+                    .map(|record| {
+                        resolution_result(
+                            query,
+                            normalized_query,
+                            kind,
+                            record.name.clone(),
+                            None,
+                            record,
+                        )
+                    }),
+            );
+        }
+        RecordResolutionMatchKind::NormalizedName => {
+            matches.extend(
+                records
+                    .iter()
+                    .filter(|record| {
+                        record.variant_label.is_none() && record.normalized_name == normalized_query
+                    })
+                    .map(|record| {
+                        resolution_result(
+                            query,
+                            normalized_query,
+                            kind,
+                            record.normalized_name.clone(),
+                            None,
+                            record,
+                        )
+                    }),
+            );
+        }
+        RecordResolutionMatchKind::Alias => {
+            for alias in aliases
+                .iter()
+                .filter(|alias| alias.normalized_alias == normalized_query)
+            {
+                matches.extend(
+                    records
+                        .iter()
+                        .filter(|record| record.key == alias.canonical_record_key)
+                        .map(|record| {
+                            resolution_result(
+                                query,
+                                normalized_query,
+                                kind,
+                                alias.alias_text.clone(),
+                                Some(alias),
+                                record,
+                            )
+                        }),
+                );
+            }
+        }
+        RecordResolutionMatchKind::VariantName => {
+            matches.extend(
+                records
+                    .iter()
+                    .filter(|record| {
+                        record.variant_label.is_some() && record.normalized_name == normalized_query
+                    })
+                    .map(|record| {
+                        resolution_result(
+                            query,
+                            normalized_query,
+                            kind,
+                            record.normalized_name.clone(),
+                            None,
+                            record,
+                        )
+                    }),
+            );
+        }
+    }
+    matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
+    matches
+}
+
+fn resolution_result(
+    query: &str,
+    normalized_query: &str,
+    match_kind: RecordResolutionMatchKind,
+    matched_text: String,
+    alias: Option<&RecordAlias>,
+    record: &PersistedRecord,
+) -> RecordResolutionResult {
+    RecordResolutionResult {
+        query: query.to_string(),
+        normalized_query: normalized_query.to_string(),
+        match_kind,
+        matched_text,
+        alias_source: alias.map(|alias| alias.source.as_str().to_string()),
+        alias_source_ref: alias.map(|alias| alias.source_ref.clone()),
+        record: record.clone(),
     }
 }
 

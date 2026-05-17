@@ -81,6 +81,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust content subdocuments for journal pages and table results](./items/rust-content-subdocuments-journal-table-results.md)
   Preserve the deferred design question for journal-page and rollable-table-result rich text as child content rather than flattening broad parent records during the Rust content-document refactor. Status: deferred.
 
+- [Rust CLI content output formats](./items/rust-cli-content-output-formats.md)
+  Decide which optional non-markdown content formats the Rust CLI should expose for record JSON output after the Phase 5 markdown projection lands. Status: deferred.
+
 - [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
   Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage so meaningful uncaptured source data can be found without adding partial raw-JSON scans to default ingest. Status: proposed.
 
