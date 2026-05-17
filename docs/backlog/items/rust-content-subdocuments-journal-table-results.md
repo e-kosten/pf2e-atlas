@@ -14,6 +14,8 @@ The Rust content-document refactor intentionally models primary record descripti
 
 These fields contain useful HTML/Foundry markup and references, but they are not clearly ordinary supplemental content on the parent record. They often represent nested subdocuments with their own names, ordering, and user-facing meaning.
 
+Rust ingest now extracts journal page text into ingest-only `JournalPageFact` values so remaster alias/link extraction can consume typed page facts instead of reparsing persisted raw JSON. Those facts intentionally remain construction state; they are not persisted as child content, FTS rows, semantic units, or reference-edge sources. This backlog item owns that later runtime child-content design.
+
 If they are flattened into the parent record, search and backlinks may point to overly broad parents such as `GM Screen`, `Archetypes`, or `Madcap Top Effect` when the useful content is a specific page or table result. If they are ignored entirely, Rust loses meaningful text and links that may be important for future TUI/CLI navigation and retrieval.
 
 ## Evidence
@@ -118,6 +120,7 @@ The first option is less disruptive to existing record-key assumptions. The seco
 ## Acceptance Sketch
 
 - Journal pages can be parsed into `ContentDocument` values with page title and order preserved.
+- Journal page skip reasons from ingest construction facts can feed coverage/audit reporting for unsupported or empty page shapes.
 - Table results can be parsed into `ContentDocument` values with result range/order preserved.
 - Search results can expose a child target label such as `GM Screen > Falling` or `Madcap Top Effect > Result 2`.
 - Reference/backlink output can show the child source context rather than only the parent record.

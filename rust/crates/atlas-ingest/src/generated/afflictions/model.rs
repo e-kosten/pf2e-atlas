@@ -15,8 +15,8 @@ pub(crate) enum AfflictionFamily {
 pub(crate) struct AfflictionOccurrence {
     pub(crate) host_record: NormalizedRecord,
     pub(crate) source_record: Option<NormalizedRecord>,
-    pub(crate) source_raw: Option<Value>,
-    pub(crate) child_raw: Value,
+    pub(crate) description: Option<ContentDocument>,
+    pub(crate) raw_provenance: Option<Value>,
     pub(crate) family: AfflictionFamily,
     pub(crate) name: String,
     pub(crate) traits: Vec<String>,

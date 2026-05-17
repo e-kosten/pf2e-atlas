@@ -560,7 +560,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.source_record_count, 1);
     assert_eq!(report.artifact_record_count, 3);
     assert_eq!(report.generated_record_count, 2);
-    assert_eq!(report.pending_document_embedding_count, 5);
+    assert_eq!(report.pending_document_embedding_count, 7);
     assert_eq!(report.document_embedding_count, 0);
     let validation = AtlasIndex::open_read_only(&output_path)?.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);

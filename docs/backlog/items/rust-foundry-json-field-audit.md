@@ -15,6 +15,8 @@ Ad hoc audits for a single projection family are easy to overfit. For example, a
 
 Add an offline JSON field audit that inventories all Foundry source fields across the vendored corpus and compares them against explicit Rust ingest coverage.
 
+Current Rust ingest already exposes some ingest-only construction facts, including source slugs, compendium-source locators, embedded item facts, embedded content refs, journal page facts, and journal page skip reasons. The audit should treat those source fact extractors as coverage declarations rather than reimplementing their parsing logic.
+
 The audit should help answer:
 
 - which JSON pointer paths exist by document type, record type, pack, and frequency
@@ -37,6 +39,7 @@ The audit should help answer:
 - The report groups source paths by document/record type and includes counts plus representative record keys or source paths.
 - The report distinguishes consumed, ignored, deferred, and unknown paths.
 - Existing ingest owners can declare covered JSON pointer paths or path families without centralizing all source policy in one file.
+- Ingest-owned source fact extractors can report covered and skipped nested source regions, including embedded items and journal pages.
 - The output identifies a small actionable list of high-signal unknown fields rather than overwhelming reviewers with every mechanical or empty source key.
 
 ## Related

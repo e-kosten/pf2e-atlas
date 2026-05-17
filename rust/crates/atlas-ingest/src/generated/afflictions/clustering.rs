@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 
-use serde_json::Value;
-
 use crate::generated::afflictions::AfflictionOccurrence;
 use crate::records::NormalizedRecord;
 
@@ -38,11 +36,7 @@ pub(super) fn cluster_affliction_occurrences(
 
 pub(super) fn choose_affliction_authoritative_candidate(
     occurrences: &[AfflictionOccurrence],
-) -> (
-    &AfflictionOccurrence,
-    Option<&NormalizedRecord>,
-    Option<&Value>,
-) {
+) -> (&AfflictionOccurrence, Option<&NormalizedRecord>) {
     let representative = occurrences
         .iter()
         .min_by(|left, right| {
@@ -59,11 +53,7 @@ pub(super) fn choose_affliction_authoritative_candidate(
                 .then_with(|| left.occurrence_ref.cmp(&right.occurrence_ref))
         })
         .expect("non-empty cluster");
-    (
-        representative,
-        representative.source_record.as_ref(),
-        representative.source_raw.as_ref(),
-    )
+    (representative, representative.source_record.as_ref())
 }
 
 fn find_parent(parent: &mut [usize], index: usize) -> usize {
