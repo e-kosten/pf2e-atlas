@@ -304,14 +304,18 @@ Goal: extend the unified `atlas search` surface with ranked text retrieval using
 - [ ] Keep filter-only list behavior aligned with the Phase 5 `atlas search` foundation.
 - [x] Implement canonical filter lowering to SQL eligible keysets.
 - [ ] Wire structured filter SQL into ranked text search execution.
-- [ ] Implement FTS lexical retrieval.
+- [ ] Implement FTS retrieval.
 - [ ] Implement query analysis.
-- [ ] Implement sqlite-vec semantic retrieval.
+- [ ] Implement sqlite-vec vector retrieval.
 - [ ] Implement hybrid candidate fusion.
-- [ ] Boost strong name and verified-alias matches above broader lexical and semantic matches in normal `atlas search <text>` results.
-- [ ] Implement rerank adjustments needed for current quality.
+- [ ] Use plain RRF as the default hybrid fusion method.
+- [ ] Support weighted RRF as an advanced tuning and quality-evaluation option.
+- [ ] Boost strong name and verified-alias matches above broader FTS and vector matches in normal `atlas search <text>` results.
+- [ ] Keep generic Node-style rerank adjustments out of the baseline unless a quality fixture proves they are needed.
 - [ ] Implement `search.exclude`.
-- [ ] Implement search profiles as flags, such as `--profile lexical|semantic|hybrid`, rather than separate default product commands.
+- [ ] Implement advanced retrieval-path flags, such as `--retrieval fts|vector|hybrid`, rather than Node-era `lexical|balanced|concept` product profiles.
+- [ ] Ensure FTS retrieval works with record-only artifacts produced by `atlas setup --no-embeddings`.
+- [ ] Remove the temporary Phase 4 diagnostic `atlas search semantic --query ...` CLI branch once normal ranked search covers vector retrieval.
 - [ ] Implement explain output if still useful.
 - [ ] Add top-k quality fixtures from the search-quality bakeoff.
 - [ ] Add parity or accepted-difference reports against TypeScript.
@@ -346,6 +350,10 @@ Acceptance:
 Goal: make the Rust CLI the default local agent interface.
 
 - [ ] Stabilize command naming.
+- [x] Make `atlas setup` the standard first-run install/repair command, with full semantic readiness by default and `--no-embeddings` for record-only setup.
+- [x] Add setup `--check`, `--offline`, and `--force-rebuild` behavior with structured action/readiness output.
+- [x] Make `atlas index validate` symmetric with setup: full semantic validation by default, `--no-embeddings` for base validation, and `--embeddings-only` for focused vector diagnostics.
+- [x] Remove the separate `atlas index validate-vectors` command.
 - [x] Stabilize the baseline JSON envelope for Phase 5 record, search, setup, and index commands:
   - [x] use a shared CLI-owned envelope helper in `atlas-cli`
   - [x] keep successful payloads under `data` and command failures under `error`
@@ -362,7 +370,7 @@ Goal: make the Rust CLI the default local agent interface.
   - [ ] `record get` for exact record keys
   - [ ] `record resolve` for strict names and verified aliases
   - [ ] `search` for result sets, including text queries and filter-only listing
-  - [ ] `--profile` for lexical, semantic, or hybrid retrieval tuning
+  - [ ] `--retrieval` for FTS, vector, or hybrid retrieval tuning
   - [ ] rule-context for rules answers
   - [ ] schema/filters for discovery
 - [ ] Re-run the CLI-vs-MCP evaluation tasks.

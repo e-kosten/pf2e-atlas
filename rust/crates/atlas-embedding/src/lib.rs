@@ -6,6 +6,7 @@ mod document_renderer;
 mod document_units;
 mod error;
 mod minilm;
+mod model_cache;
 mod text;
 mod tokenization;
 mod unit_kind;
@@ -34,6 +35,9 @@ pub use document_units::{
 };
 pub use error::EmbeddingError;
 pub use minilm::TextEmbedder;
+pub use model_cache::{
+    EmbeddingModelCacheFile, prepare_embedding_model_cache, required_embedding_model_cache_files,
+};
 pub use text::normalize_embedding_text;
 pub use tokenization::{
     BudgetedEmbeddingInput, EmbeddingInputTokenization, EmbeddingSectionTruncation,

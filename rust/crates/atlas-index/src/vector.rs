@@ -150,12 +150,38 @@ pub(crate) fn validate_vector_index_connection(
     validate_vector_index_with_loaded_connection(index, summary, connection)
 }
 
+pub(crate) fn validate_embedding_readiness_connection(
+    index: String,
+    connection: &Connection,
+) -> Result<ArtifactValidationReport, IndexValidationError> {
+    let metadata_report = crate::validate_index_metadata_connection(index.clone(), connection)?;
+    if metadata_report.status != ValidationStatus::Ok {
+        return Ok(metadata_report);
+    }
+
+    let summary = metadata_summary_from_report(&metadata_report);
+    if let Err(message) = probe_sqlite_vec(connection) {
+        return Ok(vector_extension_unavailable_report(index, summary, message));
+    }
+
+    validate_vector_index_with_loaded_connection(index, summary, connection)
+}
+
 fn validate_vector_index_with_loaded_connection(
     index: String,
     summary: ArtifactMetadataSummary,
     connection: &Connection,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let mut diagnostics = Vec::new();
+    if !table_exists(connection, TABLE_DOCUMENT_EMBEDDING_CACHE)? {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Schema,
+            format!("required embedding table `{TABLE_DOCUMENT_EMBEDDING_CACHE}` is missing"),
+            Some(format!("table:{TABLE_DOCUMENT_EMBEDDING_CACHE}")),
+            Some("present".to_string()),
+            Some("missing".to_string()),
+        ));
+    }
     if !table_exists(connection, TABLE_RECORD_VECTOR_INDEX)? {
         diagnostics.push(contract_diagnostic(
             ArtifactContractFamily::Schema,
@@ -164,7 +190,8 @@ fn validate_vector_index_with_loaded_connection(
             Some("present".to_string()),
             Some("missing".to_string()),
         ));
-    } else {
+    }
+    if diagnostics.is_empty() {
         validate_vector_index_coverage(connection, &mut diagnostics)?;
     }
 
@@ -177,6 +204,17 @@ fn validate_vector_index_with_loaded_connection(
             diagnostics,
         ))
     }
+}
+
+pub(crate) fn vector_extension_unavailable_report_from_base(
+    index: String,
+    base_report: ArtifactValidationReport,
+    message: String,
+) -> ArtifactValidationReport {
+    if base_report.status != ValidationStatus::Ok {
+        return base_report;
+    }
+    vector_extension_unavailable_report(index, metadata_summary_from_report(&base_report), message)
 }
 
 fn vector_extension_unavailable_report(

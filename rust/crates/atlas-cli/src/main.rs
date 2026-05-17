@@ -7,7 +7,7 @@ use atlas_domain::DetailLevel;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_runtime::AtlasPathMode;
 use atlas_search::SemanticSearchMode;
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
 mod commands;
 mod output;
@@ -16,6 +16,9 @@ mod progress;
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
 #[command(about = "PF2e Atlas local search and index tooling")]
+#[command(
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --filter-json '{\"kind\":\"pack\",\"value\":\"actionspf2e\"}'"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -23,7 +26,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[command(about = "Check or prepare local Atlas data and model paths")]
+    #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupOptions),
     #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
     Index(IndexArgs),
@@ -40,18 +43,47 @@ struct IndexArgs {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode user"
+)]
 struct SetupOptions {
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto, help = "Use repo-local paths inside a checkout, user cache paths outside, or force one mode")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Override the PF2E source checkout path")]
     source: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Override the embedding model cache root")]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long)]
-    fetch_source: bool,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Prepare a record/resolve-ready artifact without semantic embeddings"
+    )]
+    no_embeddings: bool,
+    #[arg(
+        long,
+        help = "Report readiness and planned actions without writing files or using the network"
+    )]
+    check: bool,
+    #[arg(
+        long,
+        help = "Do not fetch source or prepare embedding model files from the network"
+    )]
+    offline: bool,
+    #[arg(
+        long,
+        help = "Rebuild the artifact even if it already satisfies the selected setup target"
+    )]
+    force_rebuild: bool,
+    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for full setup")]
+    embedding_model: EmbeddingModelId,
+    #[arg(
+        long,
+        default_value_t = 32,
+        help = "Embedding generation batch size for full setup"
+    )]
+    embedding_batch_size: usize,
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -65,14 +97,12 @@ struct RecordArgs {
 enum IndexCommand {
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeIndexOptions),
-    #[command(about = "Build a Rust SQLite artifact from Foundry source files")]
+    #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
     Build(BuildIndexOptions),
     #[command(about = "Inspect artifact table and field coverage")]
     Inspect(IndexPathOptions),
-    #[command(about = "Open an index read-only and validate Rust artifact metadata")]
-    Validate(IndexPathOptions),
-    #[command(about = "Validate sqlite-vec availability and record_vector_index coherence")]
-    ValidateVectors(IndexPathOptions),
+    #[command(about = "Validate an Atlas artifact; embeddings are required by default")]
+    Validate(ValidateIndexOptions),
 }
 
 #[derive(Debug, Subcommand)]
@@ -96,6 +126,9 @@ struct AnalyzeIndexOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Advanced manual artifact build. Standard users should run `atlas setup` instead.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source ../vendor/pf2e --output ../.cache/pf2e-rust-index.sqlite --json"
+)]
 struct BuildIndexOptions {
     #[arg(long)]
     source: Option<PathBuf>,
@@ -120,6 +153,23 @@ struct BuildIndexOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas index validate\n  atlas index validate --no-embeddings\n  atlas index validate --embeddings-only"
+)]
+struct ValidateIndexOptions {
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
+    #[arg(long, action = ArgAction::SetTrue, conflicts_with = "embeddings_only", help = "Validate only the base record artifact and skip sqlite-vec/vector readiness")]
+    no_embeddings: bool,
+    #[arg(long, action = ArgAction::SetTrue, help = "Run the focused embedding/vector readiness diagnostics")]
+    embeddings_only: bool,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
 struct IndexPathOptions {
     #[arg(long)]
     index: Option<PathBuf>,
@@ -130,12 +180,15 @@ struct IndexPathOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record get equipment-srd:s1vB3HdXjMigYAnY\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail standard --json"
+)]
 struct RecordGetOptions {
-    #[arg(required = true, num_args = 1..)]
+    #[arg(required = true, num_args = 1.., help = "Canonical record keys in pack:id form; this command does not resolve names")]
     keys: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, standard, or full")]
     detail: DetailLevel,
-    #[arg(long)]
+    #[arg(long, help = "Include raw source JSON with full detail output")]
     include_raw: bool,
     #[arg(long)]
     index: Option<PathBuf>,
@@ -146,16 +199,26 @@ struct RecordGetOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --filter-json '{\"kind\":\"pack\",\"value\":\"actionspf2e\"}'\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json"
+)]
 struct RecordResolveOptions {
-    #[arg(required = true, num_args = 1..)]
+    #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
     queries: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, standard, or full")]
     detail: DetailLevel,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON used to narrow strict resolution"
+    )]
     filter_json: Option<String>,
-    #[arg(long, default_value_t = 0)]
+    #[arg(
+        long,
+        default_value_t = 0,
+        help = "Return up to this many alternatives when a strict query is ambiguous"
+    )]
     alternatives: u8,
-    #[arg(long)]
+    #[arg(long, help = "Include raw source JSON with full detail output")]
     include_raw: bool,
     #[arg(long)]
     index: Option<PathBuf>,
@@ -166,6 +229,9 @@ struct RecordResolveOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas search --filter-json '{\"kind\":\"record_family\",\"value\":\"spell\"}' --json\n  atlas search \"low level healing spell\" --json"
+)]
 struct SearchOptions {
     #[arg()]
     query: Option<String>,
@@ -252,9 +318,6 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Build(options) => commands::index::run_index_build(options),
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
-            IndexCommand::ValidateVectors(options) => {
-                commands::index::run_index_validate_vectors(options)
-            }
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),

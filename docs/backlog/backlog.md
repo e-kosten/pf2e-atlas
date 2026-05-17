@@ -90,6 +90,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust side data and metric source fact convergence](./items/rust-side-data-metric-source-fact-convergence.md)
   Track the later cleanup for overlapping Rust side-table and metric projections so shared source facts/specs interpret speed, sense, range, disable, and similar source families once while preserving distinct runtime storage roles. Status: proposed.
 
+- [Rust search quality and retrieval weight tuning](./items/rust-search-quality-tuning.md)
+  Tune Rust FTS weights, RRF windows, rank constants, and weighted-fusion defaults after the Phase 6 retrieval baseline is measurable. Status: proposed.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 

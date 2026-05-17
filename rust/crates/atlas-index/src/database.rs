@@ -11,7 +11,8 @@ use crate::filters::{
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordLoadError,
-    VectorQueryError, VectorSearchHit, inspect, records, validate_index_connection, vector,
+    ValidationTarget, VectorQueryError, VectorSearchHit, inspect, records,
+    validate_index_connection, vector,
 };
 
 pub struct AtlasIndex {
@@ -59,6 +60,57 @@ impl AtlasIndex {
 
     pub fn validate_report(&self) -> ArtifactValidationReport {
         match self.validate() {
+            Ok(report) => report,
+            Err(error) => crate::validation_report_from_error(&self.path, error),
+        }
+    }
+
+    pub fn validate_target(
+        &self,
+        target: ValidationTarget,
+    ) -> Result<ArtifactValidationReport, IndexValidationError> {
+        match target {
+            ValidationTarget::BaseOnly => self.validate(),
+            ValidationTarget::Full => self.validate_vector_index(),
+            ValidationTarget::EmbeddingsOnly => self.validate_embedding_readiness(),
+        }
+    }
+
+    pub fn validate_embedding_readiness(
+        &self,
+    ) -> Result<ArtifactValidationReport, IndexValidationError> {
+        vector::validate_embedding_readiness_connection(
+            self.path.display().to_string(),
+            &self.connection,
+        )
+    }
+
+    pub fn vector_extension_unavailable_report(
+        &self,
+        target: ValidationTarget,
+        message: String,
+    ) -> ArtifactValidationReport {
+        let base_report = match target {
+            ValidationTarget::EmbeddingsOnly => {
+                match crate::validate_index_metadata_connection(
+                    self.path.display().to_string(),
+                    &self.connection,
+                ) {
+                    Ok(report) => report,
+                    Err(error) => crate::validation_report_from_error(&self.path, error),
+                }
+            }
+            ValidationTarget::BaseOnly | ValidationTarget::Full => self.validate_report(),
+        };
+        vector::vector_extension_unavailable_report_from_base(
+            self.path.display().to_string(),
+            base_report,
+            message,
+        )
+    }
+
+    pub fn validate_target_report(&self, target: ValidationTarget) -> ArtifactValidationReport {
+        match self.validate_target(target) {
             Ok(report) => report,
             Err(error) => crate::validation_report_from_error(&self.path, error),
         }

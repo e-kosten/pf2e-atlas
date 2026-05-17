@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
 use crate::output::{write_json_data, write_validation_report};
-use crate::{AnalyzeIndexOptions, BuildIndexOptions, IndexPathOptions};
+use crate::{AnalyzeIndexOptions, BuildIndexOptions, IndexPathOptions, ValidateIndexOptions};
 
 pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
@@ -191,15 +192,16 @@ pub(crate) fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, S
     Ok(ExitCode::SUCCESS)
 }
 
-pub(crate) fn run_index_validate(options: IndexPathOptions) -> Result<ExitCode, String> {
+pub(crate) fn run_index_validate(options: ValidateIndexOptions) -> Result<ExitCode, String> {
     let runtime = index_runtime(options.path_mode.into(), options.index)?;
-    let report = runtime.validate_index_report();
-    write_validation_report(report, options.json)
-}
-
-pub(crate) fn run_index_validate_vectors(options: IndexPathOptions) -> Result<ExitCode, String> {
-    let runtime = index_runtime(options.path_mode.into(), options.index)?;
-    let report = runtime.validate_vector_index_report();
+    let target = if options.no_embeddings {
+        ValidationTarget::BaseOnly
+    } else if options.embeddings_only {
+        ValidationTarget::EmbeddingsOnly
+    } else {
+        ValidationTarget::Full
+    };
+    let report = runtime.validate_index_report(target);
     write_validation_report(report, options.json)
 }
 

@@ -4,7 +4,7 @@ use atlas_embedding::{
     EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokenizer,
     apply_document_embedding_token_budget, generate_document_embeddings_with_reuse_using_batch,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::embedding_reuse;
 use crate::error::IngestError;
@@ -61,7 +61,7 @@ pub(crate) fn generate_document_embeddings_for_source(
         apply_document_embedding_token_budget(&mut source.pending_document_embeddings, &tokenizer)
             .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
     timing.tokenization_duration_ms = tokenization_started_at.elapsed().as_millis();
-    info!(
+    debug!(
         document_embeddings = source.document_embedding_tokenization.document_count,
         truncated_document_embeddings = source
             .document_embedding_tokenization
@@ -76,13 +76,27 @@ pub(crate) fn generate_document_embeddings_for_source(
         "analyzed document embedding tokenization"
     );
     for example in &source.document_embedding_tokenization.truncated_examples {
-        info!(
+        debug!(
             record_key = %example.record_key,
             embedding_tokens = example.token_count,
             max_embedding_tokens = example.max_token_count,
             "document embedding input exceeds tokenizer limit"
         );
     }
+    info!(
+        document_embeddings = source.document_embedding_tokenization.document_count,
+        truncated_document_embeddings = source
+            .document_embedding_tokenization
+            .truncated_document_count,
+        max_embedding_tokens = source
+            .document_embedding_tokenization
+            .max_token_count
+            .unwrap_or(0),
+        max_observed_embedding_tokens = source
+            .document_embedding_tokenization
+            .max_observed_token_count,
+        "document embedding tokenization complete"
+    );
 
     info!(
         pending_document_embeddings = source.pending_document_embeddings.len(),
