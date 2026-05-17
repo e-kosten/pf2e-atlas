@@ -8,6 +8,14 @@ pub enum EmbeddingError {
     TokenizationFailed(String),
     #[error("failed to load ONNX model `{path}`: {message}")]
     ModelLoadFailed { path: String, message: String },
+    #[error("failed to prepare embedding model cache path `{path}`: {message}")]
+    ModelCachePrepareFailed { path: String, message: String },
+    #[error("failed to download embedding model file `{url}` to `{path}`: {message}")]
+    ModelCacheDownloadFailed {
+        url: String,
+        path: String,
+        message: String,
+    },
     #[error("failed to prepare ONNX tensor: {0}")]
     TensorPrepareFailed(String),
     #[error("failed to run ONNX model: {0}")]

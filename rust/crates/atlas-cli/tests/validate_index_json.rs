@@ -17,23 +17,7 @@ fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn
     let source = root.join("source");
     let cache = root.join("hf-models");
     let index = root.join("index.sqlite");
-    fs::create_dir_all(&source)?;
-    fs::create_dir_all(cache.join("BAAI").join("bge-small-en-v1.5").join("onnx"))?;
-    fs::write(
-        cache
-            .join("BAAI")
-            .join("bge-small-en-v1.5")
-            .join("tokenizer.json"),
-        "{}",
-    )?;
-    fs::write(
-        cache
-            .join("BAAI")
-            .join("bge-small-en-v1.5")
-            .join("onnx")
-            .join("model.onnx"),
-        "",
-    )?;
+    write_fixture_source(&source)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["setup", "--path-mode", "user", "--source"])
@@ -42,6 +26,7 @@ fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn
         .arg(&cache)
         .args(["--index"])
         .arg(&index)
+        .arg("--no-embeddings")
         .arg("--json")
         .output()?;
 
@@ -49,20 +34,347 @@ fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn
     let actual: Value = serde_json::from_slice(&output.stdout)?;
     let actual = ok_data(&actual);
     assert_eq!(actual["ready"], true);
+    assert_eq!(actual["target"], "records");
     assert_eq!(actual["path_mode"], "user");
-    assert_eq!(actual["source"]["path"], source.display().to_string());
-    assert_eq!(actual["source"]["exists"], true);
+    assert_eq!(actual["paths"]["source"], source.display().to_string());
     assert_eq!(actual["embedding"]["model"], "bge-small-en-v1.5");
     assert_eq!(
         actual["embedding"]["cache_root"],
         cache.display().to_string()
     );
-    assert_eq!(actual["embedding"]["ready"], true);
-    assert!(actual["embedding"].get("missing_files").is_none());
-    assert_eq!(actual["index"]["path"], index.display().to_string());
-    assert_eq!(actual["index"]["exists"], false);
+    assert_eq!(actual["embedding"]["ready"], false);
+    assert_eq!(actual["paths"]["index"], index.display().to_string());
+    assert_eq!(actual["readiness"]["records"]["status"], "ready");
+    assert_eq!(actual["readiness"]["semantic_search"]["status"], "skipped");
+    assert!(index.is_file());
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_records_second_run_skips_rebuild() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-idempotent");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let first = setup_records_offline(&source, &cache, &index)?;
+    assert!(first.status.success());
+
+    let second = setup_records_offline(&source, &cache, &index)?;
+    assert!(second.status.success());
+    let actual: Value = serde_json::from_slice(&second.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], true);
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "skipped" })
+    );
 
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root_help = help_output(&[])?;
+    assert!(root_help.contains("atlas setup"));
+    assert!(root_help.contains("atlas record get actionspf2e:1kGNdIIhuglAjIp9"));
+
+    let setup_help = help_output(&["setup"])?;
+    assert!(setup_help.contains("atlas setup --no-embeddings"));
+    assert!(setup_help.contains("--offline"));
+
+    let validate_help = help_output(&["index", "validate"])?;
+    assert!(validate_help.contains("atlas index validate --embeddings-only"));
+    assert!(validate_help.contains("--no-embeddings"));
+
+    let build_help = help_output(&["index", "build"])?;
+    assert!(build_help.contains("atlas index build --no-embeddings"));
+    assert!(build_help.contains("Standard users should run `atlas setup` instead."));
+
+    let record_get_help = help_output(&["record", "get"])?;
+    assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
+    assert!(record_get_help.contains("Canonical record keys"));
+
+    let record_resolve_help = help_output(&["record", "resolve"])?;
+    assert!(record_resolve_help.contains("atlas record resolve \"Treat Wounds\""));
+    assert!(record_resolve_help.contains("--filter-json"));
+
+    let search_help = help_output(&["search"])?;
+    assert!(search_help.contains("atlas search \"low level healing spell\""));
+
+    Ok(())
+}
+
+#[test]
+fn setup_check_force_rebuild_reports_not_ready() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-check-force");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--offline",
+            "--check",
+            "--force-rebuild",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert!(actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "build_index"
+            && action["status"] == "planned"
+            && action["reason"] == "force rebuild requested"
+    }));
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_full_check_reports_record_ready_when_vectors_missing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-base-artifact-full-check");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--offline",
+            "--check",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["records"]["status"], "ready");
+    assert_eq!(
+        actual["readiness"]["semantic_search"]["status"],
+        "not_ready"
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_failed_source_update_is_runtime_failure() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-fetch-fail");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+    fs::create_dir(source.join(".git"))?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(3));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "fetch_source" && action["status"] == "failed" })
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_failed_source_update_blocks_missing_index_build() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_source_root("cli-setup-fetch-fail-missing-index");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+    fs::create_dir(source.join(".git"))?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(3));
+    assert!(!index.exists());
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "blocked" })
+    );
+    assert!(
+        !actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "done" })
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_check_offline_missing_source_uses_json_status_vocabulary()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-missing-source");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--offline",
+            "--check",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert_eq!(
+        actual["readiness"]["embedding_model"]["status"],
+        "not_ready"
+    );
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_check_online_missing_assets_plans_dependent_build()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-setup-online-check-missing");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["setup", "--path-mode", "user", "--check", "--source"])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "fetch_source" && action["status"] == "planned" })
+    );
+    assert!(actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "prepare_embedding_model" && action["status"] == "planned"
+    }));
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "planned" })
+    );
+
+    let _ = fs::remove_dir_all(root);
     Ok(())
 }
 
@@ -171,7 +483,17 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         })
     );
 
-    let validate_output = run_atlas(&index_path)?;
+    let full_validate_output = run_atlas(&index_path)?;
+    assert_eq!(full_validate_output.status.code(), Some(3));
+    let full_validate_json: Value = serde_json::from_slice(&full_validate_output.stdout)?;
+    let full_validate_json = ok_data(&full_validate_json);
+    assert_eq!(full_validate_json["code"], "artifact_contract_violation");
+    assert_eq!(
+        full_validate_json["diagnostics"][0]["key"],
+        "table:record_vector_index"
+    );
+
+    let validate_output = run_atlas_base(&index_path)?;
 
     assert!(validate_output.status.success());
     let validate_json: Value = serde_json::from_slice(&validate_output.stdout)?;
@@ -183,7 +505,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(validate_json["generated_record_count"], "0");
 
     let validate_vectors_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "validate-vectors", "--index"])
+        .args(["index", "validate", "--embeddings-only", "--index"])
         .arg(&index_path)
         .arg("--json")
         .output()?;
@@ -222,6 +544,18 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
 
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn validate_rejects_conflicting_embedding_flags() -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate", "--no-embeddings", "--embeddings-only"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("cannot be used with"));
     Ok(())
 }
 
@@ -669,7 +1003,7 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
     let path = temp_db_path("cli-valid");
     create_contract_database(&path, None)?;
 
-    let output = run_atlas(&path)?;
+    let output = run_atlas_base(&path)?;
 
     assert!(output.status.success());
     let actual: Value = serde_json::from_slice(&output.stdout)?;
@@ -734,11 +1068,12 @@ fn validate_index_json_reports_unavailable_index() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn validate_vectors_json_reports_unavailable_index() -> Result<(), Box<dyn std::error::Error>> {
+fn validate_embeddings_only_json_reports_unavailable_index()
+-> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-vector-unavailable");
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "validate-vectors", "--index"])
+        .args(["index", "validate", "--embeddings-only", "--index"])
         .arg(&path)
         .arg("--json")
         .output()?;
@@ -757,6 +1092,18 @@ fn validate_vectors_json_reports_unavailable_index() -> Result<(), Box<dyn std::
             }
         })
     );
+    Ok(())
+}
+
+#[test]
+fn validate_vectors_subcommand_is_removed() -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate-vectors"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("unrecognized subcommand 'validate-vectors'"));
     Ok(())
 }
 
@@ -1015,6 +1362,46 @@ fn run_atlas(path: &PathBuf) -> Result<std::process::Output, Box<dyn std::error:
     Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "validate", "--index"])
         .arg(path)
+        .arg("--json")
+        .output()?)
+}
+
+fn run_atlas_base(path: &PathBuf) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate", "--no-embeddings", "--index"])
+        .arg(path)
+        .arg("--json")
+        .output()?)
+}
+
+fn help_output(args: &[&str]) -> Result<String, Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(args)
+        .arg("--help")
+        .output()?;
+    assert!(output.status.success());
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+fn setup_records_offline(
+    source: &Path,
+    cache: &Path,
+    index: &Path,
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "user",
+            "--offline",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(source)
+        .args(["--embedding-cache-path"])
+        .arg(cache)
+        .args(["--index"])
+        .arg(index)
         .arg("--json")
         .output()?)
 }

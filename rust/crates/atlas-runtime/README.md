@@ -7,8 +7,9 @@ This crate decides where source data, embedding caches, and artifacts live for r
 ## Owns
 
 - Repo/user path resolution.
-- Runtime setup status.
-- Source fetch policy for setup commands.
+- Runtime setup readiness and repair orchestration.
+- Source fetch/update policy for setup commands.
+- Setup coordination across source analysis, embedding model cache readiness, artifact build, and final validation.
 - Construction of `AtlasIndex` and `AtlasRetrievalService` handles.
 - Shared runtime defaults for local CLI and future Rust surfaces.
 

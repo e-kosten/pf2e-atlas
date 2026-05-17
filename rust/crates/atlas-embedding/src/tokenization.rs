@@ -54,7 +54,29 @@ impl TextEmbeddingTokenizer {
         &self,
         texts: &[&str],
     ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
-        self.analyze_texts(texts, self.spec.document_prefix)
+        let max_token_count = self.spec.max_input_tokens;
+        let mut tokenizer = self.unbounded_tokenizer()?;
+        let total = texts.len();
+        let progress_interval = tokenization_progress_interval(total);
+        let mut results = Vec::with_capacity(total);
+        for (index, text) in texts.iter().enumerate() {
+            let current = index + 1;
+            results.push(analyze_text(
+                &mut tokenizer,
+                text,
+                self.spec.document_prefix,
+                max_token_count,
+            )?);
+            if current == total || current % progress_interval == 0 {
+                info!(target: "atlas_progress",
+                    phase = "document_embedding_tokenization",
+                    current = current as u64,
+                    total = total as u64,
+                    "Analyzed document embedding tokenization"
+                );
+            }
+        }
+        Ok(results)
     }
 
     pub fn budget_document_input(
@@ -119,34 +141,21 @@ impl TextEmbeddingTokenizer {
         prefix: &str,
     ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
         let max_token_count = self.spec.max_input_tokens;
+        let mut tokenizer = self.unbounded_tokenizer()?;
+
+        texts
+            .iter()
+            .map(|text| analyze_text(&mut tokenizer, text, prefix, max_token_count))
+            .collect()
+    }
+
+    fn unbounded_tokenizer(&self) -> Result<Tokenizer, EmbeddingError> {
         let mut tokenizer = self.tokenizer.clone();
         tokenizer
             .with_truncation(None)
             .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
         tokenizer.with_padding(None);
-
-        texts
-            .iter()
-            .map(|text| {
-                let normalized = normalize_embedding_text(&prefixed_text(text, prefix));
-                if normalized.is_empty() {
-                    return Ok(EmbeddingInputTokenization {
-                        token_count: 0,
-                        max_token_count,
-                        truncated: false,
-                    });
-                }
-                let encoding = tokenizer
-                    .encode(EncodeInput::Single(normalized.into()), true)
-                    .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
-                let token_count = encoding.get_ids().len();
-                Ok(EmbeddingInputTokenization {
-                    token_count,
-                    max_token_count,
-                    truncated: max_token_count.is_some_and(|max| token_count > max),
-                })
-            })
-            .collect()
+        Ok(tokenizer)
     }
 
     fn document_token_count(&self, text: &str) -> Result<usize, EmbeddingError> {
@@ -195,6 +204,35 @@ impl TextEmbeddingTokenizer {
             truncatable: chunk.truncatable,
         }))
     }
+}
+
+fn analyze_text(
+    tokenizer: &mut Tokenizer,
+    text: &str,
+    prefix: &str,
+    max_token_count: Option<usize>,
+) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+    let normalized = normalize_embedding_text(&prefixed_text(text, prefix));
+    if normalized.is_empty() {
+        return Ok(EmbeddingInputTokenization {
+            token_count: 0,
+            max_token_count,
+            truncated: false,
+        });
+    }
+    let encoding = tokenizer
+        .encode(EncodeInput::Single(normalized.into()), true)
+        .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
+    let token_count = encoding.get_ids().len();
+    Ok(EmbeddingInputTokenization {
+        token_count,
+        max_token_count,
+        truncated: max_token_count.is_some_and(|max| token_count > max),
+    })
+}
+
+fn tokenization_progress_interval(total: usize) -> usize {
+    (total / 100).clamp(500, 5_000)
 }
 
 fn candidate_text(accepted: &[EmbeddingInputChunk], chunk: &EmbeddingInputChunk) -> String {

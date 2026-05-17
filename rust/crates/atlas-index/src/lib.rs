@@ -27,7 +27,7 @@ pub use inspect::{
 pub use records::RecordLoadError;
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
-    ArtifactValidationReport, ValidationCode, ValidationStatus,
+    ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
 pub use vector::{VectorQueryError, VectorSearchHit};
 
@@ -42,6 +42,29 @@ pub enum IndexValidationError {
 }
 
 pub(crate) fn validate_index_connection(
+    index: String,
+    connection: &Connection,
+) -> Result<ArtifactValidationReport, IndexValidationError> {
+    let metadata_report = validate_index_metadata_connection(index.clone(), connection)?;
+    if metadata_report.status != ValidationStatus::Ok {
+        return Ok(metadata_report);
+    }
+
+    let artifact_metadata = metadata::read_metadata(connection, ARTIFACT_METADATA_TABLE)?;
+    let diagnostics = contract::validate_artifact_contract(connection, &artifact_metadata)?;
+    if diagnostics.is_empty() {
+        Ok(metadata_report)
+    } else {
+        let summary = metadata::summarize_metadata(&artifact_metadata);
+        Ok(ArtifactValidationReport::incompatible_metadata(
+            index,
+            summary,
+            diagnostics,
+        ))
+    }
+}
+
+pub(crate) fn validate_index_metadata_connection(
     index: String,
     connection: &Connection,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
@@ -78,11 +101,6 @@ pub(crate) fn validate_index_connection(
     }
 
     let diagnostics = metadata::validate_metadata_values(&artifact_metadata);
-    let diagnostics = if diagnostics.is_empty() {
-        contract::validate_artifact_contract(connection, &artifact_metadata)?
-    } else {
-        diagnostics
-    };
     if diagnostics.is_empty() {
         Ok(ArtifactValidationReport::ok(index, summary))
     } else {

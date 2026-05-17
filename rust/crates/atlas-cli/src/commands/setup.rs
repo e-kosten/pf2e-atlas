@@ -1,12 +1,16 @@
 use std::process::ExitCode;
 
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use serde_json::json;
+use atlas_runtime::{
+    AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeSetupOptions, SetupActionKind,
+    SetupActionStatus, SetupExitClass, SetupReadinessStatus, SetupTarget,
+};
+use serde::Serialize;
 
 use crate::SetupOptions;
 use crate::output::write_json_data;
 
 pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
+    let json = options.json;
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
@@ -15,108 +19,243 @@ pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
             index_path: options.index,
         },
     })?;
-
-    if options.fetch_source {
-        runtime.fetch_source()?;
-    }
-
-    let paths = runtime.paths();
-    let status = runtime.setup_status();
-    let ready = status.ready();
-
-    if options.json {
-        let mut data = json!({
-            "ready": ready,
-            "path_mode": paths.mode.as_str(),
-            "repo_root": paths.repo_root.as_ref().map(|path| path.display().to_string()),
-            "source": {
-                "path": paths.source_root.display().to_string(),
-                "exists": status.source_exists,
-            },
-            "embedding": {
-                "model": status.embedding_model,
-                "cache_root": paths.embedding_cache_root.display().to_string(),
-                "model_path": status.model_cache.model_dir.display().to_string(),
-                "ready": status.model_cache.ready,
-                "missing_files": status.model_cache
-                    .missing_files
-                    .iter()
-                    .map(|path| path.display().to_string())
-                    .collect::<Vec<_>>(),
-            },
-            "index": {
-                "path": paths.index_path.display().to_string(),
-                "exists": status.index_exists,
-            },
-            "next": {
-                "build_index": format!(
-                    "atlas index build --path-mode {}",
-                    paths.mode.suggested_path_mode()
-                ),
-            },
-        });
-        if paths.repo_root.is_none() {
-            data.as_object_mut()
-                .expect("setup data should be an object")
-                .remove("repo_root");
-        }
-        if status.model_cache.missing_files.is_empty() {
-            data["embedding"]
-                .as_object_mut()
-                .expect("setup embedding data should be an object")
-                .remove("missing_files");
-        }
-        write_json_data(data)?;
-    } else {
-        println!("mode: {}", paths.mode.label());
-        if let Some(repo_root) = &paths.repo_root {
-            println!("repo root: {}", repo_root.display());
-        }
-        println!(
-            "source: {} {}",
-            status_label(status.source_exists),
-            paths.source_root.display()
-        );
-        println!("embedding model: {}", status.embedding_model);
-        println!(
-            "embedding cache: {} {}",
-            status_label(status.model_cache.ready),
-            status.model_cache.model_dir.display()
-        );
-        for missing_file in &status.model_cache.missing_files {
-            println!("missing model file: {}", missing_file.display());
-        }
-        println!(
-            "index: {} {}",
-            status_label(status.index_exists),
-            paths.index_path.display()
-        );
-        if ready {
-            println!();
-            println!("ready:");
-            println!(
-                "  atlas index build --path-mode {}",
-                paths.mode.suggested_path_mode()
-            );
+    let setup_options = RuntimeSetupOptions {
+        target: if options.no_embeddings {
+            SetupTarget::Records
         } else {
-            println!();
-            println!("not ready:");
-            if !status.source_exists {
-                println!("  run atlas setup --fetch-source");
-            }
-            if !status.model_cache.ready {
-                println!("  prepare the default embedding model cache, then rerun atlas setup");
-            }
-        }
+            SetupTarget::Full
+        },
+        check: options.check,
+        offline: options.offline,
+        force_rebuild: options.force_rebuild,
+        embedding_model_id: options.embedding_model,
+        embedding_batch_size: options.embedding_batch_size,
+    };
+    let report = runtime.ensure_setup(setup_options);
+    let exit_class = report.exit_code_class();
+
+    if json {
+        write_json_data(setup_json_data(&report))?;
+    } else {
+        print_setup_report(&report);
     }
 
-    Ok(if ready {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(1)
+    Ok(match exit_class {
+        SetupExitClass::Success => ExitCode::SUCCESS,
+        SetupExitClass::NotReady => ExitCode::from(1),
+        SetupExitClass::RuntimeFailure => ExitCode::from(3),
     })
 }
 
-fn status_label(ok: bool) -> &'static str {
-    if ok { "ok" } else { "missing" }
+#[derive(Debug, Serialize)]
+struct SetupData {
+    target: &'static str,
+    ready: bool,
+    path_mode: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    repo_root: Option<String>,
+    offline: bool,
+    check: bool,
+    force_rebuild: bool,
+    actions: Vec<SetupActionData>,
+    readiness: SetupReadinessData,
+    paths: SetupPathsData,
+    embedding: SetupEmbeddingData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    build: Option<SetupBuildData>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupActionData {
+    kind: &'static str,
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupReadinessData {
+    source: SetupReadinessItemData,
+    embedding_model: SetupReadinessItemData,
+    records: SetupReadinessItemData,
+    semantic_search: SetupReadinessItemData,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupReadinessItemData {
+    status: &'static str,
+    required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupPathsData {
+    source: String,
+    embedding_cache: String,
+    index: String,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupEmbeddingData {
+    model: String,
+    model_path: String,
+    cache_root: String,
+    ready: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    missing_files: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupBuildData {
+    source_signature: String,
+    source_record_count: usize,
+    artifact_record_count: usize,
+    generated_record_count: usize,
+    document_embedding_count: usize,
+}
+
+fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
+    println!("mode: {}", report.path_mode);
+    if let Some(repo_root) = &report.repo_root {
+        println!("repo root: {repo_root}");
+    }
+    println!("target: {}", target_label(report.target));
+    println!(
+        "source: {}",
+        readiness_label(&report.readiness.source.status)
+    );
+    println!(
+        "embedding model: {} {}",
+        report.embedding.model,
+        readiness_label(&report.readiness.embedding_model.status)
+    );
+    println!("index: {}", report.paths.index);
+    println!(
+        "records: {}",
+        readiness_label(&report.readiness.records.status)
+    );
+    println!(
+        "semantic search: {}",
+        readiness_label(&report.readiness.semantic_search.status)
+    );
+    if !report.actions.is_empty() {
+        println!();
+        println!("actions:");
+        for action in &report.actions {
+            let reason = action
+                .reason
+                .as_ref()
+                .map(|reason| format!(": {reason}"))
+                .unwrap_or_default();
+            println!(
+                "  {}: {}{}",
+                action_kind_label(&action.kind),
+                action_status_label(&action.status),
+                reason
+            );
+        }
+    }
+    if !report.ready {
+        println!();
+        println!("not ready: run atlas setup without --check after resolving blocked actions");
+    }
+}
+
+fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
+    SetupData {
+        target: target_label(report.target),
+        ready: report.ready,
+        path_mode: report.path_mode,
+        repo_root: report.repo_root.clone(),
+        offline: report.offline,
+        check: report.check,
+        force_rebuild: report.force_rebuild,
+        actions: report.actions.iter().map(action_json).collect(),
+        readiness: readiness_json(&report.readiness),
+        paths: SetupPathsData {
+            source: report.paths.source.clone(),
+            embedding_cache: report.paths.embedding_cache.clone(),
+            index: report.paths.index.clone(),
+        },
+        embedding: SetupEmbeddingData {
+            model: report.embedding.model.clone(),
+            model_path: report.embedding.model_path.clone(),
+            cache_root: report.embedding.cache_root.clone(),
+            ready: report.embedding.ready,
+            missing_files: report.embedding.missing_files.clone(),
+        },
+        build: report.build.as_ref().map(|build| SetupBuildData {
+            source_signature: build.source_signature.clone(),
+            source_record_count: build.source_record_count,
+            artifact_record_count: build.artifact_record_count,
+            generated_record_count: build.generated_record_count,
+            document_embedding_count: build.document_embedding_count,
+        }),
+    }
+}
+
+fn action_json(action: &atlas_runtime::SetupAction) -> SetupActionData {
+    SetupActionData {
+        kind: action_kind_label(&action.kind),
+        status: action_status_label(&action.status),
+        reason: action.reason.clone(),
+    }
+}
+
+fn readiness_json(readiness: &atlas_runtime::SetupReadiness) -> SetupReadinessData {
+    SetupReadinessData {
+        source: readiness_item_json(&readiness.source),
+        embedding_model: readiness_item_json(&readiness.embedding_model),
+        records: readiness_item_json(&readiness.records),
+        semantic_search: readiness_item_json(&readiness.semantic_search),
+    }
+}
+
+fn readiness_item_json(item: &atlas_runtime::SetupReadinessItem) -> SetupReadinessItemData {
+    SetupReadinessItemData {
+        status: readiness_json_label(&item.status),
+        required: item.required,
+        reason: item.reason.clone(),
+    }
+}
+
+fn target_label(target: SetupTarget) -> &'static str {
+    target.as_str()
+}
+
+fn action_kind_label(kind: &SetupActionKind) -> &'static str {
+    match kind {
+        SetupActionKind::FetchSource => "fetch_source",
+        SetupActionKind::PrepareEmbeddingModel => "prepare_embedding_model",
+        SetupActionKind::AnalyzeSource => "analyze_source",
+        SetupActionKind::BuildIndex => "build_index",
+        SetupActionKind::ValidateIndex => "validate_index",
+    }
+}
+
+fn readiness_label(status: &SetupReadinessStatus) -> &'static str {
+    match status {
+        SetupReadinessStatus::Ready => "ready",
+        SetupReadinessStatus::NotReady => "not ready",
+        SetupReadinessStatus::Skipped => "skipped",
+    }
+}
+
+fn readiness_json_label(status: &SetupReadinessStatus) -> &'static str {
+    match status {
+        SetupReadinessStatus::Ready => "ready",
+        SetupReadinessStatus::NotReady => "not_ready",
+        SetupReadinessStatus::Skipped => "skipped",
+    }
+}
+
+fn action_status_label(status: &SetupActionStatus) -> &'static str {
+    match status {
+        SetupActionStatus::Planned => "planned",
+        SetupActionStatus::Done => "done",
+        SetupActionStatus::Skipped => "skipped",
+        SetupActionStatus::Blocked => "blocked",
+        SetupActionStatus::Failed => "failed",
+    }
 }

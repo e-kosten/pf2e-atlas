@@ -7,6 +7,13 @@ pub enum ValidationStatus {
     Error,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationTarget {
+    Full,
+    BaseOnly,
+    EmbeddingsOnly,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ValidationCode {
