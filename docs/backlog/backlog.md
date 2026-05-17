@@ -81,6 +81,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust content subdocuments for journal pages and table results](./items/rust-content-subdocuments-journal-table-results.md)
   Preserve the deferred design question for journal-page and rollable-table-result rich text as child content rather than flattening broad parent records during the Rust content-document refactor. Status: deferred.
 
+- [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
+  Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage so meaningful uncaptured source data can be found without adding partial raw-JSON scans to default ingest. Status: proposed.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 
