@@ -72,12 +72,7 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
         is_default_visible: input.is_default_visible,
         raw_json,
     };
-    LoadedSourceRecord::new(
-        record,
-        SourceConstructionFacts {
-            content_parse_diagnostics: Vec::new(),
-        },
-    )
+    LoadedSourceRecord::new(record, SourceConstructionFacts::empty())
 }
 
 pub(super) fn build_affliction_instance_raw(
@@ -86,7 +81,13 @@ pub(super) fn build_affliction_instance_raw(
     canonical_record_key: &str,
     normalization_key: &str,
 ) -> Value {
-    let mut raw = occurrence.child_raw.clone();
+    let mut raw = occurrence.raw_provenance.clone().unwrap_or_else(|| {
+        json!({
+            "_id": instance_id,
+            "name": occurrence.name,
+            "type": occurrence.host_record.foundry_record_type,
+        })
+    });
     if let Value::Object(object) = &mut raw {
         object.insert("_id".to_string(), Value::String(instance_id.to_string()));
         object.insert(

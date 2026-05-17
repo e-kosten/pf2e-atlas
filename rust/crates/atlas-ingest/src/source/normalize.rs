@@ -12,6 +12,8 @@ mod content_tests;
 mod family;
 mod json;
 mod publication;
+#[cfg(test)]
+mod source_facts_tests;
 mod text;
 mod time;
 
@@ -28,7 +30,11 @@ pub(crate) use time::{normalize_activation_time, normalize_time_text};
 
 use crate::error::IngestError;
 use crate::records::metrics;
-use crate::records::{LoadedSourceRecord, NormalizedRecord, SourceConstructionFacts};
+use crate::records::{
+    EmbeddedItemContentRef, EmbeddedItemFact, JournalPageFact, JournalPageSkipReason,
+    LoadedSourceRecord, NormalizedRecord, SkippedJournalPageFact, SourceConstructionFacts,
+    SourceRecordFacts,
+};
 use crate::source::ManifestPack;
 use crate::source::side_data;
 
@@ -112,8 +118,33 @@ pub(crate) fn normalize_record(
         .as_ref()
         .map(|parsed| parsed.document.clone())
         .filter(non_empty_document);
-    let (mut supplemental_content, supplemental_diagnostics) =
+    let mut source_facts = SourceRecordFacts {
+        slug: normalized_pointer_string(&raw, "/system/slug"),
+        compendium_source: normalized_pointer_string(&raw, "/_stats/compendiumSource"),
+        ..SourceRecordFacts::default()
+    };
+    let (supplemental_content, supplemental_diagnostics) =
         extract_supplemental_content(&raw, source_description_raw.as_deref());
+    for (local_key, document) in &supplemental_content {
+        if let Some(local_key) = local_key {
+            source_facts
+                .source_content
+                .insert(local_key.clone(), document.clone());
+        }
+    }
+    let mut supplemental_content = supplemental_content
+        .into_iter()
+        .map(|(_, document)| document)
+        .collect::<Vec<_>>();
+    source_facts.embedded_items = extract_embedded_item_facts(&raw, &key);
+    attach_embedded_content_refs(
+        &mut source_facts.embedded_items,
+        &source_facts.source_content,
+    );
+    let (journal_pages, skipped_journal_pages, journal_diagnostics) =
+        extract_journal_page_facts(&raw, &key);
+    source_facts.journal_pages = journal_pages;
+    source_facts.skipped_journal_pages = skipped_journal_pages;
     let folder_id = pointer_string(&raw, "/folder");
     let source_path = path
         .strip_prefix(source_root)
@@ -177,7 +208,9 @@ pub(crate) fn normalize_record(
             .chain(parsed_blurb)
             .map(|parsed| parsed.diagnostics)
             .chain(supplemental_diagnostics)
+            .chain(journal_diagnostics)
             .collect(),
+        source_facts,
     };
 
     Ok(LoadedSourceRecord::new(record, facts))
@@ -191,7 +224,7 @@ fn extract_supplemental_content(
     raw: &Value,
     source_description_raw: Option<&str>,
 ) -> (
-    Vec<SupplementalContentDocument>,
+    Vec<(Option<String>, SupplementalContentDocument)>,
     Vec<ContentParseDiagnostics>,
 ) {
     let mut content = Vec::new();
@@ -279,7 +312,7 @@ fn collect_content_at_pointer(
     pointer: &str,
     source_kind: ContentSourceKind,
     label: Option<String>,
-    content: &mut Vec<SupplementalContentDocument>,
+    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
     diagnostics: &mut Vec<ContentParseDiagnostics>,
 ) {
     let Some(markup) = pointer_string(raw, pointer) else {
@@ -290,42 +323,228 @@ fn collect_content_at_pointer(
         return;
     }
     diagnostics.push(parsed.diagnostics.clone());
-    content.push(SupplementalContentDocument {
-        source_kind,
-        visibility: source_kind.default_visibility(),
-        contributes_to_search: source_kind.default_contributes_to_search(),
-        contributes_to_references: source_kind.default_contributes_to_references(),
-        label,
-        document: parsed.document,
-    });
+    content.push((
+        None,
+        supplemental_content(source_kind, label, parsed.document),
+    ));
 }
 
 fn collect_embedded_item_content(
     raw: &Value,
-    content: &mut Vec<SupplementalContentDocument>,
+    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
     diagnostics: &mut Vec<ContentParseDiagnostics>,
 ) {
     let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
         return;
     };
-    for item in items {
+    for (index, item) in items.iter().enumerate() {
         let label = string_field(item, "name");
-        collect_content_at_pointer(
+        let item_id = embedded_item_id(item, index);
+        collect_embedded_content_at_pointer(
             item,
             "/system/description/value",
             ContentSourceKind::EmbeddedItemDescription,
             label.clone(),
+            embedded_item_content_key(&item_id, "description"),
             content,
             diagnostics,
         );
-        collect_content_at_pointer(
+        collect_embedded_content_at_pointer(
             item,
             "/system/spell/system/description/value",
             ContentSourceKind::EmbeddedSpellDescription,
             label,
+            embedded_item_content_key(&item_id, "spell-description"),
             content,
             diagnostics,
         );
+    }
+}
+
+fn collect_embedded_content_at_pointer(
+    raw: &Value,
+    pointer: &str,
+    source_kind: ContentSourceKind,
+    label: Option<String>,
+    local_key: String,
+    content: &mut Vec<(Option<String>, SupplementalContentDocument)>,
+    diagnostics: &mut Vec<ContentParseDiagnostics>,
+) {
+    let Some(markup) = pointer_string(raw, pointer) else {
+        return;
+    };
+    let parsed = parse_foundry_content(&markup);
+    if parsed.document.is_empty() {
+        return;
+    }
+    diagnostics.push(parsed.diagnostics.clone());
+    content.push((
+        Some(local_key),
+        supplemental_content(source_kind, label, parsed.document),
+    ));
+}
+
+fn supplemental_content(
+    source_kind: ContentSourceKind,
+    label: Option<String>,
+    document: ContentDocument,
+) -> SupplementalContentDocument {
+    SupplementalContentDocument {
+        source_kind,
+        visibility: source_kind.default_visibility(),
+        contributes_to_search: source_kind.default_contributes_to_search(),
+        contributes_to_references: source_kind.default_contributes_to_references(),
+        label,
+        document,
+    }
+}
+
+fn embedded_item_content_key(item_id: &str, suffix: &str) -> String {
+    format!("#item:{item_id}:{suffix}")
+}
+
+fn embedded_item_id(item: &Value, index: usize) -> String {
+    string_field(item, "_id").unwrap_or_else(|| format!("item-{index}"))
+}
+
+fn extract_embedded_item_facts(raw: &Value, host_record_key: &RecordKey) -> Vec<EmbeddedItemFact> {
+    let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .enumerate()
+        .filter_map(|(index, item)| embedded_item_fact(item, host_record_key, index))
+        .collect()
+}
+
+fn embedded_item_fact(
+    item: &Value,
+    host_record_key: &RecordKey,
+    index: usize,
+) -> Option<EmbeddedItemFact> {
+    let name = string_field(item, "name")?.trim().to_string();
+    if name.is_empty() {
+        return None;
+    }
+    let item_id = embedded_item_id(item, index);
+    let foundry_item_type = string_field(item, "type").unwrap_or_default();
+    Some(EmbeddedItemFact {
+        host_record_key: host_record_key.clone(),
+        item_id,
+        name: name.clone(),
+        normalized_name: normalize_text(&name),
+        foundry_item_type,
+        traits: extract_traits(item),
+        system_category: normalized_pointer_string(item, "/system/category"),
+        slug: normalized_pointer_string(item, "/system/slug"),
+        compendium_source: normalized_pointer_string(item, "/_stats/compendiumSource"),
+        publication_remaster: pointer_bool(item, "/system/publication/remaster").unwrap_or(false),
+        content_refs: Vec::new(),
+        raw_provenance: Some(item.clone()),
+    })
+}
+
+fn attach_embedded_content_refs(
+    embedded_items: &mut [EmbeddedItemFact],
+    source_content: &std::collections::BTreeMap<String, SupplementalContentDocument>,
+) {
+    for item in embedded_items {
+        for (source_kind, suffix) in [
+            (ContentSourceKind::EmbeddedItemDescription, "description"),
+            (
+                ContentSourceKind::EmbeddedSpellDescription,
+                "spell-description",
+            ),
+        ] {
+            let local_key = embedded_item_content_key(&item.item_id, suffix);
+            if source_content.contains_key(&local_key) {
+                item.content_refs.push(EmbeddedItemContentRef {
+                    source_kind,
+                    local_key,
+                });
+            }
+        }
+    }
+}
+
+fn extract_journal_page_facts(
+    raw: &Value,
+    host_record_key: &RecordKey,
+) -> (
+    Vec<JournalPageFact>,
+    Vec<SkippedJournalPageFact>,
+    Vec<ContentParseDiagnostics>,
+) {
+    let Some(pages) = raw.pointer("/pages").and_then(Value::as_array) else {
+        return (Vec::new(), Vec::new(), Vec::new());
+    };
+    let mut facts = Vec::new();
+    let mut skipped = Vec::new();
+    let mut diagnostics = Vec::new();
+    for (index, page) in pages.iter().enumerate() {
+        let name = string_field(page, "name").unwrap_or_else(|| format!("Page {}", index + 1));
+        let page_id = string_field(page, "_id");
+        let Some(markup) = pointer_string(page, "/text/content") else {
+            skipped.push(skipped_journal_page(
+                host_record_key,
+                page_id,
+                name,
+                index,
+                JournalPageSkipReason::MissingTextContent,
+            ));
+            continue;
+        };
+        if markup.trim().is_empty() {
+            skipped.push(skipped_journal_page(
+                host_record_key,
+                page_id,
+                name,
+                index,
+                JournalPageSkipReason::EmptyTextContent,
+            ));
+            continue;
+        }
+        let parsed = parse_foundry_content(&markup);
+        if parsed.document.is_empty() {
+            skipped.push(skipped_journal_page(
+                host_record_key,
+                page_id,
+                name,
+                index,
+                JournalPageSkipReason::EmptyParsedDocument,
+            ));
+            continue;
+        }
+        diagnostics.push(parsed.diagnostics.clone());
+        facts.push(JournalPageFact {
+            host_record_key: host_record_key.clone(),
+            page_id,
+            normalized_name: normalize_text(&name),
+            source_ref: format!("journal:{name}"),
+            name,
+            ordinal: index as i64,
+            source_markup: markup,
+            document: parsed.document,
+        });
+    }
+    (facts, skipped, diagnostics)
+}
+
+fn skipped_journal_page(
+    host_record_key: &RecordKey,
+    page_id: Option<String>,
+    name: String,
+    index: usize,
+    reason: JournalPageSkipReason,
+) -> SkippedJournalPageFact {
+    SkippedJournalPageFact {
+        host_record_key: host_record_key.clone(),
+        page_id,
+        normalized_name: normalize_text(&name),
+        name,
+        ordinal: index as i64,
+        reason,
     }
 }
 

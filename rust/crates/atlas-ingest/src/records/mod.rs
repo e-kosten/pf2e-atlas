@@ -7,7 +7,9 @@ pub(crate) mod variants;
 pub(crate) mod visibility;
 
 pub(crate) use loaded::{
-    ActorSideData, AliasSource, ItemSideData, LoadedSourceRecord, MetricRow, MetricValue,
+    ActorSideData, AliasSource, EmbeddedItemContentRef, EmbeddedItemFact, ItemSideData,
+    JournalPageFact, JournalPageSkipReason, LoadedSourceRecord, MetricRow, MetricValue,
     NormalizedRecord, NormalizedTime, RecordAlias, RecordReferenceIndex, ReferenceCandidate,
-    ReferenceEdge, RemasterLink, SourceConstructionFacts, SpellSideData,
+    ReferenceEdge, RemasterLink, SkippedJournalPageFact, SourceConstructionFacts,
+    SourceRecordFacts, SpellSideData,
 };

@@ -1,13 +1,12 @@
 use atlas_domain::RecordKey;
-use serde_json::Value;
 
 use super::html::{html_cells, html_elements, html_text};
 use crate::records::references::{
     extract_reference_candidates_from_text, record_by_key, reference_pack_and_locator,
     resolve_record_key,
 };
-use crate::records::{NormalizedRecord, RecordReferenceIndex};
-use crate::source::normalize::{normalize_text, pointer_string};
+use crate::records::{JournalPageFact, RecordReferenceIndex};
+use crate::source::normalize::normalize_text;
 
 pub(super) struct JournalRemasterChange {
     pub(super) remaster_record_key: RecordKey,
@@ -16,26 +15,13 @@ pub(super) struct JournalRemasterChange {
 }
 
 pub(super) fn extract_remaster_journal_changes(
-    record: &NormalizedRecord,
+    pages: &[JournalPageFact],
     index: &RecordReferenceIndex,
 ) -> Vec<JournalRemasterChange> {
-    let Ok(raw) = serde_json::from_str::<Value>(&record.raw_json) else {
-        return Vec::new();
-    };
-    let Some(pages) = raw.pointer("/pages").and_then(Value::as_array) else {
-        return Vec::new();
-    };
-
     let mut changes = Vec::new();
     for page in pages {
-        let page_name = pointer_string(page, "/name").unwrap_or_else(|| "journal-page".to_string());
-        let source_ref = format!("journal:{page_name}");
-        let Some(content) = pointer_string(page, "/text/content") else {
-            continue;
-        };
-
-        if page_name == "Remaster Changes" {
-            for list_item in html_elements(&content, "li") {
+        if page.name == "Remaster Changes" {
+            for list_item in html_elements(&page.source_markup, "li") {
                 let targets = resolve_journal_targets(&list_item, index);
                 if targets.len() != 1 {
                     continue;
@@ -46,13 +32,13 @@ pub(super) fn extract_remaster_journal_changes(
                     changes.push(JournalRemasterChange {
                         remaster_record_key: targets[0].clone(),
                         legacy_name: alias_text,
-                        source_ref: source_ref.clone(),
+                        source_ref: page.source_ref.clone(),
                     });
                 }
             }
         }
 
-        for row in html_elements(&content, "tr") {
+        for row in html_elements(&page.source_markup, "tr") {
             let cells = html_cells(&row);
             if cells.len() < 2 {
                 continue;
@@ -81,7 +67,7 @@ pub(super) fn extract_remaster_journal_changes(
                 changes.push(JournalRemasterChange {
                     remaster_record_key: targets[0].clone(),
                     legacy_name: old_name,
-                    source_ref: source_ref.clone(),
+                    source_ref: page.source_ref.clone(),
                 });
                 continue;
             }
@@ -94,7 +80,7 @@ pub(super) fn extract_remaster_journal_changes(
                 changes.push(JournalRemasterChange {
                     remaster_record_key: target.clone(),
                     legacy_name: alias_text.clone(),
-                    source_ref: source_ref.clone(),
+                    source_ref: page.source_ref.clone(),
                 });
             }
         }

@@ -139,9 +139,7 @@ mod tests {
         let pending = build_pending_document_embeddings(
             &[crate::records::LoadedSourceRecord::new(
                 record,
-                crate::records::SourceConstructionFacts {
-                    content_parse_diagnostics: Vec::new(),
-                },
+                crate::records::SourceConstructionFacts::empty(),
             )],
             &[],
             &[],

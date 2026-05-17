@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
-use serde_json::Value;
 
 mod html;
 mod migrations;
@@ -20,10 +19,10 @@ use remaster_journal::expand_grouped_alias_text;
 
 use crate::records::references::{record_by_key, reference_pack_and_locator, resolve_record_key};
 use crate::records::{
-    AliasSource, LoadedSourceRecord, NormalizedRecord, RecordAlias, RecordReferenceIndex,
+    AliasSource, JournalPageFact, LoadedSourceRecord, RecordAlias, RecordReferenceIndex,
     RemasterLink,
 };
-use crate::source::normalize::{normalize_text, pointer_bool, pointer_string};
+use crate::source::normalize::normalize_text;
 
 pub(crate) fn resolve_record_aliases(
     records: &[LoadedSourceRecord],
@@ -36,9 +35,12 @@ pub(crate) fn resolve_record_aliases(
         if record.foundry_document_type == "JournalEntry"
             && record.normalized_name == "remaster changes"
         {
-            aliases.extend(extract_remaster_journal_aliases(record, index));
+            aliases.extend(extract_remaster_journal_aliases(
+                &loaded.facts.source_facts.journal_pages,
+                index,
+            ));
         }
-        aliases.extend(extract_compendium_source_aliases(record, index));
+        aliases.extend(extract_compendium_source_aliases(loaded, index));
     }
 
     aliases.extend(extract_migration_aliases(source_root, index));
@@ -46,11 +48,11 @@ pub(crate) fn resolve_record_aliases(
 }
 
 fn extract_remaster_journal_aliases(
-    record: &NormalizedRecord,
+    pages: &[JournalPageFact],
     index: &RecordReferenceIndex,
 ) -> Vec<RecordAlias> {
     let mut aliases = Vec::new();
-    for change in extract_remaster_journal_changes(record, index) {
+    for change in extract_remaster_journal_changes(pages, index) {
         add_record_alias(
             &mut aliases,
             &change.remaster_record_key,
@@ -82,25 +84,16 @@ fn extract_migration_aliases(source_root: &Path, index: &RecordReferenceIndex) -
 }
 
 fn extract_compendium_source_aliases(
-    record: &NormalizedRecord,
+    loaded: &LoadedSourceRecord,
     index: &RecordReferenceIndex,
 ) -> Vec<RecordAlias> {
-    let Ok(raw) = serde_json::from_str::<Value>(&record.raw_json) else {
-        return Vec::new();
-    };
-    let Some(items) = raw.pointer("/items").and_then(Value::as_array) else {
-        return Vec::new();
-    };
-
+    let record = &loaded.record;
     let mut aliases = Vec::new();
-    for item in items {
-        let Some(alias_text) = pointer_string(item, "/name") else {
+    for item in &loaded.facts.source_facts.embedded_items {
+        let Some(compendium_source) = &item.compendium_source else {
             continue;
         };
-        let Some(compendium_source) = pointer_string(item, "/_stats/compendiumSource") else {
-            continue;
-        };
-        let Some((pack_name, locator)) = reference_pack_and_locator(&compendium_source) else {
+        let Some((pack_name, locator)) = reference_pack_and_locator(compendium_source) else {
             continue;
         };
         let Some(target_record_key) = resolve_record_key(Some(&pack_name), &locator, index) else {
@@ -109,10 +102,9 @@ fn extract_compendium_source_aliases(
         let Some(target_record) = record_by_key(index, &target_record_key) else {
             continue;
         };
-        let embedded_remaster = pointer_bool(item, "/system/publication/remaster").unwrap_or(false);
-        if embedded_remaster
+        if item.publication_remaster
             || !target_record.publication_remaster
-            || should_ignore_compendium_alias(&alias_text, &target_record.name)
+            || should_ignore_compendium_alias(&item.name, &target_record.name)
         {
             continue;
         }
@@ -120,7 +112,7 @@ fn extract_compendium_source_aliases(
         add_record_alias(
             &mut aliases,
             &target_record_key,
-            &alias_text,
+            &item.name,
             AliasSource::CompendiumSource,
             &record.key.to_string(),
             index,
@@ -244,7 +236,10 @@ pub(crate) fn resolve_remaster_links(
             continue;
         }
 
-        links.extend(extract_remaster_journal_links(record, index));
+        links.extend(extract_remaster_journal_links(
+            &loaded.facts.source_facts.journal_pages,
+            index,
+        ));
     }
 
     links.extend(extract_migration_remaster_links(source_root, index));
@@ -252,11 +247,11 @@ pub(crate) fn resolve_remaster_links(
 }
 
 fn extract_remaster_journal_links(
-    record: &NormalizedRecord,
+    pages: &[JournalPageFact],
     index: &RecordReferenceIndex,
 ) -> Vec<RemasterLink> {
     let mut links = Vec::new();
-    for change in extract_remaster_journal_changes(record, index) {
+    for change in extract_remaster_journal_changes(pages, index) {
         add_remaster_link(
             &mut links,
             &change.remaster_record_key,

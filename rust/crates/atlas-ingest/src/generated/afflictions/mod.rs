@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::{PackName, RecordId, RecordKey};
+use atlas_record::render_markdown_like;
 use serde_json::json;
 
 mod clustering;
@@ -21,12 +22,11 @@ use crate::generated::afflictions::identity::{
 };
 use crate::records::variants;
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
-use crate::source::normalize::parse_foundry_content;
 use clustering::{choose_affliction_authoritative_candidate, cluster_affliction_occurrences};
 use edges::generated_affliction_edges;
 use occurrences::collect_affliction_occurrences;
 use records::{build_affliction_instance_raw, derived_affliction_record};
-use source_facts::{affliction_family_label, record_description_markup};
+use source_facts::affliction_family_label;
 
 pub(crate) fn build_generated_afflictions(
     records: &[LoadedSourceRecord],
@@ -61,7 +61,6 @@ pub(crate) fn build_generated_afflictions(
             );
             let representative = candidate.0;
             let authoritative_record = candidate.1;
-            let authoritative_raw = candidate.2;
             let all_traits = variants::sorted_unique(
                 cluster
                     .iter()
@@ -79,10 +78,13 @@ pub(crate) fn build_generated_afflictions(
                 PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).expect("static pack name"),
                 RecordId::new(canonical_id.clone()).expect("hash id is valid"),
             );
-            let canonical_description =
-                authoritative_record.and_then(|record| record.description.clone());
-            let canonical_description_markup =
-                authoritative_raw.and_then(record_description_markup);
+            let canonical_description = authoritative_record
+                .and_then(|record| record.description.clone())
+                .or_else(|| representative.description.clone());
+            let canonical_description_markup = canonical_description
+                .as_ref()
+                .map(render_markdown_like)
+                .unwrap_or_default();
             let representative_instance_key = cluster.first().map(|occurrence| {
                 let instance_id = hash_text(&format!(
                     "{}:{}:{}",
@@ -101,7 +103,7 @@ pub(crate) fn build_generated_afflictions(
                         "value": all_traits,
                     },
                     "description": {
-                        "value": canonical_description_markup.unwrap_or_default(),
+                        "value": canonical_description_markup,
                     },
                 },
                 "_derived": {
@@ -155,9 +157,7 @@ pub(crate) fn build_generated_afflictions(
                         .expect("static pack name"),
                     RecordId::new(instance_id.clone()).expect("hash id is valid"),
                 );
-                let instance_description = record_description_markup(&occurrence.child_raw)
-                    .map(|markup| parse_foundry_content(&markup).document)
-                    .filter(|document| !document.is_empty());
+                let instance_description = occurrence.description.clone();
                 let instance_raw = build_affliction_instance_raw(
                     &instance_id,
                     occurrence,

@@ -1,19 +1,18 @@
-use serde_json::Value;
-
-use atlas_record::render_plain_text;
-
-use crate::generated::afflictions::AfflictionFamily;
-use crate::records::references::extract_reference_candidates_from_text;
-use crate::records::variants;
-use crate::source::normalize::{
-    extract_traits, normalize_text, normalized_pointer_string, parse_foundry_content,
-    pointer_string,
+use atlas_record::{
+    ContentDocument, ContentInline, ContentReferenceLocator, ContentSourceKind,
+    iter_content_references, render_plain_text,
 };
 
-pub(super) fn detect_affliction_family(raw: &Value) -> Option<AfflictionFamily> {
-    let traits = extract_traits(raw);
-    let system_category =
-        normalized_pointer_string(raw, "/system/category").map(|value| normalize_text(&value));
+use crate::generated::afflictions::AfflictionFamily;
+use crate::records::variants;
+use crate::records::{EmbeddedItemFact, NormalizedRecord, SourceRecordFacts};
+use crate::source::normalize::normalize_text;
+
+pub(super) fn detect_affliction_family(
+    traits: &[String],
+    system_category: Option<&str>,
+) -> Option<AfflictionFamily> {
+    let system_category = system_category.map(normalize_text);
     if traits.iter().any(|trait_value| trait_value == "disease")
         || system_category.as_deref() == Some("disease")
     {
@@ -40,38 +39,41 @@ pub(super) fn affliction_family_label(family: AfflictionFamily) -> &'static str 
     }
 }
 
-pub(super) fn has_affliction_shape(raw: &Value) -> bool {
-    let Some(description) = record_description_plain_text(raw) else {
+pub(super) fn has_affliction_shape(document: Option<&ContentDocument>) -> bool {
+    let Some(description) = document
+        .map(render_plain_text)
+        .filter(|value| !value.trim().is_empty())
+    else {
         return false;
     };
     let normalized = normalize_text(&description);
     normalized.contains("saving throw") && normalized.contains("stage 1")
 }
 
-pub(super) fn record_description_markup(raw: &Value) -> Option<String> {
-    [
-        "/system/description/value",
-        "/system/details/description",
-        "/system/details/publicNotes",
-        "/system/details/blurb",
-    ]
-    .into_iter()
-    .find_map(|pointer| pointer_string(raw, pointer))
-    .filter(|value| !value.trim().is_empty())
+pub(super) fn record_affliction_document(record: &NormalizedRecord) -> Option<ContentDocument> {
+    record
+        .description
+        .clone()
+        .or_else(|| supplemental_document(record, ContentSourceKind::DetailsDescription))
+        .or_else(|| supplemental_document(record, ContentSourceKind::PublicNotes))
+        .or_else(|| record.blurb.clone())
 }
 
-pub(super) fn record_description_plain_text(raw: &Value) -> Option<String> {
-    record_description_markup(raw)
-        .map(|value| render_plain_text(&parse_foundry_content(&value).document))
-        .filter(|value| !value.trim().is_empty())
-}
-
-pub(super) fn record_slug(raw: &Value) -> Option<String> {
-    normalized_pointer_string(raw, "/system/slug")
-}
-
-pub(super) fn compendium_source(raw: &Value) -> Option<String> {
-    normalized_pointer_string(raw, "/_stats/compendiumSource")
+pub(super) fn embedded_item_affliction_document(
+    item: &EmbeddedItemFact,
+    source_facts: &SourceRecordFacts,
+) -> Option<ContentDocument> {
+    item.content_refs
+        .iter()
+        .find(|content_ref| {
+            matches!(
+                content_ref.source_kind,
+                ContentSourceKind::EmbeddedItemDescription
+                    | ContentSourceKind::EmbeddedSpellDescription
+            )
+        })
+        .and_then(|content_ref| source_facts.source_content.get(&content_ref.local_key))
+        .map(|content| content.document.clone())
 }
 
 pub(super) fn parse_compendium_source(value: &str) -> Option<(String, String)> {
@@ -82,24 +84,83 @@ pub(super) fn parse_compendium_source(value: &str) -> Option<(String, String)> {
     None
 }
 
-pub(super) fn extract_linked_names_from_markup(markup: Option<&str>) -> Vec<String> {
-    let Some(markup) = markup else {
+pub(super) fn extract_linked_names(document: Option<&ContentDocument>) -> Vec<String> {
+    let Some(document) = document else {
         return Vec::new();
     };
     variants::sorted_unique(
-        extract_reference_candidates_from_text(markup)
-            .into_iter()
+        iter_content_references(document)
             .filter_map(|candidate| {
                 candidate
-                    .display_text
-                    .or_else(|| fallback_linked_name(&candidate.raw_target))
+                    .label
+                    .as_ref()
+                    .and_then(|label| {
+                        let text = render_inlines_plain_text(label).trim().to_string();
+                        (!text.is_empty()).then_some(text)
+                    })
+                    .or_else(|| fallback_linked_name(&candidate.locator))
             })
             .collect(),
     )
 }
 
-fn fallback_linked_name(locator: &str) -> Option<String> {
-    let tail = locator.split('.').next_back()?.replace(['-', '_'], " ");
+fn supplemental_document(
+    record: &NormalizedRecord,
+    source_kind: ContentSourceKind,
+) -> Option<ContentDocument> {
+    record
+        .supplemental_content
+        .iter()
+        .find(|content| content.source_kind == source_kind)
+        .map(|content| content.document.clone())
+}
+
+fn render_inlines_plain_text(inlines: &[ContentInline]) -> String {
+    let mut text = String::new();
+    for inline in inlines {
+        match inline {
+            ContentInline::Text { text: value } | ContentInline::Code { text: value } => {
+                text.push_str(value);
+            }
+            ContentInline::Strong { content } | ContentInline::Emphasis { content } => {
+                text.push_str(&render_inlines_plain_text(content));
+            }
+            ContentInline::Reference { reference } => {
+                if let Some(label) = &reference.label {
+                    text.push_str(&render_inlines_plain_text(label));
+                }
+            }
+            ContentInline::Break => text.push(' '),
+            ContentInline::Roll { label, formula, .. } => {
+                text.push_str(label.as_ref().unwrap_or(formula));
+            }
+            ContentInline::Template { label, .. }
+            | ContentInline::Icon {
+                label: Some(label), ..
+            } => {
+                text.push_str(label);
+            }
+            ContentInline::Macro {
+                label: Some(label), ..
+            } => {
+                text.push_str(label);
+            }
+            ContentInline::Macro { label: None, .. }
+            | ContentInline::ActionGlyph { .. }
+            | ContentInline::Icon { label: None, .. } => {}
+        }
+    }
+    text
+}
+
+fn fallback_linked_name(locator: &ContentReferenceLocator) -> Option<String> {
+    let raw = match locator {
+        ContentReferenceLocator::FoundryUuid { raw_target }
+        | ContentReferenceLocator::Compendium { raw_target } => raw_target.as_str(),
+        ContentReferenceLocator::PackAndLocator { locator, .. } => locator.as_str(),
+        ContentReferenceLocator::Unknown { raw } => raw.as_str(),
+    };
+    let tail = raw.split('.').next_back()?.replace(['-', '_'], " ");
     let trimmed = tail.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
