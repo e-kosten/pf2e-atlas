@@ -7,6 +7,10 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+rusqlite = { workspace = true, optional = true }
+
+[features]
+test-support = ["dep:rusqlite"]
 
 [dev-dependencies]
 rusqlite.workspace = true

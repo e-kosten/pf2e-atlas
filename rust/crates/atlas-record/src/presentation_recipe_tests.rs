@@ -1,9 +1,9 @@
 use atlas_domain::{MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
 
 use crate::{
-    ActorSideData, ContentBlock, ContentDocument, ContentInline, MetricRow, MetricValue,
-    NormalizedRecord, PresentationBlock, PresentationSection, PresentationSectionKind,
-    SpellSideData, build_record_presentation_document,
+    ActorSideData, ContentBlock, ContentDocument, ContentInline, MetricDefinition, MetricRow,
+    MetricValue, NormalizedRecord, PresentationBlock, PresentationSection, PresentationSectionKind,
+    SpellSideData, build_record_presentation_document, metrics,
 };
 
 fn base_record(record_family: RecordFamily) -> NormalizedRecord {
@@ -105,14 +105,14 @@ fn creature_recipe_groups_defense_movement_and_offense_sections() {
         is_complex: false,
     });
     record.metrics = vec![
-        metric("perception.mod", 9.0),
-        metric("ability.str.mod", 4.0),
-        metric("ac.value", 19.0),
-        metric("hp.value", 45.0),
-        metric("save.fort.mod", 12.0),
-        metric("save.ref.mod", 8.0),
-        metric("save.will.mod", 7.0),
-        metric("speed.land.value", 25.0),
+        defined_metric(metrics::actor::PERCEPTION_MOD, 9.0),
+        metric(&metrics::actor::ability::mod_key("str"), 4.0),
+        defined_metric(metrics::actor::ARMOR_CLASS, 19.0),
+        defined_metric(metrics::actor::HP_VALUE, 45.0),
+        metric(&metrics::actor::save::mod_key("fort"), 12.0),
+        metric(&metrics::actor::save::mod_key("ref"), 8.0),
+        metric(&metrics::actor::save::mod_key("will"), 7.0),
+        metric(&metrics::actor::speed::value_key("land"), 25.0),
     ];
 
     let document = build_record_presentation_document(&record);
@@ -153,7 +153,10 @@ fn hazard_recipe_drops_empty_sections_and_keeps_disable_routine() {
         disable_skills: vec!["thievery".to_string()],
         is_complex: true,
     });
-    record.metrics = vec![metric("stealth.dc", 22.0), metric("ac.value", 18.0)];
+    record.metrics = vec![
+        defined_metric(metrics::actor::STEALTH_DC, 22.0),
+        defined_metric(metrics::actor::ARMOR_CLASS, 18.0),
+    ];
 
     let document = build_record_presentation_document(&record);
 
@@ -178,6 +181,15 @@ fn metric(key: &str, value: f64) -> MetricRow {
         key: key.to_string(),
         value: MetricValue::Number(value),
     }
+}
+
+fn defined_metric(definition: MetricDefinition, value: f64) -> MetricRow {
+    metric(
+        definition
+            .exact_key()
+            .expect("test metric definition should have a static key"),
+        value,
+    )
 }
 
 fn text_document(text: &str) -> ContentDocument {

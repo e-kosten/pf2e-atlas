@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use atlas_domain::MetricDomain;
+use atlas_record::metrics as metric_definitions;
 use serde_json::Value;
 
 use crate::records::{MetricRow, MetricValue};
@@ -38,7 +39,7 @@ fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
         add_metric_number(
             &mut metrics,
             MetricDomain::Actor,
-            &format!("ability.{ability_key}.mod"),
+            &metric_definitions::actor::ability::mod_key(ability_key),
             first_number_at_paths(
                 raw,
                 &[
@@ -49,10 +50,9 @@ fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
         );
     }
 
-    add_metric_number(
+    add_defined_metric_number(
         &mut metrics,
-        MetricDomain::Actor,
-        "perception.mod",
+        metric_definitions::actor::PERCEPTION_MOD,
         first_number_at_paths(
             raw,
             &[
@@ -62,35 +62,44 @@ fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
             ],
         ),
     );
-    add_metric_number(
+    add_defined_metric_number(
         &mut metrics,
-        MetricDomain::Actor,
-        "ac.value",
+        metric_definitions::actor::ARMOR_CLASS,
         number_at_pointer(raw, "/system/attributes/ac/value"),
     );
-    add_metric_number(
+    add_defined_metric_number(
         &mut metrics,
-        MetricDomain::Actor,
-        "hardness.value",
+        metric_definitions::actor::HARDNESS,
         number_at_pointer(raw, "/system/attributes/hardness"),
     );
 
-    for (metric_key, pointer) in [
-        ("hp.value", "/system/attributes/hp/value"),
-        ("hp.max", "/system/attributes/hp/max"),
-        ("hp.bt", "/system/attributes/hp/brokenThreshold"),
-        ("hp.bt", "/system/attributes/hp/broken"),
-        ("hp.bt", "/system/attributes/hp/bt"),
+    for (definition, pointer) in [
+        (
+            metric_definitions::actor::HP_VALUE,
+            "/system/attributes/hp/value",
+        ),
+        (
+            metric_definitions::actor::HP_MAX,
+            "/system/attributes/hp/max",
+        ),
+        (
+            metric_definitions::actor::HP_BROKEN_THRESHOLD,
+            "/system/attributes/hp/brokenThreshold",
+        ),
+        (
+            metric_definitions::actor::HP_BROKEN_THRESHOLD,
+            "/system/attributes/hp/broken",
+        ),
+        (
+            metric_definitions::actor::HP_BROKEN_THRESHOLD,
+            "/system/attributes/hp/bt",
+        ),
     ] {
+        let metric_key = exact_metric_key(definition);
         if metrics.iter().any(|metric| metric.key == metric_key) {
             continue;
         }
-        add_metric_number(
-            &mut metrics,
-            MetricDomain::Actor,
-            metric_key,
-            number_at_pointer(raw, pointer),
-        );
+        add_defined_metric_number(&mut metrics, definition, number_at_pointer(raw, pointer));
     }
 
     let save_values = extract_save_metrics(raw, &mut metrics);
@@ -99,6 +108,7 @@ fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
     extract_speed_metrics(raw, &mut metrics);
     extract_sense_metrics(raw, &mut metrics);
     extract_stealth_metrics(raw, &mut metrics);
+    extract_disable_metrics(raw, &mut metrics);
     metrics
 }
 
@@ -118,7 +128,7 @@ fn extract_save_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) -> Vec<(&'sta
             add_metric_number(
                 metrics,
                 MetricDomain::Actor,
-                &format!("save.{save_key}.mod"),
+                &metric_definitions::actor::save::mod_key(save_key),
                 Some(number),
             );
             save_values.push((save_key, number));
@@ -144,12 +154,12 @@ fn add_best_worst_save_metrics(metrics: &mut Vec<MetricRow>, save_values: &[(&'s
 
     metrics.push(MetricRow {
         domain: MetricDomain::Actor,
-        key: "save.best".to_string(),
+        key: exact_metric_key(metric_definitions::actor::save::BEST).to_string(),
         value: MetricValue::Text((*best_save).to_string()),
     });
     metrics.push(MetricRow {
         domain: MetricDomain::Actor,
-        key: "save.worst".to_string(),
+        key: exact_metric_key(metric_definitions::actor::save::WORST).to_string(),
         value: MetricValue::Text((*worst_save).to_string()),
     });
 }
@@ -167,19 +177,19 @@ fn extract_skill_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
         add_metric_number(
             metrics,
             MetricDomain::Actor,
-            &format!("skill.{skill_key}.mod"),
+            &metric_definitions::actor::skill::mod_key(&skill_key),
             first_number_at_paths(value, &["/mod", "/modifier", "/value"]),
         );
         if let Some(rank) = number_at_pointer(value, "/rank") {
             add_metric_number(
                 metrics,
                 MetricDomain::Actor,
-                &format!("skill.{skill_key}.rank"),
+                &metric_definitions::actor::skill::rank_key(&skill_key),
                 Some(rank),
             );
             metrics.push(MetricRow {
                 domain: MetricDomain::Actor,
-                key: format!("skill.{skill_key}.proficient"),
+                key: metric_definitions::actor::skill::proficient_key(&skill_key),
                 value: MetricValue::Boolean(rank >= 1.0),
             });
         }
@@ -190,7 +200,7 @@ fn extract_speed_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
     add_metric_number(
         metrics,
         MetricDomain::Actor,
-        "speed.land.value",
+        &metric_definitions::actor::speed::value_key("land"),
         number_like_at_pointer(raw, "/system/attributes/speed/value"),
     );
 
@@ -211,7 +221,7 @@ fn extract_speed_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
         add_metric_number(
             metrics,
             MetricDomain::Actor,
-            &format!("speed.{speed_type}.value"),
+            &metric_definitions::actor::speed::value_key(&speed_type),
             number_like_at_pointer(speed, "/value"),
         );
     }
@@ -235,7 +245,7 @@ fn extract_sense_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
         add_metric_number(
             metrics,
             MetricDomain::Actor,
-            &format!("sense.{sense_type}.range"),
+            &metric_definitions::actor::sense::range_key(&sense_type),
             number_like_at_pointer(sense, "/range"),
         );
     }
@@ -250,24 +260,264 @@ fn extract_stealth_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
             "/system/attributes/stealth/modifier",
         ],
     );
-    add_metric_number(metrics, MetricDomain::Actor, "stealth.mod", stealth_mod);
-    add_metric_number(
+    add_defined_metric_number(metrics, metric_definitions::actor::STEALTH_MOD, stealth_mod);
+    add_defined_metric_number(
         metrics,
-        MetricDomain::Actor,
-        "stealth.dc",
+        metric_definitions::actor::STEALTH_DC,
         number_at_pointer(raw, "/system/attributes/stealth/dc")
             .or_else(|| stealth_mod.map(|value| value + 10.0)),
     );
+}
+
+fn extract_disable_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+    let Some(disable_markup) = pointer_string(raw, "/system/details/disable") else {
+        return;
+    };
+    let checks = parse_disable_checks(&disable_markup);
+    if checks.is_empty() {
+        return;
+    }
+
+    let all_dcs = checks
+        .iter()
+        .filter_map(|check| check.dc)
+        .collect::<Vec<_>>();
+    if let Some((min, max)) = min_max(&all_dcs) {
+        add_defined_metric_number(
+            metrics,
+            metric_definitions::actor::disable::DC_MIN,
+            Some(min),
+        );
+        add_defined_metric_number(
+            metrics,
+            metric_definitions::actor::disable::DC_MAX,
+            Some(max),
+        );
+    }
+
+    for skill in HAZARD_DISABLE_SKILLS {
+        let skill_key = slugify_metric_segment(skill);
+        let skill_dcs = checks
+            .iter()
+            .filter(|check| check.skills.iter().any(|candidate| candidate == &skill_key))
+            .filter_map(|check| check.dc)
+            .collect::<Vec<_>>();
+        if let Some((min, max)) = min_max(&skill_dcs) {
+            add_metric_number(
+                metrics,
+                MetricDomain::Actor,
+                &metric_definitions::actor::disable::skill_dc_min_key(&skill_key),
+                Some(min),
+            );
+            add_metric_number(
+                metrics,
+                MetricDomain::Actor,
+                &metric_definitions::actor::disable::skill_dc_max_key(&skill_key),
+                Some(max),
+            );
+        }
+        if let Some(rank) = checks
+            .iter()
+            .filter(|check| check.skills.iter().any(|candidate| candidate == &skill_key))
+            .filter_map(|check| check.rank_min)
+            .max()
+        {
+            add_metric_number(
+                metrics,
+                MetricDomain::Actor,
+                &metric_definitions::actor::disable::skill_rank_min_key(&skill_key),
+                Some(f64::from(rank)),
+            );
+        }
+    }
+}
+
+pub(crate) fn disable_metric_candidate_keys(markup: &str) -> Vec<String> {
+    let checks = parse_disable_checks(markup);
+    if checks.is_empty() {
+        return Vec::new();
+    }
+
+    let mut keys = Vec::new();
+    if checks.iter().any(|check| check.dc.is_some()) {
+        keys.push(exact_metric_key(metric_definitions::actor::disable::DC_MIN).to_string());
+        keys.push(exact_metric_key(metric_definitions::actor::disable::DC_MAX).to_string());
+    }
+
+    for skill in HAZARD_DISABLE_SKILLS {
+        let skill_key = slugify_metric_segment(skill);
+        if checks.iter().any(|check| {
+            check.dc.is_some() && check.skills.iter().any(|candidate| candidate == &skill_key)
+        }) {
+            keys.push(metric_definitions::actor::disable::skill_dc_min_key(
+                &skill_key,
+            ));
+            keys.push(metric_definitions::actor::disable::skill_dc_max_key(
+                &skill_key,
+            ));
+        }
+        if checks.iter().any(|check| {
+            check.rank_min.is_some() && check.skills.iter().any(|candidate| candidate == &skill_key)
+        }) {
+            keys.push(metric_definitions::actor::disable::skill_rank_min_key(
+                &skill_key,
+            ));
+        }
+    }
+    keys
+}
+
+#[derive(Debug, PartialEq)]
+struct DisableCheck {
+    dc: Option<f64>,
+    skills: Vec<String>,
+    rank_min: Option<u8>,
+}
+
+const HAZARD_DISABLE_SKILLS: &[&str] = &[
+    "acrobatics",
+    "arcana",
+    "athletics",
+    "crafting",
+    "deception",
+    "diplomacy",
+    "intimidation",
+    "medicine",
+    "nature",
+    "occultism",
+    "performance",
+    "religion",
+    "society",
+    "stealth",
+    "survival",
+    "thievery",
+];
+
+fn parse_disable_checks(markup: &str) -> Vec<DisableCheck> {
+    let mut checks = Vec::new();
+    let mut cursor = 0;
+    while let Some(relative_start) = markup[cursor..].find("@Check[") {
+        let body_start = cursor + relative_start + "@Check[".len();
+        let Some(relative_end) = markup[body_start..].find(']') else {
+            break;
+        };
+        let body_end = body_start + relative_end;
+        let trailing_start = body_end + 1;
+        let trailing_end = markup[trailing_start..]
+            .find("@Check[")
+            .map(|next| trailing_start + next)
+            .unwrap_or(markup.len());
+        checks.push(parse_disable_check(
+            &markup[body_start..body_end],
+            &markup[trailing_start..trailing_end],
+        ));
+        cursor = trailing_end;
+    }
+    checks
+}
+
+fn parse_disable_check(body: &str, trailing_markup: &str) -> DisableCheck {
+    let segments = body
+        .split('|')
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    let dc = segments
+        .iter()
+        .find_map(|segment| parse_prefixed_dc_segment(segment));
+    let primary_skill = segments
+        .iter()
+        .find(|segment| !segment.contains(':'))
+        .map(|segment| slugify_metric_segment(segment))
+        .filter(|segment| !segment.is_empty());
+    let trailing_text = strip_markup(trailing_markup);
+    let mut skills = Vec::new();
+    if let Some(skill) = primary_skill {
+        skills.push(skill);
+    }
+    for skill in HAZARD_DISABLE_SKILLS {
+        if contains_word(&trailing_text, skill) {
+            skills.push(slugify_metric_segment(skill));
+        }
+    }
+    skills.sort();
+    skills.dedup();
+
+    DisableCheck {
+        dc,
+        rank_min: proficiency_rank_in_text(&trailing_text),
+        skills,
+    }
+}
+
+fn parse_prefixed_dc_segment(segment: &str) -> Option<f64> {
+    let (prefix, value) = segment.split_once(':')?;
+    if prefix.trim().eq_ignore_ascii_case("dc") {
+        parse_numeric_prefix(value)
+    } else {
+        None
+    }
+}
+
+fn parse_numeric_prefix(text: &str) -> Option<f64> {
+    let mut buffer = String::new();
+    for character in text.trim().chars() {
+        if character.is_ascii_digit() || character == '.' || character == '-' {
+            buffer.push(character);
+        } else if !buffer.is_empty() {
+            break;
+        }
+    }
+    buffer.parse::<f64>().ok()
+}
+
+fn strip_markup(markup: &str) -> String {
+    let mut output = String::new();
+    let mut in_tag = false;
+    for character in markup.chars() {
+        match character {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => output.push(character),
+            _ => {}
+        }
+    }
+    output
+}
+
+fn proficiency_rank_in_text(text: &str) -> Option<u8> {
+    [
+        ("legendary", 4),
+        ("master", 3),
+        ("expert", 2),
+        ("trained", 1),
+    ]
+    .into_iter()
+    .find_map(|(rank, value)| contains_word(text, rank).then_some(value))
+}
+
+fn contains_word(text: &str, word: &str) -> bool {
+    let lower_text = text.to_lowercase();
+    lower_text
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .any(|segment| segment == word)
+}
+
+fn min_max(values: &[f64]) -> Option<(f64, f64)> {
+    let mut iter = values.iter().copied();
+    let first = iter.next()?;
+    Some(iter.fold((first, first), |(min, max), value| {
+        (min.min(value), max.max(value))
+    }))
 }
 
 fn extract_item_metrics(raw: &Value, record_type: &str) -> Vec<MetricRow> {
     let mut metrics = Vec::new();
     match slugify_metric_segment(record_type).as_str() {
         "weapon" => {
-            add_metric_number(
+            add_defined_metric_number(
                 &mut metrics,
-                MetricDomain::Item,
-                "weapon.range_increment",
+                metric_definitions::item::weapon::RANGE_INCREMENT,
                 first_number_like_at_paths(
                     raw,
                     &[
@@ -277,58 +527,78 @@ fn extract_item_metrics(raw: &Value, record_type: &str) -> Vec<MetricRow> {
                     ],
                 ),
             );
-            add_metric_number(
+            add_defined_metric_number(
                 &mut metrics,
-                MetricDomain::Item,
-                "weapon.reload",
+                metric_definitions::item::weapon::RELOAD,
                 first_number_like_at_paths(raw, &["/system/reload/value", "/system/reload"]),
             );
-            add_metric_number(
+            add_defined_metric_number(
                 &mut metrics,
-                MetricDomain::Item,
-                "weapon.damage_dice",
+                metric_definitions::item::weapon::DAMAGE_DICE,
                 number_at_pointer(raw, "/system/damage/dice"),
             );
-            add_metric_number(
+            add_defined_metric_number(
                 &mut metrics,
-                MetricDomain::Item,
-                "weapon.damage_die_faces",
+                metric_definitions::item::weapon::DAMAGE_DIE_FACES,
                 damage_die_faces(raw.pointer("/system/damage/die")),
             );
         }
         "armor" => {
-            for (metric_key, pointer) in [
-                ("armor.ac_bonus", "/system/acBonus"),
-                ("armor.dex_cap", "/system/dexCap"),
-                ("armor.strength", "/system/strength"),
-                ("armor.check_penalty", "/system/checkPenalty"),
-                ("armor.speed_penalty", "/system/speedPenalty"),
+            for (definition, pointer) in [
+                (metric_definitions::item::armor::AC_BONUS, "/system/acBonus"),
+                (metric_definitions::item::armor::DEX_CAP, "/system/dexCap"),
+                (
+                    metric_definitions::item::armor::STRENGTH,
+                    "/system/strength",
+                ),
+                (
+                    metric_definitions::item::armor::CHECK_PENALTY,
+                    "/system/checkPenalty",
+                ),
+                (
+                    metric_definitions::item::armor::SPEED_PENALTY,
+                    "/system/speedPenalty",
+                ),
             ] {
-                add_metric_number(
+                add_defined_metric_number(
                     &mut metrics,
-                    MetricDomain::Item,
-                    metric_key,
+                    definition,
                     number_at_pointer(raw, pointer),
                 );
             }
         }
         "shield" => {
-            for (metric_key, pointer) in [
-                ("shield.ac_bonus", "/system/acBonus"),
-                ("shield.hardness", "/system/hardness"),
-                ("shield.hp", "/system/hp/value"),
-                ("shield.hp", "/system/hp/max"),
-                ("shield.bt", "/system/hp/brokenThreshold"),
-                ("shield.bt", "/system/hp/broken"),
-                ("shield.bt", "/system/hp/bt"),
+            for (definition, pointer) in [
+                (
+                    metric_definitions::item::shield::AC_BONUS,
+                    "/system/acBonus",
+                ),
+                (
+                    metric_definitions::item::shield::HARDNESS,
+                    "/system/hardness",
+                ),
+                (metric_definitions::item::shield::HP, "/system/hp/value"),
+                (metric_definitions::item::shield::HP, "/system/hp/max"),
+                (
+                    metric_definitions::item::shield::BROKEN_THRESHOLD,
+                    "/system/hp/brokenThreshold",
+                ),
+                (
+                    metric_definitions::item::shield::BROKEN_THRESHOLD,
+                    "/system/hp/broken",
+                ),
+                (
+                    metric_definitions::item::shield::BROKEN_THRESHOLD,
+                    "/system/hp/bt",
+                ),
             ] {
+                let metric_key = exact_metric_key(definition);
                 if metrics.iter().any(|metric| metric.key == metric_key) {
                     continue;
                 }
-                add_metric_number(
+                add_defined_metric_number(
                     &mut metrics,
-                    MetricDomain::Item,
-                    metric_key,
+                    definition,
                     number_at_pointer(raw, pointer),
                 );
             }
@@ -336,6 +606,25 @@ fn extract_item_metrics(raw: &Value, record_type: &str) -> Vec<MetricRow> {
         _ => {}
     }
     metrics
+}
+
+fn add_defined_metric_number(
+    metrics: &mut Vec<MetricRow>,
+    definition: metric_definitions::MetricDefinition,
+    value: Option<f64>,
+) {
+    add_metric_number(
+        metrics,
+        definition.domain(),
+        exact_metric_key(definition),
+        value,
+    );
+}
+
+fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
+    definition
+        .exact_key()
+        .expect("static metric definition should have an exact key")
 }
 
 fn add_metric_number(
@@ -371,7 +660,7 @@ fn number_at_pointer(raw: &Value, pointer: &str) -> Option<f64> {
 }
 
 pub(crate) fn number_like_at_pointer(raw: &Value, pointer: &str) -> Option<f64> {
-    raw.pointer(pointer).and_then(parse_numeric_like_value)
+    raw.pointer(pointer).and_then(number_like_value)
 }
 
 fn value_as_f64(value: &Value) -> Option<f64> {
@@ -382,7 +671,7 @@ fn value_as_f64(value: &Value) -> Option<f64> {
     }
 }
 
-fn parse_numeric_like_value(value: &Value) -> Option<f64> {
+pub(crate) fn number_like_value(value: &Value) -> Option<f64> {
     if let Some(number) = value_as_f64(value) {
         return Some(number);
     }
@@ -400,7 +689,7 @@ fn parse_numeric_like_value(value: &Value) -> Option<f64> {
     buffer.parse::<f64>().ok()
 }
 
-fn damage_die_faces(value: Option<&Value>) -> Option<f64> {
+pub(crate) fn damage_die_faces(value: Option<&Value>) -> Option<f64> {
     match value? {
         Value::Number(number) => number.as_f64(),
         Value::String(text) => text
@@ -452,11 +741,11 @@ mod tests {
     #[test]
     fn parses_first_numeric_prefix_from_text_values() {
         assert_eq!(
-            parse_numeric_like_value(&Value::String("30 feet".to_string())),
+            number_like_value(&Value::String("30 feet".to_string())),
             Some(30.0)
         );
         assert_eq!(
-            parse_numeric_like_value(&Value::String("-5 penalty".to_string())),
+            number_like_value(&Value::String("-5 penalty".to_string())),
             Some(-5.0)
         );
     }
@@ -466,12 +755,12 @@ mod tests {
         let metrics = dedupe_metrics(vec![
             MetricRow {
                 domain: MetricDomain::Actor,
-                key: "hp.value".to_string(),
+                key: exact_metric_key(metric_definitions::actor::HP_VALUE).to_string(),
                 value: MetricValue::Number(5.0),
             },
             MetricRow {
                 domain: MetricDomain::Actor,
-                key: "hp.value".to_string(),
+                key: exact_metric_key(metric_definitions::actor::HP_VALUE).to_string(),
                 value: MetricValue::Number(9.0),
             },
         ]);
@@ -480,9 +769,66 @@ mod tests {
             metrics,
             vec![MetricRow {
                 domain: MetricDomain::Actor,
-                key: "hp.value".to_string(),
+                key: exact_metric_key(metric_definitions::actor::HP_VALUE).to_string(),
                 value: MetricValue::Number(9.0),
             }]
         );
+    }
+
+    #[test]
+    fn extracts_disable_dc_and_rank_metrics_from_hazard_checks() {
+        let raw = serde_json::json!({
+            "system": {
+                "details": {
+                    "disable": "@Check[thievery|dc:27] (expert) to disable the lock @Check[crafting|dc:30] or Thievery (master) to jam the gears"
+                }
+            }
+        });
+
+        let metrics = extract_actor_metrics(&raw);
+
+        assert_number_metric(
+            &metrics,
+            exact_metric_key(metric_definitions::actor::disable::DC_MIN),
+            27.0,
+        );
+        assert_number_metric(
+            &metrics,
+            exact_metric_key(metric_definitions::actor::disable::DC_MAX),
+            30.0,
+        );
+        assert_number_metric(
+            &metrics,
+            &metric_definitions::actor::disable::skill_dc_min_key("thievery"),
+            27.0,
+        );
+        assert_number_metric(
+            &metrics,
+            &metric_definitions::actor::disable::skill_dc_max_key("thievery"),
+            30.0,
+        );
+        assert_number_metric(
+            &metrics,
+            &metric_definitions::actor::disable::skill_rank_min_key("thievery"),
+            3.0,
+        );
+        assert_number_metric(
+            &metrics,
+            &metric_definitions::actor::disable::skill_dc_min_key("crafting"),
+            30.0,
+        );
+    }
+
+    fn assert_number_metric(metrics: &[MetricRow], key: &str, expected: f64) {
+        let actual = metrics.iter().find_map(|metric| {
+            if metric.domain == MetricDomain::Actor
+                && metric.key == key
+                && let MetricValue::Number(value) = metric.value
+            {
+                return Some(value);
+            }
+            None
+        });
+        assert_eq!(actual, Some(expected), "metric {key} should match");
     }
 }

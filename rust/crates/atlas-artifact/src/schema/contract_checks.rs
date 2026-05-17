@@ -1,66 +1,33 @@
 use super::{
-    Column, Table, actor_records, document_embedding_cache, item_records, packs, record_aliases,
-    record_content, record_metrics, record_traits, records, reference_edges, remaster_links,
-    spell_records,
+    Column, ColumnCheck, TABLE_DESCRIPTORS, Table, actor_records, document_embedding_cache,
+    item_records, packs, record_aliases, record_content, record_metrics, record_traits, records,
+    reference_edges, remaster_links, spell_records,
 };
 
 pub struct BooleanColumn {
-    pub key: &'static str,
+    pub key: String,
     pub table: Table,
     pub column: Column,
     pub nullable: bool,
 }
 
-pub const BOOLEAN_COLUMNS: &[BooleanColumn] = &[
-    BooleanColumn {
-        key: "records.publication_remaster",
-        table: records::TABLE,
-        column: records::columns::PUBLICATION_REMASTER,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "records.is_default_visible",
-        table: records::TABLE,
-        column: records::columns::IS_DEFAULT_VISIBLE,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "record_metrics.bool_value",
-        table: record_metrics::TABLE,
-        column: record_metrics::columns::BOOL_VALUE,
-        nullable: true,
-    },
-    BooleanColumn {
-        key: "record_content.contributes_to_search",
-        table: record_content::TABLE,
-        column: record_content::columns::CONTRIBUTES_TO_SEARCH,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "record_content.contributes_to_references",
-        table: record_content::TABLE,
-        column: record_content::columns::CONTRIBUTES_TO_REFERENCES,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "actor_records.is_complex",
-        table: actor_records::TABLE,
-        column: actor_records::columns::IS_COMPLEX,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "spell_records.sustained",
-        table: spell_records::TABLE,
-        column: spell_records::columns::SUSTAINED,
-        nullable: false,
-    },
-    BooleanColumn {
-        key: "spell_records.basic_save",
-        table: spell_records::TABLE,
-        column: spell_records::columns::BASIC_SAVE,
-        nullable: false,
-    },
-];
+pub fn boolean_columns() -> Vec<BooleanColumn> {
+    TABLE_DESCRIPTORS
+        .iter()
+        .flat_map(|table| {
+            table
+                .column_descriptors
+                .iter()
+                .filter(|column| column.check == Some(ColumnCheck::Boolean))
+                .map(|column| BooleanColumn {
+                    key: column.column.key(),
+                    table: table.table,
+                    column: column.column,
+                    nullable: column.nullable,
+                })
+        })
+        .collect()
+}
 
 pub struct RequiredReference {
     pub key: &'static str,

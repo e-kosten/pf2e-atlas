@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use atlas_domain::{MetricDomain, PublicationFamily};
+use atlas_record::{ReferenceEdgeFacts, ReferenceGraphMode, reference_edge_matches_mode};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -74,6 +75,8 @@ pub struct SourceAnalysisMetricReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceAnalysisRelationshipReport {
     pub reference_edges: usize,
+    pub default_reference_edges: usize,
+    pub expanded_reference_edges: usize,
     pub record_aliases: usize,
     pub remaster_links: usize,
 }
@@ -167,6 +170,14 @@ pub(crate) fn analyze_source_load(
         metrics: metrics_report(&source.records, &retrieval_visibility),
         relationships: SourceAnalysisRelationshipReport {
             reference_edges: source.references.len(),
+            default_reference_edges: reference_edge_count(
+                &source.references,
+                ReferenceGraphMode::Default,
+            ),
+            expanded_reference_edges: reference_edge_count(
+                &source.references,
+                ReferenceGraphMode::AllVisible,
+            ),
             record_aliases: source.aliases.len(),
             remaster_links: source.remaster_links.len(),
         },
@@ -175,6 +186,24 @@ pub(crate) fn analyze_source_load(
         skipped_records: skipped_record_reports(&source.skipped_records),
         warnings: source.warnings,
     }
+}
+
+fn reference_edge_count(
+    references: &[atlas_record::ReferenceEdge],
+    mode: ReferenceGraphMode,
+) -> usize {
+    references
+        .iter()
+        .filter(|reference| {
+            reference_edge_matches_mode(
+                ReferenceEdgeFacts {
+                    source_kind: reference.source_kind,
+                    visibility: reference.visibility,
+                },
+                mode,
+            )
+        })
+        .count()
 }
 
 pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
@@ -201,7 +230,23 @@ pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
                 "count": diagnostic.count,
                 "examples": diagnostic.examples,
             })
-        }).collect::<Vec<_>>()
+        }).collect::<Vec<_>>(),
+        "metric_audit": {
+            "unknown_emitted_metrics": diagnostics.unknown_emitted_metrics.iter().map(|(key, diagnostic)| {
+                json!({
+                    "key": key,
+                    "count": diagnostic.count,
+                    "examples": diagnostic.examples,
+                })
+            }).collect::<Vec<_>>(),
+            "unemitted_source_metric_candidates": diagnostics.unemitted_source_metric_candidates.iter().map(|(key, diagnostic)| {
+                json!({
+                    "key": key,
+                    "count": diagnostic.count,
+                    "examples": diagnostic.examples,
+                })
+            }).collect::<Vec<_>>(),
+        }
     })
 }
 

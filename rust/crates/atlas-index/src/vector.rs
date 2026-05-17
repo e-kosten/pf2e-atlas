@@ -1,4 +1,7 @@
-use atlas_artifact::schema::{TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX};
+use atlas_artifact::{
+    schema::{TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX},
+    storage::encode_f32_vector_blob,
+};
 use atlas_domain::SearchFilterNode;
 use atlas_embedding::EmbeddingUnitKind;
 use rusqlite::types::Value;
@@ -59,7 +62,7 @@ pub(crate) fn compile_vector_knn_query(
     let mut parameters = eligible.parameters;
     let vector_placeholder = push_parameter(
         &mut parameters,
-        Value::Blob(encode_f32_vector(query_vector)),
+        Value::Blob(encode_f32_vector_blob(query_vector)),
     );
     let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(limit)));
     let unit_filter = if include_child_units {
@@ -212,14 +215,6 @@ pub(crate) fn register_sqlite_vec_extension() -> Result<(), String> {
 fn push_parameter(parameters: &mut Vec<Value>, value: Value) -> String {
     parameters.push(value);
     format!("?{}", parameters.len())
-}
-
-fn encode_f32_vector(vector: &[f32]) -> Vec<u8> {
-    let mut blob = Vec::with_capacity(std::mem::size_of_val(vector));
-    for value in vector {
-        blob.extend_from_slice(&value.to_le_bytes());
-    }
-    blob
 }
 
 fn validate_vector_index_coverage(

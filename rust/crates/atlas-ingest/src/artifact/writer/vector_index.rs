@@ -64,7 +64,8 @@ fn embedding_dimensions(connection: &Connection) -> Result<usize, IngestError> {
 
 #[cfg(test)]
 mod tests {
-    use atlas_artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
+    use atlas_artifact::schema::create_artifact_schema_sql;
+    use atlas_artifact::storage::encode_f32_vector_blob;
     use rusqlite::Connection;
 
     use super::write_record_vector_index;
@@ -74,7 +75,7 @@ mod tests {
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().expect("sqlite-vec should register");
         let connection = Connection::open_in_memory().expect("in-memory database should open");
         connection
-            .execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)
+            .execute_batch(&create_artifact_schema_sql())
             .expect("schema should create");
         connection
             .execute(
@@ -107,7 +108,7 @@ mod tests {
                     "actions:testAction1",
                     "parent",
                     "fixture-hash",
-                    vector_blob(&[1.0, -2.5]),
+                    encode_f32_vector_blob(&[1.0, -2.5]),
                 ),
             )
             .expect("document embedding row should insert");
@@ -120,13 +121,5 @@ mod tests {
             })
             .expect("vector index should be readable");
         assert_eq!(rows, 1);
-    }
-
-    fn vector_blob(vector: &[f32]) -> Vec<u8> {
-        let mut blob = Vec::with_capacity(std::mem::size_of_val(vector));
-        for value in vector {
-            blob.extend_from_slice(&value.to_le_bytes());
-        }
-        blob
     }
 }

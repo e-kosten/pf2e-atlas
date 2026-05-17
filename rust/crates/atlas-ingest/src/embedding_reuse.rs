@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use atlas_artifact::metadata::{ARTIFACT_METADATA_TABLE, artifact_metadata_keys};
+use atlas_artifact::storage::{decode_f32_vector_blob, f32_vector_blob_len};
 use atlas_embedding::{EmbeddingModelSpec, EmbeddingRuntimeConfig, ReusableDocumentEmbedding};
 use rusqlite::{Connection, OpenFlags};
 
@@ -133,20 +134,12 @@ fn decode_vector_blob(
     blob: &[u8],
     dimensions: usize,
 ) -> Result<Vec<f32>, String> {
-    let expected_bytes = dimensions * std::mem::size_of::<f32>();
+    let expected_bytes = f32_vector_blob_len(dimensions);
     if blob.len() != expected_bytes {
         return Err(format!(
             "cached embedding `{record_key}` vector blob has {} bytes; expected {expected_bytes}",
             blob.len()
         ));
     }
-    let mut vector = Vec::with_capacity(dimensions);
-    for chunk in blob.chunks_exact(std::mem::size_of::<f32>()) {
-        vector.push(f32::from_le_bytes(
-            chunk
-                .try_into()
-                .expect("chunks_exact produced four-byte chunks"),
-        ));
-    }
-    Ok(vector)
+    decode_f32_vector_blob(blob).map_err(|error| error.to_string())
 }

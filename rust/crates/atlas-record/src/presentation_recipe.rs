@@ -9,7 +9,7 @@ use crate::{
     presentation_format::{
         action_count_text, activation_text, duration_text, format_ability_mods, format_area,
         format_bulk, format_list, format_number, format_price_cp, format_save, format_saves,
-        format_skill_mods, format_speeds, format_stealth, humanize, metric_number,
+        format_skill_mods, format_speeds, format_stealth, humanize, metric_number_for_definition,
     },
 };
 
@@ -246,7 +246,7 @@ fn creature_summary_facts(
         &mut facts,
         "perception",
         "Perception",
-        metric_number(metrics, atlas_domain::MetricDomain::Actor, "perception.mod")
+        metric_number_for_definition(metrics, crate::metrics::actor::PERCEPTION_MOD)
             .map(crate::presentation_format::format_modifier),
     );
     push_fact(&mut facts, "skills", "Skills", format_skill_mods(metrics));
@@ -268,20 +268,20 @@ fn creature_defense_facts(
         &mut facts,
         "ac",
         "AC",
-        metric_number(metrics, atlas_domain::MetricDomain::Actor, "ac.value").map(format_number),
+        metric_number_for_definition(metrics, crate::metrics::actor::ARMOR_CLASS)
+            .map(format_number),
     );
     push_fact(
         &mut facts,
         "hp",
         "HP",
-        metric_number(metrics, atlas_domain::MetricDomain::Actor, "hp.value").map(format_number),
+        metric_number_for_definition(metrics, crate::metrics::actor::HP_VALUE).map(format_number),
     );
     push_fact(
         &mut facts,
         "hardness",
         "Hardness",
-        metric_number(metrics, atlas_domain::MetricDomain::Actor, "hardness.value")
-            .map(format_number),
+        metric_number_for_definition(metrics, crate::metrics::actor::HARDNESS).map(format_number),
     );
     push_fact(&mut facts, "saves", "Saves", format_saves(metrics));
     if let Some(actor) = actor {
