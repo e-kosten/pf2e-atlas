@@ -16,10 +16,12 @@ use thiserror::Error;
 
 mod sql_render;
 
+#[cfg(test)]
+use sql_render::push_integer_parameter;
 use sql_render::{
     RECORDS_ALIAS, REFERENCE_EDGES_ALIAS, aliased_column, contains_like_pattern,
-    json_array_contains_sql, json_array_empty_sql, metric_operator_sql, push_integer_parameter,
-    record_column, record_key_column, side_table_for_column,
+    json_array_contains_sql, json_array_empty_sql, metric_operator_sql, record_column,
+    record_key_column, side_table_for_column,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,12 +30,15 @@ pub struct EligibleRecordsQuery {
     pub parameters: Vec<Value>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilteredRecordKeysQuery {
     pub sql: String,
     pub parameters: Vec<Value>,
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilteredRecordSort {
     RecordKeyAsc,
@@ -50,7 +55,7 @@ pub enum FilterCompileError {
     MissingValue { filter: String, value: String },
 }
 
-pub fn compile_eligible_records_query(
+pub(crate) fn compile_eligible_records_query(
     filter: Option<&SearchFilterNode>,
 ) -> Result<EligibleRecordsQuery, FilterCompileError> {
     let mut compiler = FilterCompiler::default();
@@ -72,7 +77,8 @@ pub fn compile_eligible_records_query(
     })
 }
 
-pub fn compile_filtered_record_keys_query(
+#[cfg(test)]
+pub(crate) fn compile_filtered_record_keys_query(
     filter: Option<&SearchFilterNode>,
     sort: FilteredRecordSort,
     limit: Option<u32>,
@@ -82,6 +88,7 @@ pub fn compile_filtered_record_keys_query(
     Ok(eligible.into_record_keys_query(sort, limit, offset))
 }
 
+#[cfg(test)]
 impl EligibleRecordsQuery {
     pub fn into_record_keys_query(
         self,
@@ -127,6 +134,7 @@ impl EligibleRecordsQuery {
     }
 }
 
+#[cfg(test)]
 impl FilteredRecordSort {
     fn sql(self) -> String {
         match self {

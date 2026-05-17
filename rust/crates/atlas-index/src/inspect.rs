@@ -1,14 +1,12 @@
-use std::collections::BTreeMap;
-use std::path::Path;
-
 use atlas_artifact::schema::{
     REQUIRED_TABLES, TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
     TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS,
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use serde::Serialize;
+use std::collections::BTreeMap;
 
-use crate::{IndexValidationError, validate_index};
+use crate::IndexValidationError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct IndexInspectionReport {
@@ -101,30 +99,26 @@ impl IndexInspectionReport {
     }
 }
 
-pub fn inspect_index(
-    path: impl AsRef<Path>,
+pub(crate) fn inspect_index_connection(
+    index: String,
+    validation: crate::ArtifactValidationReport,
+    connection: &Connection,
 ) -> Result<IndexInspectionReport, IndexValidationError> {
-    let path = path.as_ref();
-    let validation = validate_index(path)?;
     if validation.status != crate::ValidationStatus::Ok {
         return Err(IndexValidationError::InvalidArtifact(validation.message));
     }
-
-    let index = path.display().to_string();
-    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
 
     Ok(IndexInspectionReport {
         status: "ok".to_string(),
         index,
         validation,
-        tables: inspect_tables(&connection)?,
-        records: inspect_records(&connection)?,
-        text: inspect_text(&connection)?,
-        taxonomy: inspect_taxonomy(&connection)?,
-        variants: inspect_variants(&connection)?,
-        relationships: inspect_relationships(&connection)?,
-        metrics: inspect_metrics(&connection)?,
+        tables: inspect_tables(connection)?,
+        records: inspect_records(connection)?,
+        text: inspect_text(connection)?,
+        taxonomy: inspect_taxonomy(connection)?,
+        variants: inspect_variants(connection)?,
+        relationships: inspect_relationships(connection)?,
+        metrics: inspect_metrics(connection)?,
     })
 }
 

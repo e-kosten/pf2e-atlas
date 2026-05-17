@@ -9,17 +9,17 @@ The Rust architecture is deliberately crate-oriented. Crates should expose only 
 ```mermaid
 flowchart TD
     source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
-    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings"]
+    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
 
     cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes"] --> runtime["atlas-runtime<br/>path and setup policy"]
-    cli --> search["atlas-search<br/>lookup/search orchestration"]
-    cli --> index["atlas-index<br/>artifact validation and readers"]
+    runtime --> search["atlas-search<br/>AtlasRetrievalService"]
+    runtime --> index["atlas-index<br/>AtlasIndex read handle"]
 
     search --> index
     search --> embedding["atlas-embedding<br/>query vectors, document units,<br/>model catalog"]
     index --> artifact
-    embedding --> artifact
-    index --> sqliteVec["atlas-sqlite-vec<br/>sqlite-vec capability"]
+    ingest --> sqliteVec["atlas-sqlite-vec<br/>sqlite-vec capability"]
+    index --> sqliteVec
     sqliteVec --> artifact
 
     subgraph SharedRustModels["Shared Rust models"]
@@ -46,11 +46,11 @@ flowchart TD
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
 | `atlas-record` | Storage-agnostic normalized records, `ContentDocument`, rich-content renderers, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-artifact` | Physical SQLite table/column descriptors, artifact metadata keys, schema SQL helpers, and table contract constants. | Record normalization, writer policy, row hydration, user-facing search behavior. |
-| `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and artifact writing. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior. |
-| `atlas-index` | Artifact validation, row readers, filter-to-SQL keyset compilation, vector-index SQL boundaries, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy. |
+| `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and complete artifact writing including FTS, `document_embedding_cache`, and `record_vector_index`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior. |
+| `atlas-index` | Read-only completed-artifact access through `AtlasIndex`, artifact validation, row readers, internal filter-to-SQL keyset compilation, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime artifact mutation. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, search result collapse policy. |
-| `atlas-search` | Runtime search orchestration over validated index handles, lexical/semantic composition, vector-hit collapse, and search ranking modes. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions. |
-| `atlas-runtime` | Repo/user path resolution and setup policy shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization. |
+| `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService`, lexical/semantic composition, vector-hit collapse, and search ranking modes over validated index handles. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions. |
+| `atlas-runtime` | Repo/user path resolution, setup policy, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization. |
 | `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, and exit codes. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
 | `atlas-sqlite-vec` | Unsafe sqlite-vec extension registration and capability boundary. | Domain/search logic or artifact metadata interpretation. |
 
@@ -64,13 +64,14 @@ flowchart LR
     content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
     enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
     generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
-    enrich --> writer["atlas-ingest::artifact::writer<br/>write SQLite rows"]
+    enrich --> writer["atlas-ingest::artifact::writer<br/>write complete SQLite artifact"]
     embedPrep --> writer
     writer --> sqlite["Rust SQLite artifact"]
 
     record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
     artifact["atlas-artifact<br/>table descriptors + insert SQL"] -. schema .-> writer
     embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
+    sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
 ```
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or `artifact`.
@@ -101,8 +102,10 @@ Default public graph and backlink behavior uses public non-embedded reference ed
 
 ```mermaid
 flowchart TD
-    command["atlas-cli command<br/>search, record, index"] --> search["atlas-search"]
-    search --> filters["atlas-index filter compiler<br/>SearchFilterNode -> eligible records"]
+    command["atlas-cli command<br/>search, record, index"] --> runtime["atlas-runtime<br/>resolved paths + handles"]
+    runtime --> search["atlas-search<br/>AtlasRetrievalService"]
+    runtime --> index["atlas-index<br/>AtlasIndex"]
+    search --> filters["atlas-index internal filter compiler<br/>SearchFilterNode -> eligible records"]
     filters --> sqlite["SQLite artifact"]
 
     search --> lexical["atlas-index lexical SQL<br/>records_fts weighted columns"]
@@ -119,6 +122,8 @@ flowchart TD
 ```
 
 Filters compile to an authoritative SQL keyset before lexical or vector search. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
+
+Runtime SQLite access is read-only and goes through `AtlasIndex`. Construction-time writes belong to `atlas-ingest`, which writes a temporary artifact and publishes it only after records, FTS, embedding cache rows, and `record_vector_index` are complete. Product surfaces route retrieval through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite or assemble retrieval dependencies directly.
 
 ## Artifact Families
 

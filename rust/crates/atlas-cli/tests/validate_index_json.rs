@@ -187,17 +187,6 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         "table:record_vector_index"
     );
 
-    let build_vectors_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "build-vectors", "--index"])
-        .arg(&index_path)
-        .arg("--json")
-        .output()?;
-
-    assert!(build_vectors_output.status.success());
-    let build_vectors_json: Value = serde_json::from_slice(&build_vectors_output.stdout)?;
-    assert_eq!(build_vectors_json["status"], "ok");
-    assert_eq!(build_vectors_json["code"], "OK");
-
     let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["index", "inspect", "--index"])
         .arg(&index_path)
@@ -347,6 +336,50 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
         })
     );
     fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn validate_index_json_reports_unavailable_index() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-unavailable");
+
+    let output = run_atlas(&path)?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        actual,
+        json!({
+            "status": "error",
+            "code": "INDEX_UNAVAILABLE",
+            "index": path.display().to_string(),
+            "message": format!("index is unavailable: unable to open database file: {}", path.display())
+        })
+    );
+    Ok(())
+}
+
+#[test]
+fn validate_vectors_json_reports_unavailable_index() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-vector-unavailable");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate-vectors", "--index"])
+        .arg(&path)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        actual,
+        json!({
+            "status": "error",
+            "code": "INDEX_UNAVAILABLE",
+            "index": path.display().to_string(),
+            "message": format!("index is unavailable: unable to open database file: {}", path.display())
+        })
+    );
     Ok(())
 }
 

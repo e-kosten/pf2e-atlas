@@ -1,40 +1,35 @@
 #![deny(unsafe_code)]
 
-use std::path::Path;
-
 use atlas_artifact::metadata::{
     ARTIFACT_METADATA_TABLE, LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS,
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use thiserror::Error;
 
 mod contract;
 mod database;
-pub mod filters;
-pub mod inspect;
+mod filters;
+mod inspect;
 mod metadata;
-pub mod records;
+mod records;
 mod sql;
 #[cfg(test)]
 mod tests;
-pub mod validation;
-pub mod vector;
+mod validation;
+mod vector;
 
 pub use database::AtlasIndex;
+pub use filters::FilterCompileError;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
-    TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport, inspect_index,
+    TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
+pub use records::RecordLoadError;
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus,
 };
-pub use vector::{
-    VectorKnnQuery, VectorQueryError, VectorSearchHit, compile_vector_knn_query,
-    query_vector_index, validate_vector_index, validate_vector_index_report,
-    validate_vector_index_with_loader, write_vector_index, write_vector_index_report,
-    write_vector_index_with_loader,
-};
+pub use vector::{VectorQueryError, VectorSearchHit};
 
 #[derive(Debug, Error)]
 pub enum IndexValidationError {
@@ -46,17 +41,13 @@ pub enum IndexValidationError {
     InvalidArtifact(String),
 }
 
-pub fn validate_index(
-    path: impl AsRef<Path>,
+pub(crate) fn validate_index_connection(
+    index: String,
+    connection: &Connection,
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
-    let path = path.as_ref();
-    let index = path.display().to_string();
-    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-
-    if !sql::table_exists(&connection, ARTIFACT_METADATA_TABLE)? {
-        let legacy_schema_version = if sql::table_exists(&connection, LEGACY_METADATA_TABLE)? {
-            sql::metadata_value(&connection, LEGACY_METADATA_TABLE, "schema_version")?
+    if !sql::table_exists(connection, ARTIFACT_METADATA_TABLE)? {
+        let legacy_schema_version = if sql::table_exists(connection, LEGACY_METADATA_TABLE)? {
+            sql::metadata_value(connection, LEGACY_METADATA_TABLE, "schema_version")?
         } else {
             None
         };
@@ -66,7 +57,7 @@ pub fn validate_index(
         ));
     }
 
-    let artifact_metadata = metadata::read_metadata(&connection, ARTIFACT_METADATA_TABLE)?;
+    let artifact_metadata = metadata::read_metadata(connection, ARTIFACT_METADATA_TABLE)?;
     let summary = metadata::summarize_metadata(&artifact_metadata);
     let missing_keys = REQUIRED_ARTIFACT_METADATA_KEYS
         .iter()
@@ -88,7 +79,7 @@ pub fn validate_index(
 
     let diagnostics = metadata::validate_metadata_values(&artifact_metadata);
     let diagnostics = if diagnostics.is_empty() {
-        contract::validate_artifact_contract(&connection, &artifact_metadata)?
+        contract::validate_artifact_contract(connection, &artifact_metadata)?
     } else {
         diagnostics
     };
@@ -103,16 +94,8 @@ pub fn validate_index(
     }
 }
 
-pub fn validate_index_report(path: impl AsRef<Path>) -> ArtifactValidationReport {
-    let path = path.as_ref();
-    match validate_index(path) {
-        Ok(report) => report,
-        Err(error) => validation_report_from_error(path, error),
-    }
-}
-
 fn validation_report_from_error(
-    path: &Path,
+    path: &std::path::Path,
     error: IndexValidationError,
 ) -> ArtifactValidationReport {
     ArtifactValidationReport {
@@ -149,4 +132,11 @@ fn validation_report_from_error(
         diagnostics: Vec::new(),
         legacy_schema_version: None,
     }
+}
+
+pub fn validation_report_for_error(
+    path: &std::path::Path,
+    error: IndexValidationError,
+) -> ArtifactValidationReport {
+    validation_report_from_error(path, error)
 }

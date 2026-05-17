@@ -1,6 +1,3 @@
-use std::collections::BTreeMap;
-use std::path::Path;
-
 use atlas_artifact::schema::{
     actor_record_select_sql, item_record_select_sql, persisted_record_select_sql,
     record_alias_select_sql, record_content_select_sql, record_metric_select_sql,
@@ -15,7 +12,8 @@ use atlas_record::{
     ItemSideData, MetricRow, MetricValue, NormalizedTime, PersistedRecord, PersistedRecordSet,
     RecordAlias, ReferenceEdge, RemasterLink, SpellSideData, SupplementalContentDocument,
 };
-use rusqlite::{Connection, OpenFlags, Row};
+use rusqlite::{Connection, Row};
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -26,22 +24,6 @@ pub enum RecordLoadError {
     QueryFailed(String),
     #[error("record data is invalid: {0}")]
     InvalidData(String),
-}
-
-pub fn load_persisted_records(
-    path: impl AsRef<Path>,
-) -> Result<Vec<PersistedRecord>, RecordLoadError> {
-    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| RecordLoadError::Unavailable(error.to_string()))?;
-    load_persisted_records_from_connection(&connection)
-}
-
-pub fn load_persisted_record_set(
-    path: impl AsRef<Path>,
-) -> Result<PersistedRecordSet, RecordLoadError> {
-    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| RecordLoadError::Unavailable(error.to_string()))?;
-    load_persisted_record_set_from_connection(&connection)
 }
 
 pub fn load_persisted_record_set_from_connection(
