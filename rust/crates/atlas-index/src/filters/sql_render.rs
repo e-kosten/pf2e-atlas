@@ -3,7 +3,6 @@ use atlas_artifact::schema::{
     spell_records,
 };
 use atlas_domain::MetricOperator;
-#[cfg(test)]
 use rusqlite::types::Value;
 
 pub(super) const RECORDS_ALIAS: &str = "r";
@@ -63,7 +62,6 @@ pub(super) fn json_array_empty_sql(column: &str) -> String {
     format!("NOT EXISTS (SELECT 1 FROM json_each(COALESCE({column}, '[]')))")
 }
 
-#[cfg(test)]
 pub(super) fn push_integer_parameter(parameters: &mut Vec<Value>, value: u32) -> String {
     parameters.push(Value::Integer(i64::from(value)));
     format!("?{}", parameters.len())

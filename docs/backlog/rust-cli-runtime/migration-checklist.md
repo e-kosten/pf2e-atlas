@@ -142,8 +142,8 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
 - [x] Remove subcategory from Rust domain, search filters, record summary, and minimal writer schema; replace useful cases with explicit metadata/filter axes.
 - [x] Add rarity, level, action-cost, and source/publication primitives.
 - [x] Add canonical record summary type.
-- [x] Add detail-level vocabulary, keeping the current TypeScript wire values:
-  - [x] minimal
+- [x] Add Rust CLI detail-level vocabulary:
+  - [x] summary
   - [x] standard
   - [x] full
 - [x] Add internal text availability/parsing status vocabulary for row loading and diagnostics, not as a new
@@ -168,7 +168,7 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [x] anyOf/allOf/not
 - [x] Add rule graph contracts.
 - [x] Add metadata-field vocabulary.
-- [x] Defer shared CLI output envelope types to Phase 9, where the CLI product surface stabilizes.
+- [x] Keep durable CLI output envelope policy out of the domain crate; Phase 5 establishes the CLI-owned JSON envelope in `atlas-cli`.
 - [x] Keep domain free of SQLite, CLI, TUI, MCP, and ingest dependencies.
 
 Acceptance:
@@ -274,69 +274,30 @@ Acceptance:
 Goal: establish the first production-quality Rust retrieval surface using the CLI shape accepted in ADR 0019.
 
 - [x] Implement broad typed row loading from `records` and side tables.
-- [ ] Expose targeted typed readers for exact record-key lookup and ordered multi-key lookup.
-- [ ] Add `atlas record get <record-key> --json`.
-- [ ] Add persisted-record detail projection shared by `record get`, `record resolve`, and `search` results.
-- [ ] Add `minimal`, `standard`, and `full` record output; do not add `compact` as a wire detail value.
-- [ ] Resolve or pre-resolve localization according to the artifact policy.
-- [ ] Add `atlas search` filter-only behavior that routes to deterministic list mode when no text is supplied.
-- [ ] Reuse canonical `SearchFilterNode` lowering for filter-only search and record-resolution narrowing.
-- [ ] Add pagination and deterministic sort modes for filter-only `atlas search`.
-- [ ] Add `atlas record resolve <name> --json` for strict name, normalized-name, verified-alias, and exact full-variant-name resolution.
-- [ ] Implement controlled alternatives for ambiguous record resolution.
-- [ ] Preserve safe record-resolution behavior: a strict miss exits nonzero and does not return fuzzy unrelated records.
-- [ ] Keep fuzzy name matching and variant-family expansion opt-in, such as `--fuzzy`, `--include-variants`, or `--alternatives`.
-- [ ] Implement variant-aware resolution from `variant_*` metadata without broad base-name alias rows. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources.
-- [ ] Add golden output tests for `atlas record get`, `atlas record resolve`, and filter-only `atlas search`.
-- [ ] Add CLI exit code tests for invalid record keys, strict resolve misses, ambiguity, and invalid filter JSON.
-- [ ] Compare `Treat Wounds`, `Grabbed`, and `Antidote (Lesser)` against current MCP/TypeScript behavior.
+- [x] Expose targeted typed readers for exact record-key lookup and ordered multi-key lookup.
+- [x] Add `atlas record get <record-key> --json`.
+- [x] Add persisted-record detail projection shared by `record get`, `record resolve`, and `search` results.
+- [x] Add `summary`, `standard`, and `full` record output; do not add `minimal`, `compact`, or `answerable` as wire detail values.
+- [x] Defer localization resolution from the Phase 5 commit until the localization artifact policy is explicit and testable.
+- [x] Add `atlas search` filter-only behavior that routes to deterministic list mode when no text is supplied.
+- [x] Reuse canonical `SearchFilterNode` lowering for filter-only search and record-resolution narrowing.
+- [x] Add pagination and deterministic sort modes for filter-only `atlas search`.
+- [x] Add `atlas record resolve <name> --json` for strict name, normalized-name, verified-alias, and exact full-variant-name resolution.
+- [x] Implement controlled alternatives for ambiguous record resolution.
+- [x] Preserve safe record-resolution behavior: a strict miss exits nonzero and does not return fuzzy unrelated records.
+- [x] Defer fuzzy name matching and variant-family expansion flags from the Phase 5 commit; strict resolution remains the only default behavior.
+- [x] Defer variant-aware resolution from `variant_*` metadata from the Phase 5 commit. Do not turn every variant base name into an alias; source-backed aliases remain limited to remaster journals, migration rename files, and embedded compendium sources. Exact full variant names can still resolve through ordinary name matching.
+- [x] Add golden output tests for `atlas record get`, `atlas record resolve`, and filter-only `atlas search`.
+- [x] Add CLI exit code tests for invalid record keys, strict resolve misses, ambiguity, and invalid filter JSON.
+- [x] Compare `Treat Wounds`, `Grabbed`, and `Antidote (Lesser)` against current MCP/TypeScript behavior. Manual comparison used current MCP lookup/get results for `actionspf2e:1kGNdIIhuglAjIp9`, `conditionitems:kWc1fhmv9LBiTuei`, and `equipment-srd:ktjFOp3U0wQD9t0Z` against a Rust artifact built from the same `vendor/pf2e` source at `.cache/pf2e-rust-phase5-compare.sqlite`.
 
 Acceptance:
 - `atlas record get` is usable for known canonical record keys.
 - `atlas record resolve` is usable for known named records and returns nonzero with concise diagnostics on strict misses.
 - `atlas search` with filters and no text returns deterministic filtered lists.
-- Output size stays compact by default while using the `minimal` detail wire value.
+- Output size stays compact by default while using the `summary` detail wire value.
 
-## Phase 6: Rule Graph And Rule Context
-
-Goal: preserve the spike’s strongest CLI win: direct rule context with useful primary and support records.
-
-- [ ] Load direct outgoing references.
-- [ ] Load backlinks.
-- [ ] Add graph get command by record key.
-- [ ] Add `rule-context <name>` command.
-- [ ] Resolve the bestiary glossary `Grab` record correctly.
-- [ ] Add support-record shaping that avoids noisy default backlinks.
-- [ ] Add `--include-backlinks`.
-- [ ] Preserve current rule-context behavior: return primary/support records and edges without synthesizing answers.
-- [ ] Add golden tests for `Grab`.
-- [ ] Add tests for localized text.
-- [ ] Add tests for ambiguous rule names.
-
-Acceptance:
-- `atlas rule-context Grab` returns useful primary and support records for direct rules answers.
-- Support records are useful by default and expandable when needed.
-
-## Phase 7: Filter And Schema Discovery
-
-Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discovery.
-
-- [ ] Add a CLI equivalent for `pf2e_get_search_semantics`, such as `atlas schema search-filters --json`.
-- [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
-- [ ] Add category and explicit-axis filtering for value discovery.
-- [ ] Add trait discovery.
-- [ ] Add item metadata discovery.
-- [ ] Add actor metric discovery.
-- [ ] Add spell metadata discovery.
-- [ ] Add examples in `rust/README.md`.
-- [ ] Add production Codex skill snippets once commands stabilize.
-- [ ] Add golden tests for schema output.
-
-Acceptance:
-- Agents can discover non-obvious filters without MCP.
-- The poison-consumables task from the CLI spike can be completed without guessing hidden metadata fields.
-
-## Phase 8: Search And Browse Runtime
+## Phase 6: Search And Browse Runtime
 
 Goal: extend the unified `atlas search` surface with ranked text retrieval using SQLite-centered hybrid retrieval.
 
@@ -361,16 +322,35 @@ Acceptance:
 - Known expected records appear in top results for the bakeoff set.
 - Quality differences are documented rather than accidental.
 
-## Phase 9: CLI Product Surface And Skill
+## Phase 7: Filter And Schema Discovery
+
+Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discovery.
+
+- [ ] Add a CLI equivalent for `pf2e_get_search_semantics`, such as `atlas schema search-filters --json`.
+- [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
+- [ ] Add category and explicit-axis filtering for value discovery.
+- [ ] Add trait discovery.
+- [ ] Add item metadata discovery.
+- [ ] Add actor metric discovery.
+- [ ] Add spell metadata discovery.
+- [ ] Add examples in `rust/README.md`.
+- [ ] Add production Codex skill snippets once commands stabilize.
+- [ ] Add golden tests for schema output.
+
+Acceptance:
+- Agents can discover non-obvious filters without MCP.
+- The poison-consumables task from the CLI spike can be completed without guessing hidden metadata fields.
+
+## Phase 8: CLI Product Surface And Skill
 
 Goal: make the Rust CLI the default local agent interface.
 
 - [ ] Stabilize command naming.
-- [ ] Stabilize JSON envelopes:
-  - [ ] decide whether CLI commands share one envelope type or use command-specific typed reports with consistent required fields
-  - [ ] if shared, add the envelope to the narrowest owner that needs it, normally `atlas-cli` unless another Rust surface consumes it directly
-  - [ ] define required success, error, diagnostic, pagination, and timing fields for commands that need them
-  - [ ] add golden tests for the chosen envelope policy across representative success and failure commands
+- [x] Stabilize the baseline JSON envelope for Phase 5 record, search, setup, and index commands:
+  - [x] use a shared CLI-owned envelope helper in `atlas-cli`
+  - [x] keep successful payloads under `data` and command failures under `error`
+  - [x] define success, error, pagination, and timing fields for Phase 5 commands that need them
+  - [x] add golden tests for representative success and failure commands
 - [ ] Stabilize exit codes.
 - [ ] Add human-readable output mode if needed.
 - [ ] Add `--json` default policy or explicit always-JSON policy.
@@ -392,25 +372,27 @@ Acceptance:
 - Local agents can complete the standard evaluation tasks through CLI plus skill.
 - MCP is no longer needed for ordinary local PF2E lookup/search/rules work.
 
-## Phase 10: Derived Tags And Editorial Runtime
+## Phase 9: Rule Graph And Rule Context
 
-Goal: redesign derived tags after the core Rust record, search, discovery, and TUI model is stable.
+Goal: evaluate the rule graph retrieval node implementation and decide whether it is worth keeping or evolvoling. Consider for instance whether the product surface is really "rule graph/context" or if more generally the utility is about searching for record clusters."
 
-- [ ] Reconsider the derived-tag product model against `record_family`, explicit source axes, and retired subcategory semantics.
-- [ ] Decide which derived-tag concepts remain runtime filter axes, which become authored taxonomy, and which retire.
-- [ ] Define Rust derived-tag runtime types only after that model is accepted.
-- [ ] Add `atlas-tags` crate only when the accepted runtime/editorial model starts implementation.
-- [ ] Load published ontology and assignments if they remain part of the accepted runtime model.
-- [ ] Load rules, exemplars, and review registries only if they are still needed by runtime commands.
-- [ ] Implement tag filters and discovery commands against the redesigned model.
-- [ ] Add parity or accepted-difference tests for retained current derived-tag assignments.
-- [ ] Defer high-churn candidate discovery and clustering until runtime tag consumption is stable.
+- [ ] Load direct outgoing references.
+- [ ] Load backlinks.
+- [ ] Add graph get command by record key.
+- [ ] Add `rule-context <name>` command.
+- [ ] Resolve the bestiary glossary `Grab` record correctly.
+- [ ] Add support-record shaping that avoids noisy default backlinks.
+- [ ] Add `--include-backlinks`.
+- [ ] Preserve current rule-context behavior: return primary/support records and edges without synthesizing answers.
+- [ ] Add golden tests for `Grab`.
+- [ ] Add tests for localized text.
+- [ ] Add tests for ambiguous rule names.
 
 Acceptance:
-- The retained derived-tag surface has an accepted Rust design.
-- Rust search can filter and present retained derived-tag concepts without depending on the TypeScript tag runtime.
+- `atlas rule-context Grab` returns useful primary and support records for direct rules answers.
+- Support records are useful by default and expandable when needed.
 
-## Phase 11: Ratatui Workbench
+## Phase 10: Ratatui Workbench
 
 Goal: replace the Ink TUI after the Rust runtime shell is stable.
 
@@ -436,7 +418,7 @@ Acceptance:
 - Ratatui can replace the user-facing search/detail flows.
 - Editorial migration is broken into separate validated slices.
 
-## Phase 12: Optional MCP Compatibility
+## Phase 11: Optional MCP Compatibility
 
 Goal: decide late whether MCP is still worth carrying.
 
@@ -450,6 +432,24 @@ Goal: decide late whether MCP is still worth carrying.
 
 Acceptance:
 - MCP is either retired or clearly isolated as compatibility.
+
+## Phase 12: Derived Tags And Editorial Runtime
+
+Goal: redesign derived tags after the core Rust record, search, discovery, and TUI model is stable.
+
+- [ ] Reconsider the derived-tag product model against `record_family`, explicit source axes, and retired subcategory semantics.
+- [ ] Decide which derived-tag concepts remain runtime filter axes, which become authored taxonomy, and which retire.
+- [ ] Define Rust derived-tag runtime types only after that model is accepted.
+- [ ] Add `atlas-tags` crate only when the accepted runtime/editorial model starts implementation.
+- [ ] Load published ontology and assignments if they remain part of the accepted runtime model.
+- [ ] Load rules, exemplars, and review registries only if they are still needed by runtime commands.
+- [ ] Implement tag filters and discovery commands against the redesigned model.
+- [ ] Add parity or accepted-difference tests for retained current derived-tag assignments.
+- [ ] Defer high-churn candidate discovery and clustering until runtime tag consumption is stable.
+
+Acceptance:
+- The retained derived-tag surface has an accepted Rust design.
+- Rust search can filter and present retained derived-tag concepts without depending on the TypeScript tag runtime.
 
 ## Phase 13: TypeScript Runtime Retirement
 

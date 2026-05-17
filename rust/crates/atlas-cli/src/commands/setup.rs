@@ -4,6 +4,7 @@ use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::json;
 
 use crate::SetupOptions;
+use crate::output::write_json_data;
 
 pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
@@ -24,40 +25,48 @@ pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
     let ready = status.ready();
 
     if options.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "status": if ready { "ready" } else { "not_ready" },
-                "path_mode": paths.mode.as_str(),
-                "repo_root": paths.repo_root.as_ref().map(|path| path.display().to_string()),
-                "source": {
-                    "path": paths.source_root.display().to_string(),
-                    "exists": status.source_exists,
-                },
-                "embedding": {
-                    "model": status.embedding_model,
-                    "cache_root": paths.embedding_cache_root.display().to_string(),
-                    "model_path": status.model_cache.model_dir.display().to_string(),
-                    "ready": status.model_cache.ready,
-                    "missing_files": status.model_cache
-                        .missing_files
-                        .iter()
-                        .map(|path| path.display().to_string())
-                        .collect::<Vec<_>>(),
-                },
-                "index": {
-                    "path": paths.index_path.display().to_string(),
-                    "exists": status.index_exists,
-                },
-                "next": {
-                    "build_index": format!(
-                        "atlas index build --path-mode {}",
-                        paths.mode.suggested_path_mode()
-                    ),
-                },
-            }))
-            .map_err(|error| error.to_string())?
-        );
+        let mut data = json!({
+            "ready": ready,
+            "path_mode": paths.mode.as_str(),
+            "repo_root": paths.repo_root.as_ref().map(|path| path.display().to_string()),
+            "source": {
+                "path": paths.source_root.display().to_string(),
+                "exists": status.source_exists,
+            },
+            "embedding": {
+                "model": status.embedding_model,
+                "cache_root": paths.embedding_cache_root.display().to_string(),
+                "model_path": status.model_cache.model_dir.display().to_string(),
+                "ready": status.model_cache.ready,
+                "missing_files": status.model_cache
+                    .missing_files
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>(),
+            },
+            "index": {
+                "path": paths.index_path.display().to_string(),
+                "exists": status.index_exists,
+            },
+            "next": {
+                "build_index": format!(
+                    "atlas index build --path-mode {}",
+                    paths.mode.suggested_path_mode()
+                ),
+            },
+        });
+        if paths.repo_root.is_none() {
+            data.as_object_mut()
+                .expect("setup data should be an object")
+                .remove("repo_root");
+        }
+        if status.model_cache.missing_files.is_empty() {
+            data["embedding"]
+                .as_object_mut()
+                .expect("setup embedding data should be an object")
+                .remove("missing_files");
+        }
+        write_json_data(data)?;
     } else {
         println!("mode: {}", paths.mode.label());
         if let Some(repo_root) = &paths.repo_root {

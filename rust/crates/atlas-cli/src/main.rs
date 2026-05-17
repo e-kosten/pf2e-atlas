@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use atlas_domain::DetailLevel;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_runtime::AtlasPathMode;
 use atlas_search::SemanticSearchMode;
@@ -26,20 +27,16 @@ enum Command {
     Setup(SetupOptions),
     #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
     Index(IndexArgs),
+    #[command(about = "Fetch and resolve Atlas records")]
+    Record(RecordArgs),
     #[command(about = "Run Atlas search commands")]
-    Search(SearchArgs),
+    Search(SearchOptions),
 }
 
 #[derive(Debug, Args)]
 struct IndexArgs {
     #[command(subcommand)]
     command: IndexCommand,
-}
-
-#[derive(Debug, Args)]
-struct SearchArgs {
-    #[command(subcommand)]
-    command: SearchCommand,
 }
 
 #[derive(Debug, Args)]
@@ -58,6 +55,12 @@ struct SetupOptions {
     json: bool,
 }
 
+#[derive(Debug, Args)]
+struct RecordArgs {
+    #[command(subcommand)]
+    command: RecordCommand,
+}
+
 #[derive(Debug, Subcommand)]
 enum IndexCommand {
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
@@ -73,9 +76,11 @@ enum IndexCommand {
 }
 
 #[derive(Debug, Subcommand)]
-enum SearchCommand {
-    #[command(about = "Run semantic vector search and print raw record-key hits")]
-    Semantic(SemanticSearchOptions),
+enum RecordCommand {
+    #[command(about = "Fetch one or more records by canonical record key")]
+    Get(RecordGetOptions),
+    #[command(about = "Resolve one or more strict record names or aliases")]
+    Resolve(RecordResolveOptions),
 }
 
 #[derive(Debug, Args)]
@@ -125,15 +130,63 @@ struct IndexPathOptions {
 }
 
 #[derive(Debug, Args)]
-struct SemanticSearchOptions {
+struct RecordGetOptions {
+    #[arg(required = true, num_args = 1..)]
+    keys: Vec<String>,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    detail: DetailLevel,
+    #[arg(long)]
+    include_raw: bool,
     #[arg(long)]
     index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
     #[arg(long)]
-    query: String,
-    #[arg(long, default_value_t = 10)]
-    limit: u32,
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct RecordResolveOptions {
+    #[arg(required = true, num_args = 1..)]
+    queries: Vec<String>,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    detail: DetailLevel,
     #[arg(long)]
     filter_json: Option<String>,
+    #[arg(long, default_value_t = 0)]
+    alternatives: u8,
+    #[arg(long)]
+    include_raw: bool,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct SearchOptions {
+    #[arg()]
+    query: Option<String>,
+    #[arg(long = "query", alias = "query-text", value_name = "QUERY")]
+    query_text: Option<String>,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, default_value_t = 20)]
+    limit: u32,
+    #[arg(long, default_value_t = 0)]
+    offset: u32,
+    #[arg(long)]
+    filter_json: Option<String>,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    detail: DetailLevel,
+    #[arg(long, default_value = "alphabetical")]
+    sort: String,
+    #[arg(long)]
+    seed: Option<u64>,
+    #[arg(long)]
+    include_raw: bool,
     #[arg(long)]
     embedding_cache_path: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
@@ -203,8 +256,16 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
                 commands::index::run_index_validate_vectors(options)
             }
         },
-        Command::Search(search) => match search.command {
-            SearchCommand::Semantic(options) => commands::search::run_search_semantic(options),
+        Command::Record(record) => match record.command {
+            RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Resolve(options) => commands::record::run_record_resolve(options),
         },
+        Command::Search(options) => commands::search::run_search(options),
     }
+}
+
+fn parse_detail_level(value: &str) -> Result<DetailLevel, String> {
+    value
+        .parse::<DetailLevel>()
+        .map_err(|error| error.to_string())
 }

@@ -1,3 +1,4 @@
+use atlas_domain::RecordKey;
 use atlas_record::{PersistedRecord, PersistedRecordSet};
 use rusqlite::Connection;
 use thiserror::Error;
@@ -34,13 +35,30 @@ pub fn load_persisted_records_from_connection(
     connection: &Connection,
 ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
     let mut records = rows::read_record_rows(connection)?;
+    attach_record_details(connection, &mut records)?;
+    Ok(records)
+}
+
+pub fn load_persisted_records_by_key_from_connection(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    let mut records = rows::read_record_rows_by_keys(connection, keys)?;
+    attach_record_details(connection, &mut records)?;
+    Ok(records)
+}
+
+fn attach_record_details(
+    connection: &Connection,
+    records: &mut [PersistedRecord],
+) -> Result<(), RecordLoadError> {
     let metrics = metrics::read_metrics(connection)?;
     let actor_data = side_data::read_actor_data(connection)?;
     let item_data = side_data::read_item_data(connection)?;
     let spell_data = side_data::read_spell_data(connection)?;
     let supplemental_content = content::read_record_content(connection)?;
 
-    for record in &mut records {
+    for record in records {
         let key = record.key.to_string();
         record.metrics = metrics.get(&key).cloned().unwrap_or_default();
         record.actor_data = actor_data.get(&key).cloned();
@@ -49,5 +67,5 @@ pub fn load_persisted_records_from_connection(
         record.supplemental_content = supplemental_content.get(&key).cloned().unwrap_or_default();
     }
 
-    Ok(records)
+    Ok(())
 }

@@ -229,6 +229,7 @@ fn push_chunk(chunks: &mut Vec<EmbeddingInputChunk>, mut chunk: EmbeddingInputCh
 fn embedding_section_kind(kind: PresentationSectionKind) -> EmbeddingInputSection {
     match kind {
         PresentationSectionKind::Summary => EmbeddingInputSection::Summary,
+        PresentationSectionKind::DescriptionPreview => EmbeddingInputSection::Description,
         PresentationSectionKind::Description => EmbeddingInputSection::Description,
         PresentationSectionKind::Defense => EmbeddingInputSection::Defense,
         PresentationSectionKind::Movement => EmbeddingInputSection::Movement,

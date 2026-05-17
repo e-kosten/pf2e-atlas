@@ -99,6 +99,12 @@ impl AtlasRuntime {
         self.open_retrieval_service_with_model(DEFAULT_EMBEDDING_MODEL.to_string())
     }
 
+    pub fn open_record_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
+        Ok(AtlasRetrievalService::without_embeddings(
+            self.open_index()?,
+        ))
+    }
+
     pub fn open_retrieval_service_with_model(
         &self,
         model_id: impl Into<String>,

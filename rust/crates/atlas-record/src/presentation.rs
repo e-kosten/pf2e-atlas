@@ -15,6 +15,7 @@ pub struct RecordPresentationDocument {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PresentationSectionKind {
     Summary,
+    DescriptionPreview,
     Description,
     Defense,
     Movement,
@@ -30,6 +31,7 @@ impl PresentationSectionKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Summary => "summary",
+            Self::DescriptionPreview => "description_preview",
             Self::Description => "description",
             Self::Defense => "defense",
             Self::Movement => "movement",
@@ -45,6 +47,7 @@ impl PresentationSectionKind {
     pub const fn default_title(self) -> &'static str {
         match self {
             Self::Summary => "Summary",
+            Self::DescriptionPreview => "Description Preview",
             Self::Description => "Description",
             Self::Defense => "Defense",
             Self::Movement => "Movement",
@@ -128,6 +131,10 @@ mod tests {
     #[test]
     fn section_kinds_have_stable_ids_and_default_titles() {
         assert_eq!(PresentationSectionKind::Summary.as_str(), "summary");
+        assert_eq!(
+            PresentationSectionKind::DescriptionPreview.as_str(),
+            "description_preview"
+        );
         assert_eq!(PresentationSectionKind::Description.as_str(), "description");
         assert_eq!(PresentationSectionKind::Defense.as_str(), "defense");
         assert_eq!(PresentationSectionKind::Movement.as_str(), "movement");

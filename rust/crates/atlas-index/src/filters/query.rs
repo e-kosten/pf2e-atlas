@@ -4,7 +4,6 @@ use rusqlite::types::Value;
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
-#[cfg(test)]
 use super::sql_render::push_integer_parameter;
 use super::sql_render::{RECORDS_ALIAS, record_column};
 
@@ -14,15 +13,12 @@ pub struct EligibleRecordsQuery {
     pub parameters: Vec<Value>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilteredRecordKeysQuery {
     pub sql: String,
     pub parameters: Vec<Value>,
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilteredRecordSort {
     RecordKeyAsc,
@@ -53,7 +49,6 @@ pub(crate) fn compile_eligible_records_query(
     })
 }
 
-#[cfg(test)]
 pub(crate) fn compile_filtered_record_keys_query(
     filter: Option<&SearchFilterNode>,
     sort: FilteredRecordSort,
@@ -64,7 +59,6 @@ pub(crate) fn compile_filtered_record_keys_query(
     Ok(eligible.into_record_keys_query(sort, limit, offset))
 }
 
-#[cfg(test)]
 impl EligibleRecordsQuery {
     pub fn into_record_keys_query(
         self,
@@ -110,7 +104,6 @@ impl EligibleRecordsQuery {
     }
 }
 
-#[cfg(test)]
 impl FilteredRecordSort {
     fn sql(self) -> String {
         match self {

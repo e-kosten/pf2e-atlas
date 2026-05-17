@@ -1,7 +1,7 @@
-use atlas_artifact::schema::persisted_record_select_sql;
-use atlas_domain::{PackName, RecordId};
+use atlas_artifact::schema::{PERSISTED_RECORD_COLUMNS, persisted_record_select_sql, records};
+use atlas_domain::{PackName, RecordId, RecordKey};
 use atlas_record::PersistedRecord;
-use rusqlite::{Connection, Row};
+use rusqlite::{Connection, Row, params_from_iter, types::Value};
 
 use super::RecordLoadError;
 use super::parse::{
@@ -21,6 +21,47 @@ pub(super) fn read_record_rows(
     let mut rows = statement
         .query([])
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+    {
+        records.push(record_from_row(row)?);
+    }
+    Ok(records)
+}
+
+pub(super) fn read_record_rows_by_keys(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let parameters: Vec<Value> = keys
+        .iter()
+        .map(|key| Value::Text(key.to_string()))
+        .collect();
+    let placeholders = (1..=parameters.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let columns = PERSISTED_RECORD_COLUMNS
+        .iter()
+        .map(|column| column.name())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT {columns} FROM {table} WHERE {record_key} IN ({placeholders}) ORDER BY {record_key}",
+        table = records::TABLE.name(),
+        record_key = records::columns::RECORD_KEY.name(),
+    );
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let mut rows = statement
+        .query(params_from_iter(parameters.iter()))
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let mut records = Vec::new();
     while let Some(row) = rows
         .next()
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?

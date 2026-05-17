@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use atlas_domain::RecordKey;
+use atlas_domain::{RecordFamily, RecordKey};
 
 use crate::records::{NormalizedRecord, RemasterLink};
 
@@ -19,6 +19,8 @@ impl RetrievalVisibility {
     }
 
     pub(crate) fn is_default_visible(&self, record: &NormalizedRecord) -> bool {
-        record.is_default_visible && !self.hidden_record_keys.contains(&record.key)
+        record.is_default_visible
+            && record.record_family != RecordFamily::Tooling
+            && !self.hidden_record_keys.contains(&record.key)
     }
 }
