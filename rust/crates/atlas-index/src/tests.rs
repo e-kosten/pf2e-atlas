@@ -9,9 +9,9 @@ use atlas_artifact::test_support::{
     create_minimal_contract_schema, insert_contract_metadata_omitting, insert_minimal_contract_rows,
 };
 use atlas_domain::metadata::{
-    CollectionOperator, MetadataNumberField, MetadataPredicate, MetadataSetField, NumberOperator,
+    MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
 };
-use atlas_domain::{MetricOperator, NumericMatch, RecordFamily, RecordKey, ScalarValue};
+use atlas_domain::{MetricMatch, NumericMatch, RecordFamily, RecordKey};
 use atlas_embedding::{
     EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelId, default_embedding_model_spec,
     embedding_model_spec,
@@ -435,6 +435,24 @@ fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
+fn rejects_empty_boolean_groups_at_compile_boundary() {
+    assert_eq!(
+        compile_eligible_records_query(Some(&atlas_domain::SearchFilterNode::any_of(Vec::new())))
+            .unwrap_err(),
+        FilterCompileError::InvalidValue(
+            "filter `any_of` must contain at least one child".to_string()
+        )
+    );
+    assert_eq!(
+        compile_eligible_records_query(Some(&atlas_domain::SearchFilterNode::all_of(Vec::new())))
+            .unwrap_err(),
+        FilterCompileError::InvalidValue(
+            "filter `all_of` must contain at least one child".to_string()
+        )
+    );
+}
+
+#[test]
 fn composes_filtered_record_key_queries_from_eligible_records()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-record-query");
@@ -614,19 +632,17 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
         atlas_domain::SearchFilterNode::links_to(RecordKey::parse("actions:testAction2")?),
         atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
             field: MetadataSetField::Traits,
-            op: CollectionOperator::Includes,
-            value: Some("healing".to_string()),
+            r#match: MetadataSetMatch::Includes {
+                value: "healing".to_string(),
+            },
         }),
         atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
             field: MetadataSetField::Traditions,
-            op: CollectionOperator::Includes,
-            value: Some("primal".to_string()),
+            r#match: MetadataSetMatch::Includes {
+                value: "primal".to_string(),
+            },
         }),
-        atlas_domain::SearchFilterNode::metric(
-            "defense.ac",
-            MetricOperator::Gte,
-            ScalarValue::Number(18.0),
-        ),
+        atlas_domain::SearchFilterNode::metric("defense.ac", MetricMatch::Gte { value: 18.0 }),
     ]);
     let compiled = compile_eligible_records_query(Some(&filter))?;
     let keys = query_eligible_keys(&connection, &compiled)?;
@@ -640,15 +656,13 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
 fn reports_filters_that_cannot_be_lowered_authoritatively() {
     let derived_tags = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
         field: MetadataSetField::DerivedTags,
-        op: CollectionOperator::Includes,
-        value: Some("area-damage".to_string()),
+        r#match: MetadataSetMatch::Includes {
+            value: "area-damage".to_string(),
+        },
     });
     let hands = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
         field: MetadataNumberField::Hands,
-        op: NumberOperator::Eq,
-        value: Some(2.0),
-        min: None,
-        max: None,
+        r#match: MetadataNumberMatch::Eq { value: 2.0 },
     });
 
     assert_eq!(
@@ -718,8 +732,9 @@ fn parent_only_vector_knn_query_restricts_candidate_units() -> Result<(), Box<dy
 fn rejects_invalid_vector_knn_queries() {
     let unsupported = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
         field: MetadataSetField::DerivedTags,
-        op: CollectionOperator::Includes,
-        value: Some("area-damage".to_string()),
+        r#match: MetadataSetMatch::Includes {
+            value: "area-damage".to_string(),
+        },
     });
 
     assert_eq!(

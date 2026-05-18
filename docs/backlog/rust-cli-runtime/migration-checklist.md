@@ -163,9 +163,9 @@ Goal: define the typed runtime vocabulary that later ingest, index, search, CLI,
   - [x] action cost
   - [x] metadata predicate
   - [x] metric predicate
-  - [x] linksTo
-  - [x] linkedFrom
-  - [x] anyOf/allOf/not
+  - [x] links_to
+  - [x] linked_from
+  - [x] any_of/all_of/not
 - [x] Add rule graph contracts.
 - [x] Add metadata-field vocabulary.
 - [x] Keep durable CLI output envelope policy out of the domain crate; Phase 5 establishes the CLI-owned JSON envelope in `atlas-cli`.

@@ -831,7 +831,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(String::from_utf8(text_search_output.stderr)?, "");
     let text_search_stdout = String::from_utf8(text_search_output.stdout)?;
     assert!(text_search_stdout.contains("showing 1 of 1 records"));
-    assert!(text_search_stdout.contains("actions:testAction0001\tTreat Wounds\trule"));
+    assert!(text_search_stdout.contains("key"));
+    assert!(text_search_stdout.contains("type"));
+    assert!(text_search_stdout.contains("name"));
+    assert!(text_search_stdout.contains("actions:testAction0001  rule  Treat Wounds"));
     assert!(!text_search_stdout.contains("\"status\""));
 
     fs::remove_dir_all(root)?;
@@ -1035,6 +1038,41 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
         "actions:testAction0001"
     );
 
+    let filtered_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["search", "--family", "rule", "--pack", "actions", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(filtered_search_output.status.success());
+    let filtered_search_json: Value = serde_json::from_slice(&filtered_search_output.stdout)?;
+    let filtered_search_data = ok_data(&filtered_search_json);
+    assert_eq!(filtered_search_data["pagination"]["total"], 1);
+    assert_eq!(filtered_search_data["filter"]["kind"], "all_of");
+    assert_eq!(
+        filtered_search_data["filter"]["children"][1]["predicate"]["field"],
+        "pack_name"
+    );
+
+    let filtered_resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Treat Wounds",
+            "--pack",
+            "actions",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(filtered_resolve_output.status.success());
+    let filtered_resolve_json: Value = serde_json::from_slice(&filtered_resolve_output.stdout)?;
+    let filtered_resolve_data = ok_data(&filtered_resolve_json);
+    assert_eq!(
+        filtered_resolve_data["result"]["record"]["key"],
+        "actions:testAction0001"
+    );
+
     let get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["record", "get", "pf2e-macros:macroTreatWounds", "--index"])
         .arg(&index_path)
@@ -1083,6 +1121,32 @@ fn search_rejects_invalid_filter_json_before_runtime_loading()
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "invalid_filter_json");
+    Ok(())
+}
+
+#[test]
+fn search_rejects_filter_json_with_convenience_flags_before_runtime_loading()
+-> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--index",
+            "missing.sqlite",
+            "--filter-json",
+            r#"{"kind":"record_family","value":"rule"}"#,
+            "--family",
+            "rule",
+            "--json",
+        ])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(json["status"], "error");
+    assert_eq!(json["error"]["code"], "invalid_filter");
     Ok(())
 }
 

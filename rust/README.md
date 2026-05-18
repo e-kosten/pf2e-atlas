@@ -51,7 +51,7 @@ After setup, record commands can run without passing index paths:
 
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
-atlas record resolve "Treat Wounds" --filter-json '{"kind":"pack","value":"actionspf2e"}'
+atlas record resolve "Treat Wounds" --pack actionspf2e
 ```
 
 JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. Artifact validation that runs against an invalid artifact still returns `status: "ok"` with `data.valid: false` and exits with code `3`.

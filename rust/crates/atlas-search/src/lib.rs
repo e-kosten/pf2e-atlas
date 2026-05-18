@@ -251,17 +251,6 @@ pub enum AtlasSearchRequest<'a> {
         filter: Option<&'a SearchFilterNode>,
         limit: u32,
     },
-    Lexical {
-        query: &'a str,
-        filter: Option<&'a SearchFilterNode>,
-        limit: u32,
-    },
-    Hybrid {
-        query: &'a str,
-        filter: Option<&'a SearchFilterNode>,
-        limit: u32,
-        semantic_mode: SemanticSearchMode,
-    },
     Text(TextSearchRequest<'a>),
 }
 
@@ -333,6 +322,11 @@ impl AtlasRetrievalService {
         limit: u32,
         mode: SemanticSearchMode,
     ) -> Result<SemanticSearchResult, SearchError> {
+        if let Some(filter) = filter {
+            filter
+                .validate()
+                .map_err(|error| SearchError::InvalidSearchOptions(error.to_string()))?;
+        }
         let total_started_at = Instant::now();
         let embedding_started_at = Instant::now();
         let embedder = self
@@ -378,12 +372,6 @@ impl AtlasRetrievalService {
             AtlasSearchRequest::FilterOnly { .. } => Err(SearchError::UnsupportedRetrievalPattern(
                 "filter-only search",
             )),
-            AtlasSearchRequest::Lexical { .. } => {
-                Err(SearchError::UnsupportedRetrievalPattern("lexical search"))
-            }
-            AtlasSearchRequest::Hybrid { .. } => {
-                Err(SearchError::UnsupportedRetrievalPattern("hybrid search"))
-            }
             AtlasSearchRequest::Text(request) => {
                 self.text_search(request).map(AtlasSearchResult::Text)
             }
@@ -626,6 +614,11 @@ fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedde
 }
 
 fn validate_text_search_request(request: &TextSearchRequest<'_>) -> Result<(), SearchError> {
+    if let Some(filter) = request.filter {
+        filter
+            .validate()
+            .map_err(|error| SearchError::InvalidSearchOptions(error.to_string()))?;
+    }
     if request.fusion.method == FusionMethod::Rrf
         && ((request.fusion.fts_weight - 1.0).abs() > f64::EPSILON
             || (request.fusion.vector_weight - 1.0).abs() > f64::EPSILON)
