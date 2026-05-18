@@ -93,6 +93,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust search quality and retrieval weight tuning](./items/rust-search-quality-tuning.md)
   Tune Rust FTS weights, RRF windows, rank constants, and weighted-fusion defaults after the Phase 6 retrieval baseline is measurable. Status: proposed.
 
+- [Rust FTS tokenization and stemming exploration](./items/rust-fts-tokenization-stemming.md)
+  Evaluate SQLite FTS tokenizer/stemming choices for inflection handling after the Phase 6 retrieval baseline lands, without adding brittle custom synonym maps. Status: proposed.
+
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
 

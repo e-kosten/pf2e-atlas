@@ -7,7 +7,7 @@ Last reviewed: 2026-05-17
 
 ## Problem
 
-The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, exact identity handling, and quality fixtures. The actual default weights and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
+The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, and exact identity handling. Full live-index quality fixtures, parity reports, default weights, and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
 
 Without a dedicated follow-up, tuning work can leak into Phase 6 as ad hoc rerank rules or repeated one-off constants. That risks reproducing the Node runtime's quality hacks instead of evaluating the Rust retrieval axes directly.
 
@@ -18,6 +18,9 @@ Evaluate and choose Rust search defaults from measured search-quality runs after
 The tuning pass should cover:
 
 - FTS column and BM25 weights.
+- Top-k search-quality fixtures from the bakeoff set.
+- TypeScript parity or accepted-difference reports.
+- FTS token composition policy, including OR versus AND behavior and prefix matching.
 - RRF rank constant.
 - FTS and vector candidate windows.
 - Weighted RRF lane weights.
@@ -35,7 +38,7 @@ The outcome should be documented defaults plus the smallest stable configuration
 
 ## Notes
 
-Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use plain RRF through the same implementation as weighted RRF with equal lane weights.
+Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use weighted RRF with equal FTS/vector lane weights.
 
 ## Related
 

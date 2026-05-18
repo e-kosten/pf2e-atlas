@@ -147,7 +147,8 @@ atlas record get actions:treat-wounds --json
 atlas record resolve "Treat Wounds" --family rule --json
 atlas search "low level healing spell" --family spell --limit 10 --json
 atlas search --filter-json '<canonical-filter-json>' --sort levelAsc --json
-atlas search "healing magic" --profile semantic --json
+atlas search "healing magic" --json
+atlas search "healing magic" --retrieval fts --json
 atlas filters list-values --field traits --category creature --json
 atlas rule-context "Grab" --include-backlinks --json
 atlas graph get --record-key actions:abc123 --include-backlinks --json
@@ -161,7 +162,7 @@ CLI contracts should include:
 
 - stable JSON schemas
 - compact default output for agent use
-- one normal `search` surface for ranked text search and filter-only listing, with retrieval profiles exposed as flags instead of separate default product paths
+- one normal `search` surface for ranked text search and filter-only listing, with advanced retrieval-path and fusion controls exposed as flags instead of separate default product paths
 - strict record identification through `record get` and `record resolve`
 - optional human presentation only where it helps local use; JSON parity is the primary contract
 - predictable exit codes
@@ -301,11 +302,12 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
 1. Port the canonical search request and filter tree.
 2. Implement filter normalization and lowering.
 3. Implement filter-only `atlas search` listing over the structured retrieval core.
-4. Implement lexical search over FTS.
+4. Implement FTS retrieval.
 5. Implement vector search using the Phase 4 embedding/vector artifact.
-6. Implement hybrid ranking.
-7. Boost strong name and verified-alias matches within normal text search results.
-8. Add fixture parity tests against the existing TypeScript runtime for representative queries.
+6. Implement hybrid ranking with weighted RRF using equal FTS/vector weights by default.
+7. Expose advanced retrieval-path controls such as `--retrieval fts|vector|hybrid`.
+8. Boost strong name and verified-alias matches within normal text search results by reusing strict record-resolution behavior.
+9. Add fixture parity tests against the existing TypeScript runtime for representative queries.
 
 ### Phase 5: CLI As Primary Agent Surface
 

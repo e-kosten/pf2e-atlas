@@ -164,10 +164,11 @@ fn sections_for_detail(
     {
         projected.push(summary);
     }
-    if let Some(preview) = description_preview_section(record) {
-        projected.push(preview);
-    }
-    if detail != DetailLevel::Summary {
+    if detail == DetailLevel::Summary {
+        if let Some(preview) = description_preview_section(record) {
+            projected.push(preview);
+        }
+    } else {
         projected.extend(
             sections
                 .iter()
@@ -322,6 +323,36 @@ mod tests {
             json.sections
                 .iter()
                 .any(|section| section.kind == "description")
+        );
+        assert!(
+            !json
+                .sections
+                .iter()
+                .any(|section| section.kind == "description_preview")
+        );
+    }
+
+    #[test]
+    fn standard_record_json_uses_full_description_without_preview() {
+        let record = fixture_record();
+        let json = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Standard,
+                include_source_json: false,
+            },
+        );
+
+        assert!(
+            json.sections
+                .iter()
+                .any(|section| section.kind == "description")
+        );
+        assert!(
+            !json
+                .sections
+                .iter()
+                .any(|section| section.kind == "description_preview")
         );
     }
 

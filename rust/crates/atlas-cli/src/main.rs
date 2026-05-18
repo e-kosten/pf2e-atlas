@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use atlas_domain::DetailLevel;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_runtime::AtlasPathMode;
-use atlas_search::SemanticSearchMode;
+use atlas_search::{FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
 mod commands;
@@ -186,7 +186,7 @@ struct IndexPathOptions {
 struct RecordGetOptions {
     #[arg(required = true, num_args = 1.., help = "Canonical record keys in pack:id form; this command does not resolve names")]
     keys: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, standard, or full")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, standard, or full")]
     detail: DetailLevel,
     #[arg(long, help = "Include raw source JSON with full detail output")]
     include_raw: bool,
@@ -205,7 +205,7 @@ struct RecordGetOptions {
 struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
     queries: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, standard, or full")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, standard, or full")]
     detail: DetailLevel,
     #[arg(
         long,
@@ -230,13 +230,11 @@ struct RecordResolveOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --filter-json '{\"kind\":\"record_family\",\"value\":\"spell\"}' --json\n  atlas search \"low level healing spell\" --json"
+    after_help = "Examples:\n  atlas search --filter-json '{\"kind\":\"record_family\",\"value\":\"spell\"}' --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 struct SearchOptions {
     #[arg()]
     query: Option<String>,
-    #[arg(long = "query", alias = "query-text", value_name = "QUERY")]
-    query_text: Option<String>,
     #[arg(long)]
     index: Option<PathBuf>,
     #[arg(long, default_value_t = 20)]
@@ -259,17 +257,42 @@ struct SearchOptions {
     path_mode: CliPathMode,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
     embedding_model: EmbeddingModelId,
-    #[arg(long, value_enum, default_value_t = CliSemanticMode::WeightedChunks)]
-    semantic_mode: CliSemanticMode,
+    #[arg(long, value_enum, default_value_t = CliRetrievalMode::Hybrid)]
+    retrieval: CliRetrievalMode,
+    #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf)]
+    fusion: CliFusionMethod,
+    #[arg(long, default_value_t = 1.0)]
+    fts_weight: f64,
+    #[arg(long, default_value_t = 1.0)]
+    vector_weight: f64,
+    #[arg(long, default_value_t = 60.0)]
+    rank_constant: f64,
+    #[arg(long, default_value_t = 200)]
+    fts_top_k: u32,
+    #[arg(long, default_value_t = 200)]
+    vector_top_k: u32,
+    #[arg(
+        long,
+        help = "Exclude records whose indexed search text matches this plain-text query"
+    )]
+    exclude: Option<String>,
+    #[arg(long, action = ArgAction::SetTrue)]
+    explain: bool,
     #[arg(long)]
     json: bool,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum CliSemanticMode {
-    ParentOnly,
-    Chunks,
-    WeightedChunks,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliRetrievalMode {
+    Fts,
+    Vector,
+    Hybrid,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliFusionMethod {
+    Rrf,
+    WeightedRrf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -279,12 +302,21 @@ enum CliPathMode {
     User,
 }
 
-impl From<CliSemanticMode> for SemanticSearchMode {
-    fn from(mode: CliSemanticMode) -> Self {
+impl From<CliRetrievalMode> for RetrievalMode {
+    fn from(mode: CliRetrievalMode) -> Self {
         match mode {
-            CliSemanticMode::ParentOnly => Self::ParentOnly,
-            CliSemanticMode::Chunks => Self::Chunks,
-            CliSemanticMode::WeightedChunks => Self::WeightedChunks,
+            CliRetrievalMode::Fts => Self::Fts,
+            CliRetrievalMode::Vector => Self::Vector,
+            CliRetrievalMode::Hybrid => Self::Hybrid,
+        }
+    }
+}
+
+impl From<CliFusionMethod> for FusionMethod {
+    fn from(method: CliFusionMethod) -> Self {
+        match method {
+            CliFusionMethod::Rrf => Self::Rrf,
+            CliFusionMethod::WeightedRrf => Self::WeightedRrf,
         }
     }
 }

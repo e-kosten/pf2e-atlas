@@ -18,7 +18,9 @@ mod tests;
 mod validation;
 mod vector;
 
-pub use database::{AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort};
+pub use database::{
+    AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
+};
 pub use filters::FilterCompileError;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,

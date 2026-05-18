@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use atlas_artifact::schema::TABLE_RECORDS_FTS;
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
+use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 
 use crate::filters::{
@@ -18,6 +20,66 @@ use crate::{
 pub struct AtlasIndex {
     path: PathBuf,
     connection: Connection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FtsColumnWeights {
+    pub title: f64,
+    pub aliases: f64,
+    pub traits: f64,
+    pub headings: f64,
+    pub body: f64,
+    pub facts: f64,
+    pub reference_terms: f64,
+    pub embedded_content: f64,
+}
+
+impl Default for FtsColumnWeights {
+    fn default() -> Self {
+        Self {
+            title: 8.0,
+            aliases: 8.0,
+            traits: 4.0,
+            headings: 4.0,
+            facts: 2.0,
+            body: 1.0,
+            reference_terms: 0.5,
+            embedded_content: 0.5,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FtsSearchHit {
+    pub record_key: RecordKey,
+    pub rank: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FtsQuery {
+    tokens: Vec<String>,
+}
+
+impl FtsQuery {
+    pub fn from_tokens(tokens: Vec<String>) -> Option<Self> {
+        let tokens = tokens
+            .into_iter()
+            .filter(|token| is_safe_fts_token(token))
+            .collect::<Vec<_>>();
+        (!tokens.is_empty()).then_some(Self { tokens })
+    }
+
+    pub fn as_match_query(&self) -> String {
+        self.tokens
+            .iter()
+            .map(|token| format!("\"{token}\""))
+            .collect::<Vec<_>>()
+            .join(" OR ")
+    }
+}
+
+fn is_safe_fts_token(token: &str) -> bool {
+    !token.is_empty() && token.chars().all(char::is_alphanumeric)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -211,6 +273,181 @@ impl AtlasIndex {
             include_child_units,
         )
     }
+
+    pub fn query_fts_index(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        weights: FtsColumnWeights,
+    ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        query_fts_index(&self.connection, fts_query, filter, limit, weights)
+    }
+
+    pub fn query_fts_record_keys(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+    ) -> Result<Vec<RecordKey>, FilterCompileError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        query_fts_record_keys(&self.connection, fts_query, filter, limit)
+    }
+
+    pub fn query_fts_candidate_record_keys(
+        &self,
+        fts_query: &FtsQuery,
+        candidate_keys: &[RecordKey],
+    ) -> Result<Vec<RecordKey>, FilterCompileError> {
+        if candidate_keys.is_empty() {
+            return Ok(Vec::new());
+        }
+        query_fts_candidate_record_keys(&self.connection, fts_query, candidate_keys)
+    }
+}
+
+fn query_fts_index(
+    connection: &Connection,
+    fts_query: &FtsQuery,
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+    weights: FtsColumnWeights,
+) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+    let eligible = compile_eligible_records_query(filter)?;
+    let mut parameters = eligible.parameters;
+    parameters.push(Value::Text(fts_query.as_match_query()));
+    parameters.push(Value::Integer(i64::from(limit)));
+    let sql = format!(
+        "WITH eligible(record_key) AS ({eligible_sql})
+         SELECT f.record_key,
+                bm25({fts_table}, 0.0, {title}, {aliases}, {traits}, {headings}, {body}, {facts}, {reference_terms}, {embedded_content}) AS rank
+         FROM {fts_table} f
+         WHERE {fts_table} MATCH ?{query_index}
+           AND f.record_key IN (SELECT record_key FROM eligible)
+         ORDER BY rank ASC, f.record_key ASC
+         LIMIT ?{limit_index}",
+        eligible_sql = eligible.sql,
+        fts_table = TABLE_RECORDS_FTS,
+        title = weights.title,
+        aliases = weights.aliases,
+        traits = weights.traits,
+        headings = weights.headings,
+        body = weights.body,
+        facts = weights.facts,
+        reference_terms = weights.reference_terms,
+        embedded_content = weights.embedded_content,
+        query_index = parameters.len() - 1,
+        limit_index = parameters.len(),
+    );
+
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
+    statement
+        .query_map(params_from_iter(parameters.iter()), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+        })
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .map(|row| {
+            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
+                .and_then(|(record_key, rank)| {
+                    Ok(FtsSearchHit {
+                        record_key: RecordKey::parse(&record_key)
+                            .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))?,
+                        rank,
+                    })
+                })
+        })
+        .collect()
+}
+
+fn query_fts_record_keys(
+    connection: &Connection,
+    fts_query: &FtsQuery,
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+) -> Result<Vec<RecordKey>, FilterCompileError> {
+    let eligible = compile_eligible_records_query(filter)?;
+    let mut parameters = eligible.parameters;
+    parameters.push(Value::Text(fts_query.as_match_query()));
+    parameters.push(Value::Integer(i64::from(limit)));
+    let sql = format!(
+        "WITH eligible(record_key) AS ({eligible_sql})
+         SELECT f.record_key
+         FROM {fts_table} f
+         WHERE {fts_table} MATCH ?{query_index}
+           AND f.record_key IN (SELECT record_key FROM eligible)
+         ORDER BY f.record_key ASC
+         LIMIT ?{limit_index}",
+        eligible_sql = eligible.sql,
+        fts_table = TABLE_RECORDS_FTS,
+        query_index = parameters.len() - 1,
+        limit_index = parameters.len(),
+    );
+
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
+    statement
+        .query_map(params_from_iter(parameters.iter()), |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .map(|row| {
+            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
+                .and_then(|record_key| {
+                    RecordKey::parse(&record_key)
+                        .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
+                })
+        })
+        .collect()
+}
+
+fn query_fts_candidate_record_keys(
+    connection: &Connection,
+    fts_query: &FtsQuery,
+    candidate_keys: &[RecordKey],
+) -> Result<Vec<RecordKey>, FilterCompileError> {
+    let mut parameters = vec![Value::Text(fts_query.as_match_query())];
+    let query_placeholder = "?1";
+    let candidate_placeholders = candidate_keys
+        .iter()
+        .map(|key| {
+            parameters.push(Value::Text(key.to_string()));
+            format!("?{}", parameters.len())
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT f.record_key
+         FROM {fts_table} f
+         WHERE {fts_table} MATCH {query_placeholder}
+           AND f.record_key IN ({candidate_placeholders})
+         ORDER BY f.record_key ASC",
+        fts_table = TABLE_RECORDS_FTS,
+    );
+
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
+    statement
+        .query_map(params_from_iter(parameters.iter()), |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .map(|row| {
+            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
+                .and_then(|record_key| {
+                    RecordKey::parse(&record_key)
+                        .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
+                })
+        })
+        .collect()
 }
 
 fn count_filtered_records(

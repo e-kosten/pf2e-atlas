@@ -109,6 +109,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
+    assert!(search_help.contains("--retrieval selects fts, vector, or hybrid retrieval"));
 
     Ok(())
 }
@@ -632,10 +633,12 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(get_output.status.success());
     let get_json: Value = serde_json::from_slice(&get_output.stdout)?;
     let get_data = ok_data(&get_json);
-    assert_eq!(get_data["detail"], "summary");
+    assert_eq!(get_data["detail"], "standard");
     assert_eq!(get_data["record"]["key"], "actions:testAction0001");
     assert_eq!(get_data["record"]["name"], "Treat Wounds");
     assert_eq!(get_data["record"]["record_family"], "rule");
+    assert!(record_sections(&get_data["record"]).contains(&"description"));
+    assert!(!record_sections(&get_data["record"]).contains(&"description_preview"));
     assert!(get_data["record"].get("source_json").is_none());
 
     let full_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -660,6 +663,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         full_get_data["record"]["source"]["foundry"]["document_type"],
         "Item"
     );
+    assert!(record_sections(&full_get_data["record"]).contains(&"description"));
+    assert!(!record_sections(&full_get_data["record"]).contains(&"description_preview"));
 
     let batch_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -695,6 +700,9 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         resolve_data["result"]["record"]["key"],
         "actions:testAction0001"
     );
+    assert_eq!(resolve_data["detail"], "standard");
+    assert!(record_sections(&resolve_data["result"]["record"]).contains(&"description"));
+    assert!(!record_sections(&resolve_data["result"]["record"]).contains(&"description_preview"));
     assert_eq!(resolve_data["result"]["resolution"]["match_kind"], "name");
 
     let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -713,6 +721,99 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     );
     assert_eq!(search_data["results"][0]["match"]["kind"], "filter");
 
+    let fts_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--explain",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(fts_search_output.status.success());
+    assert_eq!(String::from_utf8(fts_search_output.stderr)?, "");
+    let fts_search_json: Value = serde_json::from_slice(&fts_search_output.stdout)?;
+    let fts_search_data = ok_data(&fts_search_json);
+    assert_eq!(fts_search_data["retrieval"], "fts");
+    assert_eq!(
+        fts_search_data["query_analysis"]["fts_tokens"][0],
+        "healing"
+    );
+    assert_eq!(fts_search_data["fusion"]["method"], "weighted-rrf");
+    assert_eq!(fts_search_data["candidate_windows"]["fts_top_k"], 200);
+    assert_eq!(fts_search_data["candidate_windows"]["vector_top_k"], 200);
+    assert_eq!(fts_search_data["sort"]["kind"], "ranked");
+    assert_eq!(fts_search_data["pagination"]["total"], 1);
+    assert_eq!(
+        fts_search_data["results"][0]["record"]["key"],
+        "actions:testAction0001"
+    );
+    assert_eq!(fts_search_data["results"][0]["match"]["kind"], "ranked");
+    assert_eq!(fts_search_data["results"][0]["match"]["retrieval"], "fts");
+    assert_eq!(
+        fts_search_data["results"][0]["match"]["explain"]["fts_rank"],
+        1
+    );
+
+    let excluded_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "healing",
+            "--exclude",
+            "treating",
+            "--retrieval",
+            "fts",
+            "--explain",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(excluded_search_output.status.success());
+    let excluded_search_json: Value = serde_json::from_slice(&excluded_search_output.stdout)?;
+    let excluded_search_data = ok_data(&excluded_search_json);
+    assert_eq!(excluded_search_data["pagination"]["total"], 0);
+    assert_eq!(
+        excluded_search_data["query_analysis"]["exclude_tokens"][0],
+        "treating"
+    );
+
+    let offset_window_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--limit",
+            "1",
+            "--offset",
+            "2",
+            "--fts-top-k",
+            "1",
+            "--explain",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(offset_window_output.status.success());
+    let offset_window_json: Value = serde_json::from_slice(&offset_window_output.stdout)?;
+    let offset_window_data = ok_data(&offset_window_json);
+    assert_eq!(offset_window_data["candidate_windows"]["fts_top_k"], 3);
+
+    let default_hybrid_without_embeddings = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["search", "healing", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(default_hybrid_without_embeddings.status.code(), Some(3));
+    let hybrid_error: Value = serde_json::from_slice(&default_hybrid_without_embeddings.stdout)?;
+    assert_eq!(hybrid_error["status"], "error");
+    assert_eq!(hybrid_error["error"]["code"], "vector_readiness_required");
+
     let text_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["record", "get", "actions:testAction0001", "--index"])
         .arg(&index_path)
@@ -727,6 +828,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .output()?;
     assert!(text_search_output.status.success());
+    assert_eq!(String::from_utf8(text_search_output.stderr)?, "");
     let text_search_stdout = String::from_utf8(text_search_output.stdout)?;
     assert!(text_search_stdout.contains("showing 1 of 1 records"));
     assert!(text_search_stdout.contains("actions:testAction0001\tTreat Wounds\trule"));
@@ -961,14 +1063,14 @@ fn legacy_top_level_index_commands_are_not_supported() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn semantic_search_rejects_invalid_filter_json_before_runtime_loading()
+fn search_rejects_invalid_filter_json_before_runtime_loading()
 -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "search",
-            "semantic",
-            "--query",
             "healing",
+            "--retrieval",
+            "fts",
             "--index",
             "missing.sqlite",
             "--filter-json",
@@ -985,16 +1087,25 @@ fn semantic_search_rejects_invalid_filter_json_before_runtime_loading()
 }
 
 #[test]
-fn search_rejects_semantic_query_flag_outside_semantic_route()
--> Result<(), Box<dyn std::error::Error>> {
+fn search_rejects_unweighted_rrf_with_lane_weights() -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["search", "--query", "healing", "--json"])
+        .args([
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--fusion",
+            "rrf",
+            "--fts-weight",
+            "2",
+            "--json",
+        ])
         .output()?;
 
     assert_eq!(output.status.code(), Some(2));
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["status"], "error");
-    assert_eq!(json["error"]["code"], "invalid_input");
+    assert_eq!(json["error"]["code"], "invalid_option");
     Ok(())
 }
 
@@ -1463,6 +1574,15 @@ fn temp_source_root(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_dir_all(&path);
     path
+}
+
+fn record_sections(record: &Value) -> Vec<&str> {
+    record["sections"]
+        .as_array()
+        .expect("sections")
+        .iter()
+        .map(|section| section["kind"].as_str().expect("section kind"))
+        .collect()
 }
 
 fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
