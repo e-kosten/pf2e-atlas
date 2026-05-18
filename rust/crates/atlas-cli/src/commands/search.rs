@@ -365,14 +365,19 @@ fn run_ranked_text_search(
         }
         Err(error) if options.json => {
             complete_search_progress();
-            write_json_error(
-                search_error_code_for_retrieval(&error, retrieval),
-                error.to_string(),
-            )?;
+            let message = if retrieval != RetrievalMode::Fts && vector_readiness_error(&error) {
+                vector_readiness_message(&error)
+            } else {
+                error.to_string()
+            };
+            write_json_error(search_error_code_for_retrieval(&error, retrieval), message)?;
             return Ok(ExitCode::from(3));
         }
         Err(error) => {
             complete_search_progress();
+            if retrieval != RetrievalMode::Fts && vector_readiness_error(&error) {
+                return Err(vector_readiness_message(&error));
+            }
             return Err(error.to_string());
         }
     };

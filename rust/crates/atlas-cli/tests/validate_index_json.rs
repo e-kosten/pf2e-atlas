@@ -571,6 +571,22 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     let hybrid_error: Value = serde_json::from_slice(&default_hybrid_without_embeddings.stdout)?;
     assert_eq!(hybrid_error["status"], "error");
     assert_eq!(hybrid_error["error"]["code"], "vector_readiness_required");
+    assert!(
+        hybrid_error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("rerun the search with --retrieval fts")
+    );
+
+    let text_hybrid_without_embeddings = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["search", "healing", "--index"])
+        .arg(&index_path)
+        .output()?;
+    assert_eq!(text_hybrid_without_embeddings.status.code(), Some(2));
+    assert!(
+        String::from_utf8(text_hybrid_without_embeddings.stderr)?
+            .contains("rerun the search with --retrieval fts")
+    );
 
     let text_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["record", "get", "actions:testAction0001", "--index"])
