@@ -42,6 +42,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Tagging tooling reorganization](./items/tagging-tooling-reorg.md)
   The command-surface reorganization is mostly landed; remaining work is naming and discoverability cleanup so `tui` and workbench terminology match the broader terminal app. Status: proposed.
 
+- [Rust creature level filtering](./items/rust-creature-level-filtering.md)
+  Make shared level filters work for creature records through the Rust Atlas CLI and canonical filter path. Status: proposed.
+
 - Move bottom aligned "modals" into the floating modal model. Catalog the current uses, and decide wether things should stay as they are (ex. the action palette is a good candidate to stay where it is) where as other stuff like level pickers and the exemplar filter menus should be floating. The action menu though is a good candidate to stay in the footer.
 
 - Extend the action palette with "quick select". Basically once in the action menu vim motion shoudl still navigate, but each option should get a home-row friendly key binding option for select. It should be consistent per page. Need to think how this maps into our shared key binding rules. Could be that `: + <keys>` is considered special and allowed to use a predefined set of options that are fine to use at the same time as `:`. Ex. h/j/k/l, q, and esc shouldn't be allowed, but many other are find in this specific context. But the "fine" list should still be shared.
@@ -95,6 +98,12 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Rust FTS tokenization and stemming exploration](./items/rust-fts-tokenization-stemming.md)
   Evaluate SQLite FTS tokenizer/stemming choices for inflection handling after the Phase 6 retrieval baseline lands, without adding brittle custom synonym maps. Status: proposed.
+
+- [Rust CLI typo tolerant discovery](./items/rust-cli-typo-tolerant-discovery.md)
+  Track a deliberate fuzzy-name or suggestion path for misspelled canonical names without weakening strict record resolution. Status: proposed.
+
+- [Rust CLI family preview facts](./items/rust-cli-family-preview-facts.md)
+  Add concise family-specific scan facts to Atlas search preview output so users can reject or select candidates with fewer follow-up lookups. Status: proposed.
 
 - `Metadata predicate typing cleanup`
   Preserve the follow-up idea from the retiring `fix/metadata-filter-spec-consolidation` worktree: the shared `metadata-predicate-spec` architecture is already landed, but predicate TypeScript types may still be simplifiable so operator unions and payload shapes derive more directly from that shared spec instead of relying on more duplicated or manually expanded type definitions across domain, filter, and schema layers. Status: proposed.
