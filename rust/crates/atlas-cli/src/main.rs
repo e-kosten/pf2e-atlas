@@ -282,6 +282,12 @@ struct SearchOptions {
     exclude: Option<String>,
     #[arg(long, action = ArgAction::SetTrue)]
     explain: bool,
+    #[arg(
+        long,
+        action = ArgAction::SetTrue,
+        help = "Print the lowered canonical filter and exit before opening the runtime"
+    )]
+    print_filter: bool,
     #[arg(long)]
     json: bool,
 }
@@ -318,6 +324,21 @@ struct FilterOptions {
     #[arg(long = "max-level", help = "Filter to records at or below this level")]
     max_level: Option<f64>,
     #[arg(
+        long = "price",
+        help = "Filter to an exact price in copper pieces or inclusive range such as 100..500"
+    )]
+    price: Option<String>,
+    #[arg(
+        long = "min-price",
+        help = "Filter to records priced at or above this many copper pieces"
+    )]
+    min_price: Option<f64>,
+    #[arg(
+        long = "max-price",
+        help = "Filter to records priced at or below this many copper pieces"
+    )]
+    max_price: Option<f64>,
+    #[arg(
         long = "trait",
         help = "Require this trait; repeat to require all listed traits"
     )]
@@ -327,6 +348,21 @@ struct FilterOptions {
         help = "Require at least one of these traits; repeat for alternatives"
     )]
     any_traits: Vec<String>,
+    #[arg(
+        long = "references",
+        help = "Filter to records that reference this canonical record key; repeat to require all targets"
+    )]
+    references: Vec<String>,
+    #[arg(
+        long = "referenced-by",
+        help = "Filter to records referenced by this canonical record key; repeat to require all sources"
+    )]
+    referenced_by: Vec<String>,
+    #[arg(
+        long = "metric",
+        help = "Filter by metric predicate such as defense.ac>=18, hp.value:40, or name=text; repeat to require all"
+    )]
+    metrics: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

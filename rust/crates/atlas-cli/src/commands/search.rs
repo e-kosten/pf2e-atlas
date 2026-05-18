@@ -135,6 +135,19 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
             }
             Err(error) => return Err(error.message),
         };
+    if options.print_filter {
+        let filter_value = filter_value.unwrap_or(Value::Null);
+        if options.json {
+            write_json_data(serde_json::json!({ "filter": filter_value }))?;
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&filter_value)
+                    .map_err(|error| format!("failed to render filter JSON: {error}"))?
+            );
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
 
     if let Some(query) = options.query.clone() {
         return run_ranked_text_search(options, &query, filter.as_ref(), filter_value, limit);

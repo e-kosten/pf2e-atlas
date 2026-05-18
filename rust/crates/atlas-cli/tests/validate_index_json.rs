@@ -110,6 +110,13 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
     assert!(search_help.contains("--retrieval selects fts, vector, or hybrid retrieval"));
+    assert!(search_help.contains("--price"));
+    assert!(search_help.contains("--min-price"));
+    assert!(search_help.contains("--max-price"));
+    assert!(search_help.contains("--references"));
+    assert!(search_help.contains("--referenced-by"));
+    assert!(search_help.contains("--metric"));
+    assert!(search_help.contains("--print-filter"));
 
     Ok(())
 }
@@ -1228,6 +1235,42 @@ fn search_rejects_filter_json_with_convenience_flags_before_runtime_loading()
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "invalid_filter");
+    Ok(())
+}
+
+#[test]
+fn search_print_filter_lowers_convenience_flags_before_runtime_loading()
+-> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "--family",
+            "spell",
+            "--references",
+            "spells:fireball",
+            "--referenced-by",
+            "actions:activate",
+            "--price",
+            "100..500",
+            "--metric",
+            "defense.ac>=18",
+            "--print-filter",
+            "--json",
+        ])
+        .output()?;
+
+    assert!(output.status.success());
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let data = ok_data(&json);
+    assert_eq!(data["filter"]["kind"], "all_of");
+    assert_eq!(data["filter"]["children"][0]["kind"], "record_family");
+    assert_eq!(
+        data["filter"]["children"][1]["predicate"]["field"],
+        "price_cp"
+    );
+    assert_eq!(data["filter"]["children"][2]["kind"], "links_to");
+    assert_eq!(data["filter"]["children"][3]["kind"], "linked_from");
+    assert_eq!(data["filter"]["children"][4]["kind"], "metric");
     Ok(())
 }
 
