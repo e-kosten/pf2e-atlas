@@ -208,11 +208,18 @@ fn push_fact_chunks(
     facts: &[PresentationFact],
 ) {
     for fact in facts {
+        if is_display_only_fact(fact) {
+            continue;
+        }
         push_chunk(
             chunks,
             EmbeddingInputChunk::line(section, format!("{}: {}", fact.label, fact.value)),
         );
     }
+}
+
+fn is_display_only_fact(fact: &PresentationFact) -> bool {
+    fact.key == "prerequisites"
 }
 
 fn push_chunk(chunks: &mut Vec<EmbeddingInputChunk>, mut chunk: EmbeddingInputChunk) {

@@ -128,6 +128,33 @@ fn embedding_renderer_omits_backlinks() {
 }
 
 #[test]
+fn embedding_renderer_omits_display_only_prerequisites() {
+    let mut document = fixture_presentation_document();
+    document.sections[0] = PresentationSection::new(
+        PresentationSectionKind::Summary,
+        vec![PresentationBlock::FactList(vec![
+            PresentationFact {
+                key: "role".to_string(),
+                label: "Role".to_string(),
+                value: "Defensive guardian".to_string(),
+            },
+            PresentationFact {
+                key: "prerequisites".to_string(),
+                label: "Prerequisites".to_string(),
+                value: "trained in Medicine, Battle Medicine".to_string(),
+            },
+        ])],
+    );
+
+    let input = render_presentation_document_for_embedding(&document);
+
+    assert!(input.contains("Role: Defensive guardian"));
+    assert!(!input.contains("Prerequisites"));
+    assert!(!input.contains("trained in Medicine"));
+    assert!(!input.contains("Battle Medicine"));
+}
+
+#[test]
 fn minilm_tokenization_reports_catalog_limit_when_model_cache_exists() {
     let Some(config) =
         model_backed_test_config(EmbeddingModelId::MiniLmL12V2, "minilm tokenization limit")

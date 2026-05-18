@@ -140,3 +140,14 @@ pub(crate) fn extract_traits(raw: &Value) -> Vec<String> {
     traits.dedup();
     traits
 }
+
+pub(crate) fn extract_prerequisites(raw: &Value) -> Vec<String> {
+    raw.pointer("/system/prerequisites/value")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| pointer_string(entry, "/value"))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect()
+}

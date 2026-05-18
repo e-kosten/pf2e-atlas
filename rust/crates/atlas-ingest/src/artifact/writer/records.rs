@@ -59,6 +59,8 @@ pub(super) fn write_records(
         let is_default_visible = retrieval_visibility.is_default_visible(record);
         let traits_json = serde_json::to_string(&record.traits)
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        let prerequisites_json = serde_json::to_string(&record.prerequisites)
+            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         let taxonomy_families_json = json_array(&record.taxonomy_families)?;
         let variant_axes_json = json_array(&record.variant_axes)?;
         let description_json = optional_json(&record.description)?;
@@ -79,6 +81,7 @@ pub(super) fn write_records(
                 record.level,
                 record.rarity.as_deref(),
                 traits_json,
+                prerequisites_json,
                 record.system_category.as_deref(),
                 record.system_group.as_deref(),
                 record.system_base_item.as_deref(),

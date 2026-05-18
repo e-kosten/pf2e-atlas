@@ -493,6 +493,9 @@ pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail:
     if let Some(source) = record_source_label(record) {
         println!("{}: {source}", style.label("Source"));
     }
+    if let Some(prerequisites) = record_prerequisites_label(record) {
+        println!("{}: {prerequisites}", style.label("Prerequisites"));
+    }
     if let Some(description) = record_description_text(record, detail) {
         println!();
         println!("{}", style.render_markdown(&description));
@@ -527,6 +530,25 @@ fn record_source_label(record: &atlas_record::RecordJson) -> Option<String> {
         .publication_title
         .clone()
         .or_else(|| source.pack.as_ref().map(|pack| pack.label.clone()))
+}
+
+fn record_prerequisites_label(record: &atlas_record::RecordJson) -> Option<String> {
+    record
+        .sections
+        .iter()
+        .find(|section| section.kind == "summary")
+        .into_iter()
+        .flat_map(|section| &section.blocks)
+        .find_map(|block| match block {
+            RecordBlockJson::FactList { facts } => facts
+                .iter()
+                .find(|fact| fact.key == "prerequisites")
+                .map(|fact| fact.value.clone()),
+            RecordBlockJson::Prose { .. }
+            | RecordBlockJson::Content { .. }
+            | RecordBlockJson::Relationships { .. } => None,
+        })
+        .filter(|value| !value.trim().is_empty())
 }
 
 fn record_description_text(

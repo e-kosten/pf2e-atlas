@@ -209,6 +209,7 @@ mod tests {
             level: None,
             rarity: None,
             traits: vec!["healing".to_string(), "vitality".to_string()],
+            prerequisites: Vec::new(),
             system_category: None,
             system_group: None,
             system_base_item: None,

@@ -23,6 +23,7 @@ fn base_record(record_family: RecordFamily) -> NormalizedRecord {
         level: Some(3),
         rarity: Some("uncommon".to_string()),
         traits: vec!["healing".to_string(), "vitality".to_string()],
+        prerequisites: Vec::new(),
         system_category: None,
         system_group: None,
         system_base_item: None,
@@ -87,6 +88,24 @@ fn spell_recipe_builds_summary_before_description() {
     );
     assert_section_facts_include(&document.sections[0], "Traditions", "Divine, Primal");
     assert_section_facts_include(&document.sections[0], "Save", "basic Fortitude");
+}
+
+#[test]
+fn feat_recipe_surfaces_prerequisites_in_summary() {
+    let mut record = base_record(RecordFamily::Feat);
+    record.prerequisites = vec![
+        "trained in Medicine".to_string(),
+        "Battle Medicine".to_string(),
+    ];
+
+    let document = build_record_presentation_document(&record);
+
+    assert_eq!(document.sections[0].kind, PresentationSectionKind::Summary);
+    assert_section_facts_include(
+        &document.sections[0],
+        "Prerequisites",
+        "trained in Medicine, Battle Medicine",
+    );
 }
 
 #[test]

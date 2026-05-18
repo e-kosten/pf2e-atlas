@@ -20,6 +20,7 @@ pub mod records {
         pub const LEVEL: Column = Column::new(TABLE, "level");
         pub const RARITY: Column = Column::new(TABLE, "rarity");
         pub const TRAITS_JSON: Column = Column::new(TABLE, "traits_json");
+        pub const PREREQUISITES_JSON: Column = Column::new(TABLE, "prerequisites_json");
         pub const SYSTEM_CATEGORY: Column = Column::new(TABLE, "system_category");
         pub const SYSTEM_GROUP: Column = Column::new(TABLE, "system_group");
         pub const SYSTEM_BASE_ITEM: Column = Column::new(TABLE, "system_base_item");
@@ -71,6 +72,7 @@ pub mod records {
         columns::LEVEL,
         columns::RARITY,
         columns::TRAITS_JSON,
+        columns::PREREQUISITES_JSON,
         columns::SYSTEM_CATEGORY,
         columns::SYSTEM_GROUP,
         columns::SYSTEM_BASE_ITEM,

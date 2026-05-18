@@ -62,11 +62,11 @@ pub fn insert_minimal_contract_rows(
         connection.execute(
             "INSERT INTO records (
               record_key, id, name, normalized_name, record_family, pack_name, pack_label,
-              foundry_document_type, foundry_record_type, traits_json, publication_remaster,
+              foundry_document_type, foundry_record_type, traits_json, prerequisites_json, publication_remaster,
               publication_family, taxonomy_families_json, variant_axes_json, variant_source,
               source_path, is_default_visible, raw_json
             ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
-              '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, '{}')",
+              '[]', '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, '{}')",
             [
                 record_key.as_str(),
                 record_id.as_str(),

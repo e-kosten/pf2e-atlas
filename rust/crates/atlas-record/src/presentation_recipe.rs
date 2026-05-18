@@ -456,6 +456,12 @@ fn action_summary_facts(record: &NormalizedRecord) -> Vec<PresentationFact> {
     let mut facts = Vec::new();
     push_fact(
         &mut facts,
+        "prerequisites",
+        "Prerequisites",
+        format_prerequisites(&record.prerequisites),
+    );
+    push_fact(
+        &mut facts,
         "actionCost",
         "Action Cost",
         activation_text(record),
@@ -474,6 +480,15 @@ fn action_summary_facts(record: &NormalizedRecord) -> Vec<PresentationFact> {
         );
     }
     facts
+}
+
+fn format_prerequisites(values: &[String]) -> Option<String> {
+    let values = values
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    (!values.is_empty()).then(|| values.join(", "))
 }
 
 fn fallback_summary_facts(record: &NormalizedRecord) -> Vec<PresentationFact> {
