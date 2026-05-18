@@ -1,6 +1,6 @@
 ---
 name: prepare-commit
-description: Use when the user says to prepare a commit or identifies a committable milestone. Runs two validators over the candidate commit scope, uses the same validators to re-check reported fixes, then requires a final fresh-validator pass before creating the commit.
+description: Use when the user says to prepare a commit or identifies a committable milestone. Runs plan, implementation-quality, and SRP/giant-file validators over the candidate commit scope, uses the same validators to re-check reported fixes, then requires a final fresh-validator pass before creating the commit.
 ---
 
 # Prepare Commit
@@ -41,27 +41,27 @@ Run validation in two phases: an issue-fix loop that reuses the same validators 
 
 ### Issue-Fix Loop
 
-Start by spawning two read-only validators in parallel with fresh context. Prefer `fork_context: false` and pass only the planning snapshot, candidate commit scope, relevant files, and assignment instructions.
+Start by spawning three read-only validators in parallel with fresh context: plan completion, implementation quality, and SRP/giant-file review. Prefer `fork_context: false` and pass only the planning snapshot, candidate commit scope, relevant files, and assignment instructions.
 
 For each validator report:
 
-1. Wait for both reports.
-2. If both validators return `pass`, leave the issue-fix loop and start the fresh final pass.
-3. If either validator reports `fail` or actionable `uncertain`, fix the issues in the active task checkout.
+1. Wait for all three reports.
+2. If all validators return `pass`, leave the issue-fix loop and start the fresh final pass.
+3. If any validator reports `fail` or actionable `uncertain`, fix the issues in the active task checkout.
 4. Run any targeted checks needed for the fixes.
 5. Send the relevant fix summary, changed files, and updated diff context back to the same validator agents.
 6. Ask each prior validator to re-check its own findings and any directly related regressions.
-7. Continue this same-validator recheck loop until both prior validators return `pass`, or until a blocker requires user input.
+7. Continue this same-validator recheck loop until all prior validators return `pass`, or until a blocker requires user input.
 
 Reusing validators is intentional during remediation: they already understand their findings and can verify whether the fix addresses the exact problem without rebuilding context from scratch.
 
 ### Fresh Final Pass
 
-After the same-validator loop passes, spawn a new pair of read-only validators with fresh context. These final validators must not inherit context from the dirty remediation loop.
+After the same-validator loop passes, spawn a new set of three read-only validators with fresh context. These final validators must not inherit context from the dirty remediation loop.
 
 The final fresh validators should receive the planning-context snapshot, candidate commit scope, current diff, relevant files, and assignment instructions. Do not include prior validator reports except for a short factual note that earlier issues were fixed and the current diff is the source of truth.
 
-If either final fresh validator reports `fail` or actionable `uncertain`, fix the issues, use those final validators for the next same-validator issue-fix loop, then run another fresh final pass. The commit gate is satisfied only when a fresh pair of validators returns `pass`.
+If any final fresh validator reports `fail` or actionable `uncertain`, fix the issues, use those final validators for the next same-validator issue-fix loop, then run another fresh final pass. The commit gate is satisfied only when a fresh set of all three validators returns `pass`.
 
 Close stale validator agents after each loop when the runtime supports it. Dirty-loop validator context is useful for rechecking its own findings, but it must not be treated as the final clean review.
 
@@ -109,6 +109,28 @@ Required report format:
 - `architecture concerns`
 - `recommended fixes`
 
+## Validator 3: SRP And Giant Files
+
+Give this validator the candidate diff, changed file list with line counts, relevant architecture docs, and any repository-specific module-size or ownership rules. Its job is to find files, modules, tests, or abstractions that are too large, own too many responsibilities, or hide unrelated policies in one place.
+
+Ask it to check:
+
+- new or materially expanded files over roughly 700 lines, plus any smaller file that still mixes multiple responsibilities
+- modules that combine orchestration, policy, storage/schema details, runtime execution, presentation, validation, fixtures, or unrelated helpers
+- generic `utils`, `helpers`, registry, facade, or catch-all modules that should be split by domain concern
+- tests that became giant fixture bins or combine unrelated behavior checks in a way that obscures intent
+- whether long declarative registries are truly one concern, or whether they should be partitioned by family, table, command, or policy owner
+- whether splitting would improve ownership without creating shims, compatibility layers, or artificial indirection
+
+Required report format:
+
+- `verdict`: `pass`, `fail`, or `uncertain`
+- `files reviewed with line counts`
+- `single-responsibility findings`
+- `giant-file findings`
+- `split recommendations`
+- `non-blocking observations`
+
 ## Remediation
 
 The main agent owns fixes. Validators should stay read-only unless the user explicitly asks otherwise.
@@ -125,7 +147,7 @@ If the validators disagree, inspect their evidence and either fix the underlying
 
 ## Final Validation and Commit
 
-After both fresh validators pass:
+After all three fresh validators pass:
 
 1. Run the repository validation appropriate to the final scope.
    For implementation changes, default to:
@@ -139,4 +161,4 @@ After both fresh validators pass:
 5. Commit with a Conventional Commit message.
 6. Report the commit SHA, commit message, validators' pass verdicts, commands run, skipped validation with reason, and any required refresh or migration follow-up.
 
-Do not commit if either fresh validator did not pass, if required validation fails, or if unrelated changes prevent a clean commit boundary.
+Do not commit if any fresh validator did not pass, if required validation fails, or if unrelated changes prevent a clean commit boundary.
