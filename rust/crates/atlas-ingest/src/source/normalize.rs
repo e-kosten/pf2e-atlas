@@ -74,7 +74,11 @@ pub(crate) fn normalize_record(
                 ),
             )
         })?;
-    let level = pointer_i64(&raw, "/system/level/value");
+    let level = pointer_i64(&raw, "/system/level/value").or_else(|| {
+        (manifest_pack.document_type == "Actor")
+            .then(|| pointer_i64(&raw, "/system/details/level/value"))
+            .flatten()
+    });
     let rarity = normalized_pointer_string(&raw, "/system/traits/rarity");
     let traits = extract_traits(&raw);
     let prerequisites = extract_prerequisites(&raw);
