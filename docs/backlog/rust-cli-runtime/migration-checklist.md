@@ -385,26 +385,28 @@ Acceptance:
 - Local agents can complete the standard evaluation tasks through CLI plus skill.
 - MCP is no longer needed for ordinary local PF2E lookup/search/rules work.
 
-## Phase 9: Rule Graph And Rule Context
+## Phase 9: Graph Context Retrieval
 
-Goal: evaluate the rule graph retrieval node implementation and decide whether it is worth keeping or evolvoling. Consider for instance whether the product surface is really "rule graph/context" or if more generally the utility is about searching for record clusters."
+Goal: add a Rust-owned one-hop local graph context surface for known record keys. This replaces direct Node `rule-context` parity for the first Rust graph slice: agents should use `record` or `search` to identify the correct key, then call `atlas graph get <record-key>` to retrieve connected context.
 
-- [ ] Load direct outgoing references.
-- [ ] Load backlinks.
-- [ ] Add graph get command by record key.
-- [ ] Add `rule-context <name>` command.
-- [ ] Resolve the bestiary glossary `Grab` record correctly.
-- [ ] Add support-record shaping that avoids noisy default backlinks.
-- [ ] Add `--include-backlinks`.
-- [ ] Preserve current rule-context behavior: return primary/support records and edges without synthesizing answers.
-- [ ] Update the PF2e Atlas CLI agent skill with `rule-context` command-choice guidance after the command lands.
-- [ ] Add golden tests for `Grab`.
-- [ ] Add tests for localized text.
-- [ ] Add tests for ambiguous rule names.
+- [x] Add a Rust graph context ADR before or alongside code changes.
+- [x] Remove or replace speculative rule-specific graph DTOs; do not keep `RuleContext*` or compatibility aliases.
+- [x] Load direct outgoing reference edges for one seed key through `AtlasIndex`.
+- [x] Load backlink reference edges for one seed key through `AtlasIndex`.
+- [x] Add `AtlasRetrievalService` graph context assembly with seed record, neighbor records, edge evidence, deterministic sorting, counts, and truncation flags.
+- [x] Add `atlas graph get <record-key>` command.
+- [x] Add `--outgoing <count>` with a positive default.
+- [x] Add `--backlinks <count>` with default `0`; positive values include backlinks.
+- [x] Use the default public non-embedded reference graph policy only in V1.
+- [x] Reuse existing CLI detail-level plumbing for seed and neighbor records.
+- [x] Update the PF2e Atlas CLI agent skill with two-step `record/search -> graph get` guidance.
+- [x] Add fixture-backed tests for bounded graph context, duplicate-record pruning, duplicate edge preservation, policy filtering, and missing seeds. Full-corpus `Grab` assertions remain intentionally broad because corpus counts are not a stable fixture contract.
+- [x] Add tests for invalid key, missing seed record, outgoing-only default, opt-in backlinks, limits, truncation, and localized text.
 
 Acceptance:
-- `atlas rule-context Grab` returns useful primary and support records for direct rules answers.
-- Support records are useful by default and expandable when needed.
+- `atlas graph get <Grab record key> --json` returns the seed record, outgoing neighbor records, and edge evidence without synthesizing a rules answer.
+- `atlas graph get <Grab record key> --backlinks 4 --json` also returns bounded backlink context with truncation metadata when applicable.
+- No `rule-context` command or `RuleContext*` Rust DTO remains in the V1 product surface.
 
 ## Phase 10: Ratatui Workbench
 

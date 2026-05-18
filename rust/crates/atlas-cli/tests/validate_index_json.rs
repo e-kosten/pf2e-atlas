@@ -43,6 +43,10 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(record_resolve_help.contains("atlas filters fields"));
     assert!(record_resolve_help.contains("atlas filters values --field traits"));
 
+    let graph_get_help = help_output(&["graph", "get"])?;
+    assert!(graph_get_help.contains("atlas graph get"));
+    assert!(graph_get_help.contains("--backlinks"));
+
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
     assert!(search_help.contains("atlas filters fields"));

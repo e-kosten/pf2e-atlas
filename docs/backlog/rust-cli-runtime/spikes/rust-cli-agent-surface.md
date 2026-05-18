@@ -18,7 +18,7 @@ The product is local-only in practice. Agents may do better with stable commands
 - Implement a disposable Rust CLI with representative commands:
   - `atlas lookup`
   - `atlas search`
-  - `atlas rule-context`
+  - key-based graph context retrieval
 - Use fixture data or the existing prepared index.
 - Return stable compact JSON by default.
 - Add concise stderr diagnostics and meaningful exit codes.

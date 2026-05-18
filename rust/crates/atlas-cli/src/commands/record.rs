@@ -617,7 +617,7 @@ fn invalid_input(json: bool, message: String) -> Result<ExitCode, String> {
     }
 }
 
-fn record_runtime(
+pub(crate) fn record_runtime(
     path_mode: atlas_runtime::AtlasPathMode,
     index: Option<std::path::PathBuf>,
 ) -> Result<AtlasRuntime, String> {
@@ -631,7 +631,7 @@ fn record_runtime(
     })
 }
 
-fn open_record_service(
+pub(crate) fn open_record_service(
     runtime: &AtlasRuntime,
 ) -> Result<atlas_search::AtlasRetrievalService, String> {
     runtime
@@ -639,11 +639,11 @@ fn open_record_service(
         .map_err(|error| error.to_string())
 }
 
-fn search_error(error: SearchError) -> String {
+pub(crate) fn search_error(error: SearchError) -> String {
     error.to_string()
 }
 
-fn search_error_code(error: &SearchError) -> &'static str {
+pub(crate) fn search_error_code(error: &SearchError) -> &'static str {
     match error {
         SearchError::Index(atlas_index::IndexValidationError::Unavailable(_)) => {
             "index_unavailable"

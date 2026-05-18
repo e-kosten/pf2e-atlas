@@ -54,7 +54,7 @@ impl FilterCompiler {
     }
 }
 
-fn default_reference_edge_sql_predicate(alias: &str) -> String {
+pub(crate) fn default_reference_edge_sql_predicate(alias: &str) -> String {
     reference_edge_sql_predicate(alias, reference_graph_policy(ReferenceGraphMode::Default))
 }
 

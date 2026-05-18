@@ -26,8 +26,8 @@ use crate::filters::{
 };
 use crate::vector::compile_vector_knn_query;
 use crate::{
-    ArtifactContractFamily, AtlasIndex, FtsColumnWeights, FtsQuery, ValidationCode,
-    ValidationStatus, VectorQueryError,
+    ArtifactContractFamily, AtlasIndex, FtsColumnWeights, FtsQuery, ReferenceEdgeDirection,
+    ValidationCode, ValidationStatus, VectorQueryError,
 };
 
 #[test]
@@ -687,6 +687,96 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
 }
 
 #[test]
+fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("graph-outgoing");
+    create_contract_database(&path)?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction1",
+        "actions:testAction2",
+        Some("Visible"),
+        "visible-ref",
+        "description",
+        "public",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction1",
+        "actions:testAction3",
+        Some("Private"),
+        "private-ref",
+        "private_notes",
+        "private",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction1",
+        "actions:testAction3",
+        Some("Embedded"),
+        "embedded-ref",
+        "embedded_item_description",
+        "public",
+    )?;
+
+    let index = AtlasIndex::open_read_only(&path)?;
+    let edges = index.reference_edges_for_seed(
+        &RecordKey::parse("actions:testAction1")?,
+        ReferenceEdgeDirection::Outgoing,
+    )?;
+
+    assert_eq!(edges.len(), 1);
+    assert_eq!(
+        edges[0].to_record_key,
+        RecordKey::parse("actions:testAction2")?
+    );
+    assert_eq!(edges[0].display_text.as_deref(), Some("Visible"));
+    assert_eq!(edges[0].reference_text, "visible-ref");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reference_edges_for_seed_returns_policy_visible_backlinks()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("graph-backlinks");
+    create_contract_database(&path)?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction2",
+        "actions:testAction1",
+        Some("Incoming"),
+        "incoming-ref",
+        "description",
+        "public",
+    )?;
+    insert_reference_edge(
+        &path,
+        "actions:testAction3",
+        "actions:testAction1",
+        Some("Private"),
+        "private-ref",
+        "private_notes",
+        "private",
+    )?;
+
+    let index = AtlasIndex::open_read_only(&path)?;
+    let edges = index.reference_edges_for_seed(
+        &RecordKey::parse("actions:testAction1")?,
+        ReferenceEdgeDirection::Backlink,
+    )?;
+
+    assert_eq!(edges.len(), 1);
+    assert_eq!(
+        edges[0].from_record_key,
+        RecordKey::parse("actions:testAction2")?
+    );
+    assert_eq!(edges[0].reference_text, "incoming-ref");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn reports_filters_that_cannot_be_lowered_authoritatively() {
     let derived_tags = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
         field: MetadataSetField::DerivedTags,
@@ -812,6 +902,32 @@ fn create_contract_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Er
     create_minimal_contract_schema(&connection)?;
     insert_contract_metadata(&connection, None)?;
     insert_minimal_contract_rows(&connection)?;
+    Ok(())
+}
+
+fn insert_reference_edge(
+    path: &PathBuf,
+    from_record_key: &str,
+    to_record_key: &str,
+    display_text: Option<&str>,
+    reference_text: &str,
+    source_kind: &str,
+    visibility: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let connection = Connection::open(path)?;
+    connection.execute(
+        "INSERT INTO reference_edges (
+           from_record_key, to_record_key, display_text, reference_text, source_kind, visibility
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        (
+            from_record_key,
+            to_record_key,
+            display_text,
+            reference_text,
+            source_kind,
+            visibility,
+        ),
+    )?;
     Ok(())
 }
 

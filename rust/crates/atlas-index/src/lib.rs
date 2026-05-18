@@ -14,6 +14,7 @@ mod filters;
 mod inspect;
 mod metadata;
 mod records;
+mod relationship_edges;
 mod sql;
 #[cfg(test)]
 mod tests;
@@ -21,7 +22,8 @@ mod validation;
 mod vector;
 
 pub use database::{
-    AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
+    AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
+    FtsSearchHit, ReferenceEdgeDirection,
 };
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use filters::FilterCompileError;
@@ -30,6 +32,7 @@ pub use inspect::{
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
 pub use records::RecordLoadError;
+pub use relationship_edges::GraphReferenceEdge;
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,

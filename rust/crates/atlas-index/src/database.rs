@@ -11,6 +11,7 @@ use crate::filters::{
     FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort as SqlFilteredRecordSort,
     compile_eligible_records_query, compile_filtered_record_keys_query,
 };
+use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_seed};
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordLoadError,
@@ -21,6 +22,12 @@ use crate::{
 pub struct AtlasIndex {
     path: PathBuf,
     connection: Connection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceEdgeDirection {
+    Outgoing,
+    Backlink,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -228,6 +235,14 @@ impl AtlasIndex {
         keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
         records::load_persisted_records_by_key_from_connection(&self.connection, keys)
+    }
+
+    pub fn reference_edges_for_seed(
+        &self,
+        seed: &RecordKey,
+        direction: ReferenceEdgeDirection,
+    ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
+        read_reference_edges_for_seed(&self.connection, seed, direction)
     }
 
     pub fn list_filter_fields(
