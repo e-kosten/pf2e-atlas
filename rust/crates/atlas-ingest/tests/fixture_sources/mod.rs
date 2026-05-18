@@ -325,6 +325,13 @@ pub(crate) fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error
           "type": "action",
           "system": {
             "traits": { "value": ["healing", "exploration"] },
+            "prerequisites": {
+              "value": [
+                { "value": "trained in Medicine" },
+                { "value": "healer's toolkit" },
+                { "value": "   " }
+              ]
+            },
             "actions": { "value": 1 },
             "usage": { "value": "held-in-one-hand" },
             "price": { "value": { "sp": 3 } },

@@ -39,6 +39,7 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
         level: input.level,
         rarity: input.rarity,
         traits: input.traits,
+        prerequisites: Vec::new(),
         system_category: Some(affliction_family_label(input.family).to_string()),
         system_group: None,
         system_base_item: None,

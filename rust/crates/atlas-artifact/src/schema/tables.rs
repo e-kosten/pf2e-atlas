@@ -101,6 +101,7 @@ const RECORD_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
     integer(records::columns::LEVEL),
     text(records::columns::RARITY),
     text_not_null(records::columns::TRAITS_JSON),
+    text_not_null(records::columns::PREREQUISITES_JSON),
     text(records::columns::SYSTEM_CATEGORY),
     text(records::columns::SYSTEM_GROUP),
     text(records::columns::SYSTEM_BASE_ITEM),

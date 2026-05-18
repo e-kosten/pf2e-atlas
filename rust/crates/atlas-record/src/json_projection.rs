@@ -430,6 +430,7 @@ mod tests {
                 "healing".to_string(),
                 "manipulate".to_string(),
             ],
+            prerequisites: Vec::new(),
             system_category: None,
             system_group: None,
             system_base_item: None,

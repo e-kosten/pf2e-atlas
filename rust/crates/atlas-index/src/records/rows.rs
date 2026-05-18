@@ -77,6 +77,7 @@ fn record_from_row(row: &Row<'_>) -> Result<PersistedRecord, RecordLoadError> {
     let record_family = required_string(row, "record_family")?;
     let pack_name = required_string(row, "pack_name")?;
     let traits_json = required_string(row, "traits_json")?;
+    let prerequisites_json = required_string(row, "prerequisites_json")?;
     let activation_time_kind = optional_string(row, "activation_time_kind")?;
     let duration_kind = optional_string(row, "duration_kind")?;
     let publication_family = required_string(row, "publication_family")?;
@@ -96,6 +97,7 @@ fn record_from_row(row: &Row<'_>) -> Result<PersistedRecord, RecordLoadError> {
         level: optional_i64(row, "level")?,
         rarity: optional_string(row, "rarity")?,
         traits: json_string_array("records.traits_json", &traits_json)?,
+        prerequisites: json_string_array("records.prerequisites_json", &prerequisites_json)?,
         system_category: optional_string(row, "system_category")?,
         system_group: optional_string(row, "system_group")?,
         system_base_item: optional_string(row, "system_base_item")?,

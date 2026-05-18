@@ -63,9 +63,10 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         treat_wounds_family,
         treat_wounds_record_type,
         treat_wounds_traits,
+        treat_wounds_prerequisites,
         treat_wounds_description,
-    ): (String, String, String, String, String, String) = connection.query_row(
-        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json,
+    ): (String, String, String, String, String, String, String) = connection.query_row(
+        "SELECT name, normalized_name, record_family, foundry_record_type, traits_json, prerequisites_json,
                 json_extract(description_json, '$.blocks[0].content[0].text')
          FROM records WHERE record_key = 'actions:testAction0001'",
         [],
@@ -77,6 +78,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
                 row.get(3)?,
                 row.get(4)?,
                 row.get(5)?,
+                row.get(6)?,
             ))
         },
     )?;
@@ -103,6 +105,10 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(treat_wounds_family, "rule");
     assert_eq!(treat_wounds_record_type, "action");
     assert_eq!(treat_wounds_traits, "[\"exploration\",\"healing\"]");
+    assert_eq!(
+        treat_wounds_prerequisites,
+        "[\"trained in Medicine\",\"healer's toolkit\"]"
+    );
     assert_eq!(
         treat_wounds_description,
         "You spend 10 minutes treating one injured living creature with "

@@ -262,6 +262,7 @@ mod tests {
             level: None,
             rarity: None,
             traits: Vec::new(),
+            prerequisites: Vec::new(),
             system_category: None,
             system_group: None,
             system_base_item: None,

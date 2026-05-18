@@ -33,8 +33,9 @@ pub(crate) use json::{
 };
 pub(crate) use publication::publication_family;
 pub(crate) use system::{
-    extract_damage_types, extract_disable_skills, extract_sense_types, extract_speed_types,
-    extract_traits, normalize_price_cp, parse_bulk_value, parse_hands_requirement,
+    extract_damage_types, extract_disable_skills, extract_prerequisites, extract_sense_types,
+    extract_speed_types, extract_traits, normalize_price_cp, parse_bulk_value,
+    parse_hands_requirement,
 };
 pub(crate) use text::normalize_text;
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
@@ -76,6 +77,7 @@ pub(crate) fn normalize_record(
     let level = pointer_i64(&raw, "/system/level/value");
     let rarity = normalized_pointer_string(&raw, "/system/traits/rarity");
     let traits = extract_traits(&raw);
+    let prerequisites = extract_prerequisites(&raw);
     let system_category = normalized_pointer_string(&raw, "/system/category");
     let system_group = normalized_pointer_string(&raw, "/system/group");
     let system_base_item = normalized_pointer_string(&raw, "/system/baseItem");
@@ -166,6 +168,7 @@ pub(crate) fn normalize_record(
         level,
         rarity,
         traits,
+        prerequisites,
         system_category,
         system_group,
         system_base_item,
