@@ -19,6 +19,7 @@ atlas-record.workspace = true
 atlas-runtime.workspace = true
 atlas-search.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 indicatif.workspace = true
 inquire.workspace = true
 rand.workspace = true

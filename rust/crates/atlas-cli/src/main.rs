@@ -7,7 +7,8 @@ use atlas_domain::DetailLevel;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_runtime::AtlasPathMode;
 use atlas_search::{FusionMethod, RetrievalMode};
-use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{Shell, generate};
 
 mod agent_skills;
 mod commands;
@@ -51,6 +52,15 @@ enum Command {
     Filters(FiltersArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(commands::agent_skills::AgentArgs),
+    #[command(about = "Generate shell completion scripts")]
+    Completions(CompletionsArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(after_help = "Examples:\n  atlas completions zsh\n  atlas completions bash")]
+struct CompletionsArgs {
+    #[arg(value_enum, help = "Shell to generate completions for")]
+    shell: Shell,
 }
 
 #[derive(Debug, Args)]
@@ -820,6 +830,7 @@ impl Command {
                 FiltersCommand::Values(options) => options.json,
             },
             Self::Agent(args) => args.uses_json(),
+            Self::Completions(_) => false,
         }
     }
 
@@ -855,6 +866,11 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             }
         },
         Command::Agent(agent) => commands::agent_skills::run_agent(agent),
+        Command::Completions(args) => {
+            let mut command = Cli::command();
+            generate(args.shell, &mut command, "atlas", &mut std::io::stdout());
+            Ok(ExitCode::SUCCESS)
+        }
     }
 }
 
