@@ -73,6 +73,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filter_values_help.contains("--metric-query"));
     assert!(filter_values_help.contains("--metric-label"));
     assert!(filter_values_help.contains("--sample-limit"));
+    assert!(filter_values_help.contains("--limit"));
     assert!(filter_values_help.contains("--json"));
 
     let filter_fields_help = help_output(&["filters", "fields"])?;
