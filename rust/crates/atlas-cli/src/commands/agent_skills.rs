@@ -38,6 +38,17 @@ pub(crate) enum AgentSkillsCommand {
     Doctor(AgentSkillsDoctorOptions),
 }
 
+impl AgentArgs {
+    pub(crate) fn uses_json(&self) -> bool {
+        match &self.command {
+            AgentCommand::Skills(skills) => match &skills.command {
+                AgentSkillsCommand::Install(options) => options.json,
+                AgentSkillsCommand::Doctor(options) => options.json,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Args)]
 pub(crate) struct AgentSkillsInstallOptions {
     #[arg(long, default_value = "pf2e-atlas-cli")]

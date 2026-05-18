@@ -31,8 +31,10 @@ pub(crate) fn load_foundry_source(
         "loaded Foundry source records"
     );
 
+    source_progress("source_normalize", "Building source reference index");
     info!("building reference index");
     let reference_index = build_record_reference_index(&source.records);
+    source_progress("source_normalize", "Generating derived affliction records");
     info!("generating derived affliction records");
     let generated_afflictions =
         afflictions::build_generated_afflictions(&source.records, &reference_index);
@@ -83,6 +85,7 @@ pub(crate) fn load_foundry_source(
         );
     }
 
+    source_progress("source_normalize", "Assigning taxonomy families");
     info!(
         records = source.records.len(),
         "assigning taxonomy families"
@@ -95,12 +98,14 @@ pub(crate) fn load_foundry_source(
         &reference_index,
         &mut source.diagnostics,
     );
+    source_progress("source_normalize", "Assigning variant groups");
     info!(records = source.records.len(), "assigning variant groups");
     variants::assign_variant_groups(
         &mut source.records,
         &reference_index,
         &mut source.diagnostics,
     );
+    source_progress("source_normalize", "Resolving reference edges");
     info!("resolving reference edges");
     source.references = resolve_reference_edges(&source.records);
     source.references.extend(generated_references);
@@ -128,6 +133,7 @@ pub(crate) fn load_foundry_source(
         reference_edges = source.references.len(),
         "resolved reference edges"
     );
+    source_progress("source_normalize", "Resolving aliases and remaster links");
     info!("resolving aliases and remaster links");
     source.aliases =
         aliases::resolve_record_aliases(&source.records, &reference_index, source_root);
@@ -138,6 +144,7 @@ pub(crate) fn load_foundry_source(
         remaster_links = source.remaster_links.len(),
         "resolved aliases and remaster links"
     );
+    source_progress("source_normalize", "Preparing document embedding inputs");
     info!("preparing document embedding inputs");
     source.pending_document_embeddings = embeddings::build_pending_document_embeddings(
         &source.records,
@@ -163,4 +170,8 @@ pub(crate) fn load_foundry_source(
     );
 
     Ok(source)
+}
+
+fn source_progress(phase: &'static str, message: &'static str) {
+    info!(target: "atlas_progress", phase, "{message}");
 }

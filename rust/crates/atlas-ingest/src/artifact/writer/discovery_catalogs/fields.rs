@@ -10,7 +10,14 @@ use super::stats::FieldStats;
 use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
 pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), IngestError> {
     let insert_sql = filter_field_catalog_insert_sql();
-    for seed in FIELD_SEEDS {
+    let total = FIELD_SEEDS.len() as u64;
+    for (index, seed) in FIELD_SEEDS.iter().enumerate() {
+        super::progress(
+            "filter_field_catalogs",
+            index as u64,
+            total,
+            format!("Writing filter field catalog: {}", seed.field),
+        );
         let stats_by_scope = collect_stats(connection, seed.value_sql)?;
         for family in seed.applicable_families {
             if let Some(stats) = stats_by_scope.get(&Some(*family)).copied()
@@ -25,6 +32,12 @@ pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), Ingest
             write_scope_with_stats(connection, &insert_sql, seed, None, stats)?;
         }
     }
+    super::progress(
+        "filter_field_catalogs",
+        total,
+        total,
+        "Wrote filter field catalogs".to_string(),
+    );
     Ok(())
 }
 

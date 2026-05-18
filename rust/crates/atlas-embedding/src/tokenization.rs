@@ -59,6 +59,16 @@ impl TextEmbeddingTokenizer {
         let total = texts.len();
         let progress_interval = tokenization_progress_interval(total);
         let mut results = Vec::with_capacity(total);
+        info!(
+            document_embeddings = total,
+            "analyzing document embedding tokenization"
+        );
+        info!(target: "atlas_progress",
+            phase = "document_embedding_tokenization",
+            current = 0_u64,
+            total = total as u64,
+            "Analyzing document embedding tokenization"
+        );
         for (index, text) in texts.iter().enumerate() {
             let current = index + 1;
             results.push(analyze_text(
@@ -68,6 +78,11 @@ impl TextEmbeddingTokenizer {
                 max_token_count,
             )?);
             if current == total || current % progress_interval == 0 {
+                info!(
+                    analyzed_document_embeddings = current,
+                    document_embeddings = total,
+                    "analyzed document embedding tokenization batch"
+                );
                 info!(target: "atlas_progress",
                     phase = "document_embedding_tokenization",
                     current = current as u64,
@@ -76,6 +91,10 @@ impl TextEmbeddingTokenizer {
                 );
             }
         }
+        info!(
+            document_embeddings = total,
+            "document embedding tokenization analysis complete"
+        );
         Ok(results)
     }
 

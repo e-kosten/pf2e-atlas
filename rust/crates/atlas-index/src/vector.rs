@@ -167,6 +167,42 @@ pub(crate) fn validate_embedding_readiness_connection(
     validate_vector_index_with_loaded_connection(index, summary, connection)
 }
 
+pub(crate) fn check_embedding_readiness_connection(
+    index: String,
+    base_report: ArtifactValidationReport,
+    connection: &Connection,
+) -> Result<ArtifactValidationReport, IndexValidationError> {
+    if base_report.status != ValidationStatus::Ok {
+        return Ok(base_report);
+    }
+
+    let summary = metadata_summary_from_report(&base_report);
+    if let Err(message) = probe_sqlite_vec(connection) {
+        return Ok(vector_extension_unavailable_report(index, summary, message));
+    }
+
+    let mut diagnostics = Vec::new();
+    if !table_exists(connection, TABLE_RECORD_VECTOR_INDEX)? {
+        diagnostics.push(contract_diagnostic(
+            ArtifactContractFamily::Schema,
+            format!("required vector table `{TABLE_RECORD_VECTOR_INDEX}` is missing"),
+            Some(format!("table:{TABLE_RECORD_VECTOR_INDEX}")),
+            Some("present".to_string()),
+            Some("missing".to_string()),
+        ));
+    }
+
+    if diagnostics.is_empty() {
+        Ok(ArtifactValidationReport::ok(index, summary))
+    } else {
+        Ok(ArtifactValidationReport::incompatible_metadata(
+            index,
+            summary,
+            diagnostics,
+        ))
+    }
+}
+
 fn validate_vector_index_with_loaded_connection(
     index: String,
     summary: ArtifactMetadataSummary,

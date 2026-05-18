@@ -14,7 +14,7 @@ use crate::filters::{
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordLoadError,
-    ValidationTarget, VectorQueryError, VectorSearchHit, inspect, records,
+    ValidationTarget, VectorQueryError, VectorSearchHit, check_index_connection, inspect, records,
     validate_index_connection, vector,
 };
 
@@ -124,6 +124,31 @@ impl AtlasIndex {
     pub fn validate_report(&self) -> ArtifactValidationReport {
         match self.validate() {
             Ok(report) => report,
+            Err(error) => crate::validation_report_from_error(&self.path, error),
+        }
+    }
+
+    pub fn check(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
+        check_index_connection(self.path.display().to_string(), &self.connection)
+    }
+
+    pub fn check_report(&self) -> ArtifactValidationReport {
+        match self.check() {
+            Ok(report) => report,
+            Err(error) => crate::validation_report_from_error(&self.path, error),
+        }
+    }
+
+    pub fn check_embedding_readiness_report(&self) -> ArtifactValidationReport {
+        match self.check() {
+            Ok(report) => match vector::check_embedding_readiness_connection(
+                self.path.display().to_string(),
+                report,
+                &self.connection,
+            ) {
+                Ok(report) => report,
+                Err(error) => crate::validation_report_from_error(&self.path, error),
+            },
             Err(error) => crate::validation_report_from_error(&self.path, error),
         }
     }

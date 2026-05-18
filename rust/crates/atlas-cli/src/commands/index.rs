@@ -8,7 +8,10 @@ use atlas_ingest::{
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
 use crate::output::{write_json_data, write_validation_report};
-use crate::{AnalyzeIndexOptions, BuildIndexOptions, IndexPathOptions, ValidateIndexOptions};
+use crate::{
+    AnalyzeIndexOptions, BuildIndexOptions, CheckIndexOptions, IndexPathOptions,
+    ValidateIndexOptions,
+};
 
 pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
@@ -190,6 +193,17 @@ pub(crate) fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, S
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, String> {
+    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let target = if options.no_embeddings {
+        ValidationTarget::BaseOnly
+    } else {
+        ValidationTarget::Full
+    };
+    let report = runtime.check_index_report(target);
+    write_validation_report(report, options.json)
 }
 
 pub(crate) fn run_index_validate(options: ValidateIndexOptions) -> Result<ExitCode, String> {

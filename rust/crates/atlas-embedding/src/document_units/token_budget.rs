@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use tracing::info;
+
 use crate::document_input::hash_document_embedding_input;
 use crate::error::EmbeddingError;
 use crate::tokenization::{
@@ -23,6 +25,22 @@ pub fn apply_document_embedding_token_budget(
         .collect::<Vec<_>>();
     let tokenizations = tokenizer.analyze_document_inputs(&inputs)?;
     let mut truncated_sections_by_unit = BTreeMap::<String, Vec<EmbeddingSectionTruncation>>::new();
+    let truncated_count = tokenizations
+        .iter()
+        .filter(|tokenization| tokenization.truncated)
+        .count();
+    info!(
+        truncated_document_embeddings = truncated_count,
+        "applying document embedding truncation budget"
+    );
+    info!(target: "atlas_progress",
+        phase = "document_embedding_tokenization",
+        current = 0_u64,
+        total = truncated_count as u64,
+        "Fitting embedding inputs to model limit"
+    );
+    let mut processed_truncated = 0;
+    let progress_interval = token_budget_progress_interval(truncated_count);
     for (entry, tokenization) in pending.iter_mut().zip(tokenizations.iter()) {
         if !tokenization.truncated {
             continue;
@@ -36,12 +54,34 @@ pub fn apply_document_embedding_token_budget(
         }
         entry.input_text = budgeted.text;
         entry.input_hash = hash_document_embedding_input(&entry.input_text);
+        processed_truncated += 1;
+        if processed_truncated == truncated_count || processed_truncated % progress_interval == 0 {
+            info!(
+                processed_truncated_document_embeddings = processed_truncated,
+                truncated_document_embeddings = truncated_count,
+                "applied document embedding truncation budget batch"
+            );
+            info!(target: "atlas_progress",
+                phase = "document_embedding_tokenization",
+                current = processed_truncated as u64,
+                total = truncated_count as u64,
+                "Fitting embedding inputs to model limit"
+            );
+        }
     }
+    info!(
+        truncated_document_embeddings = truncated_count,
+        "document embedding truncation budget complete"
+    );
     Ok(summarize_document_embedding_tokenization(
         pending,
         &tokenizations,
         &truncated_sections_by_unit,
     ))
+}
+
+fn token_budget_progress_interval(total: usize) -> usize {
+    (total / 100).clamp(25, 500)
 }
 
 pub(super) fn summarize_document_embedding_tokenization(

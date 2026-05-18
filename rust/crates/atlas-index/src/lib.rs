@@ -3,6 +3,7 @@
 use atlas_artifact::metadata::{
     ARTIFACT_METADATA_TABLE, LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS,
 };
+use atlas_artifact::schema::required_tables;
 use rusqlite::Connection;
 use thiserror::Error;
 
@@ -59,6 +60,45 @@ pub(crate) fn validate_index_connection(
     if diagnostics.is_empty() {
         Ok(metadata_report)
     } else {
+        let summary = metadata::summarize_metadata(&artifact_metadata);
+        Ok(ArtifactValidationReport::incompatible_metadata(
+            index,
+            summary,
+            diagnostics,
+        ))
+    }
+}
+
+pub(crate) fn check_index_connection(
+    index: String,
+    connection: &Connection,
+) -> Result<ArtifactValidationReport, IndexValidationError> {
+    let metadata_report = validate_index_metadata_connection(index.clone(), connection)?;
+    if metadata_report.status != ValidationStatus::Ok {
+        return Ok(metadata_report);
+    }
+
+    let diagnostics = required_tables()
+        .into_iter()
+        .filter_map(|table| {
+            let table_name = table.name();
+            match sql::table_exists(connection, table_name) {
+                Ok(true) => None,
+                Ok(false) => Some(Ok(contract::contract_diagnostic(
+                    ArtifactContractFamily::Schema,
+                    format!("required artifact table `{table_name}` is missing"),
+                    Some(format!("table:{table_name}")),
+                    Some("present".to_string()),
+                    Some("missing".to_string()),
+                ))),
+                Err(error) => Some(Err(error)),
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if diagnostics.is_empty() {
+        Ok(metadata_report)
+    } else {
+        let artifact_metadata = metadata::read_metadata(connection, ARTIFACT_METADATA_TABLE)?;
         let summary = metadata::summarize_metadata(&artifact_metadata);
         Ok(ArtifactValidationReport::incompatible_metadata(
             index,

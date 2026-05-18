@@ -61,7 +61,11 @@ atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record resolve "Treat Wounds" --pack-name actionspf2e
 ```
 
-JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. Artifact validation that runs against an invalid artifact still returns `status: "ok"` with `data.valid: false` and exits with code `3`.
+JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. JSON is written to stdout. Routine progress is controlled separately and is shown only for human terminal sessions by default; use the global `--progress always|auto|never` option or `ATLAS_PROGRESS` to override that policy. Artifact readiness and validation commands that run against an invalid artifact still return `status: "ok"` with `data.valid: false` and exit with code `3`.
+
+`atlas setup --json` separates read-only diagnostics from repair work. `data.checks` reports source analysis and validation work that ran during setup. `data.actions` reports mutating operations or planned repairs such as source fetch, embedding model preparation, and artifact builds.
+
+Artifact builds also write an adjacent `manifest.json` next to the SQLite artifact. Setup uses that manifest's cheap source position to avoid a full source scan when checking an unchanged artifact, and falls back to full source analysis when the source position is missing or changed.
 
 The standard exit code classes are:
 
@@ -120,9 +124,9 @@ cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
 The default Cargo dev profile is useful for edit/build loops, but its runtime timings should not be compared against the TypeScript implementation.
 `atlas setup` and `atlas index build` generate BGE small document embeddings in batches by default; pass `--embedding-model <model>` and `--embedding-batch-size <count>` on setup or build commands to compare catalog models and batch sizes during performance work.
 
-`atlas setup`, `atlas index build`, index path commands, and semantic search share the `atlas-runtime` path resolver. With `--path-mode auto` (the default), the resolver uses platform user cache paths so installed setup and later commands resolve the same data from any working directory. Use `--path-mode repo` to require repo-local contributor paths or `--path-mode user` to force platform user paths.
+`atlas setup`, `atlas index build`, index path commands, and semantic search share the `atlas-runtime` path resolver. The default `--path-mode global` resolver uses platform cache paths so installed setup and later commands resolve the same data from any working directory. Use `--path-mode repo` to require checkout-local contributor paths.
 
-Path flags are command-local overrides, not persisted configuration. `--index` means "use this SQLite artifact for this command" on commands that open or repair an artifact, such as `setup`, `record`, `search`, `filters`, `index validate`, and `index inspect`. `atlas index build` uses `--output` instead because it writes a new artifact path. `--source` and `--embedding-cache-path` similarly override the source checkout or model cache only for the command that receives them. Commands that need no artifact, such as `atlas index analyze` and `atlas agent skills`, do not accept `--index`.
+Path flags are command-local overrides, not persisted configuration. `--index` means "use this SQLite artifact for this command" on commands that open or repair an artifact, such as `setup`, `record`, `search`, `filters`, `index check`, `index validate`, and `index inspect`. `atlas index build` uses `--output` instead because it writes a new artifact path. `--source` and `--embedding-cache-path` similarly override the source checkout or model cache only for the command that receives them. Commands that need no artifact, such as `atlas index analyze` and `atlas agent skills`, do not accept `--index`.
 
 `atlas setup --offline` prevents source fetch/update and embedding model preparation. `atlas setup --no-embeddings` and `atlas index build --no-embeddings` intentionally skip semantic vectors; that output is a base artifact and is not semantic-search-ready.
 
@@ -132,7 +136,9 @@ The current writer loads Foundry packs and records, normalizes canonical record 
 
 The first Rust artifact contract is `pf2e-atlas-artifact/v1` with SQLite schema version `1`. The durable contract is documented in [`docs/architecture/artifact-contract.md`](../docs/architecture/artifact-contract.md).
 
-`atlas index validate --json` validates full semantic readiness by default, including vector table readiness. Use `atlas index validate --no-embeddings --json` for base artifact validation, or `atlas index validate --embeddings-only --json` for focused embedding/vector diagnostics.
+`atlas index check --json` runs the fast artifact readiness check used by setup. It verifies supported metadata, required runtime tables, and vector capability for the default full target without running deep data-coherence diagnostics. Use `atlas index check --no-embeddings --json` for record-only readiness.
+
+`atlas index validate --json` runs deep artifact validation diagnostics. It validates table/data contract coherence and full semantic readiness by default, including vector table diagnostics. Use `atlas index validate --no-embeddings --json` for deep base artifact validation, or `atlas index validate --embeddings-only --json` for focused embedding/vector diagnostics.
 
 Validation can return these codes:
 

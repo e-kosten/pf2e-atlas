@@ -6,6 +6,7 @@ use atlas_artifact::schema::artifact_metadata_insert_sql;
 use atlas_embedding::{EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelId, embedding_model_spec};
 use rusqlite::Connection;
 
+use crate::artifact_manifest::ADJACENT_ARTIFACT_MANIFEST_PATH;
 use crate::error::IngestError;
 
 fn metadata_value(value: impl Into<String>) -> String {
@@ -108,7 +109,7 @@ pub(super) fn write_artifact_metadata(
         ),
         (
             artifact_metadata_keys::ADJACENT_MANIFEST_PATH,
-            metadata_value("manifest.json"),
+            metadata_value(ADJACENT_ARTIFACT_MANIFEST_PATH),
         ),
     ];
 

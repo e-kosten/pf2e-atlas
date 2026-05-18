@@ -27,6 +27,10 @@ pub(crate) fn generate_document_embeddings_for_source(
     };
 
     let config = EmbeddingRuntimeConfig::new(options.embedding_model()?, cache_root);
+    embedding_progress(
+        "document_embeddings",
+        "Checking reusable document embeddings",
+    );
     let reusable_embeddings = if options.reuse_embeddings && options.output_path.exists() {
         match embedding_reuse::load_reusable_document_embeddings(&options.output_path, &config) {
             Ok(reusable_embeddings) => {
@@ -54,8 +58,10 @@ pub(crate) fn generate_document_embeddings_for_source(
     };
 
     let mut timing = EmbeddingTimingReport::default();
+    embedding_progress("document_embeddings", "Loading embedding tokenizer");
     let tokenizer = TextEmbeddingTokenizer::load(&config)
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    embedding_progress("document_embeddings", "Applying document token budget");
     let tokenization_started_at = Instant::now();
     source.document_embedding_tokenization =
         apply_document_embedding_token_budget(&mut source.pending_document_embeddings, &tokenizer)
@@ -98,6 +104,7 @@ pub(crate) fn generate_document_embeddings_for_source(
         "document embedding tokenization complete"
     );
 
+    embedding_progress("document_embeddings", "Generating document embeddings");
     info!(
         pending_document_embeddings = source.pending_document_embeddings.len(),
         "generating document embeddings"
@@ -111,6 +118,7 @@ pub(crate) fn generate_document_embeddings_for_source(
         options.embedding_batch_size,
         |inputs| {
             if embedder.is_none() {
+                embedding_progress("document_embeddings", "Loading embedding model");
                 info!(
                     cache = %config.cache_root.display(),
                     "loading embedding model"
@@ -146,6 +154,10 @@ pub(crate) fn generate_document_embeddings_for_source(
         generated_count,
         timing,
     })
+}
+
+fn embedding_progress(phase: &'static str, message: &'static str) {
+    info!(target: "atlas_progress", phase, "{message}");
 }
 
 fn apply_batch_timing(report: &mut EmbeddingTimingReport, mut batch_durations_ms: Vec<u128>) {

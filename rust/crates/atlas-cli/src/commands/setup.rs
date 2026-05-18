@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use atlas_runtime::{
@@ -99,10 +100,15 @@ fn run_setup_clean(
         );
     }
     if source && embedding_cache && artifact && !options.check && !options.yes {
-        return invalid_setup_clean_input(
-            json,
-            "setup clean all-target cleanup requires --yes unless --check is used",
-        );
+        if json || !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+            return invalid_setup_clean_input(
+                json,
+                "setup clean all-target cleanup requires --yes unless --check is used",
+            );
+        }
+        if !confirm_setup_clean_all()? {
+            return Ok(ExitCode::from(1));
+        }
     }
 
     let report = runtime.clean_setup(RuntimeSetupCleanOptions {
@@ -129,6 +135,13 @@ fn invalid_setup_clean_input(json: bool, message: &'static str) -> Result<ExitCo
     invalid_setup_input(json, message.to_string())
 }
 
+fn confirm_setup_clean_all() -> Result<bool, String> {
+    inquire::Confirm::new("Remove Atlas source, embedding cache, and artifact files?")
+        .with_default(false)
+        .prompt()
+        .map_err(|error| format!("setup clean cancelled: {error}"))
+}
+
 fn invalid_setup_input(json: bool, message: String) -> Result<ExitCode, String> {
     if json {
         write_json_error("invalid_input", message)?;
@@ -148,6 +161,7 @@ struct SetupData {
     offline: bool,
     check: bool,
     force_rebuild: bool,
+    checks: Vec<SetupActionData>,
     actions: Vec<SetupActionData>,
     readiness: SetupReadinessData,
     paths: SetupPathsData,
@@ -248,21 +262,18 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
         "semantic search: {}",
         readiness_label(&report.readiness.semantic_search.status)
     );
+    if !report.checks.is_empty() {
+        println!();
+        println!("checks:");
+        for check in &report.checks {
+            print_setup_step(check);
+        }
+    }
     if !report.actions.is_empty() {
         println!();
         println!("actions:");
         for action in &report.actions {
-            let reason = action
-                .reason
-                .as_ref()
-                .map(|reason| format!(": {reason}"))
-                .unwrap_or_default();
-            println!(
-                "  {}: {}{}",
-                action_kind_label(&action.kind),
-                action_status_label(&action.status),
-                reason
-            );
+            print_setup_step(action);
         }
     }
     if !report.ready {
@@ -304,6 +315,7 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
         offline: report.offline,
         check: report.check,
         force_rebuild: report.force_rebuild,
+        checks: report.checks.iter().map(action_json).collect(),
         actions: report.actions.iter().map(action_json).collect(),
         readiness: readiness_json(&report.readiness),
         paths: SetupPathsData {
@@ -326,6 +338,20 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             document_embedding_count: build.document_embedding_count,
         }),
     }
+}
+
+fn print_setup_step(action: &atlas_runtime::SetupAction) {
+    let reason = action
+        .reason
+        .as_ref()
+        .map(|reason| format!(": {reason}"))
+        .unwrap_or_default();
+    println!(
+        "  {}: {}{}",
+        action_kind_label(&action.kind),
+        action_status_label(&action.status),
+        reason
+    );
 }
 
 fn setup_clean_json_data(report: &atlas_runtime::RuntimeSetupCleanReport) -> SetupCleanData {
