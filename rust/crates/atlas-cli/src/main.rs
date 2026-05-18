@@ -43,6 +43,8 @@ enum Command {
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
+    #[command(about = "Retrieve local record reference graph context")]
+    Graph(GraphArgs),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
     #[command(about = "Discover filter fields and values")]
@@ -196,6 +198,12 @@ struct RecordArgs {
 }
 
 #[derive(Debug, Args)]
+struct GraphArgs {
+    #[command(subcommand)]
+    command: GraphCommand,
+}
+
+#[derive(Debug, Args)]
 struct FiltersArgs {
     #[command(subcommand)]
     command: FiltersCommand,
@@ -223,6 +231,12 @@ enum RecordCommand {
     Get(RecordGetOptions),
     #[command(about = "Resolve one or more strict record names or aliases")]
     Resolve(Box<RecordResolveOptions>),
+}
+
+#[derive(Debug, Subcommand)]
+enum GraphCommand {
+    #[command(about = "Fetch one-hop reference graph context for a known record key")]
+    Get(GraphGetOptions),
 }
 
 #[derive(Debug, Subcommand)]
@@ -257,7 +271,7 @@ struct FiltersValuesOptions {
     filter_options: DiscoveryFilterOptions,
     #[arg(long, value_enum)]
     sort: Option<CliFilterValueSort>,
-    #[arg(long)]
+    #[arg(long, visible_alias = "limit")]
     sample_limit: Option<usize>,
     #[arg(long)]
     metric: Option<String>,
@@ -402,6 +416,27 @@ struct RecordResolveOptions {
     alternatives: u8,
     #[arg(long, help = "Include raw source JSON with full detail output")]
     include_raw: bool,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    path_mode: CliPathMode,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json"
+)]
+struct GraphGetOptions {
+    #[arg(help = "Canonical seed record key in pack:id form; this command does not resolve names")]
+    key: String,
+    #[arg(long, default_value_t = 8, value_parser = parse_graph_limit, help = "Maximum outgoing neighbor records to include, 0-50")]
+    outgoing: usize,
+    #[arg(long, default_value_t = 0, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-50; 0 disables backlinks")]
+    backlinks: usize,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
+    detail: DetailLevel,
     #[arg(long)]
     index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
@@ -776,6 +811,9 @@ impl Command {
                 RecordCommand::Get(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
             },
+            Self::Graph(args) => match &args.command {
+                GraphCommand::Get(options) => options.json,
+            },
             Self::Search(options) => options.json,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
@@ -804,6 +842,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Get(options) => commands::record::run_record_get(options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
+        Command::Graph(graph) => match graph.command {
+            GraphCommand::Get(options) => commands::graph::run_graph_get(options),
+        },
         Command::Search(options) => commands::search::run_search(*options),
         Command::Filters(filters) => match filters.command {
             FiltersCommand::Fields(options) => {
@@ -821,4 +862,15 @@ fn parse_detail_level(value: &str) -> Result<DetailLevel, String> {
     value
         .parse::<DetailLevel>()
         .map_err(|error| error.to_string())
+}
+
+fn parse_graph_limit(value: &str) -> Result<usize, String> {
+    let limit = value
+        .parse::<usize>()
+        .map_err(|error| format!("invalid graph limit `{value}`: {error}"))?;
+    if limit <= 50 {
+        Ok(limit)
+    } else {
+        Err(format!("graph limit must be between 0 and 50, got {limit}"))
+    }
 }

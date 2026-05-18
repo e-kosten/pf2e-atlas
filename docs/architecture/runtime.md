@@ -109,11 +109,14 @@ Default public graph and backlink behavior uses the named reference graph policy
 
 ```mermaid
 flowchart TD
-    command["atlas-cli command<br/>search, record, index"] --> runtime["atlas-runtime<br/>resolved paths + handles"]
+    command["atlas-cli command<br/>search, record, graph, index"] --> runtime["atlas-runtime<br/>resolved paths + handles"]
     runtime --> search["atlas-search<br/>AtlasRetrievalService"]
     runtime --> index["atlas-index<br/>AtlasIndex"]
     search --> filters["atlas-index internal filter compiler<br/>SearchFilterNode -> eligible records"]
     filters --> sqlite["SQLite artifact"]
+
+    search --> graph["atlas-index reference-edge queries<br/>default graph policy"]
+    graph --> sqlite
 
     search --> lexical["atlas-index lexical SQL<br/>records_fts weighted columns"]
     lexical --> sqlite
@@ -123,12 +126,15 @@ flowchart TD
     vectorSql --> sqliteVec["atlas-sqlite-vec capability"]
     sqliteVec --> sqlite
 
-    lexical --> collapse["atlas-search result assembly"]
+    graph --> collapse["atlas-search result assembly"]
+    lexical --> collapse
     vectorSql --> collapse
     collapse --> output["atlas-cli presentation<br/>JSON or terminal text"]
 ```
 
 Filters compile to an authoritative SQL keyset before lexical or vector search. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
+
+Graph context retrieval is key-based and one-hop in the V1 Rust CLI. `atlas graph get <record-key>` routes through `AtlasRetrievalService`, loads the seed record through the normal record path, asks `AtlasIndex` for policy-visible `reference_edges`, applies deterministic edge ordering and unique-neighbor limits, then hydrates only retained neighbor records. Search relationship flags such as `--referenced-by` remain result-set filters; graph context retrieval returns a local context bundle with edge evidence, counts, and truncation metadata.
 
 Runtime SQLite access is read-only and goes through `AtlasIndex`. Construction-time writes belong to `atlas-ingest`, which writes a temporary artifact and publishes it only after records, FTS, embedding cache rows, and `record_vector_index` are complete. Product surfaces route retrieval through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite or assemble retrieval dependencies directly.
 

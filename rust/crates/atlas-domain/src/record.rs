@@ -225,6 +225,30 @@ pub struct RecordSummary {
     pub summary_text: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RemasterLinkSource {
+    RemasterJournal,
+    Migration,
+}
+
+impl RemasterLinkSource {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::RemasterJournal => "remaster_journal",
+            Self::Migration => "migration",
+        }
+    }
+
+    pub fn from_canonical(value: &str) -> Option<Self> {
+        match value {
+            "remaster_journal" => Some(Self::RemasterJournal),
+            "migration" => Some(Self::Migration),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

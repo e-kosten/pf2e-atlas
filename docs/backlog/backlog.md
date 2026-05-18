@@ -96,6 +96,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust search quality and retrieval weight tuning](./items/rust-search-quality-tuning.md)
   Tune Rust FTS weights, RRF windows, rank constants, and weighted-fusion defaults after the Phase 6 retrieval baseline is measurable. Status: proposed.
 
+- [Rust graph context deeper local graph](./items/rust-graph-context-deeper-local-graph.md)
+  Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command lands. Status: proposed.
+
 - [Rust FTS tokenization and stemming exploration](./items/rust-fts-tokenization-stemming.md)
   Evaluate SQLite FTS tokenizer/stemming choices for inflection handling after the Phase 6 retrieval baseline lands, without adding brittle custom synonym maps. Status: proposed.
 

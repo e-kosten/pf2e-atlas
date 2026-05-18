@@ -150,8 +150,7 @@ atlas search --filter-json '<canonical-filter-json>' --sort levelAsc --json
 atlas search "healing magic" --json
 atlas search "healing magic" --retrieval fts --json
 atlas filters values --field traits --family creature
-atlas rule-context "Grab" --include-backlinks --json
-atlas graph get --record-key actions:abc123 --include-backlinks --json
+atlas graph get actions:abc123 --backlinks 4 --json
 atlas tags evaluate-derived-tags --category spell --json
 atlas tags review-derived-tag-migration --session <path> --json
 atlas tui

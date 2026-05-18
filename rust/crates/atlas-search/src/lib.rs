@@ -16,6 +16,12 @@ use atlas_record::{ContentDocument, PersistedRecord, RecordAlias, visit_content_
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod graph_context;
+pub use graph_context::{
+    GraphContextEdge, GraphContextEdgeSource, GraphContextRequest, GraphContextResult,
+    GraphContextSection,
+};
+
 /// Initial top-level retrieval boundary for Rust runtime consumers.
 ///
 /// The service owns product-facing retrieval entrypoints. Record get/resolve,

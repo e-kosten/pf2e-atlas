@@ -13,7 +13,7 @@ The Rust migration spikes produced enough evidence to choose a new direction:
 - Rust query embeddings match the current MiniLM TypeScript vectors at float precision and have acceptable startup and query latency.
 - The artifact-contract spike showed that startup validation should be explicit, versioned, and independent of extension-backed vector tables.
 - The canonical-ingest spike found no Rust-specific blocker for deterministic Foundry JSON ingest or SQLite artifact construction; Rust parsed the full vendored corpus quickly, with remaining work centered on parity policy and side-table coverage.
-- The CLI-agent spike showed CLI plus skill guidance is a better local direction for compact lookup, safer exact-miss behavior, and direct rule-context answers, while still needing schema/facet discovery and support-record shaping.
+- The CLI-agent spike showed CLI plus skill guidance is a better local direction for compact lookup, safer exact-miss behavior, and explicit key-based context retrieval, while still needing schema/facet discovery and support-record shaping.
 - The search-quality spike selected a SQLite-centered hybrid retrieval baseline for the first Rust migration path and deferred Tantivy, LanceDB, heavier rerankers, and model changes.
 - The Ratatui spike supports a Rust TUI as the primary terminal direction after the CLI/runtime shell exists.
 
@@ -60,7 +60,7 @@ The migration proceeds by capability gates:
 
 - artifact validation
 - exact lookup and record presentation
-- rule-context and graph traversal
+- graph context retrieval and traversal
 - filter/schema discovery
 - SQLite-centered hybrid search
 - first-party agent skill installation

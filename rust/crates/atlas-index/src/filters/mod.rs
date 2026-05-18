@@ -16,3 +16,4 @@ pub(crate) use query::{
     FilteredRecordKeysQuery, FilteredRecordSort, compile_eligible_records_query,
     compile_filtered_record_keys_query,
 };
+pub(crate) use relationships::default_reference_edge_sql_predicate;

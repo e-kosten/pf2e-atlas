@@ -29,7 +29,7 @@ Primary TypeScript sources:
 - `src/domain/search-types.ts`: TypeScript categories/subcategories, lookup/search result contracts, filter discovery fields.
 - `src/domain/search-request-types.ts`: canonical request and filter tree.
 - `src/domain/metadata-field-types.ts` and `src/domain/search-filter-metadata.ts`: metadata fields and predicate contracts.
-- `src/domain/rule-types.ts`: rule graph and rule-context contracts.
+- `src/domain/rule-types.ts`: TypeScript rule graph and rule-context contracts; Rust V1 intentionally replaces the product shape with key-based graph context retrieval.
 - `docs/architecture/node/search.md`: current search flow and owner boundaries.
 - `docs/architecture/node/editorial.md`: current derived-tag runtime/editorial split.
 
@@ -55,7 +55,7 @@ Primary TypeScript sources:
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
 | `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
 | `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores only rowid plus embedding; rowid maps back to embedding-unit metadata through `document_embedding_cache`. Full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
-| `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `links_to`, `linked_from`, graph, and rule context. |
+| `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, graph context | Required for `links_to`, `linked_from`, and key-based graph context retrieval. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
 Required Phase 3 writer outputs are therefore broader than the original minimal table list, but bounded to the non-vector runtime artifact. The writer plan must cover `packs`, side tables, metric catalogs, aliases, remaster links, and reference rows, not only `records`, `records_fts`, and `reference_edges`. Embeddings and vector rows are a cohesive Phase 4 concern. Derived-tag rows are excluded from Phase 3 until the Phase 10 redesign pass.
@@ -168,7 +168,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | browse/lookup sort specs | sort enum plus lookup policy enum | `atlas-domain` | parity | Preserve random seed support. |
 | `LookupResult` | lookup result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve safe exact-miss behavior; output can be narrower. |
 | `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
-| `RuleReferenceEdge` and graph results | `ReferenceEdge`, graph request/result structs, rule-context request/result structs | `atlas-domain` | parity semantics, Rust-owned shape | Required for rule graph and rule context. Record-reference edges stay separate from remaster same-concept bridges. |
+| `RuleReferenceEdge` and graph results | Graph context edge/result structs | `atlas-search` initially; promote only when another surface needs the same contract | Rust redesign | V1 graph context is key-based and one-hop. Rule-context request/result DTOs are not retained as Rust contracts. Record-reference edges stay separate from remaster same-concept bridges. |
 | `record_legacy_links` rows | `RemasterLink` | `atlas-domain` | rust redesign | Represents premaster/remaster records that are conceptually the same record across edition state. Direction is `remaster` to `legacy`, preserving current TS canonical-to-legacy behavior. Source is currently `remaster_journal` or `migration`; do not model renamed/merged/replaced subtypes until ingest preserves that distinction. |
 | derived-tag ontology/runtime types | redesigned tag model and filtered row model | Later `atlas-tags` with shared ids in `atlas-domain` if retained | deferred redesign | Do not port derived tags during Phase 3. Revisit them late after `record_family`, explicit source axes, and search/discovery shape have stabilized. |
 
@@ -208,8 +208,8 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 | `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
 | `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Filter-field discovery through `atlas filters fields`. |
 | `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery through `atlas filters values`. Preserve user-visible discovery capability through Rust record families and explicit metadata axes. |
-| `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Rule-context command that returns context only; it should not synthesize an answer. |
-| `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | Graph command over record keys with outgoing/backlink controls. |
+| `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Not directly ported in the first Rust graph slice. Agents should explicitly use `record resolve` or `search` to identify the key, then use graph context retrieval by key. A shortcut can be reconsidered only after real CLI usage shows the two-step workflow is too costly. |
+| `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | `atlas graph get <record-key>` over one known key with outgoing/backlink limits and edge evidence. V1 is one-hop, key-based, and retrieval-only. |
 | `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |
 | `src/tags/cli/**` scripts | Derived-tag discovery, evaluation, migration session, review, import, lint, and queue summary workflows | Tag CLI commands should preserve existing workflow semantics first. Names such as `tags review next` are only placeholders unless mapped to an existing script or approved as a new workflow. |
 
@@ -226,7 +226,7 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 
 ## Crate Ownership
 
-- `atlas-domain`: record keys, top-level category vocabulary, explicit metadata field vocabulary, search request/filter contracts, rule graph contracts, shared artifact metadata constants, common output envelope primitives when shared by multiple surfaces.
+- `atlas-domain`: record keys, top-level category vocabulary, explicit metadata field vocabulary, search request/filter contracts, shared artifact metadata constants, common output envelope primitives when shared by multiple surfaces.
 - `atlas-index`: read-only artifact opening, metadata validation, table contract validation, typed row loading, prepared SQL owners, vector table capability checks.
 - `atlas-ingest`: Foundry source loading, normalization, reference/alias resolution, canonicalization, table writers, metric catalog writer, source signature generation.
 - `atlas-embedding`: catalog-backed query/document embedding, tokenizer/model identity, reusable vector blob handling, and sqlite-vec integration helpers. BGE small is the default per ADR 0018; MiniLM remains an explicit parity and older-artifact option.
@@ -251,7 +251,7 @@ Each later phase should update a durable parity note with source revision, comma
 
 ### Rule Graph And Rule Context
 
-- `Grab` bestiary glossary/rule-context case
+- `Grab` bestiary glossary graph-context case
 - direct outgoing references for a rule
 - backlinks with default suppression and explicit include
 - ambiguous rule names

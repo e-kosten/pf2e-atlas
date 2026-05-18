@@ -132,7 +132,16 @@ fn differing_install_requires_force() -> Result<(), Box<dyn std::error::Error>> 
         ])
         .output()?;
     assert!(forced.status.success());
-    assert!(fs::read_to_string(skill_dir.join("SKILL.md"))?.contains("# PF2e Atlas CLI"));
+    let installed_skill = fs::read_to_string(skill_dir.join("SKILL.md"))?;
+    assert!(installed_skill.contains("# PF2e Atlas CLI"));
+    assert!(installed_skill.contains("atlas graph get"));
+    assert!(
+        installed_skill.contains("explicit key identification followed by graph context retrieval")
+    );
+    assert!(installed_skill.contains("actionspf2e:1kGNdIIhuglAjIp9"));
+    assert!(installed_skill.contains("spells-srd:sxQZ6yqTn0czJxVd"));
+    assert!(installed_skill.contains("conditionitems:AJh5ex99aV6VTggg"));
+    assert!(installed_skill.contains("bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4"));
 
     fs::remove_dir_all(root)?;
     Ok(())
