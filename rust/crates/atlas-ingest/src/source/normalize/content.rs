@@ -420,6 +420,7 @@ fn parse_foundry_macro(
                     raw_target: body.to_string(),
                 },
                 resolved_key: None,
+                resolved_name: None,
             },
         }],
         "compendium" => vec![ContentInline::Reference {
@@ -429,6 +430,7 @@ fn parse_foundry_macro(
                     raw_target: body.to_string(),
                 },
                 resolved_key: None,
+                resolved_name: None,
             },
         }],
         "damage" | "check" | "trait" => {

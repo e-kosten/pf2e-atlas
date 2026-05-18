@@ -186,7 +186,7 @@ struct IndexPathOptions {
 struct RecordGetOptions {
     #[arg(required = true, num_args = 1.., help = "Canonical record keys in pack:id form; this command does not resolve names")]
     keys: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, standard, or full")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
     detail: DetailLevel,
     #[arg(long, help = "Include raw source JSON with full detail output")]
     include_raw: bool,
@@ -205,7 +205,7 @@ struct RecordGetOptions {
 struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
     queries: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, standard, or full")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
     detail: DetailLevel,
     #[arg(
         long,
@@ -247,7 +247,7 @@ struct SearchOptions {
     filter_json: Option<String>,
     #[command(flatten)]
     filter_options: FilterOptions,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
     detail: DetailLevel,
     #[arg(long, default_value = "alphabetical")]
     sort: String,

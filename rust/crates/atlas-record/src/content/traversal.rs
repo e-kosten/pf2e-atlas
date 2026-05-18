@@ -180,6 +180,7 @@ mod tests {
                             raw: "term".to_string(),
                         },
                         resolved_key: None,
+                        resolved_name: None,
                     },
                 }],
                 definition: vec![ContentBlock::Paragraph {
@@ -192,12 +193,14 @@ mod tests {
                                         raw: "label".to_string(),
                                     },
                                     resolved_key: None,
+                                    resolved_name: None,
                                 },
                             }]),
                             locator: ContentReferenceLocator::Unknown {
                                 raw: "body".to_string(),
                             },
                             resolved_key: None,
+                            resolved_name: None,
                         },
                     }],
                 }],

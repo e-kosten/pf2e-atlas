@@ -22,7 +22,9 @@ pub use content::{
     build_content_section_tree, build_record_fts_projection, iter_content_references,
     render_markdown_like, render_plain_text, visit_content_references_mut,
 };
-pub use json_projection::{RecordJson, RecordJsonOptions, record_json};
+pub use json_projection::{
+    RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
+};
 pub use metrics::{
     MetricCapture, MetricDefinition, MetricDefinitionMatch, MetricDisplayLabel, MetricGroup,
     MetricKeyPattern, MetricKeySegment, MetricLabelTemplate, MetricVariableVocabulary,

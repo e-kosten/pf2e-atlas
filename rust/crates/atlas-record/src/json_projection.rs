@@ -164,17 +164,30 @@ fn sections_for_detail(
     {
         projected.push(summary);
     }
-    if detail == DetailLevel::Summary {
-        if let Some(preview) = description_preview_section(record) {
-            projected.push(preview);
+    match detail {
+        DetailLevel::Summary => {}
+        DetailLevel::Preview => {
+            if let Some(preview) = description_preview_section(record) {
+                projected.push(preview);
+            }
         }
-    } else {
-        projected.extend(
-            sections
+        DetailLevel::Description => {
+            if let Some(description) = sections
                 .iter()
-                .filter(|section| section.kind != PresentationSectionKind::Summary)
-                .filter_map(section_json),
-        );
+                .find(|section| section.kind == PresentationSectionKind::Description)
+                .and_then(section_json)
+            {
+                projected.push(description);
+            }
+        }
+        DetailLevel::Standard | DetailLevel::Full => {
+            projected.extend(
+                sections
+                    .iter()
+                    .filter(|section| section.kind != PresentationSectionKind::Summary)
+                    .filter_map(section_json),
+            );
+        }
     }
     projected
 }
@@ -274,7 +287,7 @@ mod tests {
     use crate::{ContentBlock, ContentDocument};
 
     #[test]
-    fn summary_record_json_uses_stable_shape_and_markdown_preview() {
+    fn summary_record_json_uses_stable_identity_shape() {
         let record = fixture_record();
         let json = record_json(
             &record,
@@ -294,7 +307,47 @@ mod tests {
             "actions"
         );
         assert_eq!(json.sections[0].kind, "summary");
+        assert_eq!(json.sections.len(), 1);
+    }
+
+    #[test]
+    fn preview_record_json_uses_truncated_description() {
+        let record = fixture_record();
+        let json = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Preview,
+                include_source_json: false,
+            },
+        );
+
+        assert_eq!(json.sections[0].kind, "summary");
         assert_eq!(json.sections[1].kind, "description_preview");
+    }
+
+    #[test]
+    fn description_record_json_uses_full_description_without_details() {
+        let record = fixture_record();
+        let json = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Description,
+                include_source_json: false,
+            },
+        );
+
+        assert_eq!(json.sections[0].kind, "summary");
+        assert!(
+            json.sections
+                .iter()
+                .any(|section| section.kind == "description")
+        );
+        assert!(
+            !json
+                .sections
+                .iter()
+                .any(|section| section.kind == "details")
+        );
     }
 
     #[test]
