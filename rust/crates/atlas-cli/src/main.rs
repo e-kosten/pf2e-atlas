@@ -243,6 +243,8 @@ struct FiltersFieldsOptions {
     index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -269,6 +271,8 @@ struct FiltersValuesOptions {
     index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -387,7 +391,7 @@ struct RecordResolveOptions {
     filter_options: FilterOptions,
     #[arg(
         long,
-        default_value_t = 0,
+        default_value_t = 5,
         help = "Return up to this many alternatives when a strict query is ambiguous"
     )]
     alternatives: u8,
@@ -750,7 +754,10 @@ impl Command {
                 RecordCommand::Resolve(options) => options.json,
             },
             Self::Search(options) => options.json,
-            Self::Filters(_) => true,
+            Self::Filters(filters) => match &filters.command {
+                FiltersCommand::Fields(options) => options.json,
+                FiltersCommand::Values(options) => options.json,
+            },
             Self::Agent(args) => args.uses_json(),
         }
     }
