@@ -17,7 +17,7 @@ mod progress;
 #[command(name = "atlas")]
 #[command(about = "PF2e Atlas local search and index tooling")]
 #[command(
-    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --filter-json '{\"kind\":\"pack\",\"value\":\"actionspf2e\"}'"
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack actionspf2e"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -33,7 +33,7 @@ enum Command {
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
     #[command(about = "Run Atlas search commands")]
-    Search(SearchOptions),
+    Search(Box<SearchOptions>),
 }
 
 #[derive(Debug, Args)]
@@ -110,7 +110,7 @@ enum RecordCommand {
     #[command(about = "Fetch one or more records by canonical record key")]
     Get(RecordGetOptions),
     #[command(about = "Resolve one or more strict record names or aliases")]
-    Resolve(RecordResolveOptions),
+    Resolve(Box<RecordResolveOptions>),
 }
 
 #[derive(Debug, Args)]
@@ -200,7 +200,7 @@ struct RecordGetOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --filter-json '{\"kind\":\"pack\",\"value\":\"actionspf2e\"}'\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json"
+    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json"
 )]
 struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
@@ -212,6 +212,8 @@ struct RecordResolveOptions {
         help = "Canonical SearchFilterNode JSON used to narrow strict resolution"
     )]
     filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: FilterOptions,
     #[arg(
         long,
         default_value_t = 0,
@@ -230,7 +232,7 @@ struct RecordResolveOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --filter-json '{\"kind\":\"record_family\",\"value\":\"spell\"}' --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 struct SearchOptions {
     #[arg()]
@@ -243,6 +245,8 @@ struct SearchOptions {
     offset: u32,
     #[arg(long)]
     filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: FilterOptions,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary")]
     detail: DetailLevel,
     #[arg(long, default_value = "alphabetical")]
@@ -280,6 +284,49 @@ struct SearchOptions {
     explain: bool,
     #[arg(long)]
     json: bool,
+}
+
+#[derive(Debug, Clone, Default, Args)]
+struct FilterOptions {
+    #[arg(
+        long = "family",
+        help = "Filter to records in this family; repeat for any of several families"
+    )]
+    families: Vec<String>,
+    #[arg(
+        long = "pack",
+        help = "Filter to this source pack; repeat for any of several packs"
+    )]
+    packs: Vec<String>,
+    #[arg(
+        long = "rarity",
+        help = "Filter to this rarity; repeat for any of several rarities"
+    )]
+    rarities: Vec<String>,
+    #[arg(
+        long = "source",
+        help = "Filter to this exact publication title; repeat for any of several titles"
+    )]
+    sources: Vec<String>,
+    #[arg(
+        long = "level",
+        help = "Filter to an exact level or inclusive range such as 1..5"
+    )]
+    level: Option<String>,
+    #[arg(long = "min-level", help = "Filter to records at or above this level")]
+    min_level: Option<f64>,
+    #[arg(long = "max-level", help = "Filter to records at or below this level")]
+    max_level: Option<f64>,
+    #[arg(
+        long = "trait",
+        help = "Require this trait; repeat to require all listed traits"
+    )]
+    traits: Vec<String>,
+    #[arg(
+        long = "any-trait",
+        help = "Require at least one of these traits; repeat for alternatives"
+    )]
+    any_traits: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -353,9 +400,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),
-            RecordCommand::Resolve(options) => commands::record::run_record_resolve(options),
+            RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
-        Command::Search(options) => commands::search::run_search(options),
+        Command::Search(options) => commands::search::run_search(*options),
     }
 }
 

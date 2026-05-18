@@ -2,9 +2,9 @@ use atlas_artifact::schema::{
     Column, Table, actor_records, item_records, record_traits, records, spell_records,
 };
 use atlas_domain::metadata::{
-    BooleanOperator, CollectionOperator, MetadataBooleanField, MetadataEnumStringField,
-    MetadataNumberField, MetadataPredicate, MetadataSetField, MetadataTextStringField,
-    NumberOperator, StringOperator, TextOperator,
+    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+    MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField,
 };
 
 use super::FilterCompiler;
@@ -20,27 +20,20 @@ impl FilterCompiler {
         predicate: &MetadataPredicate,
     ) -> Result<String, FilterCompileError> {
         match predicate {
-            MetadataPredicate::Set { field, op, value } => {
-                self.metadata_set_predicate(*field, *op, value.as_deref())
+            MetadataPredicate::Set { field, r#match } => {
+                self.metadata_set_predicate(*field, r#match)
             }
-            MetadataPredicate::EnumString {
-                field,
-                op,
-                value,
-                values,
-            } => self.metadata_enum_predicate(*field, *op, value.as_deref(), values.as_deref()),
-            MetadataPredicate::Text { field, op, value } => {
-                self.metadata_text_predicate(*field, *op, value.as_deref())
+            MetadataPredicate::EnumString { field, r#match } => {
+                self.metadata_enum_predicate(*field, r#match)
             }
-            MetadataPredicate::Number {
-                field,
-                op,
-                value,
-                min,
-                max,
-            } => self.metadata_number_predicate(*field, *op, *value, *min, *max),
-            MetadataPredicate::Boolean { field, op, value } => {
-                self.metadata_boolean_predicate(*field, *op, *value)
+            MetadataPredicate::Text { field, r#match } => {
+                self.metadata_text_predicate(*field, r#match)
+            }
+            MetadataPredicate::Number { field, r#match } => {
+                self.metadata_number_predicate(*field, *r#match)
+            }
+            MetadataPredicate::Boolean { field, r#match } => {
+                self.metadata_boolean_predicate(*field, *r#match)
             }
         }
     }
@@ -48,8 +41,7 @@ impl FilterCompiler {
     fn metadata_set_predicate(
         &mut self,
         field: MetadataSetField,
-        op: CollectionOperator,
-        value: Option<&str>,
+        r#match: &MetadataSetMatch,
     ) -> Result<String, FilterCompileError> {
         let set = match field {
             MetadataSetField::Traits => SetStorage::Rows {
@@ -70,8 +62,7 @@ impl FilterCompiler {
             },
             MetadataSetField::DamageTypes => {
                 return self.multi_json_side_table_set(
-                    op,
-                    value,
+                    r#match,
                     &[
                         (
                             item_records::TABLE,
@@ -121,47 +112,40 @@ impl FilterCompiler {
                 });
             }
         };
-        self.set_predicate(set, op, value)
+        self.set_predicate(set, r#match)
     }
 
     fn set_predicate(
         &mut self,
         set: SetStorage,
-        op: CollectionOperator,
-        value: Option<&str>,
+        r#match: &MetadataSetMatch,
     ) -> Result<String, FilterCompileError> {
-        match op {
-            CollectionOperator::Includes => {
-                let value = value.ok_or_else(|| FilterCompileError::MissingValue {
-                    filter: "metadata.set.includes".to_string(),
-                    value: "value".to_string(),
-                })?;
-                Ok(match set {
-                    SetStorage::Rows {
-                        table,
-                        key_column,
-                        value_column,
-                    } => format!(
-                        "EXISTS (SELECT 1 FROM {table} s WHERE {key_column} = {record_key} AND {value_column} = {})",
-                        self.text(value),
-                        table = table.name(),
-                        key_column = aliased_column("s", key_column),
-                        record_key = record_column(records::columns::RECORD_KEY),
-                        value_column = aliased_column("s", value_column),
-                    ),
-                    SetStorage::JsonColumn(column) => {
-                        json_array_contains_sql(&record_column(column), &self.text(value))
-                    }
-                    SetStorage::JsonSideTable { table, column } => format!(
-                        "EXISTS (SELECT 1 FROM {table} s WHERE {side_record_key} = {record_key} AND {})",
-                        json_array_contains_sql(&aliased_column("s", column), &self.text(value)),
-                        table = table.name(),
-                        side_record_key = aliased_column("s", record_key_column(table)),
-                        record_key = record_column(records::columns::RECORD_KEY),
-                    ),
-                })
-            }
-            CollectionOperator::IsNull => Ok(match set {
+        match r#match {
+            MetadataSetMatch::Includes { value } => Ok(match set {
+                SetStorage::Rows {
+                    table,
+                    key_column,
+                    value_column,
+                } => format!(
+                    "EXISTS (SELECT 1 FROM {table} s WHERE {key_column} = {record_key} AND {value_column} = {})",
+                    self.text(value),
+                    table = table.name(),
+                    key_column = aliased_column("s", key_column),
+                    record_key = record_column(records::columns::RECORD_KEY),
+                    value_column = aliased_column("s", value_column),
+                ),
+                SetStorage::JsonColumn(column) => {
+                    json_array_contains_sql(&record_column(column), &self.text(value))
+                }
+                SetStorage::JsonSideTable { table, column } => format!(
+                    "EXISTS (SELECT 1 FROM {table} s WHERE {side_record_key} = {record_key} AND {})",
+                    json_array_contains_sql(&aliased_column("s", column), &self.text(value)),
+                    table = table.name(),
+                    side_record_key = aliased_column("s", record_key_column(table)),
+                    record_key = record_column(records::columns::RECORD_KEY),
+                ),
+            }),
+            MetadataSetMatch::IsNull => Ok(match set {
                 SetStorage::Rows {
                     table, key_column, ..
                 } => format!(
@@ -179,7 +163,7 @@ impl FilterCompiler {
                     record_key = record_column(records::columns::RECORD_KEY),
                 ),
             }),
-            CollectionOperator::IsNotNull => Ok(match set {
+            MetadataSetMatch::IsNotNull => Ok(match set {
                 SetStorage::Rows {
                     table, key_column, ..
                 } => {
@@ -206,8 +190,7 @@ impl FilterCompiler {
 
     fn multi_json_side_table_set(
         &mut self,
-        op: CollectionOperator,
-        value: Option<&str>,
+        r#match: &MetadataSetMatch,
         tables: &[(Table, Column)],
     ) -> Result<String, FilterCompileError> {
         let predicates = tables
@@ -218,15 +201,14 @@ impl FilterCompiler {
                         table: *table,
                         column: *column,
                     },
-                    op,
-                    value,
+                    r#match,
                 )
                 .map(|sql| format!("({sql})"))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let joiner = match op {
-            CollectionOperator::IsNull => " AND ",
-            CollectionOperator::Includes | CollectionOperator::IsNotNull => " OR ",
+        let joiner = match r#match {
+            MetadataSetMatch::IsNull => " AND ",
+            MetadataSetMatch::Includes { .. } | MetadataSetMatch::IsNotNull => " OR ",
         };
         Ok(predicates.join(joiner))
     }
@@ -234,11 +216,10 @@ impl FilterCompiler {
     fn metadata_enum_predicate(
         &mut self,
         field: MetadataEnumStringField,
-        op: StringOperator,
-        value: Option<&str>,
-        values: Option<&[String]>,
+        r#match: &MetadataStringMatch,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
+            MetadataEnumStringField::PackName => records::columns::PACK_NAME,
             MetadataEnumStringField::PublicationFamily => records::columns::PUBLICATION_FAMILY,
             MetadataEnumStringField::Size => actor_records::columns::SIZE,
             MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
@@ -252,15 +233,14 @@ impl FilterCompiler {
             MetadataEnumStringField::VariantGroupKey => records::columns::VARIANT_GROUP_KEY,
         };
         self.with_field_source(column, |compiler, qualified_column| {
-            compiler.string_operator(qualified_column, op, value, values)
+            compiler.string_operator(qualified_column, r#match)
         })
     }
 
     fn metadata_text_predicate(
         &mut self,
         field: MetadataTextStringField,
-        op: TextOperator,
-        value: Option<&str>,
+        r#match: &MetadataTextMatch,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
             MetadataTextStringField::PublicationTitle => records::columns::PUBLICATION_TITLE,
@@ -272,17 +252,14 @@ impl FilterCompiler {
             MetadataTextStringField::VariantLabel => records::columns::VARIANT_LABEL,
         };
         self.with_field_source(column, |compiler, qualified_column| {
-            compiler.text_operator(qualified_column, op, value)
+            compiler.text_operator(qualified_column, r#match)
         })
     }
 
     fn metadata_number_predicate(
         &mut self,
         field: MetadataNumberField,
-        op: NumberOperator,
-        value: Option<f64>,
-        min: Option<f64>,
-        max: Option<f64>,
+        r#match: MetadataNumberMatch,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
             MetadataNumberField::Level => records::columns::LEVEL,
@@ -298,15 +275,14 @@ impl FilterCompiler {
             }
         };
         self.with_field_source(column, |compiler, qualified_column| {
-            compiler.number_operator(qualified_column, op, value, min, max)
+            compiler.number_operator(qualified_column, r#match)
         })
     }
 
     fn metadata_boolean_predicate(
         &mut self,
         field: MetadataBooleanField,
-        op: BooleanOperator,
-        value: Option<bool>,
+        r#match: MetadataBooleanMatch,
     ) -> Result<String, FilterCompileError> {
         let column = match field {
             MetadataBooleanField::PublicationRemaster => records::columns::PUBLICATION_REMASTER,
@@ -315,7 +291,7 @@ impl FilterCompiler {
             MetadataBooleanField::IsComplex => actor_records::columns::IS_COMPLEX,
         };
         self.with_field_source(column, |compiler, qualified_column| {
-            compiler.boolean_operator(qualified_column, op, value)
+            compiler.boolean_operator(qualified_column, r#match)
         })
     }
 

@@ -11,10 +11,9 @@ pub mod search_request;
 pub use categories::RecordFamily;
 pub use detail::DetailLevel;
 pub use metadata::{
-    BooleanOperator, CollectionOperator, EqualityOperator, MetadataBooleanField,
-    MetadataEnumStringField, MetadataNumberField, MetadataPredicate, MetadataSetField,
-    MetadataTextStringField, MetricOperator, NullOperator, NumberOperator, NumericMetricOperator,
-    OrderingOperator, StringOperator, TextOperator,
+    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+    MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField, NumericMetricOperator,
 };
 pub use record::{
     ActionCost, Level, MetricDomain, MetricValueType, Publication, PublicationFamily, Rarity,
@@ -27,6 +26,7 @@ pub use rule_graph::{
     RuleGraphRequest, RuleGraphResult,
 };
 pub use search_request::{
-    BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, NullableNumericMatch,
-    NullableStringMatch, NumericMatch, ScalarValue, SearchFilterNode, SearchProfile, SearchRequest,
+    BrowseSortSpec, LookupSortKind, LookupSortPolicy, LookupSortSpec, MetricMatch,
+    NullableNumericMatch, NullableStringMatch, NumericMatch, ScalarValue, SearchFilterNode,
+    SearchFilterValidationError, SearchFusionMethod, SearchRequest, SearchRetrievalMode,
 };

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 
-use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_domain::RecordKey;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{RecordResolutionResult, SearchError};
@@ -9,6 +9,8 @@ use serde::Serialize;
 
 use crate::output::{CliError, write_json_data, write_json_error};
 use crate::{RecordGetOptions, RecordResolveOptions};
+
+use super::filters::build_filter;
 
 const MAX_GET_KEYS: usize = 100;
 const MAX_RESOLVE_QUERIES: usize = 25;
@@ -223,13 +225,13 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
             format!("record resolve accepts at most {MAX_RESOLVE_QUERIES} queries"),
         );
     }
-    let filter = match parse_filter(options.filter_json.as_deref()) {
+    let (filter, _) = match build_filter(options.filter_json.as_deref(), &options.filter_options) {
         Ok(filter) => filter,
         Err(error) if options.json => {
-            write_json_error("invalid_filter_json", error)?;
+            write_json_error(error.code, error.message)?;
             return Ok(ExitCode::from(2));
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(error.message),
     };
     let runtime = match record_runtime(options.path_mode.into(), options.index) {
         Ok(runtime) => runtime,
@@ -390,15 +392,6 @@ fn resolution_json(
         alias_source: full.then(|| resolution.alias_source.clone()).flatten(),
         alias_source_ref: full.then(|| resolution.alias_source_ref.clone()).flatten(),
     }
-}
-
-fn parse_filter(filter_json: Option<&str>) -> Result<Option<SearchFilterNode>, String> {
-    filter_json
-        .map(|filter_json| {
-            serde_json::from_str::<SearchFilterNode>(filter_json)
-                .map_err(|error| format!("failed to parse --filter-json: {error}"))
-        })
-        .transpose()
 }
 
 fn print_single_record(record: &atlas_record::RecordJson) {

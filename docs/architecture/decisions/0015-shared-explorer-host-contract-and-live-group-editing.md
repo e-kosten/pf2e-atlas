@@ -45,7 +45,7 @@ In practice this means:
 - field-edit classification uses semantic route intents and a shared route catalog; TUI picker rows are display/session data and do not select route behavior
 - scope is a root-singleton leaf route, and query-state normalization prunes scope-dependent metadata, metric, and action-cost clauses when the category changes
 - metric key discovery is an ordinary leaf child surface rather than a fallback edit route
-- `linksTo` and `linkedFrom` remain canonical record-link leaves and are edited as executable leaf routes when surfaced by the structured editor
+- `links_to` and `linked_from` remain canonical record-link leaves and are edited as executable leaf routes when surfaced by the structured editor
 - generic draft/query helpers below the explorer seam may emit generic replace or insert outputs for prompt-local or select-target child surfaces, but structured-editor shared-explorer writeback requires an explicit host mutation builder instead of treating generic serialization as the default
 - a dedicated search-specific tree editor may remain above the shared explorer layer when it acts as a live host surface over canonical query state rather than reviving a separate staged query model
 - broad group-level staged draft editing should not be the primary model for search-group refinement

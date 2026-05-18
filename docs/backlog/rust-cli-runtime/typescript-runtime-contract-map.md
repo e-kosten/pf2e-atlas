@@ -55,7 +55,7 @@ Primary TypeScript sources:
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
 | `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
 | `record_embeddings` | sqlite-vec virtual table with filter partition columns | rust redesign as `record_vector_index` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector access, `atlas-search` | Preserve vector retrieval behavior but use the clearer Rust-owned physical table name `record_vector_index`. The Rust baseline stores only rowid plus embedding; rowid maps back to embedding-unit metadata through `document_embedding_cache`. Full filters are applied through authoritative SQL keyset prefiltering. Not a Phase 3 writer requirement. |
-| `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `linksTo`, `linkedFrom`, graph, and rule context. |
+| `reference_edges` | Extracted exact record references and backlink source facts | parity | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search`, rule graph | Required for `links_to`, `linked_from`, graph, and rule context. |
 | `records_fts` | SQLite FTS5 lexical index | parity | `atlas-index`, `atlas-ingest`, `atlas-search` | First Rust search baseline remains SQLite-centered. |
 
 Required Phase 3 writer outputs are therefore broader than the original minimal table list, but bounded to the non-vector runtime artifact. The writer plan must cover `packs`, side tables, metric catalogs, aliases, remaster links, and reference rows, not only `records`, `records_fts`, and `reference_edges`. Embeddings and vector rows are a cohesive Phase 4 concern. Derived-tag rows are excluded from Phase 3 until the Phase 10 redesign pass.
@@ -78,7 +78,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 | `metric_key_catalog` and `metric_value_catalog` are derived after all record writes | Correct today, but easy for future writers to forget | Make metric catalog writing a required artifact stage with validation that catalog rows match metric rows for canonical records. |
 | `record_embeddings` duplicates many filter columns already present in `records`/side tables | Useful for sqlite-vec partition filtering, but can drift from source rows | Rust replaces this with keyset-prefiltered semantic search over `record_vector_index`. Do not add vector-side filter projection columns to the baseline. If performance testing later adds vec metadata or partition columns, treat them as accelerators generated from authoritative rows with drift validation. |
 | Sentinel values in sqlite-vec partition columns use empty string and `-1` | Necessary for vec metadata constraints, but semantically lossy | Rust avoids sentinels in the baseline by keeping `record_vector_index` key-and-vector only. If future performance accelerators add vec metadata columns, sentinels must remain hidden behind `atlas-index` helpers and never appear as domain/search values. |
-| `reference_edges` has generic reference rows but no explicit relationship enum beyond source/target and text | Adequate for current `linksTo`/`linkedFrom`, but may blur rules, page links, aliases, and generated references later | Add a Rust relationship/source-kind enum before expanding graph behavior. Preserve current `references` semantics for parity, but leave room for typed relationship classes. |
+| `reference_edges` has generic reference rows but no explicit relationship enum beyond source/target and text | Adequate for current `links_to`/`linked_from`, but may blur rules, page links, aliases, and generated references later | Add a Rust relationship/source-kind enum before expanding graph behavior. Preserve current `references` semantics for parity, but leave room for typed relationship classes. |
 | Current TS `record_legacy_links` is a real table beside canonical aliases | The concept is useful for PF2E remaster navigation, but the current name makes it sound like generic compatibility | Keep the concept as `remaster_links` or edition links. Rust lookup should prefer canonical keys and aliases, while record detail can expose explicit remaster bridge relationships. |
 | Search canonicality is stored as `is_search_canonical` | Necessary for variants/generated records, but easy to misuse | Rust stores the first policy projection as `is_default_visible`, meaning participation in default user-facing retrieval surfaces. Records remain addressable by direct key, links, and inspection when this is false. Decide later whether generated afflictions, variants, and aliases need a richer policy enum. |
 | FTS text is stored as `search_text` on `records` and repeated in `records_fts` | Practical for ranking/debugging, but duplicated | Keep for first parity. Rust writer should generate both from a single search-text artifact and validate row-key coverage. |
@@ -87,7 +87,7 @@ The TypeScript schema is a reliable inventory of current behavior, but it should
 ### Rust Type Principles For The Migration
 
 - Use newtypes for identifiers: `RecordKey`, `PackName`, `RecordId`, `MetricKey`, `SourceSignature`.
-- Use enums for closed vocabularies: `record_family`, publication family, rarity when normalized, search mode, search profile, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
+- Use enums for closed vocabularies: `record_family`, publication family, rarity when normalized, search mode, retrieval mode, fusion method, sort kind, filter node kind, text status, detail level, and explicit source-backed axes such as document type or record type when they are useful filters.
 - Do not preserve TypeScript subcategory as a Rust field, enum, scope member, or compatibility projection. If a candidate axis is fully derived from traits, keep it as trait filtering. If multiple source facts produce one useful filter signal, collapse them into a clearly named metadata field.
 - Use typed side-data structs for actor, item, spell, publication, and variant facts. Embedding identity belongs to Phase 4 embedding/vector artifact contracts.
 - Keep open PF2E/provider-defined values as validated strings with clear owners rather than pretending they are closed enums.
@@ -164,7 +164,7 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 | `SearchFilterNode` | recursive enum | `atlas-domain` | parity semantics, Rust-owned shape | Exhaustive matching should force downstream search handling. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
 | metadata fields and predicates | field enum by kind plus predicate enum | `atlas-domain` | parity semantics, Rust-owned shape | Preserve operator semantics by field type. Core serde uses Rust-owned canonical names; TS compatibility belongs in an adapter. |
 | metric predicates | metric predicate structs/enums | `atlas-domain` | parity | Keep metric key as string initially; catalog discovery owns valid values. |
-| `SearchProfile` | enum: lexical/balanced/concept | `atlas-domain` or `atlas-search` | parity | Search execution owns meaning; domain may own wire value. |
+| Search retrieval and fusion controls | retrieval enum plus fusion options | `atlas-domain` / `atlas-search` | rust redesign | Rust does not carry the Node-era lexical/balanced/concept profile vocabulary as the normal product model. Domain owns explicit `retrieval` values and search owns fusion behavior. |
 | browse/lookup sort specs | sort enum plus lookup policy enum | `atlas-domain` | parity | Preserve random seed support. |
 | `LookupResult` | lookup result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve safe exact-miss behavior; output can be narrower. |
 | `SearchResult` | search result envelope | `atlas-domain` or `atlas-cli` | parity | Preserve total/offset/limit/hasMore semantics. |
@@ -204,7 +204,7 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 | `pf2e_get_records_by_key` | Batch canonical-key fetch with detail selection | Batch key input for `atlas record get` or a stable JSON input mode with current detail semantics. |
 | `pf2e_list_packs` | Pack list, labels, document types, record counts, and startup warnings | Pack list command if CLI replaces the full MCP discovery surface. |
 | `pf2e_get_pack_metadata` | Metadata for one pack by name or label | Pack metadata command if pack discovery remains user-facing. |
-| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query/profile/exclude/filter semantics. Strong name and verified-alias matches should rank ahead of broader lexical or semantic matches. |
+| `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query, exclude, retrieval/fusion controls, and filters. Strong name and verified-alias matches should rank ahead of broader FTS or vector matches. |
 | `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
 | `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Search/schema discovery command such as `atlas schema search-filters`. |
 | `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. Preserve user-visible discovery capability through Rust category and explicit metadata axes. |
@@ -269,10 +269,10 @@ Each later phase should update a durable parity note with source revision, comma
 
 - browse category with alphabetical, level ascending, level descending, and random seed sorts
 - lexical search with `search.exclude`
-- balanced hybrid search for a known concept query
-- concept profile query from the search-quality bakeoff
-- structured filter with `linksTo`
-- structured filter with `linkedFrom`
+- hybrid retrieval for a known concept query
+- vector retrieval for a search-quality bakeoff concept query
+- structured filter with `links_to`
+- structured filter with `linked_from`
 - metadata predicate and metric predicate filters
 
 ### Derived-Tag Runtime And Editorial Redesign

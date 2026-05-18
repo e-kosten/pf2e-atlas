@@ -2,7 +2,7 @@ use atlas_artifact::schema::{
     Column, Table, actor_records, item_records, record_metrics, record_traits, records,
     spell_records,
 };
-use atlas_domain::MetricOperator;
+use atlas_domain::NumericMetricOperator;
 use rusqlite::types::Value;
 
 pub(super) const RECORDS_ALIAS: &str = "r";
@@ -41,14 +41,14 @@ pub(super) fn aliased_column(alias: &str, column: Column) -> String {
     format!("{alias}.{}", column.name())
 }
 
-pub(super) fn metric_operator_sql(op: MetricOperator) -> &'static str {
+pub(super) fn metric_operator_sql(op: NumericMetricOperator) -> &'static str {
     match op {
-        MetricOperator::Eq => "=",
-        MetricOperator::NotEq => "<>",
-        MetricOperator::Gt => ">",
-        MetricOperator::Gte => ">=",
-        MetricOperator::Lt => "<",
-        MetricOperator::Lte => "<=",
+        NumericMetricOperator::Eq => "=",
+        NumericMetricOperator::NotEq => "<>",
+        NumericMetricOperator::Gt => ">",
+        NumericMetricOperator::Gte => ">=",
+        NumericMetricOperator::Lt => "<",
+        NumericMetricOperator::Lte => "<=",
     }
 }
 

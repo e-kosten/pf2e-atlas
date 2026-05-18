@@ -22,6 +22,7 @@ pub enum MetadataSetField {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetadataEnumStringField {
+    PackName,
     PublicationFamily,
     Size,
     Usage,
@@ -73,119 +74,83 @@ pub enum MetadataBooleanField {
 pub enum MetadataPredicate {
     Set {
         field: MetadataSetField,
-        op: CollectionOperator,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        #[serde(rename = "match")]
+        r#match: MetadataSetMatch,
     },
     EnumString {
         field: MetadataEnumStringField,
-        op: StringOperator,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        values: Option<Vec<String>>,
+        #[serde(rename = "match")]
+        r#match: MetadataStringMatch,
     },
     Text {
         field: MetadataTextStringField,
-        op: TextOperator,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        #[serde(rename = "match")]
+        r#match: MetadataTextMatch,
     },
     Number {
         field: MetadataNumberField,
-        op: NumberOperator,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        min: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        max: Option<f64>,
+        #[serde(rename = "match")]
+        r#match: MetadataNumberMatch,
     },
     Boolean {
         field: MetadataBooleanField,
-        op: BooleanOperator,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<bool>,
+        #[serde(rename = "match")]
+        r#match: MetadataBooleanMatch,
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EqualityOperator {
-    Eq,
-    NotEq,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MetadataSetMatch {
+    Includes { value: String },
+    IsNull,
+    IsNotNull,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MetadataStringMatch {
+    Eq { value: String },
+    NotEq { value: String },
+    IsNull,
+    IsNotNull,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MetadataTextMatch {
+    Eq { value: String },
+    NotEq { value: String },
+    Contains { value: String },
+    NotContains { value: String },
+    IsNull,
+    IsNotNull,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MetadataNumberMatch {
+    Eq { value: f64 },
+    Gt { value: f64 },
+    Gte { value: f64 },
+    Lt { value: f64 },
+    Lte { value: f64 },
+    Between { min: f64, max: f64 },
+    IsNull,
+    IsNotNull,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OrderingOperator {
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum NullOperator {
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MetadataBooleanMatch {
+    Eq { value: bool },
     IsNull,
     IsNotNull,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CollectionOperator {
-    Includes,
-    IsNull,
-    IsNotNull,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StringOperator {
-    Eq,
-    NotEq,
-    In,
-    NotIn,
-    IsNull,
-    IsNotNull,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TextOperator {
-    Eq,
-    NotEq,
-    Contains,
-    NotContains,
-    IsNull,
-    IsNotNull,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum NumberOperator {
-    Eq,
-    Gt,
-    Gte,
-    Lt,
-    Lte,
-    Between,
-    IsNull,
-    IsNotNull,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BooleanOperator {
-    Eq,
-    IsNull,
-    IsNotNull,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MetricOperator {
+pub enum NumericMetricOperator {
     Eq,
     NotEq,
     Gt,
@@ -193,5 +158,3 @@ pub enum MetricOperator {
     Lt,
     Lte,
 }
-
-pub type NumericMetricOperator = MetricOperator;

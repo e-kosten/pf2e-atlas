@@ -1,5 +1,5 @@
 use atlas_artifact::schema::{record_metrics, records};
-use atlas_domain::{MetricOperator, ScalarValue};
+use atlas_domain::{MetricMatch, NumericMetricOperator, ScalarValue};
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
@@ -9,30 +9,37 @@ impl FilterCompiler {
     pub(super) fn metric_predicate(
         &mut self,
         metric: &str,
-        op: MetricOperator,
-        value: &ScalarValue,
+        r#match: &MetricMatch,
     ) -> Result<String, FilterCompileError> {
+        let (operator, value) = match r#match {
+            MetricMatch::Eq { value } => ("=", value.clone()),
+            MetricMatch::NotEq { value } => ("<>", value.clone()),
+            MetricMatch::Gt { value } => (">", ScalarValue::Number(*value)),
+            MetricMatch::Gte { value } => (">=", ScalarValue::Number(*value)),
+            MetricMatch::Lt { value } => ("<", ScalarValue::Number(*value)),
+            MetricMatch::Lte { value } => ("<=", ScalarValue::Number(*value)),
+        };
         let metric_param = self.text(metric);
         let (value_type, column, value_param) = match value {
             ScalarValue::String(value) => (
                 "text",
                 aliased_column("m", record_metrics::columns::TEXT_VALUE),
-                self.text(value),
+                self.text(&value),
             ),
             ScalarValue::Number(value) => (
                 "number",
                 aliased_column("m", record_metrics::columns::NUMBER_VALUE),
-                self.number(*value),
+                self.number(value),
             ),
             ScalarValue::Boolean(value) => (
                 "boolean",
                 aliased_column("m", record_metrics::columns::BOOL_VALUE),
-                self.boolean(*value),
+                self.boolean(value),
             ),
         };
         Ok(format!(
             "EXISTS (SELECT 1 FROM {table} m WHERE {metric_record_key} = {record_key} AND {metric_key} = {metric_param} AND {metric_value_type} = '{value_type}' AND {column} {} {value_param})",
-            metric_operator_sql(op),
+            operator,
             table = record_metrics::TABLE.name(),
             metric_record_key = aliased_column("m", record_metrics::columns::RECORD_KEY),
             record_key = record_column(records::columns::RECORD_KEY),
@@ -44,7 +51,7 @@ impl FilterCompiler {
     pub(super) fn metric_compare_predicate(
         &mut self,
         left_metric: &str,
-        op: MetricOperator,
+        op: NumericMetricOperator,
         right_metric: &str,
     ) -> Result<String, FilterCompileError> {
         Ok(format!(

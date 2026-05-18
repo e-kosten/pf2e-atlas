@@ -15,6 +15,8 @@ use tracing::info;
 use crate::output::{write_json_data, write_json_error};
 use crate::{CliFusionMethod, SearchOptions};
 
+use super::filters::build_filter;
+
 const MAX_LIMIT: u32 = 100;
 
 #[derive(Debug, Serialize)]
@@ -122,47 +124,16 @@ struct SearchExplainJson {
 }
 
 pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
-    let filter_value = options
-        .filter_json
-        .as_deref()
-        .map(|filter_json| {
-            serde_json::from_str::<Value>(filter_json).map_err(|error| {
-                if options.json {
-                    let _ = write_json_error(
-                        "invalid_filter_json",
-                        format!("failed to parse --filter-json: {error}"),
-                    );
-                }
-                format!("failed to parse --filter-json: {error}")
-            })
-        })
-        .transpose();
-    let filter_value = match filter_value {
-        Ok(filter_value) => filter_value,
-        Err(_) if options.json => return Ok(ExitCode::from(2)),
-        Err(error) => return Err(error),
-    };
     let limit = options.limit.clamp(1, MAX_LIMIT);
-    let filter = options
-        .filter_json
-        .as_deref()
-        .map(|filter_json| {
-            serde_json::from_str::<SearchFilterNode>(filter_json).map_err(|error| {
-                if options.json {
-                    let _ = write_json_error(
-                        "invalid_filter_json",
-                        format!("failed to parse --filter-json: {error}"),
-                    );
-                }
-                format!("failed to parse --filter-json: {error}")
-            })
-        })
-        .transpose();
-    let filter = match filter {
-        Ok(filter) => filter,
-        Err(_) if options.json => return Ok(ExitCode::from(2)),
-        Err(error) => return Err(error),
-    };
+    let (filter, filter_value) =
+        match build_filter(options.filter_json.as_deref(), &options.filter_options) {
+            Ok(filter) => filter,
+            Err(error) if options.json => {
+                write_json_error(error.code, error.message)?;
+                return Ok(ExitCode::from(2));
+            }
+            Err(error) => return Err(error.message),
+        };
 
     if let Some(query) = options.query.clone() {
         return run_ranked_text_search(options, &query, filter.as_ref(), filter_value, limit);
@@ -516,10 +487,43 @@ fn print_search_results(data: &SearchData) {
         "showing {} of {} records",
         data.pagination.count, data.pagination.total
     );
+    let key_width = data
+        .results
+        .iter()
+        .map(|result| result.record.key.len())
+        .max()
+        .unwrap_or("key".len())
+        .max("key".len());
+    let family_width = data
+        .results
+        .iter()
+        .map(|result| result.record.record_family.len())
+        .max()
+        .unwrap_or("type".len())
+        .max("type".len());
+    println!(
+        "{:<key_width$}  {:<family_width$}  name",
+        "key",
+        "type",
+        key_width = key_width,
+        family_width = family_width
+    );
+    println!(
+        "{:-<key_width$}  {:-<family_width$}  {:-<4}",
+        "",
+        "",
+        "",
+        key_width = key_width,
+        family_width = family_width
+    );
     for result in &data.results {
         println!(
-            "{}\t{}\t{}",
-            result.record.key, result.record.name, result.record.record_family
+            "{:<key_width$}  {:<family_width$}  {}",
+            result.record.key,
+            result.record.record_family,
+            result.record.name,
+            key_width = key_width,
+            family_width = family_width
         );
     }
 }

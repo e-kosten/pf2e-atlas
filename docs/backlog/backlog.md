@@ -61,7 +61,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Shape the intended search-page navigation model before making deeper changes to an interaction flow that works but does not yet feel right. Status: proposed.
 
 - [LinkedFrom query editor follow-through](./items/linked-from-query-editor-follow-through.md)
-  Preserve the optional query-editor and TUI presentation follow-through for `linkedFrom` after the canonical contract work lands for entity-page backlinks. Status: proposed.
+  Preserve the optional query-editor and TUI presentation follow-through for `linked_from` after the canonical contract work lands for entity-page backlinks. Status: proposed.
 
 - [Reference edge extraction expansion](./items/reference-edge-extraction-expansion.md)
   Preserve the follow-up to widen `reference_edges` beyond the current UUID-centered extraction path without blocking the active entity-page work. Status: proposed.
