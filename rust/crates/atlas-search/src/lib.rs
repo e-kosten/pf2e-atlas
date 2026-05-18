@@ -291,7 +291,6 @@ impl AtlasRetrievalService {
         index: AtlasIndex,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
-        index.validate_vector_index()?;
         Ok(Self {
             embedder: Some(load_embedder(embedding_config)?),
             index,

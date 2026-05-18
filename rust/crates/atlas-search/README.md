@@ -2,7 +2,7 @@
 
 `atlas-search` owns product-facing retrieval orchestration for the Rust runtime.
 
-This crate coordinates validated index handles, query embedding, vector/lexical retrieval, result assembly, ranking modes, and future retrieval patterns behind `AtlasRetrievalService`.
+This crate coordinates read-only index handles, query embedding, vector/lexical retrieval, result assembly, ranking modes, and future retrieval patterns behind `AtlasRetrievalService`.
 
 ## Owns
 
