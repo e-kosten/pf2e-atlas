@@ -11,7 +11,7 @@ flowchart TD
     source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
     ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
 
-    cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes"] --> runtime["atlas-runtime<br/>path and setup policy"]
+    cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"] --> runtime["atlas-runtime<br/>path and setup policy"]
     runtime --> search["atlas-search<br/>AtlasRetrievalService"]
     runtime --> index["atlas-index<br/>AtlasIndex read handle"]
 
@@ -55,7 +55,7 @@ flowchart TD
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService`, lexical/semantic composition, vector-hit collapse, and search ranking modes over validated index handles. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions. |
 | `atlas-runtime` | Repo/user path resolution, setup policy, setup readiness and repair orchestration, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization, CLI JSON projection. |
-| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, and exit codes. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
+| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, exit codes, and agent skill installation. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
 | `atlas-sqlite-vec` | Unsafe sqlite-vec extension registration and capability boundary. | Domain/search logic or artifact metadata interpretation. |
 
 ## Ingest And Artifact Flow

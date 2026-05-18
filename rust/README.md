@@ -67,6 +67,22 @@ atlas filters values --field metric --family creature --metric-label save
 
 Filter discovery commands always emit the standard JSON envelope. They share the normal filter flags for family, rarity, trait, level, price, publication title, pack name, pack label, and reference narrowing. Metric predicates for narrowing can be expressed with `--filter-json`; `filters values --field metric` reserves `--metric` for selecting the metric key or exact known metric label to inspect.
 
+## Agent Skills
+
+The CLI includes a first-party PF2e Atlas skill package for local coding agents. Inspect install readiness with:
+
+```bash
+atlas agent skills doctor --json
+```
+
+Install into the current workspace with:
+
+```bash
+atlas agent skills install --target agents --scope workspace --yes --json
+```
+
+Supported targets are `agents`, `claude`, `codex`, `copilot`, `gemini`, and `kiro`. Supported scopes are `workspace` and `global`. Without explicit `--target`, `--scope`, and `--yes`, an interactive terminal uses a small picker flow. Existing skill directories are only overwritten with confirmation in the picker or with `--force` in non-interactive mode. Installed Atlas-managed skills include an `.atlas-skill.json` manifest with the package content hash used by doctor and install.
+
 Manual artifact build remains available for development and diagnostics:
 
 ```bash

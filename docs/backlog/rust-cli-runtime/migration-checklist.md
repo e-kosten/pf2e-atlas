@@ -339,7 +339,7 @@ Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discov
 - [x] Add actor metric discovery.
 - [x] Add spell metadata discovery.
 - [x] Add examples in `rust/README.md`.
-- [x] Add production Codex skill snippets once commands stabilize.
+- [x] Add initial CLI skill snippets once commands stabilize.
 - [x] Add fixture-backed regression tests for filter discovery output.
 
 Acceptance:
@@ -366,16 +366,13 @@ Goal: make the Rust CLI the default local agent interface.
 - [ ] Add `--index` and config lookup.
 - [ ] Add source-signature, embedding-mismatch, and incompatible-artifact diagnostics.
 - [ ] Add command golden tests.
-- [ ] Add a production Codex skill for PF2e Atlas CLI workflows.
-- [ ] Include command-choice rules:
-  - [ ] `record get` for exact record keys
-  - [ ] `record resolve` for strict names and verified aliases
-  - [ ] `search` for result sets, including text queries and filter-only listing
-  - [ ] `--retrieval` for FTS, vector, or hybrid retrieval tuning
-  - [ ] rule-context for rules answers
-  - [ ] schema/filters for discovery
-- [ ] Re-run the CLI-vs-MCP evaluation tasks.
-- [ ] Decide whether CLI plus skill graduates from `adjust` to `keep`.
+- [x] Add a first-party PF2e Atlas CLI agent skill package with durable install and doctor commands.
+- [x] Include command-choice rules:
+  - [x] `record get` for exact record keys
+  - [x] `record resolve` for strict names and verified aliases
+  - [x] `search` for result sets, including text queries and filter-only listing
+  - [x] `--retrieval` for FTS, vector, or hybrid retrieval tuning
+  - [x] schema/filters for discovery
 
 Acceptance:
 - Local agents can complete the standard evaluation tasks through CLI plus skill.
@@ -393,6 +390,7 @@ Goal: evaluate the rule graph retrieval node implementation and decide whether i
 - [ ] Add support-record shaping that avoids noisy default backlinks.
 - [ ] Add `--include-backlinks`.
 - [ ] Preserve current rule-context behavior: return primary/support records and edges without synthesizing answers.
+- [ ] Update the PF2e Atlas CLI agent skill with `rule-context` command-choice guidance after the command lands.
 - [ ] Add golden tests for `Grab`.
 - [ ] Add tests for localized text.
 - [ ] Add tests for ambiguous rule names.

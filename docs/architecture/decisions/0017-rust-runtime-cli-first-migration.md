@@ -30,7 +30,7 @@ The Rust implementation lives under `rust/` as a separate workspace inside this 
 - `atlas-artifact` owns shared SQLite artifact schema descriptors, ordered record column descriptors, SQL builders for shared table shapes, and artifact metadata contract values.
 - `atlas-ingest` owns Foundry source loading, normalized ingest records, and SQLite artifact writing.
 - `atlas-index` owns artifact/index opening and startup validation.
-- `atlas-cli` owns the local `atlas` command surface.
+- `atlas-cli` owns the local `atlas` command surface and agent skill installation.
 
 Future crates such as search, embedding, TUI, and MCP should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.
 
@@ -63,7 +63,7 @@ The migration proceeds by capability gates:
 - rule-context and graph traversal
 - filter/schema discovery
 - SQLite-centered hybrid search
-- production Codex skill
+- first-party agent skill installation
 - Ratatui workbench
 - optional MCP compatibility or retirement
 - TypeScript runtime retirement

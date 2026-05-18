@@ -48,7 +48,7 @@ Move toward a Rust-centered local runtime architecture:
   - parity comparison harnesses
   - migration-only scripts
 - the prepared SQLite index and adjacent JSON/JSONL artifacts become explicit versioned contracts owned by the Rust core path once migration parity is reached
-- agent integration prioritizes CLI commands plus Codex skills over MCP as the default local workflow
+- agent integration prioritizes CLI commands plus first-party agent skills over MCP as the default local workflow
 - MCP remains possible as `atlas mcp` only if it is useful as a thin compatibility surface over the same Rust runtime
 
 The expected end state is not a language rewrite for its own sake. The expected end state is a stricter local architecture where invalid runtime states, incomplete search/filter variants, and ad hoc workflow bypasses are harder to express.
@@ -321,7 +321,7 @@ Implementation plans should cite ADR 0017, name the relevant capability gate, an
    - rule question context
    - pack listing and pack metadata if the CLI is expected to replace the full current MCP lookup/discovery surface
 2. Stabilize JSON schemas and output size policy.
-3. Write Codex skills that teach the intended command workflows.
+3. Write first-party agent skills that teach the intended command workflows.
 4. Add command golden tests.
 5. Compare token use and task success against the MCP surface for common local agent tasks.
 
