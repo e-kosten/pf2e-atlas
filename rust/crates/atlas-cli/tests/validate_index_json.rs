@@ -66,6 +66,10 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filter_values_help.contains("--field"));
     assert!(filter_values_help.contains("--metric-label"));
     assert!(filter_values_help.contains("--sample-limit"));
+    assert!(filter_values_help.contains("--json"));
+
+    let filter_fields_help = help_output(&["filters", "fields"])?;
+    assert!(filter_fields_help.contains("--json"));
 
     Ok(())
 }
@@ -701,20 +705,15 @@ fn record_resolve_reports_ambiguity() -> Result<(), Box<dyn std::error::Error>> 
     assert!(build_output.status.success());
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args([
-            "record",
-            "resolve",
-            "Duplicate Action",
-            "--alternatives",
-            "2",
-            "--index",
-        ])
+        .args(["record", "resolve", "Duplicate Action", "--index"])
         .arg(&index_path)
         .arg("--json")
         .output()?;
     assert_eq!(output.status.code(), Some(1));
     let json: Value = serde_json::from_slice(&output.stdout)?;
-    let data = ok_data(&json);
+    assert_eq!(json["status"], "error");
+    assert_eq!(json["error"]["code"], "record_resolution_ambiguous");
+    let data = &json["error"]["data"];
     assert_eq!(
         data["result"]["error"]["code"],
         "record_resolution_ambiguous"

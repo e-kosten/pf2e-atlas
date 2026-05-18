@@ -124,6 +124,55 @@ fn reports_fields_values_and_dynamic_refinements() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn filter_discovery_defaults_to_human_readable_output() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-filter-discovery-text");
+    write_rule_fixture_source(&root)?;
+    let index_path = build_index(&root)?;
+
+    let fields_output = atlas_raw(&[
+        "filters",
+        "fields",
+        "--family",
+        "rule",
+        "--index",
+        index_path.to_str().unwrap(),
+    ])?;
+    assert!(fields_output.status.success());
+    assert!(serde_json::from_slice::<Value>(&fields_output.stdout).is_err());
+    let fields_text = String::from_utf8(fields_output.stdout)?;
+    assert!(fields_text.contains("Filter fields"));
+    assert!(fields_text.contains("Filter: family = rule"));
+    assert!(fields_text.contains("Matching records:"));
+    assert!(fields_text.contains("record"));
+    assert!(fields_text.contains("traits"));
+    assert!(fields_text.contains("flags: --trait, --any-trait"));
+
+    let values_output = atlas_raw(&[
+        "filters",
+        "values",
+        "--field",
+        "traits",
+        "--family",
+        "rule",
+        "--sort",
+        "alpha",
+        "--index",
+        index_path.to_str().unwrap(),
+    ])?;
+    assert!(values_output.status.success());
+    assert!(serde_json::from_slice::<Value>(&values_output.stdout).is_err());
+    let values_text = String::from_utf8(values_output.stdout)?;
+    assert!(values_text.contains("Values for field: traits"));
+    assert!(values_text.contains("Filter: family = rule"));
+    assert!(values_text.contains("exploration"));
+    assert!(values_text.contains("healing"));
+    assert!(values_text.contains("Null values: 0"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_source_root("cli-filter-discovery-rich");
     write_filter_discovery_fixture_source(&root)?;
@@ -462,6 +511,14 @@ fn metric_discovery_uses_global_catalog_and_rejects_conflicting_options()
 }
 
 fn atlas(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    let mut args = args.to_vec();
+    if !args.contains(&"--json") {
+        args.push("--json");
+    }
+    atlas_raw(&args)
+}
+
+fn atlas_raw(args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Error>> {
     Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(args)
         .output()?)

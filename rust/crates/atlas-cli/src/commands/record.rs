@@ -7,7 +7,7 @@ use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{RecordResolutionResult, SearchError};
 use serde::Serialize;
 
-use crate::output::{CliError, write_json_data, write_json_error};
+use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
 use crate::terminal::TerminalStyle;
 use crate::{RecordGetOptions, RecordResolveOptions};
 
@@ -276,16 +276,27 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     if results.len() == 1 {
         let result = results.into_iter().next().expect("single result");
         if let Some(error) = result.error.as_ref() {
+            if options.json && error.code == "record_resolution_ambiguous" {
+                let data = RecordResolveData {
+                    detail: options.detail.to_string(),
+                    body: SingleResolveBody { result },
+                };
+                let message = data
+                    .body
+                    .result
+                    .error
+                    .as_ref()
+                    .map(|error| error.message.clone())
+                    .unwrap_or_else(|| "record resolution ambiguous".to_string());
+                write_json_error_data("record_resolution_ambiguous", message, data)?;
+                return Ok(ExitCode::from(1));
+            }
             if result.alternatives.is_some() {
                 let data = RecordResolveData {
                     detail: options.detail.to_string(),
                     body: SingleResolveBody { result },
                 };
-                if options.json {
-                    write_json_data(&data)?;
-                } else {
-                    print_single_resolve(&data.body.result, options.detail);
-                }
+                print_single_resolve(&data.body.result, options.detail);
                 return Ok(ExitCode::from(1));
             }
             if options.json {

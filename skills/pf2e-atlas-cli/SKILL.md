@@ -57,7 +57,7 @@ Use `record resolve` when you need one record from a strict name or verified ali
 atlas record resolve "Treat Wounds" --pack-name actionspf2e --detail description
 ```
 
-If strict resolution reports ambiguity, retry with alternatives before broadening to search:
+If strict resolution reports ambiguity, inspect the returned alternatives before broadening to search. Rerun with an explicit alternative count or different detail level when needed:
 
 ```bash
 atlas record resolve "Treat Wounds" --pack-name actionspf2e --alternatives 5 --detail preview
@@ -81,7 +81,7 @@ atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --d
 atlas record resolve "Treat Wounds" "Trip" --pack-name actionspf2e --detail standard --json
 ```
 
-Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error`. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
+Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Ambiguous strict resolution returns `status: "error"` with `error.code: "record_resolution_ambiguous"` and structured alternatives under `error.data.result.alternatives`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error` for successful batch-style commands. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `error.data` when present, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
 
 Use `--retrieval fts`, `--retrieval vector`, or `--retrieval hybrid` only when the user explicitly asks to diagnose or tune retrieval behavior. Do not silently fall back to FTS to work around missing embeddings for normal content questions.
 
@@ -95,6 +95,8 @@ atlas filters fields --family spell
 atlas filters values --field traits --family spell
 atlas filters values --field metric --family creature --metric-label save
 ```
+
+Filter discovery defaults to human-readable output for scanning. Add `--json` when you need structured field/value payloads, exact counts, or canonical filter data.
 
 The Rust query model is based on record families, metadata fields, traits, references, metrics, and canonical filter JSON. Use discovered field ids and values with `atlas search`, `atlas record resolve`, or `--filter-json`.
 

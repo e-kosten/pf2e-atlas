@@ -85,7 +85,7 @@ atlas filters values --field level --family equipment
 atlas filters values --field metric --family creature --metric-label save
 ```
 
-Filter discovery commands always emit the standard JSON envelope. They share the normal filter flags for family, rarity, trait, level, price, publication title, pack name, pack label, and reference narrowing. Metric predicates for narrowing can be expressed with `--filter-json`; `filters values --field metric` reserves `--metric` for selecting the metric key or exact known metric label to inspect.
+Filter discovery commands default to human-readable tables. Add `--json` to emit the standard JSON envelope for automation. They share the normal filter flags for family, rarity, trait, level, price, publication title, pack name, pack label, and reference narrowing. Metric predicates for narrowing can be expressed with `--filter-json`; `filters values --field metric` reserves `--metric` for selecting the metric key or exact known metric label to inspect.
 
 ## Agent Skills
 
