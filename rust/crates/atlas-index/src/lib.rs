@@ -8,6 +8,7 @@ use thiserror::Error;
 
 mod contract;
 mod database;
+mod discovery;
 mod filters;
 mod inspect;
 mod metadata;
@@ -21,6 +22,7 @@ mod vector;
 pub use database::{
     AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
 };
+pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use filters::FilterCompileError;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,

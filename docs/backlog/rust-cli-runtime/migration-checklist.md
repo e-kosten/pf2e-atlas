@@ -331,16 +331,16 @@ Acceptance:
 
 Goal: replace MCP’s strongest remaining advantage: dynamic schema/facet discovery.
 
-- [ ] Add a CLI equivalent for `pf2e_get_search_semantics`, such as `atlas schema search-filters --json`.
-- [ ] Add a CLI equivalent for `pf2e_list_filter_values`, such as `atlas filters list-values --field <field> --json`.
-- [ ] Add category and explicit-axis filtering for value discovery.
-- [ ] Add trait discovery.
-- [ ] Add item metadata discovery.
-- [ ] Add actor metric discovery.
-- [ ] Add spell metadata discovery.
-- [ ] Add examples in `rust/README.md`.
-- [ ] Add production Codex skill snippets once commands stabilize.
-- [ ] Add golden tests for schema output.
+- [x] Add a CLI field discovery command with `atlas filters fields`.
+- [x] Add a CLI value discovery command with `atlas filters values --field <field>`.
+- [x] Add explicit-axis filtering for value discovery through shared filter flags and `--filter-json`.
+- [x] Add trait discovery.
+- [x] Add item metadata discovery.
+- [x] Add actor metric discovery.
+- [x] Add spell metadata discovery.
+- [x] Add examples in `rust/README.md`.
+- [x] Add production Codex skill snippets once commands stabilize.
+- [x] Add fixture-backed regression tests for filter discovery output.
 
 Acceptance:
 - Agents can discover non-obvious filters without MCP.
@@ -362,7 +362,7 @@ Goal: make the Rust CLI the default local agent interface.
   - [x] add golden tests for representative success and failure commands
 - [ ] Stabilize exit codes.
 - [ ] Add human-readable output mode if needed.
-- [ ] Add `--json` default policy or explicit always-JSON policy.
+- [x] Add `--json` default policy or explicit always-JSON policy. Filter discovery commands are explicit always-JSON commands.
 - [ ] Add `--index` and config lookup.
 - [ ] Add source-signature, embedding-mismatch, and incompatible-artifact diagnostics.
 - [ ] Add command golden tests.

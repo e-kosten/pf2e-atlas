@@ -82,6 +82,68 @@ pub fn insert_minimal_contract_rows(
             [record_key.as_str(), name.as_str()],
         )?;
     }
+    insert_minimal_filter_discovery_rows(connection)?;
+    Ok(())
+}
+
+fn insert_minimal_filter_discovery_rows(
+    connection: &Connection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    const CANONICAL_FAMILIES_JSON: &str = r#"["creature","character","companion","army","hazard","vehicle","equipment","feat","spell","affliction","rule","character_option","lore","tooling","campaign_feature"]"#;
+    let fields = [
+        ("record_family", r#"["--family"]"#, CANONICAL_FAMILIES_JSON),
+        ("pack_name", r#"["--pack-name"]"#, CANONICAL_FAMILIES_JSON),
+        ("pack_label", r#"["--pack-label"]"#, CANONICAL_FAMILIES_JSON),
+        ("foundry_record_type", r#"[]"#, CANONICAL_FAMILIES_JSON),
+        ("publication_family", r#"[]"#, CANONICAL_FAMILIES_JSON),
+    ];
+    for family in [None, Some("rule")] {
+        for (field, cli_flags, applicable_families) in fields {
+            connection.execute(
+                "INSERT INTO filter_field_catalog (
+                   field, record_family, field_type, field_group, value_policy,
+                   operators_json, cli_flags_json, applicable_families_json,
+                   value_count, matching_record_count, null_count, distinct_count,
+                   singleton_count, singleton_ratio, observation_singleton_ratio, policy_reason
+                 ) VALUES (
+                   ?1, ?2, 'enum_string', 'record', 'enumerable',
+                   '[\"eq\",\"not_eq\",\"is_null\",\"is_not_null\"]', ?3, ?4,
+                   3, 3, 0, 1, 0, 0.0, 0.0, 'Enumerable'
+                 )",
+                (field, family, cli_flags, applicable_families),
+            )?;
+        }
+    }
+    for family in [None, Some("rule")] {
+        connection.execute(
+            "INSERT INTO filter_field_catalog (
+               field, record_family, field_type, field_group, value_policy,
+               operators_json, cli_flags_json, applicable_families_json,
+               value_count, matching_record_count, null_count, distinct_count,
+               singleton_count, singleton_ratio, observation_singleton_ratio, policy_reason
+             ) VALUES (
+               'publication_remaster', ?1, 'boolean', 'record', 'boolean_counts',
+               '[\"eq\",\"is_null\",\"is_not_null\"]', '[]', ?2,
+               3, 3, 0, 1, 0, 0.0, 0.0, 'BooleanCounts'
+             )",
+            (family, CANONICAL_FAMILIES_JSON),
+        )?;
+    }
+    for family in [None, Some("rule")] {
+        for (field, value) in [
+            ("record_family", "rule"),
+            ("pack_name", "actions"),
+            ("pack_label", "Actions"),
+            ("foundry_record_type", "action"),
+            ("publication_family", "unknown"),
+        ] {
+            connection.execute(
+                "INSERT INTO filter_value_catalog (field, record_family, value, catalog_count)
+                 VALUES (?1, ?2, ?3, 3)",
+                (field, family, value),
+            )?;
+        }
+    }
     Ok(())
 }
 

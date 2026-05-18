@@ -3,7 +3,8 @@ use super::{
     ITEM_RECORD_COLUMNS, PERSISTED_RECORD_COLUMNS, RECORD_ALIAS_COLUMNS, RECORD_CONTENT_COLUMNS,
     RECORD_METRIC_COLUMNS, REFERENCE_EDGE_COLUMNS, REMASTER_LINK_COLUMNS, SPELL_RECORD_COLUMNS,
     SqlType, TABLE_DESCRIPTORS, Table, TableConstraint, TableDescriptor, TableKind, actor_records,
-    artifact_metadata, document_embedding_cache, item_records, metric_key_catalog,
+    artifact_metadata, document_embedding_cache, filter_field_catalog, filter_numeric_catalog,
+    filter_sample_catalog, filter_value_catalog, item_records, metric_key_catalog,
     metric_value_catalog, packs, record_aliases, record_content, record_metrics, record_traits,
     record_vector_index, records, records_fts, reference_edges, remaster_links, spell_records,
     table_descriptor,
@@ -70,6 +71,23 @@ pub fn metric_key_catalog_insert_select_sql() -> String {
         "INSERT INTO {table} ({columns})
             SELECT
               rm.metric_domain,
+              NULL AS record_family,
+              CASE
+                WHEN instr(rm.metric_key, '.') > 0 THEN substr(rm.metric_key, 1, instr(rm.metric_key, '.'))
+                ELSE ''
+              END AS namespace_prefix,
+              rm.metric_key,
+              rm.value_type,
+              COUNT(*) AS catalog_count,
+              CASE WHEN rm.value_type = 'number' THEN MIN(rm.number_value) ELSE NULL END AS numeric_min,
+              CASE WHEN rm.value_type = 'number' THEN MAX(rm.number_value) ELSE NULL END AS numeric_max
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_default_visible = 1
+            GROUP BY rm.metric_domain, namespace_prefix, rm.metric_key, rm.value_type
+            UNION ALL
+            SELECT
+              rm.metric_domain,
               r.record_family,
               CASE
                 WHEN instr(rm.metric_key, '.') > 0 THEN substr(rm.metric_key, 1, instr(rm.metric_key, '.'))
@@ -94,6 +112,23 @@ pub fn metric_value_catalog_insert_select_sql() -> String {
         "INSERT INTO {table} ({columns})
             SELECT
               rm.metric_domain,
+              NULL AS record_family,
+              rm.metric_key,
+              CASE
+                WHEN rm.value_type = 'text' THEN rm.text_value
+                WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+                ELSE NULL
+              END AS value,
+              COUNT(*) AS catalog_count
+            FROM record_metrics rm
+            JOIN records r ON r.record_key = rm.record_key
+            WHERE r.is_default_visible = 1
+              AND rm.value_type IN ('text', 'boolean')
+              AND value IS NOT NULL
+            GROUP BY rm.metric_domain, rm.metric_key, value
+            UNION ALL
+            SELECT
+              rm.metric_domain,
               r.record_family,
               rm.metric_key,
               CASE
@@ -111,6 +146,22 @@ pub fn metric_value_catalog_insert_select_sql() -> String {
         table = metric_value_catalog::TABLE.name(),
         columns = column_names(metric_value_catalog::ALL_COLUMNS).join(", ")
     )
+}
+
+pub fn filter_field_catalog_insert_sql() -> String {
+    insert_sql_for_table(filter_field_catalog::TABLE)
+}
+
+pub fn filter_value_catalog_insert_sql() -> String {
+    insert_sql_for_table(filter_value_catalog::TABLE)
+}
+
+pub fn filter_sample_catalog_insert_sql() -> String {
+    insert_sql_for_table(filter_sample_catalog::TABLE)
+}
+
+pub fn filter_numeric_catalog_insert_sql() -> String {
+    insert_sql_for_table(filter_numeric_catalog::TABLE)
 }
 
 pub fn record_vector_index_create_sql(dimensions: usize) -> String {
@@ -405,6 +456,10 @@ const ARTIFACT_INDEX_SQL: &[&str] = &[
     "CREATE INDEX record_metrics_catalog_source_idx ON record_metrics(metric_domain, metric_key, value_type)",
     "CREATE INDEX metric_key_catalog_coverage_idx ON metric_key_catalog(metric_domain, record_family, metric_key)",
     "CREATE INDEX metric_value_catalog_coverage_idx ON metric_value_catalog(metric_domain, record_family, metric_key, value)",
+    "CREATE INDEX filter_field_catalog_scope_idx ON filter_field_catalog(field, record_family)",
+    "CREATE INDEX filter_value_catalog_scope_idx ON filter_value_catalog(field, record_family, value)",
+    "CREATE INDEX filter_sample_catalog_scope_idx ON filter_sample_catalog(field, record_family, sample_rank)",
+    "CREATE INDEX filter_numeric_catalog_scope_idx ON filter_numeric_catalog(field, record_family, metric_domain, metric_key)",
     "CREATE INDEX document_embedding_cache_record_idx ON document_embedding_cache(record_key)",
     "CREATE INDEX document_embedding_cache_hash_idx ON document_embedding_cache(semantic_input_hash)",
 ];

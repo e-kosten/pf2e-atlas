@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 atlas-artifact.workspace = true
+atlas-discovery.workspace = true
 atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-record.workspace = true

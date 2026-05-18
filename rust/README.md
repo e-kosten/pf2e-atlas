@@ -51,10 +51,21 @@ After setup, record commands can run without passing index paths:
 
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
-atlas record resolve "Treat Wounds" --pack actionspf2e
+atlas record resolve "Treat Wounds" --pack-name actionspf2e
 ```
 
 JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. Artifact validation that runs against an invalid artifact still returns `status: "ok"` with `data.valid: false` and exits with code `3`.
+
+Filter discovery is available through `atlas filters`:
+
+```bash
+atlas filters fields --family spell
+atlas filters values --field traits --family spell
+atlas filters values --field level --family equipment
+atlas filters values --field metric --family creature --metric-label save
+```
+
+Filter discovery commands always emit the standard JSON envelope. They share the normal filter flags for family, rarity, trait, level, price, publication title, pack name, pack label, and reference narrowing. Metric predicates for narrowing can be expressed with `--filter-json`; `filters values --field metric` reserves `--metric` for selecting the metric key or exact known metric label to inspect.
 
 Manual artifact build remains available for development and diagnostics:
 
@@ -79,7 +90,7 @@ The default Cargo dev profile is useful for edit/build loops, but its runtime ti
 
 `atlas setup`, `atlas index build`, index path commands, and semantic search share the `atlas-runtime` path resolver. With `--path-mode auto` (the default), the resolver uses repo-local paths when `git rev-parse --show-toplevel` finds this Rust workspace, otherwise it uses platform user cache paths. Use `--path-mode repo` to require repo-local paths or `--path-mode user` to force platform user paths. Direct flags such as `--source`, `--output`, `--index`, and `--embedding-cache-path` override the resolver for that command. `atlas setup --offline` prevents source fetch/update and embedding model preparation. `atlas setup --no-embeddings` and `atlas index build --no-embeddings` intentionally skip semantic vectors; that output is a base artifact and is not semantic-search-ready.
 
-The current writer loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, `record_aliases`, `record_traits`, `reference_edges`, `remaster_links`, unified `record_metrics`, metric catalogs, actor/item/spell side-data tables, `records_fts`, `document_embedding_cache`, and `record_vector_index`. It also extracts selected direct `system_*` paths, raw price JSON, normalized copper price, activation time, separate effect duration, exact Foundry inline reference links resolved against loaded records, source-backed lookup aliases, premaster-to-remaster bridges from remaster journals and migration rename files, and variant family metadata. Source-backed aliases and variant family metadata are separate concepts; broad variant base-name aliases should be handled as variant-aware lookup behavior rather than `record_aliases`. Index readers can deserialize the durable record table family into `atlas-record::PersistedRecord` and relationship-bearing `PersistedRecordSet` values; ingest-only construction state stays out of the persisted read shape. Derived tags are a Phase 10 redesign concern because the Rust model changes require a separate design pass for that surface.
+The current writer loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, `record_aliases`, `record_traits`, `reference_edges`, `remaster_links`, unified `record_metrics`, metric catalogs, filter discovery catalogs, actor/item/spell side-data tables, `records_fts`, `document_embedding_cache`, and `record_vector_index`. It also extracts selected direct `system_*` paths, raw price JSON, normalized copper price, activation time, separate effect duration, exact Foundry inline reference links resolved against loaded records, source-backed lookup aliases, premaster-to-remaster bridges from remaster journals and migration rename files, and variant family metadata. Source-backed aliases and variant family metadata are separate concepts; broad variant base-name aliases should be handled as variant-aware lookup behavior rather than `record_aliases`. Index readers can deserialize the durable record table family into `atlas-record::PersistedRecord` and relationship-bearing `PersistedRecordSet` values; ingest-only construction state stays out of the persisted read shape. Derived tags are a Phase 10 redesign concern because the Rust model changes require a separate design pass for that surface.
 
 ## Artifact Validation Diagnostics
 

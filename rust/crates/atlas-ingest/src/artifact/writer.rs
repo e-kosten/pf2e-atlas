@@ -7,6 +7,7 @@ use atlas_embedding::EmbeddingModelId;
 use rusqlite::Connection;
 use tracing::info;
 
+mod discovery_catalogs;
 mod embeddings;
 mod labels;
 mod metadata;
@@ -16,6 +17,7 @@ mod records;
 mod relationships;
 mod vector_index;
 
+use discovery_catalogs::write_discovery_catalogs;
 use embeddings::write_document_embedding_cache;
 use metadata::write_artifact_metadata;
 use metric_catalogs::write_metric_catalogs;
@@ -91,6 +93,8 @@ pub(crate) fn write_artifact(
     }
     info!("writing metric catalogs");
     write_metric_catalogs(&transaction)?;
+    info!("writing filter discovery catalogs");
+    write_discovery_catalogs(&transaction)?;
     info!("committing artifact");
     transaction
         .commit()

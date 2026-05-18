@@ -18,7 +18,7 @@ mod terminal;
 #[command(name = "atlas")]
 #[command(about = "PF2e Atlas local search and index tooling")]
 #[command(
-    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack actionspf2e"
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -35,6 +35,8 @@ enum Command {
     Record(RecordArgs),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
+    #[command(about = "Discover filter fields and values")]
+    Filters(FiltersArgs),
 }
 
 #[derive(Debug, Args)]
@@ -94,6 +96,12 @@ struct RecordArgs {
     command: RecordCommand,
 }
 
+#[derive(Debug, Args)]
+struct FiltersArgs {
+    #[command(subcommand)]
+    command: FiltersCommand,
+}
+
 #[derive(Debug, Subcommand)]
 enum IndexCommand {
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
@@ -112,6 +120,52 @@ enum RecordCommand {
     Get(RecordGetOptions),
     #[command(about = "Resolve one or more strict record names or aliases")]
     Resolve(Box<RecordResolveOptions>),
+}
+
+#[derive(Debug, Subcommand)]
+enum FiltersCommand {
+    #[command(about = "List filterable fields available in a filter space")]
+    Fields(Box<FiltersFieldsOptions>),
+    #[command(about = "List values, samples, or stats for one filter field")]
+    Values(Box<FiltersValuesOptions>),
+}
+
+#[derive(Debug, Args)]
+struct FiltersFieldsOptions {
+    #[arg(long)]
+    filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: DiscoveryFilterOptions,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
+}
+
+#[derive(Debug, Args)]
+struct FiltersValuesOptions {
+    #[arg(long)]
+    field: String,
+    #[arg(long)]
+    filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: DiscoveryFilterOptions,
+    #[arg(long, value_enum)]
+    sort: Option<CliFilterValueSort>,
+    #[arg(long)]
+    sample_limit: Option<usize>,
+    #[arg(long)]
+    metric: Option<String>,
+    #[arg(long)]
+    metric_prefix: Option<String>,
+    #[arg(long)]
+    metric_label: Option<String>,
+    #[arg(long)]
+    metric_domain: Option<String>,
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    path_mode: CliPathMode,
 }
 
 #[derive(Debug, Args)]
@@ -201,7 +255,7 @@ struct RecordGetOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json"
+    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family rule"
 )]
 struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
@@ -233,7 +287,7 @@ struct RecordResolveOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 struct SearchOptions {
     #[arg()]
@@ -301,20 +355,25 @@ struct FilterOptions {
     )]
     families: Vec<String>,
     #[arg(
-        long = "pack",
-        help = "Filter to this source pack; repeat for any of several packs"
+        long = "pack-name",
+        help = "Filter to this stable source pack name; repeat for any of several packs"
     )]
-    packs: Vec<String>,
+    pack_names: Vec<String>,
+    #[arg(
+        long = "pack-label",
+        help = "Filter to this display pack label; repeat for any of several labels"
+    )]
+    pack_labels: Vec<String>,
     #[arg(
         long = "rarity",
         help = "Filter to this rarity; repeat for any of several rarities"
     )]
     rarities: Vec<String>,
     #[arg(
-        long = "source",
+        long = "publication-title",
         help = "Filter to this exact publication title; repeat for any of several titles"
     )]
-    sources: Vec<String>,
+    publication_titles: Vec<String>,
     #[arg(
         long = "level",
         help = "Filter to an exact level or inclusive range such as 1..5"
@@ -366,6 +425,102 @@ struct FilterOptions {
     metrics: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, Args)]
+struct DiscoveryFilterOptions {
+    #[arg(
+        long = "family",
+        help = "Filter to records in this family; repeat for any of several families"
+    )]
+    families: Vec<String>,
+    #[arg(
+        long = "pack-name",
+        help = "Filter to this stable source pack name; repeat for any of several packs"
+    )]
+    pack_names: Vec<String>,
+    #[arg(
+        long = "pack-label",
+        help = "Filter to this display pack label; repeat for any of several labels"
+    )]
+    pack_labels: Vec<String>,
+    #[arg(
+        long = "rarity",
+        help = "Filter to this rarity; repeat for any of several rarities"
+    )]
+    rarities: Vec<String>,
+    #[arg(
+        long = "publication-title",
+        help = "Filter to this exact publication title; repeat for any of several titles"
+    )]
+    publication_titles: Vec<String>,
+    #[arg(
+        long = "level",
+        help = "Filter to an exact level or inclusive range such as 1..5"
+    )]
+    level: Option<String>,
+    #[arg(long = "min-level", help = "Filter to records at or above this level")]
+    min_level: Option<f64>,
+    #[arg(long = "max-level", help = "Filter to records at or below this level")]
+    max_level: Option<f64>,
+    #[arg(
+        long = "price",
+        help = "Filter to an exact price in copper pieces or inclusive range such as 100..500"
+    )]
+    price: Option<String>,
+    #[arg(
+        long = "min-price",
+        help = "Filter to records priced at or above this many copper pieces"
+    )]
+    min_price: Option<f64>,
+    #[arg(
+        long = "max-price",
+        help = "Filter to records priced at or below this many copper pieces"
+    )]
+    max_price: Option<f64>,
+    #[arg(
+        long = "trait",
+        help = "Require this trait; repeat to require all listed traits"
+    )]
+    traits: Vec<String>,
+    #[arg(
+        long = "any-trait",
+        help = "Require at least one of these traits; repeat for alternatives"
+    )]
+    any_traits: Vec<String>,
+    #[arg(
+        long = "references",
+        help = "Filter to records that reference this canonical record key; repeat to require all targets"
+    )]
+    references: Vec<String>,
+    #[arg(
+        long = "referenced-by",
+        help = "Filter to records referenced by this canonical record key; repeat to require all sources"
+    )]
+    referenced_by: Vec<String>,
+}
+
+impl From<DiscoveryFilterOptions> for FilterOptions {
+    fn from(options: DiscoveryFilterOptions) -> Self {
+        Self {
+            families: options.families,
+            pack_names: options.pack_names,
+            pack_labels: options.pack_labels,
+            rarities: options.rarities,
+            publication_titles: options.publication_titles,
+            level: options.level,
+            min_level: options.min_level,
+            max_level: options.max_level,
+            price: options.price,
+            min_price: options.min_price,
+            max_price: options.max_price,
+            traits: options.traits,
+            any_traits: options.any_traits,
+            references: options.references,
+            referenced_by: options.referenced_by,
+            metrics: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum CliRetrievalMode {
     Fts,
@@ -377,6 +532,13 @@ enum CliRetrievalMode {
 enum CliFusionMethod {
     Rrf,
     WeightedRrf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliFilterValueSort {
+    Count,
+    Alpha,
+    Canonical,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -440,6 +602,14 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Search(options) => commands::search::run_search(*options),
+        Command::Filters(filters) => match filters.command {
+            FiltersCommand::Fields(options) => {
+                commands::filter_discovery::run_filters_fields(*options)
+            }
+            FiltersCommand::Values(options) => {
+                commands::filter_discovery::run_filters_values(*options)
+            }
+        },
     }
 }
 

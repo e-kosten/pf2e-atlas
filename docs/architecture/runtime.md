@@ -24,14 +24,17 @@ flowchart TD
 
     subgraph SharedRustModels["Shared Rust models"]
       domain["atlas-domain<br/>request/filter/output vocabulary"]
+      discovery["atlas-discovery<br/>filter discovery field policy"]
       record["atlas-record<br/>normalized records, ContentDocument,<br/>presentation and projections"]
       artifactSchema["atlas-artifact<br/>SQLite schema descriptors<br/>and contract constants"]
     end
 
     ingest --> domain
+    ingest --> discovery
     ingest --> record
     ingest --> artifactSchema
     index --> domain
+    index --> discovery
     index --> record
     index --> artifactSchema
     search --> domain
@@ -44,6 +47,7 @@ flowchart TD
 | Crate | Owns | Should not own |
 | --- | --- | --- |
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
+| `atlas-discovery` | Shared filter discovery field policy: field ids, groups, value policies, operators, CLI flag mappings, applicability, default value ordering, and source SQL projections for generated catalogs. | Physical SQLite schema descriptors, artifact metadata, row hydration, CLI presentation, runtime query execution. |
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `ContentDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-artifact` | Physical SQLite table/column descriptors, descriptor-owned schema DDL, artifact metadata keys, schema SQL helpers, table contract constants, and SQLite vector-blob encoding. | Record normalization, writer policy, row hydration, user-facing search behavior, embedding model behavior. |
 | `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and complete artifact writing including FTS, `document_embedding_cache`, and `record_vector_index`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership. |
@@ -69,6 +73,7 @@ flowchart LR
     writer --> sqlite["Rust SQLite artifact"]
 
     record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
+    discovery["atlas-discovery<br/>filter discovery field policy"] -. catalog policy .-> writer
     artifact["atlas-artifact<br/>table descriptors + insert SQL"] -. schema .-> writer
     embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
     sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
@@ -137,6 +142,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 - supplemental content: `record_content`
 - aliases and remaster links: `record_aliases`, `remaster_links`
 - filterable projections: `record_traits`, actor/item/spell side tables
+- discovery catalogs: `filter_field_catalog`, `filter_value_catalog`, `filter_sample_catalog`, `filter_numeric_catalog`
 - open metrics and catalogs: `record_metrics`, `metric_key_catalog`, `metric_value_catalog`
 - reference graph: `reference_edges`
 - lexical search: `records_fts`

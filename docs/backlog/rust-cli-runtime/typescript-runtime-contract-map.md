@@ -50,7 +50,7 @@ Primary TypeScript sources:
 | `item_records` | Item/equipment side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for item metadata filters and discovery. |
 | `item_metrics` | Item metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Rust uses unified `record_metrics` rows with `metric_domain = item` rather than a separate physical item table. |
 | `record_metrics` | Unified Rust metric predicates and discovery | rust redesign | `atlas-domain`, `atlas-index`, `atlas-ingest`, `atlas-search` | Required for metric filters and dynamic metric discovery. Preserves actor/item meaning through `metric_domain`. |
-| `metric_key_catalog` | Precomputed metric key availability by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be written before `atlas filters list-values` can replace MCP discovery. |
+| `metric_key_catalog` | Precomputed metric key availability by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be written before `atlas filters values` can replace MCP discovery. |
 | `metric_value_catalog` | Precomputed text/boolean metric values by scope | parity | `atlas-index`, `atlas-ingest`, `atlas-search` discovery | Must be part of Phase 3 or a blocking prerequisite for Phase 7. |
 | `spell_records` | Spell-specific side data | parity | `atlas-domain`, `atlas-index`, `atlas-ingest` | Required for spell filters/discovery and presentation. |
 | `embeddings` | Reusable vector blobs plus semantic input hashes | rust redesign as `document_embedding_cache` | Phase 4 `atlas-embedding` + `atlas-ingest`, `atlas-index` vector readers | Preserve the cache/provenance role but use the clearer Rust-owned physical table name `document_embedding_cache`. Not a Phase 3 writer requirement. |
@@ -174,20 +174,20 @@ Rust implementation should keep the stage order mostly intact until parity is pr
 
 ## Filter And Discovery Contract Map
 
-`atlas filters list-values` and `atlas schema search-filters` must be able to replace current MCP discovery. Initial Rust discovery must cover:
+`atlas filters fields` and `atlas filters values` must be able to replace current MCP discovery. Initial Rust discovery must cover:
 
 - field vocabulary from `FILTER_VALUE_FIELDS`
 - metadata field kind/operator compatibility
-- category scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
+- record-family scope plus explicit metadata/filter axes that replace former TypeScript subcategory use cases
 - traits, taxonomy families, and variant axes
 - spell traditions and spell kinds
 - item fields such as item category, base item, usage, hands, weapon group, armor group, price, bulk, and damage types
 - actor fields such as size, languages, speeds, senses, immunities, resistances, weaknesses, disable skills, and complexity
 - spell fields such as range, save type, area type, duration, target, sustained, and basic save
 - actor and item metric key/value discovery from `metric_key_catalog` and `metric_value_catalog`
-- source, pack, category, and explicit type-axis discovery
+- publication, pack, record-family, and explicit type-axis discovery
 
-Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help. When the TUI filter-builder surface is rebuilt, it should not hard-gate filter addition behind top-level category selection; category may still improve discovery ranking and applicability hints, but the data model should support global field discovery where a field is meaningful outside one category.
+Discovery is blocked on Rust-owned writes for the tables and catalogs that back these values. Phase 7 should not be marked complete until the Rust artifact can answer these discovery calls without TypeScript runtime help. When the TUI filter-builder surface is rebuilt, it should not hard-gate filter addition behind top-level record-family selection; record family may still improve discovery ranking and applicability hints, but the data model should support global field discovery where a field is meaningful outside one family.
 
 ## Product Surface Parity Map
 
@@ -206,8 +206,8 @@ one of these rows or ADR 0019 needs a backlog or ADR decision before it becomes 
 | `pf2e_get_pack_metadata` | Metadata for one pack by name or label | Pack metadata command if pack discovery remains user-facing. |
 | `pf2e_search` | Ranked search using the canonical `mode:"search"` request branch | `atlas search <text>` with query, exclude, retrieval/fusion controls, and filters. Strong name and verified-alias matches should rank ahead of broader FTS or vector matches. |
 | `pf2e_list_records` | Browse/list using the canonical `mode:"browse"` request branch | `atlas search` without text and with filters, sort, and pagination. A convenience `list` alias may be added only if it delegates to the same structured search path. |
-| `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Search/schema discovery command such as `atlas schema search-filters`. |
-| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery command such as `atlas filters list-values`. Preserve user-visible discovery capability through Rust category and explicit metadata axes. |
+| `pf2e_get_search_semantics` | Category-first ontology, filter vocabulary, metadata semantics, derived-tag vocabulary, and ranking status | Filter-field discovery through `atlas filters fields`. |
+| `pf2e_list_filter_values` | Live filter-value discovery by field, scope, TypeScript category/subcategory, and metric key/prefix | Filter-value discovery through `atlas filters values`. Preserve user-visible discovery capability through Rust record families and explicit metadata axes. |
 | `pf2e_collect_rule_question_context` | Primary rule lookup plus outgoing support records and optional curated backlinks | Rule-context command that returns context only; it should not synthesize an answer. |
 | `pf2e_get_rule_graph` | Rule graph records and edges for known canonical record keys | Graph command over record keys with outgoing/backlink controls. |
 | `npm run tui` / Ink workbench | Derived-tag migration workbench | Ratatui replacement only after core lookup/search/detail flows are stable, then editorial workflows in separate slices. |
