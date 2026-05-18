@@ -51,7 +51,7 @@ Use `record get` when you already have a canonical `pack:id` record key:
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail description
 ```
 
-Use `record resolve` when you need one record from a strict name or verified alias:
+Use `record resolve` when you need one record from a strict name or verified alias. A verified alias is an alias already confirmed by the user, returned by a previous Atlas result, or known from canonical PF2E naming/remaster context; do not guess aliases just to make strict resolution pass:
 
 ```bash
 atlas record resolve "Treat Wounds" --pack-name actionspf2e --detail description
@@ -74,7 +74,14 @@ atlas search --family equipment --rarity uncommon --detail preview
 
 For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--detail full --include-raw --json` only when raw source metadata is directly relevant.
 
-Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error`. Parse the JSON envelope instead of scraping human output. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
+Use one Atlas process for a batch when you have multiple exact keys or strict names. `record get` accepts multiple canonical keys, and `record resolve` accepts multiple strict names or verified aliases:
+
+```bash
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --detail standard --json
+atlas record resolve "Treat Wounds" "Trip" --pack-name actionspf2e --detail standard --json
+```
+
+Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error`. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
 
 Use `--retrieval fts`, `--retrieval vector`, or `--retrieval hybrid` only when the user explicitly asks to diagnose or tune retrieval behavior. Do not silently fall back to FTS to work around missing embeddings for normal content questions.
 
