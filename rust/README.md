@@ -33,6 +33,14 @@ Install the local CLI from a clone with:
 cargo install --path crates/atlas-cli --locked
 ```
 
+Generate shell completions with:
+
+```bash
+atlas completions zsh
+atlas completions bash
+atlas completions fish
+```
+
 The standard first-run setup command is:
 
 ```bash
