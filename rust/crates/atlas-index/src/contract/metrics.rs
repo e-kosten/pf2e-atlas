@@ -48,6 +48,7 @@ pub(super) fn validate_metric_catalogs(
     connection: &Connection,
     diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
 ) -> Result<(), IndexValidationError> {
+    validate_metric_catalog_uniqueness(connection, diagnostics)?;
     for (key, sql) in METRIC_CATALOG_CHECKS {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
@@ -63,11 +64,54 @@ pub(super) fn validate_metric_catalogs(
     Ok(())
 }
 
+fn validate_metric_catalog_uniqueness(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    for (table, key_columns) in [
+        (
+            "metric_key_catalog",
+            "metric_domain, COALESCE(record_family, '<global>'), metric_key",
+        ),
+        (
+            "metric_value_catalog",
+            "metric_domain, COALESCE(record_family, '<global>'), metric_key, value",
+        ),
+    ] {
+        let sql = format!(
+            "SELECT COUNT(*)
+             FROM (
+               SELECT {key_columns}
+               FROM {table}
+               GROUP BY {key_columns}
+               HAVING COUNT(*) > 1
+             )"
+        );
+        let duplicates = count_sql(connection, &sql)?;
+        if duplicates > 0 {
+            diagnostics.push(contract_diagnostic(
+                ArtifactContractFamily::Data,
+                format!("{duplicates} {table} keys have duplicate rows"),
+                Some(format!("{table}.duplicate_rows")),
+                Some("catalog rows have null-safe unique keys".to_string()),
+                Some(format!("{duplicates} duplicate keys")),
+            ));
+        }
+    }
+    Ok(())
+}
+
 const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
     (
         "metric_key_catalog.missing_keys",
         "SELECT COUNT(*)
          FROM (
+           SELECT rm.metric_domain, NULL AS record_family, rm.metric_key
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+           GROUP BY rm.metric_domain, rm.metric_key
+           UNION ALL
            SELECT rm.metric_domain, r.record_family, rm.metric_key
            FROM record_metrics rm
            JOIN records r ON r.record_key = rm.record_key
@@ -83,17 +127,41 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
          FROM (
            SELECT metric_domain, record_family, metric_key FROM metric_key_catalog
            EXCEPT
-           SELECT rm.metric_domain, r.record_family, rm.metric_key
-           FROM record_metrics rm
-           JOIN records r ON r.record_key = rm.record_key
-           WHERE r.is_default_visible = 1
-           GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+           SELECT * FROM (
+             SELECT rm.metric_domain, NULL AS record_family, rm.metric_key
+             FROM record_metrics rm
+             JOIN records r ON r.record_key = rm.record_key
+             WHERE r.is_default_visible = 1
+             GROUP BY rm.metric_domain, rm.metric_key
+             UNION ALL
+             SELECT rm.metric_domain, r.record_family, rm.metric_key
+             FROM record_metrics rm
+             JOIN records r ON r.record_key = rm.record_key
+             WHERE r.is_default_visible = 1
+             GROUP BY rm.metric_domain, r.record_family, rm.metric_key
+           )
          )",
     ),
     (
         "metric_value_catalog.missing_values",
         "SELECT COUNT(*)
          FROM (
+           SELECT
+             rm.metric_domain,
+             NULL AS record_family,
+             rm.metric_key,
+             CASE
+               WHEN rm.value_type = 'text' THEN rm.text_value
+               WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+               ELSE NULL
+             END AS value
+           FROM record_metrics rm
+           JOIN records r ON r.record_key = rm.record_key
+           WHERE r.is_default_visible = 1
+             AND rm.value_type IN ('text', 'boolean')
+             AND value IS NOT NULL
+           GROUP BY rm.metric_domain, rm.metric_key, value
+           UNION ALL
            SELECT
              rm.metric_domain,
              r.record_family,
@@ -119,21 +187,39 @@ const METRIC_CATALOG_CHECKS: &[(&str, &str)] = &[
          FROM (
            SELECT metric_domain, record_family, metric_key, value FROM metric_value_catalog
            EXCEPT
-           SELECT
-             rm.metric_domain,
-             r.record_family,
-             rm.metric_key,
-             CASE
-               WHEN rm.value_type = 'text' THEN rm.text_value
-               WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
-               ELSE NULL
-             END AS value
-           FROM record_metrics rm
-           JOIN records r ON r.record_key = rm.record_key
-           WHERE r.is_default_visible = 1
-             AND rm.value_type IN ('text', 'boolean')
-             AND value IS NOT NULL
-           GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+           SELECT * FROM (
+             SELECT
+               rm.metric_domain,
+               NULL AS record_family,
+               rm.metric_key,
+               CASE
+                 WHEN rm.value_type = 'text' THEN rm.text_value
+                 WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+                 ELSE NULL
+               END AS value
+             FROM record_metrics rm
+             JOIN records r ON r.record_key = rm.record_key
+             WHERE r.is_default_visible = 1
+               AND rm.value_type IN ('text', 'boolean')
+               AND value IS NOT NULL
+             GROUP BY rm.metric_domain, rm.metric_key, value
+             UNION ALL
+             SELECT
+               rm.metric_domain,
+               r.record_family,
+               rm.metric_key,
+               CASE
+                 WHEN rm.value_type = 'text' THEN rm.text_value
+                 WHEN rm.value_type = 'boolean' THEN CAST(rm.bool_value AS TEXT)
+                 ELSE NULL
+               END AS value
+             FROM record_metrics rm
+             JOIN records r ON r.record_key = rm.record_key
+             WHERE r.is_default_visible = 1
+               AND rm.value_type IN ('text', 'boolean')
+               AND value IS NOT NULL
+             GROUP BY rm.metric_domain, r.record_family, rm.metric_key, value
+           )
          )",
     ),
 ];

@@ -4,6 +4,7 @@ use super::descriptors::{
 };
 use super::{Column, ColumnDescriptor, Table, TableConstraint, TableDescriptor};
 
+mod discovery;
 mod embeddings;
 mod identity;
 mod metrics;
@@ -11,6 +12,9 @@ mod record_tables;
 mod relationships;
 mod search;
 
+pub use discovery::{
+    filter_field_catalog, filter_numeric_catalog, filter_sample_catalog, filter_value_catalog,
+};
 pub use embeddings::{document_embedding_cache, record_vector_index};
 pub use identity::{artifact_metadata, packs};
 pub use metrics::{metric_key_catalog, metric_value_catalog, record_metrics};
@@ -52,6 +56,10 @@ pub const TABLE_REMASTER_LINKS: &str = remaster_links::TABLE.name();
 pub const TABLE_RECORD_METRICS: &str = record_metrics::TABLE.name();
 pub const TABLE_METRIC_KEY_CATALOG: &str = metric_key_catalog::TABLE.name();
 pub const TABLE_METRIC_VALUE_CATALOG: &str = metric_value_catalog::TABLE.name();
+pub const TABLE_FILTER_FIELD_CATALOG: &str = filter_field_catalog::TABLE.name();
+pub const TABLE_FILTER_VALUE_CATALOG: &str = filter_value_catalog::TABLE.name();
+pub const TABLE_FILTER_SAMPLE_CATALOG: &str = filter_sample_catalog::TABLE.name();
+pub const TABLE_FILTER_NUMERIC_CATALOG: &str = filter_numeric_catalog::TABLE.name();
 pub const TABLE_ACTOR_RECORDS: &str = actor_records::TABLE.name();
 pub const TABLE_ITEM_RECORDS: &str = item_records::TABLE.name();
 pub const TABLE_SPELL_RECORDS: &str = spell_records::TABLE.name();
@@ -67,6 +75,10 @@ pub const REFERENCE_EDGE_COLUMNS: &[Column] = reference_edges::ALL_COLUMNS;
 pub const RECORD_ALIAS_COLUMNS: &[Column] = record_aliases::ALL_COLUMNS;
 pub const REMASTER_LINK_COLUMNS: &[Column] = remaster_links::ALL_COLUMNS;
 pub const RECORD_METRIC_COLUMNS: &[Column] = record_metrics::ALL_COLUMNS;
+pub const FILTER_FIELD_CATALOG_COLUMNS: &[Column] = filter_field_catalog::ALL_COLUMNS;
+pub const FILTER_VALUE_CATALOG_COLUMNS: &[Column] = filter_value_catalog::ALL_COLUMNS;
+pub const FILTER_SAMPLE_CATALOG_COLUMNS: &[Column] = filter_sample_catalog::ALL_COLUMNS;
+pub const FILTER_NUMERIC_CATALOG_COLUMNS: &[Column] = filter_numeric_catalog::ALL_COLUMNS;
 pub const ACTOR_RECORD_COLUMNS: &[Column] = actor_records::ALL_COLUMNS;
 pub const ITEM_RECORD_COLUMNS: &[Column] = item_records::ALL_COLUMNS;
 pub const SPELL_RECORD_COLUMNS: &[Column] = spell_records::ALL_COLUMNS;
@@ -273,7 +285,7 @@ const RECORD_METRIC_CONSTRAINTS: &[TableConstraint] = &[
 
 const METRIC_KEY_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
     closed_text_not_null(metric_key_catalog::columns::METRIC_DOMAIN, METRIC_DOMAINS),
-    text_not_null(metric_key_catalog::columns::RECORD_FAMILY),
+    text(metric_key_catalog::columns::RECORD_FAMILY),
     text_not_null(metric_key_catalog::columns::NAMESPACE_PREFIX),
     text_not_null(metric_key_catalog::columns::METRIC_KEY),
     closed_text_not_null(metric_key_catalog::columns::VALUE_TYPE, METRIC_VALUE_TYPES),
@@ -289,7 +301,7 @@ const METRIC_KEY_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
 
 const METRIC_VALUE_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
     closed_text_not_null(metric_value_catalog::columns::METRIC_DOMAIN, METRIC_DOMAINS),
-    text_not_null(metric_value_catalog::columns::RECORD_FAMILY),
+    text(metric_value_catalog::columns::RECORD_FAMILY),
     text_not_null(metric_value_catalog::columns::METRIC_KEY),
     text_not_null(metric_value_catalog::columns::VALUE),
     integer_not_null(metric_value_catalog::columns::CATALOG_COUNT),
@@ -299,6 +311,77 @@ const METRIC_VALUE_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
     metric_value_catalog::columns::RECORD_FAMILY,
     metric_value_catalog::columns::METRIC_KEY,
     metric_value_catalog::columns::VALUE,
+])];
+
+const FILTER_FIELD_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
+    text_not_null(filter_field_catalog::columns::FIELD),
+    text(filter_field_catalog::columns::RECORD_FAMILY),
+    text_not_null(filter_field_catalog::columns::FIELD_TYPE),
+    text_not_null(filter_field_catalog::columns::FIELD_GROUP),
+    text_not_null(filter_field_catalog::columns::VALUE_POLICY),
+    text_not_null(filter_field_catalog::columns::OPERATORS_JSON),
+    text_not_null(filter_field_catalog::columns::CLI_FLAGS_JSON),
+    text_not_null(filter_field_catalog::columns::APPLICABLE_FAMILIES_JSON),
+    integer_not_null(filter_field_catalog::columns::VALUE_COUNT),
+    integer_not_null(filter_field_catalog::columns::MATCHING_RECORD_COUNT),
+    integer_not_null(filter_field_catalog::columns::NULL_COUNT),
+    integer_not_null(filter_field_catalog::columns::DISTINCT_COUNT),
+    integer_not_null(filter_field_catalog::columns::SINGLETON_COUNT),
+    real(filter_field_catalog::columns::SINGLETON_RATIO),
+    real(filter_field_catalog::columns::OBSERVATION_SINGLETON_RATIO),
+    text_not_null(filter_field_catalog::columns::POLICY_REASON),
+];
+const FILTER_FIELD_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
+    filter_field_catalog::columns::FIELD,
+    filter_field_catalog::columns::RECORD_FAMILY,
+])];
+
+const FILTER_VALUE_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
+    text_not_null(filter_value_catalog::columns::FIELD),
+    text(filter_value_catalog::columns::RECORD_FAMILY),
+    text_not_null(filter_value_catalog::columns::VALUE),
+    integer_not_null(filter_value_catalog::columns::CATALOG_COUNT),
+];
+const FILTER_VALUE_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
+    filter_value_catalog::columns::FIELD,
+    filter_value_catalog::columns::RECORD_FAMILY,
+    filter_value_catalog::columns::VALUE,
+])];
+
+const FILTER_SAMPLE_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
+    text_not_null(filter_sample_catalog::columns::FIELD),
+    text(filter_sample_catalog::columns::RECORD_FAMILY),
+    text_not_null(filter_sample_catalog::columns::VALUE),
+    integer_not_null(filter_sample_catalog::columns::CATALOG_COUNT),
+    integer_not_null(filter_sample_catalog::columns::SAMPLE_RANK),
+];
+const FILTER_SAMPLE_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
+    filter_sample_catalog::columns::FIELD,
+    filter_sample_catalog::columns::RECORD_FAMILY,
+    filter_sample_catalog::columns::VALUE,
+])];
+
+const FILTER_NUMERIC_CATALOG_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
+    text_not_null(filter_numeric_catalog::columns::FIELD),
+    text(filter_numeric_catalog::columns::RECORD_FAMILY),
+    text(filter_numeric_catalog::columns::METRIC_DOMAIN),
+    text(filter_numeric_catalog::columns::METRIC_KEY),
+    integer_not_null(filter_numeric_catalog::columns::CATALOG_COUNT),
+    integer_not_null(filter_numeric_catalog::columns::NULL_COUNT),
+    real(filter_numeric_catalog::columns::MIN),
+    real(filter_numeric_catalog::columns::P05),
+    real(filter_numeric_catalog::columns::P25),
+    real(filter_numeric_catalog::columns::P50),
+    real(filter_numeric_catalog::columns::MEAN),
+    real(filter_numeric_catalog::columns::P75),
+    real(filter_numeric_catalog::columns::P95),
+    real(filter_numeric_catalog::columns::MAX),
+];
+const FILTER_NUMERIC_CATALOG_CONSTRAINTS: &[TableConstraint] = &[primary_key(&[
+    filter_numeric_catalog::columns::FIELD,
+    filter_numeric_catalog::columns::RECORD_FAMILY,
+    filter_numeric_catalog::columns::METRIC_DOMAIN,
+    filter_numeric_catalog::columns::METRIC_KEY,
 ])];
 
 const ACTOR_RECORD_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
@@ -433,6 +516,26 @@ pub const TABLE_DESCRIPTORS: &[TableDescriptor] = &[
         metric_value_catalog::TABLE,
         METRIC_VALUE_CATALOG_COLUMN_DESCRIPTORS,
         METRIC_VALUE_CATALOG_CONSTRAINTS,
+    ),
+    TableDescriptor::ordinary(
+        filter_field_catalog::TABLE,
+        FILTER_FIELD_CATALOG_COLUMN_DESCRIPTORS,
+        FILTER_FIELD_CATALOG_CONSTRAINTS,
+    ),
+    TableDescriptor::ordinary(
+        filter_value_catalog::TABLE,
+        FILTER_VALUE_CATALOG_COLUMN_DESCRIPTORS,
+        FILTER_VALUE_CATALOG_CONSTRAINTS,
+    ),
+    TableDescriptor::ordinary(
+        filter_sample_catalog::TABLE,
+        FILTER_SAMPLE_CATALOG_COLUMN_DESCRIPTORS,
+        FILTER_SAMPLE_CATALOG_CONSTRAINTS,
+    ),
+    TableDescriptor::ordinary(
+        filter_numeric_catalog::TABLE,
+        FILTER_NUMERIC_CATALOG_COLUMN_DESCRIPTORS,
+        FILTER_NUMERIC_CATALOG_CONSTRAINTS,
     ),
     TableDescriptor::ordinary(
         actor_records::TABLE,

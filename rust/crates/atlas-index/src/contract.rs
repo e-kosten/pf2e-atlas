@@ -7,6 +7,7 @@ use crate::{
 };
 
 mod content;
+mod discovery;
 mod embeddings;
 mod fts;
 mod metrics;
@@ -14,6 +15,7 @@ mod relationships;
 mod required_schema;
 
 use content::validate_content_json;
+use discovery::validate_filter_discovery_catalogs;
 use embeddings::validate_document_embedding_cache;
 use fts::validate_fts_coverage;
 use metrics::{validate_metric_catalogs, validate_metric_values};
@@ -47,6 +49,7 @@ pub(crate) fn validate_artifact_contract(
     validate_document_embedding_cache(connection, metadata, &mut diagnostics)?;
     validate_relationships(connection, &mut diagnostics)?;
     validate_metric_catalogs(connection, &mut diagnostics)?;
+    validate_filter_discovery_catalogs(connection, &mut diagnostics)?;
     Ok(diagnostics)
 }
 

@@ -23,12 +23,14 @@ pub enum MetadataSetField {
 #[serde(rename_all = "snake_case")]
 pub enum MetadataEnumStringField {
     PackName,
+    PackLabel,
     PublicationFamily,
     Size,
     Usage,
     SystemGroup,
     FoundryRecordType,
     BaseItem,
+    Hands,
     SaveType,
     AreaType,
     DurationUnit,

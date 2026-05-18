@@ -149,7 +149,7 @@ atlas search "low level healing spell" --family spell --limit 10 --json
 atlas search --filter-json '<canonical-filter-json>' --sort levelAsc --json
 atlas search "healing magic" --json
 atlas search "healing magic" --retrieval fts --json
-atlas filters list-values --field traits --category creature --json
+atlas filters values --field traits --family creature
 atlas rule-context "Grab" --include-backlinks --json
 atlas graph get --record-key actions:abc123 --include-backlinks --json
 atlas tags evaluate-derived-tags --category spell --json

@@ -2,6 +2,7 @@
 
 pub mod categories;
 pub mod detail;
+pub mod discovery;
 pub mod metadata;
 pub mod record;
 pub mod record_key;
@@ -10,6 +11,12 @@ pub mod search_request;
 
 pub use categories::RecordFamily;
 pub use detail::DetailLevel;
+pub use discovery::{
+    BooleanFieldCounts, FilterDiscoveryExecution, FilterFieldDiscovery, FilterFieldGroup,
+    FilterFieldInfo, FilterFieldStats, FilterFieldType, FilterOperator, FilterSample,
+    FilterSampleExample, FilterValueCount, FilterValueDiscovery, FilterValuePayload,
+    FilterValuePolicy, FilterValueSort, MetricKeyDiscovery, MetricValuePayload, NumericFieldStats,
+};
 pub use metadata::{
     MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
     MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,

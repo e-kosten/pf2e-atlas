@@ -220,12 +220,14 @@ impl FilterCompiler {
     ) -> Result<String, FilterCompileError> {
         let column = match field {
             MetadataEnumStringField::PackName => records::columns::PACK_NAME,
+            MetadataEnumStringField::PackLabel => records::columns::PACK_LABEL,
             MetadataEnumStringField::PublicationFamily => records::columns::PUBLICATION_FAMILY,
             MetadataEnumStringField::Size => actor_records::columns::SIZE,
             MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
             MetadataEnumStringField::SystemGroup => records::columns::SYSTEM_GROUP,
             MetadataEnumStringField::FoundryRecordType => records::columns::FOUNDRY_RECORD_TYPE,
             MetadataEnumStringField::BaseItem => records::columns::SYSTEM_BASE_ITEM,
+            MetadataEnumStringField::Hands => item_records::columns::HANDS_REQUIREMENT,
             MetadataEnumStringField::SaveType => spell_records::columns::SAVE_TYPE,
             MetadataEnumStringField::AreaType => spell_records::columns::AREA_TYPE,
             MetadataEnumStringField::DurationUnit => records::columns::DURATION_UNIT,

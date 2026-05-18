@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use atlas_artifact::schema::TABLE_RECORDS_FTS;
-use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
 use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 
+use crate::discovery::{self, DiscoveryError, FilterValueRequest};
 use crate::filters::{
     FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort as SqlFilteredRecordSort,
     compile_eligible_records_query, compile_filtered_record_keys_query,
@@ -200,6 +201,22 @@ impl AtlasIndex {
         keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
         records::load_persisted_records_by_key_from_connection(&self.connection, keys)
+    }
+
+    pub fn list_filter_fields(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+    ) -> Result<FilterFieldDiscovery, DiscoveryError> {
+        discovery::list_filter_fields(&self.connection, filter, filter_json)
+    }
+
+    pub fn list_filter_values(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        request: FilterValueRequest,
+    ) -> Result<FilterValueDiscovery, DiscoveryError> {
+        discovery::list_filter_values(&self.connection, filter, request)
     }
 
     pub fn list_filtered_record_keys(

@@ -65,9 +65,10 @@ trait FilterOptionExt {
 impl FilterOptionExt for FilterOptions {
     fn has_convenience_filters(&self) -> bool {
         !self.families.is_empty()
-            || !self.packs.is_empty()
+            || !self.pack_names.is_empty()
+            || !self.pack_labels.is_empty()
             || !self.rarities.is_empty()
-            || !self.sources.is_empty()
+            || !self.publication_titles.is_empty()
             || self.level.is_some()
             || self.min_level.is_some()
             || self.max_level.is_some()
@@ -91,7 +92,12 @@ fn build_convenience_filter(
     push_enum_string_filter(
         &mut children,
         MetadataEnumStringField::PackName,
-        &options.packs,
+        &options.pack_names,
+    );
+    push_enum_string_filter(
+        &mut children,
+        MetadataEnumStringField::PackLabel,
+        &options.pack_labels,
     );
     push_enum_string_filter(
         &mut children,
@@ -101,7 +107,7 @@ fn build_convenience_filter(
     push_text_string_filter(
         &mut children,
         MetadataTextStringField::PublicationTitle,
-        &options.sources,
+        &options.publication_titles,
     );
     push_level_filter(
         &mut children,
@@ -468,7 +474,7 @@ mod tests {
     #[test]
     fn filter_json_cannot_combine_with_convenience_flags() {
         let options = FilterOptions {
-            packs: vec!["actions".to_string()],
+            pack_names: vec!["actions".to_string()],
             ..FilterOptions::default()
         };
 

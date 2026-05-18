@@ -106,10 +106,16 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     let record_resolve_help = help_output(&["record", "resolve"])?;
     assert!(record_resolve_help.contains("atlas record resolve \"Treat Wounds\""));
     assert!(record_resolve_help.contains("--filter-json"));
+    assert!(record_resolve_help.contains("atlas filters fields"));
+    assert!(record_resolve_help.contains("atlas filters values --field traits"));
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
+    assert!(search_help.contains("atlas filters fields"));
+    assert!(search_help.contains("atlas filters values --field traits"));
     assert!(search_help.contains("--retrieval selects fts, vector, or hybrid retrieval"));
+    assert!(search_help.contains("--pack-name"));
+    assert!(search_help.contains("--publication-title"));
     assert!(search_help.contains("--price"));
     assert!(search_help.contains("--min-price"));
     assert!(search_help.contains("--max-price"));
@@ -117,6 +123,15 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(search_help.contains("--referenced-by"));
     assert!(search_help.contains("--metric"));
     assert!(search_help.contains("--print-filter"));
+
+    let filters_help = help_output(&["filters"])?;
+    assert!(filters_help.contains("fields"));
+    assert!(filters_help.contains("values"));
+
+    let filter_values_help = help_output(&["filters", "values"])?;
+    assert!(filter_values_help.contains("--field"));
+    assert!(filter_values_help.contains("--metric-label"));
+    assert!(filter_values_help.contains("--sample-limit"));
 
     Ok(())
 }
@@ -1127,7 +1142,14 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
     );
 
     let filtered_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["search", "--family", "rule", "--pack", "actions", "--index"])
+        .args([
+            "search",
+            "--family",
+            "rule",
+            "--pack-name",
+            "actions",
+            "--index",
+        ])
         .arg(&index_path)
         .arg("--json")
         .output()?;
@@ -1146,7 +1168,7 @@ fn tooling_records_are_hidden_from_default_resolution_and_search_but_gettable_by
             "record",
             "resolve",
             "Treat Wounds",
-            "--pack",
+            "--pack-name",
             "actions",
             "--index",
         ])
