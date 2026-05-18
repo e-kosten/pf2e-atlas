@@ -3,7 +3,9 @@ use atlas_domain::metadata::{
     MetadataSetField, MetadataSetMatch, MetadataStringMatch, MetadataTextMatch,
     MetadataTextStringField,
 };
-use atlas_domain::{NumericMatch, RecordFamily, SearchFilterNode};
+use atlas_domain::{
+    MetricMatch, NumericMatch, RecordFamily, RecordKey, ScalarValue, SearchFilterNode,
+};
 use serde_json::Value;
 
 use crate::FilterOptions;
@@ -69,8 +71,14 @@ impl FilterOptionExt for FilterOptions {
             || self.level.is_some()
             || self.min_level.is_some()
             || self.max_level.is_some()
+            || self.price.is_some()
+            || self.min_price.is_some()
+            || self.max_price.is_some()
             || !self.traits.is_empty()
             || !self.any_traits.is_empty()
+            || !self.references.is_empty()
+            || !self.referenced_by.is_empty()
+            || !self.metrics.is_empty()
     }
 }
 
@@ -101,6 +109,14 @@ fn build_convenience_filter(
         options.min_level,
         options.max_level,
     )?;
+    push_number_filter(
+        &mut children,
+        MetadataNumberField::PriceCp,
+        "--price",
+        options.price.as_deref(),
+        options.min_price,
+        options.max_price,
+    )?;
     for value in &options.traits {
         children.push(trait_filter(value));
     }
@@ -108,6 +124,21 @@ fn build_convenience_filter(
         children.push(any_or_single(
             options.any_traits.iter().map(|value| trait_filter(value)),
         ));
+    }
+    for value in &options.references {
+        children.push(SearchFilterNode::links_to(parse_record_key(
+            value,
+            "--references",
+        )?));
+    }
+    for value in &options.referenced_by {
+        children.push(SearchFilterNode::linked_from(parse_record_key(
+            value,
+            "--referenced-by",
+        )?));
+    }
+    for value in &options.metrics {
+        children.push(parse_metric_filter(value)?);
     }
 
     match children.len() {
@@ -179,15 +210,35 @@ fn push_level_filter(
     min_level: Option<f64>,
     max_level: Option<f64>,
 ) -> Result<(), CliFilterError> {
-    if level.is_some() && (min_level.is_some() || max_level.is_some()) {
+    push_number_filter(
+        children,
+        MetadataNumberField::Level,
+        "--level",
+        level,
+        min_level,
+        max_level,
+    )
+}
+
+fn push_number_filter(
+    children: &mut Vec<SearchFilterNode>,
+    field: MetadataNumberField,
+    flag: &'static str,
+    exact_or_range: Option<&str>,
+    min_value: Option<f64>,
+    max_value: Option<f64>,
+) -> Result<(), CliFilterError> {
+    if exact_or_range.is_some() && (min_value.is_some() || max_value.is_some()) {
         return Err(CliFilterError {
             code: "invalid_filter",
-            message: "--level cannot be combined with --min-level or --max-level".to_string(),
+            message: format!(
+                "{flag} cannot be combined with --min-* or --max-* for the same field"
+            ),
         });
     }
-    let Some(r#match) = (match level {
-        Some(level) => Some(parse_level_match(level)?),
-        None => match (min_level, max_level) {
+    let Some(r#match) = (match exact_or_range {
+        Some(value) => Some(parse_number_match(value, flag)?),
+        None => match (min_value, max_value) {
             (Some(min), Some(max)) => Some(MetadataNumberMatch::Between { min, max }),
             (Some(value), None) => Some(MetadataNumberMatch::Gte { value }),
             (None, Some(value)) => Some(MetadataNumberMatch::Lte { value }),
@@ -197,36 +248,126 @@ fn push_level_filter(
         return Ok(());
     };
     children.push(SearchFilterNode::metadata(MetadataPredicate::Number {
-        field: MetadataNumberField::Level,
+        field,
         r#match,
     }));
     Ok(())
 }
 
-fn parse_level_match(value: &str) -> Result<MetadataNumberMatch, CliFilterError> {
+fn parse_number_match(value: &str, flag: &str) -> Result<MetadataNumberMatch, CliFilterError> {
     if let Some((min, max)) = value.split_once("..") {
         if min.is_empty() || max.is_empty() {
             return Err(CliFilterError {
                 code: "invalid_filter",
-                message: "--level range must include both bounds, such as 1..5".to_string(),
+                message: format!("{flag} range must include both bounds, such as 1..5"),
             });
         }
         return Ok(MetadataNumberMatch::Between {
-            min: parse_level_bound(min, "--level")?,
-            max: parse_level_bound(max, "--level")?,
+            min: parse_number_bound(min, flag)?,
+            max: parse_number_bound(max, flag)?,
         });
     }
     Ok(NumericMatch::Eq {
-        value: parse_level_bound(value, "--level")?,
+        value: parse_number_bound(value, flag)?,
     }
     .into())
 }
 
-fn parse_level_bound(value: &str, flag: &str) -> Result<f64, CliFilterError> {
+fn parse_number_bound(value: &str, flag: &str) -> Result<f64, CliFilterError> {
     value.parse::<f64>().map_err(|error| CliFilterError {
         code: "invalid_filter",
         message: format!("invalid {flag} value `{value}`: {error}"),
     })
+}
+
+fn parse_record_key(value: &str, flag: &str) -> Result<RecordKey, CliFilterError> {
+    RecordKey::parse(value).map_err(|error| CliFilterError {
+        code: "invalid_filter",
+        message: format!("invalid {flag} record key `{value}`: {error}"),
+    })
+}
+
+fn parse_metric_filter(value: &str) -> Result<SearchFilterNode, CliFilterError> {
+    let (metric, operator, raw_value) = split_predicate(value, "--metric")?;
+    if metric.is_empty() {
+        return Err(CliFilterError {
+            code: "invalid_filter",
+            message: format!("invalid --metric predicate `{value}`: missing metric key"),
+        });
+    }
+    let r#match = match operator {
+        PredicateOperator::Eq | PredicateOperator::Colon => MetricMatch::Eq {
+            value: parse_scalar_value(raw_value),
+        },
+        PredicateOperator::Gt => MetricMatch::Gt {
+            value: parse_number_bound(raw_value, "--metric")?,
+        },
+        PredicateOperator::Gte => MetricMatch::Gte {
+            value: parse_number_bound(raw_value, "--metric")?,
+        },
+        PredicateOperator::Lt => MetricMatch::Lt {
+            value: parse_number_bound(raw_value, "--metric")?,
+        },
+        PredicateOperator::Lte => MetricMatch::Lte {
+            value: parse_number_bound(raw_value, "--metric")?,
+        },
+    };
+    Ok(SearchFilterNode::metric(metric, r#match))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PredicateOperator {
+    Eq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+    Colon,
+}
+
+fn split_predicate<'a>(
+    value: &'a str,
+    flag: &str,
+) -> Result<(&'a str, PredicateOperator, &'a str), CliFilterError> {
+    if value.contains("!=") {
+        return Err(CliFilterError {
+            code: "invalid_filter",
+            message: format!("invalid {flag} predicate `{value}`: `!=` is not supported"),
+        });
+    }
+    for (token, operator) in [
+        (">=", PredicateOperator::Gte),
+        ("<=", PredicateOperator::Lte),
+        (">", PredicateOperator::Gt),
+        ("<", PredicateOperator::Lt),
+        ("=", PredicateOperator::Eq),
+        (":", PredicateOperator::Colon),
+    ] {
+        if let Some((left, right)) = value.split_once(token) {
+            if left.is_empty() || right.is_empty() {
+                return Err(CliFilterError {
+                    code: "invalid_filter",
+                    message: format!("invalid {flag} predicate `{value}`"),
+                });
+            }
+            return Ok((left, operator, right));
+        }
+    }
+    Err(CliFilterError {
+        code: "invalid_filter",
+        message: format!("invalid {flag} predicate `{value}`: missing operator"),
+    })
+}
+
+fn parse_scalar_value(value: &str) -> ScalarValue {
+    match value {
+        "true" => ScalarValue::Boolean(true),
+        "false" => ScalarValue::Boolean(false),
+        _ => value
+            .parse::<f64>()
+            .map(ScalarValue::Number)
+            .unwrap_or_else(|_| ScalarValue::String(value.to_string())),
+    }
 }
 
 fn trait_filter(value: &str) -> SearchFilterNode {
@@ -334,5 +475,126 @@ mod tests {
         let error =
             build_filter(Some(r#"{"kind":"record_family","value":"rule"}"#), &options).unwrap_err();
         assert_eq!(error.code, "invalid_filter");
+    }
+
+    #[test]
+    fn reference_flags_lower_to_link_filters() {
+        let options = FilterOptions {
+            references: vec!["spells:fireball".to_string()],
+            referenced_by: vec!["actions:activate".to_string()],
+            ..FilterOptions::default()
+        };
+
+        let (filter, _) = build_filter(None, &options).expect("filter builds");
+        assert_eq!(
+            filter,
+            Some(SearchFilterNode::all_of(vec![
+                SearchFilterNode::links_to(RecordKey::parse("spells:fireball").unwrap()),
+                SearchFilterNode::linked_from(RecordKey::parse("actions:activate").unwrap()),
+            ]))
+        );
+    }
+
+    #[test]
+    fn price_and_metric_flags_lower_to_canonical_filters() {
+        let options = FilterOptions {
+            price: Some("100..500".to_string()),
+            metrics: vec!["defense.ac>=18".to_string(), "name:guardian".to_string()],
+            ..FilterOptions::default()
+        };
+
+        let (filter, _) = build_filter(None, &options).expect("filter builds");
+        let Some(SearchFilterNode::AllOf { children }) = filter else {
+            panic!("expected all_of");
+        };
+        assert_eq!(children.len(), 3);
+        assert_eq!(
+            children[0],
+            SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::PriceCp,
+                r#match: MetadataNumberMatch::Between {
+                    min: 100.0,
+                    max: 500.0
+                },
+            })
+        );
+        assert_eq!(
+            children[1],
+            SearchFilterNode::metric("defense.ac", MetricMatch::Gte { value: 18.0 })
+        );
+    }
+
+    #[test]
+    fn exact_min_and_max_price_flags_lower_to_number_filters() {
+        let exact = FilterOptions {
+            price: Some("250".to_string()),
+            ..FilterOptions::default()
+        };
+        let min = FilterOptions {
+            min_price: Some(100.0),
+            ..FilterOptions::default()
+        };
+        let max = FilterOptions {
+            max_price: Some(500.0),
+            ..FilterOptions::default()
+        };
+
+        assert_eq!(
+            build_filter(None, &exact).expect("filter builds").0,
+            Some(SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::PriceCp,
+                r#match: MetadataNumberMatch::Eq { value: 250.0 },
+            }))
+        );
+        assert_eq!(
+            build_filter(None, &min).expect("filter builds").0,
+            Some(SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::PriceCp,
+                r#match: MetadataNumberMatch::Gte { value: 100.0 },
+            }))
+        );
+        assert_eq!(
+            build_filter(None, &max).expect("filter builds").0,
+            Some(SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::PriceCp,
+                r#match: MetadataNumberMatch::Lte { value: 500.0 },
+            }))
+        );
+    }
+
+    #[test]
+    fn price_flags_reject_conflicting_shapes() {
+        let options = FilterOptions {
+            price: Some("250".to_string()),
+            max_price: Some(500.0),
+            ..FilterOptions::default()
+        };
+
+        let error = build_filter(None, &options).unwrap_err();
+        assert_eq!(error.code, "invalid_filter");
+    }
+
+    #[test]
+    fn invalid_reference_key_is_rejected() {
+        let options = FilterOptions {
+            references: vec!["not-a-key".to_string()],
+            ..FilterOptions::default()
+        };
+
+        let error = build_filter(None, &options).unwrap_err();
+        assert_eq!(error.code, "invalid_filter");
+    }
+
+    #[test]
+    fn malformed_metric_predicates_are_rejected() {
+        for metric in ["defense.ac", "defense.ac>=high", "defense.ac!=18"] {
+            let options = FilterOptions {
+                metrics: vec![metric.to_string()],
+                ..FilterOptions::default()
+            };
+
+            let error = build_filter(None, &options).unwrap_err();
+            assert_eq!(error.code, "invalid_filter");
+        }
     }
 }
