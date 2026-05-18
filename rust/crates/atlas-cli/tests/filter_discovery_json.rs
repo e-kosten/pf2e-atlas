@@ -270,6 +270,23 @@ fn reports_metric_numeric_sample_and_boolean_payloads() -> Result<(), Box<dyn st
     );
     assert_eq!(sample_data["field_stats"]["null_count"], 0);
 
+    let sample_values_with_limit_alias = atlas(&[
+        "filters",
+        "values",
+        "--field",
+        "target_text",
+        "--family",
+        "spell",
+        "--limit",
+        "25",
+        "--index",
+        index_path.to_str().unwrap(),
+    ])?;
+    assert!(sample_values_with_limit_alias.status.success());
+    let sample_alias_json: Value = serde_json::from_slice(&sample_values_with_limit_alias.stdout)?;
+    let sample_alias_data = ok_data(&sample_alias_json);
+    assert_eq!(sample_alias_data["sample"]["sample_limit"], 25);
+
     let boolean_values = atlas(&[
         "filters",
         "values",
