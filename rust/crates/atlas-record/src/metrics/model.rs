@@ -15,6 +15,24 @@ pub enum MetricGroup {
     Disable,
 }
 
+impl MetricGroup {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Abilities => "abilities",
+            Self::Defense => "defense",
+            Self::Health => "health",
+            Self::Perception => "perception",
+            Self::Saves => "saves",
+            Self::Skills => "skills",
+            Self::Movement => "movement",
+            Self::Senses => "senses",
+            Self::Stealth => "stealth",
+            Self::Items => "items",
+            Self::Disable => "disable",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetricLabelTemplate {
     Static(&'static str),

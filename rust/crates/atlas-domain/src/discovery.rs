@@ -194,6 +194,10 @@ pub struct MetricKeyDiscovery {
     pub metric_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub short_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
     pub known: bool,
     pub value_type: String,
     pub count: u64,

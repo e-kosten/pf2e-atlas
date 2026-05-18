@@ -89,6 +89,8 @@ pub enum FilteredRecordSort {
     Alphabetical,
     LevelAsc,
     LevelDesc,
+    PriceAsc,
+    PriceDesc,
     Random { seed: u64 },
 }
 
@@ -242,6 +244,14 @@ impl AtlasIndex {
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError> {
         discovery::list_filter_values(&self.connection, filter, request)
+    }
+
+    pub fn resolve_metric_filters(
+        &self,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<SearchFilterNode>, FilterCompileError> {
+        discovery::resolve_filter_metrics(&self.connection, filter)
+            .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
     }
 
     pub fn list_filtered_record_keys(
@@ -537,6 +547,8 @@ fn sql_sort(sort: FilteredRecordSort) -> SqlFilteredRecordSort {
         FilteredRecordSort::Alphabetical => SqlFilteredRecordSort::NameAsc,
         FilteredRecordSort::LevelAsc => SqlFilteredRecordSort::LevelAsc,
         FilteredRecordSort::LevelDesc => SqlFilteredRecordSort::LevelDesc,
+        FilteredRecordSort::PriceAsc => SqlFilteredRecordSort::PriceAsc,
+        FilteredRecordSort::PriceDesc => SqlFilteredRecordSort::PriceDesc,
         FilteredRecordSort::Random { .. } => SqlFilteredRecordSort::RecordKeyAsc,
     }
 }

@@ -66,6 +66,7 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
         metric: options.metric,
         metric_prefix: options.metric_prefix,
         metric_label: options.metric_label,
+        metric_query: options.metric_query,
         metric_domain: options.metric_domain,
     };
     let index = match open_index(options.index, options.path_mode.into()) {

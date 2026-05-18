@@ -26,6 +26,7 @@ pub struct FilterValueRequest {
     pub metric: Option<String>,
     pub metric_prefix: Option<String>,
     pub metric_label: Option<String>,
+    pub metric_query: Option<String>,
     pub metric_domain: Option<String>,
 }
 
@@ -42,7 +43,7 @@ pub(super) fn list_filter_fields(
     } else {
         dynamic::fields(connection, filter)?
     };
-    if metrics::metric_key_count(connection, filter, None, None, None)? > 0 {
+    if metrics::metric_key_count(connection, filter, None, None, None, None)? > 0 {
         fields.push(metric_field_info(
             execution == FilterDiscoveryExecution::Catalog,
         ));

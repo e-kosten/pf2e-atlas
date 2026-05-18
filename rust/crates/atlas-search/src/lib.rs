@@ -321,6 +321,8 @@ impl AtlasRetrievalService {
         limit: u32,
         mode: SemanticSearchMode,
     ) -> Result<SemanticSearchResult, SearchError> {
+        let resolved_filter = self.index.resolve_metric_filters(filter)?;
+        let filter = resolved_filter.as_ref().or(filter);
         if let Some(filter) = filter {
             filter
                 .validate()
@@ -499,6 +501,8 @@ impl AtlasRetrievalService {
         query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Vec<RecordResolutionResult>, SearchError> {
+        let resolved_filter = self.index.resolve_metric_filters(filter)?;
+        let filter = resolved_filter.as_ref().or(filter);
         let normalized_query = normalize_record_query(query);
         let mut record_set = self.index.load_record_set()?;
         record_set
@@ -578,6 +582,8 @@ impl AtlasRetrievalService {
         limit: u32,
         offset: u32,
     ) -> Result<FilterOnlyRecordPage, SearchError> {
+        let resolved_filter = self.index.resolve_metric_filters(filter)?;
+        let filter = resolved_filter.as_ref().or(filter);
         let FilteredRecordKeyPage { record_keys, total } = self
             .index
             .list_filtered_record_keys(filter, sort, limit, offset)?;
@@ -595,15 +601,17 @@ impl AtlasRetrievalService {
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchPage, SearchError> {
         validate_text_search_request(&request)?;
+        let resolved_filter = self.index.resolve_metric_filters(request.filter)?;
+        let filter = resolved_filter.as_ref().or(request.filter);
         let query = analyze_text_query(request.query, request.exclude);
         let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
-        let identity_matches = self.resolve_record(request.query, request.filter)?;
+        let identity_matches = self.resolve_record(request.query, filter)?;
         let fts_hits = if request.retrieval.uses_fts() {
             match fts_query.as_ref() {
                 Some(fts_query) => self.index.query_fts_index(
                     fts_query,
-                    request.filter,
+                    filter,
                     request.fts_top_k,
                     FtsColumnWeights::default(),
                 )?,
@@ -615,7 +623,7 @@ impl AtlasRetrievalService {
         let vector_hits = if request.retrieval.uses_vector() {
             self.semantic(
                 request.query,
-                request.filter,
+                filter,
                 request.vector_top_k,
                 SemanticSearchMode::WeightedChunks,
             )?

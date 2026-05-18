@@ -56,6 +56,8 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(search_help.contains("--references"));
     assert!(search_help.contains("--referenced-by"));
     assert!(search_help.contains("--metric"));
+    assert!(search_help.contains("price_asc"));
+    assert!(search_help.contains("price_desc"));
     assert!(search_help.contains("--print-filter"));
 
     let filters_help = help_output(&["filters"])?;
@@ -64,6 +66,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let filter_values_help = help_output(&["filters", "values"])?;
     assert!(filter_values_help.contains("--field"));
+    assert!(filter_values_help.contains("--metric-query"));
     assert!(filter_values_help.contains("--metric-label"));
     assert!(filter_values_help.contains("--sample-limit"));
     assert!(filter_values_help.contains("--json"));

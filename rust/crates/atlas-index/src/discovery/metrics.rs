@@ -3,7 +3,7 @@ use atlas_domain::{
     FilterValuePayload, MetricDomain, MetricKeyDiscovery, MetricValuePayload, NumericFieldStats,
     RecordFamily, SearchFilterNode,
 };
-use atlas_record::{MetricRow, MetricValue, label_for_row};
+use atlas_record::{MetricRow, MetricValue, definition_for, label_for_row};
 use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
 
@@ -12,6 +12,14 @@ use crate::filters::compile_eligible_records_query;
 use super::error::{DiscoveryError, query_error};
 use super::request::FilterValueRequest;
 use super::stats;
+
+mod query;
+mod resolution;
+
+use query::{
+    metric_label_matches, metric_matches_query, metric_query_tokens, normalize_metric_label,
+};
+pub(super) use resolution::resolve_filter_metrics;
 
 pub(super) fn values(
     connection: &Connection,
@@ -46,10 +54,16 @@ pub(super) fn values(
                 "--metric-label cannot be combined with --metric".to_string(),
             ));
         }
+        if request.metric_query.is_some() {
+            return Err(DiscoveryError::InvalidOption(
+                "--metric-query cannot be combined with --metric".to_string(),
+            ));
+        }
         let metric = if let Some(scope) = catalog_scope {
             let metrics = catalog_metric_keys(
                 connection,
                 scope,
+                None,
                 None,
                 None,
                 request.metric_domain.as_deref(),
@@ -70,6 +84,7 @@ pub(super) fn values(
                 scope,
                 request.metric_prefix.as_deref(),
                 request.metric_label.as_deref(),
+                request.metric_query.as_deref(),
                 request.metric_domain.as_deref(),
             )?
         } else {
@@ -78,6 +93,7 @@ pub(super) fn values(
                 filter,
                 request.metric_prefix.as_deref(),
                 request.metric_label.as_deref(),
+                request.metric_query.as_deref(),
                 request.metric_domain.as_deref(),
             )?
         };
@@ -97,9 +113,18 @@ pub(super) fn metric_key_count(
     filter: Option<&SearchFilterNode>,
     prefix: Option<&str>,
     label_query: Option<&str>,
+    metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<u64, DiscoveryError> {
-    Ok(metric_keys(connection, filter, prefix, label_query, domain)?.len() as u64)
+    Ok(metric_keys(
+        connection,
+        filter,
+        prefix,
+        label_query,
+        metric_query,
+        domain,
+    )?
+    .len() as u64)
 }
 
 fn metric_keys(
@@ -107,6 +132,7 @@ fn metric_keys(
     filter: Option<&SearchFilterNode>,
     prefix: Option<&str>,
     label_query: Option<&str>,
+    metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
     let eligible = compile_eligible_records_query(filter)?;
@@ -150,6 +176,7 @@ fn metric_keys(
         })
         .map_err(query_error)?;
     let label_query = label_query.map(normalize_metric_label);
+    let metric_query = metric_query.map(metric_query_tokens);
     let mut metrics = Vec::new();
     for row in rows {
         let metric = row.map_err(query_error)?;
@@ -164,6 +191,11 @@ fn metric_keys(
                 continue;
             }
         }
+        if let Some(query) = &metric_query
+            && !metric_matches_query(&metric, query)
+        {
+            continue;
+        }
         metrics.push(metric);
     }
     Ok(metrics)
@@ -175,7 +207,7 @@ fn resolve_metric(
     value: &str,
     domain: Option<&str>,
 ) -> Result<MetricKeyDiscovery, DiscoveryError> {
-    let metrics = metric_keys(connection, filter, None, None, domain)?;
+    let metrics = metric_keys(connection, filter, None, None, None, domain)?;
     resolve_metric_from_candidates(metrics, value)
 }
 
@@ -202,17 +234,15 @@ fn resolve_metric_from_candidates(
     let matches = metrics
         .into_iter()
         .filter(|metric| {
-            metric
-                .label
-                .as_deref()
-                .map(normalize_metric_label)
-                .is_some_and(|label| label == normalized)
+            metric.known
+                && (metric_label_matches(metric.label.as_deref(), &normalized)
+                    || metric_label_matches(metric.short_label.as_deref(), &normalized))
         })
         .collect::<Vec<_>>();
     match matches.as_slice() {
         [metric] => Ok(metric.clone()),
         [] => Err(DiscoveryError::InvalidOption(format!(
-            "metric `{value}` did not match a metric key or exact known label"
+            "metric `{value}` did not match a metric key, exact known label, or exact known short label"
         ))),
         _ => Err(DiscoveryError::AmbiguousMetric(format!(
             "metric label `{value}` is ambiguous; candidates: {}",
@@ -380,11 +410,12 @@ fn metric_numeric_stats(
     ))
 }
 
-fn catalog_metric_keys(
+pub(super) fn catalog_metric_keys(
     connection: &Connection,
     scope: MetricCatalogScope,
     prefix: Option<&str>,
     label_query: Option<&str>,
+    metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
     let mut sql = String::from(
@@ -441,6 +472,7 @@ fn catalog_metric_keys(
         })
         .map_err(query_error)?;
     let label_query = label_query.map(normalize_metric_label);
+    let metric_query = metric_query.map(metric_query_tokens);
     let mut metrics = Vec::new();
     for row in rows {
         let metric = row.map_err(query_error)?;
@@ -454,6 +486,11 @@ fn catalog_metric_keys(
             if !haystack.contains(query) {
                 continue;
             }
+        }
+        if let Some(query) = &metric_query
+            && !metric_matches_query(&metric, query)
+        {
+            continue;
         }
         metrics.push(metric);
     }
@@ -553,14 +590,17 @@ fn metric_key_from_parts(
         "boolean" => MetricValue::Boolean(false),
         _ => MetricValue::Text(String::new()),
     };
+    let domain = parse_metric_domain(&domain);
     let row = MetricRow {
-        domain: parse_metric_domain(&domain),
+        domain,
         key: metric_key.clone(),
         value: metric_value,
     };
     let label = label_for_row(&row);
+    let group = definition_for(domain, &metric_key)
+        .map(|matched| matched.definition.group().as_str().to_string());
     Ok(MetricKeyDiscovery {
-        metric_domain: domain,
+        metric_domain: metric_domain_string(domain),
         record_family,
         namespace_prefix: metric_key
             .split_once('.')
@@ -568,6 +608,8 @@ fn metric_key_from_parts(
             .unwrap_or_default(),
         metric_key,
         label: Some(label.label),
+        short_label: label.short_label,
+        group,
         known: label.known,
         value_type,
         count,
@@ -576,7 +618,7 @@ fn metric_key_from_parts(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MetricCatalogScope {
+pub(super) enum MetricCatalogScope {
     Global,
     Family(RecordFamily),
 }
@@ -638,10 +680,9 @@ fn parse_metric_domain(value: &str) -> MetricDomain {
         .expect("metric domain from catalog should be valid")
 }
 
-fn normalize_metric_label(value: &str) -> String {
-    value
-        .chars()
-        .flat_map(char::to_lowercase)
-        .filter(|character| character.is_ascii_alphanumeric())
-        .collect()
+fn metric_domain_string(value: MetricDomain) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string))
+        .unwrap_or_else(|| format!("{value:?}").to_lowercase())
 }
