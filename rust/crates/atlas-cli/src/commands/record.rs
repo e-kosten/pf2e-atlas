@@ -8,6 +8,7 @@ use atlas_search::{RecordResolutionResult, SearchError};
 use serde::Serialize;
 
 use crate::output::{CliError, write_json_data, write_json_error};
+use crate::terminal::TerminalStyle;
 use crate::{RecordGetOptions, RecordResolveOptions};
 
 use super::filters::build_filter;
@@ -408,11 +409,12 @@ fn print_record_get_batch(batch: &BatchRecordBody, detail: DetailLevel) {
         batch.counts.matched, batch.counts.requested
     );
     let mut printed_record = false;
+    let style = TerminalStyle::stdout();
     for result in &batch.results {
         if let Some(record) = &result.record {
             if detail_outputs_description(detail) && printed_record {
                 println!();
-                println!("---");
+                println!("{}", style.separator());
                 println!();
             }
             print_single_record(record, detail);
@@ -432,7 +434,8 @@ fn print_single_resolve(result: &RecordResolveItem, detail: DetailLevel) {
             .unwrap_or("unknown");
         if detail_outputs_description(detail) {
             print_record_for_detail(record, detail);
-            println!("Match: {match_kind}");
+            let style = TerminalStyle::stdout();
+            println!("{}: {match_kind}", style.label("Match"));
             return;
         }
         println!("{}\t{}\t{}", record.key, record.name, match_kind);
@@ -445,7 +448,12 @@ fn print_single_resolve(result: &RecordResolveItem, detail: DetailLevel) {
         for alternative in alternatives {
             if detail_outputs_description(detail) {
                 print_record_for_detail(&alternative.record, detail);
-                println!("Match: {}", alternative.resolution.match_kind);
+                let style = TerminalStyle::stdout();
+                println!(
+                    "{}: {}",
+                    style.label("Match"),
+                    alternative.resolution.match_kind
+                );
             } else {
                 println!(
                     "{}\t{}\t{}",
@@ -464,10 +472,11 @@ fn print_resolve_batch(batch: &BatchResolveBody, detail: DetailLevel) {
         batch.counts.matched, batch.counts.requested
     );
     let mut printed = false;
+    let style = TerminalStyle::stdout();
     for result in &batch.results {
         if detail_outputs_description(detail) && printed {
             println!();
-            println!("---");
+            println!("{}", style.separator());
             println!();
         }
         print_single_resolve(result, detail);
@@ -476,16 +485,17 @@ fn print_resolve_batch(batch: &BatchResolveBody, detail: DetailLevel) {
 }
 
 pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail: DetailLevel) {
-    print_record_header(record);
+    let style = TerminalStyle::stdout();
+    print_record_header(record, style);
     if let Some(traits) = non_empty_traits(record) {
-        println!("Traits: {traits}");
+        println!("{}: {traits}", style.label("Traits"));
     }
     if let Some(source) = record_source_label(record) {
-        println!("Source: {source}");
+        println!("{}: {source}", style.label("Source"));
     }
     if let Some(description) = record_description_text(record, detail) {
         println!();
-        println!("{description}");
+        println!("{}", style.render_markdown(&description));
     }
 }
 
@@ -493,14 +503,17 @@ pub(crate) fn detail_outputs_description(detail: DetailLevel) -> bool {
     matches!(detail, DetailLevel::Preview | DetailLevel::Description)
 }
 
-fn print_record_header(record: &atlas_record::RecordJson) {
+fn print_record_header(record: &atlas_record::RecordJson, style: TerminalStyle) {
     let level = record
         .level
         .map(|level| format!(" {level}"))
         .unwrap_or_default();
     println!(
         "{}  {}  {}{}",
-        record.key, record.name, record.record_family, level
+        style.metadata(&record.key),
+        style.label(&record.name),
+        record.record_family,
+        level
     );
 }
 
