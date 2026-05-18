@@ -16,7 +16,25 @@ pub(super) fn write_value_catalogs(connection: &Connection) -> Result<(), Ingest
     let value_insert = filter_value_catalog_insert_sql();
     let sample_insert = filter_sample_catalog_insert_sql();
     let numeric_insert = filter_numeric_catalog_insert_sql();
-    for seed in FIELD_SEEDS {
+    let catalog_seeds = FIELD_SEEDS
+        .iter()
+        .filter(|seed| {
+            matches!(
+                seed.value_policy,
+                FilterValuePolicy::Enumerable
+                    | FilterValuePolicy::Sample
+                    | FilterValuePolicy::NumericStats
+            )
+        })
+        .collect::<Vec<_>>();
+    let total = catalog_seeds.len() as u64;
+    for (index, seed) in catalog_seeds.iter().enumerate() {
+        super::progress(
+            "filter_value_catalogs",
+            index as u64,
+            total,
+            format!("Writing filter value catalog: {}", seed.field),
+        );
         match seed.value_policy {
             FilterValuePolicy::Enumerable => {
                 write_discrete_values(connection, &value_insert, seed)?
@@ -28,6 +46,12 @@ pub(super) fn write_value_catalogs(connection: &Connection) -> Result<(), Ingest
             _ => {}
         }
     }
+    super::progress(
+        "filter_value_catalogs",
+        total,
+        total,
+        "Wrote filter value catalogs".to_string(),
+    );
     write_metric_numeric_values(connection, &numeric_insert)?;
     Ok(())
 }
@@ -131,16 +155,23 @@ fn write_metric_numeric_values(
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    for (metric_domain, metric_key) in metric_rows {
-        for row in collect_metric_numeric_stats(connection, &metric_domain, &metric_key)? {
+    let total = metric_rows.len() as u64;
+    for (index, (metric_domain, metric_key)) in metric_rows.iter().enumerate() {
+        super::progress(
+            "filter_metric_catalogs",
+            index as u64,
+            total,
+            format!("Writing filter metric catalog: {metric_domain}.{metric_key}"),
+        );
+        for row in collect_metric_numeric_stats(connection, metric_domain, metric_key)? {
             connection
                 .execute(
                     insert_sql,
                     params![
                         "metric",
                         row.record_family,
-                        &metric_domain,
-                        &metric_key,
+                        metric_domain,
+                        metric_key,
                         row.count,
                         row.null_count,
                         row.min,
@@ -156,6 +187,12 @@ fn write_metric_numeric_values(
                 .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
         }
     }
+    super::progress(
+        "filter_metric_catalogs",
+        total,
+        total,
+        "Wrote filter metric catalogs".to_string(),
+    );
     Ok(())
 }
 

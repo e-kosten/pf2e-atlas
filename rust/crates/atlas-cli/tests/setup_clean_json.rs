@@ -44,11 +44,19 @@ fn setup_clean_help_lists_cleanup_targets() -> Result<(), Box<dyn std::error::Er
     assert!(setup_help.contains("atlas setup clean --artifact"));
 
     let setup_clean_help = help_output(&["setup", "clean"])?;
+    assert!(setup_clean_help.contains("Cleanup Targets"));
     assert!(setup_clean_help.contains("--artifact"));
     assert!(setup_clean_help.contains("--embeddings"));
     assert!(setup_clean_help.contains("--source-checkout"));
     assert!(setup_clean_help.contains("--all"));
+    assert!(setup_clean_help.contains("Cleanup Behavior"));
+    assert!(setup_clean_help.contains("--check"));
     assert!(setup_clean_help.contains("--yes"));
+    assert!(setup_clean_help.contains("Path Overrides"));
+    assert!(setup_clean_help.contains("setup clean --source-checkout"));
+    assert!(setup_clean_help.contains("setup clean --embeddings"));
+    assert!(setup_clean_help.contains("setup clean --artifact"));
+    assert!(setup_clean_help.contains("Output"));
     Ok(())
 }
 

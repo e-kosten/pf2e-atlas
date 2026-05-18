@@ -12,6 +12,7 @@ use atlas_ingest::{
 use tracing::info;
 
 use crate::ResolvedAtlasPaths;
+use crate::setup_freshness::{ManifestFreshness, manifest_source_signature};
 use crate::setup_model::{
     RuntimeSetupOptions, RuntimeSetupReport, SetupAction, SetupActionKind, SetupActionStatus,
     SetupBuildReport, SetupEmbeddingReport, SetupPathsReport, SetupReadiness, SetupReadinessItem,
@@ -37,6 +38,7 @@ pub(crate) fn ensure_setup(
             paths.index_path.display()
         ),
     );
+    let mut checks = Vec::new();
     let mut actions = Vec::new();
     let source_exists = paths.source_root.is_dir();
     let mut source_ready = source_exists;
@@ -185,34 +187,14 @@ pub(crate) fn ensure_setup(
             paths.index_path.display()
         ),
     );
-    let validation = validate_for_target(paths, options.target.validation_target());
+    let validation = check_for_target(paths, options.target.validation_target());
     let validation = selected_model_validation(validation, options.target, &embedding_config);
     let needs_source_signature =
         source_ready && !options.force_rebuild && validation.status == ValidationStatus::Ok;
     let source_signature = if needs_source_signature {
-        setup_progress(
-            "analyze_source",
-            format!("Analyzing PF2E source at {}", paths.source_root.display()),
-        );
-        match analyze_foundry_source(&paths.source_root, None) {
-            Ok(report) => {
-                actions.push(SetupAction::new(
-                    SetupActionKind::AnalyzeSource,
-                    SetupActionStatus::Done,
-                ));
-                Some(report.source.source_signature)
-            }
-            Err(error) => {
-                actions.push(SetupAction::with_reason(
-                    SetupActionKind::AnalyzeSource,
-                    SetupActionStatus::Failed,
-                    error.to_string(),
-                ));
-                None
-            }
-        }
+        current_source_signature(paths, &validation, &mut checks)
     } else if source_ready {
-        actions.push(SetupAction::with_reason(
+        checks.push(SetupAction::with_reason(
             SetupActionKind::AnalyzeSource,
             SetupActionStatus::Skipped,
             if options.force_rebuild {
@@ -223,7 +205,7 @@ pub(crate) fn ensure_setup(
         ));
         None
     } else {
-        actions.push(SetupAction::with_reason(
+        checks.push(SetupAction::with_reason(
             SetupActionKind::AnalyzeSource,
             SetupActionStatus::Blocked,
             "source checkout is not ready",
@@ -312,14 +294,14 @@ pub(crate) fn ensure_setup(
             ),
         );
         selected_model_validation(
-            validate_for_target(paths, options.target.validation_target()),
+            check_for_target(paths, options.target.validation_target()),
             options.target,
             &embedding_config,
         )
     } else {
         validation
     };
-    actions.push(SetupAction::new(
+    checks.push(SetupAction::new(
         SetupActionKind::ValidateIndex,
         if final_validation.status == ValidationStatus::Ok {
             SetupActionStatus::Done
@@ -329,7 +311,7 @@ pub(crate) fn ensure_setup(
     ));
     let record_validation = if embedding_required {
         setup_progress("validate_index", "Validating base record readiness");
-        validate_for_target(paths, ValidationTarget::BaseOnly)
+        check_for_target(paths, ValidationTarget::BaseOnly)
     } else {
         final_validation.clone()
     };
@@ -337,7 +319,7 @@ pub(crate) fn ensure_setup(
     let ready = source_ready
         && (!embedding_required || model_cache.ready)
         && final_validation.status == ValidationStatus::Ok
-        && !actions.iter().any(|action| {
+        && !checks.iter().chain(actions.iter()).any(|action| {
             matches!(
                 action.status,
                 SetupActionStatus::Planned | SetupActionStatus::Blocked | SetupActionStatus::Failed
@@ -354,6 +336,7 @@ pub(crate) fn ensure_setup(
         offline: options.offline,
         check: options.check,
         force_rebuild: options.force_rebuild,
+        checks,
         actions,
         readiness: SetupReadiness {
             source: if source_ready {
@@ -410,6 +393,46 @@ pub(crate) fn ensure_setup(
     report
 }
 
+fn current_source_signature(
+    paths: &ResolvedAtlasPaths,
+    validation: &ArtifactValidationReport,
+    checks: &mut Vec<SetupAction>,
+) -> Option<String> {
+    match manifest_source_signature(paths, validation) {
+        ManifestFreshness::Fresh(source_signature) => {
+            checks.push(SetupAction::with_reason(
+                SetupActionKind::AnalyzeSource,
+                SetupActionStatus::Skipped,
+                "source position matched adjacent artifact manifest",
+            ));
+            return Some(source_signature);
+        }
+        ManifestFreshness::Stale | ManifestFreshness::Unavailable => {}
+    }
+
+    setup_progress(
+        "analyze_source",
+        format!("Analyzing PF2E source at {}", paths.source_root.display()),
+    );
+    match analyze_foundry_source(&paths.source_root, None) {
+        Ok(report) => {
+            checks.push(SetupAction::new(
+                SetupActionKind::AnalyzeSource,
+                SetupActionStatus::Done,
+            ));
+            Some(report.source.source_signature)
+        }
+        Err(error) => {
+            checks.push(SetupAction::with_reason(
+                SetupActionKind::AnalyzeSource,
+                SetupActionStatus::Failed,
+                error.to_string(),
+            ));
+            None
+        }
+    }
+}
+
 fn setup_progress(phase: &'static str, message: impl AsRef<str>) {
     let message = message.as_ref();
     info!(target: "atlas_progress", phase, "{message}");
@@ -454,21 +477,24 @@ fn selected_model_validation(
     validation
 }
 
-fn validate_for_target(
+fn check_for_target(
     paths: &ResolvedAtlasPaths,
     target: ValidationTarget,
 ) -> ArtifactValidationReport {
-    if matches!(target, ValidationTarget::BaseOnly) {
-        return match atlas_index::AtlasIndex::open_read_only(&paths.index_path) {
-            Ok(index) => index.validate_target_report(target),
-            Err(error) => atlas_index::validation_report_for_error(&paths.index_path, error),
-        };
+    let base_report = match atlas_index::AtlasIndex::open_read_only(&paths.index_path) {
+        Ok(index) => index.check_report(),
+        Err(error) => return atlas_index::validation_report_for_error(&paths.index_path, error),
+    };
+    if base_report.status != ValidationStatus::Ok || matches!(target, ValidationTarget::BaseOnly) {
+        return base_report;
     }
-
     match atlas_index::AtlasIndex::open_read_only_with_vectors(&paths.index_path) {
-        Ok(index) => index.validate_target_report(target),
+        Ok(index) => index.check_embedding_readiness_report(),
         Err(error) => match atlas_index::AtlasIndex::open_read_only(&paths.index_path) {
-            Ok(index) => index.vector_extension_unavailable_report(target, error.to_string()),
+            Ok(index) => index.vector_extension_unavailable_report(
+                ValidationTarget::EmbeddingsOnly,
+                error.to_string(),
+            ),
             Err(base_error) => {
                 atlas_index::validation_report_for_error(&paths.index_path, base_error)
             }
@@ -599,6 +625,8 @@ fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
     let status = ProcessCommand::new("git")
         .args([
             "clone",
+            "--depth",
+            "1",
             "--quiet",
             "https://github.com/foundryvtt/pf2e.git",
             &source_root.display().to_string(),

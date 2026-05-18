@@ -5,8 +5,7 @@ use std::process::Command;
 use serde_json::Value;
 
 #[test]
-fn setup_auto_mode_uses_user_install_paths_even_from_repo() -> Result<(), Box<dyn std::error::Error>>
-{
+fn setup_default_mode_uses_global_install_paths() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_root("setup-auto-user");
     let source = root.join("source");
     let cache = root.join("hf-models");
@@ -25,14 +24,25 @@ fn setup_auto_mode_uses_user_install_paths_even_from_repo() -> Result<(), Box<dy
         .output()?;
 
     assert!(output.status.success());
+    assert!(output.stderr.is_empty());
     let actual: Value = serde_json::from_slice(&output.stdout)?;
     let actual = ok_data(&actual);
-    assert_eq!(actual["path_mode"], "user");
+    assert_eq!(actual["path_mode"], "global");
     assert!(actual["repo_root"].is_null());
     assert_eq!(actual["paths"]["source"], source.display().to_string());
     assert_eq!(actual["paths"]["index"], index.display().to_string());
+    assert!(
+        actual["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|check| { check["kind"] == "validate_index" && check["status"] == "done" })
+    );
+    assert!(!actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "validate_index" || action["kind"] == "analyze_source"
+    }));
 
-    fs::remove_dir_all(root)?;
+    let _ = fs::remove_dir_all(root);
     Ok(())
 }
 
@@ -59,7 +69,473 @@ fn setup_repo_path_resolution_json_errors_use_standard_envelope()
             .contains("--path-mode repo requires")
     );
 
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_root("cli-setup");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["setup", "--path-mode", "global", "--source"])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--no-embeddings")
+        .arg("--json")
+        .output()?;
+
+    assert!(output.status.success());
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], true);
+    assert_eq!(actual["target"], "records");
+    assert_eq!(actual["path_mode"], "global");
+    assert_eq!(actual["paths"]["source"], source.display().to_string());
+    assert_eq!(actual["embedding"]["model"], "bge-small-en-v1.5");
+    assert_eq!(
+        actual["embedding"]["cache_root"],
+        cache.display().to_string()
+    );
+    assert_eq!(actual["embedding"]["ready"], false);
+    assert_eq!(actual["paths"]["index"], index.display().to_string());
+    assert_eq!(actual["readiness"]["records"]["status"], "ready");
+    assert_eq!(actual["readiness"]["semantic_search"]["status"], "skipped");
+    assert!(index.is_file());
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_records_second_run_skips_rebuild() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-idempotent");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let first = setup_records_offline(&source, &cache, &index)?;
+    assert!(first.status.success());
+    assert!(index.is_file());
+    assert!(index.parent().unwrap().join("manifest.json").is_file());
+
+    let second = setup_records_offline(&source, &cache, &index)?;
+    assert!(second.status.success());
+    let actual: Value = serde_json::from_slice(&second.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], true);
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "skipped" })
+    );
+    assert!(actual["checks"].as_array().unwrap().iter().any(|check| {
+        check["kind"] == "analyze_source"
+            && check["status"] == "skipped"
+            && check["reason"] == "source position matched adjacent artifact manifest"
+    }));
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_records_git_source_manifest_tracks_git_commit() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-git-position");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+    let git_commit = initialize_git_source(&source)?;
+
+    let output = setup_records_offline(&source, &cache, &index)?;
+    assert!(output.status.success());
+
+    let manifest_path = index.parent().unwrap().join("manifest.json");
+    let manifest: Value = serde_json::from_slice(&fs::read(manifest_path)?)?;
+    assert_eq!(manifest["source"]["git_commit"], git_commit);
+    assert!(manifest["source"].get("fingerprint").is_none());
+    assert_eq!(
+        manifest["source"]["signature"],
+        ok_data(&serde_json::from_slice::<Value>(&output.stdout)?)["build"]["source_signature"]
+    );
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_check_falls_back_to_source_analysis_when_manifest_source_position_changes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-position-stale");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let first = setup_records_offline(&source, &cache, &index)?;
+    assert!(first.status.success());
+    write_changed_fixture_record(&source)?;
+
+    let output = setup_records_check(&source, &cache, &index)?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_plans_rebuild_after_source_analysis(&output)?;
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_check_falls_back_to_source_analysis_for_dirty_git_source()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-dirty-git-position");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+    initialize_git_source(&source)?;
+
+    let first = setup_records_offline(&source, &cache, &index)?;
+    assert!(first.status.success());
+    write_changed_fixture_record(&source)?;
+
+    let output = setup_records_check(&source, &cache, &index)?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_plans_rebuild_after_source_analysis(&output)?;
+
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_check_falls_back_to_source_analysis_for_untracked_git_source()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-untracked-git-position");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+    initialize_git_source(&source)?;
+
+    let first = setup_records_offline(&source, &cache, &index)?;
+    assert!(first.status.success());
+    fs::write(
+        source.join("packs/actions/new-untracked-action.json"),
+        r#"{
+          "_id": "newAction0001",
+          "name": "Untracked Action",
+          "type": "action",
+          "system": {
+            "description": { "value": "<p>An untracked action.</p>" },
+            "traits": { "value": ["exploration"] }
+          }
+        }"#,
+    )?;
+
+    let output = setup_records_check(&source, &cache, &index)?;
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_plans_rebuild_after_source_analysis(&output)?;
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_check_force_rebuild_reports_not_ready() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-check-force");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--check",
+            "--force-rebuild",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert!(actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "build_index"
+            && action["status"] == "planned"
+            && action["reason"] == "force rebuild requested"
+    }));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_full_check_reports_record_ready_when_vectors_missing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-base-artifact-full-check");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--check",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["records"]["status"], "ready");
+    assert_eq!(
+        actual["readiness"]["semantic_search"]["status"],
+        "not_ready"
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_failed_source_update_is_runtime_failure() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-fetch-fail");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let build_output = setup_records_offline(&source, &cache, &index)?;
+    assert!(build_output.status.success());
+    fs::create_dir(source.join(".git"))?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(3));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "fetch_source" && action["status"] == "failed" })
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_failed_source_update_blocks_missing_index_build() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_root("cli-setup-fetch-fail-missing-index");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+    fs::create_dir(source.join(".git"))?;
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(3));
+    assert!(!index.exists());
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "blocked" })
+    );
+    assert!(
+        !actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "done" })
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_check_offline_missing_source_uses_json_status_vocabulary()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-missing-source");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--check",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert_eq!(actual["ready"], false);
+    assert_eq!(actual["readiness"]["source"]["status"], "not_ready");
+    assert_eq!(
+        actual["readiness"]["embedding_model"]["status"],
+        "not_ready"
+    );
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_check_online_missing_assets_plans_dependent_build()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-online-check-missing");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["setup", "--path-mode", "global", "--check", "--source"])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .arg("--json")
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1));
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "fetch_source" && action["status"] == "planned" })
+    );
+    assert!(actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "prepare_embedding_model" && action["status"] == "planned"
+    }));
+    assert!(
+        actual["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| { action["kind"] == "build_index" && action["status"] == "planned" })
+    );
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+fn assert_plans_rebuild_after_source_analysis(
+    output: &std::process::Output,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let actual: Value = serde_json::from_slice(&output.stdout)?;
+    let actual = ok_data(&actual);
+    assert!(
+        actual["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|check| { check["kind"] == "analyze_source" && check["status"] == "done" })
+    );
+    assert!(actual["actions"].as_array().unwrap().iter().any(|action| {
+        action["kind"] == "build_index"
+            && action["status"] == "planned"
+            && action["reason"] == "source signature changed since the artifact was built"
+    }));
     Ok(())
 }
 
@@ -77,6 +553,81 @@ fn temp_root(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_dir_all(&path);
     path
+}
+
+fn setup_records_offline(
+    source: &Path,
+    cache: &Path,
+    index: &Path,
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(source)
+        .args(["--embedding-cache-path"])
+        .arg(cache)
+        .args(["--index"])
+        .arg(index)
+        .arg("--json")
+        .output()?)
+}
+
+fn setup_records_check(
+    source: &Path,
+    cache: &Path,
+    index: &Path,
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
+    Ok(Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--check",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(source)
+        .args(["--embedding-cache-path"])
+        .arg(cache)
+        .args(["--index"])
+        .arg(index)
+        .arg("--json")
+        .output()?)
+}
+
+fn initialize_git_source(source: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let init = Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(source)
+        .output()?;
+    assert!(init.status.success());
+    let add = Command::new("git")
+        .args(["add", "."])
+        .current_dir(source)
+        .output()?;
+    assert!(add.status.success());
+    let commit = Command::new("git")
+        .args(["commit", "--quiet", "-m", "fixture"])
+        .env("GIT_AUTHOR_NAME", "Atlas Test")
+        .env("GIT_AUTHOR_EMAIL", "atlas@example.invalid")
+        .env("GIT_COMMITTER_NAME", "Atlas Test")
+        .env("GIT_COMMITTER_EMAIL", "atlas@example.invalid")
+        .current_dir(source)
+        .output()?;
+    assert!(commit.status.success());
+    let head = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(source)
+        .output()?;
+    assert!(head.status.success());
+    Ok(String::from_utf8(head.stdout)?.trim().to_string())
 }
 
 fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -97,6 +648,22 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "action",
           "system": {
             "description": { "value": "<p>You treat wounds.</p>" },
+            "traits": { "value": ["healing"] }
+          }
+        }"#,
+    )?;
+    Ok(())
+}
+
+fn write_changed_fixture_record(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::write(
+        root.join("packs/actions/treat-wounds.json"),
+        r#"{
+          "_id": "testAction0001",
+          "name": "Treat Wounds",
+          "type": "action",
+          "system": {
+            "description": { "value": "<p>You treat changed wounds.</p>" },
             "traits": { "value": ["healing"] }
           }
         }"#,

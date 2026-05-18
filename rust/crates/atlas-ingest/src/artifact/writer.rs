@@ -35,10 +35,12 @@ pub(crate) fn write_artifact(
     source: &SourceLoad,
     embedding_model: EmbeddingModelId,
 ) -> Result<(), IngestError> {
+    artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
 
     if !source.document_embeddings.is_empty() {
+        artifact_progress("artifact_write", "Loading sqlite vector extension");
         atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
@@ -47,8 +49,10 @@ pub(crate) fn write_artifact(
     let transaction = connection
         .transaction()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    artifact_progress("artifact_write", "Creating artifact schema");
     info!("creating artifact schema");
     schema::create_artifact_schema(&transaction)?;
+    artifact_progress("artifact_write", "Writing artifact metadata");
     info!("writing artifact metadata");
     write_artifact_metadata(
         &transaction,
@@ -58,8 +62,10 @@ pub(crate) fn write_artifact(
         &source.source_signature,
         embedding_model,
     )?;
+    artifact_progress("artifact_write", "Writing packs");
     info!(packs = source.packs.len(), "writing packs");
     write_packs(&transaction, &source.packs)?;
+    artifact_progress("artifact_write", "Writing records");
     info!(records = source.records.len(), "writing records");
     write_records(
         &transaction,
@@ -67,40 +73,52 @@ pub(crate) fn write_artifact(
         &source.aliases,
         &source.remaster_links,
     )?;
+    artifact_progress("artifact_write", "Writing reference edges");
     info!(
         reference_edges = source.references.len(),
         "writing reference edges"
     );
     write_reference_edges(&transaction, &source.references)?;
+    artifact_progress("artifact_write", "Writing record aliases");
     info!(aliases = source.aliases.len(), "writing record aliases");
     write_record_aliases(&transaction, &source.aliases)?;
+    artifact_progress("artifact_write", "Writing remaster links");
     info!(
         remaster_links = source.remaster_links.len(),
         "writing remaster links"
     );
     write_remaster_links(&transaction, &source.remaster_links)?;
+    artifact_progress("artifact_write", "Writing document embedding cache");
     info!(
         document_embeddings = source.document_embeddings.len(),
         "writing document embedding cache"
     );
     write_document_embedding_cache(&transaction, &source.document_embeddings)?;
     if !source.document_embeddings.is_empty() {
+        artifact_progress("artifact_write", "Writing record vector index");
         info!(
             document_embeddings = source.document_embeddings.len(),
             "writing record vector index"
         );
         write_record_vector_index(&transaction)?;
     }
+    artifact_progress("artifact_write", "Writing metric catalogs");
     info!("writing metric catalogs");
     write_metric_catalogs(&transaction)?;
+    artifact_progress("artifact_write", "Writing filter discovery catalogs");
     info!("writing filter discovery catalogs");
     write_discovery_catalogs(&transaction)?;
+    artifact_progress("artifact_write", "Publishing artifact");
     info!("committing artifact");
     transaction
         .commit()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     drop(connection);
     output.commit()
+}
+
+fn artifact_progress(phase: &'static str, message: &'static str) {
+    info!(target: "atlas_progress", phase, "{message}");
 }
 
 struct ArtifactOutput {

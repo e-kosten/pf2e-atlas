@@ -35,13 +35,17 @@ Command failures use the error envelope:
 
 Successful payloads live under `data`. Errors live under `error`. Commands do not emit a `command` field because the caller already knows the invoked command. Optional fields are omitted when absent or empty. CLI JSON field names are `snake_case`.
 
+JSON payloads are written to stdout. Routine progress is not part of the JSON contract and is controlled separately from payload output. By default, progress renders only for human terminal sessions and is suppressed for JSON or non-terminal automation; users can force or suppress progress with the global `--progress` option or the `ATLAS_PROGRESS` environment variable.
+
 Record-facing commands use `summary`, `preview`, `description`, `standard`, and `full` detail levels. `summary` carries identity and summary facts, `preview` adds a truncated description, `description` adds the full description section without the extra standard-detail sections, `standard` carries the normal section breakdown, and `full` adds full source metadata. All detail levels keep the same record JSON schema and vary only by hydration depth. The Rust CLI does not accept `minimal`, `compact`, or TypeScript-specific detail values. Raw source JSON is exposed only by explicit opt-in flags and appears as top-level `source_json` in the relevant command payload.
 
 The shared record DTO is a projection of the renderer-neutral presentation record. Result DTOs wrap records with search or resolution metadata. Batch record commands return per-item results with per-item errors when some keys or queries miss.
 
 Record sections use stable section and block kinds. Rich `ContentDocument` blocks are rendered to markdown for Phase 5 JSON output. Structured `ContentDocument` JSON and original Foundry rich-text output are future formats, not part of the initial CLI contract.
 
-Validation commands are successful command executions when validation runs, even when the artifact is invalid. `atlas index validate --json` returns `status: "ok"` with `data.valid: false` for invalid artifacts and exits with code `3`. Top-level `status: "error"` is reserved for cases where the command cannot run.
+Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. Top-level `status: "error"` is reserved for cases where the command cannot run.
+
+Setup reports separate read-only diagnostics from mutating or planned repair work. `data.checks` contains read-only work such as source analysis and artifact readiness checks. `data.actions` contains mutating operations and repair decisions such as source fetch, embedding model preparation, and index build. `atlas setup --check` may still perform entries in `checks`, but it must not perform mutating `actions`.
 
 ## Consequences
 

@@ -237,7 +237,7 @@ fn record_dropped_inline_macro(dropped: DroppedContentMacro, diagnostics: &mut I
     }
 }
 
-fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {
+pub(crate) fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBuf {
     let declared_path = manifest_pack.path.trim_start_matches('/');
     let direct = source_root.join(declared_path);
     if direct.is_dir() {
@@ -254,7 +254,7 @@ fn resolve_pack_path(source_root: &Path, manifest_pack: &ManifestPack) -> PathBu
     direct
 }
 
-fn default_manifest_path(source_root: &Path) -> PathBuf {
+pub(crate) fn default_manifest_path(source_root: &Path) -> PathBuf {
     for relative_path in ["system.pf2e.json", "static/system.json", "module.json"] {
         let candidate = source_root.join(relative_path);
         if candidate.is_file() {
@@ -356,7 +356,7 @@ fn hex_lower(bytes: impl AsRef<[u8]>) -> String {
         .collect()
 }
 
-fn relative_source_path(source_root: &Path, path: &Path) -> String {
+pub(crate) fn relative_source_path(source_root: &Path, path: &Path) -> String {
     let relative_path = path.strip_prefix(source_root).ok();
     let fallback_path = if path.is_absolute() {
         path.file_name().map(Path::new).unwrap_or(path)
@@ -371,7 +371,7 @@ fn relative_source_path(source_root: &Path, path: &Path) -> String {
         .join("/")
 }
 
-fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
+pub(crate) fn json_files(root: &Path) -> Result<Vec<PathBuf>, IngestError> {
     let mut paths = Vec::new();
     collect_json_files(root, &mut paths)?;
     paths.sort();

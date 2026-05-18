@@ -9,11 +9,27 @@ Use the local `atlas` command for Pathfinder 2e record lookup, search, and filte
 
 ## Readiness
 
-When artifact readiness is uncertain or an Atlas command reports a missing or incompatible index, check setup first:
+Do not run readiness checks before normal lookup, resolution, search, or filter discovery. Assume the installed Atlas runtime is ready unless a command fails, returns a readiness/index error, or the user explicitly asks to check setup or diagnose the artifact.
+
+When an Atlas command reports a missing or incompatible index, check setup first:
 
 ```bash
 atlas setup --check --json
 ```
+
+For direct artifact diagnostics after a failure, use the fast index check:
+
+```bash
+atlas index check --json
+```
+
+Use record-only readiness only when semantic search is not needed:
+
+```bash
+atlas index check --no-embeddings --json
+```
+
+Do not run deep validation by default. `atlas index validate --json` is a diagnostic command for debugging an artifact problem after setup/check/search reports a failure or when the user explicitly asks for validation.
 
 Text search expects the full Atlas runtime, including embeddings. If semantic readiness is missing or incompatible, report the readiness error and tell the user to run full setup:
 

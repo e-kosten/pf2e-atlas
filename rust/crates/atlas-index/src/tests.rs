@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use atlas_artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
 };
+use atlas_artifact::schema::{record_vector_index_create_sql, record_vector_index_insert_sql};
+use atlas_artifact::storage::encode_f32_vector_blob;
 use atlas_artifact::test_support::{
     create_minimal_contract_schema, insert_contract_metadata_omitting, insert_minimal_contract_rows,
 };
@@ -304,6 +306,38 @@ fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::e
         diagnostic.family == ArtifactContractFamily::Schema
             && diagnostic.key.as_deref() == Some("table:record_vector_index")
     }));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_db_path("vector-check-skips-coverage");
+    create_contract_database(&path)?;
+    crate::vector::register_sqlite_vec_extension()?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
+    connection.execute_batch(&record_vector_index_create_sql(384))?;
+    connection.execute(
+        &record_vector_index_insert_sql(),
+        (1_i64, encode_f32_vector_blob(&vec![0.0_f32; 384])),
+    )?;
+    drop(connection);
+
+    let check_report =
+        AtlasIndex::open_read_only_with_vectors(&path)?.check_embedding_readiness_report();
+    let validate_report =
+        AtlasIndex::open_read_only_with_vectors(&path)?.validate_vector_index()?;
+
+    assert_eq!(check_report.status, ValidationStatus::Ok);
+    assert_eq!(validate_report.status, ValidationStatus::Error);
+    assert!(validate_report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.family == ArtifactContractFamily::Embedding
+            && diagnostic.key.as_deref()
+                == Some("record_vector_index:document_embedding_cache_count")
+    }));
+
     fs::remove_file(path)?;
     Ok(())
 }

@@ -8,6 +8,7 @@ use atlas_search::{AtlasRetrievalService, SearchEmbeddingConfig, SearchError};
 
 mod setup;
 mod setup_clean;
+mod setup_freshness;
 mod setup_model;
 
 pub use setup_model::{
@@ -19,9 +20,8 @@ pub use setup_model::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtlasPathMode {
-    Auto,
     Repo,
-    User,
+    Global,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -40,7 +40,7 @@ pub struct AtlasRuntimeOptions {
 impl Default for AtlasRuntimeOptions {
     fn default() -> Self {
         Self {
-            path_mode: AtlasPathMode::Auto,
+            path_mode: AtlasPathMode::Global,
             overrides: AtlasPathOverrides::default(),
         }
     }
@@ -101,6 +101,35 @@ impl AtlasRuntime {
         }
     }
 
+    pub fn check_index_report(
+        &self,
+        target: atlas_index::ValidationTarget,
+    ) -> atlas_index::ArtifactValidationReport {
+        let base_report = match self.open_index() {
+            Ok(index) => index.check_report(),
+            Err(error) => {
+                return atlas_index::validation_report_for_error(&self.paths.index_path, error);
+            }
+        };
+        if base_report.status != atlas_index::ValidationStatus::Ok
+            || matches!(target, atlas_index::ValidationTarget::BaseOnly)
+        {
+            return base_report;
+        }
+        match self.open_search_index() {
+            Ok(index) => index.check_embedding_readiness_report(),
+            Err(error) => match self.open_index() {
+                Ok(index) => index.vector_extension_unavailable_report(
+                    atlas_index::ValidationTarget::EmbeddingsOnly,
+                    error.to_string(),
+                ),
+                Err(base_error) => {
+                    atlas_index::validation_report_for_error(&self.paths.index_path, base_error)
+                }
+            },
+        }
+    }
+
     fn validate_vector_target_report(
         &self,
         target: atlas_index::ValidationTarget,
@@ -157,21 +186,21 @@ pub struct ResolvedAtlasPaths {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedPathMode {
     Repo,
-    User,
+    Global,
 }
 
 impl ResolvedPathMode {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Repo => "repo",
-            Self::User => "user",
+            Self::Global => "global",
         }
     }
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Repo => "repo checkout",
-            Self::User => "user install",
+            Self::Global => "global install",
         }
     }
 
@@ -184,20 +213,19 @@ fn resolve_atlas_paths(
     path_mode: AtlasPathMode,
     overrides: AtlasPathOverrides,
 ) -> Result<ResolvedAtlasPaths, String> {
-    let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
-    let repo_root = find_git_repo_root(&current_dir);
-    let resolved_mode = match path_mode {
-        AtlasPathMode::Auto => ResolvedPathMode::User,
+    let (resolved_mode, repo_root) = match path_mode {
         AtlasPathMode::Repo => {
+            let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
+            let repo_root = find_git_repo_root(&current_dir);
             if repo_root.is_none() {
                 return Err(
                     "--path-mode repo requires running inside a git checkout with rust/Cargo.toml"
                         .to_string(),
                 );
             }
-            ResolvedPathMode::Repo
+            (ResolvedPathMode::Repo, repo_root)
         }
-        AtlasPathMode::User => ResolvedPathMode::User,
+        AtlasPathMode::Global => (ResolvedPathMode::Global, None),
     };
 
     let defaults = match resolved_mode {
@@ -211,7 +239,7 @@ fn resolve_atlas_paths(
                 index_path: Some(repo_root.join(".cache").join("pf2e-rust-index.sqlite")),
             }
         }
-        ResolvedPathMode::User => {
+        ResolvedPathMode::Global => {
             let cache_root = platform_cache_root()?.join("pf2e-atlas");
             AtlasPathOverrides {
                 source_root: Some(cache_root.join("vendor").join("pf2e")),

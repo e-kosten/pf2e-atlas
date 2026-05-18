@@ -236,6 +236,7 @@ pub struct RuntimeSetupReport {
     pub offline: bool,
     pub check: bool,
     pub force_rebuild: bool,
+    pub checks: Vec<SetupAction>,
     pub actions: Vec<SetupAction>,
     pub readiness: SetupReadiness,
     pub paths: SetupPathsReport,
@@ -246,8 +247,9 @@ pub struct RuntimeSetupReport {
 impl RuntimeSetupReport {
     pub fn exit_code_class(&self) -> SetupExitClass {
         if self
-            .actions
+            .checks
             .iter()
+            .chain(self.actions.iter())
             .any(|action| action.status == SetupActionStatus::Failed)
         {
             return SetupExitClass::RuntimeFailure;

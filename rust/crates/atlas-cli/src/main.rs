@@ -22,6 +22,15 @@ mod terminal;
     after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e"
 )]
 struct Cli {
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        default_value_t = CliProgressMode::Auto,
+        help_heading = "Output",
+        help = "Control progress rendering: auto shows human progress on terminals, never suppresses routine progress, always forces it"
+    )]
+    progress: CliProgressMode,
     #[command(subcommand)]
     command: Command,
 }
@@ -50,7 +59,7 @@ struct IndexArgs {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode user\n  atlas setup clean --artifact\n  atlas setup clean --all --yes"
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode global\n  atlas setup clean --artifact\n  atlas setup clean --all --yes"
 )]
 struct SetupArgs {
     #[command(flatten)]
@@ -69,15 +78,42 @@ enum SetupCommand {
 
 #[derive(Debug, Args)]
 struct SetupPathOptions {
-    #[arg(long, global = true, value_enum, default_value_t = CliPathMode::Auto, help = "Use normal user install paths by default, or force checkout-local developer paths with repo")]
+    #[arg(
+        long,
+        global = true,
+        value_enum,
+        default_value_t = CliPathMode::Global,
+        help_heading = "Path Overrides",
+        help = "Use global install paths by default, or force checkout-local developer paths with repo"
+    )]
     path_mode: CliPathMode,
-    #[arg(long, global = true, help = "Override the PF2E source checkout path")]
+    #[arg(
+        long,
+        global = true,
+        help_heading = "Path Overrides",
+        help = "Override the PF2E source checkout path used by setup and setup clean --source-checkout"
+    )]
     source: Option<PathBuf>,
-    #[arg(long, global = true, help = "Override the embedding model cache root")]
+    #[arg(
+        long,
+        global = true,
+        help_heading = "Path Overrides",
+        help = "Override the embedding model cache root used by setup and setup clean --embeddings"
+    )]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long, global = true, help = "Override the SQLite artifact path")]
+    #[arg(
+        long,
+        global = true,
+        help_heading = "Path Overrides",
+        help = "Override the SQLite artifact path used by setup and setup clean --artifact"
+    )]
     index: Option<PathBuf>,
-    #[arg(long, global = true, help = "Emit the standard JSON envelope")]
+    #[arg(
+        long,
+        global = true,
+        help_heading = "Output",
+        help = "Emit the standard JSON envelope"
+    )]
     json: bool,
 }
 
@@ -115,20 +151,41 @@ struct SetupRunOptions {
 
 #[derive(Debug, Args)]
 struct SetupCleanOptions {
-    #[arg(long, help = "Report cleanup targets without removing files")]
+    #[arg(
+        long,
+        help_heading = "Cleanup Behavior",
+        help = "Report cleanup targets without removing files"
+    )]
     check: bool,
-    #[arg(long, help = "Remove the SQLite artifact and companion WAL/SHM files")]
+    #[arg(
+        long,
+        help_heading = "Cleanup Targets",
+        help = "Remove the SQLite artifact and companion WAL/SHM files"
+    )]
     artifact: bool,
-    #[arg(long, help = "Remove the embedding model cache root")]
+    #[arg(
+        long,
+        help_heading = "Cleanup Targets",
+        help = "Remove the embedding model cache root"
+    )]
     embeddings: bool,
-    #[arg(long, help = "Remove the PF2E source checkout")]
+    #[arg(
+        long,
+        help_heading = "Cleanup Targets",
+        help = "Remove the PF2E source checkout"
+    )]
     source_checkout: bool,
     #[arg(
         long,
+        help_heading = "Cleanup Targets",
         help = "Remove source, embedding cache, and SQLite artifact files"
     )]
     all: bool,
-    #[arg(long, help = "Confirm cleanup when every target is selected")]
+    #[arg(
+        long,
+        help_heading = "Cleanup Behavior",
+        help = "Confirm cleanup when every target is selected"
+    )]
     yes: bool,
 }
 
@@ -150,9 +207,13 @@ enum IndexCommand {
     Analyze(AnalyzeIndexOptions),
     #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
     Build(BuildIndexOptions),
+    #[command(about = "Run a fast artifact readiness check")]
+    Check(CheckIndexOptions),
     #[command(about = "Inspect artifact table and field coverage")]
     Inspect(IndexPathOptions),
-    #[command(about = "Validate an Atlas artifact; embeddings are required by default")]
+    #[command(
+        about = "Run deep artifact validation diagnostics; embeddings are required by default"
+    )]
     Validate(ValidateIndexOptions),
 }
 
@@ -180,7 +241,7 @@ struct FiltersFieldsOptions {
     filter_options: DiscoveryFilterOptions,
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
 }
 
@@ -206,7 +267,7 @@ struct FiltersValuesOptions {
     metric_domain: Option<String>,
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
 }
 
@@ -214,7 +275,7 @@ struct FiltersValuesOptions {
 struct AnalyzeIndexOptions {
     #[arg(long)]
     source: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long)]
     manifest: Option<PathBuf>,
@@ -231,7 +292,7 @@ struct BuildIndexOptions {
     source: Option<PathBuf>,
     #[arg(long)]
     output: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long)]
     manifest: Option<PathBuf>,
@@ -256,7 +317,7 @@ struct BuildIndexOptions {
 struct ValidateIndexOptions {
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long, action = ArgAction::SetTrue, conflicts_with = "embeddings_only", help = "Validate only the base record artifact and skip sqlite-vec/vector readiness")]
     no_embeddings: bool,
@@ -267,10 +328,23 @@ struct ValidateIndexOptions {
 }
 
 #[derive(Debug, Args)]
+#[command(after_help = "Examples:\n  atlas index check\n  atlas index check --no-embeddings")]
+struct CheckIndexOptions {
+    #[arg(long)]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    path_mode: CliPathMode,
+    #[arg(long, action = ArgAction::SetTrue, help = "Check only the base record artifact and skip sqlite-vec/vector readiness")]
+    no_embeddings: bool,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
 struct IndexPathOptions {
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long)]
     json: bool,
@@ -289,7 +363,7 @@ struct RecordGetOptions {
     include_raw: bool,
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long)]
     json: bool,
@@ -321,7 +395,7 @@ struct RecordResolveOptions {
     include_raw: bool,
     #[arg(long)]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long)]
     json: bool,
@@ -354,7 +428,7 @@ struct SearchOptions {
     include_raw: bool,
     #[arg(long)]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
     path_mode: CliPathMode,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
     embedding_model: EmbeddingModelId,
@@ -585,9 +659,15 @@ enum CliFilterValueSort {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum CliPathMode {
-    Auto,
     Repo,
-    User,
+    Global,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliProgressMode {
+    Auto,
+    Always,
+    Never,
 }
 
 impl From<CliRetrievalMode> for RetrievalMode {
@@ -612,15 +692,23 @@ impl From<CliFusionMethod> for FusionMethod {
 impl From<CliPathMode> for AtlasPathMode {
     fn from(mode: CliPathMode) -> Self {
         match mode {
-            CliPathMode::Auto => Self::Auto,
             CliPathMode::Repo => Self::Repo,
-            CliPathMode::User => Self::User,
+            CliPathMode::Global => Self::Global,
+        }
+    }
+}
+
+impl From<CliProgressMode> for progress::ProgressMode {
+    fn from(mode: CliProgressMode) -> Self {
+        match mode {
+            CliProgressMode::Auto => Self::Auto,
+            CliProgressMode::Always => Self::Always,
+            CliProgressMode::Never => Self::Never,
         }
     }
 }
 
 fn main() -> ExitCode {
-    progress::init_tracing();
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
@@ -632,6 +720,11 @@ fn main() -> ExitCode {
             return ExitCode::from(error.exit_code() as u8);
         }
     };
+    progress::init_tracing(progress::ProgressOptions {
+        mode: cli.progress.into(),
+        json: cli.command.uses_json(),
+        setup_timing: cli.command.uses_setup_timing(),
+    });
     match run(cli) {
         Ok(code) => code,
         Err(error) => {
@@ -641,12 +734,39 @@ fn main() -> ExitCode {
     }
 }
 
+impl Command {
+    fn uses_json(&self) -> bool {
+        match self {
+            Self::Setup(args) => args.paths.json,
+            Self::Index(args) => match &args.command {
+                IndexCommand::Analyze(options) => options.json,
+                IndexCommand::Build(options) => options.json,
+                IndexCommand::Check(options) => options.json,
+                IndexCommand::Inspect(options) => options.json,
+                IndexCommand::Validate(options) => options.json,
+            },
+            Self::Record(args) => match &args.command {
+                RecordCommand::Get(options) => options.json,
+                RecordCommand::Resolve(options) => options.json,
+            },
+            Self::Search(options) => options.json,
+            Self::Filters(_) => true,
+            Self::Agent(args) => args.uses_json(),
+        }
+    }
+
+    fn uses_setup_timing(&self) -> bool {
+        matches!(self, Self::Setup(_))
+    }
+}
+
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
             IndexCommand::Analyze(options) => commands::index::run_index_analyze(options),
             IndexCommand::Build(options) => commands::index::run_index_build(options),
+            IndexCommand::Check(options) => commands::index::run_index_check(options),
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
         },
