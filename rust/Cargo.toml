@@ -33,6 +33,7 @@ atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 clap = { version = "4.5.53", features = ["derive"] }
 indicatif = "0.18.3"
+inquire = { version = "0.9.4", default-features = false, features = ["crossterm"] }
 rand = "0.9.2"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }

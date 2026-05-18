@@ -9,6 +9,7 @@ use atlas_runtime::AtlasPathMode;
 use atlas_search::{FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
+mod agent_skills;
 mod commands;
 mod output;
 mod progress;
@@ -37,6 +38,8 @@ enum Command {
     Search(Box<SearchOptions>),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
+    #[command(about = "Install and inspect Atlas agent integrations")]
+    Agent(commands::agent_skills::AgentArgs),
 }
 
 #[derive(Debug, Args)]
@@ -579,7 +582,18 @@ impl From<CliPathMode> for AtlasPathMode {
 
 fn main() -> ExitCode {
     progress::init_tracing();
-    match run(Cli::parse()) {
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            if std::env::args().any(|arg| arg == "--json") {
+                let _ = output::write_json_error("invalid_input", error.to_string());
+                return ExitCode::from(2);
+            }
+            let _ = error.print();
+            return ExitCode::from(error.exit_code() as u8);
+        }
+    };
+    match run(cli) {
         Ok(code) => code,
         Err(error) => {
             eprintln!("{error}");
@@ -610,6 +624,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
                 commands::filter_discovery::run_filters_values(*options)
             }
         },
+        Command::Agent(agent) => commands::agent_skills::run_agent(agent),
     }
 }
 

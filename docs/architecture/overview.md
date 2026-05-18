@@ -52,7 +52,7 @@ The shortest useful TypeScript mental model is:
 
 The shortest useful Rust mental model is:
 
-- `atlas-cli` owns command parsing, output, progress, and exit codes
+- `atlas-cli` owns command parsing, output, progress, exit codes, and agent skill installation
 - `atlas-runtime` owns path/setup policy
 - `atlas-search` owns runtime search orchestration
 - `atlas-index` owns artifact validation, row readers, filter compilation, and vector SQL
