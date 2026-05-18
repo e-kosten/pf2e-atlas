@@ -392,7 +392,10 @@ pub(crate) fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error
           "type": "npc",
           "system": {
             "traits": { "value": ["goblin", "humanoid"], "size": { "value": "small" } },
-            "details": { "languages": { "value": ["goblin"] } },
+            "details": {
+              "languages": { "value": ["goblin"] },
+              "level": { "value": 2 }
+            },
             "abilities": { "dex": { "mod": 4 } },
             "perception": { "mod": 7, "senses": [{ "type": "darkvision", "range": 60 }] },
             "attributes": {

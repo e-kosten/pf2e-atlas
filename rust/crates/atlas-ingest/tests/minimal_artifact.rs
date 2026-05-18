@@ -100,6 +100,18 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         [],
         |row| row.get(0),
     )?;
+    let goblin_level: i64 = connection.query_row(
+        "SELECT level FROM records WHERE record_key = 'bestiary:testActor0001'",
+        [],
+        |row| row.get(0),
+    )?;
+    let creature_level_catalog_count: u64 = connection.query_row(
+        "SELECT value_count
+         FROM filter_field_catalog
+         WHERE field = 'level' AND record_family = 'creature'",
+        [],
+        |row| row.get(0),
+    )?;
     assert_eq!(treat_wounds_name, "Treat Wounds");
     assert_eq!(treat_wounds_normalized_name, "treat wounds");
     assert_eq!(treat_wounds_family, "rule");
@@ -117,6 +129,8 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(reference_display, "Heal");
     assert_eq!(reference_text, "Compendium.pf2e.spells.Item.testSpell0001");
     assert_eq!(demoralize_reference_count, 0);
+    assert_eq!(goblin_level, 2);
+    assert_eq!(creature_level_catalog_count, 1);
 
     drop(connection);
     fs::remove_dir_all(root)?;
