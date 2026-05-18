@@ -12,6 +12,7 @@ use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 mod commands;
 mod output;
 mod progress;
+mod terminal;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]

@@ -13,6 +13,7 @@ use std::process::ExitCode;
 use tracing::info;
 
 use crate::output::{write_json_data, write_json_error};
+use crate::terminal::TerminalStyle;
 use crate::{CliFusionMethod, SearchOptions};
 
 use super::filters::build_filter;
@@ -503,14 +504,15 @@ fn print_search_results(data: &SearchData) {
     );
     let detail = data.detail.parse().unwrap_or(DetailLevel::Summary);
     if detail_outputs_description(detail) {
+        let style = TerminalStyle::stdout();
         for (index, result) in data.results.iter().enumerate() {
             if index > 0 {
                 println!();
-                println!("---");
+                println!("{}", style.separator());
                 println!();
             }
             print_record_for_detail(&result.record, detail);
-            println!("Match: {}", result.r#match.kind);
+            println!("{}: {}", style.label("Match"), result.r#match.kind);
         }
         return;
     }
