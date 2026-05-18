@@ -7,12 +7,14 @@ use atlas_embedding::DEFAULT_EMBEDDING_MODEL;
 use atlas_search::{AtlasRetrievalService, SearchEmbeddingConfig, SearchError};
 
 mod setup;
+mod setup_clean;
 mod setup_model;
 
 pub use setup_model::{
-    RuntimeSetupOptions, RuntimeSetupReport, SetupAction, SetupActionKind, SetupActionStatus,
-    SetupBuildReport, SetupEmbeddingReport, SetupExitClass, SetupPathsReport, SetupReadiness,
-    SetupReadinessItem, SetupReadinessStatus, SetupTarget,
+    RuntimeSetupCleanOptions, RuntimeSetupCleanReport, RuntimeSetupOptions, RuntimeSetupReport,
+    SetupAction, SetupActionKind, SetupActionStatus, SetupBuildReport, SetupCleanTarget,
+    SetupCleanTargetKind, SetupCleanTargetStatus, SetupEmbeddingReport, SetupExitClass,
+    SetupPathsReport, SetupReadiness, SetupReadinessItem, SetupReadinessStatus, SetupTarget,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +79,10 @@ impl AtlasRuntime {
 
     pub fn ensure_setup(&self, options: RuntimeSetupOptions) -> RuntimeSetupReport {
         setup::ensure_setup(&self.paths, options)
+    }
+
+    pub fn clean_setup(&self, options: RuntimeSetupCleanOptions) -> RuntimeSetupCleanReport {
+        setup_clean::clean_setup(&self.paths, options)
     }
 
     pub fn validate_index_report(
@@ -181,13 +187,7 @@ fn resolve_atlas_paths(
     let current_dir = std::env::current_dir().map_err(|error| error.to_string())?;
     let repo_root = find_git_repo_root(&current_dir);
     let resolved_mode = match path_mode {
-        AtlasPathMode::Auto => {
-            if repo_root.is_some() {
-                ResolvedPathMode::Repo
-            } else {
-                ResolvedPathMode::User
-            }
-        }
+        AtlasPathMode::Auto => ResolvedPathMode::User,
         AtlasPathMode::Repo => {
             if repo_root.is_none() {
                 return Err(

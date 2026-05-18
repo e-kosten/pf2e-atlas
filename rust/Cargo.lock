@@ -202,6 +202,7 @@ dependencies = [
  "atlas-index",
  "atlas-ingest",
  "atlas-search",
+ "tracing",
 ]
 
 [[package]]

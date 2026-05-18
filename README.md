@@ -56,24 +56,25 @@ Useful setup and validation variants:
 ```bash
 atlas setup --check
 atlas setup --offline
+atlas setup clean --artifact
+atlas setup clean --all --yes
 atlas index validate --no-embeddings
 atlas index validate --embeddings-only
 ```
 
-`atlas setup --check` reports readiness and planned actions without writing local runtime files. `atlas setup --offline` prevents network-backed source updates and embedding model preparation. `atlas index validate` validates full semantic readiness by default; `--no-embeddings` validates only the base artifact, and `--embeddings-only` runs focused embedding/vector diagnostics.
+`atlas setup --check` reports readiness and planned actions without writing local runtime files. `atlas setup --offline` prevents network-backed source updates and embedding model preparation. `atlas setup clean` removes selected runtime data without uninstalling the CLI; use `--artifact`, `--embeddings`, `--source-checkout`, or `--all`, with `--check` for a dry run. Cleanup that selects every target requires `--yes` unless `--check` is used. `atlas index validate` validates full semantic readiness by default; `--no-embeddings` validates only the base artifact, and `--embeddings-only` runs focused embedding/vector diagnostics.
 
 ## Paths And Data
 
 `atlas` uses the Rust runtime path resolver:
 
 - `--path-mode auto` is the default.
-- Inside this repository, auto mode uses repo-local paths:
+- Auto mode uses platform user cache paths under `pf2e-atlas`, so setup and later commands use the same data from any working directory.
+- `--path-mode user` also uses platform user cache paths.
+- `--path-mode repo` is an explicit contributor mode that requires running inside this repository and uses repo-local paths:
   - source: `vendor/pf2e`
   - embedding model cache: `.cache/hf-models`
   - SQLite artifact: `.cache/pf2e-rust-index.sqlite`
-- Outside a repository checkout, auto mode uses platform user cache paths under `pf2e-atlas`.
-- `--path-mode repo` requires repo-local paths.
-- `--path-mode user` forces platform user cache paths.
 
 Direct command flags override resolved paths for that command, such as:
 

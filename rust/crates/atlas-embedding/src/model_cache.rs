@@ -3,6 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::{EmbeddingError, EmbeddingRuntimeConfig};
+use tracing::info;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingModelCacheFile {
@@ -39,9 +40,21 @@ pub fn prepare_embedding_model_cache(
     let mut downloaded = Vec::new();
     for file in required_embedding_model_cache_files(config) {
         if file.local_path.is_file() {
+            model_cache_progress(
+                "embedding_model_cache",
+                format!("Embedding model cache already has {}", file.source_path),
+            );
             continue;
         }
+        model_cache_progress(
+            "embedding_model_cache",
+            format!("Downloading embedding model file {}", file.source_path),
+        );
         download_model_cache_file(&file)?;
+        model_cache_progress(
+            "embedding_model_cache",
+            format!("Cached embedding model file {}", file.source_path),
+        );
         downloaded.push(file.local_path);
     }
     Ok(downloaded)
@@ -99,6 +112,11 @@ fn temp_download_path(path: &Path) -> PathBuf {
             None => "tmp".to_string(),
         },
     )
+}
+
+fn model_cache_progress(phase: &'static str, message: impl AsRef<str>) {
+    let message = message.as_ref();
+    info!(target: "atlas_progress", phase, "{message}");
 }
 
 #[cfg(test)]

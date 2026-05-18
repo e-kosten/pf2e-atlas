@@ -11,6 +11,14 @@ pub struct RuntimeSetupOptions {
     pub embedding_batch_size: usize,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct RuntimeSetupCleanOptions {
+    pub source: bool,
+    pub embedding_cache: bool,
+    pub artifact: bool,
+    pub check: bool,
+}
+
 impl Default for RuntimeSetupOptions {
     fn default() -> Self {
         Self {
@@ -66,6 +74,80 @@ pub enum SetupActionStatus {
     Skipped,
     Blocked,
     Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SetupCleanTargetKind {
+    Source,
+    EmbeddingCache,
+    Artifact,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SetupCleanTargetStatus {
+    Planned,
+    Removed,
+    Skipped,
+    Failed,
+}
+
+#[derive(Debug, Clone)]
+pub struct SetupCleanTarget {
+    pub kind: SetupCleanTargetKind,
+    pub status: SetupCleanTargetStatus,
+    pub path: String,
+    pub reason: Option<String>,
+}
+
+impl SetupCleanTarget {
+    pub(crate) fn new(
+        kind: SetupCleanTargetKind,
+        status: SetupCleanTargetStatus,
+        path: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            status,
+            path: path.into(),
+            reason: None,
+        }
+    }
+
+    pub(crate) fn with_reason(
+        kind: SetupCleanTargetKind,
+        status: SetupCleanTargetStatus,
+        path: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            status,
+            path: path.into(),
+            reason: Some(reason.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeSetupCleanReport {
+    pub path_mode: &'static str,
+    pub repo_root: Option<String>,
+    pub check: bool,
+    pub targets: Vec<SetupCleanTarget>,
+}
+
+impl RuntimeSetupCleanReport {
+    pub fn exit_code_class(&self) -> SetupExitClass {
+        if self
+            .targets
+            .iter()
+            .any(|target| target.status == SetupCleanTargetStatus::Failed)
+        {
+            SetupExitClass::RuntimeFailure
+        } else {
+            SetupExitClass::Success
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
