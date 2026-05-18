@@ -27,3 +27,10 @@ pub(crate) fn list_filter_values(
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
     request::list_filter_values(connection, filter, request)
 }
+
+pub(crate) fn resolve_filter_metrics(
+    connection: &Connection,
+    filter: Option<&SearchFilterNode>,
+) -> Result<Option<SearchFilterNode>, DiscoveryError> {
+    metrics::resolve_filter_metrics(connection, filter)
+}

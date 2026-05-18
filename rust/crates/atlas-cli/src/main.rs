@@ -265,6 +265,11 @@ struct FiltersValuesOptions {
     metric_prefix: Option<String>,
     #[arg(long)]
     metric_label: Option<String>,
+    #[arg(
+        long,
+        help = "Filter metric discovery by case-insensitive query across metric keys, labels, short labels, and groups"
+    )]
+    metric_query: Option<String>,
     #[arg(long)]
     metric_domain: Option<String>,
     #[arg(long)]
@@ -424,8 +429,8 @@ struct SearchOptions {
     filter_options: FilterOptions,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
     detail: DetailLevel,
-    #[arg(long, default_value = "alphabetical")]
-    sort: String,
+    #[arg(long, value_enum, default_value_t = CliSearchSort::Alphabetical)]
+    sort: CliSearchSort,
     #[arg(long)]
     seed: Option<u64>,
     #[arg(long)]
@@ -659,6 +664,24 @@ enum CliFilterValueSort {
     Count,
     Alpha,
     Canonical,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliSearchSort {
+    #[value(name = "alphabetical")]
+    Alphabetical,
+    #[value(name = "level_asc")]
+    LevelAsc,
+    #[value(name = "level_desc")]
+    LevelDesc,
+    #[value(name = "price_asc")]
+    PriceAsc,
+    #[value(name = "price_desc")]
+    PriceDesc,
+    #[value(name = "record_key")]
+    RecordKey,
+    #[value(name = "random")]
+    Random,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

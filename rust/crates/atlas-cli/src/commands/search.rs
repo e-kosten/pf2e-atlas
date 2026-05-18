@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::output::{write_json_data, write_json_error};
 use crate::terminal::TerminalStyle;
-use crate::{CliFusionMethod, SearchOptions};
+use crate::{CliFusionMethod, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};
@@ -154,7 +154,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         return run_ranked_text_search(options, &query, filter.as_ref(), filter_value, limit);
     }
 
-    let (sort, sort_json) = match parse_sort(&options.sort, options.seed) {
+    let (sort, sort_json) = match parse_sort(options.sort, options.seed) {
         Ok(sort) => sort,
         Err(error) if options.json => {
             write_json_error("invalid_option", error)?;
@@ -452,39 +452,53 @@ fn complete_search_progress() {
 }
 
 fn parse_sort(
-    value: &str,
+    value: CliSearchSort,
     seed: Option<u64>,
 ) -> Result<(FilteredRecordSort, SearchSortJson), String> {
     match value {
-        "alphabetical" => Ok((
+        CliSearchSort::Alphabetical => Ok((
             FilteredRecordSort::Alphabetical,
             SearchSortJson {
                 kind: "alphabetical",
                 seed: None,
             },
         )),
-        "level_asc" => Ok((
+        CliSearchSort::LevelAsc => Ok((
             FilteredRecordSort::LevelAsc,
             SearchSortJson {
                 kind: "level_asc",
                 seed: None,
             },
         )),
-        "level_desc" => Ok((
+        CliSearchSort::LevelDesc => Ok((
             FilteredRecordSort::LevelDesc,
             SearchSortJson {
                 kind: "level_desc",
                 seed: None,
             },
         )),
-        "record_key" => Ok((
+        CliSearchSort::PriceAsc => Ok((
+            FilteredRecordSort::PriceAsc,
+            SearchSortJson {
+                kind: "price_asc",
+                seed: None,
+            },
+        )),
+        CliSearchSort::PriceDesc => Ok((
+            FilteredRecordSort::PriceDesc,
+            SearchSortJson {
+                kind: "price_desc",
+                seed: None,
+            },
+        )),
+        CliSearchSort::RecordKey => Ok((
             FilteredRecordSort::RecordKey,
             SearchSortJson {
                 kind: "record_key",
                 seed: None,
             },
         )),
-        "random" => {
+        CliSearchSort::Random => {
             let seed = seed.unwrap_or_else(generated_seed);
             Ok((
                 FilteredRecordSort::Random { seed },
@@ -494,7 +508,6 @@ fn parse_sort(
                 },
             ))
         }
-        _ => Err(format!("unsupported --sort value `{value}`")),
     }
 }
 

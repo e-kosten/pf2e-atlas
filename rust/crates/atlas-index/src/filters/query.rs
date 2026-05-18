@@ -25,6 +25,8 @@ pub enum FilteredRecordSort {
     NameAsc,
     LevelAsc,
     LevelDesc,
+    PriceAsc,
+    PriceDesc,
 }
 
 pub(crate) fn compile_eligible_records_query(
@@ -124,6 +126,20 @@ impl FilteredRecordSort {
                 "{} IS NULL ASC, {} DESC, {} ASC, {} ASC",
                 record_column(records::columns::LEVEL),
                 record_column(records::columns::LEVEL),
+                record_column(records::columns::NORMALIZED_NAME),
+                record_column(records::columns::RECORD_KEY)
+            ),
+            Self::PriceAsc => format!(
+                "{} IS NULL ASC, {} ASC, {} ASC, {} ASC",
+                record_column(records::columns::PRICE_CP),
+                record_column(records::columns::PRICE_CP),
+                record_column(records::columns::NORMALIZED_NAME),
+                record_column(records::columns::RECORD_KEY)
+            ),
+            Self::PriceDesc => format!(
+                "{} IS NULL ASC, {} DESC, {} ASC, {} ASC",
+                record_column(records::columns::PRICE_CP),
+                record_column(records::columns::PRICE_CP),
                 record_column(records::columns::NORMALIZED_NAME),
                 record_column(records::columns::RECORD_KEY)
             ),
