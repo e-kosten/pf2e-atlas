@@ -9,6 +9,7 @@ use atlas_index::{ArtifactValidationReport, ValidationStatus, ValidationTarget};
 use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, analyze_foundry_source, build_artifact,
 };
+use tracing::info;
 
 use crate::ResolvedAtlasPaths;
 use crate::setup_model::{
@@ -28,6 +29,14 @@ pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
+    setup_progress(
+        "setup",
+        format!(
+            "Using {} paths; index {}",
+            paths.mode.label(),
+            paths.index_path.display()
+        ),
+    );
     let mut actions = Vec::new();
     let source_exists = paths.source_root.is_dir();
     let mut source_ready = source_exists;
@@ -36,6 +45,10 @@ pub(crate) fn ensure_setup(
         && !options.offline
         && paths.source_root.join(".git").exists()
     {
+        setup_progress(
+            "fetch_source",
+            format!("Updating PF2E source at {}", paths.source_root.display()),
+        );
         match fetch_pf2e_source(&paths.source_root) {
             Ok(()) => {
                 actions.push(SetupAction::new(
@@ -79,6 +92,10 @@ pub(crate) fn ensure_setup(
             "offline",
         ));
     } else {
+        setup_progress(
+            "fetch_source",
+            format!("Cloning PF2E source into {}", paths.source_root.display()),
+        );
         match fetch_pf2e_source(&paths.source_root) {
             Ok(()) => {
                 source_ready = true;
@@ -128,6 +145,13 @@ pub(crate) fn ensure_setup(
             "offline",
         ));
     } else {
+        setup_progress(
+            "prepare_embedding_model",
+            format!(
+                "Preparing embedding model cache for {}",
+                options.embedding_model_id
+            ),
+        );
         match prepare_embedding_model_cache(&embedding_config) {
             Ok(_) => {
                 model_cache = embedding_model_cache_status(&embedding_config);
@@ -154,11 +178,22 @@ pub(crate) fn ensure_setup(
         }
     }
 
+    setup_progress(
+        "validate_index",
+        format!(
+            "Validating existing artifact at {}",
+            paths.index_path.display()
+        ),
+    );
     let validation = validate_for_target(paths, options.target.validation_target());
     let validation = selected_model_validation(validation, options.target, &embedding_config);
     let needs_source_signature =
         source_ready && !options.force_rebuild && validation.status == ValidationStatus::Ok;
     let source_signature = if needs_source_signature {
+        setup_progress(
+            "analyze_source",
+            format!("Analyzing PF2E source at {}", paths.source_root.display()),
+        );
         match analyze_foundry_source(&paths.source_root, None) {
             Ok(report) => {
                 actions.push(SetupAction::new(
@@ -226,6 +261,10 @@ pub(crate) fn ensure_setup(
             ));
             None
         } else {
+            setup_progress(
+                "build_index",
+                format!("Building SQLite artifact at {}", paths.index_path.display()),
+            );
             match build_artifact(BuildArtifactOptions {
                 source_root: paths.source_root.clone(),
                 output_path: paths.index_path.clone(),
@@ -265,6 +304,13 @@ pub(crate) fn ensure_setup(
     };
 
     let final_validation = if build.is_some() {
+        setup_progress(
+            "validate_index",
+            format!(
+                "Validating final artifact at {}",
+                paths.index_path.display()
+            ),
+        );
         selected_model_validation(
             validate_for_target(paths, options.target.validation_target()),
             options.target,
@@ -282,6 +328,7 @@ pub(crate) fn ensure_setup(
         },
     ));
     let record_validation = if embedding_required {
+        setup_progress("validate_index", "Validating base record readiness");
         validate_for_target(paths, ValidationTarget::BaseOnly)
     } else {
         final_validation.clone()
@@ -296,7 +343,7 @@ pub(crate) fn ensure_setup(
                 SetupActionStatus::Planned | SetupActionStatus::Blocked | SetupActionStatus::Failed
             )
         });
-    RuntimeSetupReport {
+    let report = RuntimeSetupReport {
         target: options.target,
         ready,
         path_mode: paths.mode.as_str(),
@@ -358,7 +405,18 @@ pub(crate) fn ensure_setup(
                 .collect(),
         },
         build,
-    }
+    };
+    setup_progress_complete();
+    report
+}
+
+fn setup_progress(phase: &'static str, message: impl AsRef<str>) {
+    let message = message.as_ref();
+    info!(target: "atlas_progress", phase, "{message}");
+}
+
+fn setup_progress_complete() {
+    info!(target: "atlas_progress", complete = true, "setup complete");
 }
 
 fn selected_model_validation(

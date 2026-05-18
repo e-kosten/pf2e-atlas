@@ -11,3 +11,4 @@ atlas-embedding.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
 atlas-search.workspace = true
+tracing.workspace = true

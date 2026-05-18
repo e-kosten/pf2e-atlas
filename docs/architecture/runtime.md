@@ -132,6 +132,8 @@ Filters compile to an authoritative SQL keyset before lexical or vector search. 
 
 Runtime SQLite access is read-only and goes through `AtlasIndex`. Construction-time writes belong to `atlas-ingest`, which writes a temporary artifact and publishes it only after records, FTS, embedding cache rows, and `record_vector_index` are complete. Product surfaces route retrieval through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite or assemble retrieval dependencies directly.
 
+`atlas-runtime` owns path resolution for source checkouts, embedding model caches, and SQLite artifacts. The default `auto` path mode resolves to user install paths; `repo` requires checkout-local contributor paths; `user` forces platform user paths. CLI path flags are command-local overrides passed into runtime resolution, not persisted configuration. `--index` selects the SQLite artifact for commands that open or repair an artifact, while `atlas index build` uses `--output` for the artifact it writes. If persisted configuration is added later, it should feed runtime path overrides below direct CLI flags rather than changing the meaning of direct path flags.
+
 ## Artifact Families
 
 The Rust SQLite artifact is the runtime contract between ingest and search. The authoritative table-family definitions live in [artifact contract](./artifact-contract.md). The current families are:

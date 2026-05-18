@@ -45,7 +45,14 @@ atlas setup
 atlas setup --no-embeddings
 ```
 
-Use `--check` for a no-write readiness and planned-action report, and `--offline` to prevent network-backed source or model preparation.
+Use `--check` for a no-write readiness and planned-action report, and `--offline` to prevent network-backed source or model preparation. Use `atlas setup clean` to remove selected runtime data without uninstalling the CLI:
+
+```bash
+atlas setup clean --artifact
+atlas setup clean --all --yes
+```
+
+Cleanup targets are `--artifact`, `--embeddings`, `--source-checkout`, and `--all`; `--check` reports what would be removed without deleting files. Cleanup that selects every target requires `--yes` unless `--check` is used.
 
 After setup, record commands can run without passing index paths:
 
@@ -55,6 +62,15 @@ atlas record resolve "Treat Wounds" --pack-name actionspf2e
 ```
 
 JSON output uses a shared envelope: successful command payloads are under `data`, and command failures are under `error`. Artifact validation that runs against an invalid artifact still returns `status: "ok"` with `data.valid: false` and exits with code `3`.
+
+The standard exit code classes are:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The command completed successfully. |
+| `1` | The command ran and found a domain-level non-success result, such as a missing record, ambiguous strict resolution, setup not ready, or an interactive cancellation. |
+| `2` | The command received invalid user input, such as an invalid record key, invalid filter JSON, unsupported option combination, or missing required non-interactive confirmation. |
+| `3` | Runtime, artifact, index, install, environment, or validation failure. |
 
 Filter discovery is available through `atlas filters`:
 
@@ -104,7 +120,11 @@ cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
 The default Cargo dev profile is useful for edit/build loops, but its runtime timings should not be compared against the TypeScript implementation.
 `atlas setup` and `atlas index build` generate BGE small document embeddings in batches by default; pass `--embedding-model <model>` and `--embedding-batch-size <count>` on setup or build commands to compare catalog models and batch sizes during performance work.
 
-`atlas setup`, `atlas index build`, index path commands, and semantic search share the `atlas-runtime` path resolver. With `--path-mode auto` (the default), the resolver uses repo-local paths when `git rev-parse --show-toplevel` finds this Rust workspace, otherwise it uses platform user cache paths. Use `--path-mode repo` to require repo-local paths or `--path-mode user` to force platform user paths. Direct flags such as `--source`, `--output`, `--index`, and `--embedding-cache-path` override the resolver for that command. `atlas setup --offline` prevents source fetch/update and embedding model preparation. `atlas setup --no-embeddings` and `atlas index build --no-embeddings` intentionally skip semantic vectors; that output is a base artifact and is not semantic-search-ready.
+`atlas setup`, `atlas index build`, index path commands, and semantic search share the `atlas-runtime` path resolver. With `--path-mode auto` (the default), the resolver uses platform user cache paths so installed setup and later commands resolve the same data from any working directory. Use `--path-mode repo` to require repo-local contributor paths or `--path-mode user` to force platform user paths.
+
+Path flags are command-local overrides, not persisted configuration. `--index` means "use this SQLite artifact for this command" on commands that open or repair an artifact, such as `setup`, `record`, `search`, `filters`, `index validate`, and `index inspect`. `atlas index build` uses `--output` instead because it writes a new artifact path. `--source` and `--embedding-cache-path` similarly override the source checkout or model cache only for the command that receives them. Commands that need no artifact, such as `atlas index analyze` and `atlas agent skills`, do not accept `--index`.
+
+`atlas setup --offline` prevents source fetch/update and embedding model preparation. `atlas setup --no-embeddings` and `atlas index build --no-embeddings` intentionally skip semantic vectors; that output is a base artifact and is not semantic-search-ready.
 
 The current writer loads Foundry packs and records, normalizes canonical record keys and names, maps `foundry_document_type` plus `foundry_record_type` into `record_family`, preserves those Foundry type axes as explicit source projections, reports skipped records with path and reason, and writes `artifact_metadata`, `packs`, `records`, `record_aliases`, `record_traits`, `reference_edges`, `remaster_links`, unified `record_metrics`, metric catalogs, filter discovery catalogs, actor/item/spell side-data tables, `records_fts`, `document_embedding_cache`, and `record_vector_index`. It also extracts selected direct `system_*` paths, raw price JSON, normalized copper price, activation time, separate effect duration, exact Foundry inline reference links resolved against loaded records, source-backed lookup aliases, premaster-to-remaster bridges from remaster journals and migration rename files, and variant family metadata. Source-backed aliases and variant family metadata are separate concepts; broad variant base-name aliases should be handled as variant-aware lookup behavior rather than `record_aliases`. Index readers can deserialize the durable record table family into `atlas-record::PersistedRecord` and relationship-bearing `PersistedRecordSet` values; ingest-only construction state stays out of the persisted read shape. Derived tags are a Phase 10 redesign concern because the Rust model changes require a separate design pass for that surface.
 

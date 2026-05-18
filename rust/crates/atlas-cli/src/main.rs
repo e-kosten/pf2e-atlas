@@ -29,7 +29,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     #[command(about = "Install, repair, or check local Atlas runtime data")]
-    Setup(SetupOptions),
+    Setup(SetupArgs),
     #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
@@ -50,17 +50,39 @@ struct IndexArgs {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode user"
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode user\n  atlas setup clean --artifact\n  atlas setup clean --all --yes"
 )]
-struct SetupOptions {
-    #[arg(long, value_enum, default_value_t = CliPathMode::Auto, help = "Use repo-local paths inside a checkout, user cache paths outside, or force one mode")]
+struct SetupArgs {
+    #[command(flatten)]
+    paths: SetupPathOptions,
+    #[command(flatten)]
+    run: SetupRunOptions,
+    #[command(subcommand)]
+    command: Option<SetupCommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum SetupCommand {
+    #[command(about = "Remove local Atlas runtime data without uninstalling the CLI")]
+    Clean(SetupCleanOptions),
+}
+
+#[derive(Debug, Args)]
+struct SetupPathOptions {
+    #[arg(long, global = true, value_enum, default_value_t = CliPathMode::Auto, help = "Use normal user install paths by default, or force checkout-local developer paths with repo")]
     path_mode: CliPathMode,
-    #[arg(long, help = "Override the PF2E source checkout path")]
+    #[arg(long, global = true, help = "Override the PF2E source checkout path")]
     source: Option<PathBuf>,
-    #[arg(long, help = "Override the embedding model cache root")]
+    #[arg(long, global = true, help = "Override the embedding model cache root")]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(long, global = true, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(long, global = true, help = "Emit the standard JSON envelope")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct SetupRunOptions {
     #[arg(
         long,
         help = "Prepare a record/resolve-ready artifact without semantic embeddings"
@@ -89,8 +111,25 @@ struct SetupOptions {
         help = "Embedding generation batch size for full setup"
     )]
     embedding_batch_size: usize,
-    #[arg(long, help = "Emit the standard JSON envelope")]
-    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct SetupCleanOptions {
+    #[arg(long, help = "Report cleanup targets without removing files")]
+    check: bool,
+    #[arg(long, help = "Remove the SQLite artifact and companion WAL/SHM files")]
+    artifact: bool,
+    #[arg(long, help = "Remove the embedding model cache root")]
+    embeddings: bool,
+    #[arg(long, help = "Remove the PF2E source checkout")]
+    source_checkout: bool,
+    #[arg(
+        long,
+        help = "Remove source, embedding cache, and SQLite artifact files"
+    )]
+    all: bool,
+    #[arg(long, help = "Confirm cleanup when every target is selected")]
+    yes: bool,
 }
 
 #[derive(Debug, Args)]
@@ -604,7 +643,7 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
-        Command::Setup(options) => commands::setup::run_setup(options),
+        Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
             IndexCommand::Analyze(options) => commands::index::run_index_analyze(options),
             IndexCommand::Build(options) => commands::index::run_index_build(options),

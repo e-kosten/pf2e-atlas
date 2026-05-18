@@ -1,24 +1,61 @@
 use std::process::ExitCode;
 
 use atlas_runtime::{
-    AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeSetupOptions, SetupActionKind,
-    SetupActionStatus, SetupExitClass, SetupReadinessStatus, SetupTarget,
+    AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeSetupCleanOptions,
+    RuntimeSetupOptions, SetupActionKind, SetupActionStatus, SetupCleanTargetKind,
+    SetupCleanTargetStatus, SetupExitClass, SetupReadinessStatus, SetupTarget,
 };
 use serde::Serialize;
 
-use crate::SetupOptions;
-use crate::output::write_json_data;
+use crate::output::{write_json_data, write_json_error};
+use crate::{SetupArgs, SetupCleanOptions, SetupCommand, SetupPathOptions, SetupRunOptions};
 
-pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
-    let json = options.json;
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
+    let json = args.paths.json;
+    match args.command {
+        Some(SetupCommand::Clean(options)) => {
+            if args.run.check
+                || args.run.no_embeddings
+                || args.run.offline
+                || args.run.force_rebuild
+            {
+                return invalid_setup_input(
+                    json,
+                    "setup install options must appear on atlas setup, not atlas setup clean; use setup clean --check for cleanup dry runs".to_string(),
+                );
+            }
+            let runtime = match setup_runtime(args.paths) {
+                Ok(runtime) => runtime,
+                Err(message) => return invalid_setup_input(json, message),
+            };
+            run_setup_clean(runtime, options, json)
+        }
+        None => {
+            let runtime = match setup_runtime(args.paths) {
+                Ok(runtime) => runtime,
+                Err(message) => return invalid_setup_input(json, message),
+            };
+            run_setup_install(runtime, args.run, json)
+        }
+    }
+}
+
+fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
+    AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.index,
         },
-    })?;
+    })
+}
+
+fn run_setup_install(
+    runtime: AtlasRuntime,
+    options: SetupRunOptions,
+    json: bool,
+) -> Result<ExitCode, String> {
     let setup_options = RuntimeSetupOptions {
         target: if options.no_embeddings {
             SetupTarget::Records
@@ -45,6 +82,60 @@ pub(crate) fn run_setup(options: SetupOptions) -> Result<ExitCode, String> {
         SetupExitClass::NotReady => ExitCode::from(1),
         SetupExitClass::RuntimeFailure => ExitCode::from(3),
     })
+}
+
+fn run_setup_clean(
+    runtime: AtlasRuntime,
+    options: SetupCleanOptions,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let source = options.all || options.source_checkout;
+    let embedding_cache = options.all || options.embeddings;
+    let artifact = options.all || options.artifact;
+    if !source && !embedding_cache && !artifact {
+        return invalid_setup_clean_input(
+            json,
+            "setup clean requires at least one of --artifact, --embeddings, --source-checkout, or --all",
+        );
+    }
+    if source && embedding_cache && artifact && !options.check && !options.yes {
+        return invalid_setup_clean_input(
+            json,
+            "setup clean all-target cleanup requires --yes unless --check is used",
+        );
+    }
+
+    let report = runtime.clean_setup(RuntimeSetupCleanOptions {
+        source,
+        embedding_cache,
+        artifact,
+        check: options.check,
+    });
+    let exit_class = report.exit_code_class();
+    if json {
+        write_json_data(setup_clean_json_data(&report))?;
+    } else {
+        print_setup_clean_report(&report);
+    }
+
+    Ok(match exit_class {
+        SetupExitClass::Success => ExitCode::SUCCESS,
+        SetupExitClass::NotReady => ExitCode::from(1),
+        SetupExitClass::RuntimeFailure => ExitCode::from(3),
+    })
+}
+
+fn invalid_setup_clean_input(json: bool, message: &'static str) -> Result<ExitCode, String> {
+    invalid_setup_input(json, message.to_string())
+}
+
+fn invalid_setup_input(json: bool, message: String) -> Result<ExitCode, String> {
+    if json {
+        write_json_error("invalid_input", message)?;
+        Ok(ExitCode::from(2))
+    } else {
+        Err(message)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -115,6 +206,24 @@ struct SetupBuildData {
     document_embedding_count: usize,
 }
 
+#[derive(Debug, Serialize)]
+struct SetupCleanData {
+    path_mode: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    repo_root: Option<String>,
+    check: bool,
+    targets: Vec<SetupCleanTargetData>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupCleanTargetData {
+    kind: &'static str,
+    status: &'static str,
+    path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+}
+
 fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
     println!("mode: {}", report.path_mode);
     if let Some(repo_root) = &report.repo_root {
@@ -162,6 +271,30 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
     }
 }
 
+fn print_setup_clean_report(report: &atlas_runtime::RuntimeSetupCleanReport) {
+    println!("mode: {}", report.path_mode);
+    if let Some(repo_root) = &report.repo_root {
+        println!("repo root: {repo_root}");
+    }
+    println!("check: {}", report.check);
+    println!();
+    println!("targets:");
+    for target in &report.targets {
+        let reason = target
+            .reason
+            .as_ref()
+            .map(|reason| format!(": {reason}"))
+            .unwrap_or_default();
+        println!(
+            "  {}: {} {}{}",
+            clean_target_kind_label(&target.kind),
+            clean_target_status_label(&target.status),
+            target.path,
+            reason
+        );
+    }
+}
+
 fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
     SetupData {
         target: target_label(report.target),
@@ -192,6 +325,24 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             generated_record_count: build.generated_record_count,
             document_embedding_count: build.document_embedding_count,
         }),
+    }
+}
+
+fn setup_clean_json_data(report: &atlas_runtime::RuntimeSetupCleanReport) -> SetupCleanData {
+    SetupCleanData {
+        path_mode: report.path_mode,
+        repo_root: report.repo_root.clone(),
+        check: report.check,
+        targets: report
+            .targets
+            .iter()
+            .map(|target| SetupCleanTargetData {
+                kind: clean_target_kind_label(&target.kind),
+                status: clean_target_status_label(&target.status),
+                path: target.path.clone(),
+                reason: target.reason.clone(),
+            })
+            .collect(),
     }
 }
 
@@ -257,5 +408,22 @@ fn action_status_label(status: &SetupActionStatus) -> &'static str {
         SetupActionStatus::Skipped => "skipped",
         SetupActionStatus::Blocked => "blocked",
         SetupActionStatus::Failed => "failed",
+    }
+}
+
+fn clean_target_kind_label(kind: &SetupCleanTargetKind) -> &'static str {
+    match kind {
+        SetupCleanTargetKind::Source => "source",
+        SetupCleanTargetKind::EmbeddingCache => "embedding_cache",
+        SetupCleanTargetKind::Artifact => "artifact",
+    }
+}
+
+fn clean_target_status_label(status: &SetupCleanTargetStatus) -> &'static str {
+    match status {
+        SetupCleanTargetStatus::Planned => "planned",
+        SetupCleanTargetStatus::Removed => "removed",
+        SetupCleanTargetStatus::Skipped => "skipped",
+        SetupCleanTargetStatus::Failed => "failed",
     }
 }

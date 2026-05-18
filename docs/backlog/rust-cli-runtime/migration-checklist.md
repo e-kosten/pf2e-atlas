@@ -350,7 +350,13 @@ Acceptance:
 
 Goal: make the Rust CLI the default local agent interface.
 
-- [ ] Stabilize command naming.
+- [x] Stabilize command naming around the current surface:
+  - `setup` and `setup clean` for first-run readiness, repair, and cleanup
+  - `index analyze|build|inspect|validate` for artifact/source diagnostics and manual artifact work
+  - `record get|resolve` for exact keys and strict names/aliases
+  - `search` for filter-only listing and ranked retrieval
+  - `filters fields|values` for schema/facet discovery
+  - `agent skills install|doctor` for first-party agent skill installation and inspection
 - [x] Make `atlas setup` the standard first-run install/repair command, with full semantic readiness by default and `--no-embeddings` for record-only setup.
 - [x] Add setup `--check`, `--offline`, and `--force-rebuild` behavior with structured action/readiness output.
 - [x] Make `atlas index validate` symmetric with setup: full semantic validation by default, `--no-embeddings` for base validation, and `--embeddings-only` for focused vector diagnostics.
@@ -360,12 +366,13 @@ Goal: make the Rust CLI the default local agent interface.
   - [x] keep successful payloads under `data` and command failures under `error`
   - [x] define success, error, pagination, and timing fields for Phase 5 commands that need them
   - [x] add golden tests for representative success and failure commands
-- [ ] Stabilize exit codes.
-- [ ] Add human-readable output mode if needed.
+- [x] Stabilize the current exit code classes: `0` success, `1` domain no-result/not-ready/cancel, `2` invalid input, and `3` runtime/artifact/index/install failure.
+- [x] Defer broad human-readable output polish; JSON remains the agent-facing contract, with existing text output kept for operator diagnostics.
 - [x] Add `--json` default policy or explicit always-JSON policy. Filter discovery commands are explicit always-JSON commands.
-- [ ] Add `--index` and config lookup.
-- [ ] Add source-signature, embedding-mismatch, and incompatible-artifact diagnostics.
-- [ ] Add command golden tests.
+- [x] Use `--index` consistently as the command-local SQLite artifact override for commands that open or repair an artifact; `atlas index build` uses `--output` for the artifact it writes.
+- [x] Decide that persisted config lookup is not part of Phase 8. `--path-mode auto|repo|user` plus direct command-local path flags are the current path contract; any future persisted config should feed runtime path overrides below direct CLI flags.
+- [ ] Harden source-signature, embedding-mismatch, and incompatible-artifact diagnostics outside `atlas index validate`. Audit result: `index validate` and `setup` have detailed validation payloads, while `record`, `search`, and `filters` currently collapse artifact-open failures to broad runtime errors such as `index_unavailable`, `artifact_contract_violation`, or `vector_readiness_required`.
+- [ ] Audit command golden tests and add only missing representative command contracts. Audit result: representative JSON and exit-code tests already cover setup, setup clean, index build/analyze/validate, record get/resolve, search, filters, and agent skills; remaining additions should be tied to concrete command or diagnostic changes rather than a broad new snapshot suite.
 - [x] Add a first-party PF2e Atlas CLI agent skill package with durable install and doctor commands.
 - [x] Include command-choice rules:
   - [x] `record get` for exact record keys
