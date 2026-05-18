@@ -301,29 +301,30 @@ Acceptance:
 
 Goal: extend the unified `atlas search` surface with ranked text retrieval using SQLite-centered hybrid retrieval.
 
-- [ ] Keep filter-only list behavior aligned with the Phase 5 `atlas search` foundation.
+- [x] Keep filter-only list behavior aligned with the Phase 5 `atlas search` foundation.
 - [x] Implement canonical filter lowering to SQL eligible keysets.
-- [ ] Wire structured filter SQL into ranked text search execution.
-- [ ] Implement FTS retrieval.
-- [ ] Implement query analysis.
-- [ ] Implement sqlite-vec vector retrieval.
-- [ ] Implement hybrid candidate fusion.
-- [ ] Use plain RRF as the default hybrid fusion method.
-- [ ] Support weighted RRF as an advanced tuning and quality-evaluation option.
-- [ ] Boost strong name and verified-alias matches above broader FTS and vector matches in normal `atlas search <text>` results.
-- [ ] Keep generic Node-style rerank adjustments out of the baseline unless a quality fixture proves they are needed.
-- [ ] Implement `search.exclude`.
-- [ ] Implement advanced retrieval-path flags, such as `--retrieval fts|vector|hybrid`, rather than Node-era `lexical|balanced|concept` product profiles.
-- [ ] Ensure FTS retrieval works with record-only artifacts produced by `atlas setup --no-embeddings`.
-- [ ] Remove the temporary Phase 4 diagnostic `atlas search semantic --query ...` CLI branch once normal ranked search covers vector retrieval.
-- [ ] Implement explain output if still useful.
-- [ ] Add top-k quality fixtures from the search-quality bakeoff.
-- [ ] Add parity or accepted-difference reports against TypeScript.
-- [ ] Keep Tantivy, LanceDB, non-default embedding-model switches, and heavyweight rerankers deferred unless a new quality result justifies them.
+- [x] Wire structured filter SQL into ranked text search execution.
+- [x] Implement FTS retrieval.
+- [x] Implement query analysis.
+- [x] Implement sqlite-vec vector retrieval.
+- [x] Implement hybrid candidate fusion.
+- [x] Use weighted RRF with equal FTS/vector weights as the default hybrid fusion method.
+- [x] Reject explicit unweighted `--fusion rrf` when lane weights are also supplied.
+- [x] Boost strong name and verified-alias matches above broader FTS and vector matches in normal `atlas search <text>` results.
+- [x] Keep generic Node-style rerank adjustments out of the baseline unless a quality fixture proves they are needed.
+- [x] Implement `search.exclude`.
+- [x] Implement advanced retrieval-path flags, such as `--retrieval fts|vector|hybrid`, rather than Node-era `lexical|balanced|concept` product profiles.
+- [x] Ensure FTS retrieval works with record-only artifacts produced by `atlas setup --no-embeddings`.
+- [x] Remove the temporary Phase 4 diagnostic `atlas search semantic --query ...` CLI branch once normal ranked search covers vector retrieval.
+- [x] Implement explain output if still useful.
+- [x] Defer full live-index top-k quality fixtures to the Rust search quality tuning backlog item.
+- [x] Defer TypeScript parity or accepted-difference reporting to the Rust search quality tuning backlog item.
+- [x] Keep Tantivy, LanceDB, non-default embedding-model switches, and heavyweight rerankers deferred unless a new quality result justifies them.
 
 Acceptance:
 - Representative lookup/search/rule workflows pass against Rust.
-- Known expected records appear in top results for the bakeoff set.
+- Focused fixture tests cover record lookup/resolve, filter-only search, FTS search, exclude, vector-readiness errors, ranking/fusion units, and record JSON shape.
+- Full live-index top-k bakeoff and TypeScript accepted-difference reports are tracked by the Rust search quality tuning backlog item.
 - Quality differences are documented rather than accidental.
 
 ## Phase 7: Filter And Schema Discovery

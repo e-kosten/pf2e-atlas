@@ -2,15 +2,18 @@ use atlas_domain::SearchFilterNode;
 use atlas_index::FilteredRecordSort;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use atlas_search::{AtlasSearchRequest, AtlasSearchResult, SemanticSearchMode};
+use atlas_search::{
+    AtlasSearchRequest, AtlasSearchResult, FusionOptions, RetrievalMode, SearchError,
+    TextSearchExplain, TextSearchMatch, TextSearchRequest,
+};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::process::ExitCode;
-use std::time::Instant;
+use tracing::info;
 
-use crate::SearchOptions;
 use crate::output::{write_json_data, write_json_error};
+use crate::{CliFusionMethod, SearchOptions};
 
 const MAX_LIMIT: u32 = 100;
 
@@ -18,10 +21,46 @@ const MAX_LIMIT: u32 = 100;
 struct SearchData {
     detail: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    query: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    query_analysis: Option<SearchQueryAnalysisJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    retrieval: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fusion: Option<SearchFusionJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    candidate_windows: Option<SearchCandidateWindowsJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     filter: Option<Value>,
     sort: SearchSortJson,
     pagination: SearchPagination,
     results: Vec<SearchResultItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchFusionJson {
+    method: &'static str,
+    fts_weight: f64,
+    vector_weight: f64,
+    rank_constant: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchQueryAnalysisJson {
+    normalized_query: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_query: Option<String>,
+    fts_tokens: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exclude_query: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    exclude_tokens: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchCandidateWindowsJson {
+    fts_top_k: u32,
+    vector_top_k: u32,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,25 +90,38 @@ struct SearchResultItem {
 #[derive(Debug, Serialize)]
 struct SearchMatchJson {
     kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    retrieval: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    identity_match_kind: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    explain: Option<SearchExplainJson>,
+}
+
+#[derive(Debug, Serialize)]
+struct SearchExplainJson {
+    rank: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fused_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_rank: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_rank: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_distance: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_rank_distance: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_unit_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    vector_embedding_unit_key: Option<String>,
 }
 
 pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
-    if options.query.as_deref() == Some("semantic") {
-        return run_search_semantic_diagnostic(options);
-    }
-    if options.query_text.is_some() {
-        if options.json {
-            write_json_error(
-                "invalid_input",
-                "--query is only supported with `atlas search semantic` in this phase".to_string(),
-            )?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err(
-            "--query is only supported with `atlas search semantic` in this phase".to_string(),
-        );
-    }
-
     let filter_value = options
         .filter_json
         .as_deref()
@@ -90,17 +142,6 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         Err(_) if options.json => return Ok(ExitCode::from(2)),
         Err(error) => return Err(error),
     };
-    if options.query.is_some() {
-        if options.json {
-            write_json_error(
-                "unsupported_search_mode",
-                "ranked text search is not implemented in the Rust CLI yet".to_string(),
-            )?;
-            return Ok(ExitCode::from(2));
-        }
-        return Err("ranked text search is not implemented in the Rust CLI yet".to_string());
-    }
-
     let limit = options.limit.clamp(1, MAX_LIMIT);
     let filter = options
         .filter_json
@@ -122,6 +163,11 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         Err(_) if options.json => return Ok(ExitCode::from(2)),
         Err(error) => return Err(error),
     };
+
+    if let Some(query) = options.query.clone() {
+        return run_ranked_text_search(options, &query, filter.as_ref(), filter_value, limit);
+    }
+
     let (sort, sort_json) = match parse_sort(&options.sort, options.seed) {
         Ok(sort) => sort,
         Err(error) if options.json => {
@@ -140,10 +186,14 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     }) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
+            complete_search_progress();
             write_json_error("runtime_error", error)?;
             return Ok(ExitCode::from(3));
         }
-        Err(error) => return Err(error),
+        Err(error) => {
+            complete_search_progress();
+            return Err(error);
+        }
     };
     let service = match runtime.open_record_retrieval_service() {
         Ok(service) => service,
@@ -176,7 +226,12 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         .filter_map(|key| by_key.get(&key.to_string()))
         .map(|record| SearchResultItem {
             record: record_json(record, record_options),
-            r#match: SearchMatchJson { kind: "filter" },
+            r#match: SearchMatchJson {
+                kind: "filter",
+                retrieval: None,
+                identity_match_kind: None,
+                explain: None,
+            },
         })
         .collect::<Vec<_>>();
     let next_offset = options.offset.saturating_add(results.len() as u32);
@@ -184,6 +239,11 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
 
     let data = SearchData {
         detail: options.detail.to_string(),
+        query: None,
+        query_analysis: None,
+        retrieval: None,
+        fusion: None,
+        candidate_windows: None,
         filter: filter_value,
         sort: sort_json,
         pagination: SearchPagination {
@@ -204,40 +264,43 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn run_search_semantic_diagnostic(options: SearchOptions) -> Result<ExitCode, String> {
-    let query = match options.query_text.as_deref() {
-        Some(query) => query,
-        None if options.json => {
-            write_json_error(
-                "invalid_input",
-                "missing --query for semantic search".to_string(),
-            )?;
+fn run_ranked_text_search(
+    options: SearchOptions,
+    query: &str,
+    filter: Option<&SearchFilterNode>,
+    filter_value: Option<Value>,
+    limit: u32,
+) -> Result<ExitCode, String> {
+    let retrieval = RetrievalMode::from(options.retrieval);
+    let fusion = FusionOptions {
+        method: options.fusion.into(),
+        fts_weight: options.fts_weight,
+        vector_weight: options.vector_weight,
+        rank_constant: options.rank_constant,
+    };
+    if options.fusion == CliFusionMethod::Rrf
+        && ((options.fts_weight - 1.0).abs() > f64::EPSILON
+            || (options.vector_weight - 1.0).abs() > f64::EPSILON)
+    {
+        let message =
+            "--fusion rrf does not accept lane weights; use --fusion weighted-rrf".to_string();
+        if options.json {
+            write_json_error("invalid_option", message)?;
             return Ok(ExitCode::from(2));
         }
-        None => return Err("missing --query for semantic search".to_string()),
-    };
-    let total_started_at = Instant::now();
-    let filter = options
-        .filter_json
-        .as_deref()
-        .map(|filter_json| {
-            serde_json::from_str::<SearchFilterNode>(filter_json).map_err(|error| {
-                if options.json {
-                    let _ = write_json_error(
-                        "invalid_filter_json",
-                        format!("failed to parse --filter-json: {error}"),
-                    );
-                }
-                format!("failed to parse --filter-json: {error}")
-            })
-        })
-        .transpose();
-    let filter = match filter {
-        Ok(filter) => filter,
-        Err(_) if options.json => return Ok(ExitCode::from(2)),
-        Err(error) => return Err(error),
-    };
-
+        return Err(message);
+    }
+    if fusion.rank_constant <= 0.0 || fusion.fts_weight < 0.0 || fusion.vector_weight < 0.0 {
+        let message =
+            "fusion weights must be non-negative and --rank-constant must be greater than zero"
+                .to_string();
+        if options.json {
+            write_json_error("invalid_option", message)?;
+            return Ok(ExitCode::from(2));
+        }
+        return Err(message);
+    }
+    search_progress("Resolving Atlas paths", "resolve");
     let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
@@ -253,64 +316,148 @@ fn run_search_semantic_diagnostic(options: SearchOptions) -> Result<ExitCode, St
         }
         Err(error) => return Err(error),
     };
-    let service_open_started_at = Instant::now();
-    let mut search =
-        match runtime.open_retrieval_service_with_model(options.embedding_model.to_string()) {
+    let mut search = if retrieval == RetrievalMode::Fts {
+        search_progress("Opening index", "open-index");
+        match runtime.open_record_retrieval_service() {
             Ok(search) => search,
             Err(error) if options.json => {
+                complete_search_progress();
                 write_json_error("index_unavailable", error.to_string())?;
                 return Ok(ExitCode::from(3));
             }
-            Err(error) => return Err(error.to_string()),
-        };
-    let service_open_duration_ms = service_open_started_at.elapsed().as_millis();
-    let semantic_mode = SemanticSearchMode::from(options.semantic_mode);
-    let result = match search.search(AtlasSearchRequest::Semantic {
+            Err(error) => {
+                complete_search_progress();
+                return Err(error.to_string());
+            }
+        }
+    } else {
+        search_progress("Loading embedding model", "load-embeddings");
+        match runtime.open_retrieval_service_with_model(options.embedding_model.to_string()) {
+            Ok(search) => search,
+            Err(error) if options.json && vector_readiness_error(&error) => {
+                complete_search_progress();
+                write_json_error(
+                    "vector_readiness_required",
+                    vector_readiness_message(&error),
+                )?;
+                return Ok(ExitCode::from(3));
+            }
+            Err(error) if options.json => {
+                complete_search_progress();
+                write_json_error(search_error_code(&error), error.to_string())?;
+                return Ok(ExitCode::from(3));
+            }
+            Err(error) => {
+                complete_search_progress();
+                if vector_readiness_error(&error) {
+                    return Err(vector_readiness_message(&error));
+                }
+                return Err(error.to_string());
+            }
+        }
+    };
+    search_progress("Searching records", "search");
+    let ranked_window = options.offset.saturating_add(limit);
+    let fts_top_k = options.fts_top_k.max(ranked_window);
+    let vector_top_k = options.vector_top_k.max(ranked_window);
+    let result = match search.search(AtlasSearchRequest::Text(TextSearchRequest {
         query,
-        filter: filter.as_ref(),
-        limit: options.limit,
-        mode: semantic_mode,
-    }) {
-        Ok(AtlasSearchResult::Semantic(result)) => result,
+        exclude: options.exclude.as_deref(),
+        filter,
+        limit,
+        offset: options.offset,
+        retrieval,
+        fusion,
+        fts_top_k,
+        vector_top_k,
+        explain: options.explain,
+    })) {
+        Ok(AtlasSearchResult::Text(result)) => result,
+        Ok(AtlasSearchResult::Semantic(_)) => {
+            complete_search_progress();
+            return Err("search returned an unexpected semantic result".to_string());
+        }
         Err(error) if options.json => {
-            write_json_error(search_error_code(&error), error.to_string())?;
+            complete_search_progress();
+            write_json_error(
+                search_error_code_for_retrieval(&error, retrieval),
+                error.to_string(),
+            )?;
             return Ok(ExitCode::from(3));
         }
-        Err(error) => return Err(error.to_string()),
-    };
-    let hits = result.hits;
-
-    if options.json {
-        write_json_data(serde_json::json!({
-            "query": query,
-            "limit": options.limit,
-            "semantic_mode": semantic_mode.as_str(),
-            "timing": {
-                "service_open_duration_ms": service_open_duration_ms,
-                "query_embedding_duration_ms": result.timing.query_embedding_duration_ms,
-                "vector_search_duration_ms": result.timing.vector_search_duration_ms,
-                "semantic_duration_ms": result.timing.total_duration_ms,
-                "total_duration_ms": total_started_at.elapsed().as_millis(),
-            },
-            "hits": hits.iter().map(|hit| {
-                serde_json::json!({
-                    "record_key": hit.record_key,
-                    "embedding_unit_key": hit.embedding_unit_key,
-                    "unit_kind": hit.unit_kind,
-                    "label": hit.label,
-                    "distance": hit.distance,
-                    "rank_distance": hit.rank_distance,
-                })
-            }).collect::<Vec<_>>()
-        }))?;
-    } else {
-        println!("ok: {} semantic hits", hits.len());
-        for hit in hits {
-            println!("{}\t{}", hit.record_key, hit.distance);
+        Err(error) => {
+            complete_search_progress();
+            return Err(error.to_string());
         }
+    };
+    search_progress("Rendering results", "render");
+    let record_options = RecordJsonOptions {
+        detail: options.detail,
+        include_source_json: options.include_raw,
+    };
+    let results = result
+        .records
+        .into_iter()
+        .map(|item| SearchResultItem {
+            record: record_json(&item.record, record_options),
+            r#match: search_match_json(item.match_info),
+        })
+        .collect::<Vec<_>>();
+    let next_offset = options.offset.saturating_add(results.len() as u32);
+    let has_more = u64::from(next_offset) < result.total;
+    let data = SearchData {
+        detail: options.detail.to_string(),
+        query: Some(query.to_string()),
+        query_analysis: options.explain.then_some(SearchQueryAnalysisJson {
+            normalized_query: result.query.normalized_query,
+            fts_query: result.query.fts_query,
+            fts_tokens: result.query.fts_tokens,
+            exclude_query: result.query.exclude_query,
+            exclude_tokens: result.query.exclude_tokens,
+        }),
+        retrieval: Some(result.retrieval.as_str()),
+        fusion: Some(SearchFusionJson {
+            method: result.fusion.method.as_str(),
+            fts_weight: result.fusion.fts_weight,
+            vector_weight: result.fusion.vector_weight,
+            rank_constant: result.fusion.rank_constant,
+        }),
+        candidate_windows: options.explain.then_some(SearchCandidateWindowsJson {
+            fts_top_k,
+            vector_top_k,
+        }),
+        filter: filter_value,
+        sort: SearchSortJson {
+            kind: "ranked",
+            seed: None,
+        },
+        pagination: SearchPagination {
+            offset: options.offset,
+            limit,
+            count: results.len(),
+            total: result.total,
+            has_more,
+            next_offset: has_more.then_some(next_offset),
+        },
+        results,
+    };
+    if options.json {
+        complete_search_progress();
+        write_json_data(&data)?;
+    } else {
+        complete_search_progress();
+        print_search_results(&data);
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+fn search_progress(message: &'static str, phase: &'static str) {
+    info!(target: "atlas_progress", phase, "{message}");
+}
+
+fn complete_search_progress() {
+    info!(target: "atlas_progress", complete = true, "search complete");
 }
 
 fn parse_sort(
@@ -377,6 +524,42 @@ fn print_search_results(data: &SearchData) {
     }
 }
 
+fn search_match_json(match_info: TextSearchMatch) -> SearchMatchJson {
+    match match_info {
+        TextSearchMatch::Identity {
+            retrieval,
+            identity_match_kind,
+            explain,
+        } => SearchMatchJson {
+            kind: "identity",
+            retrieval: Some(retrieval.as_str()),
+            identity_match_kind: Some(identity_match_kind.as_str()),
+            explain: explain.map(search_explain_json),
+        },
+        TextSearchMatch::Ranked { retrieval, explain } => SearchMatchJson {
+            kind: "ranked",
+            retrieval: Some(retrieval.as_str()),
+            identity_match_kind: None,
+            explain: explain.map(search_explain_json),
+        },
+    }
+}
+
+fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
+    SearchExplainJson {
+        rank: explain.rank,
+        fused_score: explain.fused_score,
+        fts_rank: explain.fts_rank,
+        fts_score: explain.fts_score,
+        vector_rank: explain.vector_rank,
+        vector_distance: explain.vector_distance,
+        vector_rank_distance: explain.vector_rank_distance,
+        vector_unit_kind: explain.vector_unit_kind,
+        vector_label: explain.vector_label,
+        vector_embedding_unit_key: explain.vector_embedding_unit_key,
+    }
+}
+
 fn search_error_code(error: &atlas_search::SearchError) -> &'static str {
     match error {
         atlas_search::SearchError::Index(atlas_index::IndexValidationError::Unavailable(_)) => {
@@ -385,7 +568,59 @@ fn search_error_code(error: &atlas_search::SearchError) -> &'static str {
         atlas_search::SearchError::Index(atlas_index::IndexValidationError::InvalidArtifact(_)) => {
             "artifact_contract_violation"
         }
+        atlas_search::SearchError::InvalidSearchOptions(_) => "invalid_option",
+        atlas_search::SearchError::Vector(atlas_index::VectorQueryError::Filter(_)) => {
+            "invalid_filter"
+        }
         atlas_search::SearchError::Filter(_) => "invalid_filter",
         _ => "query_failed",
+    }
+}
+
+fn search_error_code_for_retrieval(error: &SearchError, retrieval: RetrievalMode) -> &'static str {
+    if retrieval != RetrievalMode::Fts && vector_readiness_error(error) {
+        return "vector_readiness_required";
+    }
+    search_error_code(error)
+}
+
+fn vector_readiness_error(error: &SearchError) -> bool {
+    matches!(
+        error,
+        SearchError::InvalidEmbeddingModel { .. }
+            | SearchError::Embedding(_)
+            | SearchError::Vector(atlas_index::VectorQueryError::QueryFailed(_))
+            | SearchError::UnsupportedRetrievalPattern(_)
+    )
+}
+
+fn vector_readiness_message(error: &SearchError) -> String {
+    format!(
+        "{error}. Rebuild the Atlas artifact with embeddings or rerun the search with --retrieval fts."
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_index::{FilterCompileError, VectorQueryError};
+    use atlas_search::SearchError;
+
+    use super::vector_readiness_error;
+
+    #[test]
+    fn vector_filter_errors_are_not_vector_readiness_errors() {
+        let error =
+            SearchError::Vector(VectorQueryError::Filter(FilterCompileError::Unsupported {
+                filter: "fixture".to_string(),
+            }));
+
+        assert!(!vector_readiness_error(&error));
+    }
+
+    #[test]
+    fn vector_query_failures_are_vector_readiness_errors() {
+        let error = SearchError::Vector(VectorQueryError::QueryFailed("missing table".to_string()));
+
+        assert!(vector_readiness_error(&error));
     }
 }

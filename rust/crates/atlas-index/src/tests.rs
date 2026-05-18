@@ -24,7 +24,8 @@ use crate::filters::{
 };
 use crate::vector::compile_vector_knn_query;
 use crate::{
-    ArtifactContractFamily, AtlasIndex, ValidationCode, ValidationStatus, VectorQueryError,
+    ArtifactContractFamily, AtlasIndex, FtsColumnWeights, FtsQuery, ValidationCode,
+    ValidationStatus, VectorQueryError,
 };
 
 #[test]
@@ -467,6 +468,108 @@ fn composes_filtered_record_key_queries_from_eligible_records()
     );
     fs::remove_file(path)?;
     Ok(())
+}
+
+#[test]
+fn fts_query_respects_structured_filters() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("fts-filtered");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET level = CASE record_key
+             WHEN 'actions:testAction1' THEN 1
+             WHEN 'actions:testAction2' THEN 2
+             ELSE 3
+         END",
+        [],
+    )?;
+    drop(connection);
+
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
+    let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
+    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+        &query,
+        Some(&filter),
+        10,
+        FtsColumnWeights::default(),
+    )?;
+
+    assert_eq!(
+        hits.iter()
+            .map(|hit| hit.record_key.to_string())
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction2", "actions:testAction3"]
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn fts_bm25_weights_prefer_title_matches_over_body_matches()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("fts-weight-order");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute("DELETE FROM records_fts", [])?;
+    connection.execute(
+        "INSERT INTO records_fts (
+          record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content
+         ) VALUES
+          ('actions:testAction1', 'needle', '', '', '', '', '', '', ''),
+          ('actions:testAction2', 'other', '', '', '', 'needle needle needle', '', '', ''),
+          ('actions:testAction3', 'other', '', '', '', 'needle', '', '', '')",
+        [],
+    )?;
+    drop(connection);
+
+    let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
+    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+        &query,
+        None,
+        10,
+        FtsColumnWeights::default(),
+    )?;
+
+    assert_eq!(hits[0].record_key.to_string(), "actions:testAction1");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn fts_candidate_key_query_is_bounded_to_supplied_candidates()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("fts-candidate-keys");
+    create_contract_database(&path)?;
+
+    let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
+    let hits = AtlasIndex::open_read_only(&path)?.query_fts_candidate_record_keys(
+        &query,
+        &[
+            RecordKey::parse("actions:testAction1")?,
+            RecordKey::parse("actions:missing")?,
+        ],
+    )?;
+
+    assert_eq!(
+        hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
+        vec!["actions:testAction1"]
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn fts_query_drops_unsafe_tokens_before_rendering() {
+    let query = FtsQuery::from_tokens(vec![
+        "safe".to_string(),
+        "unsafe\" OR anything".to_string(),
+        "token2".to_string(),
+    ])
+    .expect("query");
+
+    assert_eq!(query.as_match_query(), "\"safe\" OR \"token2\"");
+    assert!(FtsQuery::from_tokens(vec!["\"".to_string()]).is_none());
 }
 
 #[test]

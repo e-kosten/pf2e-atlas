@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Instant;
@@ -7,8 +8,9 @@ use std::time::Instant;
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, EmbeddingUnitKind, TextEmbedder};
 use atlas_index::{
-    AtlasIndex, FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort,
-    IndexValidationError, RecordLoadError, VectorQueryError, VectorSearchHit,
+    AtlasIndex, FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights,
+    FtsQuery, FtsSearchHit, IndexValidationError, RecordLoadError, VectorQueryError,
+    VectorSearchHit,
 };
 use atlas_record::{PersistedRecord, RecordAlias};
 use serde::{Deserialize, Serialize};
@@ -16,11 +18,9 @@ use thiserror::Error;
 
 /// Initial top-level retrieval boundary for Rust runtime consumers.
 ///
-/// The service owns product-facing retrieval entrypoints. The current Rust
-/// migration slice exposes semantic search first, while the semantic-only
-/// implementation remains a private component behind this boundary. Future
-/// record get/resolve, filter-only list, lexical, and hybrid behavior should
-/// be added here rather than as peer public services.
+/// The service owns product-facing retrieval entrypoints. Record get/resolve,
+/// filter-only list, and ranked FTS/vector/hybrid search should be added here
+/// rather than as peer public services.
 pub struct AtlasRetrievalService {
     index: AtlasIndex,
     embedder: Option<TextEmbedder>,
@@ -113,7 +113,133 @@ pub struct FilterOnlyRecordPage {
     pub total: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RetrievalMode {
+    Fts,
+    Vector,
+    Hybrid,
+}
+
+impl RetrievalMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fts => "fts",
+            Self::Vector => "vector",
+            Self::Hybrid => "hybrid",
+        }
+    }
+
+    const fn uses_fts(self) -> bool {
+        matches!(self, Self::Fts | Self::Hybrid)
+    }
+
+    const fn uses_vector(self) -> bool {
+        matches!(self, Self::Vector | Self::Hybrid)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FusionMethod {
+    Rrf,
+    WeightedRrf,
+}
+
+impl FusionMethod {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Rrf => "rrf",
+            Self::WeightedRrf => "weighted-rrf",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FusionOptions {
+    pub method: FusionMethod,
+    pub fts_weight: f64,
+    pub vector_weight: f64,
+    pub rank_constant: f64,
+}
+
+impl Default for FusionOptions {
+    fn default() -> Self {
+        Self {
+            method: FusionMethod::WeightedRrf,
+            fts_weight: 1.0,
+            vector_weight: 1.0,
+            rank_constant: 60.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextSearchRequest<'a> {
+    pub query: &'a str,
+    pub exclude: Option<&'a str>,
+    pub filter: Option<&'a SearchFilterNode>,
+    pub limit: u32,
+    pub offset: u32,
+    pub retrieval: RetrievalMode,
+    pub fusion: FusionOptions,
+    pub fts_top_k: u32,
+    pub vector_top_k: u32,
+    pub explain: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextSearchPage {
+    pub query: TextQueryAnalysis,
+    pub retrieval: RetrievalMode,
+    pub fusion: FusionOptions,
+    pub records: Vec<TextSearchRecord>,
+    pub total: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextSearchRecord {
+    pub record: PersistedRecord,
+    pub match_info: TextSearchMatch,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextQueryAnalysis {
+    pub normalized_query: String,
+    pub fts_query: Option<String>,
+    pub fts_tokens: Vec<String>,
+    pub exclude_query: Option<String>,
+    pub exclude_tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextSearchMatch {
+    Identity {
+        retrieval: RetrievalMode,
+        identity_match_kind: RecordResolutionMatchKind,
+        explain: Option<TextSearchExplain>,
+    },
+    Ranked {
+        retrieval: RetrievalMode,
+        explain: Option<TextSearchExplain>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextSearchExplain {
+    pub rank: u32,
+    pub fused_score: Option<f64>,
+    pub fts_rank: Option<u32>,
+    pub fts_score: Option<f64>,
+    pub vector_rank: Option<u32>,
+    pub vector_distance: Option<f64>,
+    pub vector_rank_distance: Option<f64>,
+    pub vector_unit_kind: Option<String>,
+    pub vector_label: Option<String>,
+    pub vector_embedding_unit_key: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub enum AtlasSearchRequest<'a> {
     Semantic {
         query: &'a str,
@@ -136,12 +262,13 @@ pub enum AtlasSearchRequest<'a> {
         limit: u32,
         semantic_mode: SemanticSearchMode,
     },
+    Text(TextSearchRequest<'a>),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case", tag = "kind")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AtlasSearchResult {
     Semantic(SemanticSearchResult),
+    Text(TextSearchPage),
 }
 
 #[derive(Debug, Error)]
@@ -154,6 +281,8 @@ pub enum SearchError {
     InvalidEmbeddingModel { model: String, message: String },
     #[error("embedding operation failed: {0}")]
     Embedding(String),
+    #[error("invalid search options: {0}")]
+    InvalidSearchOptions(String),
     #[error("retrieval pattern is not implemented yet: {0}")]
     UnsupportedRetrievalPattern(&'static str),
     #[error(transparent)]
@@ -254,6 +383,9 @@ impl AtlasRetrievalService {
             }
             AtlasSearchRequest::Hybrid { .. } => {
                 Err(SearchError::UnsupportedRetrievalPattern("hybrid search"))
+            }
+            AtlasSearchRequest::Text(request) => {
+                self.text_search(request).map(AtlasSearchResult::Text)
             }
         }
     }
@@ -369,6 +501,117 @@ impl AtlasRetrievalService {
             total,
         })
     }
+
+    pub fn text_search(
+        &mut self,
+        request: TextSearchRequest<'_>,
+    ) -> Result<TextSearchPage, SearchError> {
+        validate_text_search_request(&request)?;
+        let query = analyze_text_query(request.query, request.exclude);
+        let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
+        let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
+        let identity_matches = self.resolve_record(request.query, request.filter)?;
+        let fts_hits = if request.retrieval.uses_fts() {
+            match fts_query.as_ref() {
+                Some(fts_query) => self.index.query_fts_index(
+                    fts_query,
+                    request.filter,
+                    request.fts_top_k,
+                    FtsColumnWeights::default(),
+                )?,
+                None => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        let vector_hits = if request.retrieval.uses_vector() {
+            self.semantic(
+                request.query,
+                request.filter,
+                request.vector_top_k,
+                SemanticSearchMode::WeightedChunks,
+            )?
+        } else {
+            Vec::new()
+        };
+        let excluded_keys = match exclude_query.as_ref() {
+            Some(exclude_query) => self
+                .index
+                .query_fts_candidate_record_keys(
+                    exclude_query,
+                    &candidate_keys(&identity_matches, &fts_hits, &vector_hits),
+                )?
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            None => BTreeSet::new(),
+        };
+        let identity_matches = identity_matches
+            .into_iter()
+            .filter(|identity| !excluded_keys.contains(&identity.record.key))
+            .collect::<Vec<_>>();
+        let identity_keys = identity_matches
+            .iter()
+            .map(|identity| identity.record.key.clone())
+            .collect::<BTreeSet<_>>();
+        let fused = fuse_ranked_hits(FusionInput {
+            fts_hits: &fts_hits,
+            vector_hits: &vector_hits,
+            identity_keys: &identity_keys,
+            excluded_keys: &excluded_keys,
+            retrieval: request.retrieval,
+            fusion: request.fusion,
+            explain: request.explain,
+            identity_count: identity_matches.len(),
+        });
+        let total = identity_matches.len() + fused.len();
+        let mut all_matches = identity_matches
+            .into_iter()
+            .enumerate()
+            .map(|(index, identity)| TextSearchRecord {
+                record: identity.record,
+                match_info: TextSearchMatch::Identity {
+                    retrieval: request.retrieval,
+                    identity_match_kind: identity.match_kind,
+                    explain: request.explain.then(|| identity_explain(index)),
+                },
+            })
+            .collect::<Vec<_>>();
+
+        let needed_keys = fused
+            .iter()
+            .map(|ranked| ranked.record_key.clone())
+            .collect::<Vec<_>>();
+        let records = self.index.load_records_by_key(&needed_keys)?;
+        let by_key = records
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect::<BTreeMap<_, _>>();
+        all_matches.extend(fused.into_iter().filter_map(|ranked| {
+            by_key
+                .get(&ranked.record_key)
+                .map(|record| TextSearchRecord {
+                    record: record.clone(),
+                    match_info: TextSearchMatch::Ranked {
+                        retrieval: request.retrieval,
+                        explain: ranked.explain,
+                    },
+                })
+        }));
+
+        let page_records = all_matches
+            .into_iter()
+            .skip(request.offset as usize)
+            .take(request.limit as usize)
+            .collect::<Vec<_>>();
+
+        Ok(TextSearchPage {
+            query,
+            retrieval: request.retrieval,
+            fusion: request.fusion,
+            records: page_records,
+            total: total as u64,
+        })
+    }
 }
 
 fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedder, SearchError> {
@@ -380,6 +623,27 @@ fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedde
     })?;
     let embedding_config = EmbeddingRuntimeConfig::new(model, &embedding_config.cache_root);
     TextEmbedder::load(&embedding_config).map_err(|error| SearchError::Embedding(error.to_string()))
+}
+
+fn validate_text_search_request(request: &TextSearchRequest<'_>) -> Result<(), SearchError> {
+    if request.fusion.method == FusionMethod::Rrf
+        && ((request.fusion.fts_weight - 1.0).abs() > f64::EPSILON
+            || (request.fusion.vector_weight - 1.0).abs() > f64::EPSILON)
+    {
+        return Err(SearchError::InvalidSearchOptions(
+            "unweighted rrf does not accept lane weights; use weighted-rrf".to_string(),
+        ));
+    }
+    if request.fusion.rank_constant <= 0.0
+        || request.fusion.fts_weight < 0.0
+        || request.fusion.vector_weight < 0.0
+    {
+        return Err(SearchError::InvalidSearchOptions(
+            "fusion weights must be non-negative and rank constant must be greater than zero"
+                .to_string(),
+        ));
+    }
+    Ok(())
 }
 
 fn semantic_unit_limit(limit: u32, mode: SemanticSearchMode) -> u32 {
@@ -396,6 +660,236 @@ fn normalize_record_query(value: &str) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn analyze_text_query(query: &str, exclude: Option<&str>) -> TextQueryAnalysis {
+    let normalized_query = normalize_record_query(query);
+    let fts_tokens = tokenize_fts_query(query);
+    let exclude_tokens = exclude.map(tokenize_fts_query).unwrap_or_default();
+    let fts_query = FtsQuery::from_tokens(fts_tokens.clone()).map(|query| query.as_match_query());
+    let exclude_query =
+        FtsQuery::from_tokens(exclude_tokens.clone()).map(|query| query.as_match_query());
+    TextQueryAnalysis {
+        normalized_query,
+        fts_query,
+        fts_tokens,
+        exclude_query,
+        exclude_tokens,
+    }
+}
+
+fn candidate_keys(
+    identity_matches: &[RecordResolutionResult],
+    fts_hits: &[FtsSearchHit],
+    vector_hits: &[SemanticSearchHit],
+) -> Vec<RecordKey> {
+    let mut keys = identity_matches
+        .iter()
+        .map(|identity| identity.record.key.clone())
+        .collect::<BTreeSet<_>>();
+    keys.extend(fts_hits.iter().map(|hit| hit.record_key.clone()));
+    keys.extend(
+        vector_hits
+            .iter()
+            .filter_map(|hit| RecordKey::parse(&hit.record_key).ok()),
+    );
+    keys.into_iter().collect()
+}
+
+fn tokenize_fts_query(query: &str) -> Vec<String> {
+    query
+        .to_lowercase()
+        .chars()
+        .map(|character| {
+            if character.is_alphanumeric() {
+                character
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .filter(|token| !is_fts_stop_word(token))
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn is_fts_stop_word(token: &str) -> bool {
+    matches!(
+        token,
+        "a" | "an"
+            | "and"
+            | "are"
+            | "as"
+            | "at"
+            | "be"
+            | "by"
+            | "for"
+            | "from"
+            | "in"
+            | "is"
+            | "of"
+            | "on"
+            | "or"
+            | "that"
+            | "the"
+            | "to"
+            | "which"
+            | "with"
+    )
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct FusedRankedHit {
+    record_key: RecordKey,
+    explain: Option<TextSearchExplain>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct FusionAccumulator {
+    record_key: RecordKey,
+    fused_score: f64,
+    fts_rank: Option<u32>,
+    fts_score: Option<f64>,
+    vector_rank: Option<u32>,
+    vector_distance: Option<f64>,
+    vector_rank_distance: Option<f64>,
+    vector_unit_kind: Option<String>,
+    vector_label: Option<String>,
+    vector_embedding_unit_key: Option<String>,
+}
+
+struct FusionInput<'a> {
+    fts_hits: &'a [FtsSearchHit],
+    vector_hits: &'a [SemanticSearchHit],
+    identity_keys: &'a BTreeSet<RecordKey>,
+    excluded_keys: &'a BTreeSet<RecordKey>,
+    retrieval: RetrievalMode,
+    fusion: FusionOptions,
+    explain: bool,
+    identity_count: usize,
+}
+
+fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
+    let mut by_key = BTreeMap::<RecordKey, FusionAccumulator>::new();
+    if input.retrieval.uses_fts() {
+        for (index, hit) in input.fts_hits.iter().enumerate() {
+            if input.identity_keys.contains(&hit.record_key)
+                || input.excluded_keys.contains(&hit.record_key)
+            {
+                continue;
+            }
+            let rank = (index + 1) as u32;
+            let entry = by_key
+                .entry(hit.record_key.clone())
+                .or_insert_with(|| FusionAccumulator::new(hit.record_key.clone()));
+            entry.fts_rank = Some(rank);
+            entry.fts_score = Some(hit.rank);
+            entry.fused_score +=
+                lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.fts_weight);
+        }
+    }
+    if input.retrieval.uses_vector() {
+        for (index, hit) in input.vector_hits.iter().enumerate() {
+            let record_key = match RecordKey::parse(&hit.record_key) {
+                Ok(record_key) => record_key,
+                Err(_) => continue,
+            };
+            if input.identity_keys.contains(&record_key)
+                || input.excluded_keys.contains(&record_key)
+            {
+                continue;
+            }
+            let rank = (index + 1) as u32;
+            let entry = by_key
+                .entry(record_key.clone())
+                .or_insert_with(|| FusionAccumulator::new(record_key));
+            entry.vector_rank = Some(rank);
+            entry.vector_distance = Some(hit.distance);
+            entry.vector_rank_distance = Some(hit.rank_distance);
+            entry.vector_unit_kind = Some(hit.unit_kind.clone());
+            entry.vector_label = hit.label.clone();
+            entry.vector_embedding_unit_key = Some(hit.embedding_unit_key.clone());
+            entry.fused_score +=
+                lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.vector_weight);
+        }
+    }
+
+    let mut fused = by_key.into_values().collect::<Vec<_>>();
+    fused.sort_by(compare_fused_hits);
+    fused
+        .into_iter()
+        .enumerate()
+        .map(|(index, hit)| FusedRankedHit {
+            record_key: hit.record_key.clone(),
+            explain: input.explain.then(|| TextSearchExplain {
+                rank: (input.identity_count + index + 1) as u32,
+                fused_score: Some(hit.fused_score),
+                fts_rank: hit.fts_rank,
+                fts_score: hit.fts_score,
+                vector_rank: hit.vector_rank,
+                vector_distance: hit.vector_distance,
+                vector_rank_distance: hit.vector_rank_distance,
+                vector_unit_kind: hit.vector_unit_kind,
+                vector_label: hit.vector_label,
+                vector_embedding_unit_key: hit.vector_embedding_unit_key,
+            }),
+        })
+        .collect()
+}
+
+fn identity_explain(index: usize) -> TextSearchExplain {
+    TextSearchExplain {
+        rank: (index + 1) as u32,
+        fused_score: None,
+        fts_rank: None,
+        fts_score: None,
+        vector_rank: None,
+        vector_distance: None,
+        vector_rank_distance: None,
+        vector_unit_kind: None,
+        vector_label: None,
+        vector_embedding_unit_key: None,
+    }
+}
+
+impl FusionAccumulator {
+    fn new(record_key: RecordKey) -> Self {
+        Self {
+            record_key,
+            fused_score: 0.0,
+            fts_rank: None,
+            fts_score: None,
+            vector_rank: None,
+            vector_distance: None,
+            vector_rank_distance: None,
+            vector_unit_kind: None,
+            vector_label: None,
+            vector_embedding_unit_key: None,
+        }
+    }
+}
+
+fn lane_rrf_score(rank: u32, rank_constant: f64, weight: f64) -> f64 {
+    weight / (rank_constant + f64::from(rank))
+}
+
+fn compare_fused_hits(left: &FusionAccumulator, right: &FusionAccumulator) -> std::cmp::Ordering {
+    right
+        .fused_score
+        .total_cmp(&left.fused_score)
+        .then_with(|| compare_optional_rank(left.fts_rank, right.fts_rank))
+        .then_with(|| compare_optional_rank(left.vector_rank, right.vector_rank))
+        .then_with(|| left.record_key.cmp(&right.record_key))
+}
+
+fn compare_optional_rank(left: Option<u32>, right: Option<u32>) -> std::cmp::Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => left.cmp(&right),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
 }
 
 fn resolution_matches_for_kind(
@@ -695,6 +1189,103 @@ mod tests {
             "records:a#heading_section:1"
         );
         assert_eq!(collapsed[0].rank_distance, 0.100);
+    }
+
+    #[test]
+    fn fts_query_analysis_uses_safe_or_tokens_without_domain_derivation() {
+        let analysis = analyze_text_query("monster that breathes fire", Some("water"));
+
+        assert_eq!(analysis.fts_tokens, vec!["monster", "breathes", "fire"]);
+        assert_eq!(
+            analysis.fts_query.as_deref(),
+            Some("\"monster\" OR \"breathes\" OR \"fire\"")
+        );
+        assert_eq!(analysis.exclude_tokens, vec!["water"]);
+        assert_eq!(analysis.exclude_query.as_deref(), Some("\"water\""));
+    }
+
+    #[test]
+    fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
+        let fts_hits = vec![
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:a").unwrap(),
+                rank: -2.0,
+            },
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:b").unwrap(),
+                rank: -1.0,
+            },
+        ];
+        let vector_hits = vec![
+            SemanticSearchHit {
+                record_key: "records:b".to_string(),
+                embedding_unit_key: "records:b#parent".to_string(),
+                unit_kind: "parent".to_string(),
+                label: None,
+                distance: 0.1,
+                rank_distance: 0.1,
+            },
+            SemanticSearchHit {
+                record_key: "records:c".to_string(),
+                embedding_unit_key: "records:c#parent".to_string(),
+                unit_kind: "parent".to_string(),
+                label: None,
+                distance: 0.2,
+                rank_distance: 0.2,
+            },
+        ];
+        let identity_keys = [RecordKey::parse("records:a").unwrap()]
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        let excluded_keys = BTreeSet::new();
+
+        let fused = fuse_ranked_hits(FusionInput {
+            fts_hits: &fts_hits,
+            vector_hits: &vector_hits,
+            identity_keys: &identity_keys,
+            excluded_keys: &excluded_keys,
+            retrieval: RetrievalMode::Hybrid,
+            fusion: FusionOptions::default(),
+            explain: true,
+            identity_count: 1,
+        });
+
+        assert_eq!(
+            fused
+                .iter()
+                .map(|hit| hit.record_key.to_string())
+                .collect::<Vec<_>>(),
+            vec!["records:b", "records:c"]
+        );
+        assert_eq!(fused[0].explain.as_ref().unwrap().rank, 2);
+        assert_eq!(fused[0].explain.as_ref().unwrap().fts_rank, Some(2));
+        assert_eq!(fused[0].explain.as_ref().unwrap().vector_rank, Some(1));
+    }
+
+    #[test]
+    fn unweighted_rrf_rejects_lane_weights_at_runtime_boundary() {
+        let request = TextSearchRequest {
+            query: "healing",
+            exclude: None,
+            filter: None,
+            limit: 10,
+            offset: 0,
+            retrieval: RetrievalMode::Fts,
+            fusion: FusionOptions {
+                method: FusionMethod::Rrf,
+                fts_weight: 2.0,
+                vector_weight: 1.0,
+                rank_constant: 60.0,
+            },
+            fts_top_k: 10,
+            vector_top_k: 10,
+            explain: false,
+        };
+
+        assert!(matches!(
+            validate_text_search_request(&request),
+            Err(SearchError::InvalidSearchOptions(_))
+        ));
     }
 
     #[test]
