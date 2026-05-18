@@ -102,6 +102,11 @@ pub(crate) fn resolve_content_references(
 fn resolve_document_references(document: &mut ContentDocument, index: &RecordReferenceIndex) {
     visit_content_references_mut(document, |reference| {
         reference.resolved_key = resolve_content_reference(reference, index);
+        reference.resolved_name = reference
+            .resolved_key
+            .as_ref()
+            .and_then(|record_key| record_by_key(index, record_key))
+            .map(|record| record.name.clone());
     });
 }
 

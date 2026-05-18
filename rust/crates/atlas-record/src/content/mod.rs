@@ -116,6 +116,8 @@ pub struct ContentReference {
     pub locator: ContentReferenceLocator,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resolved_key: Option<RecordKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -317,6 +319,7 @@ mod tests {
                                 RecordKey::parse("spells-srd:rfZpqmj0AIIdkVIs")
                                     .expect("record key parses"),
                             ),
+                            resolved_name: Some("Heal".to_string()),
                         },
                     },
                     ContentInline::Text {

@@ -277,7 +277,7 @@ Goal: establish the first production-quality Rust retrieval surface using the CL
 - [x] Expose targeted typed readers for exact record-key lookup and ordered multi-key lookup.
 - [x] Add `atlas record get <record-key> --json`.
 - [x] Add persisted-record detail projection shared by `record get`, `record resolve`, and `search` results.
-- [x] Add `summary`, `standard`, and `full` record output; do not add `minimal`, `compact`, or `answerable` as wire detail values.
+- [x] Add `summary`, `preview`, `description`, `standard`, and `full` record output; do not add `minimal`, `compact`, or `answerable` as wire detail values.
 - [x] Defer localization resolution from the Phase 5 commit until the localization artifact policy is explicit and testable.
 - [x] Add `atlas search` filter-only behavior that routes to deterministic list mode when no text is supplied.
 - [x] Reuse canonical `SearchFilterNode` lowering for filter-only search and record-resolution narrowing.

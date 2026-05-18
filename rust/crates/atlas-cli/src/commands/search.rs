@@ -1,4 +1,4 @@
-use atlas_domain::SearchFilterNode;
+use atlas_domain::{DetailLevel, SearchFilterNode};
 use atlas_index::FilteredRecordSort;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
@@ -16,6 +16,7 @@ use crate::output::{write_json_data, write_json_error};
 use crate::{CliFusionMethod, SearchOptions};
 
 use super::filters::build_filter;
+use super::record::{detail_outputs_description, print_record_for_detail};
 
 const MAX_LIMIT: u32 = 100;
 
@@ -487,6 +488,19 @@ fn print_search_results(data: &SearchData) {
         "showing {} of {} records",
         data.pagination.count, data.pagination.total
     );
+    let detail = data.detail.parse().unwrap_or(DetailLevel::Summary);
+    if detail_outputs_description(detail) {
+        for (index, result) in data.results.iter().enumerate() {
+            if index > 0 {
+                println!();
+                println!("---");
+                println!();
+            }
+            print_record_for_detail(&result.record, detail);
+            println!("Match: {}", result.r#match.kind);
+        }
+        return;
+    }
     let key_width = data
         .results
         .iter()
@@ -499,12 +513,11 @@ fn print_search_results(data: &SearchData) {
         .iter()
         .map(|result| result.record.record_family.len())
         .max()
-        .unwrap_or("type".len())
-        .max("type".len());
+        .unwrap_or("family".len());
     println!(
         "{:<key_width$}  {:<family_width$}  name",
         "key",
-        "type",
+        "family",
         key_width = key_width,
         family_width = family_width
     );

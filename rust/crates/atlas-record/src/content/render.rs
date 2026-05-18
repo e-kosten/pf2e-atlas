@@ -196,6 +196,8 @@ fn render_inline_plain(inline: &ContentInline, output: &mut String) {
         ContentInline::Reference { reference } => {
             if let Some(label) = &reference.label {
                 output.push_str(&render_inlines_plain(label));
+            } else if let Some(name) = &reference.resolved_name {
+                output.push_str(name);
             } else if let Some(key) = &reference.resolved_key {
                 output.push_str(&key.to_string());
             }
@@ -240,6 +242,7 @@ fn render_inline_markdown(inline: &ContentInline, output: &mut String) {
                 .label
                 .as_deref()
                 .map(render_inlines_markdown)
+                .or_else(|| reference.resolved_name.clone())
                 .or_else(|| reference.resolved_key.as_ref().map(ToString::to_string))
                 .unwrap_or_default();
             if let Some(key) = &reference.resolved_key {
@@ -319,6 +322,7 @@ mod tests {
                             raw: "@UUID[...]".to_string(),
                         },
                         resolved_key: Some(RecordKey::parse("spells:Heal").expect("key parses")),
+                        resolved_name: Some("Heal".to_string()),
                     },
                 },
                 ContentInline::Text {
@@ -354,6 +358,28 @@ mod tests {
         assert_eq!(
             render_markdown_like(&document),
             "## Effect\n\n- **Critical**"
+        );
+    }
+
+    #[test]
+    fn markdown_like_uses_resolved_name_for_unlabeled_links() {
+        let document = ContentDocument::new(vec![ContentBlock::Paragraph {
+            content: vec![ContentInline::Reference {
+                reference: ContentReference {
+                    label: None,
+                    locator: ContentReferenceLocator::FoundryUuid {
+                        raw_target: "@UUID[...]".to_string(),
+                    },
+                    resolved_key: Some(RecordKey::parse("feats-srd:abc123").expect("key parses")),
+                    resolved_name: Some("Guardian's Deflection".to_string()),
+                },
+            }],
+        }]);
+
+        assert_eq!(render_plain_text(&document), "Guardian's Deflection");
+        assert_eq!(
+            render_markdown_like(&document),
+            "[Guardian's Deflection](record:feats-srd:abc123)"
         );
     }
 }

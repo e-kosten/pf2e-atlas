@@ -35,7 +35,7 @@ Command failures use the error envelope:
 
 Successful payloads live under `data`. Errors live under `error`. Commands do not emit a `command` field because the caller already knows the invoked command. Optional fields are omitted when absent or empty. CLI JSON field names are `snake_case`.
 
-Record-facing commands use `summary`, `standard`, and `full` detail levels. All detail levels keep the same record JSON schema and vary only by hydration depth. The Rust CLI does not accept `minimal`, `compact`, or TypeScript-specific detail values. Raw source JSON is exposed only by explicit opt-in flags and appears as top-level `source_json` in the relevant command payload.
+Record-facing commands use `summary`, `preview`, `description`, `standard`, and `full` detail levels. `summary` carries identity and summary facts, `preview` adds a truncated description, `description` adds the full description section without the extra standard-detail sections, `standard` carries the normal section breakdown, and `full` adds full source metadata. All detail levels keep the same record JSON schema and vary only by hydration depth. The Rust CLI does not accept `minimal`, `compact`, or TypeScript-specific detail values. Raw source JSON is exposed only by explicit opt-in flags and appears as top-level `source_json` in the relevant command payload.
 
 The shared record DTO is a projection of the renderer-neutral presentation record. Result DTOs wrap records with search or resolution metadata. Batch record commands return per-item results with per-item errors when some keys or queries miss.
 

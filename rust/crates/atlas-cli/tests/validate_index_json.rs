@@ -541,7 +541,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(inspect_json["tables"]["packs"], 1);
     assert_eq!(inspect_json["tables"]["document_embedding_cache"], 0);
     assert_eq!(inspect_json["text"]["records_with_description"], 1);
-    assert_eq!(inspect_json["relationships"]["reference_edges"], 0);
+    assert_eq!(inspect_json["relationships"]["reference_edges"], 1);
     assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
 
     fs::remove_dir_all(root)?;
@@ -601,7 +601,7 @@ fn analyze_index_json_reports_source_without_writing_artifact()
     assert_eq!(analyze_json["side_data"]["item_records"], 1);
     assert_eq!(analyze_json["text"]["records_with_description"], 1);
     assert_eq!(analyze_json["embeddings"]["pending_document_embeddings"], 1);
-    assert_eq!(analyze_json["relationships"]["reference_edges"], 0);
+    assert_eq!(analyze_json["relationships"]["reference_edges"], 1);
     assert_eq!(analyze_json["skipped_record_count"], 0);
 
     fs::remove_dir_all(root)?;
@@ -640,6 +640,49 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&get_data["record"]).contains(&"description"));
     assert!(!record_sections(&get_data["record"]).contains(&"description_preview"));
     assert!(get_data["record"].get("source_json").is_none());
+
+    let preview_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:testAction0001",
+            "--detail",
+            "preview",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(preview_get_output.status.success());
+    let preview_get_json: Value = serde_json::from_slice(&preview_get_output.stdout)?;
+    let preview_get_data = ok_data(&preview_get_json);
+    assert_eq!(preview_get_data["detail"], "preview");
+    assert!(record_sections(&preview_get_data["record"]).contains(&"description_preview"));
+    assert!(!record_sections(&preview_get_data["record"]).contains(&"description"));
+
+    let description_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:testAction0001",
+            "--detail",
+            "description",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(description_get_output.status.success());
+    let description_get_json: Value = serde_json::from_slice(&description_get_output.stdout)?;
+    let description_get_data = ok_data(&description_get_json);
+    assert_eq!(description_get_data["detail"], "description");
+    assert!(record_sections(&description_get_data["record"]).contains(&"description"));
+    assert!(!record_sections(&description_get_data["record"]).contains(&"description_preview"));
+    assert!(!record_sections(&description_get_data["record"]).contains(&"details"));
+    assert!(
+        serde_json::to_string(&description_get_data["record"]["sections"])?
+            .contains("[Treat Wounds](record:actions:testAction0001)")
+    );
 
     let full_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -704,6 +747,30 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&resolve_data["result"]["record"]).contains(&"description"));
     assert!(!record_sections(&resolve_data["result"]["record"]).contains(&"description_preview"));
     assert_eq!(resolve_data["result"]["resolution"]["match_kind"], "name");
+
+    let text_resolve_description_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Treat Wounds",
+            "--detail",
+            "description",
+            "--index",
+        ])
+        .arg(&index_path)
+        .output()?;
+    assert!(text_resolve_description_output.status.success());
+    let text_resolve_description_stdout =
+        String::from_utf8(text_resolve_description_output.stdout)?;
+    assert!(text_resolve_description_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
+    assert!(text_resolve_description_stdout.contains("Source: Actions"));
+    assert!(
+        text_resolve_description_stdout
+            .contains("You spend 10 minutes treating one injured living creature with")
+    );
+    assert!(text_resolve_description_stdout.contains("# Public Notes"));
+    assert!(text_resolve_description_stdout.contains("Bring a healer's kit."));
+    assert!(text_resolve_description_stdout.contains("Match: name"));
 
     let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["search", "--index"])
@@ -832,10 +899,24 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     let text_search_stdout = String::from_utf8(text_search_output.stdout)?;
     assert!(text_search_stdout.contains("showing 1 of 1 records"));
     assert!(text_search_stdout.contains("key"));
-    assert!(text_search_stdout.contains("type"));
+    assert!(text_search_stdout.contains("family"));
     assert!(text_search_stdout.contains("name"));
     assert!(text_search_stdout.contains("actions:testAction0001  rule  Treat Wounds"));
     assert!(!text_search_stdout.contains("\"status\""));
+
+    let text_search_preview_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["search", "--detail", "preview", "--index"])
+        .arg(&index_path)
+        .output()?;
+    assert!(text_search_preview_output.status.success());
+    let text_search_preview_stdout = String::from_utf8(text_search_preview_output.stdout)?;
+    assert!(text_search_preview_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
+    assert!(text_search_preview_stdout.contains("Source: Actions"));
+    assert!(
+        text_search_preview_stdout
+            .contains("You spend 10 minutes treating one injured living creature with")
+    );
+    assert!(text_search_preview_stdout.contains("Match: filter"));
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -1667,7 +1748,8 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
           "type": "action",
           "system": {
             "traits": { "value": ["healing", "exploration"] },
-            "description": { "value": "<p>You spend 10 minutes treating one injured living creature.</p>" }
+            "description": { "value": "<p>You spend 10 minutes treating one injured living creature with @UUID[Compendium.pf2e.actions.Item.testAction0001].</p>" },
+            "details": { "publicNotes": "<p>Bring a healer's kit.</p>" }
           }
         }"#,
     )?;

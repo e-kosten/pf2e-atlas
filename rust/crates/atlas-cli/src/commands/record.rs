@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 
-use atlas_domain::RecordKey;
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_domain::{DetailLevel, RecordKey};
+use atlas_record::{RecordBlockJson, RecordJsonOptions, RecordSectionJson, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{RecordResolutionResult, SearchError};
 use serde::Serialize;
@@ -159,7 +159,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
             if options.json {
                 write_json_data(data)?;
             } else {
-                print_single_record(&data.body.record);
+                print_single_record(&data.body.record, options.detail);
             }
             return Ok(ExitCode::SUCCESS);
         }
@@ -209,7 +209,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
     if options.json {
         write_json_data(&data)?;
     } else {
-        print_record_get_batch(&data.body);
+        print_record_get_batch(&data.body, options.detail);
     }
     Ok(if failed == 0 {
         ExitCode::SUCCESS
@@ -283,7 +283,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
                 if options.json {
                     write_json_data(&data)?;
                 } else {
-                    print_single_resolve(&data.body.result);
+                    print_single_resolve(&data.body.result, options.detail);
                 }
                 return Ok(ExitCode::from(1));
             }
@@ -301,7 +301,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
         if options.json {
             write_json_data(&data)?;
         } else {
-            print_single_resolve(&data.body.result);
+            print_single_resolve(&data.body.result, options.detail);
         }
         return Ok(ExitCode::SUCCESS);
     }
@@ -320,7 +320,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     if options.json {
         write_json_data(&data)?;
     } else {
-        print_resolve_batch(&data.body);
+        print_resolve_batch(&data.body, options.detail);
     }
     Ok(if failed == 0 {
         ExitCode::SUCCESS
@@ -394,31 +394,47 @@ fn resolution_json(
     }
 }
 
-fn print_single_record(record: &atlas_record::RecordJson) {
+fn print_single_record(record: &atlas_record::RecordJson, detail: DetailLevel) {
+    if detail_outputs_description(detail) {
+        print_record_for_detail(record, detail);
+        return;
+    }
     println!("{}\t{}\t{}", record.key, record.name, record.record_family);
 }
 
-fn print_record_get_batch(batch: &BatchRecordBody) {
+fn print_record_get_batch(batch: &BatchRecordBody, detail: DetailLevel) {
     println!(
         "matched {}/{} records",
         batch.counts.matched, batch.counts.requested
     );
+    let mut printed_record = false;
     for result in &batch.results {
         if let Some(record) = &result.record {
-            print_single_record(record);
+            if detail_outputs_description(detail) && printed_record {
+                println!();
+                println!("---");
+                println!();
+            }
+            print_single_record(record, detail);
+            printed_record = true;
         } else if let Some(error) = &result.error {
             eprintln!("{}\t{}", result.key, error.message);
         }
     }
 }
 
-fn print_single_resolve(result: &RecordResolveItem) {
+fn print_single_resolve(result: &RecordResolveItem, detail: DetailLevel) {
     if let Some(record) = &result.record {
         let match_kind = result
             .resolution
             .as_ref()
             .map(|resolution| resolution.match_kind)
             .unwrap_or("unknown");
+        if detail_outputs_description(detail) {
+            print_record_for_detail(record, detail);
+            println!("Match: {match_kind}");
+            return;
+        }
         println!("{}\t{}\t{}", record.key, record.name, match_kind);
         return;
     }
@@ -427,21 +443,110 @@ fn print_single_resolve(result: &RecordResolveItem) {
     }
     if let Some(alternatives) = &result.alternatives {
         for alternative in alternatives {
-            println!(
-                "{}\t{}\t{}",
-                alternative.record.key, alternative.record.name, alternative.resolution.match_kind
-            );
+            if detail_outputs_description(detail) {
+                print_record_for_detail(&alternative.record, detail);
+                println!("Match: {}", alternative.resolution.match_kind);
+            } else {
+                println!(
+                    "{}\t{}\t{}",
+                    alternative.record.key,
+                    alternative.record.name,
+                    alternative.resolution.match_kind
+                );
+            }
         }
     }
 }
 
-fn print_resolve_batch(batch: &BatchResolveBody) {
+fn print_resolve_batch(batch: &BatchResolveBody, detail: DetailLevel) {
     println!(
         "matched {}/{} queries",
         batch.counts.matched, batch.counts.requested
     );
+    let mut printed = false;
     for result in &batch.results {
-        print_single_resolve(result);
+        if detail_outputs_description(detail) && printed {
+            println!();
+            println!("---");
+            println!();
+        }
+        print_single_resolve(result, detail);
+        printed = true;
+    }
+}
+
+pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail: DetailLevel) {
+    print_record_header(record);
+    if let Some(traits) = non_empty_traits(record) {
+        println!("Traits: {traits}");
+    }
+    if let Some(source) = record_source_label(record) {
+        println!("Source: {source}");
+    }
+    if let Some(description) = record_description_text(record, detail) {
+        println!();
+        println!("{description}");
+    }
+}
+
+pub(crate) fn detail_outputs_description(detail: DetailLevel) -> bool {
+    matches!(detail, DetailLevel::Preview | DetailLevel::Description)
+}
+
+fn print_record_header(record: &atlas_record::RecordJson) {
+    let level = record
+        .level
+        .map(|level| format!(" {level}"))
+        .unwrap_or_default();
+    println!(
+        "{}  {}  {}{}",
+        record.key, record.name, record.record_family, level
+    );
+}
+
+fn non_empty_traits(record: &atlas_record::RecordJson) -> Option<String> {
+    (!record.traits.is_empty()).then(|| record.traits.join(", "))
+}
+
+fn record_source_label(record: &atlas_record::RecordJson) -> Option<String> {
+    let source = record.source.as_ref()?;
+    source
+        .publication_title
+        .clone()
+        .or_else(|| source.pack.as_ref().map(|pack| pack.label.clone()))
+}
+
+fn record_description_text(
+    record: &atlas_record::RecordJson,
+    detail: DetailLevel,
+) -> Option<String> {
+    let section_kind = match detail {
+        DetailLevel::Preview => "description_preview",
+        DetailLevel::Description => "description",
+        _ => return None,
+    };
+    record
+        .sections
+        .iter()
+        .find(|section| section.kind == section_kind)
+        .and_then(section_text)
+}
+
+fn section_text(section: &RecordSectionJson) -> Option<String> {
+    let blocks = section
+        .blocks
+        .iter()
+        .filter_map(block_text)
+        .collect::<Vec<_>>();
+    (!blocks.is_empty()).then(|| blocks.join("\n\n"))
+}
+
+fn block_text(block: &RecordBlockJson) -> Option<String> {
+    match block {
+        RecordBlockJson::Prose { text } | RecordBlockJson::Content { text, .. } => {
+            (!text.trim().is_empty()).then(|| text.clone())
+        }
+        RecordBlockJson::FactList { .. } | RecordBlockJson::Relationships { .. } => None,
     }
 }
 

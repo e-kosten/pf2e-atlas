@@ -121,6 +121,7 @@ fn reference_label(reference: &ContentReference) -> Option<String> {
         .as_deref()
         .map(render_inlines_plain)
         .filter(|label| !label.is_empty())
+        .or_else(|| reference.resolved_name.clone())
         .or_else(|| reference.resolved_key.as_ref().map(ToString::to_string))
 }
 

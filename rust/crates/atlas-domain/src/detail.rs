@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub enum DetailLevel {
     Summary,
+    Preview,
+    Description,
     Standard,
     Full,
 }
@@ -15,6 +17,8 @@ impl DetailLevel {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Summary => "summary",
+            Self::Preview => "preview",
+            Self::Description => "description",
             Self::Standard => "standard",
             Self::Full => "full",
         }
@@ -33,6 +37,8 @@ impl FromStr for DetailLevel {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.trim() {
             "summary" => Ok(Self::Summary),
+            "preview" => Ok(Self::Preview),
+            "description" => Ok(Self::Description),
             "standard" => Ok(Self::Standard),
             "full" => Ok(Self::Full),
             _ => Err(DetailLevelParseError {
@@ -64,6 +70,14 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&DetailLevel::Summary).expect("detail serializes"),
             "\"summary\""
+        );
+        assert_eq!(
+            serde_json::to_string(&DetailLevel::Preview).expect("detail serializes"),
+            "\"preview\""
+        );
+        assert_eq!(
+            serde_json::to_string(&DetailLevel::Description).expect("detail serializes"),
+            "\"description\""
         );
         assert_eq!(
             serde_json::to_string(&DetailLevel::Standard).expect("detail serializes"),
