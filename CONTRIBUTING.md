@@ -119,7 +119,7 @@ gh auth status
 cargo install cargo-dist --locked
 ```
 
-Releases use a two-part flow:
+Releases use a three-step flow:
 
 1. From a clean, current `main`, create the release-preparation branch and scaffold the version bump and release notes:
 
@@ -132,7 +132,18 @@ The helper prompts for the release version, creates `release/v<version>`, update
 `docs/releases/v<version>.md`. Pass `--version <X.Y.Z[-rc.N]>` to skip the
 prompt. Edit the release notes, validate, commit, and open the PR to `main`.
 
-2. After the PR lands, publish the release from any clean checkout:
+2. After editing the release notes, have the helper validate, commit, push, and
+open the release-preparation PR:
+
+```bash
+scripts/prepare-release.sh --open-pr
+```
+
+The helper verifies the release-prep branch, checks that the release notes no
+longer contain template text, runs local validation, commits the release-prep
+files, pushes the branch, and opens a PR to `main`.
+
+3. After the PR lands, publish the release from any clean checkout:
 
 ```bash
 scripts/prepare-release.sh --publish --dry-run
@@ -145,8 +156,8 @@ the tag and draft release. Pass `--version <X.Y.Z[-rc.N]>` only when you want an
 extra guard that the committed crate version matches that exact value.
 
 Running `scripts/prepare-release.sh` without a mode flag opens an interactive
-picker for the two workflow steps. Non-interactive shells must pass
-`--prepare-pr` or `--publish`. Interactive pickers use `fzf` when it is
+picker for the workflow steps. Non-interactive shells must pass
+`--prepare-pr`, `--open-pr`, or `--publish`. Interactive pickers use `fzf` when it is
 available, with numbered prompts as the portable fallback.
 
 Release candidates use Cargo prerelease versions and tags such as `0.1.0-rc.1` and `v0.1.0-rc.1`. The final release gets a separate version commit and rebuilds final artifacts as `0.1.0`; do not rename or promote RC artifacts.
