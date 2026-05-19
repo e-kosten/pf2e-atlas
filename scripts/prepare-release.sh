@@ -3,20 +3,30 @@ set -eu
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/prepare-release.sh --version <X.Y.Z[-rc.N]> [options]
+Usage:
+  scripts/prepare-release.sh --prepare-pr [--version <X.Y.Z[-rc.N]>] [options]
+  scripts/prepare-release.sh --publish [--version <X.Y.Z[-rc.N]>] [options]
+  scripts/prepare-release.sh
 
-Creates an annotated release tag and a draft GitHub release after verifying that
-the release version and notes were already committed to main.
+Prepares a release PR branch, or creates an annotated release tag and draft
+GitHub release after verifying that the release version and notes were already
+committed to main.
 
 Options:
-  --version <version>      Version without leading v, for example 0.1.0 or 0.1.0-rc.1
+  --prepare-pr             Create release/v<version> from clean, current main
+  --publish                Tag the committed release version and create a draft release
+  --version <version>      Version without leading v; defaults to the crate version
   --notes-file <path>      Release notes file, default docs/releases/v<version>.md
   --yes                    Do not prompt before tagging/releasing
   --dry-run                Print planned actions without changing git/GitHub state
   --help                   Show this help
 
-If the default notes file is missing in an interactive terminal, this script
-scaffolds docs/releases/v<version>.md and stops so you can edit and commit it.
+When --prepare-pr omits --version, the script prompts with semver bump choices
+based on the current atlas-cli crate version and existing release tags.
+When publish mode omits --version, the script uses the committed atlas-cli crate
+version.
+When no mode flag is passed, the script prompts for the mode. Interactive
+prompts use fzf when it is installed, with numbered prompts as the fallback.
 USAGE
 }
 
@@ -33,13 +43,48 @@ info() {
   printf '%s\n' "$*"
 }
 
+can_prompt() {
+  [ -t 0 ] || [ "${ATLAS_RELEASE_TEST_PROMPTS:-0}" = 1 ]
+}
+
+read_crate_version() {
+  awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml
+}
+
+validate_version() {
+  case "$1" in
+    v*) die "pass --version without a leading v" ;;
+  esac
+
+  if ! printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
+    die "version must look like 0.1.0 or 0.1.0-rc.1"
+  fi
+}
+
+set_release_vars() {
+  validate_version "$version"
+  tag="v$version"
+  [ -n "$notes_file" ] || notes_file="docs/releases/$tag.md"
+  release_branch="release/$tag"
+}
+
 version=""
 notes_file=""
 yes=0
 dry_run=0
+prepare_pr=0
+publish=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --prepare-pr)
+      prepare_pr=1
+      shift
+      ;;
+    --publish)
+      publish=1
+      shift
+      ;;
     --version)
       [ "$#" -ge 2 ] || die "--version requires a value"
       version="$2"
@@ -68,85 +113,203 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-[ -n "$version" ] || die "--version is required"
-
-case "$version" in
-  v*) die "pass --version without a leading v" ;;
-esac
-
-if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'; then
-  die "version must look like 0.1.0 or 0.1.0-rc.1"
+if [ "$prepare_pr" -eq 1 ] && [ "$publish" -eq 1 ]; then
+  die "choose only one of --prepare-pr or --publish"
 fi
 
-tag="v$version"
-[ -n "$notes_file" ] || notes_file="docs/releases/$tag.md"
-
-crate_version=$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)
-[ "$crate_version" = "$version" ] || die "crates/atlas-cli version is $crate_version, expected $version"
-
-current_branch=$(git branch --show-current)
-if [ "$current_branch" != "main" ]; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "real releases must run from main; current branch is $current_branch"
-  else
-    die "release must run from main, current branch is $current_branch"
+choose_mode() {
+  if ! can_prompt; then
+    die "no release workflow step was provided and stdin is not a terminal; rerun with --prepare-pr or --publish"
   fi
-fi
-
-if ! git fetch origin main --tags >/dev/null 2>&1; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "failed to fetch origin main and tags; using local refs for dry run"
-  else
-    die "failed to fetch origin main and tags"
+  if [ "${ATLAS_RELEASE_TEST_DISABLE_FZF:-0}" != 1 ] && command -v fzf >/dev/null 2>&1; then
+    mode_choice=$(
+      printf '%s\n' \
+        "prepare-pr  Prepare release PR branch" \
+        "publish     Publish tag and draft release" |
+        fzf --prompt 'Release step> ' --height=~40% --layout=reverse
+    ) || die "release workflow step selection cancelled"
+    set -- $mode_choice
+    case "$1" in
+      prepare-pr) prepare_pr=1 ;;
+      publish) publish=1 ;;
+      *) die "invalid selection: $mode_choice" ;;
+    esac
+    return
   fi
-fi
 
-head_sha=$(git rev-parse HEAD)
-origin_main_sha=$(git rev-parse origin/main 2>/dev/null || printf '%s' "$head_sha")
-if [ "$head_sha" != "$origin_main_sha" ]; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "real releases require HEAD to equal origin/main"
-  else
-    die "HEAD must equal origin/main before release"
+  info "Choose release workflow step:"
+  info "  1) prepare PR branch"
+  info "  2) publish tag and draft release"
+  printf 'Selection: '
+  if ! read mode_selection; then
+    die "choose --prepare-pr or --publish when the script cannot read a selection"
   fi
+  case "$mode_selection" in
+    1) prepare_pr=1 ;;
+    2) publish=1 ;;
+    *) die "invalid selection: $mode_selection" ;;
+  esac
+}
+
+if [ "$prepare_pr" -eq 0 ] && [ "$publish" -eq 0 ]; then
+  choose_mode
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "real releases require a clean working tree"
-  else
-    die "working tree must be clean before release"
+ensure_clean_worktree() {
+  if [ -n "$(git status --porcelain)" ]; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "real release work requires a clean working tree"
+    else
+      die "working tree must be clean before release work"
+    fi
   fi
-fi
+}
 
-if git rev-parse "$tag" >/dev/null 2>&1; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "local tag $tag already exists"
-  else
-    die "local tag $tag already exists"
+ensure_current_main_checkout() {
+  ensure_clean_worktree
+  if ! git fetch origin main --tags >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "failed to fetch origin main and tags; using local refs for dry run"
+    else
+      die "failed to fetch origin main and tags"
+    fi
   fi
-fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-  if [ "$dry_run" -eq 1 ]; then
-    warn "remote tag $tag already exists"
-  else
-    die "remote tag $tag already exists"
+  current_branch=$(git branch --show-current)
+  if [ "$current_branch" != "main" ]; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "real release work would switch from $current_branch to main"
+    else
+      git switch main
+    fi
   fi
-fi
 
-if gh release view "$tag" >/dev/null 2>&1; then
   if [ "$dry_run" -eq 1 ]; then
-    warn "GitHub release $tag already exists"
+    head_sha=$(git rev-parse HEAD)
+    origin_main_sha=$(git rev-parse origin/main 2>/dev/null || printf '%s' "$head_sha")
   else
-    die "GitHub release $tag already exists"
+    git pull --ff-only origin main
+    head_sha=$(git rev-parse HEAD)
+    origin_main_sha=$(git rev-parse origin/main)
   fi
-fi
 
-if [ ! -f "$notes_file" ]; then
-  if [ -t 0 ] && [ "$dry_run" -eq 0 ]; then
-    mkdir -p "$(dirname "$notes_file")"
-    cat > "$notes_file" <<EOF_NOTES
+  if [ "$head_sha" != "$origin_main_sha" ]; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "real release work requires main to equal origin/main after fast-forward"
+    else
+      die "main must equal origin/main before release work"
+    fi
+  fi
+}
+
+next_rc_version() {
+  base_version="$1"
+  max_rc=0
+  for existing_tag in $(git tag -l "v$base_version-rc.*"); do
+    rc_number=$(printf '%s\n' "$existing_tag" | sed -n "s/^v$base_version-rc\\.\\([0-9][0-9]*\\)$/\\1/p")
+    if [ -n "$rc_number" ] && [ "$rc_number" -gt "$max_rc" ]; then
+      max_rc="$rc_number"
+    fi
+  done
+  printf '%s-rc.%s\n' "$base_version" "$((max_rc + 1))"
+}
+
+choose_prepare_version() {
+  if ! can_prompt; then
+    die "--version is required when --prepare-pr is run without a terminal"
+  fi
+
+  current_crate_version=$(read_crate_version)
+  base_version=${current_crate_version%%-*}
+  old_ifs=$IFS
+  IFS=.
+  set -- $base_version
+  IFS=$old_ifs
+  major=$1
+  minor=$2
+  patch=$3
+  rc_candidate=$(next_rc_version "$base_version")
+  patch_candidate="$major.$minor.$((patch + 1))"
+  minor_candidate="$major.$((minor + 1)).0"
+  major_candidate="$((major + 1)).0.0"
+
+  info "Current atlas-cli version: $current_crate_version"
+
+  if [ "${ATLAS_RELEASE_TEST_DISABLE_FZF:-0}" != 1 ] && command -v fzf >/dev/null 2>&1; then
+    version_choice=$(
+      printf '%s\n' \
+        "$rc_candidate  Release candidate for $base_version" \
+        "$patch_candidate  Patch" \
+        "$minor_candidate  Minor" \
+        "$major_candidate  Major" \
+        "custom  Custom version" |
+        fzf --prompt 'Release version> ' --height=~40% --layout=reverse
+    ) || die "release version selection cancelled"
+    set -- $version_choice
+    case "$1" in
+      custom)
+        printf 'Version: '
+        read version
+        ;;
+      *) version=$1 ;;
+    esac
+    return
+  fi
+
+  info "Choose the release-prep version:"
+  info "  1) $rc_candidate (release candidate for $base_version)"
+  info "  2) $patch_candidate (patch)"
+  info "  3) $minor_candidate (minor)"
+  info "  4) $major_candidate (major)"
+  info "  5) custom"
+
+  printf 'Selection [1]: '
+  if ! read selection; then
+    die "--version is required when --prepare-pr cannot read a selection"
+  fi
+  [ -n "$selection" ] || selection=1
+  case "$selection" in
+    1) version=$rc_candidate ;;
+    2) version=$patch_candidate ;;
+    3) version=$minor_candidate ;;
+    4) version=$major_candidate ;;
+    5)
+      printf 'Version: '
+      read version
+      ;;
+    *) die "invalid selection: $selection" ;;
+  esac
+}
+
+ensure_release_identity_is_unused() {
+  if git rev-parse "$tag" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "local tag $tag already exists"
+    else
+      die "local tag $tag already exists"
+    fi
+  fi
+
+  if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "remote tag $tag already exists"
+    else
+      die "remote tag $tag already exists"
+    fi
+  fi
+
+  if gh release view "$tag" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "GitHub release $tag already exists"
+    else
+      die "GitHub release $tag already exists"
+    fi
+  fi
+}
+
+write_release_notes_template() {
+  mkdir -p "$(dirname "$notes_file")"
+  cat > "$notes_file" <<EOF_NOTES
 # $tag
 
 ## Summary
@@ -161,10 +324,89 @@ Mention install, update, setup, or compatibility notes.
 
 - None known.
 EOF_NOTES
-    info "Created $notes_file."
-    info "Edit and commit that file in a release-preparation PR, then rerun this script from main."
-    exit 1
+}
+
+update_crate_version() {
+  tmp_file="crates/atlas-cli/Cargo.toml.release-tmp"
+  awk -v version="$version" '
+    BEGIN { replaced = 0 }
+    /^version = / && replaced == 0 {
+      print "version = \"" version "\""
+      replaced = 1
+      next
+    }
+    { print }
+    END {
+      if (replaced == 0) {
+        exit 1
+      }
+    }
+  ' crates/atlas-cli/Cargo.toml > "$tmp_file" || {
+    rm -f "$tmp_file"
+    die "failed to update crates/atlas-cli version"
+  }
+  mv "$tmp_file" crates/atlas-cli/Cargo.toml
+}
+
+update_lockfile() {
+  cargo check -p atlas-cli
+}
+
+ensure_current_main_checkout
+
+if [ -z "$version" ]; then
+  if [ "$prepare_pr" -eq 1 ]; then
+    choose_prepare_version
+  else
+    version=$(read_crate_version)
   fi
+fi
+set_release_vars
+ensure_release_identity_is_unused
+
+if [ "$prepare_pr" -eq 1 ]; then
+  if git rev-parse --verify "$release_branch" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "local branch $release_branch already exists"
+    else
+      die "local branch $release_branch already exists"
+    fi
+  fi
+  if git ls-remote --exit-code --heads origin "$release_branch" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "remote branch $release_branch already exists"
+    else
+      die "remote branch $release_branch already exists"
+    fi
+  fi
+
+  current_crate_version=$(read_crate_version)
+  info "Release prep: $tag"
+  info "Base:         $(git rev-parse HEAD)"
+  info "Branch:       $release_branch"
+  info "Notes:        $notes_file"
+  info "Crate:        $current_crate_version -> $version"
+
+  if [ "$dry_run" -eq 1 ]; then
+    info "Dry run: would create $release_branch, update crates/atlas-cli/Cargo.toml, and ensure $notes_file exists."
+    exit 0
+  fi
+
+  git switch -c "$release_branch"
+  update_crate_version
+  update_lockfile
+  if [ ! -f "$notes_file" ]; then
+    write_release_notes_template
+  fi
+  info "Created release-preparation branch $release_branch."
+  info "Edit $notes_file, validate, commit, and open a PR to main."
+  exit 0
+fi
+
+crate_version=$(read_crate_version)
+[ "$crate_version" = "$version" ] || die "crates/atlas-cli version is $crate_version, expected $version"
+
+if [ ! -f "$notes_file" ]; then
   die "release notes file is missing: $notes_file"
 fi
 
@@ -231,6 +473,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo build --workspace
 dist plan --tag "$tag" --allow-dirty
+ensure_clean_worktree
 
 git tag -a "$tag" -m "Release $tag"
 git push origin "$tag"
