@@ -1,0 +1,222 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  DIST_VERSION: "0.31.0"
+
+jobs:
+  validate-tag:
+    name: validate tag
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release tool smoke tests
+        shell: bash
+        run: |
+          scripts/release/validate-release-tooling.sh
+          scripts/release/test-release-tools.sh
+          scripts/release/test-prepare-release.sh
+      - id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "invalid release tag: $tag" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          crate_version="$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)"
+          if [[ "$crate_version" != "$version" ]]; then
+            echo "crate version $crate_version does not match tag $tag" >&2
+            exit 1
+          fi
+          notes="docs/releases/$tag.md"
+          if [[ ! -s "$notes" ]]; then
+            echo "missing release notes: $notes" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: cargo-dist ${{ matrix.target }}
+    needs: validate-tag
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            shell: bash
+            python: python3
+            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+            shell: bash
+            python: python3
+            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            shell: bash
+            python: python3
+            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
+          - target: aarch64-apple-darwin
+            os: macos-14
+            shell: bash
+            python: python3
+            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
+            shell: pwsh
+            python: python
+            install_dist: 'irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-dist
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.install_dist }}
+      - name: Generate notices
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.python }} scripts/release/generate-notices.py
+      - name: Validate PowerShell installer
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        run: |
+          ./scripts/install/atlas-installer.ps1 -DryRun
+          ./scripts/release/test-installer.ps1
+      - name: Build archives with cargo-dist
+        shell: ${{ matrix.shell }}
+        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+      - name: Upload cargo-dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.target }}
+          path: target/distrib/atlas-cli-${{ matrix.target }}.*
+          if-no-files-found: error
+
+  build-windows-arm64:
+    name: cargo-dist aarch64-pc-windows-msvc
+    needs: validate-tag
+    runs-on: ubuntu-22.04
+    container:
+      image: messense/cargo-xwin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-dist
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
+      - name: Ensure container tools
+        shell: bash
+        run: |
+          if ! command -v python3 >/dev/null 2>&1; then
+            dnf install --assumeyes python3
+          fi
+          if ! command -v cargo-xwin >/dev/null 2>&1; then
+            if ! command -v pip3 >/dev/null 2>&1; then
+              dnf install --assumeyes python3-pip
+              pip3 install --upgrade pip
+            fi
+            pip3 install cargo-xwin
+          fi
+      - name: Generate notices
+        shell: bash
+        run: python3 scripts/release/generate-notices.py
+      - name: Build archives with cargo-dist
+        shell: bash
+        run: dist build --artifacts local --target aarch64-pc-windows-msvc --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+      - name: Upload cargo-dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-aarch64-pc-windows-msvc
+          path: target/distrib/atlas-cli-aarch64-pc-windows-msvc.*
+          if-no-files-found: error
+
+  publish:
+    name: upload and publish release
+    needs: [validate-tag, build, build-windows-arm64]
+    if: ${{ always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' && needs.build-windows-arm64.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.validate-tag.outputs.tag }}
+      PRERELEASE: ${{ needs.validate-tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: target/distrib
+          merge-multiple: true
+      - name: Install cargo-dist
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
+      - name: Add installers and notices
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/release/generate-notices.py
+          cp scripts/install/atlas-installer.sh target/distrib/atlas-installer.sh
+          cp scripts/install/atlas-installer.ps1 target/distrib/atlas-installer.ps1
+          cp THIRD-PARTY-NOTICES.md target/distrib/THIRD-PARTY-NOTICES.md
+      - name: Generate cargo-dist manifest
+        shell: bash
+        run: |
+          dist manifest --artifacts local --tag "$TAG" --allow-dirty --no-local-paths --output-format json > dist-manifest.json
+          scripts/release/prune-dist-manifest.py dist-manifest.json target/distrib
+          mv dist-manifest.json target/distrib/dist-manifest.json
+      - name: Generate manifest and checksums
+        shell: bash
+        run: scripts/release/generate-release-manifest.py "$TAG" target/distrib
+      - name: Validate required assets
+        shell: bash
+        run: scripts/release/validate-release-assets.sh "$TAG" target/distrib
+      - name: Wait for draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "release $TAG was not created by the release helper" >&2
+          exit 1
+      - name: Upload assets to draft release
+        shell: bash
+        run: gh release upload "$TAG" target/distrib/* --clobber
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$PRERELEASE" == "true" ]]; then
+            gh release edit "$TAG" --draft=false --prerelease=true --latest=false
+          else
+            gh release edit "$TAG" --draft=false --prerelease=false --latest=true
+          fi

@@ -5,5 +5,7 @@ vendor/pf2e/
 .swp
 *.swp
 *.swo
+__pycache__/
+*.py[cod]
 scratch/
 .worktrees/
