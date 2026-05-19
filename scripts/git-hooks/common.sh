@@ -50,6 +50,16 @@ staged_changes_are_docs_only() {
   git diff --cached --name-only --relative --diff-filter=ACDMRTUXB | paths_are_docs_only
 }
 
+run_required_verification() {
+  (
+    cd "$(repo_root)"
+    cargo fmt --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo test --workspace
+    cargo build --workspace
+  )
+}
+
 push_range_is_docs_only() {
   local_oid="$1"
   remote_oid="$2"
@@ -67,7 +77,7 @@ require_linked_worktree() {
 
   if [ "$git_dir" = "$git_common_dir" ]; then
     echo "Refusing to proceed from the primary checkout." >&2
-    echo "Create a dedicated linked worktree before committing." >&2
+    echo "Use a dedicated linked worktree for this worktree-specific command." >&2
     return 1
   fi
 }
@@ -77,7 +87,7 @@ require_non_main_branch() {
 
   if [ "$branch" = "main" ]; then
     echo "Refusing to proceed on branch 'main'." >&2
-    echo "Create a task branch in a linked worktree first." >&2
+    echo "Use a non-main branch for this worktree-specific command." >&2
     return 1
   fi
 }

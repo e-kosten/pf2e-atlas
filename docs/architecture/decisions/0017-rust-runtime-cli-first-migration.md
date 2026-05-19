@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted
+Superseded by ADR 0026 for product surface and workspace layout. Retained as migration sequencing history.
 
 ## Context
 
-PF2e Atlas has been a TypeScript runtime centered on a stdio MCP server, with an Ink terminal workbench and TypeScript-owned index generation. That architecture remains coherent for the current implementation, but the local operating model has shifted toward agent-driven command workflows and dense terminal tooling on a single developer machine.
+At the time of this decision, PF2e Atlas was a TypeScript runtime centered on a stdio MCP server, with an Ink terminal workbench and TypeScript-owned index generation. The local operating model had shifted toward agent-driven command workflows and dense terminal tooling on a single developer machine.
 
 The Rust migration spikes produced enough evidence to choose a new direction:
 
@@ -21,9 +21,9 @@ This changes the target from "Rust runtime over artifacts prepared elsewhere" to
 
 ## Decision
 
-Adopt a Rust-centered runtime migration with CLI first, Ratatui second, and MCP only as optional compatibility.
+Adopt a Rust-centered runtime migration with CLI first and Ratatui second. ADR 0026 later establishes the durable CLI plus first-party skill product surface and the root Rust workspace layout.
 
-The Rust implementation lives under `rust/` as a separate workspace inside this repository. It includes only crates that have active implementation slices:
+The Rust implementation is a workspace inside this repository. It includes only crates that have active implementation slices:
 
 - `atlas-domain` owns shared Rust contracts and typed runtime vocabulary.
 - `atlas-record` owns storage-agnostic normalized record DTOs shared by ingest, artifact writing, index loading, and future runtime surfaces. `NormalizedRecord` is the ingest-built construction shape; `PersistedRecord` and `PersistedRecordSet` are durable artifact read shapes.
@@ -32,20 +32,17 @@ The Rust implementation lives under `rust/` as a separate workspace inside this 
 - `atlas-index` owns artifact/index opening and startup validation.
 - `atlas-cli` owns the local `atlas` command surface and agent skill installation.
 
-Future crates such as search, embedding, TUI, and MCP should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.
+Future crates such as search, embedding, and TUI should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.
 
 Rust is the target owner for deterministic Foundry ingest, normalized records, source signatures, SQLite table writes, artifact metadata, lookup/search runtime behavior, CLI output contracts, and the Ratatui workbench. Exploratory discovery, clustering, evaluation reports, and parity harnesses may remain in Python, Node, or TypeScript while they are still research or migration aids.
 
-MCP is no longer the architectural center. If retained, `atlas mcp` must be a thin compatibility surface over the Rust runtime and must not introduce MCP-only backend behavior.
-
 ## Consequences
 
-The TypeScript runtime remains available during migration, but it is a reference and parity target, not a second long-term implementation owner. New Rust features must not shell out to the TypeScript runtime or wrap the Node MCP server.
+During migration, the TypeScript runtime was a reference and parity target, not a second long-term implementation owner. New Rust features were not expected to shell out to the TypeScript runtime or wrap the Node server.
 
 The initial Rust workspace must compile, format, lint, and test independently. Its validation gate is:
 
 ```bash
-cd rust
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -65,7 +62,6 @@ The migration proceeds by capability gates:
 - SQLite-centered hybrid search
 - first-party agent skill installation
 - Ratatui workbench
-- optional MCP compatibility or retirement
 - TypeScript runtime retirement
 
 Cutover is not complete while runtime features have mixed TypeScript and Rust ownership without an explicit parity or retirement plan.

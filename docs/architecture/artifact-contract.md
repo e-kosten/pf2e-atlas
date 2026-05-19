@@ -1,8 +1,8 @@
 # Artifact Contract
 
-This document defines the first runtime artifact boundary for the Rust migration. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
+This document defines the runtime artifact boundary for PF2e Atlas. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
 
-For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md). For the TypeScript/Node implementation, see [TypeScript runtime architecture](./node/runtime.md).
+For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).
 
 ## Contract Version
 
@@ -70,7 +70,7 @@ Ingest prepares embedding units only for default-visible searchable records; hid
 
 Rust artifact rebuilds reuse existing `document_embedding_cache` rows by default when the output artifact already exists, embedding identity metadata matches the active model catalog, and the row's `semantic_input_hash` and dimensions match the newly prepared input. The build command exposes an explicit opt-out for full regeneration. Reuse is limited to the normal SQLite cache table; normal embedding-enabled ingest creates and populates `record_vector_index` from `document_embedding_cache` before publishing the artifact.
 
-`atlas-runtime` resolves source, embedding-cache, and index paths for CLI and future Rust surfaces. `global` mode is the default and uses platform cache paths under a `pf2e-atlas` directory so first-run setup and later installed-CLI commands resolve the same data from any working directory. `repo` mode is an explicit contributor mode: it requires `git rev-parse --show-toplevel` to find a git root containing `rust/Cargo.toml` plus `rust/crates/atlas-cli/Cargo.toml`, then uses that checkout's `vendor/pf2e` and `.cache` paths.
+`atlas-runtime` resolves source, embedding-cache, and index paths for CLI and future Rust surfaces. `global` mode is the default and uses platform cache paths under a `pf2e-atlas` directory so first-run setup and later installed-CLI commands resolve the same data from any working directory. `repo` mode is an explicit contributor mode: it requires `git rev-parse --show-toplevel` to find a git root containing `Cargo.toml` plus `crates/atlas-cli/Cargo.toml`, then uses that checkout's `vendor/pf2e` and `.cache` paths.
 
 Direct path flags are command-local overrides rather than persisted configuration. `--index` is the SQLite artifact override for commands that open or repair an artifact, including `setup`, record, search, filter discovery, validation, and inspection commands. `atlas index build` uses `--output` for the artifact it writes, while `setup --index` names the artifact target that setup should repair or build. `--source` and `--embedding-cache-path` override the source checkout and embedding model cache for the command that receives them. A future persisted config file, if added, should feed `AtlasPathOverrides` before CLI direct flags are applied; CLI direct flags should remain the highest-precedence path source.
 
@@ -90,7 +90,7 @@ Validation diagnostics are grouped by contract family:
 - `fts`: lexical tokenizer compatibility.
 - `manifest`: adjacent artifact manifest linkage.
 
-`atlas index check --json` returns stable JSON diagnostics for fast runtime readiness: supported metadata, required runtime tables, and vector capability for the default full target. `atlas index validate --json` runs deeper artifact diagnostics for Rust artifact table/data contract violations. Current TypeScript-built indexes that only expose the legacy `metadata` table are intentionally reported as missing the Rust artifact contract.
+`atlas index check --json` returns stable JSON diagnostics for fast runtime readiness: supported metadata, required runtime tables, and vector capability for the default full target. `atlas index validate --json` runs deeper artifact diagnostics for artifact table/data contract violations. Indexes without the `artifact_metadata` table are reported as missing the artifact contract.
 
 ## Adjacent Manifest
 
@@ -120,7 +120,7 @@ The normalized metric definition catalog lives in `atlas-record::metrics`. `Metr
 
 ## Runtime Table Families
 
-The Rust artifact contract extends beyond `artifact_metadata` once Rust ingest starts writing artifacts. The current TypeScript index is the parity inventory, but the Rust artifact should treat table families as generated projections over typed ingest/domain models rather than as ad hoc row bags.
+The Rust artifact contract extends beyond `artifact_metadata`. Artifact table families are generated projections over typed ingest/domain models rather than ad hoc row bags.
 
 Required runtime table families for Rust-written artifacts are:
 
@@ -140,11 +140,11 @@ Required runtime table families for Rust-written artifacts are:
 | Document embedding cache | `document_embedding_cache` | Durable reusable embedding unit vector blobs keyed by `embedding_unit_key`, with parent `record_key`, unit kind, optional label, ordinal, semantic input hashes, and vector dimensions for reuse, validation, debugging, sqlite-vec rowid mapping, and optional non-sqlite-vec scoring paths. Rows are normal SQLite and can be written before sqlite-vec is available. |
 | Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible embedding units. It stores only the embedding vector and uses rowid as the physical key matching `document_embedding_cache.rowid`; it does not own user-facing filter semantics or duplicate text metadata. Normal embedding-enabled ingest creates and populates this table from `document_embedding_cache`; runtime validation and search access it through an explicit sqlite-vec capability path. |
 
-Rust writers may refine exact SQL column constraints from the current TypeScript schema, but they must preserve the runtime meaning of these table families until a parity report records an accepted difference.
+Rust writers may refine exact SQL column constraints, but they must preserve the runtime meaning of these table families until an artifact-contract decision records an accepted difference.
 
 ## Table Design Rules
 
-Rust artifacts should tighten the current TypeScript schema where doing so improves validation without changing intended behavior:
+Rust artifacts should keep schema constraints explicit where doing so improves validation without changing intended behavior:
 
 - `RecordKey` values are serialized as `pack:id`, but Rust runtime code should use a parsed `RecordKey` newtype.
 - Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
@@ -154,15 +154,15 @@ Rust artifacts should tighten the current TypeScript schema where doing so impro
 - Direct Foundry `system.*` projections use `system_*` names. Atlas-derived fields stay unprefixed, such as `price_cp`, `activation_time_*`, and `duration_*`.
 - `is_default_visible` is a generated retrieval policy projection. It controls default user-facing search, browse, and list surfaces; records with false remain present for direct key lookup, references, remaster links, and inspection. It is not a source-authored fact. Tooling-family records are stored but are not default-visible because user-facing retrieval should prefer PF2e product content over helper macros and roll tables.
 - Activation time is the normalized "how long it takes to do/cast/use this" field family. Spell or effect duration remains a separate normalized field family because it means how long the effect lasts after activation.
-- Actor, item, and spell side tables hold stable non-metric filter and presentation data. Metrics remain in `record_metrics`; direct Foundry item projections keep `system_*` names rather than recreating TypeScript's split weapon/armor group fields.
-- The Rust artifact does not have a generic `subcategory` scope. Former TypeScript subcategory use cases are represented as explicit metadata/filter axes when they come from source fields or useful collapsed signals, and as trait filters when they are entirely trait-derived.
+- Actor, item, and spell side tables hold stable non-metric filter and presentation data. Metrics remain in `record_metrics`; direct Foundry item projections keep `system_*` names.
+- The artifact does not have a generic `subcategory` scope. Useful grouping concepts are represented as explicit metadata/filter axes when they come from source fields or collapsed signals, and as trait filters when they are entirely trait-derived.
 - Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
 - Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
 - Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source. Small display-only source arrays, such as feat prerequisite text, may live on `records` as JSON when runtime consumers only need to present the authored strings and do not need relational filtering, discovery, FTS, or semantic retrieval over their values.
 - Generated projections such as `records_fts`, `record_vector_index`, metric catalogs, filter discovery catalogs, and aliases must be written from typed source models and covered by row-count/key-coverage validation. Derived-tag rows are intentionally deferred until a later design pass.
 - `record_vector_index` is a query index, not a duplicated filter store. The Rust vector table should stay to rowid plus vector only. Do not add `record_key`, `embedding_unit_key`, `record_family`, trait, level, rarity, metric, source, or other filter projection columns as part of the baseline. If performance testing later proves a vec metadata or partition column is needed, treat it as an accelerator generated from authoritative rows and add validation that it cannot drift.
 - Semantic search with filters uses authoritative SQL keyset prefiltering. The shared filter compiler lives in `atlas-index` and lowers the canonical `SearchFilterNode` tree into a parameterized eligible-record relation from `records` and side tables. Browse, lexical, lookup narrowing, and vector search compose from that same eligible relation; vector search should constrain sqlite-vec units by `record_vector_index.rowid` using eligible `document_embedding_cache.rowid` values and return raw matching units to `atlas-search`. Do not implement exact filtered semantic search by joining ordinary filter tables around the vec scan alone, because joined predicates can be applied after the vec top-k result set.
-- The `atlas-index` vector query boundary accepts an already-computed query vector and optional `SearchFilterNode`. Text-to-query-vector embedding remains owned by `atlas-embedding` and is called by `atlas-search` before it invokes vector-index SQL. CLI, future TUI, and future MCP surfaces should consume `atlas-search` for semantic search instead of opening SQLite connections or embedding models directly.
+- The `atlas-index` vector query boundary accepts an already-computed query vector and optional `SearchFilterNode`. Text-to-query-vector embedding remains owned by `atlas-embedding` and is called by `atlas-search` before it invokes vector-index SQL. Product surfaces should consume `atlas-search` for semantic search instead of opening SQLite connections or embedding models directly.
 - `atlas-search` groups sqlite-vec unit hits by parent record before returning user-facing records. Search-time semantic modes determine which embedding units participate: `parent-only` restricts retrieval to parent units, `chunks` allows parent and child units to compete on raw vector distance, and `weighted-chunks` allows child units to recover records while applying unit-kind rank-distance adjustments before parent-record collapse. Diagnostics may expose both raw vector distance and adjusted rank distance.
 - Filters that cannot compile to an authoritative SQL keyset are errors for the first Rust baseline. Approximate overfetch-and-post-filter behavior is not part of the default contract.
 - sqlite-vec sentinel values for nullable filter columns should not be needed in the baseline because the vector table has no filter projection columns. If future performance accelerators add vec metadata columns, their sentinels must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.

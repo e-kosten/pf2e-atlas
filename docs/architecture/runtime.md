@@ -1,6 +1,6 @@
 # Runtime Architecture
 
-This document describes the Rust implementation under `rust/`. It is the target runtime architecture for deterministic ingest, artifact validation, local CLI workflows, lexical and semantic search, and future Rust TUI/MCP surfaces. The TypeScript/Node implementation is documented separately in [TypeScript runtime architecture](./node/runtime.md).
+This document describes the Rust workspace architecture for deterministic ingest, artifact validation, local CLI workflows, lexical and semantic search, graph context retrieval, first-party agent skill workflows, and future Rust TUI/tagging surfaces.
 
 The Rust architecture is deliberately crate-oriented. Crates should expose only the public API needed by adjacent owners, and ingest/build-time policy should not leak into runtime query or presentation crates.
 
@@ -11,7 +11,8 @@ flowchart TD
     source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
     ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
 
-    cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"] --> runtime["atlas-runtime<br/>path and setup policy"]
+    skill["PF2e Atlas agent skill"] --> cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"]
+    cli --> runtime["atlas-runtime<br/>path and setup policy"]
     runtime --> search["atlas-search<br/>AtlasRetrievalService"]
     runtime --> index["atlas-index<br/>AtlasIndex read handle"]
 
@@ -55,7 +56,7 @@ flowchart TD
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService`, lexical/semantic composition, vector-hit collapse, and search ranking modes over read-only index handles. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation. |
 | `atlas-runtime` | Repo/global path resolution, setup policy, setup readiness and repair orchestration, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization, CLI JSON projection, deep artifact diagnostics. |
-| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, exit codes, and agent skill installation. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
+| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, exit codes, completions, and agent skill installation. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
 | `atlas-sqlite-vec` | Unsafe sqlite-vec extension registration and capability boundary. | Domain/search logic or artifact metadata interpretation. |
 
 ## Ingest And Artifact Flow
@@ -109,7 +110,8 @@ Default public graph and backlink behavior uses the named reference graph policy
 
 ```mermaid
 flowchart TD
-    command["atlas-cli command<br/>search, record, graph, index"] --> runtime["atlas-runtime<br/>resolved paths + handles"]
+    skill["PF2e Atlas agent skill"] --> command["atlas-cli command<br/>search, record, graph, index"]
+    command --> runtime["atlas-runtime<br/>resolved paths + handles"]
     runtime --> search["atlas-search<br/>AtlasRetrievalService"]
     runtime --> index["atlas-index<br/>AtlasIndex"]
     search --> filters["atlas-index internal filter compiler<br/>SearchFilterNode -> eligible records"]
@@ -158,7 +160,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 
 ## Current Gaps And Deferred Shapes
 
-- Rust TUI and Rust MCP surfaces are future consumers. They should compose through `atlas-search`, `atlas-index`, `atlas-runtime`, and `atlas-record` rather than opening SQLite or embedding models directly.
+- The future Ratatui workbench is a runtime consumer. It should compose through `atlas-search`, `atlas-index`, `atlas-runtime`, and `atlas-record` rather than opening SQLite or embedding models directly.
 - Journal pages and table results are recognized as rich content but are deferred to [Rust content subdocuments for journal pages and table results](../backlog/items/rust-content-subdocuments-journal-table-results.md).
 - Derived-tag rows are intentionally deferred until the Rust artifact model has a dedicated derived-tag design.
 - Search quality tuning and broader full-corpus parity remain follow-up validation work, not reasons to reintroduce raw JSON scanning or duplicate markup parsing.

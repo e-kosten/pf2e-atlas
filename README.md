@@ -1,26 +1,26 @@
 # PF2e Atlas
 
-PF2e Atlas is a local Pathfinder 2E search and reference runtime built from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). The Rust `atlas` CLI is the primary local interface in this branch: it installs and repairs local data, builds the SQLite artifact, validates readiness, and exposes record lookup, resolution, and search commands.
+PF2e Atlas is a local Pathfinder 2E search and reference runtime built from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e). The `atlas` CLI installs and repairs local data, builds the SQLite artifact, validates readiness, and exposes record lookup, strict name resolution, graph context, filter discovery, and ranked search.
 
 ## Capabilities
 
 With `atlas`, you can:
 
-- fetch and maintain the local Foundry PF2E source checkout
+- fetch and maintain a local Foundry PF2E source checkout
 - build and validate a local SQLite artifact for PF2E records
 - look up detailed PF2E records by canonical key
 - resolve names and verified aliases to canonical records
 - search and list records with structured filters
-- validate full semantic readiness, base record readiness, or focused embedding/vector readiness
+- inspect one-hop graph context around known records
+- install the first-party PF2e Atlas skill for local coding agents
 
 ## Quick Start
 
-Before you start, install Rust and Cargo with [rustup](https://rustup.rs/) or your platform package manager.
+Install Rust and Cargo with [rustup](https://rustup.rs/) or your platform package manager.
 
 Install the local CLI from this clone:
 
 ```bash
-cd rust
 cargo install --path crates/atlas-cli --locked
 ```
 
@@ -47,7 +47,10 @@ After setup, commands use the resolved default artifact path automatically:
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record get equipment-srd:s1vB3HdXjMigYAnY
-atlas record resolve "Treat Wounds" --filter-json '{"kind":"pack","value":"actionspf2e"}'
+atlas record resolve "Treat Wounds" --pack-name actionspf2e
+atlas search "low level healing spell" --family spell --limit 5
+atlas filters fields
+atlas graph get actionspf2e:1kGNdIIhuglAjIp9
 atlas index validate
 ```
 
@@ -62,15 +65,29 @@ atlas index validate --no-embeddings
 atlas index validate --embeddings-only
 ```
 
-`atlas setup --check` reports readiness and planned actions without writing local runtime files. `atlas setup --offline` prevents network-backed source updates and embedding model preparation. `atlas setup clean` removes selected runtime data without uninstalling the CLI; use `--artifact`, `--embeddings`, `--source-checkout`, or `--all`, with `--check` for a dry run. Cleanup that selects every target requires `--yes` unless `--check` is used. `atlas index validate` validates full semantic readiness by default; `--no-embeddings` validates only the base artifact, and `--embeddings-only` runs focused embedding/vector diagnostics.
+`atlas setup --check` reports readiness and planned actions without writing local runtime files. `atlas setup --offline` prevents network-backed source updates and embedding model preparation. `atlas setup clean` removes selected runtime data without uninstalling the CLI; use `--artifact`, `--embeddings`, `--source-checkout`, or `--all`, with `--check` for a dry run. Cleanup that selects every target requires `--yes` unless `--check` is used.
+
+## Agent Skill
+
+The CLI includes a first-party PF2e Atlas skill package for local coding agents. Inspect install readiness with:
+
+```bash
+atlas agent skills doctor --json
+```
+
+Install into the current workspace with:
+
+```bash
+atlas agent skills install --target agents --scope workspace --yes --json
+```
+
+Supported targets are `agents`, `claude`, `codex`, `copilot`, `gemini`, and `kiro`. Installed Atlas-managed skills include an `.atlas-skill.json` manifest with the package content hash used by doctor and install.
 
 ## Paths And Data
 
-`atlas` uses the Rust runtime path resolver:
+`atlas` uses the runtime path resolver:
 
-- `--path-mode auto` is the default.
-- Auto mode uses platform user cache paths under `pf2e-atlas`, so setup and later commands use the same data from any working directory.
-- `--path-mode user` also uses platform user cache paths.
+- `--path-mode global` uses platform user cache paths under `pf2e-atlas`, so setup and later commands use the same data from any working directory.
 - `--path-mode repo` is an explicit contributor mode that requires running inside this repository and uses repo-local paths:
   - source: `vendor/pf2e`
   - embedding model cache: `.cache/hf-models`
@@ -102,7 +119,6 @@ atlas index validate --json
 Standard users should run `atlas setup`. Manual index commands remain available for development and diagnostics:
 
 ```bash
-cd rust
 cargo run -p atlas-cli -- index analyze --json
 cargo run -p atlas-cli -- index build --no-embeddings --json
 ```
@@ -110,51 +126,13 @@ cargo run -p atlas-cli -- index build --no-embeddings --json
 Use Cargo's release profile for ingest or search performance measurements:
 
 ```bash
-cargo run --release -p atlas-cli -- index analyze --source ../vendor/pf2e --json
+cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
 ```
-
-## Transitional Node Surfaces
-
-The TypeScript/Node MCP server, TUI, and editorial tooling still exist in this repository while the Rust runtime is being promoted. Those surfaces use the older Node setup and index flow.
-
-For the Node surfaces:
-
-```bash
-npm install
-npm run refresh-external
-npm run build
-npm run tui
-npm run mcp
-```
-
-`npm run tui` runs the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
-`npm run mcp` runs the built stdio MCP server from `dist/index.js`.
-
-The Node runtime remains offline-only at startup. It expects its own prepared SQLite index and embedding assets. The Rust `atlas setup` flow described above is the intended first-run path for the Rust CLI artifact, not a replacement for the current Node MCP server configuration.
-
-## MCP Client Config
-
-The current MCP server is still the TypeScript stdio server. Build it first with `npm run build`, then configure the client to point at the built server entrypoint:
-
-```json
-{
-  "mcpServers": {
-    "pathfinder-2e-foundry": {
-      "command": "node",
-      "args": ["/Users/<user>/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/dist/index.js"]
-    }
-  }
-}
-```
-
-Keep the full path as one JSON/TOML string or one shell argument; a line break inside the path makes Node try to load only the prefix before the break.
 
 ## Further Reading
 
-- [rust/README.md](./rust/README.md) for Rust workspace layout, validation commands, and CLI details
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, developer commands, and repo layout
-- [docs/mcp-and-search.md](./docs/mcp-and-search.md) for the current TypeScript MCP tool and search reference
-- [docs/architecture](./docs/architecture/overview.md) for architecture, boundaries, and subsystem docs
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, validation commands, and repo layout
+- [docs/architecture](./docs/architecture/overview.md) for architecture, artifact, and crate ownership docs
 
 ## Contact
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "PF2E Tag Audit"
-  short_description: "Audit dense or suspicious tag behavior"
-  default_prompt: "Use $pf2e-tag-audit to inspect densely tagged PF2E records, identify likely false-positive classes, and recommend whether the fix belongs in rules or assignments."
