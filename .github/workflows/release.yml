@@ -70,37 +70,32 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
-            shell: bash
-            python: python3
-            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-22.04-arm
-            shell: bash
-            python: python3
-            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
           - target: x86_64-apple-darwin
             os: macos-15-intel
-            shell: bash
-            python: python3
-            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
           - target: aarch64-apple-darwin
             os: macos-14
-            shell: bash
-            python: python3
-            install_dist: 'curl --proto "=https" --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh'
           - target: x86_64-pc-windows-msvc
             os: windows-2022
-            shell: pwsh
-            python: python
-            install_dist: 'irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex'
     steps:
       - uses: actions/checkout@v4
       - name: Install cargo-dist
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.install_dist }}
+        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
+      - name: Install cargo-dist on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
       - name: Generate notices
-        shell: ${{ matrix.shell }}
-        run: ${{ matrix.python }} scripts/release/generate-notices.py
+        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
+        shell: bash
+        run: python3 scripts/release/generate-notices.py
+      - name: Generate notices on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        run: python scripts/release/generate-notices.py
       - name: Validate PowerShell installer
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
@@ -108,7 +103,12 @@ jobs:
           ./scripts/install/atlas-installer.ps1 -DryRun
           ./scripts/release/test-installer.ps1
       - name: Build archives with cargo-dist
-        shell: ${{ matrix.shell }}
+        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
+        shell: bash
+        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+      - name: Build archives with cargo-dist on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
         run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v4

@@ -20,8 +20,8 @@ python3 "$repo_root/scripts/release/generate-notices.py" --check >/dev/null
 ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0))' "$repo_root/.github/workflows/release.yml"
 
 if command -v pwsh >/dev/null 2>&1; then
-  pwsh -NoProfile -Command "\$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/install/atlas-installer.ps1', [ref]\$null, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
-  pwsh -NoProfile -Command "\$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/release/test-installer.ps1', [ref]\$null, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
+  pwsh -NoProfile -Command "\$tokens = \$null; \$errors = \$null; \$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/install/atlas-installer.ps1', [ref]\$tokens, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
+  pwsh -NoProfile -Command "\$tokens = \$null; \$errors = \$null; \$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/release/test-installer.ps1', [ref]\$tokens, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
 else
   printf 'warning: pwsh not found; PowerShell parser validation is skipped locally\n' >&2
 fi
