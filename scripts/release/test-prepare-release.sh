@@ -491,7 +491,7 @@ sed 's/version = "0.1.0"/version = "0.2.0"/' "$tmp/Cargo.toml.good" > "$work/cra
 expect_fail --publish --version 0.1.0
 cp "$tmp/Cargo.toml.good" "$work/crates/atlas-cli/Cargo.toml"
 
-ATLAS_TEST_BRANCH=dev ATLAS_TEST_DIRTY=1 ATLAS_TEST_FETCH_FAIL=1 run_prepare --publish --version 0.1.0 --dry-run >/dev/null
+ATLAS_TEST_BRANCH=dev ATLAS_TEST_DIRTY=1 ATLAS_TEST_FETCH_FAIL=1 run_prepare --publish --version 0.1.0 --dry-run >/dev/null 2>&1
 expect_log_absent 'cargo fmt' "prepare-release dry-run ran cargo"
 expect_log_absent 'dist plan' "prepare-release dry-run ran dist"
 expect_log_absent 'git tag -a v0.1.0' "prepare-release dry-run created a tag"
