@@ -128,9 +128,10 @@ scripts/prepare-release.sh --prepare-pr
 ```
 
 The helper prompts for the release version, creates `release/v<version>`, updates
-`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds
-`docs/releases/v<version>.md`. Pass `--version <X.Y.Z[-rc.N]>` to skip the
-prompt. Edit the release notes, validate, commit, and open the PR to `main`.
+`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock` and
+`THIRD-PARTY-NOTICES.md`, and scaffolds `docs/releases/v<version>.md`. Pass
+`--version <X.Y.Z[-rc.N]>` to skip the prompt. Edit the release notes, validate,
+commit, and open the PR to `main`.
 
 2. After editing the release notes, have the helper validate, commit, push, and
 open the release-preparation PR:
