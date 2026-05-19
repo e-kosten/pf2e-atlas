@@ -15,12 +15,17 @@ With `atlas`, you can:
 
 ## Quick Start
 
-Install Rust and Cargo with [rustup](https://rustup.rs/) or your platform package manager.
-
-Install the local CLI from this clone:
+Install the latest release:
 
 ```bash
-cargo install --path crates/atlas-cli --locked
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh | sh
+```
+
+On Windows, use PowerShell:
+
+```powershell
+irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
 ```
 
 Run the standard first-time setup:
@@ -30,6 +35,27 @@ atlas setup
 ```
 
 `atlas setup` fetches or updates the PF2E source data, prepares semantic search support, builds (and repairs) local search data, and verifies that Atlas is ready to use.
+
+The installer installs only the `atlas` CLI. Runtime data stays in user cache locations and is managed by `atlas setup`.
+
+Confirm the installed version:
+
+```bash
+atlas --version
+```
+
+To install a pinned version, use that release's installer URL:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/e-kosten/pf2e-atlas/releases/download/v0.1.0/atlas-installer.sh | sh
+```
+
+Release candidates are installed only from pinned URLs or with `ATLAS_VERSION`.
+
+If you do not want to pipe an installer into a shell, download the cargo-dist archive for your OS from the [GitHub releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against `SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
+
+Early release binaries are unsigned. macOS or Windows may show an operating-system warning until signing and notarization are added in a later release.
 
 ## Try It
 
@@ -106,6 +132,14 @@ atlas setup clean --all --yes
 
 Cleanup supports `--artifact`, `--embeddings`, `--source-checkout`, and `--all`, with `--check` for a dry run. Cleanup that selects every target requires `--yes` unless `--check` is used.
 
+To remove Atlas completely, first remove runtime data:
+
+```bash
+atlas setup clean --all --yes
+```
+
+Then remove the `atlas` binary from the path printed by the installer.
+
 ## Advanced Data Locations
 
 The default setup stores Atlas data in platform user cache paths, so the installed CLI can be used from any directory after setup.
@@ -150,6 +184,12 @@ Use Cargo's release profile for ingest or search performance measurements:
 
 ```bash
 cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
+```
+
+For source installation from a local checkout, install Rust 1.95 or newer and run:
+
+```bash
+cargo install --path crates/atlas-cli --locked
 ```
 
 ## Further Reading

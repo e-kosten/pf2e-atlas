@@ -4,7 +4,14 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
 rust-version.workspace = true
+description = "Local Pathfinder 2e search and reference CLI"
+
+[package.metadata.dist]
+dist = true
+include = ["../../THIRD-PARTY-NOTICES.md"]
 
 [[bin]]
 name = "atlas"

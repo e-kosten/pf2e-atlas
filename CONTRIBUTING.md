@@ -109,6 +109,56 @@ atlas completions bash
 atlas completions fish
 ```
 
+## Release Process
+
+User-facing binaries are published from GitHub Releases. Maintainers need the GitHub CLI and cargo-dist:
+
+```bash
+gh auth login
+gh auth status
+cargo install cargo-dist --locked
+```
+
+Releases use a two-part flow:
+
+1. Open a release-preparation PR that updates `crates/atlas-cli/Cargo.toml` and adds release notes under `docs/releases/vX.Y.Z.md`.
+2. After the PR lands on `main`, run the release helper from a clean `main` checkout:
+
+```bash
+scripts/prepare-release.sh --version 0.1.0 --dry-run
+scripts/prepare-release.sh --version 0.1.0
+```
+
+Release candidates use Cargo prerelease versions and tags such as `0.1.0-rc.1` and `v0.1.0-rc.1`. The final release gets a separate version commit and rebuilds final artifacts as `0.1.0`; do not rename or promote RC artifacts.
+
+Release notes use this template:
+
+```md
+# vX.Y.Z
+
+## Summary
+
+## Install Notes
+
+## Known Issues
+```
+
+The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The draft is published only after the required asset set validates. If the workflow fails, the release remains draft.
+
+cargo-dist is configured in `dist-workspace.toml`. The Atlas release workflow intentionally keeps repo-owned installers instead of cargo-dist-generated installers so install/update prompts, install locations, PATH guidance, and runtime-data policy remain under Atlas control.
+
+Repository settings checklist:
+
+- GitHub Actions is enabled.
+- Tag pushes trigger workflows.
+- The release workflow can use `GITHUB_TOKEN` with `contents: write` for release asset upload.
+- Only maintainers can push `v*` release tags.
+- Branch protection allows release-preparation PRs to land normally.
+
+Published release assets are treated as immutable. Fix bad published releases with a new patch release and document known issues in the affected release notes. Draft releases may be corrected before publication.
+
+Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for macOS, Linux, Windows, and ARM targets.
+
 ## Validation Before Commit
 
 Run these before opening a branch for review, merging back to `main`, or preparing a commit manually:

@@ -18,6 +18,7 @@ mod terminal;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
+#[command(version)]
 #[command(about = "PF2e Atlas local search and index tooling")]
 #[command(
     after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e"
