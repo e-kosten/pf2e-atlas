@@ -22,6 +22,12 @@ exit 0
 EOF_RELEASE_CHECK
   chmod +x "$work/scripts/release/$release_check"
 done
+cat > "$work/scripts/release/generate-notices.py" <<'EOF_NOTICES'
+#!/bin/sh
+printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
+exit 0
+EOF_NOTICES
+chmod +x "$work/scripts/release/generate-notices.py"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO'
 [package]
 name = "atlas-cli"
@@ -291,7 +297,7 @@ grep -q 'cargo test --workspace' "$log" || {
   echo "prepare-release --open-pr did not run cargo tests" >&2
   exit 1
 }
-grep -q 'git add Cargo.lock crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
+grep -q 'git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
   echo "prepare-release --open-pr did not stage release-prep files" >&2
   exit 1
 }
@@ -369,6 +375,10 @@ grep -q 'version = "0.1.0-rc.1"' "$work/crates/atlas-cli/Cargo.toml" || {
 }
 grep -q 'cargo check -p atlas-cli' "$log" || {
   echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
+  exit 1
+}
+grep -q 'scripts/release/generate-notices.py' "$log" || {
+  echo "prepare-release --prepare-pr did not regenerate third-party notices" >&2
   exit 1
 }
 [ -f "$work/docs/releases/v0.1.0-rc.1.md" ] || {
