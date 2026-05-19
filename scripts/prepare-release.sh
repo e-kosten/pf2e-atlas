@@ -402,12 +402,17 @@ ensure_release_prep_scope() {
 }
 
 run_release_pr_checks() {
-  scripts/release/validate-release-tooling.sh
-  scripts/release/test-prepare-release.sh
-  cargo fmt --check
-  cargo clippy --workspace --all-targets -- -D warnings
-  cargo test --workspace
-  cargo build --workspace
+  run_check scripts/release/validate-release-tooling.sh
+  run_check scripts/release/test-prepare-release.sh
+  run_check cargo fmt --check
+  run_check cargo clippy --workspace --all-targets -- -D warnings
+  run_check cargo test --workspace
+  run_check cargo build --workspace
+}
+
+run_check() {
+  info "Running: $*"
+  "$@"
 }
 
 if [ "$open_pr" -eq 1 ]; then
@@ -587,11 +592,11 @@ if [ "$yes" -ne 1 ]; then
   esac
 fi
 
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cargo build --workspace
-dist plan --tag "$tag" --allow-dirty
+run_check cargo fmt --check
+run_check cargo clippy --workspace --all-targets -- -D warnings
+run_check cargo test --workspace
+run_check cargo build --workspace
+run_check dist plan --tag "$tag" --allow-dirty
 ensure_clean_worktree
 
 git tag -a "$tag" -m "Release $tag"
