@@ -121,13 +121,33 @@ cargo install cargo-dist --locked
 
 Releases use a two-part flow:
 
-1. Open a release-preparation PR that updates `crates/atlas-cli/Cargo.toml` and adds release notes under `docs/releases/vX.Y.Z.md`.
-2. After the PR lands on `main`, run the release helper from a clean `main` checkout:
+1. From a clean, current `main`, create the release-preparation branch and scaffold the version bump and release notes:
 
 ```bash
-scripts/prepare-release.sh --version 0.1.0 --dry-run
-scripts/prepare-release.sh --version 0.1.0
+scripts/prepare-release.sh --prepare-pr
 ```
+
+The helper prompts for the release version, creates `release/v<version>`, updates
+`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds
+`docs/releases/v<version>.md`. Pass `--version <X.Y.Z[-rc.N]>` to skip the
+prompt. Edit the release notes, validate, commit, and open the PR to `main`.
+
+2. After the PR lands, publish the release from any clean checkout:
+
+```bash
+scripts/prepare-release.sh --publish --dry-run
+scripts/prepare-release.sh --publish
+```
+
+The helper switches to `main`, fast-forwards to `origin/main`, reads the
+committed crate version, validates the matching release notes, and then creates
+the tag and draft release. Pass `--version <X.Y.Z[-rc.N]>` only when you want an
+extra guard that the committed crate version matches that exact value.
+
+Running `scripts/prepare-release.sh` without a mode flag opens an interactive
+picker for the two workflow steps. Non-interactive shells must pass
+`--prepare-pr` or `--publish`. Interactive pickers use `fzf` when it is
+available, with numbered prompts as the portable fallback.
 
 Release candidates use Cargo prerelease versions and tags such as `0.1.0-rc.1` and `v0.1.0-rc.1`. The final release gets a separate version commit and rebuilds final artifacts as `0.1.0`; do not rename or promote RC artifacts.
 
