@@ -15,12 +15,6 @@ Recommended branch names:
 - `docs/<topic>`
 - `chore/<topic>`
 
-Examples:
-
-- `feat/encounter-tools`
-- `fix/search-ranking`
-- `docs/codex-setup`
-
 ## Commit Messages
 
 Use Conventional Commits for all changes. Every commit message must include a Conventional Commit summary line. A short description body is optional, but when present it must appear after a blank line.
@@ -39,144 +33,99 @@ type(scope): summary
 description
 ```
 
-Scope is optional:
+Recommended types:
 
-```text
-type: summary
-
-description
-```
-
-Recommended types for this repo:
-
-- `feat` for new MCP capabilities or data features
+- `feat` for new CLI, runtime, ingest, artifact, or search capabilities
 - `fix` for bug fixes or behavior corrections
-- `docs` for README or contribution guide updates
+- `docs` for README, architecture, backlog, or contributor guide updates
 - `refactor` for internal code restructuring without behavior changes
 - `test` for test-only changes
-- `chore` for maintenance tasks, scripts, or repo setup
-
-Examples:
-
-- `feat(search): add publication title filtering`
-- `fix(lookup): prefer canonical action packs over macro packs`
-- `docs(readme): document vendored PF2E checkout`
-- `chore(vendor): add refresh script for PF2E data`
-
-Full commit examples:
-
-```text
-feat(search): add publication title filtering
-
-Prefer publication title matching in structured search filters and document the new behavior.
-```
-
-```text
-fix(refresh): report index progress
-
-Show progress updates during index rebuilds so long-running refreshes are easier to monitor.
-```
+- `chore` for maintenance, scripts, or repo setup
 
 ## Project Shape
 
-The codebase is organized around a few stable layers:
+PF2e Atlas is a Rust workspace:
 
-- `src/index.ts`: MCP entrypoint. Boots the application runtime and registers tool handlers.
-- `src/app/`: application composition and cross-cutting services. This is where runtime assembly, ontology orchestration, and app-level storage boundaries live.
-- `src/data/`: data loading and backend access over the prepared SQLite index and normalized PF2E records.
-- `src/search/`: ranked search runtime, query analysis, and ranking logic shared by backend search flows.
-- `src/server/`: MCP transport-facing tool registration and response shaping.
-- `src/tui/`: terminal application composition, workflows, and UI-facing service adapters.
-- `src/domain/`: shared domain types, categories, metadata semantics, and other low-level contracts used across layers.
-- `src/tags/`: derived-tag authoring, discovery, migration, and evaluation tooling.
+- `Cargo.toml`: workspace definition and shared dependency versions
+- `crates/atlas-cli`: command parsing, JSON/text output, progress output, exit codes, and agent skill installation
+- `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
+- `crates/atlas-search`: product-facing retrieval orchestration
+- `crates/atlas-index`: read-only artifact access, validation, row readers, filter compilation, and vector SQL
+- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embeddings during builds, and SQLite artifact writing
+- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic input rendering
+- `crates/atlas-record`: normalized records, content documents, presentation, FTS projection, and graph/reference policy
+- `crates/atlas-artifact`: physical SQLite table/column descriptors, contract constants, schema SQL, and vector blob encoding
+- `crates/atlas-discovery`: filter discovery field/value policy
+- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary
+- `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
+- `skills/pf2e-atlas-cli`: first-party local-agent skill installed by `atlas agent skills`
 
 Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
 
-- [`overview.md`](./docs/architecture/overview.md): architecture landing page with subsystem diagrams, request flow, and navigation into the rest of the docs
-- [`runtime.md`](./docs/architecture/runtime.md): Rust crate ownership, ingest flow, projections, and runtime search architecture under `rust/`
-- [`artifact-contract.md`](./docs/architecture/artifact-contract.md): SQLite artifact schema and validation contract for the Rust runtime
-- [`node/runtime.md`](./docs/architecture/node/runtime.md): legacy TypeScript/Node runtime architecture under `src/`
-- [`node/boundaries.md`](./docs/architecture/node/boundaries.md): TypeScript lint-enforced and design-level boundaries that future editors should preserve
-- [`node/search.md`](./docs/architecture/node/search.md): ranked retrieval, filters, and search backend design
-- [`node/tui.md`](./docs/architecture/node/tui.md): terminal UI composition, workflows, and service seams
-- [`node/editorial.md`](./docs/architecture/node/editorial.md): derived-tag editorial and migration tooling
-- [`node/extending.md`](./docs/architecture/node/extending.md): where to add new tools, services, and runtime capabilities
-- [`decisions/`](./docs/architecture/decisions/README.md): architecture decision records and follow-up design notes
+- [`overview.md`](./docs/architecture/overview.md): architecture landing page and crate navigation
+- [`runtime.md`](./docs/architecture/runtime.md): crate ownership, ingest flow, projections, and runtime search architecture
+- [`artifact-contract.md`](./docs/architecture/artifact-contract.md): SQLite artifact schema and validation contract
+- [`decisions/`](./docs/architecture/decisions/README.md): architecture decision records
 
 ## Development
 
-`README.md` is the user-facing product and setup document. Keep contributor workflow, internal command surfaces, and repo-shape guidance here instead of expanding the README with developer-oriented details.
+`README.md` is the user-facing product and setup document. Keep contributor workflow, internal command surfaces, and repo-shape guidance here instead of expanding the README with developer-oriented detail.
 
-Install dependencies and build:
+Install tracked git hooks and verify this checkout:
 
 ```bash
-npm install
-cd scripts && npm run install-hooks
-cd scripts && npm run preflight
-npm run build
+scripts/install-git-hooks.sh
+scripts/preflight.sh
 ```
 
-Run the test suite:
+Build and test from the repository root:
 
 ```bash
-cd scripts && npm test
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --workspace
 ```
 
-Run the stdio MCP server locally:
+Run the CLI from source:
 
 ```bash
-cd scripts && npm run dev
+cargo run -p atlas-cli -- --help
+cargo run -p atlas-cli -- setup --check --json
+cargo run -p atlas-cli -- search "low level healing spell" --family spell --limit 5
 ```
 
-Run the terminal workbench locally from source:
+Install the CLI from this clone:
 
 ```bash
-cd scripts && npm run dev:tui
+cargo install --path crates/atlas-cli --locked
 ```
 
-To show opt-in TUI performance diagnostics in the footer while troubleshooting filter explorer stalls, set:
+Generate shell completions:
 
 ```bash
-PF2E_TUI_DEBUG=1 npm run dev:tui
-```
-
-This also enables nested backend search-discovery timings for matching-count refreshes.
-
-Run the two top-level built app surfaces from the repo root:
-
-```bash
-npm run build
-npm run tui
-npm run mcp
-```
-
-Developer command surfaces:
-
-- Root `npm run`: user-facing setup and built runtime commands
-- [`scripts/package.json`](./scripts/package.json): source-runner, validation, and local developer workflow commands
-- [`src/tags/cli/package.json`](./src/tags/cli/package.json): derived-tag and editorial tooling commands
-
-Example derived-tag/editorial CLI usage:
-
-```bash
-cd src/tags/cli
-npm run discover-untagged-cohorts -- --category creature --family setting
+atlas completions zsh
+atlas completions bash
+atlas completions fish
 ```
 
 ## Validation Before Commit
 
-Run these before opening a branch for review or merging back to `main`:
+Run these before opening a branch for review, merging back to `main`, or preparing a commit manually:
 
 ```bash
-cd scripts && npm run verify
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --workspace
 ```
 
 Tracked git hooks live in `.githooks/` and enforce:
 
-- `pre-commit`: fail from the primary checkout or branch `main`
+- `pre-commit`: run Rust fmt, clippy, tests, and build for non-docs commits; docs-only commits are allowed without the full suite
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
-- `pre-merge-commit`: rerun lint, build, and tests for non-docs merge commits
-- `pre-push`: rerun lint, build, and tests
+- `pre-merge-commit`: rerun Rust fmt, clippy, tests, and build for non-docs merge commits
+- `pre-push`: rerun Rust fmt, clippy, tests, and build
 
 Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
 
@@ -184,7 +133,7 @@ Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktr
 scripts/land-worktree.sh
 ```
 
-Run that command from the linked task worktree. It rebases onto `main`, runs lint/build/test, fast-forwards `main`, and reruns lint/build/test on `main`.
+Run that command from the linked task worktree. It rebases onto `main`, runs the Rust verification gate, fast-forwards `main`, and reruns the same gate on `main`.
 
 ## Vendored PF2E Data
 
@@ -196,8 +145,8 @@ Initial clone:
 git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
 ```
 
-Manual refresh:
+The normal setup path can fetch or update source data automatically:
 
 ```bash
-npm run refresh-data
+atlas setup
 ```

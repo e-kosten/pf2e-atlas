@@ -2,184 +2,113 @@
 
 ## Project Structure & Module Organization
 
-Core application code lives in `src/`. The MCP server entrypoint is `src/index.ts`. Shared application composition lives in `src/app/`, index-backed retrieval and backend services live in `src/data/`, ranked-search mechanics live in `src/search/`, MCP tool registration lives in `src/server/`, terminal UI code lives in `src/tui/`, shared contracts live in `src/domain/`, and derived-tag/editorial tooling lives in `src/tags/`. Embedding support lives in `src/embeddings.ts`, and refresh utilities live in `src/refresh-*.ts`. Tests live in `tests/` and follow the source areas they cover. Helper scripts live in `scripts/`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
+PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 
-Contributor-facing workflow and command-surface guidance lives in `CONTRIBUTING.md`. Keep `README.md` user-facing and route developer-oriented explanations there instead of expanding the README.
+- `crates/atlas-cli`: command parsing, output, progress, exit codes, and agent skill installation.
+- `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction.
+- `crates/atlas-search`: product-facing retrieval orchestration.
+- `crates/atlas-index`: read-only artifact access, validation, row readers, filter compilation, and vector SQL.
+- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embedding execution during builds, and artifact writing.
+- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic text rendering.
+- `crates/atlas-record`: normalized records, content documents, presentation contracts, FTS projection, and reference graph policy.
+- `crates/atlas-artifact`: SQLite table/column descriptors, contract constants, schema SQL, and vector blob encoding.
+- `crates/atlas-discovery`: filter discovery field and value policy.
+- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary.
+- `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing.
+
+The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
 
 ## Architecture Docs
 
 The architecture documents under `docs/architecture/` are part of the working source of truth for this repository, not optional reference material.
 
-- Before making changes that affect module ownership, runtime composition, cross-layer dependencies, shared abstractions, service boundaries, search flow, TUI structure, or editorial/tagging architecture, read the relevant architecture docs first.
-- Start with `docs/architecture/overview.md`. For Rust migration work, also read `docs/architecture/runtime.md` and `docs/architecture/artifact-contract.md`. For legacy TypeScript/Node work, read `docs/architecture/node/boundaries.md` and the focused Node doc closest to the change, such as `node/search.md`, `node/tui.md`, `node/editorial.md`, or `node/extending.md`. Read the ADR index in `docs/architecture/decisions/README.md` when the change depends on durable architecture decisions.
-- Do not treat `AGENTS.md` as a substitute for those docs. `AGENTS.md` tells you how to work in the repo; the architecture docs tell you how the system is intentionally shaped.
+- Before making changes that affect module ownership, runtime composition, cross-crate dependencies, shared abstractions, service boundaries, search flow, artifact schema, or future TUI/tagging architecture, read the relevant architecture docs first.
+- Start with `docs/architecture/overview.md`. For runtime, ingest, search, or artifact work, also read `docs/architecture/runtime.md` and `docs/architecture/artifact-contract.md`. Read the ADR index in `docs/architecture/decisions/README.md` when the change depends on durable architecture decisions.
 - When a change materially alters the architecture or the intended editing guidance, update the relevant docs in the same task so they stay in sync with the code.
-- Architecture-impacting changes include new or replaced facades, moved ownership between layers, new lint-enforced boundaries, major search-pipeline changes, TUI composition changes, storage-boundary changes, and editorial workflow restructuring.
-- During architectural rework, prefer direct replacement to compatibility layers, adapters, or shims. Treat shim-based transitions as tech debt by default, not as a neutral implementation choice.
+- Architecture-impacting changes include new or replaced facades, moved ownership between crates, new lint-enforced boundaries, major search-pipeline changes, storage-boundary changes, and future TUI or editorial workflow restructuring.
+- During architectural rework, prefer direct replacement to compatibility layers, adapters, or shims. Treat shim-based transitions as tech debt by default.
 - If you add a new durable architectural rule or make a non-obvious architectural choice that future editors will need to preserve, update an existing ADR or add a new file under `docs/architecture/decisions/`.
 - Do not report an architecture-impacting implementation task as complete if the code and the architecture docs disagree about the intended structure.
-- Large architectural work is not complete until the relevant architecture docs are updated and any required ADR additions or revisions have been made.
 
 ## Documentation Positioning
 
 Keep each documentation surface focused on its job:
 
-- `README.md` should describe the current product, what users can do with it, and how to set it up and run it. Keep it present-state, user-facing, and low on internal implementation detail.
-- `docs/architecture/` should describe the current intended architecture and durable boundaries that the codebase is expected to follow. Do not use architecture docs as a change log or migration diary.
-- `docs/backlog/backlog.md` should list only open backlog work using the active status vocabulary in that file. Do not leave completed or superseded items in the live backlog index.
-- `docs/backlog/history/` should hold the durable history of completed or retired backlog work. When a backlog item file under `docs/backlog/items/` is marked `done` or otherwise retired from active work, move it into `docs/backlog/history/items/` and update `docs/backlog/history/done-and-superseded.md` in the same task.
-- `CONTRIBUTING.md` should carry contributor workflow, validation commands, repo layout, and other developer-facing operational guidance.
-- Historical context, design evolution, tradeoff records, and "why we changed this" material should primarily live in ADRs under `docs/architecture/decisions/`, not in README or architecture overviews.
+- `README.md` should describe the current product, what users can do with it, and how to set it up and run it.
+- `docs/architecture/` should describe the current intended architecture and durable boundaries that the codebase is expected to follow.
+- `docs/backlog/backlog.md` should list only open backlog work using the active status vocabulary in that file.
+- `docs/backlog/history/` should hold durable history of completed or retired backlog work.
+- `CONTRIBUTING.md` should carry contributor workflow, validation commands, repo layout, and developer-facing operational guidance.
+- Historical context, design evolution, tradeoff records, and "why we changed this" material should primarily live in ADRs under `docs/architecture/decisions/`.
 
-When writing or editing docs, prefer statements of current behavior and current ownership over language like "now uses", "no longer", "used to", or other repo-history framing unless the document is explicitly an ADR or backlog/history note.
+When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
-## Build, Test, and Development Commands
+## Build, Test, And Development Commands
 
-- `npm install`: install dependencies.
-- `cd scripts && npm run install-hooks`: configure this clone to use the tracked git hooks in `.githooks/`.
-- `cd scripts && npm run preflight`: verify the current checkout is a linked worktree on a non-`main` branch.
-- `npm run build`: compile TypeScript to `dist/` with `tsc`.
-- `npm run mcp`: run the built stdio MCP server from `dist/index.js`.
-- `npm run tui`: run the built terminal workbench from `dist/tags/cli/editorial/derived-tag-migration-workbench.js`.
-- `cd scripts && npm test`: run the Vitest suite once.
-- `cd scripts && npm run verify`: run the required validation pair (`build` + `test`).
-- `cd scripts && npm run dev`: run the stdio MCP server from source with `tsx`.
-- `cd scripts && npm run dev:tui`: run the terminal workbench from source with `tsx`.
-- `npm run refresh-data`: pull the vendored PF2E checkout.
-- `npm run refresh-embeddings`: prepare local embedding assets.
-- `npm run refresh-index`: rebuild the local SQLite index.
-- `npm run refresh-external`: run all refresh steps with visible progress.
+- `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.
+- `scripts/preflight.sh`: verify the current checkout is a linked worktree on a non-`main` branch.
+- `cargo fmt --check`: verify Rust formatting.
+- `cargo clippy --workspace --all-targets -- -D warnings`: run Clippy with warnings denied.
+- `cargo test --workspace`: run the Rust test suite.
+- `cargo build --workspace`: build all workspace crates.
+- `cargo run -p atlas-cli -- --help`: run the CLI from source.
+- `cargo run -p atlas-cli -- setup --check --json`: inspect setup readiness from source.
+- `cargo install --path crates/atlas-cli --locked`: install the local `atlas` CLI.
 
 ## Coding Style & Naming Conventions
 
-This codebase is TypeScript on Node.js with ESM (`"type": "module"`). Follow existing style: 2-space indentation, semicolons, double quotes, and small focused modules. Use descriptive file names such as `search-expansion.ts` and `refresh-index.ts`. Prefer `camelCase` for functions and variables, `PascalCase` for classes and types, and `SCREAMING_SNAKE_CASE` for constants. ESLint and Prettier are configured in-repo; run the relevant lint/format checks instead of relying on convention alone.
+This codebase is Rust. Keep modules single-purpose and put helpers beside the concern that owns their policy. Avoid generic `utils.rs` or `helpers.rs` modules. Promote shared helpers only when at least two existing owners need the same stable primitive and there is no clearer domain owner.
 
-When adding shared enum-like domains, use nested namespace-style constant vocabularies and derive types from them so consumers compile against canonical literals. Keep each constant set in one home and prefer direct namespaced access over flat repetition:
+Prefer descriptive module names and explicit ownership:
 
-```ts
-export const REVIEW_VOCABULARY = {
-  REVIEW: {
-    SOURCE: {
-      HUMAN: "human",
-      AI: "ai",
-    },
-    STATUS: {
-      NEEDS_REVIEW: "needs_review",
-      APPROVED: "approved",
-    },
-  },
-} as const;
-```
+- artifact schema and table constants belong in `atlas-artifact`
+- runtime path/setup policy belongs in `atlas-runtime`
+- SQLite reading and validation belong in `atlas-index`
+- retrieval orchestration belongs in `atlas-search`
+- source loading, normalization, enrichment, and writing belong in `atlas-ingest`
+- presentation-neutral record/content models belong in `atlas-record`
+- CLI presentation and exit behavior belong in `atlas-cli`
 
-Use `typeof`/indexed access to define unions from those constants, and use constant members at call sites instead of raw string literals. Avoid flat, repetitive names like `SCOPE_SOURCE_HUMAN`; prefer `REVIEW_VOCABULARY.REVIEW.SOURCE.HUMAN`. Prefer direct replacement over compatibility shims when refactoring to this shape.
-
-When you introduce or consolidate a shared abstraction that other code should route through, add or extend lint rules to enforce that boundary once the abstraction is stable enough to be mandatory. Do not leave new shared pathways as convention-only if they are intended to replace lower-level direct usage.
+Use `cargo fmt` for formatting. Keep Clippy clean under the workspace gate.
 
 ## Testing Guidelines
 
-Vitest is the test runner. Add or update `*.test.ts` files under `tests/` for behavior changes, especially around indexing, lookup, and search ranking. Run `cd scripts && npm test` locally before committing. For code that affects build output or types, also run `npm run build`.
+Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
 
-- Docs-only or instruction-only changes do not require `cd scripts && npm test`.
-- Docs-only or instruction-only changes do not require `npm run build` unless the change also affects executable examples, generated output expectations, or another validated artifact.
-
-## Rust Migration Worktree Policy
-
-This worktree is the persistent Rust migration root for the backlog under `docs/backlog/rust-cli-runtime/`.
-
-- The persistent worktree is `.worktrees/rust-runtime-root` on branch `rust/runtime-root`.
-- For Rust migration work, this section overrides the generic main-landing workflow below.
-- Do implementation work for the Rust migration in `rust/runtime-root` or in a short-lived worktree branched from `rust/runtime-root`.
-- Do not create Rust migration task branches from `main` unless the user explicitly asks for a main-targeted change.
-- Do not land Rust migration slices back to `main` unless the user explicitly asks to promote the migration branch.
-- Completed Rust migration slices should be committed onto `rust/runtime-root`; if a short-lived worktree was used, merge or rebase that slice back into `rust/runtime-root`, then remove only the short-lived worktree.
-- Never remove `.worktrees/rust-runtime-root`; it is not a temporary task worktree.
-- Prefer the Cargo gate for normal Rust migration slices:
+Run the Rust verification gate before committing non-docs changes:
 
 ```bash
-cd rust
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo build --workspace
 ```
 
-- Run the full Node/repo gate only when touching TypeScript runtime behavior, changing repo-wide Node tooling, or when explicitly preparing to promote Rust migration work to `main`.
-- The vendored PF2E checkout is expected at `vendor/pf2e`. In this worktree it may be a gitignored symlink to the primary checkout's vendored data; do not remove it just because it is untracked.
-- Follow `docs/backlog/rust-cli-runtime/migration-checklist.md` as the active handoff contract for Rust migration scope, validation, and completion wording.
-- Treat Rust crate and module ownership as part of the definition of done. Do not add new behavior to `atlas-ingest/src/lib.rs` except public exports and top-level orchestration; new ingest policy should live in a concern module named for the policy it owns.
-- Keep Rust modules single-purpose. A module may load source data, normalize source records, generate derived records, extract references, extract aliases/remaster links, assign variants, extract metrics, define artifact schema, write SQLite rows, validate artifacts, inspect artifacts, or present CLI output. It should not own more than one of those responsibilities unless the combination is explicitly documented in the module name and architecture notes.
-- Avoid generic Rust `utils.rs` or `helpers.rs` modules. Put helpers beside the concern that owns their policy; promote them only when at least two existing owners need the same stable primitive and there is no clearer domain owner.
-- If a Rust change touches SQLite artifact schema, update the shared artifact contract/schema owner and verify writer and validator expectations still agree. Do not maintain independent table or column lists in writer, validator, fixtures, and CLI code.
-- Keep `atlas-cli` thin. It should own argument parsing, exit codes, and terminal/JSON presentation. Durable analysis, validation, lookup, search, or report-shaping semantics belong in the runtime crate that owns the data.
-- For substantial Rust refactors, include a structure check before reporting complete: identify modules over roughly 700 lines, explain why any remain that large, and confirm no new behavior was added to an overlarge catch-all module.
-- When delegating Rust migration work to agents, include explicit ownership constraints in the assignment, such as "do not edit `atlas-ingest/src/lib.rs` except exports/orchestration" and "put reference extraction in `references.rs`." Treat those constraints as acceptance criteria, not style preferences.
+Docs-only or instruction-only changes do not require the Rust verification gate unless the change also affects executable examples, generated output expectations, or another validated artifact.
 
-## Commit & Pull Request Guidelines
+## Commit Guidelines
 
-Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line. Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone: when the user asks to prepare a commit, use the `$prepare-commit` skill to run the commit-readiness review loop, fix any reported issues, let the same validators re-check their findings, require a final fresh-validator pass, and only then create the commit. Do not present implementation work as committed while tracked changes remain uncommitted. Final completion messages after the prepare-commit workflow must include the commit SHA and commit message. Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for the completed unit of work, or explicitly tell the user why a clean commit boundary is blocked. When the user immediately asks for a follow-up adjustment to work that was just committed locally, prefer folding that adjustment into the same logical commit: soft-reset or otherwise rewrite the unpublished local commit, apply the requested patch, rerun relevant verification, and recommit instead of stacking a trivial fixup commit. This is a personal-project workflow with no PR step, so once a task branch is complete, validated, explicitly prepared for commit, and committed, it should be merged back into `main`. Before committing, run the validation required by `$prepare-commit`; for docs-only or instruction-only changes, no build/test run is required unless the edited files themselves define a stricter expectation for that task. If build or test verification fails, do not commit unless the user explicitly asks for that state to be committed.
+Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line.
 
-- Before committing, validate the completed work against the discussed plan for the task. If any agreed plan item was deferred, partially implemented, or dropped, call that out explicitly and do not present the task as fully complete.
-- When work is driven by a plan file under `scratch/plans/`, validate the finished implementation against that plan file immediately before reporting success. Do not report completion if any plan item remains open, partially done, deferred, or unvalidated.
-- When a task uses temporary git worktrees, treat their cleanup as part of the definition of done, not optional follow-up. A worktree-backed task is not complete while its temporary worktrees still exist unless the user explicitly asks to keep them.
-- It is acceptable to pause mid-task and check in with the user when you are blocked, need clarification, need a decision, or surface an important architectural issue. In those cases, report the current state and the blocker clearly rather than forcing the task to an artificial completion state.
+Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone. When the user asks to prepare a commit, use the `$prepare-commit` skill, run the required validators, fix reported issues through the same validation loop, and only then create the commit.
 
-### Plan Mode Policy
+Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for the completed unit of work, or explicitly tell the user why a clean commit boundary is blocked.
 
-When operating in plan mode, the plan file is the authoritative checklist for both orchestration and completion.
-
-- Always write plan files as new files under `scratch/plans/`. Do not overwrite or reuse an existing plan file for a new task.
-- Assume plan-mode implementation is complex enough to require orchestration and sub-agent delegation by default.
-- The orchestration agent should delegate both implementation and validation to sub-agents whenever practical so its own context stays focused on coordination, integration, and end-state checks.
-- If implementation hits a blocker, requires user input, or exposes a consequential architectural problem, stop and check in instead of improvising around it. It is acceptable for plan-driven work to remain incomplete while waiting for that input.
-- Before reporting success on work that originated from a plan file, validate the repository against that plan file and confirm that every requested item is fully implemented, fully validated, and has no remaining follow-up work hidden behind "later" steps.
-- Work from a plan file is not complete until validation confirms that nothing remains to be done from the plan and that the repository is in the intended end state rather than an intermediate checkpoint.
-
-### Refactor Completion Policy
+## Refactor Completion Policy
 
 Refactors must land as finished end-state changes, not as transitional scaffolding.
 
-- Default to removing the old path outright and updating all call sites in the same task. Do not add compatibility layers, shim modules, fallback code paths, version bridges, or adapter wrappers unless the user explicitly asks for an incremental migration strategy.
-- If you believe a compatibility layer is genuinely unavoidable, stop and explain the constraint instead of quietly introducing one. The burden is on the implementation to justify the extra layer.
+- Default to removing the old path outright and updating all call sites in the same task.
+- Do not add compatibility layers, shim modules, fallback code paths, version bridges, or adapter wrappers unless the user explicitly asks for an incremental strategy.
 - Do not treat a refactor as complete if it leaves behind intermediate shims, compatibility wrappers, transitional files, partial migrations, or mixed old-and-new implementations across the codebase.
-- A refactor is only complete when the new structure has been applied everywhere it is intended to apply, the old implementation has been fully removed, and no code still depends on the replaced pathway.
-- If a refactor cannot be completed cleanly without a temporary workaround or transitional compatibility layer, stop and ask for input instead of landing the intermediate state.
-- Validation for refactor work must explicitly check for leftover uses of the old implementation, leftover shim files, and any other signs of an intermediate migration state. If any of those remain, the refactor is still in progress.
+- Validation for refactor work must explicitly check for leftover uses of the old implementation, leftover shim files, and any other signs of an intermediate state.
 
-### Large Task Orchestration Policy
+## Optional Worktree Policy
 
-Treat a task as large when it spans multiple subsystems, requires a planned end-state refactor, introduces cross-cutting abstractions plus migrations, or otherwise cannot be completed safely as a single local edit-and-verify loop.
+Agents may work in the current checkout unless the user explicitly asks for a worktree or the task has a concrete need for checkout isolation. Use worktrees for parallel delegated implementation, risky long-running work, preserving a dirty main checkout, or when the user wants an isolated branch.
 
-- For large tasks, the primary agent must act as an orchestrator first: restate the requested end state, break the work into explicit sub-tasks, identify dependencies, and define what counts as done for the overall workset.
-- When sub-agents are available in the environment, large-task execution should default to delegated sub-task ownership rather than a single agent carrying the entire implementation alone. Serial delegation is acceptable when parallel work is unnecessary or unsafe, but skipping delegation for a large task requires a concrete task-specific reason.
-- Each delegated or local sub-task should have a defined scope, expected artifact, and validation step so partial progress cannot be mistaken for task completion.
-- Validation for delegated implementation slices should usually be delegated with the slice itself. The orchestrator should assign explicit validation ownership to sub-agents wherever practical instead of centralizing all verification locally.
-- The orchestrator should keep its own context focused on coordination, integration, and end-state checks. Do not pull large validation logs or repeated test-debug loops into the orchestrator context when a sub-agent can own that verification and report back the result.
-- For plan-mode work, treat the plan file as the end-state contract and require validation agents to confirm both plan completion and absence of intermediate refactor state before the orchestrator reports success.
-- If a blocker or unresolved architecture question prevents a clean end-state implementation, pause the work and check in with the user instead of masking the issue with temporary code.
-- Do not treat a delegated slice as done without validation evidence or an explicit explanation of what could not be validated and why. Missing validation for a slice that could reasonably have been checked means the slice is still incomplete.
-- The orchestrator remains responsible for cleanup of all temporary worktrees created for the task, including worktrees created by sub-agents or delegated slices, unless the user explicitly asks to keep them.
-- Meaningful intermediate commits are encouraged when they capture validated milestones, but those commits do not by themselves make the overall task complete.
-- Do not describe a large task as complete until the full requested workset is implemented, integrated, and validated against the stated end-state checklist, including required architecture-doc and ADR updates for architecture-impacting work. A green intermediate slice is a milestone, not a completion signal.
-- If some agreed work remains open, keep the branch or checkout state available, report the remaining scope explicitly, and treat the task as still in progress even if one or more milestone commits have already been made.
-
-### Optional Worktree Policy
-
-Agents may work in the current checkout unless the user explicitly asks for a worktree, invokes `$worktree`, or the task has a concrete need for checkout isolation. Use worktrees for parallel delegated implementation, risky long-running work, preserving a dirty main checkout, or when the user wants an isolated branch.
-
-- When a task should use an isolated checkout, invoke the `$worktree` skill before editing tracked implementation files.
-- Do not create a worktree by default for every task. State the reason when choosing one.
-- Do not share a checkout with another running agent. If multiple agents need to edit tracked files concurrently, give each agent its own worktree.
-- Untracked planning artifacts under `scratch/plans/` may be created or edited directly in the current checkout because they are not part of git-tracked implementation work and do not benefit from a separate worktree.
-- Git commands that mutate repository state must never be run in parallel within the same repository or worktree.
-- Do not use parallel tool execution for `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree add`, `git worktree remove`, `git stash`, or any other git command that writes refs, the index, or worktree metadata.
-- Do not use `multi_tool_use.parallel` for git commands unless every git command in that batch is strictly read-only.
-- Serialize all git write operations and wait for each one to finish before starting the next.
-- Treat `.git/index`, `.git/ORIG_HEAD`, `.git/refs/*`, and `.git/worktrees/*` as shared lock-producing paths.
-- Never run `git add` and `git commit` in parallel.
-- Never run `git status` in parallel with git write operations in the same worktree.
-- Commit and validate changes only when the user asks to prepare a commit. For large tasks, milestone commits may accumulate after explicit prepare-commit passes, but the overall workset is not complete until every requested piece is integrated and validated.
-- When landing from a worktree, follow the `$worktree` landing and cleanup gates.
+Git commands that mutate repository state must never be run in parallel within the same repository or worktree. Serialize `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree`, and `git stash` operations.
 
 ## Configuration & Data Notes
 
-Default data path is `vendor/pf2e`. Startup is offline-only: it expects a current local SQLite index and prepared embedding assets. If the PF2E checkout, embedding model, or index schema changes, rerun `npm run refresh-index` or `npm run refresh-external`.
+Default repo-local data paths are `vendor/pf2e`, `.cache/hf-models`, and `.cache/pf2e-rust-index.sqlite` when `--path-mode repo` is selected. The default global path mode uses platform cache paths under `pf2e-atlas`. If the PF2E checkout, embedding model, or artifact schema changes, run `atlas setup` or the relevant `atlas index` command.

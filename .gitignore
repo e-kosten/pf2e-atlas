@@ -1,6 +1,3 @@
-node_modules
-dist
-coverage
 target/
 .DS_Store
 vendor/pf2e/

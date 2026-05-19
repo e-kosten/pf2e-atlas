@@ -10,10 +10,5 @@ if staged_changes_are_docs_only; then
   exit 0
 fi
 
-echo "Running pre-merge checks (lint + build + test)..." >&2
-(
-  cd scripts &&
-    npm run lint &&
-    npm run build &&
-    npm run test
-)
+echo "Running pre-merge checks (Rust fmt + clippy + test + build)..." >&2
+run_required_verification

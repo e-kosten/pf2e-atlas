@@ -45,22 +45,15 @@ echo "Rebasing $branch onto main..." >&2
 git rebase main
 
 echo "Running required landing checks in worktree before merge..." >&2
-(
-  cd "$(repo_root)/scripts"
-  npm run lint
-  npm run build
-  npm run test
-)
+run_required_verification
 
 echo "Fast-forwarding main to $branch..." >&2
 git -C "$main_worktree" merge --ff-only "$branch"
 
 echo "Running required landing checks on main after merge..." >&2
 (
-  cd "$main_worktree/scripts"
-  npm run lint
-  npm run build
-  npm run test
+  cd "$main_worktree"
+  run_required_verification
 )
 
-echo "Landed $branch on main with verified lint, build, and tests." >&2
+echo "Landed $branch on main with verified Rust fmt, clippy, tests, and build." >&2

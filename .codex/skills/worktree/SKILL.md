@@ -54,12 +54,6 @@ Then verify:
 git -C <repo-root>/.worktrees/<task-slug> status --short --branch
 ```
 
-If `package.json` and `package-lock.json` match the main checkout, symlink dependencies inside the allowed worktree root:
-
-```bash
-ln -s /path/to/repo/node_modules <repo-root>/.worktrees/<task-slug>/node_modules
-```
-
 If a command tries to write outside the allowed root or asks for approval, treat that as a root-selection bug first. Do not keep working in the wrong location.
 
 ## During Work
@@ -93,7 +87,7 @@ Before landing:
 - inspect the shared main checkout
 - if main has uncommitted tracked changes, stop and report that landing is blocked
 - rebase the worktree branch onto current `main`
-- rerun `cd scripts && npm run lint`, `npm run build`, and `cd scripts && npm test` in the rebased worktree
+- rerun `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `cargo build --workspace` in the rebased worktree
 - if any check fails or the rebase conflicts, stop before landing
 
 Land with the repo script from the linked task worktree:

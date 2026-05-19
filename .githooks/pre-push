@@ -18,13 +18,8 @@ while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
 done
 
 if [ "$saw_ref" -eq 0 ] || [ "$docs_only_push" -ne 1 ]; then
-  echo "Running pre-push checks (lint + build + test)..." >&2
-  (
-    cd scripts &&
-      npm run lint &&
-      npm run build &&
-      npm run test
-  )
+  echo "Running pre-push checks (Rust fmt + clippy + test + build)..." >&2
+  run_required_verification
   exit 0
 fi
 

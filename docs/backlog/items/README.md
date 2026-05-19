@@ -36,7 +36,7 @@ Important boundaries, risks, or explicit non-goals.
 Extra implementation notes, links, or related context.
 
 ## Related
-- [Relevant architecture doc](../../architecture/node/tui.md)
+- [Relevant architecture doc](../../architecture/runtime.md)
 - [Temporary working plan](../../scratch/plans/example-plan.md)
 ```
 

@@ -5,7 +5,10 @@ set -eu
 HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/../scripts/git-hooks/common.sh"
 
-if ! staged_changes_are_docs_only; then
-  require_linked_worktree
-  require_non_main_branch
+if staged_changes_are_docs_only; then
+  echo "Docs-only commit detected; skipping pre-commit verification." >&2
+  exit 0
 fi
+
+echo "Running pre-commit checks (Rust fmt + clippy + test + build)..." >&2
+run_required_verification

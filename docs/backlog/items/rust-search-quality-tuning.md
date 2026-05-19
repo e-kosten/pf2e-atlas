@@ -9,7 +9,7 @@ Last reviewed: 2026-05-17
 
 The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, and exact identity handling. Full live-index quality fixtures, parity reports, default weights, and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
 
-Without a dedicated follow-up, tuning work can leak into Phase 6 as ad hoc rerank rules or repeated one-off constants. That risks reproducing the Node runtime's quality hacks instead of evaluating the Rust retrieval axes directly.
+Without a dedicated follow-up, tuning work can leak into ad hoc rerank rules or repeated one-off constants. That risks accumulating quality hacks instead of evaluating the Rust retrieval axes directly.
 
 ## Desired Outcome
 
@@ -19,7 +19,8 @@ The tuning pass should cover:
 
 - FTS column and BM25 weights.
 - Top-k search-quality fixtures from the bakeoff set.
-- TypeScript parity or accepted-difference reports.
+- Rust-owned embedding and ranking comparison harnesses for repeatable model, query, and fusion experiments.
+- accepted-difference reports against observed task quality.
 - FTS token composition policy, including OR versus AND behavior and prefix matching.
 - RRF rank constant.
 - FTS and vector candidate windows.
@@ -34,6 +35,7 @@ The outcome should be documented defaults plus the smallest stable configuration
 - Do not add Tantivy, LanceDB, learned rerankers, or non-default embedding model switches as part of this item unless a separate quality decision justifies expanding scope.
 - Do not expose individual FTS component weights as stable user-facing CLI flags before they have proven durable.
 - Prefer fixture-backed changes over subjective one-query adjustments.
+- Keep comparison tooling Rust-owned or language-neutral. Do not reintroduce retired scratch harnesses for search-quality runs.
 - Preserve the Phase 6 product model: one opinionated default search, with advanced retrieval/fusion controls for diagnostics and evaluation.
 
 ## Notes

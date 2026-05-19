@@ -86,6 +86,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Superseded
 
+- [Node-era backlog retirement](./items/node-era-backlog-retirement.md)
+  Implementation-specific terminal, tagging, and transport backlog entries were retired from the active backlog and consolidated into Rust-era CLI, skill, Ratatui, and derived-tag follow-up items. Status: superseded.
+
 - `Loading icon cleanup`
   This is now a narrower polish problem inside the existing loading treatment rather than a standalone missing feature. Status: superseded.
 
