@@ -32,7 +32,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     let build_help = help_output(&["index", "build"])?;
     assert!(build_help.contains("atlas index build --no-embeddings"));
     assert!(build_help.contains(
-        "atlas index build --source vendor/pf2e --output .cache/pf2e-rust-index.sqlite --json"
+        "atlas index build --source vendor/pf2e --output .cache/pf2e-index.sqlite --json"
     ));
     assert!(build_help.contains("Standard users should run `atlas setup` instead."));
 

@@ -51,7 +51,7 @@ fn setup_repo_path_resolution_uses_root_workspace_defaults()
     assert_eq!(
         actual["paths"]["index"],
         expected_root
-            .join(".cache/pf2e-rust-index.sqlite")
+            .join(".cache/pf2e-index.sqlite")
             .display()
             .to_string()
     );

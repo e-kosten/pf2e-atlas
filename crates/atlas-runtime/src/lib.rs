@@ -236,7 +236,7 @@ fn resolve_atlas_paths(
             AtlasPathOverrides {
                 source_root: Some(repo_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
-                index_path: Some(repo_root.join(".cache").join("pf2e-rust-index.sqlite")),
+                index_path: Some(repo_root.join(".cache").join("pf2e-index.sqlite")),
             }
         }
         ResolvedPathMode::Global => {
@@ -244,7 +244,7 @@ fn resolve_atlas_paths(
             AtlasPathOverrides {
                 source_root: Some(cache_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(cache_root.join("hf-models")),
-                index_path: Some(cache_root.join("pf2e-rust-index.sqlite")),
+                index_path: Some(cache_root.join("pf2e-index.sqlite")),
             }
         }
     };

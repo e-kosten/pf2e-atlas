@@ -318,7 +318,7 @@ struct AnalyzeIndexOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Advanced manual artifact build. Standard users should run `atlas setup` instead.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source vendor/pf2e --output .cache/pf2e-rust-index.sqlite --json"
+    after_help = "Advanced manual artifact build. Standard users should run `atlas setup` instead.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source vendor/pf2e --output .cache/pf2e-index.sqlite --json"
 )]
 struct BuildIndexOptions {
     #[arg(long)]
