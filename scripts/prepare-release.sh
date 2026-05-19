@@ -576,7 +576,7 @@ info "  cargo fmt --check"
 info "  cargo clippy --workspace --all-targets -- -D warnings"
 info "  cargo test --workspace"
 info "  cargo build --workspace"
-info "  dist plan --tag $tag --allow-dirty"
+info "  dist plan --verbose error --tag $tag --allow-dirty"
 
 if [ "$dry_run" -eq 1 ]; then
   info "Dry run: would run checks, create annotated tag $tag, push it, and create draft GitHub release."
@@ -596,7 +596,7 @@ run_check cargo fmt --check
 run_check cargo clippy --workspace --all-targets -- -D warnings
 run_check cargo test --workspace
 run_check cargo build --workspace
-run_check dist plan --tag "$tag" --allow-dirty
+run_check dist plan --verbose error --tag "$tag" --allow-dirty
 ensure_clean_worktree
 
 git tag -a "$tag" -m "Release $tag"
