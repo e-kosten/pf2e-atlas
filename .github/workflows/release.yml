@@ -69,9 +69,9 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
+            os: ubuntu-24.04
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
+            os: ubuntu-24.04-arm
           - target: x86_64-apple-darwin
             os: macos-15-intel
           - target: aarch64-apple-darwin
@@ -120,32 +120,17 @@ jobs:
   build-windows-arm64:
     name: cargo-dist aarch64-pc-windows-msvc
     needs: validate-tag
-    runs-on: ubuntu-22.04
-    container:
-      image: messense/cargo-xwin
+    runs-on: windows-11-arm
     steps:
       - uses: actions/checkout@v4
       - name: Install cargo-dist
-        shell: bash
-        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
-      - name: Ensure container tools
-        shell: bash
-        run: |
-          if ! command -v python3 >/dev/null 2>&1; then
-            dnf install --assumeyes python3
-          fi
-          if ! command -v cargo-xwin >/dev/null 2>&1; then
-            if ! command -v pip3 >/dev/null 2>&1; then
-              dnf install --assumeyes python3-pip
-              pip3 install --upgrade pip
-            fi
-            pip3 install cargo-xwin
-          fi
+        shell: pwsh
+        run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
       - name: Generate notices
-        shell: bash
-        run: python3 scripts/release/generate-notices.py
+        shell: pwsh
+        run: python scripts/release/generate-notices.py
       - name: Build archives with cargo-dist
-        shell: bash
+        shell: pwsh
         run: dist build --artifacts local --target aarch64-pc-windows-msvc --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v4
