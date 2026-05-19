@@ -11,14 +11,15 @@ Historical spike notes and contract-mapping research live under [`docs/backlog/h
 
 ## Current Focus
 
-The active product surface is:
+The active everyday product surface is:
 
 - `atlas setup`
 - `atlas record`
 - `atlas search`
 - `atlas filters`
 - `atlas graph`
-- `atlas index`
 - `atlas agent skills`
+
+`atlas index` remains available for diagnostics and contributor workflows, but normal users should usually reach for `atlas setup` first.
 
 Open work should be framed as Rust CLI, skill, runtime, artifact, search, graph, Ratatui, or derived-tag redesign work.

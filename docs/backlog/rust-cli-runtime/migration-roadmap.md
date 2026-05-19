@@ -13,8 +13,9 @@ PF2e Atlas is centered on a Rust local runtime with `atlas` as the command surfa
 - `atlas search`: ranked text search and deterministic filter-only listing.
 - `atlas filters fields|values`: schema and value discovery.
 - `atlas graph get`: bounded one-hop graph context for known record keys.
-- `atlas index analyze|build|check|inspect|validate`: artifact and source diagnostics.
 - `atlas agent skills install|doctor`: first-party skill installation and inspection.
+
+`atlas index analyze|build|check|inspect|validate` is the lower-level artifact and source diagnostic surface. It remains part of the CLI contract, but user-facing setup and repair guidance should lead with `atlas setup`.
 
 ## Roadmap
 
