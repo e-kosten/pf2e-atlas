@@ -512,11 +512,11 @@ grep -q 'gh release create v0.1.0 --draft --verify-tag --notes-file docs/release
   echo "prepare-release did not create the expected draft release" >&2
   exit 1
 }
-grep -q 'dist plan --tag v0.1.0 --allow-dirty' "$log" || {
+grep -q 'dist plan --verbose error --tag v0.1.0 --allow-dirty' "$log" || {
   echo "prepare-release did not run dist plan" >&2
   exit 1
 }
-dist_line=$(first_log_line 'dist plan --tag v0.1.0 --allow-dirty')
+dist_line=$(first_log_line 'dist plan --verbose error --tag v0.1.0 --allow-dirty')
 post_check_status_line=$(last_log_line 'git status --porcelain')
 tag_line=$(first_log_line 'git tag -a v0.1.0')
 if [ "$dist_line" -ge "$post_check_status_line" ] || [ "$post_check_status_line" -ge "$tag_line" ]; then
