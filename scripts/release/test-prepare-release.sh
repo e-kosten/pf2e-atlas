@@ -198,6 +198,13 @@ expect_fail() {
   fi
 }
 
+expect_fail_without_stdin() {
+  if run_prepare "$@" </dev/null >/dev/null 2>&1; then
+    echo "prepare-release unexpectedly passed without stdin: $*" >&2
+    exit 1
+  fi
+}
+
 expect_log_absent() {
   if grep -q "$1" "$log"; then
     echo "$2" >&2
@@ -253,8 +260,8 @@ reset_flags() {
   unset ATLAS_RELEASE_TEST_DISABLE_FZF
 }
 
-expect_fail --dry-run
-expect_fail --prepare-pr
+expect_fail_without_stdin --dry-run
+expect_fail_without_stdin --prepare-pr
 expect_fail --version v0.1.0 --publish --dry-run
 expect_fail --version invalid --publish --dry-run
 expect_fail --prepare-pr --publish --version 0.1.0
