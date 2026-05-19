@@ -11,9 +11,17 @@ trap cleanup EXIT INT TERM
 work="$tmp/work"
 fake_bin="$tmp/bin"
 log="$tmp/commands.log"
-mkdir -p "$work/scripts" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
+mkdir -p "$work/scripts/release" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
+for release_check in validate-release-tooling.sh test-prepare-release.sh; do
+  cat > "$work/scripts/release/$release_check" <<'EOF_RELEASE_CHECK'
+#!/bin/sh
+printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
+exit 0
+EOF_RELEASE_CHECK
+  chmod +x "$work/scripts/release/$release_check"
+done
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO'
 [package]
 name = "atlas-cli"
@@ -83,6 +91,10 @@ case "$1" in
     esac
     ;;
   status)
+    if [ -n "${ATLAS_TEST_STATUS:-}" ]; then
+      printf '%s\n' "$ATLAS_TEST_STATUS"
+      exit 0
+    fi
     [ "${ATLAS_TEST_DIRTY:-0}" = 1 ] && printf ' M file\n'
     exit 0
     ;;
@@ -112,6 +124,9 @@ case "$1" in
   push)
     exit 0
     ;;
+  add|commit)
+    exit 0
+    ;;
   *)
     exit 0
     ;;
@@ -124,6 +139,11 @@ cat > "$fake_bin/gh" <<'EOF_GH'
 printf 'gh %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
 case "$1 $2" in
   "auth status") exit 0 ;;
+  "pr view")
+    [ "${ATLAS_TEST_PR_EXISTS:-0}" = 1 ] && exit 0
+    exit 1
+    ;;
+  "pr create") exit 0 ;;
   "release view")
     [ "${ATLAS_TEST_RELEASE_EXISTS:-0}" = 1 ] && exit 0
     exit 1
@@ -147,6 +167,19 @@ run_prepare() {
   ATLAS_RELEASE_TEST_PROMPTS="${ATLAS_RELEASE_TEST_PROMPTS:-0}" \
     ATLAS_RELEASE_TEST_DISABLE_FZF="${ATLAS_RELEASE_TEST_DISABLE_FZF:-1}" \
     ATLAS_TEST_COMMAND_LOG="$log" \
+    ATLAS_TEST_BRANCH="${ATLAS_TEST_BRANCH:-}" \
+    ATLAS_TEST_DIRTY="${ATLAS_TEST_DIRTY:-0}" \
+    ATLAS_TEST_UNTRACKED_NOTES="${ATLAS_TEST_UNTRACKED_NOTES:-0}" \
+    ATLAS_TEST_DIRTY_NOTES="${ATLAS_TEST_DIRTY_NOTES:-0}" \
+    ATLAS_TEST_LOCAL_TAG_EXISTS="${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" \
+    ATLAS_TEST_REMOTE_TAG_EXISTS="${ATLAS_TEST_REMOTE_TAG_EXISTS:-0}" \
+    ATLAS_TEST_RELEASE_EXISTS="${ATLAS_TEST_RELEASE_EXISTS:-0}" \
+    ATLAS_TEST_FETCH_FAIL="${ATLAS_TEST_FETCH_FAIL:-0}" \
+    ATLAS_TEST_RELEASE_BRANCH_EXISTS="${ATLAS_TEST_RELEASE_BRANCH_EXISTS:-0}" \
+    ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS="${ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS:-0}" \
+    ATLAS_TEST_EXISTING_RC_TAGS="${ATLAS_TEST_EXISTING_RC_TAGS:-0}" \
+    ATLAS_TEST_STATUS="${ATLAS_TEST_STATUS:-}" \
+    ATLAS_TEST_PR_EXISTS="${ATLAS_TEST_PR_EXISTS:-0}" \
     ATLAS_TEST_FZF_CHOICE="${ATLAS_TEST_FZF_CHOICE:-}" \
     PATH="$fake_bin:$PATH" \
     scripts/prepare-release.sh "$@"
@@ -207,6 +240,8 @@ reset_flags() {
   unset ATLAS_TEST_RELEASE_BRANCH_EXISTS
   unset ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS
   unset ATLAS_TEST_EXISTING_RC_TAGS
+  unset ATLAS_TEST_STATUS
+  unset ATLAS_TEST_PR_EXISTS
   unset ATLAS_TEST_FZF_CHOICE
   unset ATLAS_RELEASE_TEST_PROMPTS
   unset ATLAS_RELEASE_TEST_DISABLE_FZF
@@ -221,7 +256,7 @@ expect_fail --publish --version
 expect_fail --publish --notes-file
 
 : > "$log"
-prompt_output=$(printf '2\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --dry-run)
+prompt_output=$(printf '3\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --dry-run)
 printf '%s\n' "$prompt_output" | grep -q 'Dry run: would run checks, create annotated tag v0.1.0' || {
   echo "bare numbered prompt did not select publish mode" >&2
   exit 1
@@ -241,6 +276,52 @@ write_fake_fzf
 ATLAS_TEST_FZF_CHOICE=cancel ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_DISABLE_FZF=0 expect_fail --dry-run
 reset_flags
 remove_fake_fzf
+
+: > "$log"
+open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --open-pr 2>&1) || {
+  printf '%s\n' "$open_pr_output" >&2
+  cat "$log" >&2
+  exit 1
+}
+grep -q 'scripts/release/validate-release-tooling.sh' "$log" || {
+  echo "prepare-release --open-pr did not run release tooling validation" >&2
+  exit 1
+}
+grep -q 'cargo test --workspace' "$log" || {
+  echo "prepare-release --open-pr did not run cargo tests" >&2
+  exit 1
+}
+grep -q 'git add Cargo.lock crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
+  echo "prepare-release --open-pr did not stage release-prep files" >&2
+  exit 1
+}
+grep -q 'git commit -m chore(release): prepare v0.1.0' "$log" || {
+  echo "prepare-release --open-pr did not create the release-prep commit" >&2
+  exit 1
+}
+grep -q 'git push -u origin release/v0.1.0' "$log" || {
+  echo "prepare-release --open-pr did not push the release branch" >&2
+  exit 1
+}
+grep -q 'gh pr create --base main --head release/v0.1.0 --title chore(release): prepare v0.1.0 --body Prepare v0.1.0 for release.' "$log" || {
+  echo "prepare-release --open-pr did not create the expected PR" >&2
+  exit 1
+}
+reset_flags
+
+: > "$log"
+ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --open-pr --dry-run >/dev/null
+expect_log_absent 'git commit -m chore(release): prepare v0.1.0' "prepare-release --open-pr dry-run committed"
+expect_log_absent 'git push -u origin release/v0.1.0' "prepare-release --open-pr dry-run pushed"
+expect_log_absent 'gh pr create' "prepare-release --open-pr dry-run created a PR"
+reset_flags
+
+ATLAS_TEST_BRANCH=dev expect_fail --open-pr
+reset_flags
+ATLAS_TEST_BRANCH=release/v0.1.0 ATLAS_TEST_STATUS=' M README.md' expect_fail --open-pr
+reset_flags
+ATLAS_TEST_BRANCH=release/v0.1.0 ATLAS_TEST_PR_EXISTS=1 expect_fail --open-pr
+reset_flags
 
 ATLAS_TEST_DIRTY=1 expect_fail --prepare-pr --version 0.1.0
 reset_flags

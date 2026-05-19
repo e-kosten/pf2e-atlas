@@ -5,17 +5,19 @@ usage() {
   cat <<'USAGE'
 Usage:
   scripts/prepare-release.sh --prepare-pr [--version <X.Y.Z[-rc.N]>] [options]
+  scripts/prepare-release.sh --open-pr [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh --publish [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh
 
-Prepares a release PR branch, or creates an annotated release tag and draft
-GitHub release after verifying that the release version and notes were already
-committed to main.
+Prepares a release PR branch, opens the release-preparation PR, or creates an
+annotated release tag and draft GitHub release after verifying that the release
+version and notes were already committed to main.
 
 Options:
   --prepare-pr             Create release/v<version> from clean, current main
+  --open-pr                Commit release-prep changes, push the branch, and open a PR
   --publish                Tag the committed release version and create a draft release
-  --version <version>      Version without leading v; defaults to the crate version
+  --version <version>      Version without leading v; optional guard for open-pr/publish
   --notes-file <path>      Release notes file, default docs/releases/v<version>.md
   --yes                    Do not prompt before tagging/releasing
   --dry-run                Print planned actions without changing git/GitHub state
@@ -23,8 +25,8 @@ Options:
 
 When --prepare-pr omits --version, the script prompts with semver bump choices
 based on the current atlas-cli crate version and existing release tags.
-When publish mode omits --version, the script uses the committed atlas-cli crate
-version.
+When open-pr or publish mode omits --version, the script uses the committed
+atlas-cli crate version.
 When no mode flag is passed, the script prompts for the mode. Interactive
 prompts use fzf when it is installed, with numbered prompts as the fallback.
 USAGE
@@ -73,12 +75,17 @@ notes_file=""
 yes=0
 dry_run=0
 prepare_pr=0
+open_pr=0
 publish=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --prepare-pr)
       prepare_pr=1
+      shift
+      ;;
+    --open-pr)
+      open_pr=1
       shift
       ;;
     --publish)
@@ -113,24 +120,27 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "$prepare_pr" -eq 1 ] && [ "$publish" -eq 1 ]; then
-  die "choose only one of --prepare-pr or --publish"
+selected_modes=$((prepare_pr + open_pr + publish))
+if [ "$selected_modes" -gt 1 ]; then
+  die "choose only one of --prepare-pr, --open-pr, or --publish"
 fi
 
 choose_mode() {
   if ! can_prompt; then
-    die "no release workflow step was provided and stdin is not a terminal; rerun with --prepare-pr or --publish"
+    die "no release workflow step was provided and stdin is not a terminal; rerun with --prepare-pr, --open-pr, or --publish"
   fi
   if [ "${ATLAS_RELEASE_TEST_DISABLE_FZF:-0}" != 1 ] && command -v fzf >/dev/null 2>&1; then
     mode_choice=$(
       printf '%s\n' \
         "prepare-pr  Prepare release PR branch" \
+        "open-pr     Commit, push, and open release-preparation PR" \
         "publish     Publish tag and draft release" |
         fzf --prompt 'Release step> ' --height=~40% --layout=reverse
     ) || die "release workflow step selection cancelled"
     set -- $mode_choice
     case "$1" in
       prepare-pr) prepare_pr=1 ;;
+      open-pr) open_pr=1 ;;
       publish) publish=1 ;;
       *) die "invalid selection: $mode_choice" ;;
     esac
@@ -139,19 +149,21 @@ choose_mode() {
 
   info "Choose release workflow step:"
   info "  1) prepare PR branch"
-  info "  2) publish tag and draft release"
+  info "  2) open release-preparation PR"
+  info "  3) publish tag and draft release"
   printf 'Selection: '
   if ! read mode_selection; then
-    die "choose --prepare-pr or --publish when the script cannot read a selection"
+    die "choose --prepare-pr, --open-pr, or --publish when the script cannot read a selection"
   fi
   case "$mode_selection" in
     1) prepare_pr=1 ;;
-    2) publish=1 ;;
+    2) open_pr=1 ;;
+    3) publish=1 ;;
     *) die "invalid selection: $mode_selection" ;;
   esac
 }
 
-if [ "$prepare_pr" -eq 0 ] && [ "$publish" -eq 0 ]; then
+if [ "$prepare_pr" -eq 0 ] && [ "$open_pr" -eq 0 ] && [ "$publish" -eq 0 ]; then
   choose_mode
 fi
 
@@ -351,6 +363,108 @@ update_crate_version() {
 update_lockfile() {
   cargo check -p atlas-cli
 }
+
+release_branch_from_current_branch() {
+  current_branch=$(git branch --show-current)
+  case "$current_branch" in
+    release/v*) ;;
+    *) die "--open-pr must run from a release/v<version> branch; current branch is $current_branch" ;;
+  esac
+  branch_version=${current_branch#release/v}
+  validate_version "$branch_version"
+  if [ -n "$version" ] && [ "$version" != "$branch_version" ]; then
+    die "current release branch is for $branch_version, but --version requested $version"
+  fi
+  version=$branch_version
+}
+
+ensure_release_notes_are_edited() {
+  [ -s "$notes_file" ] || die "release notes file is missing or empty: $notes_file"
+  if grep -Eq 'Describe the user-facing release|Mention install, update, setup, or compatibility notes' "$notes_file"; then
+    die "release notes still contain template placeholder text: $notes_file"
+  fi
+}
+
+ensure_release_prep_scope() {
+  status_output=$(git status --porcelain)
+  [ -n "$status_output" ] || return 0
+  printf '%s\n' "$status_output" | while IFS= read -r status_line; do
+    path=${status_line#???}
+    case "$path" in
+      Cargo.lock|crates/atlas-cli/Cargo.toml|"$notes_file") ;;
+      *) die "unexpected release-prep change: $path" ;;
+    esac
+  done
+}
+
+run_release_pr_checks() {
+  scripts/release/validate-release-tooling.sh
+  scripts/release/test-prepare-release.sh
+  cargo fmt --check
+  cargo clippy --workspace --all-targets -- -D warnings
+  cargo test --workspace
+  cargo build --workspace
+}
+
+if [ "$open_pr" -eq 1 ]; then
+  release_branch_from_current_branch
+  set_release_vars
+  crate_version=$(read_crate_version)
+  [ "$crate_version" = "$version" ] || die "crates/atlas-cli version is $crate_version, expected $version"
+  ensure_release_identity_is_unused
+  ensure_release_notes_are_edited
+  ensure_release_prep_scope
+  if ! gh auth status >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "gh is not authenticated; real PR creation requires gh auth login"
+    else
+      die "gh is not authenticated; run gh auth login"
+    fi
+  fi
+  if gh pr view "$release_branch" >/dev/null 2>&1; then
+    if [ "$dry_run" -eq 1 ]; then
+      warn "GitHub PR already exists for $release_branch"
+    else
+      die "GitHub PR already exists for $release_branch"
+    fi
+  fi
+
+  info "Release PR: $tag"
+  info "Branch:     $release_branch"
+  info "Notes:      $notes_file"
+  info "Checks:"
+  info "  scripts/release/validate-release-tooling.sh"
+  info "  scripts/release/test-prepare-release.sh"
+  info "  cargo fmt --check"
+  info "  cargo clippy --workspace --all-targets -- -D warnings"
+  info "  cargo test --workspace"
+  info "  cargo build --workspace"
+
+  if [ "$dry_run" -eq 1 ]; then
+    info "Dry run: would run checks, commit release-prep files, push $release_branch, and create a PR to main."
+    exit 0
+  fi
+
+  if [ "$yes" -ne 1 ]; then
+    printf 'Run checks, commit release prep, push %s, and open PR? [y/N] ' "$release_branch"
+    read answer
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *) die "open-pr cancelled" ;;
+    esac
+  fi
+
+  run_release_pr_checks
+  git add Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
+  git commit -m "chore(release): prepare $tag"
+  git push -u origin "$release_branch"
+  gh pr create \
+    --base main \
+    --head "$release_branch" \
+    --title "chore(release): prepare $tag" \
+    --body "Prepare $tag for release."
+  exit 0
+fi
 
 ensure_current_main_checkout
 
