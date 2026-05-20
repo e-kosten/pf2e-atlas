@@ -32,6 +32,7 @@ struct SingleRecordBody {
 struct BatchRecordBody {
     results: Vec<RecordGetItem>,
     counts: BatchCounts,
+    partial: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -59,6 +60,7 @@ struct SingleResolveBody {
 struct BatchResolveBody {
     results: Vec<RecordResolveItem>,
     counts: BatchCounts,
+    partial: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -204,6 +206,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
                 matched: keys.len() - failed,
                 failed,
             },
+            partial: failed > 0,
             results,
         },
     };
@@ -326,6 +329,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
                 matched: results.len() - failed,
                 failed,
             },
+            partial: failed > 0,
             results,
         },
     };
@@ -507,6 +511,11 @@ pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail:
     if let Some(prerequisites) = record_prerequisites_label(record) {
         println!("{}: {prerequisites}", style.label("Prerequisites"));
     }
+    if detail == DetailLevel::Preview {
+        for fact_line in preview_fact_lines(record) {
+            println!("{fact_line}");
+        }
+    }
     if let Some(description) = record_description_text(record, detail) {
         println!();
         println!("{}", style.render_markdown(&description));
@@ -560,6 +569,36 @@ fn record_prerequisites_label(record: &atlas_record::RecordJson) -> Option<Strin
             | RecordBlockJson::Relationships { .. } => None,
         })
         .filter(|value| !value.trim().is_empty())
+}
+
+fn preview_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
+    let style = TerminalStyle::stdout();
+    record
+        .sections
+        .iter()
+        .filter(|section| section.kind != "description_preview")
+        .filter_map(|section| {
+            let facts = section
+                .blocks
+                .iter()
+                .flat_map(|block| match block {
+                    RecordBlockJson::FactList { facts } => facts.as_slice(),
+                    RecordBlockJson::Prose { .. }
+                    | RecordBlockJson::Content { .. }
+                    | RecordBlockJson::Relationships { .. } => &[],
+                })
+                .filter(|fact| fact.key != "prerequisites")
+                .map(|fact| format!("{} {}", fact.label, fact.value))
+                .collect::<Vec<_>>();
+            (!facts.is_empty()).then(|| {
+                format!(
+                    "{}: {}",
+                    style.label(section.title.as_str()),
+                    facts.join("; ")
+                )
+            })
+        })
+        .collect()
 }
 
 fn record_description_text(

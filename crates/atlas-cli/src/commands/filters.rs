@@ -403,7 +403,7 @@ fn any_or_single(nodes: impl IntoIterator<Item = SearchFilterNode>) -> SearchFil
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_domain::RecordFamily;
+    use atlas_domain::{RecordFamily, ScalarValue};
 
     #[test]
     fn repeated_scalar_flags_or_within_field_and_and_across_fields() {
@@ -505,7 +505,7 @@ mod tests {
     fn price_and_metric_flags_lower_to_canonical_filters() {
         let options = FilterOptions {
             price: Some("100..500".to_string()),
-            metrics: vec!["defense.ac>=18".to_string(), "name:guardian".to_string()],
+            metrics: vec!["ac.value>=18".to_string(), "hp.value:40".to_string()],
             ..FilterOptions::default()
         };
 
@@ -526,7 +526,16 @@ mod tests {
         );
         assert_eq!(
             children[1],
-            SearchFilterNode::metric("defense.ac", MetricMatch::Gte { value: 18.0 })
+            SearchFilterNode::metric("ac.value", MetricMatch::Gte { value: 18.0 })
+        );
+        assert_eq!(
+            children[2],
+            SearchFilterNode::metric(
+                "hp.value",
+                MetricMatch::Eq {
+                    value: ScalarValue::Number(40.0),
+                },
+            )
         );
     }
 
@@ -593,7 +602,7 @@ mod tests {
 
     #[test]
     fn malformed_metric_predicates_are_rejected() {
-        for metric in ["defense.ac", "defense.ac>=high", "defense.ac!=18"] {
+        for metric in ["ac.value", "ac.value>=high", "ac.value!=18"] {
             let options = FilterOptions {
                 metrics: vec![metric.to_string()],
                 ..FilterOptions::default()
