@@ -31,7 +31,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Release tool smoke tests
         shell: bash
         run: |
@@ -79,7 +79,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -113,7 +113,7 @@ jobs:
           RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
         run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
       - name: Upload cargo-dist artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: package-${{ matrix.target }}
           path: target/distrib/atlas-cli-${{ matrix.target }}.*
@@ -127,9 +127,9 @@ jobs:
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download packaged artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: package-*
           path: target/distrib
@@ -158,7 +158,7 @@ jobs:
         shell: bash
         run: scripts/release/validate-release-assets.sh "$TAG" target/distrib
       - name: Upload assembled release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-build-check-${{ needs.prepare.outputs.tag }}
           path: target/distrib/*
