@@ -36,6 +36,14 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     ));
     assert!(build_help.contains("Standard users should run `atlas setup` instead."));
 
+    let analyze_help = help_output(&["index", "analyze"])?;
+    assert!(analyze_help.contains(
+        "atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
+    ));
+
+    let inspect_help = help_output(&["index", "inspect"])?;
+    assert!(inspect_help.contains("atlas index inspect --json"));
+
     let record_get_help = help_output(&["record", "get"])?;
     assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
     assert!(record_get_help.contains("Canonical record keys"));
@@ -52,8 +60,15 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
+    assert!(search_help.contains("atlas search --family creature --metric 'ac.value>=25'"));
+    assert!(
+        search_help.contains(
+            "atlas search --family creature --metric 'hp.value:40' --print-filter --json"
+        )
+    );
     assert!(search_help.contains("atlas filters fields"));
     assert!(search_help.contains("atlas filters values --field traits"));
+    assert!(search_help.contains("atlas filters values --field metric"));
     assert!(search_help.contains("--retrieval selects fts, vector, or hybrid retrieval"));
     assert!(search_help.contains("--pack-name"));
     assert!(search_help.contains("--publication-title"));
@@ -63,6 +78,7 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(search_help.contains("--references"));
     assert!(search_help.contains("--referenced-by"));
     assert!(search_help.contains("--metric"));
+    assert!(search_help.contains("ac.value>=18"));
     assert!(search_help.contains("price_asc"));
     assert!(search_help.contains("price_desc"));
     assert!(search_help.contains("--print-filter"));
@@ -71,6 +87,11 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filters_help.contains("fields"));
     assert!(filters_help.contains("values"));
 
+    let filter_fields_help = help_output(&["filters", "fields"])?;
+    assert!(filter_fields_help.contains("atlas filters fields --family spell"));
+    assert!(filter_fields_help.contains("atlas filters fields --family creature --json"));
+    assert!(filter_fields_help.contains("--json"));
+
     let filter_values_help = help_output(&["filters", "values"])?;
     assert!(filter_values_help.contains("--field"));
     assert!(filter_values_help.contains("--metric-query"));
@@ -78,9 +99,28 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(filter_values_help.contains("--sample-limit"));
     assert!(filter_values_help.contains("--limit"));
     assert!(filter_values_help.contains("--json"));
+    assert!(
+        filter_values_help
+            .contains("atlas filters values --field metric --family creature --metric-query armor")
+    );
 
-    let filter_fields_help = help_output(&["filters", "fields"])?;
-    assert!(filter_fields_help.contains("--json"));
+    let agent_skills_help = help_output(&["agent", "skills"])?;
+    assert!(
+        agent_skills_help
+            .contains("atlas agent skills install --target codex --scope global --yes")
+    );
+    assert!(agent_skills_help.contains("atlas agent skills doctor --json"));
+
+    let agent_install_help = help_output(&["agent", "skills", "install"])?;
+    assert!(agent_install_help.contains(
+        "atlas agent skills install --target agents --scope workspace --force --yes --json"
+    ));
+    assert!(agent_install_help.contains("--skill"));
+    assert!(agent_install_help.contains("--target"));
+
+    let agent_doctor_help = help_output(&["agent", "skills", "doctor"])?;
+    assert!(agent_doctor_help.contains("atlas agent skills doctor --target codex --scope global"));
+    assert!(agent_doctor_help.contains("--scope"));
 
     Ok(())
 }
@@ -432,10 +472,29 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(batch_get_data["counts"]["requested"], 2);
     assert_eq!(batch_get_data["counts"]["matched"], 1);
     assert_eq!(batch_get_data["counts"]["failed"], 1);
+    assert_eq!(batch_get_data["partial"], true);
     assert_eq!(
         batch_get_data["results"][1]["error"]["code"],
         "record_not_found"
     );
+
+    let successful_batch_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:testAction0001",
+            "actions:testAction0001",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(successful_batch_get_output.status.success());
+    let successful_batch_get_json: Value =
+        serde_json::from_slice(&successful_batch_get_output.stdout)?;
+    let successful_batch_get_data = ok_data(&successful_batch_get_json);
+    assert_eq!(successful_batch_get_data["counts"]["failed"], 0);
+    assert_eq!(successful_batch_get_data["partial"], false);
 
     let resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["record", "resolve", "Treat Wounds", "--index"])
@@ -453,6 +512,47 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&resolve_data["result"]["record"]).contains(&"description"));
     assert!(!record_sections(&resolve_data["result"]["record"]).contains(&"description_preview"));
     assert_eq!(resolve_data["result"]["resolution"]["match_kind"], "name");
+
+    let batch_resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Treat Wounds",
+            "No Such Record",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(batch_resolve_output.status.code(), Some(1));
+    let batch_resolve_json: Value = serde_json::from_slice(&batch_resolve_output.stdout)?;
+    let batch_resolve_data = ok_data(&batch_resolve_json);
+    assert_eq!(batch_resolve_data["counts"]["requested"], 2);
+    assert_eq!(batch_resolve_data["counts"]["matched"], 1);
+    assert_eq!(batch_resolve_data["counts"]["failed"], 1);
+    assert_eq!(batch_resolve_data["partial"], true);
+    assert_eq!(
+        batch_resolve_data["results"][1]["error"]["code"],
+        "record_resolution_miss"
+    );
+
+    let successful_batch_resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Treat Wounds",
+            "Treat Wounds",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(successful_batch_resolve_output.status.success());
+    let successful_batch_resolve_json: Value =
+        serde_json::from_slice(&successful_batch_resolve_output.stdout)?;
+    let successful_batch_resolve_data = ok_data(&successful_batch_resolve_json);
+    assert_eq!(successful_batch_resolve_data["counts"]["failed"], 0);
+    assert_eq!(successful_batch_resolve_data["partial"], false);
 
     let text_resolve_description_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -906,6 +1006,69 @@ fn legacy_top_level_index_commands_are_not_supported() -> Result<(), Box<dyn std
 }
 
 #[test]
+fn search_preview_prints_family_metric_facts() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-search-preview-facts");
+    write_creature_fixture_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .arg("--no-embeddings")
+        .arg("--json")
+        .output()?;
+    assert!(build_output.status.success());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "--family",
+            "creature",
+            "--metric",
+            "ac.value>=25",
+            "--detail",
+            "preview",
+            "--index",
+        ])
+        .arg(&index_path)
+        .output()?;
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("creatures:testCreature001  Test Guardian  creature 5"));
+    assert!(
+        stdout.contains("Summary: Size Med; Languages Common; Senses Darkvision; Perception +12")
+    );
+    assert!(stdout.contains("Defense: AC 25; HP 80; Saves Fort +14, Ref +11, Will +12"));
+    assert!(stdout.contains("Movement: Speed Land 25 feet; Speed Types Land"));
+
+    let json_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "--family",
+            "creature",
+            "--metric",
+            "ac.value>=25",
+            "--detail",
+            "preview",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(json_output.status.success());
+    let json: Value = serde_json::from_slice(&json_output.stdout)?;
+    let data = ok_data(&json);
+    assert_eq!(
+        record_sections(&data["results"][0]["record"]),
+        vec!["summary", "defense", "movement"]
+    );
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn search_rejects_invalid_filter_json_before_runtime_loading()
 -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -970,7 +1133,7 @@ fn search_print_filter_lowers_convenience_flags_before_runtime_loading()
             "--price",
             "100..500",
             "--metric",
-            "defense.ac>=18",
+            "ac.value>=18",
             "--print-filter",
             "--json",
         ])
@@ -988,6 +1151,9 @@ fn search_print_filter_lowers_convenience_flags_before_runtime_loading()
     assert_eq!(data["filter"]["children"][2]["kind"], "links_to");
     assert_eq!(data["filter"]["children"][3]["kind"], "linked_from");
     assert_eq!(data["filter"]["children"][4]["kind"], "metric");
+    assert_eq!(data["filter"]["children"][4]["metric"], "ac.value");
+    assert_eq!(data["filter"]["children"][4]["match"]["kind"], "gte");
+    assert_eq!(data["filter"]["children"][4]["match"]["value"], 18.0);
     Ok(())
 }
 
@@ -1513,6 +1679,46 @@ fn write_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             "traits": { "value": ["healing", "exploration"] },
             "description": { "value": "<p>You spend 10 minutes treating one injured living creature with @UUID[Compendium.pf2e.actions.Item.testAction0001].</p>" },
             "details": { "publicNotes": "<p>Bring a healer's kit.</p>" }
+          }
+        }"#,
+    )?;
+    Ok(())
+}
+
+fn write_creature_fixture_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("packs/creatures"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "creatures", "label": "Creatures", "type": "Actor", "path": "packs/creatures" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/creatures/test-guardian.json"),
+        r#"{
+          "_id": "testCreature001",
+          "name": "Test Guardian",
+          "type": "npc",
+          "system": {
+            "traits": { "value": ["human", "humanoid"], "size": { "value": "med" } },
+            "details": {
+              "level": { "value": 5 },
+              "languages": { "value": ["common"] },
+              "description": "<p>A sturdy fixture creature.</p>"
+            },
+            "attributes": {
+              "ac": { "value": 25 },
+              "hp": { "value": 80 },
+              "speed": { "value": 25 }
+            },
+            "perception": { "mod": 12, "senses": [{ "type": "darkvision" }] },
+            "saves": {
+              "fortitude": { "mod": 14 },
+              "reflex": { "mod": 11 },
+              "will": { "mod": 12 }
+            }
           }
         }"#,
     )?;

@@ -10,6 +10,8 @@ use atlas_search::{FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate};
 
+const DETAIL_HELP: &str = "Record detail level: summary, preview, description, standard, or full; preview includes compact scan facts and a truncated description";
+
 mod agent_skills;
 mod commands;
 mod output;
@@ -259,61 +261,93 @@ enum FiltersCommand {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas filters fields\n  atlas filters fields --family spell\n  atlas filters fields --family creature --json"
+)]
 struct FiltersFieldsOptions {
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON used to scope field discovery"
+    )]
     filter_json: Option<String>,
     #[command(flatten)]
     filter_options: DiscoveryFilterOptions,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n  atlas filters values --field metric --family creature --metric ac.value --json"
+)]
 struct FiltersValuesOptions {
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Filter field id to inspect, such as traits, rarity, level, or metric"
+    )]
     field: String,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON used to scope value discovery"
+    )]
     filter_json: Option<String>,
     #[command(flatten)]
     filter_options: DiscoveryFilterOptions,
-    #[arg(long, value_enum)]
+    #[arg(
+        long,
+        value_enum,
+        help = "Sort discovered values by count, alphabetically, or canonical order"
+    )]
     sort: Option<CliFilterValueSort>,
-    #[arg(long, visible_alias = "limit")]
+    #[arg(
+        long,
+        visible_alias = "limit",
+        help = "Limit sampled text examples; enumerable values are not limited by default"
+    )]
     sample_limit: Option<usize>,
-    #[arg(long)]
+    #[arg(long, help = "Show values for one resolved metric key")]
     metric: Option<String>,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Show metric keys below this namespace prefix, such as speed."
+    )]
     metric_prefix: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Show metric keys with this exact display label")]
     metric_label: Option<String>,
     #[arg(
         long,
         help = "Filter metric discovery by case-insensitive query across metric keys, labels, short labels, and groups"
     )]
     metric_query: Option<String>,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Limit metric discovery to this metric domain, such as actor or item"
+    )]
     metric_domain: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas index analyze\n  atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
+)]
 struct AnalyzeIndexOptions {
-    #[arg(long)]
+    #[arg(long, help = "Override the PF2E source checkout path")]
     source: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Write the ingest manifest report to this path")]
     manifest: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -322,25 +356,31 @@ struct AnalyzeIndexOptions {
     after_help = "Advanced manual artifact build. Standard users should run `atlas setup` instead.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source vendor/pf2e --output .cache/pf2e-index.sqlite --json"
 )]
 struct BuildIndexOptions {
-    #[arg(long)]
+    #[arg(long, help = "Override the PF2E source checkout path")]
     source: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "SQLite artifact path to write")]
     output: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Write the ingest manifest report to this path")]
     manifest: Option<PathBuf>,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
+    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for semantic search rows")]
     embedding_model: EmbeddingModelId,
-    #[arg(long)]
+    #[arg(long, help = "Override the embedding model cache root")]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long, default_value_t = 32)]
+    #[arg(long, default_value_t = 32, help = "Embedding generation batch size")]
     embedding_batch_size: usize,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Regenerate embeddings instead of reusing compatible cached rows"
+    )]
     no_reuse_embeddings: bool,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Build a record/resolve-ready artifact without semantic embeddings"
+    )]
     no_embeddings: bool,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -349,38 +389,41 @@ struct BuildIndexOptions {
     after_help = "Examples:\n  atlas index validate\n  atlas index validate --no-embeddings\n  atlas index validate --embeddings-only"
 )]
 struct ValidateIndexOptions {
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, action = ArgAction::SetTrue, conflicts_with = "embeddings_only", help = "Validate only the base record artifact and skip sqlite-vec/vector readiness")]
     no_embeddings: bool,
     #[arg(long, action = ArgAction::SetTrue, help = "Run the focused embedding/vector readiness diagnostics")]
     embeddings_only: bool,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Args)]
-#[command(after_help = "Examples:\n  atlas index check\n  atlas index check --no-embeddings")]
+#[command(
+    after_help = "Examples:\n  atlas index check\n  atlas index check --no-embeddings\n  atlas index check --json"
+)]
 struct CheckIndexOptions {
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, action = ArgAction::SetTrue, help = "Check only the base record artifact and skip sqlite-vec/vector readiness")]
     no_embeddings: bool,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Args)]
+#[command(after_help = "Examples:\n  atlas index inspect\n  atlas index inspect --json")]
 struct IndexPathOptions {
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -391,15 +434,15 @@ struct IndexPathOptions {
 struct RecordGetOptions {
     #[arg(required = true, num_args = 1.., help = "Canonical record keys in pack:id form; this command does not resolve names")]
     keys: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = DETAIL_HELP)]
     detail: DetailLevel,
-    #[arg(long, help = "Include raw source JSON with full detail output")]
+    #[arg(long, help = "Include raw source JSON in JSON output")]
     include_raw: bool,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -410,7 +453,7 @@ struct RecordGetOptions {
 struct RecordResolveOptions {
     #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
     queries: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = DETAIL_HELP)]
     detail: DetailLevel,
     #[arg(
         long,
@@ -425,13 +468,13 @@ struct RecordResolveOptions {
         help = "Return up to this many alternatives when a strict query is ambiguous"
     )]
     alternatives: u8,
-    #[arg(long, help = "Include raw source JSON with full detail output")]
+    #[arg(long, help = "Include raw source JSON in JSON output")]
     include_raw: bool,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -446,67 +489,90 @@ struct GraphGetOptions {
     outgoing: usize,
     #[arg(long, default_value_t = 0, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-50; 0 disables backlinks")]
     backlinks: usize,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     detail: DetailLevel,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --family creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 struct SearchOptions {
-    #[arg()]
+    #[arg(help = "Plain-text query for ranked retrieval; omit for filter-only listing")]
     query: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
-    #[arg(long, default_value_t = 20)]
+    #[arg(
+        long,
+        default_value_t = 20,
+        help = "Maximum records to return; capped at 100"
+    )]
     limit: u32,
-    #[arg(long, default_value_t = 0)]
+    #[arg(long, default_value_t = 0, help = "Number of matching records to skip")]
     offset: u32,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON; do not combine with convenience filter flags"
+    )]
     filter_json: Option<String>,
     #[command(flatten)]
     filter_options: FilterOptions,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = "Record detail level: summary, preview, description, standard, or full; preview is a truncated description")]
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     detail: DetailLevel,
-    #[arg(long, value_enum, default_value_t = CliSearchSort::Alphabetical)]
+    #[arg(long, value_enum, default_value_t = CliSearchSort::Alphabetical, help = "Sort order for filter-only searches; text queries are ranked")]
     sort: CliSearchSort,
-    #[arg(long)]
+    #[arg(long, help = "Seed for --sort random; generated when omitted")]
     seed: Option<u64>,
-    #[arg(long)]
+    #[arg(long, help = "Include raw source JSON in JSON output")]
     include_raw: bool,
-    #[arg(long)]
+    #[arg(long, help = "Override the embedding model cache root")]
     embedding_cache_path: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL)]
+    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model for vector or hybrid retrieval")]
     embedding_model: EmbeddingModelId,
-    #[arg(long, value_enum, default_value_t = CliRetrievalMode::Hybrid)]
+    #[arg(long, value_enum, default_value_t = CliRetrievalMode::Hybrid, help = "Rank text queries with fts, vector, or hybrid retrieval")]
     retrieval: CliRetrievalMode,
-    #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf)]
+    #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf, help = "Fusion algorithm for hybrid retrieval")]
     fusion: CliFusionMethod,
-    #[arg(long, default_value_t = 1.0)]
+    #[arg(
+        long,
+        default_value_t = 1.0,
+        help = "FTS lane weight for weighted-rrf hybrid retrieval"
+    )]
     fts_weight: f64,
-    #[arg(long, default_value_t = 1.0)]
+    #[arg(
+        long,
+        default_value_t = 1.0,
+        help = "Vector lane weight for weighted-rrf hybrid retrieval"
+    )]
     vector_weight: f64,
-    #[arg(long, default_value_t = 60.0)]
+    #[arg(long, default_value_t = 60.0, help = "Reciprocal-rank fusion constant")]
     rank_constant: f64,
-    #[arg(long, default_value_t = 200)]
+    #[arg(
+        long,
+        default_value_t = 200,
+        help = "FTS candidate window for ranked text search"
+    )]
     fts_top_k: u32,
-    #[arg(long, default_value_t = 200)]
+    #[arg(
+        long,
+        default_value_t = 200,
+        help = "Vector candidate window for ranked text search"
+    )]
     vector_top_k: u32,
     #[arg(
         long,
         help = "Exclude records whose indexed search text matches this plain-text query"
     )]
     exclude: Option<String>,
-    #[arg(long, action = ArgAction::SetTrue)]
+    #[arg(long, action = ArgAction::SetTrue, help = "Include query analysis, rank scores, and retrieval lane diagnostics")]
     explain: bool,
     #[arg(
         long,
@@ -514,7 +580,7 @@ struct SearchOptions {
         help = "Print the lowered canonical filter and exit before opening the runtime"
     )]
     print_filter: bool,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
@@ -591,7 +657,7 @@ struct FilterOptions {
     referenced_by: Vec<String>,
     #[arg(
         long = "metric",
-        help = "Filter by metric predicate such as defense.ac>=18, hp.value:40, or name=text; repeat to require all"
+        help = "Filter by metric predicate such as ac.value>=18, hp.value:40, or save.fort.mod>=12; repeat to require all"
     )]
     metrics: Vec<String>,
 }

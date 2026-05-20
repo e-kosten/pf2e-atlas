@@ -107,7 +107,7 @@ atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --d
 atlas record resolve "Treat Wounds" "Trip" --pack-name actionspf2e --detail standard --json
 ```
 
-Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Ambiguous strict resolution returns `status: "error"` with `error.code: "record_resolution_ambiguous"` and structured alternatives under `error.data.result.alternatives`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error` for successful batch-style commands. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `error.data` when present, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
+Use `--json` when the task requires structured parsing, batch result handling, exact field extraction, or diagnostics. Atlas JSON output uses a shared envelope: successful command payloads are under `data`, and top-level command, runtime, or input failures are under `error`. Ambiguous strict resolution returns `status: "error"` with `error.code: "record_resolution_ambiguous"` and structured alternatives under `error.data.result.alternatives`. Record-level or batch failures can appear inside `data.result.error` or `data.results[].error` for successful batch-style commands. Batch `record get` and `record resolve` payloads also include `data.partial`; when it is `true`, inspect each `data.results[].error` before trusting the batch. Parse the JSON envelope instead of scraping human output: first check top-level `error`, then inspect `error.data` when present, then inspect `data.result.error` for single-record commands or each `data.results[].error` for batch commands before trusting record fields. For readiness and validation commands, an invalid artifact can still produce a successful JSON envelope with `status: "ok"` and `data.valid: false`; do not treat the top-level status alone as artifact readiness.
 
 Use `--retrieval fts`, `--retrieval vector`, or `--retrieval hybrid` only when the user explicitly asks to diagnose or tune retrieval behavior. Do not silently fall back to FTS to work around missing embeddings for normal content questions. Add `--explain --json` when comparing retrieval behavior or investigating why a ranked result set looks wrong; JSON output carries the useful rank, score, and lane details.
 
@@ -126,7 +126,7 @@ Use discovery commands before constructing precise filters whose fields or value
 atlas filters fields
 atlas filters fields --family spell
 atlas filters values --field traits --family spell
-atlas filters values --field metric --family creature --metric-label save
+atlas filters values --field metric --family creature --metric-query save
 ```
 
 Filter discovery defaults to human-readable output for scanning. Add `--json` when you need structured field/value payloads, exact counts, or canonical filter data. For sampled text fields, use `--sample-limit` or its alias `--limit`; ordinary enumerable value lists do not need a limit.

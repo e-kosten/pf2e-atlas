@@ -25,6 +25,9 @@ pub(crate) enum AgentCommand {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas agent skills install\n  atlas agent skills install --target codex --scope global --yes\n  atlas agent skills doctor --json"
+)]
 pub(crate) struct AgentSkillsArgs {
     #[command(subcommand)]
     pub(crate) command: AgentSkillsCommand,
@@ -50,30 +53,48 @@ impl AgentArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+#[command(
+    after_help = "Examples:\n  atlas agent skills install\n  atlas agent skills install --target codex --scope global --yes\n  atlas agent skills install --target agents --scope workspace --force --yes --json"
+)]
 pub(crate) struct AgentSkillsInstallOptions {
-    #[arg(long, default_value = "pf2e-atlas-cli")]
+    #[arg(
+        long,
+        default_value = "pf2e-atlas-cli",
+        help = "Bundled Atlas skill to install"
+    )]
     skill: String,
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, help = "Agent skill target to install into")]
     target: Option<CliAgentSkillTarget>,
-    #[arg(long, value_enum)]
+    #[arg(
+        long,
+        value_enum,
+        help = "Install into workspace-local or global skill roots"
+    )]
     scope: Option<CliAgentSkillScope>,
     #[arg(long, help = "Confirm non-interactive installs")]
     yes: bool,
     #[arg(long, help = "Replace a differing existing install")]
     force: bool,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 
 #[derive(Debug, Clone, Args)]
+#[command(
+    after_help = "Examples:\n  atlas agent skills doctor\n  atlas agent skills doctor --target codex --scope global\n  atlas agent skills doctor --json"
+)]
 pub(crate) struct AgentSkillsDoctorOptions {
-    #[arg(long)]
+    #[arg(long, help = "Limit inspection to one bundled Atlas skill")]
     skill: Option<String>,
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, help = "Limit inspection to one agent skill target")]
     target: Option<CliAgentSkillTarget>,
-    #[arg(long, value_enum)]
+    #[arg(
+        long,
+        value_enum,
+        help = "Limit inspection to workspace-local or global skill roots"
+    )]
     scope: Option<CliAgentSkillScope>,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     json: bool,
 }
 

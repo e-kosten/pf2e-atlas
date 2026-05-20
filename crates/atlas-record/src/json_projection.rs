@@ -167,6 +167,19 @@ fn sections_for_detail(
     match detail {
         DetailLevel::Summary => {}
         DetailLevel::Preview => {
+            projected.extend(
+                sections
+                    .iter()
+                    .filter(|section| {
+                        !matches!(
+                            section.kind,
+                            PresentationSectionKind::Summary
+                                | PresentationSectionKind::Description
+                                | PresentationSectionKind::Details
+                        )
+                    })
+                    .filter_map(section_json),
+            );
             if let Some(preview) = description_preview_section(record) {
                 projected.push(preview);
             }
@@ -280,11 +293,12 @@ fn relationship_json(relationship: &PresentationRelationship) -> RecordRelations
 #[cfg(test)]
 mod tests {
     use atlas_domain::{
-        PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TimeKind, TimeUnit,
+        MetricDomain, PackName, PublicationFamily, RecordFamily, RecordId, RecordKey, TimeKind,
+        TimeUnit,
     };
 
     use super::*;
-    use crate::{ContentBlock, ContentDocument};
+    use crate::{ActorSideData, ContentBlock, ContentDocument, MetricRow, MetricValue};
 
     #[test]
     fn summary_record_json_uses_stable_identity_shape() {
@@ -323,6 +337,50 @@ mod tests {
 
         assert_eq!(json.sections[0].kind, "summary");
         assert_eq!(json.sections[1].kind, "description_preview");
+    }
+
+    #[test]
+    fn preview_record_json_includes_family_fact_sections_without_full_detail_sections() {
+        let record = fixture_creature_record();
+        let json = record_json(
+            &record,
+            RecordJsonOptions {
+                detail: DetailLevel::Preview,
+                include_source_json: false,
+            },
+        );
+        let section_kinds = json
+            .sections
+            .iter()
+            .map(|section| section.kind)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            section_kinds,
+            vec![
+                "summary",
+                "defense",
+                "movement",
+                "offense",
+                "description_preview"
+            ]
+        );
+        assert!(!section_kinds.contains(&"description"));
+        assert!(!section_kinds.contains(&"details"));
+        assert!(
+            json.sections
+                .iter()
+                .find(|section| section.kind == "defense")
+                .expect("defense section")
+                .blocks
+                .iter()
+                .any(|block| match block {
+                    RecordBlockJson::FactList { facts } => facts
+                        .iter()
+                        .any(|fact| fact.key == "ac" && fact.value == "25"),
+                    _ => false,
+                })
+        );
     }
 
     #[test]
@@ -482,6 +540,54 @@ mod tests {
             source_path: "packs/actions/treat-wounds.json".to_string(),
             is_default_visible: true,
             raw_json: "{\"name\":\"Treat Wounds\"}".to_string(),
+        }
+    }
+
+    fn fixture_creature_record() -> PersistedRecord {
+        let mut record = fixture_record();
+        record.key = RecordKey::new(
+            PackName::new("creatures".to_string()).expect("pack"),
+            RecordId::new("test-guardian".to_string()).expect("id"),
+        );
+        record.id = RecordId::new("test-guardian".to_string()).expect("id");
+        record.name = "Test Guardian".to_string();
+        record.normalized_name = "test guardian".to_string();
+        record.record_family = RecordFamily::Creature;
+        record.pack_name = PackName::new("creatures".to_string()).expect("pack");
+        record.pack_label = "Creatures".to_string();
+        record.foundry_document_type = "Actor".to_string();
+        record.foundry_record_type = "npc".to_string();
+        record.level = Some(5);
+        record.traits = vec!["human".to_string(), "humanoid".to_string()];
+        record.actor_data = Some(ActorSideData {
+            size: Some("med".to_string()),
+            languages: vec!["Common".to_string()],
+            speed_types: vec!["land".to_string()],
+            senses: vec!["Darkvision".to_string()],
+            immunities: Vec::new(),
+            resistances: Vec::new(),
+            weaknesses: Vec::new(),
+            disable_text: None,
+            disable_skills: Vec::new(),
+            is_complex: false,
+        });
+        record.metrics = vec![
+            metric("perception.mod", 12.0),
+            metric("ac.value", 25.0),
+            metric("hp.value", 80.0),
+            metric("save.fort.mod", 14.0),
+            metric("save.ref.mod", 11.0),
+            metric("save.will.mod", 12.0),
+            metric("speed.land.value", 25.0),
+        ];
+        record
+    }
+
+    fn metric(key: &str, value: f64) -> MetricRow {
+        MetricRow {
+            domain: MetricDomain::Actor,
+            key: key.to_string(),
+            value: MetricValue::Number(value),
         }
     }
 }
