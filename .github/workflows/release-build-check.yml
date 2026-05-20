@@ -1,29 +1,35 @@
-name: release
+name: release build check
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional tag to use for cargo-dist metadata, such as v0.1.0-rc.2. Defaults to v<atlas-cli version>."
+        required: false
+        type: string
   push:
-    tags:
-      - "v*"
+    branches:
+      - "release-build-check/**"
+      - "release-build-check-*"
 
 permissions:
   contents: read
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: release-build-check-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
   DIST_VERSION: "0.31.0"
 
 jobs:
-  validate-tag:
-    name: validate tag
+  prepare:
+    name: prepare build check
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - name: Release tool smoke tests
@@ -34,35 +40,31 @@ jobs:
           scripts/release/test-prepare-release.sh
       - id: version
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
+          crate_version="$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)"
+          if [[ -n "${INPUT_TAG:-}" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="v$crate_version"
+          fi
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-            echo "invalid release tag: $tag" >&2
+            echo "invalid release-check tag: $tag" >&2
             exit 1
           fi
           version="${tag#v}"
-          crate_version="$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)"
           if [[ "$crate_version" != "$version" ]]; then
-            echo "crate version $crate_version does not match tag $tag" >&2
-            exit 1
-          fi
-          notes="docs/releases/$tag.md"
-          if [[ ! -s "$notes" ]]; then
-            echo "missing release notes: $notes" >&2
+            echo "crate version $crate_version does not match release-check tag $tag" >&2
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [[ "$version" == *-* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
 
   build:
     name: cargo-dist ${{ matrix.target }}
-    needs: validate-tag
+    needs: prepare
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -103,13 +105,13 @@ jobs:
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
       - name: Build archives with cargo-dist on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
         env:
           RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -117,17 +119,13 @@ jobs:
           path: target/distrib/atlas-cli-${{ matrix.target }}.*
           if-no-files-found: error
 
-  publish:
-    name: upload and publish release
-    needs: [validate-tag, build]
-    if: ${{ always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' }}
+  assemble:
+    name: assemble release assets
+    needs: [prepare, build]
+    if: ${{ always() && needs.prepare.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ needs.validate-tag.outputs.tag }}
-      PRERELEASE: ${{ needs.validate-tag.outputs.prerelease }}
+      TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Download packaged artifacts
@@ -159,27 +157,9 @@ jobs:
       - name: Validate required assets
         shell: bash
         run: scripts/release/validate-release-assets.sh "$TAG" target/distrib
-      - name: Wait for draft release
-        shell: bash
-        run: |
-          set -euo pipefail
-          for _ in $(seq 1 30); do
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "release $TAG was not created by the release helper" >&2
-          exit 1
-      - name: Upload assets to draft release
-        shell: bash
-        run: gh release upload "$TAG" target/distrib/* --clobber
-      - name: Publish release
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$PRERELEASE" == "true" ]]; then
-            gh release edit "$TAG" --draft=false --prerelease=true --latest=false
-          else
-            gh release edit "$TAG" --draft=false --prerelease=false --latest=true
-          fi
+      - name: Upload assembled release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build-check-${{ needs.prepare.outputs.tag }}
+          path: target/distrib/*
+          if-no-files-found: error

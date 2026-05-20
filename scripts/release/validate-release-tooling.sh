@@ -17,7 +17,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile \
 
 python3 "$repo_root/scripts/release/generate-notices.py" --check >/dev/null
 
-ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0))' "$repo_root/.github/workflows/release.yml"
+ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' \
+  "$repo_root/.github/workflows/release.yml" \
+  "$repo_root/.github/workflows/release-build-check.yml"
 
 if command -v pwsh >/dev/null 2>&1; then
   pwsh -NoProfile -Command "\$tokens = \$null; \$errors = \$null; \$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/install/atlas-installer.ps1', [ref]\$tokens, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
@@ -27,7 +29,9 @@ else
 fi
 
 if command -v actionlint >/dev/null 2>&1; then
-  actionlint "$repo_root/.github/workflows/release.yml"
+  actionlint \
+    "$repo_root/.github/workflows/release.yml" \
+    "$repo_root/.github/workflows/release-build-check.yml"
 else
   printf 'warning: actionlint not found; workflow semantic lint is skipped locally\n' >&2
 fi

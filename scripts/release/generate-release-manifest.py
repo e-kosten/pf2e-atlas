@@ -7,11 +7,9 @@ from pathlib import Path
 
 TARGETS = {
     "aarch64-apple-darwin": ("macos", "aarch64"),
-    "x86_64-apple-darwin": ("macos", "x86_64"),
     "x86_64-unknown-linux-gnu": ("linux", "x86_64"),
     "aarch64-unknown-linux-gnu": ("linux", "aarch64"),
     "x86_64-pc-windows-msvc": ("windows", "x86_64"),
-    "aarch64-pc-windows-msvc": ("windows", "aarch64"),
 }
 
 
