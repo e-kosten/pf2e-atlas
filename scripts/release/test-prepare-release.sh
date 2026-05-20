@@ -187,6 +187,7 @@ run_prepare() {
     ATLAS_TEST_STATUS="${ATLAS_TEST_STATUS:-}" \
     ATLAS_TEST_PR_EXISTS="${ATLAS_TEST_PR_EXISTS:-0}" \
     ATLAS_TEST_FZF_CHOICE="${ATLAS_TEST_FZF_CHOICE:-}" \
+    ATLAS_RELEASE_TEST_SKIP_EDITOR="${ATLAS_RELEASE_TEST_SKIP_EDITOR:-1}" \
     PATH="$fake_bin:$PATH" \
     scripts/prepare-release.sh "$@"
 }
@@ -258,6 +259,7 @@ reset_flags() {
   unset ATLAS_TEST_FZF_CHOICE
   unset ATLAS_RELEASE_TEST_PROMPTS
   unset ATLAS_RELEASE_TEST_DISABLE_FZF
+  unset ATLAS_RELEASE_TEST_SKIP_EDITOR
 }
 
 expect_fail_without_stdin --dry-run
@@ -468,6 +470,31 @@ EOF_CARGO_RESET
 rm -f "$work/docs/releases/v0.2.0.md"
 reset_flags
 remove_fake_fzf
+
+: > "$log"
+cat > "$fake_bin/test-editor" <<'EOF_EDITOR'
+#!/bin/sh
+printf 'editor %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+printf '\nEdited by fake editor.\n' >> "$1"
+EOF_EDITOR
+chmod +x "$fake_bin/test-editor"
+VISUAL= EDITOR=test-editor ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_SKIP_EDITOR=0 run_prepare --prepare-pr --version 0.3.0 >/dev/null
+grep -q 'editor docs/releases/v0.3.0.md' "$log" || {
+  echo "prepare-release --prepare-pr did not open release notes in the configured editor" >&2
+  exit 1
+}
+grep -q 'Edited by fake editor.' "$work/docs/releases/v0.3.0.md" || {
+  echo "prepare-release --prepare-pr editor did not receive the release notes path" >&2
+  exit 1
+}
+cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO_RESET'
+[package]
+name = "atlas-cli"
+version = "0.1.0"
+EOF_CARGO_RESET
+rm -f "$work/docs/releases/v0.3.0.md"
+rm -f "$fake_bin/test-editor"
+reset_flags
 
 printf '9\n' | ATLAS_RELEASE_TEST_PROMPTS=1 expect_fail --prepare-pr
 reset_flags
