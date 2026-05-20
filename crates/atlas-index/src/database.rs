@@ -35,6 +35,11 @@ pub struct FtsColumnWeights {
     pub title: f64,
     pub aliases: f64,
     pub traits: f64,
+    pub taxonomy_terms: f64,
+    pub constraint_terms: f64,
+    pub mechanic_terms: f64,
+    pub source_terms: f64,
+    pub metric_terms: f64,
     pub headings: f64,
     pub body: f64,
     pub facts: f64,
@@ -48,6 +53,11 @@ impl Default for FtsColumnWeights {
             title: 8.0,
             aliases: 8.0,
             traits: 4.0,
+            taxonomy_terms: 2.5,
+            constraint_terms: 2.0,
+            mechanic_terms: 1.5,
+            source_terms: 0.5,
+            metric_terms: 1.0,
             headings: 4.0,
             facts: 2.0,
             body: 1.0,
@@ -392,7 +402,7 @@ fn query_fts_index(
     let sql = format!(
         "WITH eligible(record_key) AS ({eligible_sql})
          SELECT f.record_key,
-                bm25({fts_table}, 0.0, {title}, {aliases}, {traits}, {headings}, {body}, {facts}, {reference_terms}, {embedded_content}) AS rank
+                bm25({fts_table}, 0.0, {title}, {aliases}, {traits}, {taxonomy_terms}, {constraint_terms}, {mechanic_terms}, {source_terms}, {metric_terms}, {headings}, {body}, {facts}, {reference_terms}, {embedded_content}) AS rank
          FROM {fts_table} f
          WHERE {fts_table} MATCH ?{query_index}
            AND f.record_key IN (SELECT record_key FROM eligible)
@@ -403,6 +413,11 @@ fn query_fts_index(
         title = weights.title,
         aliases = weights.aliases,
         traits = weights.traits,
+        taxonomy_terms = weights.taxonomy_terms,
+        constraint_terms = weights.constraint_terms,
+        mechanic_terms = weights.mechanic_terms,
+        source_terms = weights.source_terms,
+        metric_terms = weights.metric_terms,
         headings = weights.headings,
         body = weights.body,
         facts = weights.facts,

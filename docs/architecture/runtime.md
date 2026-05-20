@@ -92,7 +92,7 @@ flowchart TD
     parser --> doc["atlas-record::ContentDocument<br/>blocks, inlines, references,<br/>visibility/source policy"]
 
     doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
-    doc --> fts["RecordFtsProjection<br/>title, aliases, traits, headings,<br/>body, facts, references,<br/>embedded_content"]
+    doc --> fts["RecordFtsProjection<br/>title, aliases, traits,<br/>taxonomy, constraints, mechanics,<br/>source, metrics, headings,<br/>body, facts, references,<br/>embedded_content"]
     doc --> tree["Content section tree<br/>explicit headings,<br/>synthetic run-in labels,<br/>table captions"]
     doc --> refs["Resolved ContentReference nodes"]
 

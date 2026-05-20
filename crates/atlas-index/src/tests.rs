@@ -566,11 +566,12 @@ fn fts_bm25_weights_prefer_title_matches_over_body_matches()
     connection.execute("DELETE FROM records_fts", [])?;
     connection.execute(
         "INSERT INTO records_fts (
-          record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content
+          record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms,
+          source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
          ) VALUES
-          ('actions:testAction1', 'needle', '', '', '', '', '', '', ''),
-          ('actions:testAction2', 'other', '', '', '', 'needle needle needle', '', '', ''),
-          ('actions:testAction3', 'other', '', '', '', 'needle', '', '', '')",
+          ('actions:testAction1', 'needle', '', '', '', '', '', '', '', '', '', '', '', ''),
+          ('actions:testAction2', 'other', '', '', '', '', '', '', '', '', 'needle needle needle', '', '', ''),
+          ('actions:testAction3', 'other', '', '', '', '', '', '', '', '', 'needle', '', '', '')",
         [],
     )?;
     drop(connection);
@@ -584,6 +585,76 @@ fn fts_bm25_weights_prefer_title_matches_over_body_matches()
     )?;
 
     assert_eq!(hits[0].record_key.to_string(), "actions:testAction1");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn fts_bm25_weights_cover_structured_term_columns() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("fts-structured-weight-order");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute("DELETE FROM records_fts", [])?;
+    connection.execute(
+        "INSERT INTO records_fts (
+          record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms,
+          source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
+         ) VALUES
+          ('actions:testAction1', 'one', '', '', 'needle', '', '', '', '', '', '', '', '', ''),
+          ('actions:testAction2', 'two', '', '', '', '', '', 'needle', '', '', '', '', '', ''),
+          ('actions:testAction3', 'three', '', '', '', '', '', '', 'needle', '', '', '', '', '')",
+        [],
+    )?;
+    drop(connection);
+
+    let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
+    let index = AtlasIndex::open_read_only(&path)?;
+    let taxonomy_weighted = index.query_fts_index(
+        &query,
+        None,
+        10,
+        FtsColumnWeights {
+            taxonomy_terms: 8.0,
+            source_terms: 1.0,
+            metric_terms: 1.0,
+            ..FtsColumnWeights::default()
+        },
+    )?;
+    assert_eq!(
+        taxonomy_weighted
+            .iter()
+            .map(|hit| hit.record_key.to_string())
+            .collect::<Vec<_>>(),
+        vec![
+            "actions:testAction1",
+            "actions:testAction2",
+            "actions:testAction3"
+        ]
+    );
+
+    let source_weighted = index.query_fts_index(
+        &query,
+        None,
+        10,
+        FtsColumnWeights {
+            taxonomy_terms: 1.0,
+            source_terms: 8.0,
+            metric_terms: 1.0,
+            ..FtsColumnWeights::default()
+        },
+    )?;
+    assert_eq!(
+        source_weighted
+            .iter()
+            .map(|hit| hit.record_key.to_string())
+            .collect::<Vec<_>>(),
+        vec![
+            "actions:testAction2",
+            "actions:testAction1",
+            "actions:testAction3"
+        ]
+    );
+
     fs::remove_file(path)?;
     Ok(())
 }

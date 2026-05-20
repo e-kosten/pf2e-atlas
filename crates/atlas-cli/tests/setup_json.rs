@@ -255,7 +255,7 @@ fn setup_check_falls_back_to_source_analysis_for_untracked_git_source()
 }
 
 #[test]
-fn setup_check_force_rebuild_reports_not_ready() -> Result<(), Box<dyn std::error::Error>> {
+fn setup_check_force_reports_not_ready() -> Result<(), Box<dyn std::error::Error>> {
     let root = temp_root("cli-setup-check-force");
     let source = root.join("source");
     let cache = root.join("hf-models");
@@ -272,7 +272,7 @@ fn setup_check_force_rebuild_reports_not_ready() -> Result<(), Box<dyn std::erro
             "global",
             "--offline",
             "--check",
-            "--force-rebuild",
+            "--force",
             "--no-embeddings",
             "--source",
         ])
@@ -295,6 +295,20 @@ fn setup_check_force_rebuild_reports_not_ready() -> Result<(), Box<dyn std::erro
     }));
 
     fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn setup_rejects_removed_force_rebuild_flag() -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["setup", "--force-rebuild", "--check"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(stderr.contains("unexpected argument '--force-rebuild'"));
+    assert!(stderr.contains("--force"));
+    assert!(output.stdout.is_empty());
     Ok(())
 }
 

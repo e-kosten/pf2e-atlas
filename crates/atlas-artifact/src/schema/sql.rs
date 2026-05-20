@@ -541,7 +541,7 @@ mod tests {
         );
         assert_eq!(
             records_fts_insert_sql(),
-            "INSERT INTO records_fts (record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
+            "INSERT INTO records_fts (record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms, source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"
         );
         assert_eq!(
             document_embedding_cache_insert_sql(),

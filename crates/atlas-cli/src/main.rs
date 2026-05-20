@@ -150,7 +150,7 @@ struct SetupRunOptions {
     )]
     offline: bool,
     #[arg(
-        long,
+        long = "force",
         help = "Rebuild the artifact even if it already satisfies the selected setup target"
     )]
     force_rebuild: bool,

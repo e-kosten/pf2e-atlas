@@ -77,8 +77,9 @@ pub fn insert_minimal_contract_rows(
         )?;
         connection.execute(
             "INSERT INTO records_fts (
-              record_key, title, aliases, traits, headings, body, facts, reference_terms, embedded_content
-             ) VALUES (?1, ?2, '', '', '', ?2, '', '', '')",
+              record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms,
+              source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
+             ) VALUES (?1, ?2, '', '', '', '', '', '', '', '', ?2, '', '', '')",
             [record_key.as_str(), name.as_str()],
         )?;
     }
