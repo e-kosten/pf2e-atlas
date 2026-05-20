@@ -682,6 +682,35 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         })?;
     let fts_count: usize =
         connection.query_row("SELECT COUNT(*) FROM records_fts", [], |row| row.get(0))?;
+    let (action_taxonomy_terms, action_constraint_terms, action_source_terms): (
+        String,
+        String,
+        String,
+    ) = connection.query_row(
+        "SELECT taxonomy_terms, constraint_terms, source_terms
+         FROM records_fts WHERE record_key = 'actions:testAction0001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    let (spell_taxonomy_terms, spell_mechanic_terms, spell_source_terms): (String, String, String) =
+        connection.query_row(
+            "SELECT taxonomy_terms, mechanic_terms, source_terms
+         FROM records_fts WHERE record_key = 'spells:testSpell0001'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    let (actor_mechanic_terms, actor_metric_terms): (String, String) = connection.query_row(
+        "SELECT mechanic_terms, metric_terms
+         FROM records_fts WHERE record_key = 'bestiary:testActor0001'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let equipment_mechanic_terms: String = connection.query_row(
+        "SELECT mechanic_terms
+         FROM records_fts WHERE record_key = 'equipment:testWeapon0001'",
+        [],
+        |row| row.get(0),
+    )?;
     let spell_record_family: String = connection.query_row(
         "SELECT record_family FROM records WHERE record_key = 'spells:testSpell0001'",
         [],
@@ -834,6 +863,25 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(record_count, 5);
     assert_eq!(document_embedding_count, 0);
     assert_eq!(fts_count, 5);
+    assert!(action_taxonomy_terms.contains("rule"));
+    assert!(action_taxonomy_terms.contains("action"));
+    assert!(action_constraint_terms.contains("trained in Medicine"));
+    assert!(action_constraint_terms.contains("one action"));
+    assert!(action_source_terms.contains("Player Core"));
+    assert!(action_source_terms.contains("Actions"));
+    assert!(spell_taxonomy_terms.contains("spell"));
+    assert!(spell_taxonomy_terms.contains("cantrip"));
+    assert!(spell_mechanic_terms.contains("level 1"));
+    assert!(spell_mechanic_terms.contains("1st rank"));
+    assert!(spell_mechanic_terms.contains("basic save"));
+    assert!(spell_source_terms.contains("Spells"));
+    assert!(actor_mechanic_terms.contains("darkvision"));
+    assert!(actor_mechanic_terms.contains("climb"));
+    assert!(actor_metric_terms.contains("Armor Class"));
+    assert!(actor_metric_terms.contains("AC"));
+    assert!(!actor_metric_terms.contains("17"));
+    assert!(equipment_mechanic_terms.contains("held-in-two-hands"));
+    assert!(equipment_mechanic_terms.contains("piercing"));
     assert_eq!(spell_record_family, "spell");
     assert_eq!(spell_level, 1);
     assert_eq!(spell_rarity, "common");
