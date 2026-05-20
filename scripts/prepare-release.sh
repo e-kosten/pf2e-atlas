@@ -25,6 +25,8 @@ Options:
 
 When --prepare-pr omits --version, the script prompts with semver bump choices
 based on the current atlas-cli crate version and existing release tags.
+Interactive prepare-pr opens the release notes in VISUAL, EDITOR, or git
+core.editor after creating or confirming the notes file.
 When open-pr or publish mode omits --version, the script uses the committed
 atlas-cli crate version.
 When no mode flag is passed, the script prompts for the mode. Interactive
@@ -338,6 +340,28 @@ Mention install, update, setup, or compatibility notes.
 EOF_NOTES
 }
 
+open_release_notes_editor() {
+  if ! can_prompt || [ "${ATLAS_RELEASE_TEST_SKIP_EDITOR:-0}" = 1 ]; then
+    return
+  fi
+
+  editor=${VISUAL:-${EDITOR:-}}
+  if [ -z "$editor" ]; then
+    editor=$(git config --get core.editor 2>/dev/null || true)
+  fi
+  if [ -z "$editor" ]; then
+    warn "no editor configured; set VISUAL, EDITOR, or git config core.editor to edit $notes_file automatically"
+    return
+  fi
+
+  info "Opening release notes in editor: $notes_file"
+  # Intentionally split configured editor commands so values like "code --wait"
+  # work while the notes path stays one argument.
+  # shellcheck disable=SC2086
+  set -- $editor
+  "$@" "$notes_file"
+}
+
 update_crate_version() {
   tmp_file="crates/atlas-cli/Cargo.toml.release-tmp"
   awk -v version="$version" '
@@ -522,6 +546,7 @@ if [ "$prepare_pr" -eq 1 ]; then
   if [ ! -f "$notes_file" ]; then
     write_release_notes_template
   fi
+  open_release_notes_editor
   info "Created release-preparation branch $release_branch."
   info "Edit $notes_file, validate, commit, and open a PR to main."
   exit 0
