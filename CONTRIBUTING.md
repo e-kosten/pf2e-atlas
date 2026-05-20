@@ -181,6 +181,14 @@ The helper creates an annotated tag and a draft GitHub release. The tag-triggere
 
 cargo-dist is configured in `dist-workspace.toml`. The Atlas release workflow intentionally keeps repo-owned installers instead of cargo-dist-generated installers so install/update prompts, install locations, PATH guidance, and runtime-data policy remain under Atlas control.
 
+To iterate on platform packaging without publishing a release, push a branch named
+`release-build-check/<topic>` or `release-build-check-<topic>`. The
+`release build check` workflow runs the cargo-dist build matrix, assembles the
+same installer, manifest, checksum, and notices assets, validates the asset set,
+and uploads the assembled output as workflow artifacts. It does not create a tag,
+draft release, or GitHub Release asset. After the workflow exists on `main`, it
+can also be run manually with an optional `vX.Y.Z[-rc.N]` tag override.
+
 Repository settings checklist:
 
 - GitHub Actions is enabled.
@@ -191,7 +199,7 @@ Repository settings checklist:
 
 Published release assets are treated as immutable. Fix bad published releases with a new patch release and document known issues in the affected release notes. Draft releases may be corrected before publication.
 
-Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for macOS, Linux, Windows, and ARM targets.
+Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
 ## Validation Before Commit
 

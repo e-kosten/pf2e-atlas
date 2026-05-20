@@ -38,6 +38,10 @@ atlas setup
 
 The installer installs only the `atlas` CLI. Runtime data stays in user cache locations and is managed by `atlas setup`.
 
+Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,
+and Windows x64. macOS Intel and Windows ARM64 are not published as release
+binaries yet.
+
 Confirm the installed version:
 
 ```bash

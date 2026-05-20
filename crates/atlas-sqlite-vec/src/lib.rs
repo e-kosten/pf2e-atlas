@@ -1,11 +1,13 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use std::os::raw::c_char;
+
 use rusqlite::ffi::{SQLITE_OK, sqlite3, sqlite3_api_routines, sqlite3_auto_extension};
 use sqlite_vec::sqlite3_vec_init;
 use thiserror::Error;
 
 type SqliteExtensionEntrypoint =
-    unsafe extern "C" fn(*mut sqlite3, *mut *mut i8, *const sqlite3_api_routines) -> i32;
+    unsafe extern "C" fn(*mut sqlite3, *mut *mut c_char, *const sqlite3_api_routines) -> i32;
 
 #[derive(Debug, Error)]
 pub enum SqliteVecRegistrationError {

@@ -31,7 +31,7 @@ function Fail($Message) {
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 switch ($arch) {
   "X64" { $target = "x86_64-pc-windows-msvc" }
-  "Arm64" { $target = "aarch64-pc-windows-msvc" }
+  "Arm64" { Fail "unsupported Windows architecture: Arm64; Atlas release binaries currently require Windows x64" }
   default { Fail "unsupported Windows architecture: $arch" }
 }
 

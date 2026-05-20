@@ -72,8 +72,6 @@ jobs:
             os: ubuntu-24.04
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
-          - target: x86_64-apple-darwin
-            os: macos-15-intel
           - target: aarch64-apple-darwin
             os: macos-14
           - target: x86_64-pc-windows-msvc
@@ -109,6 +107,8 @@ jobs:
       - name: Build archives with cargo-dist on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
+        env:
+          RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
         run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v4
@@ -117,32 +117,10 @@ jobs:
           path: target/distrib/atlas-cli-${{ matrix.target }}.*
           if-no-files-found: error
 
-  build-windows-arm64:
-    name: cargo-dist aarch64-pc-windows-msvc
-    needs: validate-tag
-    runs-on: windows-11-arm
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install cargo-dist
-        shell: pwsh
-        run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
-      - name: Generate notices
-        shell: pwsh
-        run: python scripts/release/generate-notices.py
-      - name: Build archives with cargo-dist
-        shell: pwsh
-        run: dist build --artifacts local --target aarch64-pc-windows-msvc --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
-      - name: Upload cargo-dist artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-aarch64-pc-windows-msvc
-          path: target/distrib/atlas-cli-aarch64-pc-windows-msvc.*
-          if-no-files-found: error
-
   publish:
     name: upload and publish release
-    needs: [validate-tag, build, build-windows-arm64]
-    if: ${{ always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' && needs.build-windows-arm64.result == 'success' }}
+    needs: [validate-tag, build]
+    if: ${{ always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
