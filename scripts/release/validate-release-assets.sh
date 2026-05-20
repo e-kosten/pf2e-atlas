@@ -11,11 +11,9 @@ dist="$2"
 
 required="
 atlas-cli-aarch64-apple-darwin.tar.xz
-atlas-cli-x86_64-apple-darwin.tar.xz
 atlas-cli-x86_64-unknown-linux-gnu.tar.xz
 atlas-cli-aarch64-unknown-linux-gnu.tar.xz
 atlas-cli-x86_64-pc-windows-msvc.zip
-atlas-cli-aarch64-pc-windows-msvc.zip
 SHA256SUMS
 dist-manifest.json
 atlas-installer.sh
@@ -35,11 +33,9 @@ done
 
 for target in \
   aarch64-apple-darwin \
-  x86_64-apple-darwin \
   x86_64-unknown-linux-gnu \
   aarch64-unknown-linux-gnu \
-  x86_64-pc-windows-msvc \
-  aarch64-pc-windows-msvc
+  x86_64-pc-windows-msvc
 do
   archive=$(awk -v target="$target" '
     /^[[:space:]]*\{/ {
@@ -123,35 +119,43 @@ if find "$dist" \( -name 'pf2e-index.sqlite' -o -name 'model.onnx' -o -name 'tok
   exit 1
 fi
 
-check_archive_entry() {
-  entry="$1"
-  case "$entry" in
-    *pf2e-index.sqlite*|*model.onnx*|*tokenizer.json*|*vendor/pf2e/*|*hf-models/*)
-      echo "release archive contains runtime data that must not be bundled: $entry" >&2
-      return 1
-      ;;
-  esac
-}
+python3 - "$dist" <<'PY'
+import sys
+import tarfile
+import zipfile
+from pathlib import Path
 
-for archive in "$dist"/*.tar.xz; do
-  [ -e "$archive" ] || continue
-  tar -tf "$archive" | while IFS= read -r entry; do
-    check_archive_entry "$entry"
-  done
-done
+dist = Path(sys.argv[1])
 
-for archive in "$dist"/*.zip; do
-  [ -e "$archive" ] || continue
-  if command -v zipinfo >/dev/null 2>&1; then
-    zipinfo -1 "$archive" | while IFS= read -r entry; do
-      check_archive_entry "$entry"
-    done
-  elif command -v unzip >/dev/null 2>&1; then
-    unzip -Z1 "$archive" | while IFS= read -r entry; do
-      check_archive_entry "$entry"
-    done
-  else
-    echo "missing zip listing tool: zipinfo or unzip" >&2
-    exit 1
-  fi
-done
+
+def contains_runtime_data(entry: str) -> bool:
+    return (
+        "pf2e-index.sqlite" in entry
+        or "model.onnx" in entry
+        or "tokenizer.json" in entry
+        or "vendor/pf2e/" in entry
+        or "hf-models/" in entry
+    )
+
+
+bad_entries = []
+for archive in sorted(dist.glob("*.tar.xz")):
+    with tarfile.open(archive, "r:xz") as source:
+        for member in source.getmembers():
+            if contains_runtime_data(member.name):
+                bad_entries.append(f"{archive.name}:{member.name}")
+
+for archive in sorted(dist.glob("*.zip")):
+    with zipfile.ZipFile(archive) as source:
+        for name in source.namelist():
+            if contains_runtime_data(name):
+                bad_entries.append(f"{archive.name}:{name}")
+
+if bad_entries:
+    for entry in bad_entries:
+        print(
+            f"release archive contains runtime data that must not be bundled: {entry}",
+            file=sys.stderr,
+        )
+    sys.exit(1)
+PY

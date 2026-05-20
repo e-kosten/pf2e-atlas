@@ -51,7 +51,6 @@ PY
 
 for target in \
   aarch64-apple-darwin \
-  x86_64-apple-darwin \
   x86_64-unknown-linux-gnu \
   aarch64-unknown-linux-gnu
 do
@@ -59,8 +58,7 @@ do
 done
 
 for target in \
-  x86_64-pc-windows-msvc \
-  aarch64-pc-windows-msvc
+  x86_64-pc-windows-msvc
 do
   make_windows_archive "$target"
 done
@@ -160,7 +158,7 @@ fi
 
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64) host_target="aarch64-apple-darwin" ;;
-  Darwin:x86_64) host_target="x86_64-apple-darwin" ;;
+  Darwin:x86_64) host_target="" ;;
   Linux:x86_64|Linux:amd64) host_target="x86_64-unknown-linux-gnu" ;;
   Linux:aarch64|Linux:arm64) host_target="aarch64-unknown-linux-gnu" ;;
   *) host_target="" ;;

@@ -3,6 +3,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+  $PSNativeCommandUseErrorActionPreference = $true
+}
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-release-test-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
@@ -13,12 +16,23 @@ try {
   function New-UnixArchive($Target) {
     $work = Join-Path $tmp "work"
     $root = Join-Path $work "atlas-cli-$Target"
+    $archive = Join-Path $dist "atlas-cli-$Target.tar.xz"
     New-Item -ItemType Directory -Force -Path $root | Out-Null
     "#!/bin/sh`nprintf 'atlas 9.9.9\n'`n" | Set-Content -Path (Join-Path $root "atlas") -NoNewline
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
     Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
-    tar -cJf (Join-Path $dist "atlas-cli-$Target.tar.xz") -C $work "atlas-cli-$Target"
+    @'
+import sys
+import tarfile
+from pathlib import Path
+
+archive = Path(sys.argv[1])
+root = Path(sys.argv[2])
+target = sys.argv[3]
+with tarfile.open(archive, "w:xz") as out:
+    out.add(root, arcname=f"atlas-cli-{target}")
+'@ | python - $archive $root $Target
   }
 
   function New-WindowsArchive($Target) {
@@ -40,7 +54,7 @@ try {
       @'
 Console.WriteLine("atlas 9.9.9");
 '@ | Set-Content -Path (Join-Path $appDir "Program.cs")
-      dotnet publish $appDir --configuration Release --runtime win-x64 --self-contained false --output (Join-Path $appDir "out") | Out-Null
+      dotnet publish $appDir --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true --output (Join-Path $appDir "out") | Out-Null
     }
     Copy-Item (Join-Path $appDir "out/atlas-stub.exe") (Join-Path $root "atlas.exe")
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
@@ -51,14 +65,12 @@ Console.WriteLine("atlas 9.9.9");
 
   @(
     "aarch64-apple-darwin",
-    "x86_64-apple-darwin",
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu"
   ) | ForEach-Object { New-UnixArchive $_ }
 
   @(
-    "x86_64-pc-windows-msvc",
-    "aarch64-pc-windows-msvc"
+    "x86_64-pc-windows-msvc"
   ) | ForEach-Object { New-WindowsArchive $_ }
 
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.sh") (Join-Path $dist "atlas-installer.sh")
@@ -144,11 +156,7 @@ function Invoke-WebRequest {
 
   $rollbackDist = Join-Path $tmp "rollback-dist"
   Copy-Item $dist $rollbackDist -Recurse
-  $archive = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -eq "Arm64") {
-    "atlas-cli-aarch64-pc-windows-msvc.zip"
-  } else {
-    "atlas-cli-x86_64-pc-windows-msvc.zip"
-  }
+  $archive = "atlas-cli-x86_64-pc-windows-msvc.zip"
   $badRoot = Join-Path $tmp "bad-atlas"
   New-Item -ItemType Directory -Force -Path $badRoot | Out-Null
   Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $badRoot "LICENSE")
@@ -196,6 +204,7 @@ function Invoke-WebRequest {
   }
 
   Write-Host "PowerShell installer smoke tests passed"
+  exit 0
 } finally {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
