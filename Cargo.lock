@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "atlas-cli"
-version = "0.1.0-rc.2"
+version = "0.1.0-rc.3"
 dependencies = [
  "atlas-artifact",
  "atlas-domain",
