@@ -11,6 +11,7 @@ mod contract;
 mod database;
 mod discovery;
 mod filters;
+mod fts;
 mod inspect;
 mod metadata;
 mod records;
