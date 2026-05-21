@@ -134,7 +134,7 @@ flowchart TD
     collapse --> output["atlas-cli presentation<br/>JSON or terminal text"]
 ```
 
-Filters compile to an authoritative SQL keyset before lexical or vector search. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
+Filters compile to an authoritative SQL keyset before lexical or vector search. SQLite lexical search keeps that keyset in the same query as `records_fts`, applies weighted BM25, then runs index-owned deterministic reranking for strict-token matches, phrase/name containment, type intent, token coverage, and generated-effect downranking. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
 
 Graph context retrieval is key-based and one-hop in the V1 Rust CLI. `atlas graph get <record-key>` routes through `AtlasRetrievalService`, loads the seed record through the normal record path, asks `AtlasIndex` for policy-visible `reference_edges`, applies deterministic edge ordering and unique-neighbor limits, then hydrates only retained neighbor records. Search relationship flags such as `--referenced-by` remain result-set filters; graph context retrieval returns a local context bundle with edge evidence, counts, and truncation metadata.
 
