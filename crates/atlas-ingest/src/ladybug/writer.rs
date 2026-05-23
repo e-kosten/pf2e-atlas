@@ -4,17 +4,15 @@ use std::path::Path;
 use std::time::Instant;
 
 use arrow_schema::DataType;
-use atlas_artifact::storage::decode_f32_vector_blob;
 use atlas_record::{
     ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator, MetricRow,
     NormalizedRecord, build_record_fts_projection, iter_content_references,
     metrics as metric_definitions, render_plain_text,
 };
 use lbug::{Connection, Database, SystemConfig};
-use rusqlite::OpenFlags;
-use tracing::info;
 
 use crate::error::IngestError;
+use crate::ladybug::embeddings::{LadybugEmbedding, ladybug_embeddings};
 use crate::ladybug::evidence::evidence_units;
 use crate::ladybug::output::{
     LadybugOutput, ladybug_progress, ladybug_progress_message, ladybug_write_error,
@@ -29,18 +27,6 @@ use crate::progress::elapsed_display;
 use crate::records::MetricValue;
 use crate::records::visibility::RetrievalVisibility;
 use crate::source::{LoadedPack, SourceLoad};
-
-#[derive(Debug, Clone)]
-struct LadybugEmbedding {
-    embedding_unit_key: String,
-    record_key: String,
-    unit_kind: String,
-    label: Option<String>,
-    ordinal: i64,
-    semantic_input_hash: String,
-    dimensions: usize,
-    vector: Vec<f32>,
-}
 
 pub(crate) fn write_artifact(path: &Path, source: &SourceLoad) -> Result<(), IngestError> {
     ladybug_progress("ladybug_write", "Preparing LadybugDB output");
@@ -1637,97 +1623,6 @@ fn optional_content_json(document: &Option<ContentDocument>) -> Option<String> {
     document
         .as_ref()
         .and_then(|document| serde_json::to_string(document).ok())
-}
-
-fn ladybug_embeddings(source: &SourceLoad) -> Result<Vec<LadybugEmbedding>, IngestError> {
-    if !source.document_embeddings.is_empty() {
-        return Ok(source
-            .document_embeddings
-            .iter()
-            .map(|embedding| LadybugEmbedding {
-                embedding_unit_key: embedding.embedding_unit_key.clone(),
-                record_key: embedding.record_key.clone(),
-                unit_kind: embedding.unit_kind.as_str().to_string(),
-                label: embedding.label.clone(),
-                ordinal: embedding.ordinal as i64,
-                semantic_input_hash: embedding.input_hash.clone(),
-                dimensions: embedding.dimensions,
-                vector: embedding.vector.clone(),
-            })
-            .collect());
-    }
-
-    let Some(path) = std::env::var_os("ATLAS_LADYBUG_LEGACY_EMBEDDINGS_SQLITE") else {
-        return Ok(Vec::new());
-    };
-    load_legacy_sqlite_embeddings(Path::new(&path), source)
-}
-
-fn load_legacy_sqlite_embeddings(
-    path: &Path,
-    source: &SourceLoad,
-) -> Result<Vec<LadybugEmbedding>, IngestError> {
-    let source_record_keys = source
-        .records
-        .iter()
-        .map(|loaded| loaded.record.key.to_string())
-        .collect::<BTreeSet<_>>();
-    let connection = rusqlite::Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let mut select = connection
-        .prepare(
-            "SELECT record_key, dimensions, semantic_input_hash, vector_blob
-             FROM embeddings
-             ORDER BY record_key",
-        )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let rows = select
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, Vec<u8>>(3)?,
-            ))
-        })
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let mut embeddings = Vec::new();
-    for row in rows {
-        let (record_key, dimensions, semantic_input_hash, vector_blob) =
-            row.map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-        if !source_record_keys.contains(&record_key) {
-            continue;
-        }
-        let dimensions = usize::try_from(dimensions).map_err(|_| {
-            IngestError::ArtifactWriteFailed(format!(
-                "legacy embedding `{record_key}` has invalid dimensions"
-            ))
-        })?;
-        let vector = decode_f32_vector_blob(&vector_blob)
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-        if vector.len() != dimensions {
-            return Err(IngestError::ArtifactWriteFailed(format!(
-                "legacy embedding `{record_key}` vector has {} dimensions; expected {dimensions}",
-                vector.len()
-            )));
-        }
-        embeddings.push(LadybugEmbedding {
-            embedding_unit_key: format!("{record_key}#legacy-parent"),
-            record_key,
-            unit_kind: "legacy_parent".to_string(),
-            label: None,
-            ordinal: 0,
-            semantic_input_hash,
-            dimensions,
-            vector,
-        });
-    }
-    info!(
-        legacy_sqlite_embeddings = embeddings.len(),
-        source = %path.display(),
-        "loaded legacy SQLite embeddings for Ladybug spike"
-    );
-    Ok(embeddings)
 }
 
 fn metric_value_type(value: &MetricValue) -> &'static str {
