@@ -1364,3 +1364,7 @@ Completed alignment slices:
   - `graph.rs` owns graph/reference/remaster reads;
   - `discovery.rs` owns filter discovery and facet/stat queries;
   - `lib.rs` remains the backend facade, `SearchIndex` implementation, connection lifecycle, and record orchestration.
+- `atlas-ingest::ladybug` started its writer split:
+  - `output.rs` owns progress, output publication, temp path, cleanup, and move lifecycle;
+  - `schema.rs` owns Ladybug schema and search/vector index creation;
+  - `writer.rs` remains the staging/orchestration file and still needs a follow-up split for Parquet node/relationship staging.
