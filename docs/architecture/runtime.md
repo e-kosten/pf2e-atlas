@@ -97,7 +97,7 @@ flowchart TD
     doc --> refs["Resolved ContentReference nodes"]
 
     presentation --> parentEmbedding["Embedding parent unit<br/>primary/default content;<br/>embedded capability content excluded"]
-    tree --> childEmbedding["Embedding child units<br/>explicit headings only;<br/>unpromoted embedded content excluded"]
+    tree --> childEmbedding["Embedding child units<br/>coverage-driven rich groups;<br/>only when parent budget omits content;<br/>unpromoted embedded content excluded"]
     refs --> edges["reference_edges<br/>source_kind + visibility"]
     fts --> recordsFts["records_fts<br/>weighted lexical search"]
 ```

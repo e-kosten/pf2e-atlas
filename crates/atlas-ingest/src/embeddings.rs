@@ -16,11 +16,14 @@ pub(crate) struct DocumentEmbeddingUnitSummary {
     pub total_units: usize,
     pub parent_units: usize,
     pub child_units: usize,
+    pub child_candidate_units: usize,
     pub records_with_child_units: usize,
+    pub records_with_child_candidates: usize,
     pub records_over_20_child_units: usize,
     pub records_over_50_child_units: usize,
     pub records_over_100_child_units: usize,
     pub max_child_units_per_record: usize,
+    pub max_child_candidates_per_record: usize,
 }
 
 pub(crate) fn build_pending_document_embeddings(
@@ -59,11 +62,18 @@ pub(crate) fn summarize_pending_document_embeddings(
     pending: &[PendingDocumentEmbedding],
 ) -> DocumentEmbeddingUnitSummary {
     let mut child_units_by_record = BTreeMap::<&str, usize>::new();
+    let mut child_candidates_by_record = BTreeMap::<&str, usize>::new();
     let mut summary = DocumentEmbeddingUnitSummary {
         total_units: pending.len(),
         ..Default::default()
     };
     for unit in pending {
+        if !unit.child_candidates.is_empty() {
+            summary.child_candidate_units += unit.child_candidates.len();
+            *child_candidates_by_record
+                .entry(unit.record_key.as_str())
+                .or_default() += unit.child_candidates.len();
+        }
         if unit.unit_kind == EmbeddingUnitKind::Parent {
             summary.parent_units += 1;
         } else {
@@ -74,11 +84,17 @@ pub(crate) fn summarize_pending_document_embeddings(
         }
     }
     summary.records_with_child_units = child_units_by_record.len();
+    summary.records_with_child_candidates = child_candidates_by_record.len();
     for child_units in child_units_by_record.values().copied() {
         summary.max_child_units_per_record = summary.max_child_units_per_record.max(child_units);
         summary.records_over_20_child_units += usize::from(child_units > 20);
         summary.records_over_50_child_units += usize::from(child_units > 50);
         summary.records_over_100_child_units += usize::from(child_units > 100);
+    }
+    for child_candidates in child_candidates_by_record.values().copied() {
+        summary.max_child_candidates_per_record = summary
+            .max_child_candidates_per_record
+            .max(child_candidates);
     }
     summary
 }
@@ -231,11 +247,15 @@ mod tests {
 
         let summary = summarize_pending_document_embeddings(&pending);
 
-        assert_eq!(summary.total_units, 3);
+        assert_eq!(summary.total_units, 1);
         assert_eq!(summary.parent_units, 1);
-        assert_eq!(summary.child_units, 2);
-        assert_eq!(summary.records_with_child_units, 1);
-        assert_eq!(summary.max_child_units_per_record, 2);
+        assert_eq!(summary.child_units, 0);
+        assert_eq!(summary.child_candidate_units, 2);
+        assert_eq!(summary.records_with_child_units, 0);
+        assert_eq!(summary.records_with_child_candidates, 1);
+        assert_eq!(summary.max_child_units_per_record, 0);
+        assert_eq!(summary.max_child_candidates_per_record, 2);
+        assert_eq!(pending[0].child_candidates.len(), 2);
     }
 
     fn text_document(text: &str) -> ContentDocument {

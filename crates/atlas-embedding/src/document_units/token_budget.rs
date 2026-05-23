@@ -1,11 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use atlas_record::ContentSourceKind;
 use tracing::info;
 
 use crate::document_input::hash_document_embedding_input;
+use crate::document_renderer::render_embedding_chunks_for_embedding;
 use crate::error::EmbeddingError;
 use crate::tokenization::{
-    EmbeddingInputTokenization, EmbeddingSectionTruncation, TextEmbeddingTokenizer,
+    EmbeddingChunkBudgetOutcome, EmbeddingInputTokenization, EmbeddingSectionTruncation,
+    TextEmbeddingTokenizer,
 };
 use crate::unit_kind::EmbeddingUnitKind;
 
@@ -14,17 +17,18 @@ use super::model::{
     DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
     DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
     DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding,
+    PendingDocumentEmbeddingCandidate,
 };
 
 pub fn apply_document_embedding_token_budget(
-    pending: &mut [PendingDocumentEmbedding],
+    pending: &mut Vec<PendingDocumentEmbedding>,
     tokenizer: &TextEmbeddingTokenizer,
 ) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
     apply_document_embedding_token_budget_inner(pending, tokenizer, None)
 }
 
 pub fn apply_document_embedding_token_budget_with_diagnostics(
-    pending: &mut [PendingDocumentEmbedding],
+    pending: &mut Vec<PendingDocumentEmbedding>,
     tokenizer: &TextEmbeddingTokenizer,
     diagnostics: &mut Vec<DocumentEmbeddingChunkBudgetDiagnostic>,
 ) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
@@ -32,37 +36,56 @@ pub fn apply_document_embedding_token_budget_with_diagnostics(
 }
 
 fn apply_document_embedding_token_budget_inner(
-    pending: &mut [PendingDocumentEmbedding],
+    pending: &mut Vec<PendingDocumentEmbedding>,
     tokenizer: &TextEmbeddingTokenizer,
     mut diagnostics: Option<&mut Vec<DocumentEmbeddingChunkBudgetDiagnostic>>,
 ) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
-    let inputs = pending
+    let parent_count = pending
         .iter()
-        .map(|entry| entry.input_text.as_str())
-        .collect::<Vec<_>>();
-    let tokenizations = tokenizer.analyze_document_inputs(&inputs)?;
-    let mut truncated_sections_by_unit = BTreeMap::<String, Vec<EmbeddingSectionTruncation>>::new();
-    let truncated_count = tokenizations
-        .iter()
-        .filter(|tokenization| tokenization.truncated)
+        .filter(|entry| entry.unit_kind == EmbeddingUnitKind::Parent)
         .count();
+    let mut truncated_sections_by_unit = BTreeMap::<String, Vec<EmbeddingSectionTruncation>>::new();
     info!(
-        truncated_document_embeddings = truncated_count,
-        "applying document embedding truncation budget"
+        document_embeddings = parent_count,
+        "applying document embedding token budget"
     );
     info!(target: "atlas_progress",
-        phase = "document_embedding_truncation",
+        phase = "document_embedding_analysis",
         current = 0_u64,
-        total = truncated_count as u64,
-        "Truncating over-limit embedding inputs"
+        total = parent_count as u64,
+        "Budgeting document embedding inputs"
     );
-    let mut processed_truncated = 0;
-    let progress_interval = token_budget_progress_interval(truncated_count);
-    for (entry, tokenization) in pending.iter_mut().zip(tokenizations.iter()) {
-        if !tokenization.truncated {
+    let mut processed_parent = 0;
+    let mut truncated_count = 0;
+    let progress_interval = token_budget_progress_interval(parent_count);
+
+    let mut child_candidates = Vec::<PendingDocumentEmbeddingCandidate>::new();
+    let mut final_tokenizations = Vec::<EmbeddingInputTokenization>::new();
+    for entry in pending
+        .iter_mut()
+        .filter(|entry| entry.unit_kind == EmbeddingUnitKind::Parent)
+    {
+        let budgeted = tokenizer.budget_document_input(&entry.input_chunks)?;
+        processed_parent += 1;
+        if !budgeted.tokenization.truncated {
+            final_tokenizations.push(budgeted.tokenization);
+            if processed_parent == parent_count || processed_parent % progress_interval == 0 {
+                info!(
+                    budgeted_document_embeddings = processed_parent,
+                    document_embeddings = parent_count,
+                    "budgeted document embedding input batch"
+                );
+                info!(target: "atlas_progress",
+                    phase = "document_embedding_analysis",
+                    current = processed_parent as u64,
+                    total = parent_count as u64,
+                    "Budgeting document embedding inputs"
+                );
+            }
             continue;
         }
-        let budgeted = tokenizer.budget_document_input(&entry.input_chunks)?;
+        truncated_count += 1;
+        let impacted_groups = impacted_child_groups(&budgeted.chunk_diagnostics);
         if !budgeted.truncated_sections.is_empty() {
             truncated_sections_by_unit.insert(
                 entry.embedding_unit_key.clone(),
@@ -75,9 +98,10 @@ fn apply_document_embedding_token_budget_inner(
                 record_key: entry.record_key.clone(),
                 unit_kind: entry.unit_kind,
                 label: entry.label.clone(),
-                original_token_count: tokenization.token_count,
+                source_kind: entry.source_kind,
+                original_token_count: budgeted.tokenization.token_count,
                 final_token_count: budgeted.final_token_count,
-                max_token_count: tokenization.max_token_count.unwrap_or(0),
+                max_token_count: budgeted.tokenization.max_token_count.unwrap_or(0),
                 original_chunk_count: entry.input_chunks.len(),
                 final_chunk_count: budgeted
                     .chunk_diagnostics
@@ -90,6 +114,8 @@ fn apply_document_embedding_token_budget_inner(
                     .map(|chunk| DocumentEmbeddingChunkBudgetDiagnosticChunk {
                         section: chunk.section,
                         outcome: chunk.outcome,
+                        source_kind: chunk.source_kind,
+                        group_key: chunk.group_key,
                         original_text: chunk.original_text,
                         final_text: chunk.final_text,
                     })
@@ -98,30 +124,145 @@ fn apply_document_embedding_token_budget_inner(
         }
         entry.input_text = budgeted.text;
         entry.input_hash = hash_document_embedding_input(&entry.input_text);
-        processed_truncated += 1;
-        if processed_truncated == truncated_count || processed_truncated % progress_interval == 0 {
+        child_candidates.extend(entry.child_candidates.iter().filter_map(|candidate| {
+            impacted_groups
+                .contains(&candidate.group_key)
+                .then_some(candidate.clone())
+        }));
+        final_tokenizations.push(budgeted.tokenization);
+        if processed_parent == parent_count || processed_parent % progress_interval == 0 {
             info!(
-                processed_truncated_document_embeddings = processed_truncated,
+                budgeted_document_embeddings = processed_parent,
+                document_embeddings = parent_count,
                 truncated_document_embeddings = truncated_count,
-                "applied document embedding truncation budget batch"
+                "budgeted document embedding input batch"
             );
             info!(target: "atlas_progress",
-                phase = "document_embedding_truncation",
-                current = processed_truncated as u64,
-                total = truncated_count as u64,
-                "Truncating over-limit embedding inputs"
+                phase = "document_embedding_analysis",
+                current = processed_parent as u64,
+                total = parent_count as u64,
+                "Budgeting document embedding inputs"
             );
         }
     }
+    info!(target: "atlas_progress",
+        phase = "document_embedding_analysis",
+        "Materializing impacted child embedding inputs"
+    );
+    let child_units = materialize_child_units(
+        child_candidates,
+        tokenizer,
+        diagnostics,
+        &mut truncated_sections_by_unit,
+        &mut final_tokenizations,
+    )?;
+    info!(target: "atlas_progress",
+        phase = "document_embedding_analysis",
+        "Summarizing document embedding tokenization"
+    );
+    pending.extend(child_units);
+    for entry in pending.iter_mut() {
+        entry.child_candidates.clear();
+    }
     info!(
         truncated_document_embeddings = truncated_count,
-        "document embedding truncation budget complete"
+        "document embedding token budget complete"
     );
     Ok(summarize_document_embedding_tokenization(
         pending,
-        &tokenizations,
+        &final_tokenizations,
         &truncated_sections_by_unit,
     ))
+}
+
+fn is_child_embedding_source(source_kind: ContentSourceKind) -> bool {
+    matches!(
+        source_kind,
+        ContentSourceKind::Description
+            | ContentSourceKind::DetailsDescription
+            | ContentSourceKind::PublicNotes
+    )
+}
+
+fn impacted_child_groups(
+    diagnostics: &[crate::tokenization::EmbeddingChunkBudgetDiagnostic],
+) -> BTreeSet<String> {
+    diagnostics
+        .iter()
+        .filter(|chunk| {
+            chunk.outcome != EmbeddingChunkBudgetOutcome::Accepted
+                && chunk.source_kind.is_some_and(is_child_embedding_source)
+        })
+        .filter_map(|chunk| chunk.group_key.clone())
+        .collect()
+}
+
+fn materialize_child_units(
+    candidates: Vec<PendingDocumentEmbeddingCandidate>,
+    tokenizer: &TextEmbeddingTokenizer,
+    mut diagnostics: Option<&mut Vec<DocumentEmbeddingChunkBudgetDiagnostic>>,
+    truncated_sections_by_unit: &mut BTreeMap<String, Vec<EmbeddingSectionTruncation>>,
+    final_tokenizations: &mut Vec<EmbeddingInputTokenization>,
+) -> Result<Vec<PendingDocumentEmbedding>, EmbeddingError> {
+    let mut units = Vec::new();
+    for candidate in candidates {
+        let input_text = render_embedding_chunks_for_embedding(&candidate.input_chunks);
+        let input_hash = hash_document_embedding_input(&input_text);
+        let mut unit = PendingDocumentEmbedding {
+            embedding_unit_key: candidate.embedding_unit_key,
+            record_key: candidate.record_key,
+            unit_kind: candidate.unit_kind,
+            label: candidate.label,
+            source_kind: Some(candidate.source_kind),
+            ordinal: candidate.ordinal,
+            input_chunks: candidate.input_chunks,
+            input_text,
+            input_hash,
+            child_candidates: Vec::new(),
+        };
+        let budgeted = tokenizer.budget_document_input(&unit.input_chunks)?;
+        if budgeted.tokenization.truncated {
+            if !budgeted.truncated_sections.is_empty() {
+                truncated_sections_by_unit
+                    .insert(unit.embedding_unit_key.clone(), budgeted.truncated_sections);
+            }
+            if let Some(diagnostics) = diagnostics.as_deref_mut() {
+                diagnostics.push(DocumentEmbeddingChunkBudgetDiagnostic {
+                    embedding_unit_key: unit.embedding_unit_key.clone(),
+                    record_key: unit.record_key.clone(),
+                    unit_kind: unit.unit_kind,
+                    label: unit.label.clone(),
+                    source_kind: unit.source_kind,
+                    original_token_count: budgeted.tokenization.token_count,
+                    final_token_count: budgeted.final_token_count,
+                    max_token_count: budgeted.tokenization.max_token_count.unwrap_or(0),
+                    original_chunk_count: unit.input_chunks.len(),
+                    final_chunk_count: budgeted
+                        .chunk_diagnostics
+                        .iter()
+                        .filter(|chunk| chunk.final_text.is_some())
+                        .count(),
+                    chunks: budgeted
+                        .chunk_diagnostics
+                        .into_iter()
+                        .map(|chunk| DocumentEmbeddingChunkBudgetDiagnosticChunk {
+                            section: chunk.section,
+                            outcome: chunk.outcome,
+                            source_kind: chunk.source_kind,
+                            group_key: chunk.group_key,
+                            original_text: chunk.original_text,
+                            final_text: chunk.final_text,
+                        })
+                        .collect(),
+                });
+            }
+            unit.input_text = budgeted.text;
+            unit.input_hash = hash_document_embedding_input(&unit.input_text);
+        }
+        final_tokenizations.push(budgeted.tokenization);
+        units.push(unit);
+    }
+    Ok(units)
 }
 
 fn token_budget_progress_interval(total: usize) -> usize {
@@ -336,4 +477,210 @@ fn summarize_section_truncations(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_record::ContentSourceKind;
+
+    use crate::document_input::hash_document_embedding_input;
+    use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
+    use crate::tokenization::TextEmbeddingTokenizer;
+
+    use super::*;
+
+    #[test]
+    fn child_embedding_sources_are_limited_to_rich_content() {
+        assert!(is_child_embedding_source(ContentSourceKind::Description));
+        assert!(is_child_embedding_source(
+            ContentSourceKind::DetailsDescription
+        ));
+        assert!(is_child_embedding_source(ContentSourceKind::PublicNotes));
+        assert!(!is_child_embedding_source(ContentSourceKind::Blurb));
+        assert!(!is_child_embedding_source(ContentSourceKind::Routine));
+    }
+
+    #[test]
+    fn token_budget_materializes_only_impacted_rich_child_groups() {
+        let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(180);
+        let mut pending = vec![PendingDocumentEmbedding {
+            embedding_unit_key: "packs:test#parent".to_string(),
+            record_key: "packs:test".to_string(),
+            unit_kind: EmbeddingUnitKind::Parent,
+            label: None,
+            source_kind: None,
+            ordinal: 0,
+            input_chunks: vec![
+                identity_chunk(),
+                rich_chunk(
+                    ContentSourceKind::Description,
+                    "description:0:description",
+                    "Description accepted rich content",
+                    70,
+                ),
+                rich_chunk(
+                    ContentSourceKind::PublicNotes,
+                    "public_notes:1:public_notes",
+                    "Public notes impacted rich content",
+                    130,
+                ),
+                rich_chunk(
+                    ContentSourceKind::Blurb,
+                    "blurb:2:summary",
+                    "Summary non rich content",
+                    130,
+                ),
+            ],
+            input_text: "parent".to_string(),
+            input_hash: hash_document_embedding_input("parent"),
+            child_candidates: vec![
+                child_candidate(
+                    "packs:test#heading_section:1",
+                    ContentSourceKind::Description,
+                    "description:0:description",
+                    "Description",
+                    70,
+                ),
+                child_candidate(
+                    "packs:test#heading_section:2",
+                    ContentSourceKind::PublicNotes,
+                    "public_notes:1:public_notes",
+                    "Public Notes",
+                    130,
+                ),
+                child_candidate(
+                    "packs:test#heading_section:3",
+                    ContentSourceKind::Blurb,
+                    "blurb:2:summary",
+                    "Summary",
+                    130,
+                ),
+            ],
+        }];
+
+        let telemetry = apply_document_embedding_token_budget(&mut pending, &tokenizer)
+            .expect("budgeting should succeed");
+
+        assert_eq!(
+            pending
+                .iter()
+                .map(|entry| entry.embedding_unit_key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["packs:test#parent", "packs:test#heading_section:2"]
+        );
+        assert!(
+            pending
+                .iter()
+                .all(|entry| entry.child_candidates.is_empty())
+        );
+        let child = pending
+            .iter()
+            .find(|entry| entry.embedding_unit_key == "packs:test#heading_section:2")
+            .expect("impacted public notes child materializes");
+        assert_eq!(child.source_kind, Some(ContentSourceKind::PublicNotes));
+        assert!(child.input_text.contains("Public Notes"));
+        assert!(child.input_text.contains("token0"));
+        assert!(child.input_text.contains("token129"));
+        assert_eq!(telemetry.document_count, 2);
+        assert_eq!(
+            telemetry
+                .record_truncation_coverage
+                .records_with_child_units,
+            1
+        );
+    }
+
+    #[test]
+    fn token_budget_materializes_short_impacted_rich_child_groups() {
+        let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(40);
+        let mut pending = vec![PendingDocumentEmbedding {
+            embedding_unit_key: "packs:test#parent".to_string(),
+            record_key: "packs:test".to_string(),
+            unit_kind: EmbeddingUnitKind::Parent,
+            label: None,
+            source_kind: None,
+            ordinal: 0,
+            input_chunks: vec![
+                identity_chunk(),
+                rich_chunk(
+                    ContentSourceKind::Description,
+                    "description:0:description",
+                    "Description",
+                    20,
+                ),
+                rich_chunk(
+                    ContentSourceKind::PublicNotes,
+                    "public_notes:1:public_notes",
+                    "Short Public Notes",
+                    20,
+                ),
+            ],
+            input_text: "parent".to_string(),
+            input_hash: hash_document_embedding_input("parent"),
+            child_candidates: vec![child_candidate(
+                "packs:test#heading_section:1",
+                ContentSourceKind::PublicNotes,
+                "public_notes:1:public_notes",
+                "Short Public Notes",
+                20,
+            )],
+        }];
+
+        apply_document_embedding_token_budget(&mut pending, &tokenizer)
+            .expect("budgeting should succeed");
+
+        assert_eq!(pending.len(), 2);
+        assert!(
+            pending
+                .iter()
+                .any(|entry| entry.embedding_unit_key == "packs:test#heading_section:1")
+        );
+    }
+
+    fn identity_chunk() -> EmbeddingInputChunk {
+        EmbeddingInputChunk::line(EmbeddingInputSection::Identity, "Name: Test Record")
+    }
+
+    fn child_candidate(
+        embedding_unit_key: &str,
+        source_kind: ContentSourceKind,
+        group_key: &str,
+        label: &str,
+        repeated_words: usize,
+    ) -> PendingDocumentEmbeddingCandidate {
+        PendingDocumentEmbeddingCandidate {
+            embedding_unit_key: embedding_unit_key.to_string(),
+            record_key: "packs:test".to_string(),
+            unit_kind: EmbeddingUnitKind::HeadingSection,
+            label: Some(label.to_string()),
+            source_kind,
+            group_key: group_key.to_string(),
+            ordinal: 1,
+            input_chunks: vec![
+                identity_chunk(),
+                rich_chunk(source_kind, group_key, label, repeated_words),
+            ],
+        }
+    }
+
+    fn rich_chunk(
+        source_kind: ContentSourceKind,
+        group_key: &str,
+        label: &str,
+        repeated_words: usize,
+    ) -> EmbeddingInputChunk {
+        EmbeddingInputChunk::truncatable_line(
+            EmbeddingInputSection::Description,
+            format!("{label}: {}", repeated_tokens(repeated_words)),
+        )
+        .with_source_kind(source_kind)
+        .with_group_key(group_key)
+    }
+
+    fn repeated_tokens(count: usize) -> String {
+        (0..count)
+            .map(|index| format!("token{index}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }

@@ -26,10 +26,24 @@ pub struct PendingDocumentEmbedding {
     pub record_key: String,
     pub unit_kind: EmbeddingUnitKind,
     pub label: Option<String>,
+    pub source_kind: Option<ContentSourceKind>,
     pub ordinal: usize,
     pub input_chunks: Vec<EmbeddingInputChunk>,
     pub input_text: String,
     pub input_hash: String,
+    pub child_candidates: Vec<PendingDocumentEmbeddingCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingDocumentEmbeddingCandidate {
+    pub embedding_unit_key: String,
+    pub record_key: String,
+    pub unit_kind: EmbeddingUnitKind,
+    pub label: Option<String>,
+    pub source_kind: ContentSourceKind,
+    pub group_key: String,
+    pub ordinal: usize,
+    pub input_chunks: Vec<EmbeddingInputChunk>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +132,7 @@ pub struct DocumentEmbeddingChunkBudgetDiagnostic {
     pub record_key: String,
     pub unit_kind: EmbeddingUnitKind,
     pub label: Option<String>,
+    pub source_kind: Option<ContentSourceKind>,
     pub original_token_count: usize,
     pub final_token_count: usize,
     pub max_token_count: usize,
@@ -130,6 +145,8 @@ pub struct DocumentEmbeddingChunkBudgetDiagnostic {
 pub struct DocumentEmbeddingChunkBudgetDiagnosticChunk {
     pub section: EmbeddingInputSection,
     pub outcome: EmbeddingChunkBudgetOutcome,
+    pub source_kind: Option<ContentSourceKind>,
+    pub group_key: Option<String>,
     pub original_text: String,
     pub final_text: Option<String>,
 }
