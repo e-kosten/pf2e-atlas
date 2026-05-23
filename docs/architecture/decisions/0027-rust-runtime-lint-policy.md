@@ -15,7 +15,7 @@ As those boundaries stabilize, production code should not rely on panic-oriented
 Keep the broad workspace Clippy gate:
 
 ```bash
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
 ```
 
 Add a second non-test runtime Clippy gate:
@@ -30,7 +30,9 @@ cargo clippy --workspace --lib --bins -- -D warnings \
   -D clippy::unreachable
 ```
 
-This gate applies to library and binary targets, not test targets. Runtime code must propagate errors, return explicit fallback values, or encode impossible states in types rather than panicking. Tests may continue to use assertion-oriented `unwrap`, `expect`, and `panic!` when that keeps the test clearer.
+The all-targets gate also rejects `dbg!`, which is useful during local debugging but emits file/line diagnostics to stderr and should not be committed in runtime code or tests.
+
+The runtime-only gate applies to library and binary targets, not test targets. Runtime code must propagate errors, return explicit fallback values, or encode impossible states in types rather than panicking. Tests may continue to use assertion-oriented `unwrap`, `expect`, and `panic!` when that keeps the test clearer.
 
 The policy is enforced by git hooks and release checks, and should be treated as part of the repository's normal Rust verification gate.
 

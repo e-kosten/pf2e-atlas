@@ -2,6 +2,16 @@ use super::*;
 use crate::normalize_record_query;
 use atlas_domain::{PublicationFamily, RecordFamily};
 
+fn test_record_key(value: &str) -> RecordKey {
+    RecordKey::parse(value).expect("fixture record key should parse")
+}
+
+fn explanation(hit: &FusedRankedHit) -> &TextSearchExplain {
+    hit.explain
+        .as_ref()
+        .expect("fixture requested explanations")
+}
+
 fn semantic_hit(record: &str, distance: f64) -> SemanticSearchHit {
     SemanticSearchHit {
         record_key: record.to_string(),
@@ -14,7 +24,7 @@ fn semantic_hit(record: &str, distance: f64) -> SemanticSearchHit {
 }
 
 fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
-    let key = RecordKey::parse(key).expect("record key parses");
+    let key = test_record_key(key);
     PersistedRecord {
         id: key.id().clone(),
         pack_name: key.pack().clone(),
@@ -68,11 +78,11 @@ fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
 fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
     let fts_hits = vec![
         FtsSearchHit {
-            record_key: RecordKey::parse("records:a").unwrap(),
+            record_key: test_record_key("records:a"),
             rank: -2.0,
         },
         FtsSearchHit {
-            record_key: RecordKey::parse("records:b").unwrap(),
+            record_key: test_record_key("records:b"),
             rank: -1.0,
         },
     ];
@@ -80,17 +90,17 @@ fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
         semantic_hit("records:b", 0.1),
         semantic_hit("records:c", 0.2),
     ];
-    let identity_keys = [RecordKey::parse("records:a").unwrap()]
+    let identity_keys = [test_record_key("records:a")]
         .into_iter()
         .collect::<BTreeSet<_>>();
     let excluded_keys = BTreeSet::new();
     let records_by_key = BTreeMap::from([
         (
-            RecordKey::parse("records:b").unwrap(),
+            test_record_key("records:b"),
             test_record("records:b", "Battle Medicine", &["healing"]),
         ),
         (
-            RecordKey::parse("records:c").unwrap(),
+            test_record_key("records:c"),
             test_record("records:c", "Risky Surgery", &[]),
         ),
     ]);
@@ -115,20 +125,20 @@ fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
             .collect::<Vec<_>>(),
         vec!["records:b", "records:c"]
     );
-    assert_eq!(fused[0].explain.as_ref().unwrap().rank, 2);
-    assert_eq!(fused[0].explain.as_ref().unwrap().fts_rank, Some(2));
-    assert_eq!(fused[0].explain.as_ref().unwrap().vector_rank, Some(1));
+    assert_eq!(explanation(&fused[0]).rank, 2);
+    assert_eq!(explanation(&fused[0]).fts_rank, Some(2));
+    assert_eq!(explanation(&fused[0]).vector_rank, Some(1));
 }
 
 #[test]
 fn min_max_score_fusion_uses_lane_scores_and_weights() {
     let fts_hits = vec![
         FtsSearchHit {
-            record_key: RecordKey::parse("records:a").unwrap(),
+            record_key: test_record_key("records:a"),
             rank: -2.0,
         },
         FtsSearchHit {
-            record_key: RecordKey::parse("records:b").unwrap(),
+            record_key: test_record_key("records:b"),
             rank: -1.0,
         },
     ];
@@ -138,15 +148,15 @@ fn min_max_score_fusion_uses_lane_scores_and_weights() {
     ];
     let records_by_key = BTreeMap::from([
         (
-            RecordKey::parse("records:a").unwrap(),
+            test_record_key("records:a"),
             test_record("records:a", "Direct Result", &[]),
         ),
         (
-            RecordKey::parse("records:b").unwrap(),
+            test_record_key("records:b"),
             test_record("records:b", "Shared Result", &[]),
         ),
         (
-            RecordKey::parse("records:c").unwrap(),
+            test_record_key("records:c"),
             test_record("records:c", "Semantic Result", &[]),
         ),
     ]);
@@ -177,8 +187,8 @@ fn min_max_score_fusion_uses_lane_scores_and_weights() {
             .collect::<Vec<_>>(),
         vec!["records:b", "records:a", "records:c"]
     );
-    assert_eq!(fused[0].explain.as_ref().unwrap().fused_score, Some(2.0));
-    assert_eq!(fused[1].explain.as_ref().unwrap().fused_score, Some(1.0));
+    assert_eq!(explanation(&fused[0]).fused_score, Some(2.0));
+    assert_eq!(explanation(&fused[1]).fused_score, Some(1.0));
 }
 
 #[test]
@@ -213,26 +223,26 @@ fn fts_confidence_distinguishes_direct_and_weak_hits() {
 fn fts_fusion_policy_can_zero_weak_hits() {
     let fts_hits = vec![
         FtsSearchHit {
-            record_key: RecordKey::parse("records:weak").unwrap(),
+            record_key: test_record_key("records:weak"),
             rank: 10.0,
         },
         FtsSearchHit {
-            record_key: RecordKey::parse("records:strong").unwrap(),
+            record_key: test_record_key("records:strong"),
             rank: 8.0,
         },
     ];
     let vector_hits = vec![semantic_hit("records:semantic", 0.1)];
     let records_by_key = BTreeMap::from([
         (
-            RecordKey::parse("records:weak").unwrap(),
+            test_record_key("records:weak"),
             test_record("records:weak", "Shielded Arm", &["metal"]),
         ),
         (
-            RecordKey::parse("records:strong").unwrap(),
+            test_record_key("records:strong"),
             test_record("records:strong", "Fear", &["fear"]),
         ),
         (
-            RecordKey::parse("records:semantic").unwrap(),
+            test_record_key("records:semantic"),
             test_record("records:semantic", "Semantic Fear Result", &["fear"]),
         ),
     ]);

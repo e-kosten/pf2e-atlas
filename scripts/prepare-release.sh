@@ -429,7 +429,7 @@ run_release_pr_checks() {
   run_check scripts/release/validate-release-tooling.sh
   run_check scripts/release/test-prepare-release.sh
   run_check cargo fmt --check
-  run_check cargo clippy --workspace --all-targets -- -D warnings
+  run_check cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
   run_strict_runtime_clippy
   run_check cargo test --workspace
   run_check cargo build --workspace
@@ -480,7 +480,7 @@ if [ "$open_pr" -eq 1 ]; then
   info "  scripts/release/validate-release-tooling.sh"
   info "  scripts/release/test-prepare-release.sh"
   info "  cargo fmt --check"
-  info "  cargo clippy --workspace --all-targets -- -D warnings"
+  info "  cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro"
   info "  cargo clippy --workspace --lib --bins -- -D warnings -D clippy::{unwrap_used,expect_used,panic,unimplemented,todo,unreachable}"
   info "  cargo test --workspace"
   info "  cargo build --workspace"
@@ -610,7 +610,7 @@ fi
 
 info "Local checks:"
 info "  cargo fmt --check"
-info "  cargo clippy --workspace --all-targets -- -D warnings"
+info "  cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro"
 info "  cargo clippy --workspace --lib --bins -- -D warnings -D clippy::{unwrap_used,expect_used,panic,unimplemented,todo,unreachable}"
 info "  cargo test --workspace"
 info "  cargo build --workspace"

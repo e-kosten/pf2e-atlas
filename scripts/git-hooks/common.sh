@@ -54,7 +54,7 @@ run_required_verification() {
   (
     cd "$(repo_root)"
     cargo fmt --check
-    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
     cargo clippy --workspace --lib --bins -- -D warnings \
       -D clippy::unwrap_used \
       -D clippy::expect_used \
