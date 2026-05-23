@@ -132,9 +132,14 @@ impl TextEmbeddingTokenizer {
         chunks: &[EmbeddingInputChunk],
     ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
         let max_token_count = self.spec.max_input_tokens;
-        let full_text = render_embedding_chunks_for_embedding(chunks);
         let mut budget_tokenizer = self.unbounded_tokenizer()?;
+        let special_token_overhead =
+            self.special_token_overhead_for_chunks(&mut budget_tokenizer, chunks)?;
+        let tokenized_chunks = self.tokenize_chunks(&mut budget_tokenizer, chunks)?;
+        let full_token_count =
+            self.input_token_count_from_chunks(special_token_overhead, &tokenized_chunks);
         let Some(max_token_count) = max_token_count else {
+            let full_text = render_embedding_chunks_for_embedding(chunks);
             let full_tokenization = self.single_text_tokenization_with(
                 &mut budget_tokenizer,
                 full_text.as_str(),
@@ -149,13 +154,13 @@ impl TextEmbeddingTokenizer {
             });
         };
 
-        let full_token_count = self.document_token_count(&mut budget_tokenizer, &full_text)?;
         let full_tokenization = EmbeddingInputTokenization {
             token_count: full_token_count,
             max_token_count: Some(max_token_count),
             truncated: full_token_count > max_token_count,
         };
         if !full_tokenization.truncated {
+            let full_text = render_embedding_chunks_for_embedding(chunks);
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
                 tokenization: full_tokenization,
@@ -165,17 +170,6 @@ impl TextEmbeddingTokenizer {
             });
         }
 
-        let full_token_count_without_special_tokens = analyze_text_with_special_tokens(
-            &mut budget_tokenizer,
-            &full_text,
-            self.spec.document_prefix,
-            None,
-            false,
-        )?
-        .token_count;
-        let special_token_overhead =
-            full_token_count.saturating_sub(full_token_count_without_special_tokens);
-        let tokenized_chunks = self.tokenize_chunks(&mut budget_tokenizer, chunks)?;
         let mut accepted = Vec::<(usize, EmbeddingInputChunk)>::new();
         let mut truncated_sections = Vec::<EmbeddingSectionTruncation>::new();
         let mut chunk_diagnostics = chunks
@@ -203,7 +197,7 @@ impl TextEmbeddingTokenizer {
             let remaining = max_token_count.saturating_sub(estimated_token_count);
             if chunk.truncatable
                 && let Some(trimmed_chunk) =
-                    self.trim_chunk_to_token_budget(&mut budget_tokenizer, chunk, remaining)?
+                    self.trim_chunk_to_token_budget(&mut budget_tokenizer, index, chunk, remaining)?
             {
                 estimated_token_count += self.positioned_chunk_token_count(
                     &mut budget_tokenizer,
@@ -256,11 +250,34 @@ impl TextEmbeddingTokenizer {
             .iter()
             .enumerate()
             .map(|(index, chunk)| {
-                Ok(TokenizedEmbeddingInputChunk {
-                    token_count: self.positioned_chunk_token_count(tokenizer, index, chunk)?,
-                })
+                let token_count = self.positioned_chunk_token_count(tokenizer, index, chunk)?;
+                Ok(TokenizedEmbeddingInputChunk { token_count })
             })
             .collect()
+    }
+
+    fn input_token_count_from_chunks(
+        &self,
+        special_token_overhead: usize,
+        chunks: &[TokenizedEmbeddingInputChunk],
+    ) -> usize {
+        special_token_overhead + chunks.iter().map(|chunk| chunk.token_count).sum::<usize>()
+    }
+
+    fn special_token_overhead_for_chunks(
+        &self,
+        tokenizer: &mut Tokenizer,
+        chunks: &[EmbeddingInputChunk],
+    ) -> Result<usize, EmbeddingError> {
+        let Some(chunk) = chunks.first() else {
+            return Ok(0);
+        };
+        let (prefix, text) = self.positioned_chunk_text(0, chunk);
+        let without_special_tokens =
+            analyze_text_with_special_tokens(tokenizer, &text, prefix, None, false)?.token_count;
+        let with_special_tokens =
+            analyze_text_with_special_tokens(tokenizer, &text, prefix, None, true)?.token_count;
+        Ok(with_special_tokens.saturating_sub(without_special_tokens))
     }
 
     fn positioned_chunk_token_count(
@@ -269,20 +286,20 @@ impl TextEmbeddingTokenizer {
         index: usize,
         chunk: &EmbeddingInputChunk,
     ) -> Result<usize, EmbeddingError> {
-        let (prefix, text) = if index == 0 {
-            (self.spec.document_prefix, chunk.text.clone())
-        } else {
-            ("", format!("\n{}", chunk.text))
-        };
+        let (prefix, text) = self.positioned_chunk_text(index, chunk);
         Ok(analyze_text_with_special_tokens(tokenizer, &text, prefix, None, false)?.token_count)
     }
 
-    fn chunk_token_count(
-        &self,
-        tokenizer: &mut Tokenizer,
-        chunk: &EmbeddingInputChunk,
-    ) -> Result<usize, EmbeddingError> {
-        Ok(analyze_text_with_special_tokens(tokenizer, &chunk.text, "", None, false)?.token_count)
+    fn positioned_chunk_text<'a>(
+        &'a self,
+        index: usize,
+        chunk: &'a EmbeddingInputChunk,
+    ) -> (&'static str, String) {
+        if index == 0 {
+            (self.spec.document_prefix, chunk.text.clone())
+        } else {
+            ("", format!("\n{}", chunk.text))
+        }
     }
 
     fn unbounded_tokenizer(&self) -> Result<Tokenizer, EmbeddingError> {
@@ -320,6 +337,7 @@ impl TextEmbeddingTokenizer {
     fn trim_chunk_to_token_budget(
         &self,
         tokenizer: &mut Tokenizer,
+        index: usize,
         chunk: &EmbeddingInputChunk,
         token_budget: usize,
     ) -> Result<Option<EmbeddingInputChunk>, EmbeddingError> {
@@ -344,7 +362,9 @@ impl TextEmbeddingTokenizer {
                 source_kind: chunk.source_kind,
                 group_key: chunk.group_key.clone(),
             };
-            if self.chunk_token_count(tokenizer, &candidate_chunk)? <= token_budget {
+            if self.positioned_chunk_token_count(tokenizer, index, &candidate_chunk)?
+                <= token_budget
+            {
                 low = mid;
             } else {
                 high = mid - 1;
@@ -550,7 +570,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn budget_document_input_uses_exact_full_tokenization_before_chunk_budgeting() {
+    fn chunk_budget_counts_special_tokens_once() {
         let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(6);
         let budgeted = tokenizer
             .budget_document_input(&[
