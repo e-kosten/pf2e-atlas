@@ -95,7 +95,10 @@ where
             .map(str::to_string)
             .unwrap_or_else(|| event.metadata().name().to_string());
 
-        let mut state = self.state.lock().expect("progress state is not poisoned");
+        let mut state = match self.state.lock() {
+            Ok(state) => state,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         if target == "atlas_progress" {
             let render = progress_render_mode(self.options, state.is_interactive);
             if render.enabled() {
@@ -339,7 +342,7 @@ fn spinner_style(setup_timing: bool) -> ProgressStyle {
 
 fn progress_style_with_phase_elapsed(template: &str) -> ProgressStyle {
     ProgressStyle::with_template(template)
-        .expect("progress template is valid")
+        .unwrap_or_else(|_| ProgressStyle::default_spinner())
         .with_key(
             "phase_elapsed",
             |state: &ProgressState, writer: &mut dyn fmt::Write| {

@@ -4,11 +4,11 @@ use serde_json::Value;
 
 use crate::records::{MetricRow, MetricValue};
 
+use super::add_defined_metric_number;
 use super::disable::extract_disable_metrics;
 use super::emit::{EmittedDynamicMetric, emit_dynamic_specs, emit_static_specs};
 use super::specs::{ACTOR_DYNAMIC_SPECS, ACTOR_STATIC_SPECS};
 use super::value::number_at_pointer;
-use super::{add_defined_metric_number, exact_metric_key};
 
 pub(super) fn extract_actor_metrics(raw: &Value) -> Vec<MetricRow> {
     let mut metrics = Vec::new();
@@ -55,16 +55,20 @@ fn add_best_worst_save_metrics(metrics: &mut Vec<MetricRow>, save_values: &[(&'s
         return;
     };
 
-    metrics.push(MetricRow {
-        domain: MetricDomain::Actor,
-        key: exact_metric_key(metric_definitions::actor::save::BEST).to_string(),
-        value: MetricValue::Text((*best_save).to_string()),
-    });
-    metrics.push(MetricRow {
-        domain: MetricDomain::Actor,
-        key: exact_metric_key(metric_definitions::actor::save::WORST).to_string(),
-        value: MetricValue::Text((*worst_save).to_string()),
-    });
+    if let Some(best_key) = metric_definitions::actor::save::BEST.exact_key() {
+        metrics.push(MetricRow {
+            domain: MetricDomain::Actor,
+            key: best_key.to_string(),
+            value: MetricValue::Text((*best_save).to_string()),
+        });
+    }
+    if let Some(worst_key) = metric_definitions::actor::save::WORST.exact_key() {
+        metrics.push(MetricRow {
+            domain: MetricDomain::Actor,
+            key: worst_key.to_string(),
+            value: MetricValue::Text((*worst_save).to_string()),
+        });
+    }
 }
 
 fn extract_skill_proficiency_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
@@ -90,7 +94,7 @@ fn extract_skill_proficiency_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) 
 fn extract_stealth_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
     let stealth_mod = metrics.iter().find_map(|metric| {
         if metric.domain == MetricDomain::Actor
-            && metric.key == exact_metric_key(metric_definitions::actor::STEALTH_MOD)
+            && metric.key == metric_definitions::actor::STEALTH_MOD.exact_key()?
             && let MetricValue::Number(value) = metric.value
         {
             return Some(value);

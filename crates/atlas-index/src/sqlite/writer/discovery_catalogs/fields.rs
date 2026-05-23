@@ -54,12 +54,15 @@ fn write_scope_with_stats(
             params![
                 seed.field,
                 record_family,
-                serde_json_string(seed.field_type),
-                serde_json_string(seed.group),
-                serde_json_string(seed.value_policy),
-                serde_json::to_string(seed.operators).expect("operators serialize"),
-                serde_json::to_string(seed.cli_flags).expect("cli flags serialize"),
-                serde_json::to_string(seed.applicable_families).expect("families serialize"),
+                serde_json_string(seed.field_type)?,
+                serde_json_string(seed.group)?,
+                serde_json_string(seed.value_policy)?,
+                serde_json::to_string(seed.operators)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+                serde_json::to_string(seed.cli_flags)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+                serde_json::to_string(seed.applicable_families)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
                 stats.value_count,
                 stats.matching_record_count,
                 stats.null_count,
@@ -179,9 +182,11 @@ pub(super) fn known_family(value: &str) -> Option<&'static str> {
     ALL_FAMILIES.iter().copied().find(|family| *family == value)
 }
 
-fn serde_json_string<T: serde::Serialize>(value: T) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .expect("discovery field metadata should serialize as a string")
+fn serde_json_string<T: serde::Serialize>(value: T) -> Result<String, IndexWriteError> {
+    let value = serde_json::to_value(value)
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    value
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| IndexWriteError::WriteFailed("expected JSON string".to_string()))
 }

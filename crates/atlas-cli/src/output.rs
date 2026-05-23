@@ -115,9 +115,9 @@ fn validation_report_data(report: &ArtifactValidationReport) -> Value {
         "message": report.message,
     });
 
-    let object = data
-        .as_object_mut()
-        .expect("validation report data should be an object");
+    let Some(object) = data.as_object_mut() else {
+        return data;
+    };
     insert_optional(
         object,
         "artifact_contract_version",
@@ -213,12 +213,11 @@ fn validation_report_data(report: &ArtifactValidationReport) -> Value {
                             "family": diagnostic.family,
                             "message": diagnostic.message,
                         });
-                        let object = value
-                            .as_object_mut()
-                            .expect("validation diagnostic data should be an object");
-                        insert_optional(object, "key", &diagnostic.key);
-                        insert_optional(object, "expected", &diagnostic.expected);
-                        insert_optional(object, "actual", &diagnostic.actual);
+                        if let Some(object) = value.as_object_mut() {
+                            insert_optional(object, "key", &diagnostic.key);
+                            insert_optional(object, "expected", &diagnostic.expected);
+                            insert_optional(object, "actual", &diagnostic.actual);
+                        }
                         value
                     })
                     .collect(),

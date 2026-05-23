@@ -78,7 +78,12 @@ impl TextEmbedder {
 
     fn embed_text(&mut self, text: &str, prefix: &str) -> Result<Vec<f32>, EmbeddingError> {
         let mut vectors = self.embed_texts(&[text], prefix)?;
-        Ok(vectors.pop().expect("single text returns one vector"))
+        vectors
+            .pop()
+            .ok_or(EmbeddingError::UnexpectedEmbeddingOutputCount {
+                expected: 1,
+                actual: 0,
+            })
     }
 
     fn embed_texts(

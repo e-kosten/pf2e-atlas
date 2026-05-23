@@ -4,7 +4,7 @@ use atlas_domain::{
     RecordFamily, SearchFilterNode,
 };
 use atlas_record::{MetricRow, MetricValue, definition_for, label_for_row};
-use rusqlite::types::Value;
+use rusqlite::types::{Type, Value};
 use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
 
 use crate::filters::compile_eligible_records_query;
@@ -594,7 +594,7 @@ fn metric_key_from_parts(
         "boolean" => MetricValue::Boolean(false),
         _ => MetricValue::Text(String::new()),
     };
-    let domain = parse_metric_domain(&domain);
+    let domain = parse_metric_domain(&domain)?;
     let row = MetricRow {
         domain,
         key: metric_key.clone(),
@@ -679,14 +679,21 @@ fn record_family_string(value: RecordFamily) -> String {
         .unwrap_or_else(|| format!("{value:?}").to_lowercase())
 }
 
-fn parse_metric_domain(value: &str) -> MetricDomain {
-    serde_json::from_value(serde_json::Value::String(value.to_string()))
-        .expect("metric domain from catalog should be valid")
+fn parse_metric_domain(value: &str) -> rusqlite::Result<MetricDomain> {
+    match value {
+        "actor" => Ok(MetricDomain::Actor),
+        "item" => Ok(MetricDomain::Item),
+        _ => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            Type::Text,
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("unknown metric domain `{value}`"),
+            )),
+        )),
+    }
 }
 
 fn metric_domain_string(value: MetricDomain) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .unwrap_or_else(|| format!("{value:?}").to_lowercase())
+    value.as_str().to_string()
 }

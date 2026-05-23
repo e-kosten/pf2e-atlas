@@ -36,21 +36,27 @@ pub fn generate_document_embeddings_with_reuse_using<E>(
     pending: &[PendingDocumentEmbedding],
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
-) -> Result<GeneratedDocumentEmbeddings, E> {
+) -> Result<GeneratedDocumentEmbeddings, EmbeddingError>
+where
+    E: std::error::Error,
+{
     generate_document_embeddings_with_reuse_using_batch(pending, reusable_embeddings, 1, |inputs| {
         inputs
             .iter()
-            .map(|input| embed_document(input))
-            .collect::<Result<Vec<_>, _>>()
+            .map(|input| {
+                embed_document(input)
+                    .map_err(|error| EmbeddingError::ModelRunFailed(error.to_string()))
+            })
+            .collect()
     })
 }
 
-pub fn generate_document_embeddings_with_reuse_using_batch<E>(
+pub fn generate_document_embeddings_with_reuse_using_batch(
     pending: &[PendingDocumentEmbedding],
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     batch_size: usize,
-    mut embed_documents: impl FnMut(&[&str]) -> Result<Vec<Vec<f32>>, E>,
-) -> Result<GeneratedDocumentEmbeddings, E> {
+    mut embed_documents: impl FnMut(&[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError>,
+) -> Result<GeneratedDocumentEmbeddings, EmbeddingError> {
     let total = pending.len();
     let progress_interval = embedding_progress_interval(total);
     let batch_size = batch_size.max(1);
@@ -88,7 +94,12 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
             .map(|index| pending[*index].input_text.as_str())
             .collect::<Vec<_>>();
         let vectors = embed_documents(&inputs)?;
-        debug_assert_eq!(vectors.len(), chunk.len());
+        if vectors.len() != chunk.len() {
+            return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
+                expected: chunk.len(),
+                actual: vectors.len(),
+            });
+        }
         for (chunk_index, vector) in vectors.into_iter().enumerate() {
             let index = chunk[chunk_index];
             let entry = &pending[index];
@@ -124,11 +135,16 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
         );
     }
 
+    let embeddings = generated.into_iter().flatten().collect::<Vec<_>>();
+    if embeddings.len() != total {
+        return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
+            expected: total,
+            actual: embeddings.len(),
+        });
+    }
+
     Ok(GeneratedDocumentEmbeddings {
-        embeddings: generated
-            .into_iter()
-            .map(|entry| entry.expect("every pending embedding is generated or reused"))
-            .collect(),
+        embeddings,
         reused_count,
         generated_count,
     })

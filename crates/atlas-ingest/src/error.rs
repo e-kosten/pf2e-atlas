@@ -10,6 +10,8 @@ pub enum IngestError {
     RecordParseFailed(String),
     #[error("record normalization failed for {path}: {message}")]
     RecordNormalizationFailed { path: String, message: String },
+    #[error("generated affliction build failed: {0}")]
+    GeneratedAfflictionFailed(String),
     #[error("source contains no loadable Foundry records")]
     NoRecordsLoaded,
     #[error("invalid embedding model `{model}`: {message}")]

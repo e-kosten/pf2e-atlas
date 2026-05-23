@@ -7,63 +7,65 @@ use super::{
     filter_sample_catalog, filter_value_catalog, item_records, metric_key_catalog,
     metric_value_catalog, packs, record_aliases, record_content, record_metrics, record_traits,
     record_vector_index, records, records_fts, reference_edges, remaster_links, spell_records,
-    table_descriptor,
 };
 
 pub fn artifact_metadata_insert_sql() -> String {
-    insert_sql_for_table(artifact_metadata::TABLE)
+    insert_sql(artifact_metadata::TABLE, artifact_metadata::ALL_COLUMNS)
 }
 
 pub fn pack_insert_sql() -> String {
-    insert_sql_for_table(packs::TABLE)
+    insert_sql(packs::TABLE, packs::ALL_COLUMNS)
 }
 
 pub fn record_insert_sql() -> String {
-    insert_sql_for_table(records::TABLE)
+    insert_sql(records::TABLE, records::ALL_COLUMNS)
 }
 
 pub fn record_trait_insert_sql() -> String {
-    insert_sql_for_table(record_traits::TABLE)
+    insert_sql(record_traits::TABLE, record_traits::ALL_COLUMNS)
 }
 
 pub fn record_content_insert_sql() -> String {
-    insert_sql_for_table(record_content::TABLE)
+    insert_sql(record_content::TABLE, record_content::ALL_COLUMNS)
 }
 
 pub fn record_metric_insert_sql() -> String {
-    insert_sql_for_table(record_metrics::TABLE)
+    insert_sql(record_metrics::TABLE, record_metrics::ALL_COLUMNS)
 }
 
 pub fn actor_record_insert_sql() -> String {
-    insert_sql_for_table(actor_records::TABLE)
+    insert_sql(actor_records::TABLE, actor_records::ALL_COLUMNS)
 }
 
 pub fn item_record_insert_sql() -> String {
-    insert_sql_for_table(item_records::TABLE)
+    insert_sql(item_records::TABLE, item_records::ALL_COLUMNS)
 }
 
 pub fn spell_record_insert_sql() -> String {
-    insert_sql_for_table(spell_records::TABLE)
+    insert_sql(spell_records::TABLE, spell_records::ALL_COLUMNS)
 }
 
 pub fn records_fts_insert_sql() -> String {
-    insert_sql_for_table(records_fts::TABLE)
+    insert_sql(records_fts::TABLE, records_fts::ALL_COLUMNS)
 }
 
 pub fn document_embedding_cache_insert_sql() -> String {
-    insert_sql_for_table(document_embedding_cache::TABLE)
+    insert_sql(
+        document_embedding_cache::TABLE,
+        document_embedding_cache::ALL_COLUMNS,
+    )
 }
 
 pub fn reference_edge_insert_sql() -> String {
-    insert_or_ignore_sql_for_table(reference_edges::TABLE)
+    insert_or_ignore_sql(reference_edges::TABLE, reference_edges::ALL_COLUMNS)
 }
 
 pub fn record_alias_insert_sql() -> String {
-    insert_or_ignore_sql_for_table(record_aliases::TABLE)
+    insert_or_ignore_sql(record_aliases::TABLE, record_aliases::ALL_COLUMNS)
 }
 
 pub fn remaster_link_insert_sql() -> String {
-    insert_or_ignore_sql_for_table(remaster_links::TABLE)
+    insert_or_ignore_sql(remaster_links::TABLE, remaster_links::ALL_COLUMNS)
 }
 
 pub fn metric_key_catalog_insert_select_sql() -> String {
@@ -149,19 +151,31 @@ pub fn metric_value_catalog_insert_select_sql() -> String {
 }
 
 pub fn filter_field_catalog_insert_sql() -> String {
-    insert_sql_for_table(filter_field_catalog::TABLE)
+    insert_sql(
+        filter_field_catalog::TABLE,
+        filter_field_catalog::ALL_COLUMNS,
+    )
 }
 
 pub fn filter_value_catalog_insert_sql() -> String {
-    insert_sql_for_table(filter_value_catalog::TABLE)
+    insert_sql(
+        filter_value_catalog::TABLE,
+        filter_value_catalog::ALL_COLUMNS,
+    )
 }
 
 pub fn filter_sample_catalog_insert_sql() -> String {
-    insert_sql_for_table(filter_sample_catalog::TABLE)
+    insert_sql(
+        filter_sample_catalog::TABLE,
+        filter_sample_catalog::ALL_COLUMNS,
+    )
 }
 
 pub fn filter_numeric_catalog_insert_sql() -> String {
-    insert_sql_for_table(filter_numeric_catalog::TABLE)
+    insert_sql(
+        filter_numeric_catalog::TABLE,
+        filter_numeric_catalog::ALL_COLUMNS,
+    )
 }
 
 pub fn record_vector_index_create_sql(dimensions: usize) -> String {
@@ -298,23 +312,18 @@ fn column_names(columns: &[Column]) -> Vec<&'static str> {
 
 pub fn create_artifact_schema_sql() -> String {
     let mut statements = vec!["PRAGMA foreign_keys = ON".to_string()];
-    statements.extend(TABLE_DESCRIPTORS.iter().map(create_table_sql));
+    statements.extend(
+        TABLE_DESCRIPTORS
+            .iter()
+            .filter(|descriptor| descriptor.kind != TableKind::Vector)
+            .map(create_table_sql),
+    );
     statements.extend(
         ARTIFACT_INDEX_SQL
             .iter()
             .map(|statement| (*statement).to_string()),
     );
     format!("{};", statements.join(";\n\n"))
-}
-
-fn insert_sql_for_table(table: Table) -> String {
-    let descriptor = table_descriptor(table).expect("artifact table descriptor should exist");
-    insert_sql(table, &descriptor.columns())
-}
-
-fn insert_or_ignore_sql_for_table(table: Table) -> String {
-    let descriptor = table_descriptor(table).expect("artifact table descriptor should exist");
-    insert_or_ignore_sql(table, &descriptor.columns())
 }
 
 pub fn insert_or_ignore_sql(table: Table, columns: &[Column]) -> String {
@@ -333,7 +342,7 @@ fn create_table_sql(descriptor: &TableDescriptor) -> String {
     match descriptor.kind {
         TableKind::Ordinary => ordinary_create_table_sql(descriptor),
         TableKind::Fts5 { unindexed } => fts5_create_table_sql(descriptor, unindexed),
-        TableKind::Vector => panic!("vec tables require runtime dimensions"),
+        TableKind::Vector => String::new(),
     }
 }
 

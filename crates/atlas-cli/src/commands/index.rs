@@ -92,9 +92,9 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
 
     if options.json {
         let mut data = build_artifact_json(&report);
-        data.as_object_mut()
-            .expect("build artifact JSON should be an object")
-            .remove("status");
+        if let Some(object) = data.as_object_mut() {
+            object.remove("status");
+        }
         write_json_data(data)?;
     } else {
         println!(

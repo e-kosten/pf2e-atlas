@@ -392,9 +392,9 @@ fn push_optional_group(children: &mut Vec<SearchFilterNode>, nodes: Vec<SearchFi
 }
 
 fn any_or_single(nodes: impl IntoIterator<Item = SearchFilterNode>) -> SearchFilterNode {
-    let nodes = nodes.into_iter().collect::<Vec<_>>();
+    let mut nodes = nodes.into_iter().collect::<Vec<_>>();
     if nodes.len() == 1 {
-        nodes.into_iter().next().expect("one node")
+        nodes.remove(0)
     } else {
         SearchFilterNode::any_of(nodes)
     }

@@ -269,9 +269,10 @@ fn compile_filter(
             })
         }
         SearchFilterNode::MetricCompare { .. } => unsupported("metric comparison filters"),
-        SearchFilterNode::AnyOf { children } => compile_set_include_any(children, matches)
-            .or_else(|| Some(boolean_filter(children, " OR ", matches)))
-            .expect("Some"),
+        SearchFilterNode::AnyOf { children } => match compile_set_include_any(children, matches) {
+            Some(filter) => filter,
+            None => boolean_filter(children, " OR ", matches),
+        },
         SearchFilterNode::AllOf { children } => boolean_filter(children, " AND ", matches),
         SearchFilterNode::Not { child } => Ok(format!("NOT ({})", compile_filter(child, matches)?)),
     }

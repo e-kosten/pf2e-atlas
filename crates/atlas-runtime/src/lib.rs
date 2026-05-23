@@ -261,9 +261,12 @@ fn resolve_atlas_paths(
 
     let defaults = match resolved_mode {
         ResolvedPathMode::Repo => {
-            let repo_root = repo_root
-                .clone()
-                .expect("repo path mode only selected when repo root exists");
+            let Some(repo_root) = repo_root.clone() else {
+                return Err(
+                    "--path-mode repo requires running inside a git checkout with Cargo.toml"
+                        .to_string(),
+                );
+            };
             AtlasPathOverrides {
                 source_root: Some(repo_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
@@ -281,10 +284,9 @@ fn resolve_atlas_paths(
             }
         }
     };
-    let index_path = overrides
-        .index_path
-        .or(defaults.index_path)
-        .expect("index default is always resolved");
+    let Some(index_path) = overrides.index_path.or(defaults.index_path) else {
+        return Err("index path default could not be resolved".to_string());
+    };
     let ladybug_index_path = overrides
         .ladybug_index_path
         .or(defaults.ladybug_index_path)
@@ -300,11 +302,11 @@ fn resolve_atlas_paths(
         source_root: overrides
             .source_root
             .or(defaults.source_root)
-            .expect("source default is always resolved"),
+            .ok_or_else(|| "source root default could not be resolved".to_string())?,
         embedding_cache_root: overrides
             .embedding_cache_root
             .or(defaults.embedding_cache_root)
-            .expect("embedding cache default is always resolved"),
+            .ok_or_else(|| "embedding cache default could not be resolved".to_string())?,
         index_path,
         ladybug_index_path,
     })

@@ -135,12 +135,12 @@ fn mismatched_field_row(
     family: Option<&str>,
 ) -> Result<u64, IndexValidationError> {
     let stats = expected_field_stats(connection, definition.value_sql, family)?;
-    let operators_json =
-        serde_json::to_string(definition.operators).expect("discovery operators should serialize");
-    let cli_flags_json =
-        serde_json::to_string(definition.cli_flags).expect("discovery CLI flags should serialize");
+    let operators_json = serde_json::to_string(definition.operators)
+        .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
+    let cli_flags_json = serde_json::to_string(definition.cli_flags)
+        .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
     let applicable_families_json = serde_json::to_string(definition.applicable_families)
-        .expect("discovery families should serialize");
+        .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
     let count = match family {
         Some(family) => connection.query_row(
             "SELECT COUNT(*)
@@ -160,9 +160,9 @@ fn mismatched_field_row(
             params![
                 definition.field,
                 family,
-                serde_json_string(definition.field_type),
-                serde_json_string(definition.group),
-                serde_json_string(definition.value_policy),
+                serde_json_string(definition.field_type)?,
+                serde_json_string(definition.group)?,
+                serde_json_string(definition.value_policy)?,
                 operators_json,
                 cli_flags_json,
                 applicable_families_json,
@@ -194,9 +194,9 @@ fn mismatched_field_row(
                )",
             params![
                 definition.field,
-                serde_json_string(definition.field_type),
-                serde_json_string(definition.group),
-                serde_json_string(definition.value_policy),
+                serde_json_string(definition.field_type)?,
+                serde_json_string(definition.group)?,
+                serde_json_string(definition.value_policy)?,
                 operators_json,
                 cli_flags_json,
                 applicable_families_json,
@@ -297,9 +297,11 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
     }
 }
 
-fn serde_json_string<T: serde::Serialize>(value: T) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_string))
-        .expect("discovery field metadata should serialize as a string")
+fn serde_json_string<T: serde::Serialize>(value: T) -> Result<String, IndexValidationError> {
+    let value = serde_json::to_value(value)
+        .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
+    value
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| IndexValidationError::InvalidArtifact("expected JSON string".to_string()))
 }

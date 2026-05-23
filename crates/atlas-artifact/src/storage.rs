@@ -44,7 +44,7 @@ pub fn decode_f32_vector_blob(blob: &[u8]) -> Result<Vec<f32>, VectorBlobDecodeE
 
     Ok(blob
         .chunks_exact(F32_VECTOR_ELEMENT_BYTES)
-        .map(|chunk| f32::from_le_bytes(chunk.try_into().expect("chunk length is fixed")))
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
         .collect())
 }
 
