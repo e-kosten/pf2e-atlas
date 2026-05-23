@@ -29,6 +29,7 @@ pub struct AtlasPathOverrides {
     pub source_root: Option<PathBuf>,
     pub embedding_cache_root: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
+    pub ladybug_index_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +72,10 @@ impl AtlasRuntime {
 
     pub fn index_path(&self) -> &Path {
         &self.paths.index_path
+    }
+
+    pub fn ladybug_index_path(&self) -> &Path {
+        &self.paths.ladybug_index_path
     }
 
     pub fn open_index(&self) -> Result<atlas_index::AtlasIndex, atlas_index::IndexValidationError> {
@@ -161,6 +166,16 @@ impl AtlasRuntime {
         ))
     }
 
+    pub fn open_ladybug_record_retrieval_service(
+        &self,
+    ) -> Result<AtlasRetrievalService, SearchError> {
+        let index = atlas_ladybug_index::LadybugIndex::open(&self.paths.ladybug_index_path)
+            .map_err(|error| SearchError::Embedding(error.to_string()))?;
+        Ok(AtlasRetrievalService::without_embeddings_with_index(
+            Box::new(index),
+        ))
+    }
+
     pub fn open_retrieval_service_with_model(
         &self,
         model_id: impl Into<String>,
@@ -172,6 +187,19 @@ impl AtlasRuntime {
         };
         AtlasRetrievalService::new(index, &config)
     }
+
+    pub fn open_ladybug_retrieval_service_with_model(
+        &self,
+        model_id: impl Into<String>,
+    ) -> Result<AtlasRetrievalService, SearchError> {
+        let index = atlas_ladybug_index::LadybugIndex::open(&self.paths.ladybug_index_path)
+            .map_err(|error| SearchError::Embedding(error.to_string()))?;
+        let config = SearchEmbeddingConfig {
+            model_id: model_id.into(),
+            cache_root: self.paths.embedding_cache_root.clone(),
+        };
+        AtlasRetrievalService::new_with_index(Box::new(index), &config)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -181,6 +209,7 @@ pub struct ResolvedAtlasPaths {
     pub source_root: PathBuf,
     pub embedding_cache_root: PathBuf,
     pub index_path: PathBuf,
+    pub ladybug_index_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,6 +266,7 @@ fn resolve_atlas_paths(
                 source_root: Some(repo_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
                 index_path: Some(repo_root.join(".cache").join("pf2e-index.sqlite")),
+                ladybug_index_path: Some(repo_root.join(".cache").join("pf2e-index.lbug")),
             }
         }
         ResolvedPathMode::Global => {
@@ -245,9 +275,18 @@ fn resolve_atlas_paths(
                 source_root: Some(cache_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(cache_root.join("hf-models")),
                 index_path: Some(cache_root.join("pf2e-index.sqlite")),
+                ladybug_index_path: Some(cache_root.join("pf2e-index.lbug")),
             }
         }
     };
+    let index_path = overrides
+        .index_path
+        .or(defaults.index_path)
+        .expect("index default is always resolved");
+    let ladybug_index_path = overrides
+        .ladybug_index_path
+        .or(defaults.ladybug_index_path)
+        .unwrap_or_else(|| index_path.with_extension("lbug"));
 
     Ok(ResolvedAtlasPaths {
         mode: resolved_mode,
@@ -264,10 +303,8 @@ fn resolve_atlas_paths(
             .embedding_cache_root
             .or(defaults.embedding_cache_root)
             .expect("embedding cache default is always resolved"),
-        index_path: overrides
-            .index_path
-            .or(defaults.index_path)
-            .expect("index default is always resolved"),
+        index_path,
+        ladybug_index_path,
     })
 }
 

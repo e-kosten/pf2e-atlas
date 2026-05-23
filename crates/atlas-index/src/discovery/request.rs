@@ -23,6 +23,7 @@ pub struct FilterValueRequest {
     pub filter_json: Option<serde_json::Value>,
     pub sort: Option<DiscoveryValueSort>,
     pub sample_limit: Option<usize>,
+    pub force_dynamic: bool,
     pub metric: Option<String>,
     pub metric_prefix: Option<String>,
     pub metric_label: Option<String>,
@@ -34,9 +35,10 @@ pub(super) fn list_filter_fields(
     connection: &Connection,
     filter: Option<&SearchFilterNode>,
     filter_json: Option<serde_json::Value>,
+    force_dynamic: bool,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
     let scope = catalog_scope(filter);
-    let execution = execution_for(filter, scope);
+    let execution = execution_for(filter, scope, force_dynamic);
     let matching_record_count = dynamic::count_matching_records(connection, filter)?;
     let mut fields = if execution == FilterDiscoveryExecution::Catalog {
         catalog::fields(connection, scope)?
@@ -75,7 +77,7 @@ pub(super) fn list_filter_values(
     validate_options(definition, request.sort, request.sample_limit)?;
 
     let scope = catalog_scope(filter);
-    let mut execution = execution_for(filter, scope);
+    let mut execution = execution_for(filter, scope, request.force_dynamic);
     if definition.value_policy == FilterValuePolicy::BooleanCounts {
         execution = FilterDiscoveryExecution::Dynamic;
     }
@@ -103,8 +105,11 @@ pub(super) fn list_filter_values(
 fn execution_for(
     filter: Option<&SearchFilterNode>,
     scope: Option<RecordFamily>,
+    force_dynamic: bool,
 ) -> FilterDiscoveryExecution {
-    if scope.is_some() || filter.is_none() {
+    if force_dynamic {
+        FilterDiscoveryExecution::Dynamic
+    } else if scope.is_some() || filter.is_none() {
         FilterDiscoveryExecution::Catalog
     } else {
         FilterDiscoveryExecution::Dynamic

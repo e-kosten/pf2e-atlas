@@ -109,7 +109,7 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
                 phase = "document_embeddings",
                 current = current as u64,
                 total = total as u64,
-                "Prepared document embedding batch through: {record_key}",
+                "Preparing document embeddings through: {record_key}",
                 record_key = record_key
             );
             last_reported = current;
@@ -120,7 +120,7 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
             phase = "document_embeddings",
             current = total as u64,
             total = total as u64,
-            "Prepared document embeddings from reusable cache"
+            "Preparing document embeddings from reusable cache"
         );
     }
 

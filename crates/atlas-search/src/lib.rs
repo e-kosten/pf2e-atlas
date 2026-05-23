@@ -5,14 +5,17 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Instant;
 
-use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, EmbeddingUnitKind, TextEmbedder};
 use atlas_index::{
-    AtlasIndex, FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights,
-    FtsQuery, FtsSearchHit, IndexValidationError, RecordLoadError, VectorQueryError,
-    VectorSearchHit,
+    AtlasIndex, DiscoveryError, FilterCompileError, FilterValueRequest, FilteredRecordKeyPage,
+    FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge,
+    IndexValidationError, RecordIdentityMatchKind, RecordLoadError, ReferenceEdgeDirection,
+    VectorQueryError, VectorSearchHit,
 };
-use atlas_record::{ContentDocument, PersistedRecord, RecordAlias, visit_content_references_mut};
+use atlas_record::{
+    ContentDocument, PersistedRecord, PersistedRecordSet, RecordAlias, visit_content_references_mut,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -28,8 +31,217 @@ pub use graph_context::{
 /// filter-only list, and ranked FTS/vector/hybrid search should be added here
 /// rather than as peer public services.
 pub struct AtlasRetrievalService {
-    index: AtlasIndex,
+    index: Box<dyn SearchIndex>,
     embedder: Option<TextEmbedder>,
+}
+
+fn trace_search_phase(phase: &str, started_at: Instant) {
+    if std::env::var_os("ATLAS_SEARCH_TRACE").is_some() {
+        eprintln!(
+            "atlas-search trace: {phase} completed in {}ms",
+            started_at.elapsed().as_millis()
+        );
+    }
+}
+
+pub trait SearchIndex {
+    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError>;
+    fn load_record_set(&self) -> Result<PersistedRecordSet, SearchError>;
+    fn resolve_record_matches(
+        &self,
+        _query: &str,
+        _normalized_query: &str,
+        _filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        Ok(None)
+    }
+    fn reference_edges_for_seed(
+        &self,
+        seed: &RecordKey,
+        direction: ReferenceEdgeDirection,
+    ) -> Result<Vec<GraphReferenceEdge>, SearchError>;
+    fn resolve_metric_filters(
+        &self,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<SearchFilterNode>, SearchError>;
+    fn list_filtered_record_keys(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        sort: FilteredRecordSort,
+        limit: u32,
+        offset: u32,
+    ) -> Result<FilteredRecordKeyPage, SearchError>;
+    fn list_filter_fields(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+        force_dynamic: bool,
+    ) -> Result<FilterFieldDiscovery, DiscoveryError>;
+    fn list_filter_values(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        request: FilterValueRequest,
+    ) -> Result<FilterValueDiscovery, DiscoveryError>;
+    fn query_fts_index(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        weights: FtsColumnWeights,
+    ) -> Result<Vec<FtsSearchHit>, SearchError>;
+    fn query_fts_candidate_record_keys(
+        &self,
+        fts_query: &FtsQuery,
+        candidate_keys: &[RecordKey],
+    ) -> Result<Vec<RecordKey>, SearchError>;
+    fn query_vector_index(
+        &self,
+        query_vector: &[f32],
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        include_child_units: bool,
+    ) -> Result<Vec<VectorSearchHit>, SearchError>;
+}
+
+impl SearchIndex for AtlasIndex {
+    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError> {
+        Ok(AtlasIndex::load_records_by_key(self, keys)?)
+    }
+
+    fn load_record_set(&self) -> Result<PersistedRecordSet, SearchError> {
+        Ok(AtlasIndex::load_record_set(self)?)
+    }
+
+    fn resolve_record_matches(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        let matches =
+            AtlasIndex::resolve_record_identity_matches(self, query, normalized_query, filter)?;
+        if matches.is_empty() {
+            return Ok(Some(Vec::new()));
+        }
+        let keys = matches
+            .iter()
+            .map(|hit| hit.record_key.clone())
+            .collect::<Vec<_>>();
+        let records_by_key = AtlasIndex::load_records_by_key(self, &keys)?
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect::<BTreeMap<_, _>>();
+        Ok(Some(
+            matches
+                .into_iter()
+                .filter_map(|hit| {
+                    let record = records_by_key.get(&hit.record_key)?.clone();
+                    Some(RecordResolutionResult {
+                        query: query.to_string(),
+                        normalized_query: normalized_query.to_string(),
+                        match_kind: match hit.match_kind {
+                            RecordIdentityMatchKind::Name => RecordResolutionMatchKind::Name,
+                            RecordIdentityMatchKind::NormalizedName => {
+                                RecordResolutionMatchKind::NormalizedName
+                            }
+                            RecordIdentityMatchKind::Alias => RecordResolutionMatchKind::Alias,
+                            RecordIdentityMatchKind::VariantName => {
+                                RecordResolutionMatchKind::VariantName
+                            }
+                        },
+                        matched_text: hit.matched_text,
+                        alias_source: hit.alias_source,
+                        alias_source_ref: hit.alias_source_ref,
+                        record,
+                    })
+                })
+                .collect(),
+        ))
+    }
+
+    fn reference_edges_for_seed(
+        &self,
+        seed: &RecordKey,
+        direction: ReferenceEdgeDirection,
+    ) -> Result<Vec<GraphReferenceEdge>, SearchError> {
+        Ok(AtlasIndex::reference_edges_for_seed(self, seed, direction)?)
+    }
+
+    fn resolve_metric_filters(
+        &self,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<SearchFilterNode>, SearchError> {
+        Ok(AtlasIndex::resolve_metric_filters(self, filter)?)
+    }
+
+    fn list_filtered_record_keys(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        sort: FilteredRecordSort,
+        limit: u32,
+        offset: u32,
+    ) -> Result<FilteredRecordKeyPage, SearchError> {
+        Ok(AtlasIndex::list_filtered_record_keys(
+            self, filter, sort, limit, offset,
+        )?)
+    }
+
+    fn list_filter_fields(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+        force_dynamic: bool,
+    ) -> Result<FilterFieldDiscovery, DiscoveryError> {
+        AtlasIndex::list_filter_fields(self, filter, filter_json, force_dynamic)
+    }
+
+    fn list_filter_values(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        request: FilterValueRequest,
+    ) -> Result<FilterValueDiscovery, DiscoveryError> {
+        AtlasIndex::list_filter_values(self, filter, request)
+    }
+
+    fn query_fts_index(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        weights: FtsColumnWeights,
+    ) -> Result<Vec<FtsSearchHit>, SearchError> {
+        Ok(AtlasIndex::query_fts_index(
+            self, fts_query, filter, limit, weights,
+        )?)
+    }
+
+    fn query_fts_candidate_record_keys(
+        &self,
+        fts_query: &FtsQuery,
+        candidate_keys: &[RecordKey],
+    ) -> Result<Vec<RecordKey>, SearchError> {
+        Ok(AtlasIndex::query_fts_candidate_record_keys(
+            self,
+            fts_query,
+            candidate_keys,
+        )?)
+    }
+
+    fn query_vector_index(
+        &self,
+        query_vector: &[f32],
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+        include_child_units: bool,
+    ) -> Result<Vec<VectorSearchHit>, SearchError> {
+        Ok(AtlasIndex::query_vector_index(
+            self,
+            query_vector,
+            filter,
+            limit,
+            include_child_units,
+        )?)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -297,6 +509,13 @@ impl AtlasRetrievalService {
         index: AtlasIndex,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
+        Self::new_with_index(Box::new(index), embedding_config)
+    }
+
+    pub fn new_with_index(
+        index: Box<dyn SearchIndex>,
+        embedding_config: &SearchEmbeddingConfig,
+    ) -> Result<Self, SearchError> {
         Ok(Self {
             embedder: Some(load_embedder(embedding_config)?),
             index,
@@ -304,6 +523,10 @@ impl AtlasRetrievalService {
     }
 
     pub fn without_embeddings(index: AtlasIndex) -> Self {
+        Self::without_embeddings_with_index(Box::new(index))
+    }
+
+    pub fn without_embeddings_with_index(index: Box<dyn SearchIndex>) -> Self {
         Self {
             index,
             embedder: None,
@@ -510,6 +733,13 @@ impl AtlasRetrievalService {
         let resolved_filter = self.index.resolve_metric_filters(filter)?;
         let filter = resolved_filter.as_ref().or(filter);
         let normalized_query = normalize_record_query(query);
+        if let Some(mut matches) =
+            self.index
+                .resolve_record_matches(query, &normalized_query, filter)?
+        {
+            self.enrich_resolution_reference_labels(&mut matches)?;
+            return Ok(matches);
+        }
         let mut record_set = self.index.load_record_set()?;
         record_set
             .records
@@ -602,17 +832,44 @@ impl AtlasRetrievalService {
         })
     }
 
+    pub fn list_filter_fields(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        filter_json: Option<serde_json::Value>,
+        force_dynamic: bool,
+    ) -> Result<FilterFieldDiscovery, DiscoveryError> {
+        self.index
+            .list_filter_fields(filter, filter_json, force_dynamic)
+    }
+
+    pub fn list_filter_values(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        request: FilterValueRequest,
+    ) -> Result<FilterValueDiscovery, DiscoveryError> {
+        self.index.list_filter_values(filter, request)
+    }
+
     pub fn text_search(
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchPage, SearchError> {
+        let total_started_at = Instant::now();
         validate_text_search_request(&request)?;
+        trace_search_phase("validate_text_search_request", total_started_at);
+        let started_at = Instant::now();
         let resolved_filter = self.index.resolve_metric_filters(request.filter)?;
         let filter = resolved_filter.as_ref().or(request.filter);
+        trace_search_phase("resolve_metric_filters", started_at);
+        let started_at = Instant::now();
         let query = analyze_text_query(request.query, request.exclude);
         let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
+        trace_search_phase("analyze_text_query", started_at);
+        let started_at = Instant::now();
         let identity_matches = self.resolve_record(request.query, filter)?;
+        trace_search_phase("resolve_record", started_at);
+        let started_at = Instant::now();
         let fts_hits = if request.retrieval.uses_fts() {
             match fts_query.as_ref() {
                 Some(fts_query) => self.index.query_fts_index(
@@ -626,6 +883,8 @@ impl AtlasRetrievalService {
         } else {
             Vec::new()
         };
+        trace_search_phase("query_fts_index", started_at);
+        let started_at = Instant::now();
         let vector_hits = if request.retrieval.uses_vector() {
             self.semantic(
                 request.query,
@@ -636,6 +895,8 @@ impl AtlasRetrievalService {
         } else {
             Vec::new()
         };
+        trace_search_phase("query_vector_index", started_at);
+        let started_at = Instant::now();
         let excluded_keys = match exclude_query.as_ref() {
             Some(exclude_query) => self
                 .index
@@ -647,6 +908,8 @@ impl AtlasRetrievalService {
                 .collect::<BTreeSet<_>>(),
             None => BTreeSet::new(),
         };
+        trace_search_phase("query_excluded_keys", started_at);
+        let started_at = Instant::now();
         let identity_matches = identity_matches
             .into_iter()
             .filter(|identity| !excluded_keys.contains(&identity.record.key))
@@ -665,6 +928,7 @@ impl AtlasRetrievalService {
             explain: request.explain,
             identity_count: identity_matches.len(),
         });
+        trace_search_phase("fuse_ranked_hits", started_at);
         let total = identity_matches.len() + fused.len();
         let mut all_matches = identity_matches
             .into_iter()
@@ -679,11 +943,14 @@ impl AtlasRetrievalService {
             })
             .collect::<Vec<_>>();
 
+        let started_at = Instant::now();
         let needed_keys = fused
             .iter()
             .map(|ranked| ranked.record_key.clone())
             .collect::<Vec<_>>();
         let records = self.index.load_records_by_key(&needed_keys)?;
+        trace_search_phase("load_ranked_records", started_at);
+        let started_at = Instant::now();
         let by_key = records
             .into_iter()
             .map(|record| (record.key.clone(), record))
@@ -705,7 +972,11 @@ impl AtlasRetrievalService {
             .skip(request.offset as usize)
             .take(request.limit as usize)
             .collect::<Vec<_>>();
+        trace_search_phase("build_page_records", started_at);
+        let started_at = Instant::now();
         self.enrich_text_record_reference_labels(&mut page_records)?;
+        trace_search_phase("enrich_text_record_reference_labels", started_at);
+        trace_search_phase("text_search_total", total_started_at);
 
         Ok(TextSearchPage {
             query,

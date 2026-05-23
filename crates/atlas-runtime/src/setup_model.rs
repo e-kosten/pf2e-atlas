@@ -290,5 +290,12 @@ pub struct SetupBuildReport {
     pub source_record_count: usize,
     pub artifact_record_count: usize,
     pub generated_record_count: usize,
+    pub pending_document_embedding_count: usize,
     pub document_embedding_count: usize,
+    pub reused_document_embedding_count: usize,
+    pub generated_document_embedding_count: usize,
+    pub build_duration_ms: u128,
+    pub embedding_tokenization_duration_ms: u128,
+    pub embedding_model_load_duration_ms: u128,
+    pub embedding_generation_duration_ms: u128,
 }

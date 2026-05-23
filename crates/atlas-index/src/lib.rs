@@ -24,7 +24,7 @@ mod vector;
 
 pub use database::{
     AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
-    FtsSearchHit, ReferenceEdgeDirection,
+    FtsSearchHit, RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection,
 };
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use filters::FilterCompileError;

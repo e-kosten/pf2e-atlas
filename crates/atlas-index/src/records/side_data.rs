@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
 use atlas_artifact::schema::{
-    actor_record_select_sql, item_record_select_sql, spell_record_select_sql,
+    ACTOR_RECORD_COLUMNS, Column, ITEM_RECORD_COLUMNS, SPELL_RECORD_COLUMNS,
+    actor_record_select_sql, actor_records, item_record_select_sql, item_records,
+    spell_record_select_sql, spell_records,
 };
+use atlas_domain::RecordKey;
 use atlas_record::{ActorSideData, ItemSideData, SpellSideData};
-use rusqlite::Connection;
+use rusqlite::{Connection, params_from_iter, types::Value};
 
 use super::RecordLoadError;
 use super::parse::{
@@ -14,12 +17,38 @@ use super::parse::{
 pub(super) fn read_actor_data(
     connection: &Connection,
 ) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
+    read_actor_data_from_sql(connection, &actor_record_select_sql(), Vec::new())
+}
+
+pub(super) fn read_actor_data_by_keys(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let parameters = key_parameters(keys);
+    let sql = scoped_select_sql(
+        actor_records::TABLE.name(),
+        ACTOR_RECORD_COLUMNS,
+        actor_records::columns::RECORD_KEY.name(),
+        &[actor_records::columns::RECORD_KEY.name()],
+        parameters.len(),
+    );
+    read_actor_data_from_sql(connection, &sql, parameters)
+}
+
+fn read_actor_data_from_sql(
+    connection: &Connection,
+    sql: &str,
+    parameters: Vec<Value>,
+) -> Result<BTreeMap<String, ActorSideData>, RecordLoadError> {
     let mut statement = connection
-        .prepare(&actor_record_select_sql())
+        .prepare(sql)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut values = BTreeMap::new();
     let mut rows = statement
-        .query([])
+        .query(params_from_iter(parameters.iter()))
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     while let Some(row) = rows
         .next()
@@ -69,12 +98,38 @@ pub(super) fn read_actor_data(
 pub(super) fn read_item_data(
     connection: &Connection,
 ) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
+    read_item_data_from_sql(connection, &item_record_select_sql(), Vec::new())
+}
+
+pub(super) fn read_item_data_by_keys(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let parameters = key_parameters(keys);
+    let sql = scoped_select_sql(
+        item_records::TABLE.name(),
+        ITEM_RECORD_COLUMNS,
+        item_records::columns::RECORD_KEY.name(),
+        &[item_records::columns::RECORD_KEY.name()],
+        parameters.len(),
+    );
+    read_item_data_from_sql(connection, &sql, parameters)
+}
+
+fn read_item_data_from_sql(
+    connection: &Connection,
+    sql: &str,
+    parameters: Vec<Value>,
+) -> Result<BTreeMap<String, ItemSideData>, RecordLoadError> {
     let mut statement = connection
-        .prepare(&item_record_select_sql())
+        .prepare(sql)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut values = BTreeMap::new();
     let mut rows = statement
-        .query([])
+        .query(params_from_iter(parameters.iter()))
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     while let Some(row) = rows
         .next()
@@ -104,12 +159,38 @@ pub(super) fn read_item_data(
 pub(super) fn read_spell_data(
     connection: &Connection,
 ) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
+    read_spell_data_from_sql(connection, &spell_record_select_sql(), Vec::new())
+}
+
+pub(super) fn read_spell_data_by_keys(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let parameters = key_parameters(keys);
+    let sql = scoped_select_sql(
+        spell_records::TABLE.name(),
+        SPELL_RECORD_COLUMNS,
+        spell_records::columns::RECORD_KEY.name(),
+        &[spell_records::columns::RECORD_KEY.name()],
+        parameters.len(),
+    );
+    read_spell_data_from_sql(connection, &sql, parameters)
+}
+
+fn read_spell_data_from_sql(
+    connection: &Connection,
+    sql: &str,
+    parameters: Vec<Value>,
+) -> Result<BTreeMap<String, SpellSideData>, RecordLoadError> {
     let mut statement = connection
-        .prepare(&spell_record_select_sql())
+        .prepare(sql)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut values = BTreeMap::new();
     let mut rows = statement
-        .query([])
+        .query(params_from_iter(parameters.iter()))
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     while let Some(row) = rows
         .next()
@@ -143,4 +224,32 @@ pub(super) fn read_spell_data(
         );
     }
     Ok(values)
+}
+
+fn scoped_select_sql(
+    table: &str,
+    columns: &[Column],
+    key_column: &str,
+    order_by: &[&str],
+    key_count: usize,
+) -> String {
+    let placeholders = (1..=key_count)
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let columns = columns
+        .iter()
+        .map(|column| column.name())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "SELECT {columns} FROM {table} WHERE {key_column} IN ({placeholders}) ORDER BY {order_by}",
+        order_by = order_by.join(", ")
+    )
+}
+
+fn key_parameters(keys: &[RecordKey]) -> Vec<Value> {
+    keys.iter()
+        .map(|key| Value::Text(key.to_string()))
+        .collect()
 }

@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::output::{write_json_data, write_json_error};
 use crate::terminal::TerminalStyle;
-use crate::{CliFusionMethod, CliSearchSort, SearchOptions};
+use crate::{CliFusionMethod, CliIndexBackend, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};
@@ -168,6 +168,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
             source_root: None,
             embedding_cache_root: None,
             index_path: options.index,
+            ladybug_index_path: options.ladybug_index,
         },
     }) {
         Ok(runtime) => runtime,
@@ -181,7 +182,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
             return Err(error);
         }
     };
-    let service = match runtime.open_record_retrieval_service() {
+    let service = match open_record_retrieval_service(&runtime, options.index_backend) {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error.to_string())?;
@@ -293,6 +294,7 @@ fn run_ranked_text_search(
             source_root: None,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.index,
+            ladybug_index_path: options.ladybug_index,
         },
     }) {
         Ok(runtime) => runtime,
@@ -304,7 +306,7 @@ fn run_ranked_text_search(
     };
     let mut search = if retrieval == RetrievalMode::Fts {
         search_progress("Opening index", "open-index");
-        match runtime.open_record_retrieval_service() {
+        match open_record_retrieval_service(&runtime, options.index_backend) {
             Ok(search) => search,
             Err(error) if options.json => {
                 complete_search_progress();
@@ -318,7 +320,11 @@ fn run_ranked_text_search(
         }
     } else {
         search_progress("Loading embedding model", "load-embeddings");
-        match runtime.open_retrieval_service_with_model(options.embedding_model.to_string()) {
+        match open_retrieval_service_with_model(
+            &runtime,
+            options.index_backend,
+            options.embedding_model.to_string(),
+        ) {
             Ok(search) => search,
             Err(error) if options.json && vector_readiness_error(&error) => {
                 complete_search_progress();
@@ -449,6 +455,27 @@ fn search_progress(message: &'static str, phase: &'static str) {
 
 fn complete_search_progress() {
     info!(target: "atlas_progress", complete = true, "search complete");
+}
+
+fn open_record_retrieval_service(
+    runtime: &AtlasRuntime,
+    backend: CliIndexBackend,
+) -> Result<atlas_search::AtlasRetrievalService, SearchError> {
+    match backend {
+        CliIndexBackend::Sqlite => runtime.open_record_retrieval_service(),
+        CliIndexBackend::Ladybug => runtime.open_ladybug_record_retrieval_service(),
+    }
+}
+
+fn open_retrieval_service_with_model(
+    runtime: &AtlasRuntime,
+    backend: CliIndexBackend,
+    model_id: String,
+) -> Result<atlas_search::AtlasRetrievalService, SearchError> {
+    match backend {
+        CliIndexBackend::Sqlite => runtime.open_retrieval_service_with_model(model_id),
+        CliIndexBackend::Ladybug => runtime.open_ladybug_retrieval_service_with_model(model_id),
+    }
 }
 
 fn parse_sort(

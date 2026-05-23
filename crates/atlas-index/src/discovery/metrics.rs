@@ -37,7 +37,11 @@ pub(super) fn values(
         ));
     }
     let matching_record_count = super::dynamic::count_matching_records(connection, filter)?;
-    let catalog_scope = metric_catalog_scope(filter);
+    let catalog_scope = if request.force_dynamic {
+        None
+    } else {
+        metric_catalog_scope(filter)
+    };
     let execution = if catalog_scope.is_some() {
         FilterDiscoveryExecution::Catalog
     } else {

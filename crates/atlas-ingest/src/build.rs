@@ -2,11 +2,11 @@ use std::time::Instant;
 
 use tracing::info;
 
-use crate::artifact::writer;
 use crate::artifact_manifest::{
     ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path,
     compute_source_position_report, write_artifact_manifest,
 };
+use crate::artifact_outputs::{ArtifactOutputWriter, LadybugArtifactOutput, SqliteArtifactOutput};
 use crate::embeddings::generation::generate_document_embeddings_for_source;
 use crate::error::IngestError;
 use crate::source::model::{
@@ -40,12 +40,16 @@ pub(crate) fn build_artifact(
 
     let embedding_report = generate_document_embeddings_for_source(&mut source, &options)?;
 
-    info!(
-        output = %options.output_path.display(),
-        "writing artifact"
-    );
     let embedding_model = options.embedding_model()?;
-    writer::write_artifact(&options.output_path, &source, embedding_model)?;
+    let mut artifact_outputs = artifact_outputs_for_options(&options);
+    for output in &mut artifact_outputs {
+        info!(
+            backend = output.label(),
+            output = %output.output_path().display(),
+            "writing artifact output"
+        );
+        output.write(&source, embedding_model)?;
+    }
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
     let generated_record_count = artifact_record_count - source_record_count;
@@ -98,4 +102,18 @@ pub(crate) fn build_artifact(
         skipped_records: source.skipped_records,
         warnings: source.warnings,
     })
+}
+
+fn artifact_outputs_for_options(
+    options: &BuildArtifactOptions,
+) -> Vec<Box<dyn ArtifactOutputWriter>> {
+    let mut outputs: Vec<Box<dyn ArtifactOutputWriter>> = vec![Box::new(
+        SqliteArtifactOutput::new(options.output_path.clone()),
+    )];
+    if let Some(ladybug_output_path) = &options.ladybug_output_path {
+        outputs.push(Box::new(LadybugArtifactOutput::new(
+            ladybug_output_path.clone(),
+        )));
+    }
+    outputs
 }

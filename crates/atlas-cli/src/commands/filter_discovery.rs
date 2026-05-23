@@ -7,10 +7,13 @@ use atlas_domain::{
 };
 use atlas_index::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
+use atlas_search::{AtlasRetrievalService, SearchError};
 use serde_json::Value;
 
 use crate::output::{write_json_data, write_json_error};
-use crate::{CliFilterValueSort, FilterOptions, FiltersFieldsOptions, FiltersValuesOptions};
+use crate::{
+    CliFilterValueSort, CliIndexBackend, FilterOptions, FiltersFieldsOptions, FiltersValuesOptions,
+};
 
 use super::filters::build_filter;
 
@@ -24,8 +27,13 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
             return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
         }
     };
-    let index = match open_index(options.index, options.path_mode.into()) {
-        Ok(index) => index,
+    let service = match open_discovery_service(
+        options.index,
+        options.ladybug_index,
+        options.path_mode.into(),
+        options.index_backend,
+    ) {
+        Ok(service) => service,
         Err(error) => {
             return discovery_cli_error(
                 options.json,
@@ -35,7 +43,11 @@ pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCo
             );
         }
     };
-    match index.list_filter_fields(filter.as_ref(), filter_value) {
+    match service.list_filter_fields(
+        filter.as_ref(),
+        filter_value,
+        options.disable_discovery_catalog,
+    ) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -63,14 +75,20 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
         filter_json: filter_value,
         sort: options.sort.map(discovery_sort),
         sample_limit: options.sample_limit,
+        force_dynamic: options.disable_discovery_catalog,
         metric: options.metric,
         metric_prefix: options.metric_prefix,
         metric_label: options.metric_label,
         metric_query: options.metric_query,
         metric_domain: options.metric_domain,
     };
-    let index = match open_index(options.index, options.path_mode.into()) {
-        Ok(index) => index,
+    let service = match open_discovery_service(
+        options.index,
+        options.ladybug_index,
+        options.path_mode.into(),
+        options.index_backend,
+    ) {
+        Ok(service) => service,
         Err(error) => {
             return discovery_cli_error(
                 options.json,
@@ -80,7 +98,7 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
             );
         }
     };
-    match index.list_filter_values(filter.as_ref(), request) {
+    match service.list_filter_values(filter.as_ref(), request) {
         Ok(data) => {
             if options.json {
                 write_json_data(data)?;
@@ -93,19 +111,30 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
     }
 }
 
-fn open_index(
+fn open_discovery_service(
     index: Option<std::path::PathBuf>,
+    ladybug_index: Option<std::path::PathBuf>,
     path_mode: atlas_runtime::AtlasPathMode,
-) -> Result<atlas_index::AtlasIndex, String> {
+    backend: CliIndexBackend,
+) -> Result<AtlasRetrievalService, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode,
         overrides: AtlasPathOverrides {
             source_root: None,
             embedding_cache_root: None,
             index_path: index,
+            ladybug_index_path: ladybug_index,
         },
     })?;
-    runtime.open_index().map_err(|error| error.to_string())
+    match backend {
+        CliIndexBackend::Sqlite => runtime.open_record_retrieval_service(),
+        CliIndexBackend::Ladybug => runtime.open_ladybug_record_retrieval_service(),
+    }
+    .map_err(search_error_to_string)
+}
+
+fn search_error_to_string(error: SearchError) -> String {
+    error.to_string()
 }
 
 fn discovery_sort(sort: CliFilterValueSort) -> DiscoveryValueSort {

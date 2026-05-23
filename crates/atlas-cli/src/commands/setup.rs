@@ -1,6 +1,7 @@
 use std::io::IsTerminal;
 use std::process::ExitCode;
 
+use atlas_ingest::format_duration_ms;
 use atlas_runtime::{
     AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeSetupCleanOptions,
     RuntimeSetupOptions, SetupActionKind, SetupActionStatus, SetupCleanTargetKind,
@@ -48,6 +49,7 @@ fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.index,
+            ladybug_index_path: None,
         },
     })
 }
@@ -217,7 +219,14 @@ struct SetupBuildData {
     source_record_count: usize,
     artifact_record_count: usize,
     generated_record_count: usize,
+    pending_document_embedding_count: usize,
     document_embedding_count: usize,
+    reused_document_embedding_count: usize,
+    generated_document_embedding_count: usize,
+    build_duration_ms: u128,
+    embedding_tokenization_duration_ms: u128,
+    embedding_model_load_duration_ms: u128,
+    embedding_generation_duration_ms: u128,
 }
 
 #[derive(Debug, Serialize)]
@@ -280,6 +289,31 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
         println!();
         println!("not ready: run atlas setup without --check after resolving blocked actions");
     }
+    if let Some(build) = &report.build {
+        println!();
+        println!("build:");
+        println!(
+            "  duration: {}",
+            format_duration_ms(build.build_duration_ms)
+        );
+        println!(
+            "  records: source={} generated={} artifact={}",
+            build.source_record_count, build.generated_record_count, build.artifact_record_count
+        );
+        println!(
+            "  embeddings: pending_document={} document={} reused={} generated={}",
+            build.pending_document_embedding_count,
+            build.document_embedding_count,
+            build.reused_document_embedding_count,
+            build.generated_document_embedding_count
+        );
+        println!(
+            "  embedding timing: tokenization={} model_load={} generation={}",
+            format_duration_ms(build.embedding_tokenization_duration_ms),
+            format_duration_ms(build.embedding_model_load_duration_ms),
+            format_duration_ms(build.embedding_generation_duration_ms)
+        );
+    }
 }
 
 fn print_setup_clean_report(report: &atlas_runtime::RuntimeSetupCleanReport) {
@@ -335,7 +369,14 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             source_record_count: build.source_record_count,
             artifact_record_count: build.artifact_record_count,
             generated_record_count: build.generated_record_count,
+            pending_document_embedding_count: build.pending_document_embedding_count,
             document_embedding_count: build.document_embedding_count,
+            reused_document_embedding_count: build.reused_document_embedding_count,
+            generated_document_embedding_count: build.generated_document_embedding_count,
+            build_duration_ms: build.build_duration_ms,
+            embedding_tokenization_duration_ms: build.embedding_tokenization_duration_ms,
+            embedding_model_load_duration_ms: build.embedding_model_load_duration_ms,
+            embedding_generation_duration_ms: build.embedding_generation_duration_ms,
         }),
     }
 }

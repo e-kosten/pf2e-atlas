@@ -362,6 +362,43 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     Ok(())
 }
 
+#[test]
+fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-by-key-scoped");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO record_content (
+           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           contributes_to_references, label, content_json
+         ) VALUES (
+           'actions:testAction1', 0, 'description', 'public', 1, 1, NULL,
+           '{\"blocks\":[]}'
+         )",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_content (
+           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           contributes_to_references, label, content_json
+         ) VALUES (
+           'actions:testAction2', 0, 'description', 'public', 1, 1, NULL,
+           'not json'
+         )",
+        [],
+    )?;
+    drop(connection);
+
+    let records = AtlasIndex::open_read_only(&path)?
+        .load_records_by_key(&[RecordKey::parse("actions:testAction1")?])?;
+
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].key.to_string(), "actions:testAction1");
+    assert_eq!(records[0].supplemental_content.len(), 1);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
 fn insert_document_embedding_cache_rows(
     connection: &Connection,
     dimensions: usize,

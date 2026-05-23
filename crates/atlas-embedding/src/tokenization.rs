@@ -64,7 +64,7 @@ impl TextEmbeddingTokenizer {
             "analyzing document embedding tokenization"
         );
         info!(target: "atlas_progress",
-            phase = "document_embedding_tokenization",
+            phase = "document_embedding_analysis",
             current = 0_u64,
             total = total as u64,
             "Analyzing document embedding tokenization"
@@ -84,10 +84,10 @@ impl TextEmbeddingTokenizer {
                     "analyzed document embedding tokenization batch"
                 );
                 info!(target: "atlas_progress",
-                    phase = "document_embedding_tokenization",
+                    phase = "document_embedding_analysis",
                     current = current as u64,
                     total = total as u64,
-                    "Analyzed document embedding tokenization"
+                    "Analyzing document embedding tokenization"
                 );
             }
         }

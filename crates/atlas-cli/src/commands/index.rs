@@ -4,6 +4,7 @@ use std::process::ExitCode;
 use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
+    format_duration_ms,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
@@ -20,6 +21,7 @@ pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode
             source_root: options.source,
             embedding_cache_root: None,
             index_path: None,
+            ladybug_index_path: None,
         },
     })?;
     let paths = runtime.paths();
@@ -68,6 +70,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
             index_path: options.output,
+            ladybug_index_path: options.ladybug_output.clone(),
         },
     })?;
     let paths = runtime.paths();
@@ -83,6 +86,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         },
         reuse_embeddings: !options.no_reuse_embeddings,
         embedding_batch_size: options.embedding_batch_size,
+        ladybug_output_path: options.ladybug_output,
     })
     .map_err(|error| error.to_string())?;
 
@@ -104,7 +108,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={} build_duration_ms={}",
+            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={}",
             report.pending_document_embedding_count,
             report.document_embedding_count,
             report.reused_document_embedding_count,
@@ -119,7 +123,13 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report
                 .document_embedding_tokenization
                 .max_observed_token_count,
-            report.build_duration_ms
+        );
+        eprintln!(
+            "timing: build={} embedding_tokenization={} embedding_model_load={} embedding_generation={}",
+            format_duration_ms(report.build_duration_ms),
+            format_duration_ms(report.embedding_timing.tokenization_duration_ms),
+            format_duration_ms(report.embedding_timing.model_load_duration_ms),
+            format_duration_ms(report.embedding_timing.generation_duration_ms),
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(
@@ -226,6 +236,7 @@ fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<Atl
             source_root: None,
             embedding_cache_root: None,
             index_path: index,
+            ladybug_index_path: None,
         },
     })
 }
