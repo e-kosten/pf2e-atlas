@@ -1,15 +1,13 @@
 #![deny(unsafe_code)]
 
-mod artifact;
 mod artifact_manifest;
-mod artifact_outputs;
 mod build;
 mod diagnostics;
 mod embedding_reuse;
 mod embeddings;
 mod error;
 mod generated;
-mod ladybug;
+mod index_build_input;
 mod progress;
 mod records;
 mod report;

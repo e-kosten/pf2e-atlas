@@ -22,4 +22,4 @@ This crate is the place for table names, column names, artifact metadata keys, s
 
 ## Boundary Notes
 
-`atlas-ingest` writes artifacts using this crate's physical contract. `atlas-index` validates and reads artifacts using the same contract. New artifact tables, columns, or storage encodings should start here so writer and reader code cannot drift.
+`atlas-index` writes, validates, and reads artifacts using this crate's physical contract. `atlas-ingest` produces the normalized build input but should not touch database-specific artifact schema or connections. New artifact tables, columns, or storage encodings should start here so writer and reader code cannot drift.

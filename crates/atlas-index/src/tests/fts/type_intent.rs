@@ -3,7 +3,7 @@ use std::fs;
 use rusqlite::Connection;
 
 use super::{insert_fixture_record, record_key_strings, replace_fts_rows};
-use crate::{AtlasIndex, FtsColumnWeights, FtsQuery};
+use crate::{FtsColumnWeights, FtsQuery, SqliteIndexReader};
 
 #[test]
 fn type_intent_can_promote_matching_family_under_low_final_limit()
@@ -68,7 +68,7 @@ fn type_intent_can_promote_matching_family_under_low_final_limit()
     let query =
         FtsQuery::from_tokens(vec!["spell".to_string(), "fire".to_string()]).expect("query");
     assert_eq!(query.as_conjunction_match_query(), "\"fire\"");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         None,
         1,
@@ -142,7 +142,7 @@ fn mixed_case_tokens_are_normalized_before_type_intent_lowering()
         FtsQuery::from_tokens(vec!["Spell".to_string(), "Fire".to_string()]).expect("query");
     assert_eq!(query.as_match_query(), "\"spell\" OR \"fire\"");
     assert_eq!(query.as_conjunction_match_query(), "\"fire\"");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         None,
         1,
@@ -277,7 +277,7 @@ fn type_intent_uses_internal_candidate_window_before_final_truncation()
 
     let query =
         FtsQuery::from_tokens(vec!["spell".to_string(), "fire".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         None,
         1,
@@ -352,7 +352,7 @@ fn secondary_type_intent_promotes_matching_equipment_type_on_database_path()
     let query =
         FtsQuery::from_tokens(vec!["weapon".to_string(), "fire".to_string()]).expect("query");
     assert_eq!(query.as_conjunction_match_query(), "\"weapon\" \"fire\"");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         None,
         1,
@@ -414,7 +414,7 @@ fn all_type_intent_query_skips_strict_and_uses_or_fallback()
 
     let query = FtsQuery::from_tokens(vec!["spell".to_string()]).expect("query");
     assert_eq!(query.as_conjunction_match_query(), "");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         None,
         1,

@@ -1,6 +1,6 @@
 use atlas_domain::RecordKey;
 
-use crate::database::FtsColumnWeights;
+use crate::sqlite::FtsColumnWeights;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FtsMatchTier {

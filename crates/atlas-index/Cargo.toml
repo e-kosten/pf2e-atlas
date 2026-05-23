@@ -13,6 +13,10 @@ atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-record.workspace = true
 atlas-sqlite-vec.workspace = true
+arrow-array = "57.0.0"
+arrow-schema = "57.0.0"
+lbug.workspace = true
+parquet = { version = "57.0.0", features = ["arrow"] }
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true

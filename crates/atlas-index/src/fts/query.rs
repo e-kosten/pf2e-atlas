@@ -5,12 +5,12 @@ use atlas_domain::{RecordKey, SearchFilterNode};
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
-use crate::database::{FtsColumnWeights, FtsQuery, FtsSearchHit};
 use crate::filters::{FilterCompileError, compile_eligible_records_query};
 use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
 };
+use crate::sqlite::{FtsColumnWeights, FtsQuery, FtsSearchHit};
 
 pub(crate) fn query_fts_index(
     connection: &Connection,
