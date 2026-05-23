@@ -1367,7 +1367,10 @@ Completed alignment slices:
 - `atlas-ingest::ladybug` started its writer split:
   - `embeddings.rs` owns Ladybug embedding-unit collection, including the temporary legacy SQLite embedding reuse path;
   - `evidence.rs` owns graph evidence-unit construction from content documents and embedding-section policy;
+  - `facts.rs` owns shared graph fact/key helpers used by node and relationship staging;
+  - `nodes.rs` owns Parquet staging for graph node tables;
   - `output.rs` owns progress, output publication, temp path, cleanup, and move lifecycle;
   - `parquet.rs` owns generic Arrow/Parquet staging helpers, staging directory setup, and `COPY FROM` execution;
+  - `relationships.rs` owns Parquet staging for graph relationship tables;
   - `schema.rs` owns Ladybug schema and search/vector index creation;
-  - `writer.rs` remains the graph-specific staging/orchestration file and still needs a follow-up split for node staging and relationship staging.
+  - `writer.rs` is now the high-level Ladybug write orchestrator: collect embeddings, create schema, emit staging files, bulk-copy them, build optional search indexes, checkpoint, and publish.
