@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use atlas_embedding::EmbeddingModelId;
+use atlas_embedding::{EmbeddingModelId, EmbeddingModelSpec, embedding_model_spec};
 use lbug::{Connection, Database, SystemConfig};
 
 use crate::IndexWriteError;
@@ -39,13 +39,17 @@ impl IndexArtifactWriter for LadybugIndexWriter {
     fn write(
         &self,
         input: &IndexBuildInput<'_>,
-        _embedding_model: EmbeddingModelId,
+        embedding_model: EmbeddingModelId,
     ) -> Result<(), IndexWriteError> {
-        write_artifact(&self.path, input)
+        write_artifact(&self.path, input, embedding_model)
     }
 }
 
-fn write_artifact(path: &Path, input: &IndexBuildInput<'_>) -> Result<(), IndexWriteError> {
+fn write_artifact(
+    path: &Path,
+    input: &IndexBuildInput<'_>,
+    embedding_model: EmbeddingModelId,
+) -> Result<(), IndexWriteError> {
     ladybug_progress("ladybug_write", "Preparing LadybugDB output");
     let started_at = Instant::now();
     let output = LadybugOutput::prepare(path)?;
@@ -53,7 +57,8 @@ fn write_artifact(path: &Path, input: &IndexBuildInput<'_>) -> Result<(), IndexW
         "ladybug_write",
         format_args!("Collecting LadybugDB embedding units"),
     );
-    let embeddings = ladybug_embeddings(input)?;
+    let embeddings = ladybug_embeddings(input);
+    let embedding_spec = embedding_model_spec(embedding_model);
     ladybug_progress_message(
         "ladybug_write",
         format_args!(
@@ -75,7 +80,13 @@ fn write_artifact(path: &Path, input: &IndexBuildInput<'_>) -> Result<(), IndexW
         "ladybug_write",
         "Writing LadybugDB graph Parquet staging files",
     );
-    write_parquet_staging_and_copy(&connection, output.staging_path(), input, &embeddings)?;
+    write_parquet_staging_and_copy(
+        &connection,
+        output.staging_path(),
+        input,
+        &embeddings,
+        embedding_spec,
+    )?;
     if std::env::var_os("ATLAS_LADYBUG_CREATE_SEARCH_INDEXES").is_some() {
         ladybug_progress("ladybug_write", "Creating LadybugDB search indexes");
         create_search_indexes(&connection, !embeddings.is_empty())?;
@@ -101,10 +112,11 @@ fn write_parquet_staging_and_copy(
     staging_path: &Path,
     input: &IndexBuildInput<'_>,
     embeddings: &[LadybugEmbedding],
+    embedding_spec: EmbeddingModelSpec,
 ) -> Result<(), IndexWriteError> {
     let started_at = Instant::now();
     recreate_dir(staging_path)?;
-    write_parquet_staging_files(staging_path, input, embeddings)?;
+    write_parquet_staging_files(staging_path, input, embeddings, embedding_spec)?;
     ladybug_progress_message(
         "ladybug_write",
         format_args!(
@@ -115,6 +127,7 @@ fn write_parquet_staging_and_copy(
 
     for (table, file_name) in [
         ("Pack", "pack.parquet"),
+        ("ArtifactMetadata", "artifact_metadata.parquet"),
         ("Record", "record.parquet"),
         ("SearchDocument", "search_document.parquet"),
         ("EmbeddingUnit", "embedding_unit.parquet"),
@@ -162,9 +175,10 @@ fn write_parquet_staging_files(
     staging_path: &Path,
     input: &IndexBuildInput<'_>,
     embeddings: &[LadybugEmbedding],
+    embedding_spec: EmbeddingModelSpec,
 ) -> Result<(), IndexWriteError> {
     write_pack_parquet(staging_path, &input.packs)?;
-    write_graph_node_parquet(staging_path, input, embeddings)?;
+    write_graph_node_parquet(staging_path, input, embeddings, embedding_spec)?;
     write_graph_relationship_parquet(staging_path, input, embeddings)?;
     Ok(())
 }

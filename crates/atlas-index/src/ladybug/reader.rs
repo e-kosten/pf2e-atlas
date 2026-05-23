@@ -59,6 +59,10 @@ impl LadybugIndexReader {
         load_extension(&self.connection, "FTS");
         load_extension(&self.connection, "VECTOR");
     }
+
+    pub(crate) fn connection(&self) -> &Connection<'static> {
+        &self.connection
+    }
 }
 
 fn load_extension(connection: &Connection<'_>, extension: &str) {

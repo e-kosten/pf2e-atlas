@@ -170,7 +170,8 @@ impl LadybugIndexReader {
             .and_then(|row| int_at(row, 0).ok())
             .unwrap_or(0) as u64;
         let sql = format!(
-            "{} RETURN DISTINCT record.record_key, record.name, record.level, record.source_path
+            "{} RETURN DISTINCT record.record_key, record.name, record.level, record.source_path,
+                    record.price_cp, record.normalized_name
              {sort_clause}
              SKIP {offset}
              LIMIT {limit};",
@@ -440,6 +441,7 @@ impl LadybugIndexReader {
         exact_metric_only: bool,
     ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
         let scope = compile_scope(filter).map_err(discovery_error)?;
+        let matching_record_count = self.count_matching_records_discovery(filter)?;
         let mut predicates = Vec::new();
         if let Some(value) = exact_metric_or_label {
             let literal = string_literal(value);
@@ -486,22 +488,65 @@ impl LadybugIndexReader {
             .iter()
             .map(|row| {
                 let metric_key = string_at(row, 2)?;
+                let value_type = string_at(row, 3)?;
+                let numeric_stats = if value_type == "number" {
+                    self.metric_numeric_stats_discovery(
+                        filter,
+                        &string_at(row, 0)?,
+                        &metric_key,
+                        matching_record_count,
+                    )?
+                } else {
+                    None
+                };
                 Ok(MetricKeyDiscovery {
                     metric_domain: string_at(row, 0)?,
                     record_family: string_at(row, 1)?,
-                    namespace_prefix: string_at(row, 4)?,
+                    namespace_prefix: metric_namespace_prefix(&metric_key),
                     metric_key,
                     label: optional_string_at(row, 5)?,
                     short_label: optional_string_at(row, 6)?,
                     group: optional_string_at(row, 7)?,
                     known: bool_at(row, 8)?,
-                    value_type: string_at(row, 3)?,
+                    value_type,
                     count: u64_at(row, 9)?,
-                    numeric_stats: None,
+                    numeric_stats,
                 })
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(discovery_error)
+    }
+
+    fn metric_numeric_stats_discovery(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        metric_domain: &str,
+        metric_key: &str,
+        matching_record_count: u64,
+    ) -> Result<Option<NumericFieldStats>, LadybugIndexReaderError> {
+        let scope = compile_scope(filter)?;
+        let sql = format!(
+            "{} MATCH (record)-[metric_rel:HAS_METRIC]->(metric:Metric)
+             WHERE metric.metric_domain = {} AND metric.metric_key = {}
+             WITH metric_rel.number_value AS value
+             WHERE value IS NOT NULL
+             RETURN value
+             ORDER BY value ASC;",
+            scope.match_with_where("record"),
+            string_literal(metric_domain),
+            string_literal(metric_key),
+        );
+        let values = query_rows(&self.connection, &sql)?
+            .iter()
+            .map(|row| float_at(row, 0))
+            .collect::<Result<Vec<_>, _>>()?;
+        if values.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(numeric_stats_from_values(
+            &values,
+            matching_record_count,
+        )))
     }
 
     fn metric_value_payload_discovery(
@@ -543,4 +588,11 @@ impl LadybugIndexReader {
             }),
         }
     }
+}
+
+fn metric_namespace_prefix(metric_key: &str) -> String {
+    metric_key
+        .split_once('.')
+        .map(|(prefix, _)| format!("{prefix}."))
+        .unwrap_or_default()
 }

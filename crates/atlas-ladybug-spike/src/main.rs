@@ -12,6 +12,14 @@ use lbug::{Connection, Database, SystemConfig, Value};
 use parquet::arrow::ArrowWriter;
 use serde_json::Value as JsonValue;
 
+mod atlas_cli;
+mod cli_parity;
+mod search_eval;
+
+use atlas_cli::summarize_json;
+use cli_parity::run_cli_parity;
+use search_eval::run_search_eval;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let mode = args.next().unwrap_or_else(|| "in-memory".to_string());
@@ -74,6 +82,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
         return run_vector_filter_parity_probe(&path);
+    }
+    if mode == "search-eval" {
+        let sqlite_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.sqlite"));
+        let ladybug_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
+        let atlas_bin = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
+        return run_search_eval(&sqlite_path, &ladybug_path, &atlas_bin);
+    }
+    if mode == "cli-parity" {
+        let sqlite_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.sqlite"));
+        let ladybug_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
+        let atlas_bin = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
+        return run_cli_parity(&sqlite_path, &ladybug_path, &atlas_bin);
     }
     if mode == "fts-projection" {
         let path = args
@@ -1826,15 +1864,6 @@ fn collect_json_differences(
             summarize_json(right)
         )),
     }
-}
-
-fn summarize_json(value: &JsonValue) -> String {
-    let mut rendered = value.to_string();
-    if rendered.len() > 120 {
-        rendered.truncate(117);
-        rendered.push_str("...");
-    }
-    rendered
 }
 
 fn run_baseline_parity_probe(path: &Path) -> Result<(), Box<dyn std::error::Error>> {

@@ -81,18 +81,25 @@ impl LadybugIndexReader {
         }
         let scope = compile_scope(filter)?;
         let graph_name = if filter.is_some() {
-            let projection = format!(
-                "{} MATCH (record:Record)-[:HAS_EMBEDDING_UNIT]->(embedding:EmbeddingUnit)
-                 {} RETURN embedding",
-                scope.optional_match_prefix(),
-                scope.where_clause("record")
-            );
+            let projection = scope.embedding_projection_query("record", "embedding");
             let name = format!("eligible_embeddings_{}", stable_hash(&projection));
             let _ = self.connection.query(&format!(
-                "CALL PROJECT_GRAPH_CYPHER({}, {});",
-                string_literal(&name),
-                string_literal(&projection)
+                "CALL DROP_PROJECTED_GRAPH({});",
+                string_literal(&name)
             ));
+            self.connection
+                .query(&format!(
+                    "CALL PROJECT_GRAPH_CYPHER({}, {});",
+                    string_literal(&name),
+                    string_literal(&projection)
+                ))
+                .map_err(|error| {
+                    LadybugIndexReaderError::Query(format!(
+                        "{error}; query: CALL PROJECT_GRAPH_CYPHER({}, {});",
+                        string_literal(&name),
+                        string_literal(&projection)
+                    ))
+                })?;
             name
         } else {
             "EmbeddingUnit".to_string()
