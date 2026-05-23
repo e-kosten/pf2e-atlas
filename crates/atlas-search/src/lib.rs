@@ -362,6 +362,7 @@ impl RetrievalMode {
 pub enum FusionMethod {
     Rrf,
     WeightedRrf,
+    MinMaxScore,
 }
 
 impl FusionMethod {
@@ -369,6 +370,7 @@ impl FusionMethod {
         match self {
             Self::Rrf => "rrf",
             Self::WeightedRrf => "weighted-rrf",
+            Self::MinMaxScore => "min-max-score",
         }
     }
 }
@@ -379,6 +381,7 @@ pub struct FusionOptions {
     pub fts_weight: f64,
     pub vector_weight: f64,
     pub rank_constant: f64,
+    pub fts_policy: FtsFusionPolicy,
 }
 
 impl Default for FusionOptions {
@@ -388,6 +391,40 @@ impl Default for FusionOptions {
             fts_weight: 1.0,
             vector_weight: 1.0,
             rank_constant: 60.0,
+            fts_policy: FtsFusionPolicy::All,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FtsFusionPolicy {
+    All,
+    DemoteWeak,
+    StrongOnly,
+}
+
+impl FtsFusionPolicy {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::DemoteWeak => "demote-weak",
+            Self::StrongOnly => "strong-only",
+        }
+    }
+
+    fn apply(self, confidence: FtsMatchConfidence, score: f64) -> f64 {
+        match self {
+            Self::All => score,
+            Self::DemoteWeak => match confidence {
+                FtsMatchConfidence::DirectTitle | FtsMatchConfidence::StrongLexical => score,
+                FtsMatchConfidence::MediumLexical => score * 0.5,
+                FtsMatchConfidence::WeakLexical => score * 0.1,
+            },
+            Self::StrongOnly => match confidence {
+                FtsMatchConfidence::DirectTitle | FtsMatchConfidence::StrongLexical => score,
+                FtsMatchConfidence::MediumLexical | FtsMatchConfidence::WeakLexical => 0.0,
+            },
         }
     }
 }
@@ -449,12 +486,33 @@ pub struct TextSearchExplain {
     pub fused_score: Option<f64>,
     pub fts_rank: Option<u32>,
     pub fts_score: Option<f64>,
+    pub fts_confidence: Option<FtsMatchConfidence>,
     pub vector_rank: Option<u32>,
     pub vector_distance: Option<f64>,
     pub vector_rank_distance: Option<f64>,
     pub vector_unit_kind: Option<String>,
     pub vector_label: Option<String>,
     pub vector_embedding_unit_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FtsMatchConfidence {
+    DirectTitle,
+    StrongLexical,
+    MediumLexical,
+    WeakLexical,
+}
+
+impl FtsMatchConfidence {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::DirectTitle => "direct-title",
+            Self::StrongLexical => "strong-lexical",
+            Self::MediumLexical => "medium-lexical",
+            Self::WeakLexical => "weak-lexical",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -918,9 +976,25 @@ impl AtlasRetrievalService {
             .iter()
             .map(|identity| identity.record.key.clone())
             .collect::<BTreeSet<_>>();
+        let ranked_candidate_keys = ranked_candidate_keys(
+            &fts_hits,
+            &vector_hits,
+            &identity_keys,
+            &excluded_keys,
+            request.retrieval,
+        );
+        let ranked_records = self.index.load_records_by_key(&ranked_candidate_keys)?;
+        let records_by_key = ranked_records
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect::<BTreeMap<_, _>>();
+        trace_search_phase("load_ranked_candidate_records", started_at);
+        let started_at = Instant::now();
         let fused = fuse_ranked_hits(FusionInput {
             fts_hits: &fts_hits,
             vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &query.fts_tokens,
             identity_keys: &identity_keys,
             excluded_keys: &excluded_keys,
             retrieval: request.retrieval,
@@ -944,19 +1018,8 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
 
         let started_at = Instant::now();
-        let needed_keys = fused
-            .iter()
-            .map(|ranked| ranked.record_key.clone())
-            .collect::<Vec<_>>();
-        let records = self.index.load_records_by_key(&needed_keys)?;
-        trace_search_phase("load_ranked_records", started_at);
-        let started_at = Instant::now();
-        let by_key = records
-            .into_iter()
-            .map(|record| (record.key.clone(), record))
-            .collect::<BTreeMap<_, _>>();
         all_matches.extend(fused.into_iter().filter_map(|ranked| {
-            by_key
+            records_by_key
                 .get(&ranked.record_key)
                 .map(|record| TextSearchRecord {
                     record: record.clone(),
@@ -1075,6 +1138,28 @@ fn candidate_keys(
     keys.into_iter().collect()
 }
 
+fn ranked_candidate_keys(
+    fts_hits: &[FtsSearchHit],
+    vector_hits: &[SemanticSearchHit],
+    identity_keys: &BTreeSet<RecordKey>,
+    excluded_keys: &BTreeSet<RecordKey>,
+    retrieval: RetrievalMode,
+) -> Vec<RecordKey> {
+    let mut keys = BTreeSet::new();
+    if retrieval.uses_fts() {
+        keys.extend(fts_hits.iter().map(|hit| hit.record_key.clone()));
+    }
+    if retrieval.uses_vector() {
+        keys.extend(
+            vector_hits
+                .iter()
+                .filter_map(|hit| RecordKey::parse(&hit.record_key).ok()),
+        );
+    }
+    keys.retain(|key| !identity_keys.contains(key) && !excluded_keys.contains(key));
+    keys.into_iter().collect()
+}
+
 fn tokenize_fts_query(query: &str) -> Vec<String> {
     query
         .to_lowercase()
@@ -1130,6 +1215,7 @@ struct FusionAccumulator {
     fused_score: f64,
     fts_rank: Option<u32>,
     fts_score: Option<f64>,
+    fts_confidence: Option<FtsMatchConfidence>,
     vector_rank: Option<u32>,
     vector_distance: Option<f64>,
     vector_rank_distance: Option<f64>,
@@ -1141,6 +1227,8 @@ struct FusionAccumulator {
 struct FusionInput<'a> {
     fts_hits: &'a [FtsSearchHit],
     vector_hits: &'a [SemanticSearchHit],
+    records_by_key: &'a BTreeMap<RecordKey, PersistedRecord>,
+    fts_tokens: &'a [String],
     identity_keys: &'a BTreeSet<RecordKey>,
     excluded_keys: &'a BTreeSet<RecordKey>,
     retrieval: RetrievalMode,
@@ -1152,6 +1240,7 @@ struct FusionInput<'a> {
 fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
     let mut by_key = BTreeMap::<RecordKey, FusionAccumulator>::new();
     if input.retrieval.uses_fts() {
+        let fts_score_range = lane_score_range(input.fts_hits.iter().map(|hit| hit.rank));
         for (index, hit) in input.fts_hits.iter().enumerate() {
             if input.identity_keys.contains(&hit.record_key)
                 || input.excluded_keys.contains(&hit.record_key)
@@ -1164,11 +1253,27 @@ fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 .or_insert_with(|| FusionAccumulator::new(hit.record_key.clone()));
             entry.fts_rank = Some(rank);
             entry.fts_score = Some(hit.rank);
-            entry.fused_score +=
-                lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.fts_weight);
+            let confidence = input
+                .records_by_key
+                .get(&hit.record_key)
+                .map(|record| classify_fts_match(record, input.fts_tokens))
+                .unwrap_or(FtsMatchConfidence::WeakLexical);
+            entry.fts_confidence = Some(confidence);
+            entry.fused_score += input.fusion.fts_policy.apply(
+                confidence,
+                lane_fusion_score(
+                    rank,
+                    hit.rank,
+                    fts_score_range,
+                    input.fusion,
+                    input.fusion.fts_weight,
+                ),
+            );
         }
     }
     if input.retrieval.uses_vector() {
+        let vector_score_range =
+            lane_score_range(input.vector_hits.iter().map(|hit| hit.rank_distance));
         for (index, hit) in input.vector_hits.iter().enumerate() {
             let record_key = match RecordKey::parse(&hit.record_key) {
                 Ok(record_key) => record_key,
@@ -1189,12 +1294,20 @@ fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
             entry.vector_unit_kind = Some(hit.unit_kind.clone());
             entry.vector_label = hit.label.clone();
             entry.vector_embedding_unit_key = Some(hit.embedding_unit_key.clone());
-            entry.fused_score +=
-                lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.vector_weight);
+            entry.fused_score += lane_fusion_score(
+                rank,
+                hit.rank_distance,
+                vector_score_range,
+                input.fusion,
+                input.fusion.vector_weight,
+            );
         }
     }
 
-    let mut fused = by_key.into_values().collect::<Vec<_>>();
+    let mut fused = by_key
+        .into_values()
+        .filter(retains_fused_hit)
+        .collect::<Vec<_>>();
     fused.sort_by(compare_fused_hits);
     fused
         .into_iter()
@@ -1206,6 +1319,7 @@ fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 fused_score: Some(hit.fused_score),
                 fts_rank: hit.fts_rank,
                 fts_score: hit.fts_score,
+                fts_confidence: hit.fts_confidence,
                 vector_rank: hit.vector_rank,
                 vector_distance: hit.vector_distance,
                 vector_rank_distance: hit.vector_rank_distance,
@@ -1217,12 +1331,23 @@ fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
         .collect()
 }
 
+fn retains_fused_hit(hit: &FusionAccumulator) -> bool {
+    if hit.fused_score > 0.0 || hit.vector_rank.is_some() {
+        return true;
+    }
+    matches!(
+        hit.fts_confidence,
+        Some(FtsMatchConfidence::DirectTitle | FtsMatchConfidence::StrongLexical)
+    )
+}
+
 fn identity_explain(index: usize) -> TextSearchExplain {
     TextSearchExplain {
         rank: (index + 1) as u32,
         fused_score: None,
         fts_rank: None,
         fts_score: None,
+        fts_confidence: None,
         vector_rank: None,
         vector_distance: None,
         vector_rank_distance: None,
@@ -1239,6 +1364,7 @@ impl FusionAccumulator {
             fused_score: 0.0,
             fts_rank: None,
             fts_score: None,
+            fts_confidence: None,
             vector_rank: None,
             vector_distance: None,
             vector_rank_distance: None,
@@ -1251,6 +1377,153 @@ impl FusionAccumulator {
 
 fn lane_rrf_score(rank: u32, rank_constant: f64, weight: f64) -> f64 {
     weight / (rank_constant + f64::from(rank))
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LaneScoreRange {
+    best: f64,
+    worst: f64,
+    count: usize,
+}
+
+fn lane_score_range(scores: impl Iterator<Item = f64>) -> Option<LaneScoreRange> {
+    let mut scores = scores.filter(|score| score.is_finite());
+    let first = scores.next()?;
+    let mut best = first;
+    let mut worst = first;
+    let mut count = 1;
+    for score in scores {
+        worst = score;
+        count += 1;
+    }
+    if best == worst {
+        best = first;
+    }
+    Some(LaneScoreRange { best, worst, count })
+}
+
+fn lane_fusion_score(
+    rank: u32,
+    raw_score: f64,
+    score_range: Option<LaneScoreRange>,
+    fusion: FusionOptions,
+    weight: f64,
+) -> f64 {
+    match fusion.method {
+        FusionMethod::Rrf | FusionMethod::WeightedRrf => {
+            lane_rrf_score(rank, fusion.rank_constant, weight)
+        }
+        FusionMethod::MinMaxScore => {
+            weight
+                * lane_min_max_score(raw_score, score_range)
+                    .unwrap_or_else(|| lane_rrf_score(rank, fusion.rank_constant, 1.0))
+        }
+    }
+}
+
+fn lane_min_max_score(raw_score: f64, score_range: Option<LaneScoreRange>) -> Option<f64> {
+    if !raw_score.is_finite() {
+        return None;
+    }
+    let LaneScoreRange { best, worst, count } = score_range?;
+    if !best.is_finite() || !worst.is_finite() {
+        return None;
+    }
+    let span = (best - worst).abs();
+    if span <= f64::EPSILON {
+        return Some(if count == 1 { 1.0 } else { 0.0 });
+    }
+    let normalized = if best > worst {
+        (raw_score - worst) / span
+    } else {
+        (worst - raw_score) / span
+    };
+    Some(normalized.clamp(0.0, 1.0))
+}
+
+fn classify_fts_match(record: &PersistedRecord, query_tokens: &[String]) -> FtsMatchConfidence {
+    let query_tokens = query_tokens
+        .iter()
+        .filter(|token| !token.is_empty())
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    if query_tokens.is_empty() {
+        return FtsMatchConfidence::WeakLexical;
+    }
+
+    let title_tokens = tokenize_fts_query(&record.name);
+    let title_token_refs = title_tokens.iter().map(String::as_str).collect::<Vec<_>>();
+    let title_coverage = token_coverage(&query_tokens, &title_token_refs);
+    let query_covers_title = token_coverage(&title_token_refs, &query_tokens);
+    if title_coverage >= 1.0 || query_covers_title >= 1.0 {
+        return FtsMatchConfidence::DirectTitle;
+    }
+
+    let high_value_tokens = high_value_record_tokens(record);
+    let high_value_refs = high_value_tokens
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    let high_value_coverage = token_coverage(&query_tokens, &high_value_refs);
+    if high_value_coverage >= 1.0 {
+        return FtsMatchConfidence::StrongLexical;
+    }
+    if query_tokens.len() >= 3 && high_value_coverage >= 0.67 {
+        return FtsMatchConfidence::StrongLexical;
+    }
+    if high_value_coverage >= 0.5 {
+        return FtsMatchConfidence::MediumLexical;
+    }
+
+    FtsMatchConfidence::WeakLexical
+}
+
+fn high_value_record_tokens(record: &PersistedRecord) -> Vec<String> {
+    let mut tokens = tokenize_fts_query(&record.name);
+    tokens.extend(
+        record
+            .traits
+            .iter()
+            .flat_map(|value| tokenize_fts_query(value)),
+    );
+    tokens.extend(
+        record
+            .taxonomy_families
+            .iter()
+            .flat_map(|value| tokenize_fts_query(value)),
+    );
+    tokens.extend(
+        record
+            .prerequisites
+            .iter()
+            .flat_map(|value| tokenize_fts_query(value)),
+    );
+    if let Some(value) = &record.system_category {
+        tokens.extend(tokenize_fts_query(value));
+    }
+    if let Some(value) = &record.system_group {
+        tokens.extend(tokenize_fts_query(value));
+    }
+    tokens.sort();
+    tokens.dedup();
+    tokens
+}
+
+fn token_coverage(needles: &[&str], haystack: &[&str]) -> f64 {
+    if needles.is_empty() {
+        return 0.0;
+    }
+    let matched = needles
+        .iter()
+        .filter(|needle| haystack.iter().any(|token| token_matches(needle, token)))
+        .count();
+    matched as f64 / needles.len() as f64
+}
+
+fn token_matches(left: &str, right: &str) -> bool {
+    left == right
+        || (left.len() >= 4 && right.starts_with(left))
+        || (right.len() >= 4 && left.starts_with(right))
 }
 
 fn compare_fused_hits(left: &FusionAccumulator, right: &FusionAccumulator) -> std::cmp::Ordering {
@@ -1511,6 +1784,7 @@ fn apply_document_reference_target_names(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use atlas_domain::{PublicationFamily, RecordFamily};
     use atlas_record::{ContentBlock, ContentInline, ContentReference, ContentReferenceLocator};
 
     fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
@@ -1520,6 +1794,57 @@ mod tests {
             unit_kind: unit_kind.to_string(),
             label: None,
             distance,
+        }
+    }
+
+    fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
+        let key = RecordKey::parse(key).expect("record key parses");
+        PersistedRecord {
+            id: key.id().clone(),
+            pack_name: key.pack().clone(),
+            key,
+            name: name.to_string(),
+            normalized_name: normalize_record_query(name),
+            record_family: RecordFamily::Feat,
+            pack_label: "Test Pack".to_string(),
+            foundry_document_type: "Item".to_string(),
+            foundry_record_type: "feat".to_string(),
+            level: None,
+            rarity: None,
+            traits: traits.iter().map(|value| value.to_string()).collect(),
+            prerequisites: Vec::new(),
+            system_category: None,
+            system_group: None,
+            system_base_item: None,
+            system_usage: None,
+            system_price_json: None,
+            system_actions_value: None,
+            system_time_value: None,
+            system_duration_value: None,
+            price_cp: None,
+            activation_time: None,
+            duration: None,
+            metrics: Vec::new(),
+            actor_data: None,
+            item_data: None,
+            spell_data: None,
+            publication_title: None,
+            publication_remaster: false,
+            description: None,
+            blurb: None,
+            supplemental_content: Vec::new(),
+            publication_family: PublicationFamily::Unknown,
+            folder_id: None,
+            taxonomy_families: Vec::new(),
+            variant_group_key: None,
+            variant_base_name: None,
+            variant_label: None,
+            variant_axes: Vec::new(),
+            variant_confidence: None,
+            variant_source: "test".to_string(),
+            source_path: "test.json".to_string(),
+            is_default_visible: true,
+            raw_json: "{}".to_string(),
         }
     }
 
@@ -1701,10 +2026,22 @@ mod tests {
             .into_iter()
             .collect::<BTreeSet<_>>();
         let excluded_keys = BTreeSet::new();
+        let records_by_key = BTreeMap::from([
+            (
+                RecordKey::parse("records:b").unwrap(),
+                test_record("records:b", "Battle Medicine", &["healing"]),
+            ),
+            (
+                RecordKey::parse("records:c").unwrap(),
+                test_record("records:c", "Risky Surgery", &[]),
+            ),
+        ]);
 
         let fused = fuse_ranked_hits(FusionInput {
             fts_hits: &fts_hits,
             vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &["battle".to_string(), "medicine".to_string()],
             identity_keys: &identity_keys,
             excluded_keys: &excluded_keys,
             retrieval: RetrievalMode::Hybrid,
@@ -1726,6 +2063,200 @@ mod tests {
     }
 
     #[test]
+    fn min_max_score_fusion_uses_lane_scores_and_weights() {
+        let fts_hits = vec![
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:a").unwrap(),
+                rank: -2.0,
+            },
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:b").unwrap(),
+                rank: -1.0,
+            },
+        ];
+        let vector_hits = vec![
+            SemanticSearchHit {
+                record_key: "records:b".to_string(),
+                embedding_unit_key: "records:b#parent".to_string(),
+                unit_kind: "parent".to_string(),
+                label: None,
+                distance: 0.1,
+                rank_distance: 0.1,
+            },
+            SemanticSearchHit {
+                record_key: "records:c".to_string(),
+                embedding_unit_key: "records:c#parent".to_string(),
+                unit_kind: "parent".to_string(),
+                label: None,
+                distance: 0.2,
+                rank_distance: 0.2,
+            },
+        ];
+        let records_by_key = BTreeMap::from([
+            (
+                RecordKey::parse("records:a").unwrap(),
+                test_record("records:a", "Direct Result", &[]),
+            ),
+            (
+                RecordKey::parse("records:b").unwrap(),
+                test_record("records:b", "Shared Result", &[]),
+            ),
+            (
+                RecordKey::parse("records:c").unwrap(),
+                test_record("records:c", "Semantic Result", &[]),
+            ),
+        ]);
+
+        let fused = fuse_ranked_hits(FusionInput {
+            fts_hits: &fts_hits,
+            vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &["result".to_string()],
+            identity_keys: &BTreeSet::new(),
+            excluded_keys: &BTreeSet::new(),
+            retrieval: RetrievalMode::Hybrid,
+            fusion: FusionOptions {
+                method: FusionMethod::MinMaxScore,
+                fts_weight: 1.0,
+                vector_weight: 2.0,
+                rank_constant: 60.0,
+                fts_policy: FtsFusionPolicy::All,
+            },
+            explain: true,
+            identity_count: 0,
+        });
+
+        assert_eq!(
+            fused
+                .iter()
+                .map(|hit| hit.record_key.to_string())
+                .collect::<Vec<_>>(),
+            vec!["records:b", "records:a", "records:c"]
+        );
+        assert_eq!(fused[0].explain.as_ref().unwrap().fused_score, Some(2.0));
+        assert_eq!(fused[1].explain.as_ref().unwrap().fused_score, Some(1.0));
+    }
+
+    #[test]
+    fn fts_confidence_distinguishes_direct_and_weak_hits() {
+        let direct = test_record("records:a", "Treat Wounds", &["healing"]);
+        let strong = test_record("records:b", "Battle Medicine", &["healing", "manipulate"]);
+        let weak = test_record("records:c", "Shielded Arm", &["metal"]);
+
+        assert_eq!(
+            classify_fts_match(&direct, &["treat".to_string(), "wounds".to_string()]),
+            FtsMatchConfidence::DirectTitle
+        );
+        assert_eq!(
+            classify_fts_match(&strong, &["healing".to_string(), "manipulate".to_string()]),
+            FtsMatchConfidence::StrongLexical
+        );
+        assert_eq!(
+            classify_fts_match(
+                &weak,
+                &[
+                    "low".to_string(),
+                    "level".to_string(),
+                    "fear".to_string(),
+                    "spell".to_string()
+                ],
+            ),
+            FtsMatchConfidence::WeakLexical
+        );
+    }
+
+    #[test]
+    fn fts_fusion_policy_can_zero_weak_hits() {
+        let fts_hits = vec![
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:weak").unwrap(),
+                rank: 10.0,
+            },
+            FtsSearchHit {
+                record_key: RecordKey::parse("records:strong").unwrap(),
+                rank: 8.0,
+            },
+        ];
+        let vector_hits = vec![SemanticSearchHit {
+            record_key: "records:semantic".to_string(),
+            embedding_unit_key: "records:semantic#parent".to_string(),
+            unit_kind: "parent".to_string(),
+            label: None,
+            distance: 0.1,
+            rank_distance: 0.1,
+        }];
+        let records_by_key = BTreeMap::from([
+            (
+                RecordKey::parse("records:weak").unwrap(),
+                test_record("records:weak", "Shielded Arm", &["metal"]),
+            ),
+            (
+                RecordKey::parse("records:strong").unwrap(),
+                test_record("records:strong", "Fear", &["fear"]),
+            ),
+            (
+                RecordKey::parse("records:semantic").unwrap(),
+                test_record("records:semantic", "Semantic Fear Result", &["fear"]),
+            ),
+        ]);
+
+        let all = fuse_ranked_hits(FusionInput {
+            fts_hits: &fts_hits,
+            vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &[
+                "low".to_string(),
+                "level".to_string(),
+                "fear".to_string(),
+                "spell".to_string(),
+            ],
+            identity_keys: &BTreeSet::new(),
+            excluded_keys: &BTreeSet::new(),
+            retrieval: RetrievalMode::Hybrid,
+            fusion: FusionOptions {
+                method: FusionMethod::MinMaxScore,
+                fts_weight: 1.0,
+                vector_weight: 1.0,
+                rank_constant: 60.0,
+                fts_policy: FtsFusionPolicy::All,
+            },
+            explain: true,
+            identity_count: 0,
+        });
+        let strong_only = fuse_ranked_hits(FusionInput {
+            fts_hits: &fts_hits,
+            vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &[
+                "low".to_string(),
+                "level".to_string(),
+                "fear".to_string(),
+                "spell".to_string(),
+            ],
+            identity_keys: &BTreeSet::new(),
+            excluded_keys: &BTreeSet::new(),
+            retrieval: RetrievalMode::Hybrid,
+            fusion: FusionOptions {
+                method: FusionMethod::MinMaxScore,
+                fts_weight: 1.0,
+                vector_weight: 1.0,
+                rank_constant: 60.0,
+                fts_policy: FtsFusionPolicy::StrongOnly,
+            },
+            explain: true,
+            identity_count: 0,
+        });
+
+        assert_eq!(all[0].record_key.to_string(), "records:weak");
+        assert_eq!(strong_only[0].record_key.to_string(), "records:semantic");
+        assert!(
+            !strong_only
+                .iter()
+                .any(|hit| hit.record_key.to_string() == "records:weak")
+        );
+    }
+
+    #[test]
     fn unweighted_rrf_rejects_lane_weights_at_runtime_boundary() {
         let request = TextSearchRequest {
             query: "healing",
@@ -1739,6 +2270,7 @@ mod tests {
                 fts_weight: 2.0,
                 vector_weight: 1.0,
                 rank_constant: 60.0,
+                fts_policy: FtsFusionPolicy::All,
             },
             fts_top_k: 10,
             vector_top_k: 10,

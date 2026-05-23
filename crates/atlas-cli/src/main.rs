@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use atlas_domain::DetailLevel;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use atlas_runtime::AtlasPathMode;
-use atlas_search::{FusionMethod, RetrievalMode};
+use atlas_search::{FtsFusionPolicy, FusionMethod, RetrievalMode};
 use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate};
 
@@ -552,7 +552,7 @@ struct GraphGetOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --family creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --family creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf, weighted-rrf, or min-max-score. weighted-rrf is the default with equal lane weights.\n  --fts-fusion-policy controls whether weak FTS candidates vote in hybrid fusion."
 )]
 struct SearchOptions {
     #[arg(help = "Plain-text query for ranked retrieval; omit for filter-only listing")]
@@ -601,6 +601,8 @@ struct SearchOptions {
     retrieval: CliRetrievalMode,
     #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf, help = "Fusion algorithm for hybrid retrieval")]
     fusion: CliFusionMethod,
+    #[arg(long, value_enum, default_value_t = CliFtsFusionPolicy::All, help = "Control how weak FTS candidates contribute to hybrid fusion")]
+    fts_fusion_policy: CliFtsFusionPolicy,
     #[arg(
         long,
         default_value_t = 1.0,
@@ -835,6 +837,14 @@ enum CliIndexBackend {
 enum CliFusionMethod {
     Rrf,
     WeightedRrf,
+    MinMaxScore,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliFtsFusionPolicy {
+    All,
+    DemoteWeak,
+    StrongOnly,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -890,6 +900,17 @@ impl From<CliFusionMethod> for FusionMethod {
         match method {
             CliFusionMethod::Rrf => Self::Rrf,
             CliFusionMethod::WeightedRrf => Self::WeightedRrf,
+            CliFusionMethod::MinMaxScore => Self::MinMaxScore,
+        }
+    }
+}
+
+impl From<CliFtsFusionPolicy> for FtsFusionPolicy {
+    fn from(policy: CliFtsFusionPolicy) -> Self {
+        match policy {
+            CliFtsFusionPolicy::All => Self::All,
+            CliFtsFusionPolicy::DemoteWeak => Self::DemoteWeak,
+            CliFtsFusionPolicy::StrongOnly => Self::StrongOnly,
         }
     }
 }

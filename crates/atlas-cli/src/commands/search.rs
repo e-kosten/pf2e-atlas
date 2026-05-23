@@ -47,6 +47,7 @@ struct SearchFusionJson {
     fts_weight: f64,
     vector_weight: f64,
     rank_constant: f64,
+    fts_policy: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +112,8 @@ struct SearchExplainJson {
     fts_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     fts_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_confidence: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vector_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -264,6 +267,7 @@ fn run_ranked_text_search(
         fts_weight: options.fts_weight,
         vector_weight: options.vector_weight,
         rank_constant: options.rank_constant,
+        fts_policy: options.fts_fusion_policy.into(),
     };
     if options.fusion == CliFusionMethod::Rrf
         && ((options.fts_weight - 1.0).abs() > f64::EPSILON
@@ -418,6 +422,7 @@ fn run_ranked_text_search(
             fts_weight: result.fusion.fts_weight,
             vector_weight: result.fusion.vector_weight,
             rank_constant: result.fusion.rank_constant,
+            fts_policy: result.fusion.fts_policy.as_str(),
         }),
         candidate_windows: options.explain.then_some(SearchCandidateWindowsJson {
             fts_top_k,
@@ -628,6 +633,7 @@ fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
         fused_score: explain.fused_score,
         fts_rank: explain.fts_rank,
         fts_score: explain.fts_score,
+        fts_confidence: explain.fts_confidence.map(|confidence| confidence.as_str()),
         vector_rank: explain.vector_rank,
         vector_distance: explain.vector_distance,
         vector_rank_distance: explain.vector_rank_distance,

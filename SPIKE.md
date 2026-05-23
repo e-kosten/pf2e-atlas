@@ -1262,3 +1262,63 @@ Current recommendation:
   - 2-token queries should generally require both tokens unless a high-value title/alias match exists.
   - 3+ token queries should require at least 2 tokens or a high-value title/alias match.
   - Semantic/vector search should carry broad conceptual recall instead of letting weak OR FTS candidates vote in RRF.
+
+### Score-Fusion Follow-Up
+
+The search path now has an experimental `--fusion min-max-score` mode. It keeps the same FTS and vector candidate windows as `weighted-rrf`, but it combines normalized lane scores instead of rank positions:
+
+- FTS scores are normalized within the returned FTS lane. The implementation infers whether the backend's first result is higher-is-better or lower-is-better from the first and last returned score, so it can handle SQLite's lower-is-better BM25-style rank and Ladybug's higher-is-better FTS score.
+- Vector `rank_distance` is normalized as lower-is-better.
+- Flat multi-result lanes contribute `0` rather than amplifying meaningless tiny differences; a single-result lane contributes `1`.
+- Existing `--fts-weight` and `--vector-weight` apply to normalized lane scores. `--rank-constant` remains accepted for CLI compatibility but only affects fallback scoring if a lane score cannot be normalized.
+
+Initial smoke checks on `.cache/ladybug-spike/with-embeddings.*`:
+
+```bash
+target/debug/atlas --progress never search "treat wounds" \
+  --retrieval hybrid --fusion min-max-score \
+  --index-backend ladybug \
+  --index .cache/ladybug-spike/with-embeddings.sqlite \
+  --ladybug-index .cache/ladybug-spike/with-embeddings.lbug \
+  --limit 5 --fts-top-k 50 --vector-top-k 50 --json --explain
+```
+
+For `treat wounds`, min-max score fusion promoted the top semantic/lexical overlap (`Effect: Treat Wounds Immunity`) above pure FTS-only noise, but a high-scoring FTS-only result still entered the top results. For `low level fear spell --family spell`, equal-weight min-max still allowed a bad top FTS-only hit (`Shielded Arm`) to rank second because its FTS score was the lane maximum. Reducing FTS weight (`--fts-weight 0.25 --vector-weight 1.0`) produced a more semantic result set with `Fear`, `Fearful Feast`, and other fear-related spells at the top.
+
+Interpretation: raw score fusion is useful for testing and exposes confidence gaps that RRF hides, but it does not solve weak OR FTS by itself. If broad OR stays in the FTS lane, the better product shape is likely:
+
+- FTS is a precision lane with token-coverage or title/alias gates.
+- Semantic search owns broad natural-language recall.
+- Score fusion is tuned with lower FTS weight for conceptual queries, or FTS contributes only when lexical confidence passes a query-analysis threshold.
+
+The search path now also has an experimental FTS confidence gate:
+
+```bash
+--fts-fusion-policy all|demote-weak|strong-only
+```
+
+The classifier currently emits:
+
+- `direct-title`: query tokens directly cover the record title, or the title is fully contained in the query.
+- `strong-lexical`: all or most query tokens match high-value record fields such as title, traits, taxonomy, prerequisites, category, or group.
+- `medium-lexical`: partial high-value lexical overlap.
+- `weak-lexical`: broad OR/body-style lexical evidence only.
+
+Policy behavior:
+
+- `all`: preserves existing behavior.
+- `demote-weak`: keeps weak candidates but reduces weak FTS contribution and medium FTS contribution.
+- `strong-only`: only lets direct/strong FTS evidence contribute; weak or medium FTS-only rows with zero contribution are removed from the fused pool. Rows that also have vector evidence can still rank through the vector lane.
+
+Current live-query read from both Ladybug and SQLite:
+
+- Direct/near-direct queries are protected by identity and direct-title evidence. `treat wounds`, `battle medicine`, and `fear --family spell` keep the direct record at the top.
+- `weighted-rrf + demote-weak` is the steadier conservative setting for title-ish and lexical queries. It cleans up obvious broad-OR noise without over-preferring semantic-only candidates.
+- `min-max-score + demote-weak` is better for natural-language concept queries. It improved `spell that makes enemies afraid --family spell`, `low level fear spell --family spell`, and `healing feat --family feat` by letting vector evidence outrank weak lexical rows.
+- `min-max-score + strong-only` is useful as a diagnostic upper bound for treating FTS as precision-only, but it can suppress medium lexical evidence too aggressively. It should not become the default without a better query-intent classifier.
+
+Most promising next shape:
+
+- Default hybrid should probably be `weighted-rrf + demote-weak`, or a tuned score fusion once query intent is understood.
+- Conceptual/natural-language queries should lean toward `min-max-score + demote-weak`.
+- Long-term, the retrieval layer likely needs query intent detection: exact/direct lexical queries should preserve strong FTS influence, while broad natural-language queries should demote FTS unless title/alias/high-value coverage is strong.
