@@ -31,8 +31,8 @@ pub(crate) fn generate_document_embeddings_for_source(
         "document_embeddings",
         "Checking reusable document embeddings",
     );
-    let reusable_embeddings = if options.reuse_embeddings && options.output_path.exists() {
-        match embedding_reuse::load_reusable_document_embeddings(&options.output_path, &config) {
+    let reusable_embeddings = if options.reuse_embeddings {
+        match embedding_reuse::load_reusable_document_embeddings(options, &config) {
             Ok(reusable_embeddings) => {
                 info!(
                     reusable_document_embeddings = reusable_embeddings.len(),
@@ -49,11 +49,7 @@ pub(crate) fn generate_document_embeddings_for_source(
             }
         }
     } else {
-        if options.reuse_embeddings {
-            info!("document embedding reuse unavailable: existing output artifact not found");
-        } else {
-            info!("document embedding reuse disabled");
-        }
+        info!("document embedding reuse disabled");
         None
     };
 

@@ -81,20 +81,32 @@ impl LadybugValueProjection {
 }
 
 impl CompiledScope {
+    pub(crate) fn embedding_projection_query(
+        &self,
+        record_alias: &str,
+        embedding_alias: &str,
+    ) -> String {
+        let mut patterns = vec![format!(
+            "({record_alias}:Record)-[:HAS_EMBEDDING_UNIT]->({embedding_alias}:EmbeddingUnit)"
+        )];
+        patterns.extend(
+            self.matches
+                .iter()
+                .map(|pattern| pattern.replace("(record)", &format!("({record_alias})"))),
+        );
+        format!(
+            "MATCH {} {} RETURN {embedding_alias}",
+            patterns.join(", "),
+            self.where_clause(record_alias)
+        )
+    }
+
     pub(crate) fn match_with_where(&self, record_alias: &str) -> String {
         format!(
             "MATCH ({record_alias}:Record) {} {}",
             self.optional_match_suffix(record_alias),
             self.where_clause(record_alias)
         )
-    }
-
-    pub(crate) fn optional_match_prefix(&self) -> String {
-        self.matches
-            .iter()
-            .map(|pattern| format!("MATCH {pattern}"))
-            .collect::<Vec<_>>()
-            .join(" ")
     }
 
     pub(crate) fn optional_match_suffix(&self, record_alias: &str) -> String {
@@ -380,14 +392,13 @@ fn compile_set_metadata(
 ) -> Result<String, LadybugIndexReaderError> {
     match (field, r#match) {
         (MetadataSetField::Traits, MetadataSetMatch::Includes { value }) => {
-            matches.push(format!(
-                "(record)-[:HAS_TRAIT]->(:Trait {{name: {}}})",
-                string_literal(value)
-            ));
-            Ok("true".to_string())
+            let alias = format!("trait_{}", matches.len());
+            matches.push(format!("(record)-[:HAS_TRAIT]->({alias}:Trait)"));
+            Ok(format!("{alias}.name = {}", string_literal(value)))
         }
         (MetadataSetField::Traits, MetadataSetMatch::IsNotNull) => {
-            matches.push("(record)-[:HAS_TRAIT]->(:Trait)".to_string());
+            let alias = format!("trait_{}", matches.len());
+            matches.push(format!("(record)-[:HAS_TRAIT]->({alias}:Trait)"));
             Ok("true".to_string())
         }
         (MetadataSetField::Traits, MetadataSetMatch::IsNull) => unsupported("null trait filters"),
@@ -395,11 +406,14 @@ fn compile_set_metadata(
             let Some(field_name) = filter_value_field_name(field) else {
                 return unsupported("this metadata set filter");
             };
+            let alias = format!("filter_value_{}", matches.len());
             matches.push(format!(
-                "(record)-[:HAS_FILTER_VALUE]->(:FilterValue {{filter_value_key: {}}})",
-                string_literal(&filter_value_key(field_name, value))
+                "(record)-[:HAS_FILTER_VALUE]->({alias}:FilterValue)"
             ));
-            Ok("true".to_string())
+            Ok(format!(
+                "{alias}.filter_value_key = {}",
+                string_literal(&filter_value_key(field_name, value))
+            ))
         }
         (field, MetadataSetMatch::IsNotNull) => {
             let Some(field_name) = filter_value_field_name(field) else {
@@ -591,9 +605,12 @@ pub(crate) fn sort_clause(
         FilteredRecordSort::LevelDesc => {
             Ok("ORDER BY record.level DESC, record.name, record.record_key")
         }
+        FilteredRecordSort::PriceAsc => Ok(
+            "ORDER BY record.price_cp IS NULL, record.price_cp, record.normalized_name, record.record_key",
+        ),
+        FilteredRecordSort::PriceDesc => Ok(
+            "ORDER BY record.price_cp IS NULL, record.price_cp DESC, record.normalized_name, record.record_key",
+        ),
         FilteredRecordSort::Random { .. } => unsupported("random sorting"),
-        FilteredRecordSort::PriceAsc | FilteredRecordSort::PriceDesc => {
-            unsupported("price sorting")
-        }
     }
 }

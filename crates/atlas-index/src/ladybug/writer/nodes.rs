@@ -3,6 +3,8 @@ use std::path::Path;
 
 use crate::{IndexBuildInput, IndexBuildPack};
 use arrow_schema::DataType;
+use atlas_artifact::metadata::artifact_metadata_keys;
+use atlas_embedding::{EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelSpec};
 use atlas_record::{
     ContentDocument, MetricRow, NormalizedRecord, build_record_fts_projection,
     metrics as metric_definitions,
@@ -47,9 +49,12 @@ pub(crate) fn write_graph_node_parquet(
     staging_path: &Path,
     input: &IndexBuildInput<'_>,
     embeddings: &[LadybugEmbedding],
+    embedding_spec: EmbeddingModelSpec,
 ) -> Result<(), IndexWriteError> {
     let retrieval_visibility = RetrievalVisibility::from_remaster_links(input.remaster_links);
     let records = input.records.clone();
+
+    write_artifact_metadata_parquet(staging_path, embedding_spec)?;
 
     write_parquet(
         &staging_path.join("record.parquet"),
@@ -515,6 +520,73 @@ pub(crate) fn write_graph_node_parquet(
     write_metric_parquet(staging_path, &records)?;
     write_variant_group_parquet(staging_path, &records)?;
     Ok(())
+}
+
+fn write_artifact_metadata_parquet(
+    staging_path: &Path,
+    spec: EmbeddingModelSpec,
+) -> Result<(), IndexWriteError> {
+    let metadata = [
+        (
+            artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
+            spec.provider_family.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_MODEL_ID,
+            spec.model_id.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_MODEL_REVISION,
+            spec.model_revision.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
+            spec.tokenizer_id.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_POOLING,
+            spec.pooling.as_str().to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_NORMALIZATION,
+            spec.normalization.as_str().to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DIMENSIONS,
+            spec.dimensions.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DTYPE,
+            spec.dtype.as_str().to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC,
+            spec.distance_metric.as_str().to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX,
+            spec.document_prefix.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_QUERY_PREFIX,
+            spec.query_prefix.to_string(),
+        ),
+        (
+            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
+            EMBEDDING_UNIT_POLICY_VERSION.to_string(),
+        ),
+    ];
+    write_parquet(
+        &staging_path.join("artifact_metadata.parquet"),
+        vec![
+            arrow_field("key", DataType::Utf8, false),
+            arrow_field("value", DataType::Utf8, false),
+        ],
+        vec![
+            arrow_strings(metadata.iter().map(|(key, _)| (*key).to_string())),
+            arrow_strings(metadata.iter().map(|(_, value)| value.clone())),
+        ],
+    )
 }
 
 fn write_embedding_unit_parquet(

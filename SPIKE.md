@@ -350,11 +350,13 @@ Current spike status:
   - `scripts/run-ladybug-spike.sh theory-empty-vector` reproduces the ingest failure: creating a vector index on an empty `EmbeddingUnit` table produces a DB that fails to reopen with `hashIndexStorageInfo.overflowHeaderPage == INVALID_PAGE_IDX`.
   - Interpretation: the current failing case is specifically empty persistent vector indexes. The ingest writer now skips Ladybug vector index creation when there are no document embeddings.
 
-SQLite hydration is allowed only as a temporary embedding reuse shortcut:
+Embedding reuse is now backend-owned through the shared cache-reader trait:
 
-- Read existing `document_embedding_cache` rows and vector blobs from the SQLite artifact.
-- Reuse them to avoid recomputing embeddings during the spike.
-- Treat SQLite as an embedding cache source, not as the source of record, filter, FTS, graph, alias, metric, or discovery truth.
+- `atlas-index` exposes `DocumentEmbeddingCacheReader`.
+- SQLite implements it from `document_embedding_cache`.
+- Ladybug implements it from `EmbeddingUnit` nodes plus `ArtifactMetadata` embedding-identity rows.
+- `atlas-ingest` asks configured existing artifacts for reusable document embeddings before generating new vectors.
+- Treat SQLite or Ladybug only as embedding cache sources during reuse, not as the source of record, filter, FTS, graph, alias, metric, or discovery truth.
 
 The Ladybug writer should map ingest data directly:
 
@@ -558,7 +560,7 @@ Report the implementation shape for:
 - Keep the tiny hand-authored graph fixture only as an installation and extension smoke test.
 - Build the meaningful prototype through a parallel Ladybug writer in `atlas-ingest`.
 - Start with a bounded representative PF2e slice emitted from the ingest pipeline.
-- Reuse vectors from the existing SQLite `document_embedding_cache` during the spike to avoid embedding recomputation.
+- Reuse vectors from an existing compatible embedding cache artifact during the spike to avoid embedding recomputation.
 - Keep SQLite results available as a comparison baseline, but do not use SQLite tables as the primary source of Ladybug graph facts.
 - Keep persistent Ladybug FTS/vector index creation separate from graph artifact writing until the reopen failure with extension indexes is isolated.
 - Do not flatten the graph back into generic JSON blobs just to make ingest easier; the spike should test whether graph modeling itself helps.
@@ -595,7 +597,7 @@ The initial one-query-at-a-time Ladybug writer is not viable for full-corpus eva
 
 The writer now uses Parquet staging files and Ladybug `COPY FROM` for all modeled node and relationship tables. On the same full corpus, Ladybug output completed in about 83 seconds:
 
-- embedding collection from legacy SQLite: about 0.8s
+- embedding collection from an existing cache artifact: about 0.8s
 - schema creation: about 0.1s
 - Parquet staging file generation: about 8.7s
 - Parquet `COPY FROM` for all node and relationship tables: about 25.2s
@@ -1219,6 +1221,66 @@ Remaining vector questions:
 - whether projection reuse invalidation is simple enough for rebuilt immutable artifacts;
 - whether the same approach remains acceptable for larger `top_k`, higher `efs`, and broad multi-family filters.
 
+The spike harness now also has a search parity and quality mode:
+
+```bash
+LBUG_RUST_BUILD_FROM_SOURCE=1 cargo run -p atlas-ladybug-spike -- search-eval \
+  .cache/ladybug-spike/with-embeddings.sqlite \
+  .cache/ladybug-spike/with-embeddings.lbug \
+  target/debug/atlas
+```
+
+This harness drives the real `atlas search` CLI against SQLite and Ladybug, using the same query, retrieval mode, filters, JSON output, and result hydration path for each backend. Timings are end-to-end CLI wall time, including process startup and embedding model load for vector/hybrid queries, so they are useful for direction and regression detection but are not benchmark-grade backend timings.
+
+Initial search parity result against `.cache/ladybug-spike/with-embeddings.*`:
+
+- Direct lexical title quality is preserved. `battle medicine` returned `Battle Medicine` first on both backends, with `8/10` top-result overlap. Ladybug was faster in this single CLI run, but the main conclusion is that direct title behavior survived.
+- Filtered lexical spell quality is preserved for the direct hit. `fear --family spell --max-level 3` returned `Fear` first on both backends. Result totals differed materially: SQLite reported `26`, Ladybug reported `6`. Treat this as an FTS/filter semantics question, not only a speed question.
+- Semantic/vector concept search is the strongest parity result. `low level spell that makes enemies afraid --family spell --max-level 3 --retrieval vector` returned the same top five and `10/10` top-result overlap on both backends. `Dirge of Doom` and `Fear` appeared at positions `2` and `3` in both.
+- Realistic structured vector-only search is now parity-clean. `healing spell --family spell --max-level 3 --trait healing --retrieval vector`, `high armor creature --family creature --metric ac.value>=25 --retrieval vector`, `fear --family spell --publication-title "Pathfinder Player Core" --retrieval vector`, and `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL --retrieval vector` all produced `10/10` top-result overlap between SQLite and Ladybug. The metric case had minor near-tie ordering differences, but the candidate set matched.
+- Hybrid concept search is not yet parity-clean. The same query under `--retrieval hybrid` had only `1/10` top-result overlap. SQLite kept `Menacing Lament`, `Dirge of Doom`, and related fear spells near the top; Ladybug put weak lexical-looking results such as `Shadow Projectile`, `Curse of Recoil`, `Biting Words`, and `Shielded Arm` above the strong semantic results. This reinforces the FTS/RRF risk: Ladybug hybrid quality depends on lexical confidence gating, score fusion tuning, or query-intent-aware FTS weighting.
+- Actual CLI hybrid search now works for relationship-backed structured vector filters after changing the Ladybug reader to build a single coherent projected-graph pattern for `Record -> EmbeddingUnit` plus relationship filters. `healing spell --family spell --max-level 3 --trait healing --retrieval hybrid` and `high armor creature --family creature --metric ac.value>=25 --retrieval hybrid` both return results instead of failing in the vector lane. The remaining issue is ranking/result parity, not basic execution.
+- Publication-filtered lexical search preserves the direct hit. `fear --family spell --publication-title "Pathfinder Player Core"` returned `Fear` first on both backends, but SQLite reported `13` total results and Ladybug reported `3`.
+- Reference-derived FTS filtering is promising. `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL` produced `9/10` top-result overlap, with different ordering and totals (`63` SQLite vs `34` Ladybug).
+
+Current search-quality read:
+
+- Ladybug vector search is parity-clean across the realistic filter cases tested so far. This is the strongest evidence that Ladybug can preserve SQLite's shared structured-filter-before-semantic-top-k behavior.
+- Ladybug FTS is good enough for direct/title-ish entry points in these cases, but result totals and ranking semantics differ from SQLite enough that it needs explicit quality tuning before it can be the only lexical backend.
+- Ladybug hybrid search is currently the weakest search surface. The issue is not just performance; weak lexical candidates can dominate or distort hybrid ranking unless the FTS lane is treated as precision-oriented evidence.
+- The next blocker is search quality, especially hybrid ranking and FTS candidate semantics. Vector-only results are strong; the major remaining divergence appears when the lexical lane participates.
+
+The spike harness now also has a broad non-FTS CLI parity mode:
+
+```bash
+LBUG_RUST_BUILD_FROM_SOURCE=1 cargo run -p atlas-ladybug-spike -- cli-parity \
+  .cache/ladybug-spike/metric-metadata.sqlite \
+  .cache/ladybug-spike/metric-metadata.lbug \
+  target/debug/atlas
+```
+
+This mode intentionally avoids FTS quality questions and drives the real CLI surfaces for direct record lookup, strict record resolution, filter-only search, filter discovery, metric discovery, concrete metric stats, and vector-only search. The current case matrix covers:
+
+- record get for spell, equipment, creature, and hazard records across full/preview/standard/summary detail levels;
+- strict `record resolve` for a filtered exact spell name;
+- filter-only search for family/level, pagination, required trait, any-trait OR, numeric metric range, price range plus price sort, outgoing reference filters, and reverse reference filters;
+- filter field discovery for spell and creature families;
+- enumerable filter value discovery for traits, rarity, and high-cardinality publication titles;
+- numeric filter stats for level and price;
+- boolean filter counts for sustained spells;
+- metric-key discovery and concrete `ac.value` numeric stats;
+- vector-only search with scalar and reference-derived structured filters when an embedding artifact is supplied.
+
+Because the current local artifacts are split by age, the cleanest run is currently two-part:
+
+- `.cache/ladybug-spike/metric-metadata.*` has current graph schema and no embeddings. On that artifact, all non-vector cases above are parity-clean against SQLite. Vector cases are blocked only because this artifact intentionally lacks embedding indexes.
+- `.cache/ladybug-spike/with-embeddings.*` has embedding indexes but was built before the latest graph discovery schema. On that artifact, record lookup, resolve, filter-only search, enum/numeric/boolean discovery that does not need the newer graph tables, and vector-only structured searches are parity-clean. Discovery cases that need newer `FilterValue` and metric metadata nodes are blocked by artifact staleness rather than by the current code.
+
+Parity gaps found by this mode are now fixed in the Ladybug reader:
+
+- metric-key discovery now reports SQLite-compatible `namespace_prefix` values and includes numeric stats for number metrics. This matters for UI filter panels because metric discovery is not just a key list; SQLite exposes count/min/percentile/max data in the same response, and Ladybug should preserve that contract.
+- price sorting is now implemented for filter-only search, matching SQLite's non-null-first `price_cp`, normalized-name, record-key ordering.
+
 ### Metric Metadata Parity Follow-Up
 
 SQLite and Ladybug both receive metrics after the shared ingest metric extractor has collapsed multiple raw Foundry paths into canonical metric keys. Examples include multiple perception modifier paths collapsing to `actor.perception.mod`, and multiple shield HP paths collapsing to `item.shield.hp`.
@@ -1367,8 +1429,9 @@ Completed alignment slices:
 - The separate `atlas-ladybug-index` crate was folded into `atlas-index` so read-side backend ownership is symmetric: `atlas-index` now contains the shared retrieval contract plus both SQLite and Ladybug backend implementations. `atlas-search` remains the product retrieval orchestrator and re-exports the shared types for compatibility.
 - Embedding cache hydration now follows that same backend boundary: `atlas-index` exposes `DocumentEmbeddingCacheReader`, `SqliteIndexReader` implements it for `document_embedding_cache`, and `atlas-ingest` consumes the trait while retaining the embedding reuse/generation policy.
 - The write-side handoff is now explicit: `atlas-index` exposes `IndexBuildInput`/`IndexBuildPack` as the backend-neutral normalized payload for index writers, while `atlas-ingest` converts from ingest-only `SourceLoad` after enrichment and embedding generation. SQLite and Ladybug writers now live in `atlas-index` and consume that handoff instead of reaching into ingest construction state.
+- Ladybug embedding reuse no longer has a legacy SQLite escape hatch in the writer. Reuse goes through the same `DocumentEmbeddingCacheReader` boundary as SQLite, so a previously built Ladybug artifact can act as the embedding cache source when its embedding metadata matches the active model and embedding-unit policy.
 - `atlas-index::ladybug::writer` owns the Ladybug writer split:
-  - `embeddings.rs` owns Ladybug embedding-unit collection, including the temporary legacy SQLite embedding reuse path;
+  - `embeddings.rs` owns Ladybug embedding-unit collection from the backend-neutral index build input;
   - `evidence.rs` owns graph evidence-unit construction from content documents and embedding-section policy;
   - `facts.rs` owns shared graph fact/key helpers used by node and relationship staging;
   - `nodes.rs` owns Parquet staging for graph node tables;

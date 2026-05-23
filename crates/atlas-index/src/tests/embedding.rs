@@ -3,12 +3,13 @@ use std::mem::size_of;
 
 use atlas_artifact::schema::{record_vector_index_create_sql, record_vector_index_insert_sql};
 use atlas_artifact::storage::encode_f32_vector_blob;
+use lbug::{Connection as LadybugConnection, Database, SystemConfig};
 use rusqlite::Connection;
 
 use super::{create_contract_database, temp_db_path};
 use crate::{
-    ArtifactContractFamily, DocumentEmbeddingCacheReader, SqliteIndexReader, ValidationCode,
-    ValidationStatus,
+    ArtifactContractFamily, DocumentEmbeddingCacheReader, LadybugIndexReader, SqliteIndexReader,
+    ValidationCode, ValidationStatus,
 };
 
 #[test]
@@ -50,6 +51,61 @@ fn sqlite_index_loads_reusable_document_embedding_cache() -> Result<(), Box<dyn 
 }
 
 #[test]
+fn ladybug_index_loads_reusable_document_embedding_cache() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_db_path("ladybug-embedding-cache").with_extension("lbug");
+    remove_ladybug_path(&path)?;
+    {
+        let database = Database::new(&path, SystemConfig::default())?;
+        let connection = LadybugConnection::new(&database)?;
+        connection.query(
+            "CREATE NODE TABLE ArtifactMetadata(key STRING, value STRING, PRIMARY KEY(key));",
+        )?;
+        connection.query(
+            "CREATE NODE TABLE EmbeddingUnit(
+                embedding_unit_key STRING,
+                record_key STRING,
+                unit_kind STRING,
+                label STRING,
+                ordinal INT64,
+                semantic_input_hash STRING,
+                dimensions INT64,
+                embedding FLOAT[384],
+                PRIMARY KEY(embedding_unit_key)
+             );",
+        )?;
+        insert_ladybug_embedding_metadata(&connection)?;
+        connection.query(&format!(
+            "CREATE (:EmbeddingUnit {{
+                embedding_unit_key: 'actions:testAction1#parent',
+                record_key: 'actions:testAction1',
+                unit_kind: 'parent',
+                label: '',
+                ordinal: 0,
+                semantic_input_hash: 'fixture-hash-1',
+                dimensions: 384,
+                embedding: CAST({}, 'FLOAT[384]')
+             }});",
+            ladybug_vector_literal(384)
+        ))?;
+        connection.query("CHECKPOINT;")?;
+    }
+
+    let reusable = LadybugIndexReader::open(&path)?
+        .load_reusable_document_embeddings(atlas_embedding::default_embedding_model_spec())?;
+
+    let first = reusable
+        .get("actions:testAction1#parent")
+        .expect("fixture cache row is loaded");
+    assert_eq!(reusable.len(), 1);
+    assert_eq!(first.input_hash, "fixture-hash-1");
+    assert_eq!(first.dimensions, 384);
+    assert_eq!(first.vector.len(), 384);
+    remove_ladybug_path(&path)?;
+    Ok(())
+}
+
+#[test]
 fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-dimensions");
     create_contract_database(&path)?;
@@ -67,6 +123,46 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
     }));
     fs::remove_file(path)?;
     Ok(())
+}
+
+fn insert_ladybug_embedding_metadata(
+    connection: &LadybugConnection<'_>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for (key, value) in
+        super::valid_metadata_entries_for_embedding(atlas_embedding::default_embedding_model_spec())
+    {
+        connection.query(&format!(
+            "CREATE (:ArtifactMetadata {{key: {}, value: {}}});",
+            ladybug_string_literal(key),
+            ladybug_string_literal(value)
+        ))?;
+    }
+    Ok(())
+}
+
+fn ladybug_string_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\\', "\\\\").replace('\'', "\\'"))
+}
+
+fn ladybug_vector_literal(dimensions: usize) -> String {
+    format!(
+        "[{}]",
+        std::iter::repeat_n("0.0", dimensions)
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+fn remove_ladybug_path(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(file_error) => match fs::remove_dir_all(path) {
+            Ok(()) => Ok(()),
+            Err(dir_error) if dir_error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(_) => Err(Box::new(file_error)),
+        },
+    }
 }
 
 #[test]
