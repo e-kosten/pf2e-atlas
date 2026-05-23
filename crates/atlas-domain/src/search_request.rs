@@ -65,6 +65,7 @@ pub enum SearchRetrievalMode {
 pub enum SearchFusionMethod {
     Rrf,
     WeightedRrf,
+    MinMaxScore,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
