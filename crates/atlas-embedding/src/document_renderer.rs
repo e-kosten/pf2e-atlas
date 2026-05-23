@@ -1,6 +1,6 @@
 use atlas_record::{
-    PresentationBlock, PresentationFact, PresentationRelationshipKind, PresentationSection,
-    PresentationSectionKind, RecordPresentationDocument,
+    ContentSourceKind, PresentationBlock, PresentationFact, PresentationRelationshipKind,
+    PresentationSection, PresentationSectionKind, RecordPresentationDocument,
 };
 
 pub fn render_presentation_document_for_embedding(document: &RecordPresentationDocument) -> String {
@@ -12,6 +12,8 @@ pub struct EmbeddingInputChunk {
     pub section: EmbeddingInputSection,
     pub text: String,
     pub truncatable: bool,
+    pub source_kind: Option<ContentSourceKind>,
+    pub group_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -55,6 +57,8 @@ impl EmbeddingInputChunk {
             section,
             text: text.into(),
             truncatable: false,
+            source_kind: None,
+            group_key: None,
         }
     }
 
@@ -63,7 +67,19 @@ impl EmbeddingInputChunk {
             section,
             text: text.into(),
             truncatable: true,
+            source_kind: None,
+            group_key: None,
         }
+    }
+
+    pub fn with_source_kind(mut self, source_kind: ContentSourceKind) -> Self {
+        self.source_kind = Some(source_kind);
+        self
+    }
+
+    pub fn with_group_key(mut self, group_key: impl Into<String>) -> Self {
+        self.group_key = Some(group_key.into());
+        self
     }
 }
 

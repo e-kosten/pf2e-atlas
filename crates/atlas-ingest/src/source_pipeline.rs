@@ -158,11 +158,14 @@ pub(crate) fn load_foundry_source(
         total_units = embedding_unit_summary.total_units,
         parent_units = embedding_unit_summary.parent_units,
         child_units = embedding_unit_summary.child_units,
+        child_candidate_units = embedding_unit_summary.child_candidate_units,
         records_with_child_units = embedding_unit_summary.records_with_child_units,
+        records_with_child_candidates = embedding_unit_summary.records_with_child_candidates,
         records_over_20_child_units = embedding_unit_summary.records_over_20_child_units,
         records_over_50_child_units = embedding_unit_summary.records_over_50_child_units,
         records_over_100_child_units = embedding_unit_summary.records_over_100_child_units,
         max_child_units_per_record = embedding_unit_summary.max_child_units_per_record,
+        max_child_candidates_per_record = embedding_unit_summary.max_child_candidates_per_record,
         "document embedding unit fanout diagnostics"
     );
     info!(

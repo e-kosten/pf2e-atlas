@@ -235,6 +235,7 @@ fn embedding_chunk_diagnostic_json(
         "record_key": diagnostic.record_key,
         "unit_kind": diagnostic.unit_kind.as_str(),
         "label": diagnostic.label,
+        "source_kind": diagnostic.source_kind.map(|source_kind| source_kind.as_str()),
         "original_token_count": diagnostic.original_token_count,
         "final_token_count": diagnostic.final_token_count,
         "max_token_count": diagnostic.max_token_count,
@@ -244,6 +245,8 @@ fn embedding_chunk_diagnostic_json(
             json!({
                 "section": chunk.section.as_str(),
                 "outcome": chunk.outcome.as_str(),
+                "source_kind": chunk.source_kind.map(|source_kind| source_kind.as_str()),
+                "group_key": chunk.group_key,
                 "original_text": chunk.original_text,
                 "final_text": chunk.final_text,
             })

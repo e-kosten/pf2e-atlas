@@ -12,7 +12,7 @@ mod tokenization;
 mod unit_kind;
 mod vector_math;
 
-pub const EMBEDDING_UNIT_POLICY_VERSION: &str = "explicit-heading-sections/v1";
+pub const EMBEDDING_UNIT_POLICY_VERSION: &str = "coverage-driven-rich-content/v1";
 
 pub use catalog::{
     ALL_EMBEDDING_MODELS, DEFAULT_EMBEDDING_MODEL, DistanceMetric, EmbeddingModelId,

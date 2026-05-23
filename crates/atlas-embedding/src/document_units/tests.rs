@@ -80,10 +80,64 @@ fn content_documents_build_child_units() {
         }],
     }]);
 
+    assert_eq!(pending.len(), 1);
     assert!(
-        pending
+        pending[0]
+            .child_candidates
             .iter()
             .any(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
+    );
+}
+
+#[test]
+fn content_documents_preserve_leading_text_before_explicit_headings() {
+    let content_document = ContentDocument::new(vec![
+        ContentBlock::Paragraph {
+            content: vec![ContentInline::Text {
+                text: "Opening context before any heading.".to_string(),
+            }],
+        },
+        ContentBlock::Heading {
+            level: 2,
+            content: vec![ContentInline::Text {
+                text: "Specific Section".to_string(),
+            }],
+        },
+        ContentBlock::Paragraph {
+            content: vec![ContentInline::Text {
+                text: "Section body.".to_string(),
+            }],
+        },
+    ]);
+    let pending = build_document_embedding_units(&[DocumentEmbeddingSource {
+        record_key: "packs:visible1".to_string(),
+        record_name: "Visible Record".to_string(),
+        document: test_document("packs:visible1", "Visible Record"),
+        aliases: Vec::new(),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".to_string()),
+            document: content_document,
+        }],
+    }]);
+
+    assert_eq!(pending.len(), 1);
+    let parent_text =
+        crate::document_renderer::render_embedding_chunks_for_embedding(&pending[0].input_chunks);
+    assert!(parent_text.contains("Opening context before any heading."));
+    assert!(parent_text.contains("Section body."));
+    assert_eq!(pending[0].child_candidates.len(), 2);
+    assert!(
+        pending[0]
+            .child_candidates
+            .iter()
+            .any(|entry| entry.label.as_deref() == Some("Description"))
+    );
+    assert!(
+        pending[0]
+            .child_candidates
+            .iter()
+            .any(|entry| entry.label.as_deref() == Some("Specific Section"))
     );
 }
 
@@ -185,25 +239,40 @@ fn explicit_heading_child_units_include_synthetic_section_blocks() {
         }],
     }]);
 
-    assert_eq!(pending.len(), 2);
-    let heading = pending
+    assert_eq!(pending.len(), 1);
+    let heading = pending[0]
+        .child_candidates
         .iter()
         .find(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
         .expect("explicit heading child unit exists");
     assert_eq!(heading.label.as_deref(), Some("Outcomes"));
-    assert!(heading.input_text.contains("Critical Success You win."));
-    assert!(heading.input_text.contains("Treasure by Level"));
-    let intro_index = heading.input_text.find("Intro text.").expect("intro text");
+    let input_text =
+        crate::document_renderer::render_embedding_chunks_for_embedding(&heading.input_chunks);
+    assert!(input_text.contains("Critical Success You win."));
+    assert!(input_text.contains("Treasure by Level"));
+    let intro_index = input_text.find("Intro text.").expect("intro text");
     let outcome_index = heading
-        .input_text
+        .input_chunks
+        .iter()
+        .map(|chunk| chunk.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
         .find("Critical Success You win.")
         .expect("synthetic strong-lead text");
     let table_index = heading
-        .input_text
+        .input_chunks
+        .iter()
+        .map(|chunk| chunk.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
         .find("Treasure by Level")
         .expect("synthetic table text");
     let follow_up_index = heading
-        .input_text
+        .input_chunks
+        .iter()
+        .map(|chunk| chunk.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
         .find("Follow-up text.")
         .expect("follow-up text");
     assert!(intro_index < outcome_index);
@@ -318,6 +387,7 @@ fn summarizes_document_embedding_tokenization_truncation_examples() {
             record_key: "packs:longer".to_string(),
             unit_kind: EmbeddingUnitKind::HeadingSection,
             label: Some("Longer Section".to_string()),
+            source_kind: Some(atlas_record::ContentSourceKind::Description),
             ordinal: 1,
             input_chunks: vec![EmbeddingInputChunk::line(
                 EmbeddingInputSection::Description,
@@ -325,6 +395,7 @@ fn summarizes_document_embedding_tokenization_truncation_examples() {
             )],
             input_text: "longer child".to_string(),
             input_hash: hash_document_embedding_input("longer child"),
+            child_candidates: Vec::new(),
         },
     ];
     let tokenizations = vec![
@@ -442,6 +513,7 @@ fn pending_embedding_with_hash(
         format!("{record_key}#parent"),
         record_key.to_string(),
         EmbeddingUnitKind::Parent,
+        None,
         None,
         0,
         vec![EmbeddingInputChunk::line(
