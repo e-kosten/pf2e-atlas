@@ -53,17 +53,18 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
             );
             offset += next_tag;
         } else {
-            let character = rest
-                .chars()
-                .next()
-                .expect("offset should be inside input while parsing content");
+            let Some(character) = rest.chars().next() else {
+                break;
+            };
             push_child(&mut stack, HtmlNode::Text(character.to_string()));
             offset += character.len_utf8();
         }
     }
 
     while stack.len() > 1 {
-        let element = stack.pop().expect("stack has element to close");
+        let Some(element) = stack.pop() else {
+            break;
+        };
         push_child(
             &mut stack,
             HtmlNode::Element {
@@ -73,13 +74,12 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
         );
     }
 
-    stack
-        .pop()
-        .expect("document root exists")
-        .children
-        .into_iter()
-        .filter(|node| !node_is_empty_text(node))
-        .collect()
+    stack.pop().map_or_else(Vec::new, |root| {
+        root.children
+            .into_iter()
+            .filter(|node| !node_is_empty_text(node))
+            .collect()
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,11 +89,9 @@ struct OpenElement {
 }
 
 fn push_child(stack: &mut [OpenElement], child: HtmlNode) {
-    stack
-        .last_mut()
-        .expect("document root remains on the stack")
-        .children
-        .push(child);
+    if let Some(parent) = stack.last_mut() {
+        parent.children.push(child);
+    }
 }
 
 fn close_element(stack: &mut Vec<OpenElement>, name: &str) {
@@ -105,7 +103,9 @@ fn close_element(stack: &mut Vec<OpenElement>, name: &str) {
     }
 
     while stack.len() > position {
-        let element = stack.pop().expect("matched open element exists");
+        let Some(element) = stack.pop() else {
+            break;
+        };
         push_child(
             stack,
             HtmlNode::Element {
@@ -163,4 +163,46 @@ fn decode_entities(value: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HtmlNode, parse_html_fragment};
+
+    #[test]
+    fn preserves_dangling_tag_marker_as_text() {
+        assert_eq!(
+            parse_html_fragment("one < two"),
+            vec![
+                HtmlNode::Text("one ".to_string()),
+                HtmlNode::Text("<".to_string()),
+                HtmlNode::Text(" two".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn closes_unclosed_elements_at_end_of_fragment() {
+        assert_eq!(
+            parse_html_fragment("<p>Hello <strong>world"),
+            vec![HtmlNode::Element {
+                name: "p".to_string(),
+                children: vec![
+                    HtmlNode::Text("Hello ".to_string()),
+                    HtmlNode::Element {
+                        name: "strong".to_string(),
+                        children: vec![HtmlNode::Text("world".to_string())],
+                    },
+                ],
+            }]
+        );
+    }
+
+    #[test]
+    fn ignores_unmatched_close_tags() {
+        assert_eq!(
+            parse_html_fragment("</p>text"),
+            vec![HtmlNode::Text("text".to_string())]
+        );
+    }
 }

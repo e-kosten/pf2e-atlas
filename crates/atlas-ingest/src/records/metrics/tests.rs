@@ -10,7 +10,13 @@ use super::specs::{
     SHIELD_STATIC_SPECS, WEAPON_STATIC_SPECS,
 };
 use super::value::{number_like_value, slugify_metric_segment};
-use super::{dedupe_metrics, exact_metric_key, validate_metric_rows};
+use super::{dedupe_metrics, validate_metric_rows};
+
+fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
+    definition
+        .exact_key()
+        .expect("test metric definition should have an exact key")
+}
 
 #[test]
 fn slugifies_metric_segments_to_stable_keys() {

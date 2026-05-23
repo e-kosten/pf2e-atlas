@@ -285,7 +285,9 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     }
 
     if results.len() == 1 {
-        let result = results.into_iter().next().expect("single result");
+        let Some(result) = results.into_iter().next() else {
+            return Ok(ExitCode::SUCCESS);
+        };
         if let Some(error) = result.error.as_ref() {
             if options.json && error.code == "record_resolution_ambiguous" {
                 let data = RecordResolveData {
@@ -393,7 +395,18 @@ fn resolve_item(
             }),
         };
     }
-    let resolution = matches.into_iter().next().expect("one match");
+    let Some(resolution) = matches.into_iter().next() else {
+        return RecordResolveItem {
+            query: query.to_string(),
+            record: None,
+            resolution: None,
+            alternatives: None,
+            error: Some(CliError {
+                code: "record_resolution_miss",
+                message: format!("record resolution miss: {query}"),
+            }),
+        };
+    };
     RecordResolveItem {
         query: query.to_string(),
         record: Some(record_json(&resolution.record, record_options)),

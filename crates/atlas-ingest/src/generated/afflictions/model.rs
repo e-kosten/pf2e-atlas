@@ -4,6 +4,19 @@ use serde_json::Value;
 
 use crate::records::{LoadedSourceRecord, NormalizedRecord, ReferenceEdge};
 
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum GeneratedAfflictionError {
+    #[error("invalid generated affliction pack name `{value}`: {message}")]
+    InvalidPackName {
+        value: &'static str,
+        message: String,
+    },
+    #[error("invalid generated affliction record id `{value}`: {message}")]
+    InvalidRecordId { value: String, message: String },
+    #[error("generated affliction clustering produced an empty occurrence cluster")]
+    EmptyCluster,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum AfflictionFamily {
     Curse,
@@ -34,7 +47,6 @@ pub(crate) struct GeneratedAfflictionBuild {
 
 pub(crate) struct DerivedAfflictionRecordInput {
     pub(crate) key: atlas_domain::RecordKey,
-    pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) record_type: &'static str,
     pub(crate) family: AfflictionFamily,

@@ -284,7 +284,7 @@ fn generates_missing_document_vectors_in_batches() {
     let generated =
         generate_document_embeddings_with_reuse_using_batch(&pending, None, 2, |inputs| {
             batch_lengths.push(inputs.len());
-            Ok::<_, std::convert::Infallible>(
+            Ok::<_, crate::EmbeddingError>(
                 inputs
                     .iter()
                     .map(|input| vec![input.len() as f32, inputs.len() as f32])

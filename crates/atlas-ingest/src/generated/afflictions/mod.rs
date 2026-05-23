@@ -14,6 +14,7 @@ mod source_facts;
 
 pub(crate) use model::{
     AfflictionFamily, AfflictionOccurrence, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
+    GeneratedAfflictionError,
 };
 
 use crate::diagnostics::{DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTIONS_PACK_NAME};
@@ -31,14 +32,26 @@ use source_facts::affliction_family_label;
 pub(crate) fn build_generated_afflictions(
     records: &[LoadedSourceRecord],
     index: &RecordReferenceIndex,
-) -> GeneratedAfflictionBuild {
+) -> Result<GeneratedAfflictionBuild, GeneratedAfflictionError> {
     let occurrences = collect_affliction_occurrences(records, index);
     if occurrences.is_empty() {
-        return GeneratedAfflictionBuild {
+        return Ok(GeneratedAfflictionBuild {
             records: Vec::new(),
             references: Vec::new(),
-        };
+        });
     }
+    let canonical_pack_name =
+        PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).map_err(|error| {
+            GeneratedAfflictionError::InvalidPackName {
+                value: DERIVED_AFFLICTIONS_PACK_NAME,
+                message: error.to_string(),
+            }
+        })?;
+    let instance_pack_name = PackName::new(DERIVED_AFFLICTION_INSTANCES_PACK_NAME.to_string())
+        .map_err(|error| GeneratedAfflictionError::InvalidPackName {
+            value: DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
+            message: error.to_string(),
+        })?;
 
     let mut occurrences_by_family = BTreeMap::<AfflictionFamily, Vec<AfflictionOccurrence>>::new();
     for occurrence in occurrences {
@@ -52,7 +65,8 @@ pub(crate) fn build_generated_afflictions(
     let mut generated_references = Vec::new();
     for (family, family_occurrences) in occurrences_by_family {
         for cluster in cluster_affliction_occurrences(family_occurrences) {
-            let candidate = choose_affliction_authoritative_candidate(&cluster);
+            let candidate = choose_affliction_authoritative_candidate(&cluster)
+                .ok_or(GeneratedAfflictionError::EmptyCluster)?;
             let identity_key = choose_affliction_canonical_identity_key(
                 &cluster
                     .iter()
@@ -74,10 +88,13 @@ pub(crate) fn build_generated_afflictions(
                     .collect(),
             );
             let canonical_id = hash_text(&identity_key);
-            let canonical_key = RecordKey::new(
-                PackName::new(DERIVED_AFFLICTIONS_PACK_NAME.to_string()).expect("static pack name"),
-                RecordId::new(canonical_id.clone()).expect("hash id is valid"),
-            );
+            let canonical_record_id = RecordId::new(canonical_id.clone()).map_err(|error| {
+                GeneratedAfflictionError::InvalidRecordId {
+                    value: canonical_id.clone(),
+                    message: error.to_string(),
+                }
+            })?;
+            let canonical_key = RecordKey::new(canonical_pack_name.clone(), canonical_record_id);
             let canonical_description = authoritative_record
                 .and_then(|record| record.description.clone())
                 .or_else(|| representative.description.clone());
@@ -119,7 +136,6 @@ pub(crate) fn build_generated_afflictions(
             });
             let canonical_record = derived_affliction_record(DerivedAfflictionRecordInput {
                 key: canonical_key.clone(),
-                id: canonical_id,
                 name: representative.name.clone(),
                 record_type: "affliction",
                 family,
@@ -152,11 +168,13 @@ pub(crate) fn build_generated_afflictions(
                     "{}:{}:{}",
                     identity_key, occurrence.host_record.key, occurrence.occurrence_ref
                 ));
-                let instance_key = RecordKey::new(
-                    PackName::new(DERIVED_AFFLICTION_INSTANCES_PACK_NAME.to_string())
-                        .expect("static pack name"),
-                    RecordId::new(instance_id.clone()).expect("hash id is valid"),
-                );
+                let instance_record_id = RecordId::new(instance_id.clone()).map_err(|error| {
+                    GeneratedAfflictionError::InvalidRecordId {
+                        value: instance_id.clone(),
+                        message: error.to_string(),
+                    }
+                })?;
+                let instance_key = RecordKey::new(instance_pack_name.clone(), instance_record_id);
                 let instance_description = occurrence.description.clone();
                 let instance_raw = build_affliction_instance_raw(
                     &instance_id,
@@ -166,7 +184,6 @@ pub(crate) fn build_generated_afflictions(
                 );
                 let instance_record = derived_affliction_record(DerivedAfflictionRecordInput {
                     key: instance_key.clone(),
-                    id: instance_id,
                     name: occurrence.name.clone(),
                     record_type: "affliction-instance",
                     family: occurrence.family,
@@ -224,8 +241,8 @@ pub(crate) fn build_generated_afflictions(
                 right.source_kind.as_str(),
             ))
     });
-    GeneratedAfflictionBuild {
+    Ok(GeneratedAfflictionBuild {
         records: generated_records,
         references: generated_references,
-    }
+    })
 }

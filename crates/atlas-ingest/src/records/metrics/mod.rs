@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use atlas_domain::{MetricDomain, MetricValueType};
 use atlas_record::metrics as metric_definitions;
 use serde_json::Value;
+use tracing::warn;
 
 use crate::records::{MetricRow, MetricValue};
 
@@ -51,18 +52,14 @@ fn add_defined_metric_number(
     definition: metric_definitions::MetricDefinition,
     value: Option<f64>,
 ) {
-    add_metric_number(
-        metrics,
-        definition.domain(),
-        exact_metric_key(definition),
-        value,
-    );
-}
-
-fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
-    definition
-        .exact_key()
-        .expect("static metric definition should have an exact key")
+    let Some(key) = definition.exact_key() else {
+        warn!(
+            metric_domain = definition.domain().as_str(),
+            "static metric definition has no exact key; skipping metric"
+        );
+        return;
+    };
+    add_metric_number(metrics, definition.domain(), key, value);
 }
 
 fn add_metric_number(

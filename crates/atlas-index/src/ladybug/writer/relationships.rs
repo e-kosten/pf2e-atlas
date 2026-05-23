@@ -41,10 +41,14 @@ pub(crate) fn write_graph_relationship_parquet(
         ],
     )?;
 
-    let publication_records = records
+    let publication_relationships = records
         .iter()
-        .filter(|record| record.publication_title.is_some())
-        .copied()
+        .filter_map(|record| {
+            record
+                .publication_title
+                .as_ref()
+                .map(|title| (record.key.to_string(), publication_key(title)))
+        })
         .collect::<Vec<_>>();
     write_parquet(
         &staging_path.join("published_in.parquet"),
@@ -54,18 +58,15 @@ pub(crate) fn write_graph_relationship_parquet(
         ],
         vec![
             arrow_strings(
-                publication_records
+                publication_relationships
                     .iter()
-                    .map(|record| record.key.to_string()),
+                    .map(|(record_key, _)| record_key.clone()),
             ),
-            arrow_strings(publication_records.iter().map(|record| {
-                publication_key(
-                    record
-                        .publication_title
-                        .as_ref()
-                        .expect("publication_records only includes publication titles"),
-                )
-            })),
+            arrow_strings(
+                publication_relationships
+                    .iter()
+                    .map(|(_, publication_key)| publication_key.clone()),
+            ),
         ],
     )?;
 

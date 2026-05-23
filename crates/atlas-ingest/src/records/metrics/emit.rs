@@ -11,7 +11,7 @@ use super::specs::{
 use super::value::{
     damage_die_faces, number_at_pointer, number_like_at_pointer, slugify_metric_segment,
 };
-use super::{add_defined_metric_number, add_metric_number, exact_metric_key};
+use super::{add_defined_metric_number, add_metric_number};
 
 pub(super) fn emit_static_specs(
     raw: &Value,
@@ -214,6 +214,6 @@ fn debug_assert_metric_key_matches_definition(
         key
     );
     if definition.exact_key().is_some() {
-        debug_assert_eq!(exact_metric_key(definition), key);
+        debug_assert_eq!(definition.exact_key(), Some(key));
     }
 }
