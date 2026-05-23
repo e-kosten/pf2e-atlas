@@ -1322,3 +1322,36 @@ Most promising next shape:
 - Default hybrid should probably be `weighted-rrf + demote-weak`, or a tuned score fusion once query intent is understood.
 - Conceptual/natural-language queries should lean toward `min-max-score + demote-weak`.
 - Long-term, the retrieval layer likely needs query intent detection: exact/direct lexical queries should preserve strong FTS influence, while broad natural-language queries should demote FTS unless title/alias/high-value coverage is strong.
+
+### Architecture Alignment Before Further Feature Work
+
+The Ladybug spike has crossed the threshold where continued feature work on large scratch-shaped files is risky. Current alignment target:
+
+- Keep `atlas-search` as the product retrieval orchestrator, but split reusable search policy into focused modules:
+  - query analysis/tokenization;
+  - FTS/vector fusion and confidence policy;
+  - semantic vector collapse/ranking.
+- Keep Ladybug read behavior behind the same `SearchIndex` boundary used by SQLite. The Ladybug index crate should be split by read concern:
+  - connection/query helpers;
+  - filter compilation;
+  - record hydration;
+  - FTS;
+  - vector;
+  - graph/reference reads;
+  - discovery/facet reads.
+- Keep Ladybug ingest as an ingest-owned artifact writer path, but split the current writer by build phase:
+  - schema creation;
+  - Parquet staging DTOs and writers;
+  - node staging;
+  - relationship staging;
+  - FTS/vector index creation;
+  - publication/checkpoint lifecycle and instrumentation.
+- Keep `atlas-ladybug-spike` as a harness for experiments only. It should be split by probe family rather than becoming a product runtime boundary:
+  - install/capability;
+  - bulk load;
+  - FTS;
+  - vector/filter;
+  - graph novelty;
+  - fusion/ranking comparison.
+
+First alignment slice completed: `atlas-search` fusion, query analysis, and semantic collapse were extracted from `lib.rs` without changing behavior. This makes future ranking work easier to reason about and keeps the service facade closer to the intended architecture.
