@@ -1,4 +1,5 @@
 pub(crate) mod output;
+pub(crate) mod parquet;
 pub(crate) mod schema;
 pub(crate) mod writer;
 

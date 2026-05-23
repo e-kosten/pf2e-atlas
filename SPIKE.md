@@ -1366,5 +1366,6 @@ Completed alignment slices:
   - `lib.rs` remains the backend facade, `SearchIndex` implementation, connection lifecycle, and record orchestration.
 - `atlas-ingest::ladybug` started its writer split:
   - `output.rs` owns progress, output publication, temp path, cleanup, and move lifecycle;
+  - `parquet.rs` owns generic Arrow/Parquet staging helpers, staging directory setup, and `COPY FROM` execution;
   - `schema.rs` owns Ladybug schema and search/vector index creation;
-  - `writer.rs` remains the staging/orchestration file and still needs a follow-up split for Parquet node/relationship staging.
+  - `writer.rs` remains the graph-specific staging/orchestration file and still needs a follow-up split for node staging, relationship staging, and evidence-unit construction.
