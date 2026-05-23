@@ -1354,4 +1354,13 @@ The Ladybug spike has crossed the threshold where continued feature work on larg
   - graph novelty;
   - fusion/ranking comparison.
 
-First alignment slice completed: `atlas-search` fusion, query analysis, and semantic collapse were extracted from `lib.rs` without changing behavior. This makes future ranking work easier to reason about and keeps the service facade closer to the intended architecture.
+Completed alignment slices:
+
+- `atlas-search` fusion, query analysis, and semantic collapse were extracted from `lib.rs` without changing behavior. This makes future ranking work easier to reason about and keeps the service facade closer to the intended architecture.
+- `atlas-ladybug-index` was split by read concern:
+  - `filter.rs` owns graph filter/projection lowering;
+  - `row.rs` owns Ladybug row decoding and hydration helpers;
+  - `search.rs` owns FTS and vector query execution;
+  - `graph.rs` owns graph/reference/remaster reads;
+  - `discovery.rs` owns filter discovery and facet/stat queries;
+  - `lib.rs` remains the backend facade, `SearchIndex` implementation, connection lifecycle, and record orchestration.
