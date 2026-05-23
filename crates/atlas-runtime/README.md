@@ -10,7 +10,7 @@ This crate decides where source data, embedding caches, and artifacts live for r
 - Runtime setup readiness and repair orchestration.
 - Source fetch/update policy for setup commands.
 - Setup coordination across source analysis, embedding model cache readiness, artifact build, and final validation.
-- Construction of `AtlasIndex` and `AtlasRetrievalService` handles.
+- Construction of `SqliteIndexReader` and `AtlasRetrievalService` handles.
 - Shared runtime defaults for local CLI and future Rust surfaces.
 
 ## Should Not Own

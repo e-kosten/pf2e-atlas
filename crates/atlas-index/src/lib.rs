@@ -7,38 +7,51 @@ use atlas_artifact::schema::required_tables;
 use rusqlite::Connection;
 use thiserror::Error;
 
+mod build_input;
 mod contract;
-mod database;
 mod discovery;
+mod embedding_cache;
 mod filters;
 mod fts;
 mod inspect;
+mod ladybug;
 mod metadata;
 mod records;
 mod relationship_edges;
+mod search;
 mod sql;
+mod sqlite;
 #[cfg(test)]
 mod tests;
 mod validation;
 mod vector;
+mod write;
+mod writer_progress;
+mod writer_visibility;
 
-pub use database::{
-    AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
-    FtsSearchHit, RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection,
-};
+pub use build_input::{IndexBuildInput, IndexBuildPack};
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
+pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use filters::FilterCompileError;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
+pub use ladybug::{LadybugIndexReader, LadybugIndexReaderError, LadybugIndexWriter};
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
+pub use search::{RecordResolutionMatchKind, RecordResolutionResult, SearchError, SearchIndex};
+pub use sqlite::{
+    FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
+    RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection, SqliteIndexReader,
+    SqliteIndexWriter,
+};
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
 pub use vector::{VectorQueryError, VectorSearchHit};
+pub use write::{IndexArtifactWriter, IndexWriteError};
 
 #[derive(Debug, Error)]
 pub enum IndexValidationError {

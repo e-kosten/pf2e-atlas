@@ -20,4 +20,4 @@ This crate isolates sqlite-vec registration and capability probing so the rest o
 
 ## Boundary Notes
 
-`atlas-index` and `atlas-ingest` should call this crate when vector table operations require sqlite-vec capability. Keep all higher-level vector semantics in the crates that own artifact writing, index querying, or retrieval orchestration.
+`atlas-index` should call this crate when vector table operations require sqlite-vec capability. Keep all higher-level vector semantics in the crates that own artifact writing, index querying, or retrieval orchestration.

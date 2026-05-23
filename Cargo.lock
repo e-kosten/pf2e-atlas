@@ -296,12 +296,16 @@ dependencies = [
 name = "atlas-index"
 version = "0.1.0"
 dependencies = [
+ "arrow-array",
+ "arrow-schema",
  "atlas-artifact",
  "atlas-discovery",
  "atlas-domain",
  "atlas-embedding",
  "atlas-record",
  "atlas-sqlite-vec",
+ "lbug",
+ "parquet",
  "rusqlite",
  "serde",
  "serde_json",
@@ -313,37 +317,19 @@ dependencies = [
 name = "atlas-ingest"
 version = "0.1.0"
 dependencies = [
- "arrow-array",
- "arrow-schema",
  "atlas-artifact",
  "atlas-discovery",
  "atlas-domain",
  "atlas-embedding",
  "atlas-index",
  "atlas-record",
- "atlas-sqlite-vec",
  "lbug",
- "parquet",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
  "thiserror",
  "tracing",
-]
-
-[[package]]
-name = "atlas-ladybug-index"
-version = "0.1.0"
-dependencies = [
- "atlas-discovery",
- "atlas-domain",
- "atlas-index",
- "atlas-record",
- "atlas-search",
- "lbug",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
@@ -373,7 +359,6 @@ dependencies = [
  "atlas-embedding",
  "atlas-index",
  "atlas-ingest",
- "atlas-ladybug-index",
  "atlas-search",
  "tracing",
 ]

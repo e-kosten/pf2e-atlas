@@ -2,13 +2,15 @@ use std::time::Instant;
 
 use tracing::info;
 
+use atlas_index::{IndexArtifactWriter, LadybugIndexWriter, SqliteIndexWriter};
+
 use crate::artifact_manifest::{
     ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path,
     compute_source_position_report, write_artifact_manifest,
 };
-use crate::artifact_outputs::{ArtifactOutputWriter, LadybugArtifactOutput, SqliteArtifactOutput};
 use crate::embeddings::generation::generate_document_embeddings_for_source;
 use crate::error::IngestError;
+use crate::index_build_input::index_build_input;
 use crate::source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
 };
@@ -41,6 +43,7 @@ pub(crate) fn build_artifact(
     let embedding_report = generate_document_embeddings_for_source(&mut source, &options)?;
 
     let embedding_model = options.embedding_model()?;
+    let index_input = index_build_input(&source);
     let mut artifact_outputs = artifact_outputs_for_options(&options);
     for output in &mut artifact_outputs {
         info!(
@@ -48,7 +51,9 @@ pub(crate) fn build_artifact(
             output = %output.output_path().display(),
             "writing artifact output"
         );
-        output.write(&source, embedding_model)?;
+        output
+            .write(&index_input, embedding_model)
+            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     }
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
@@ -106,12 +111,12 @@ pub(crate) fn build_artifact(
 
 fn artifact_outputs_for_options(
     options: &BuildArtifactOptions,
-) -> Vec<Box<dyn ArtifactOutputWriter>> {
-    let mut outputs: Vec<Box<dyn ArtifactOutputWriter>> = vec![Box::new(
-        SqliteArtifactOutput::new(options.output_path.clone()),
-    )];
+) -> Vec<Box<dyn IndexArtifactWriter>> {
+    let mut outputs: Vec<Box<dyn IndexArtifactWriter>> = vec![Box::new(SqliteIndexWriter::new(
+        options.output_path.clone(),
+    ))];
     if let Some(ladybug_output_path) = &options.ladybug_output_path {
-        outputs.push(Box::new(LadybugArtifactOutput::new(
+        outputs.push(Box::new(LadybugIndexWriter::new(
             ladybug_output_path.clone(),
         )));
     }

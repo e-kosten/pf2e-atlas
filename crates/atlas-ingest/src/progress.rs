@@ -1,8 +1,4 @@
-use std::time::{Duration, Instant};
-
-pub(crate) fn elapsed_display(started_at: Instant) -> String {
-    format_duration(started_at.elapsed())
-}
+use std::time::Duration;
 
 pub fn format_duration_ms(duration_ms: u128) -> String {
     let millis = u64::try_from(duration_ms).unwrap_or(u64::MAX);

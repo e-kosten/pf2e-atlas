@@ -4,7 +4,7 @@ use atlas_domain::{NumericMatch, RecordKey};
 use rusqlite::Connection;
 
 use super::record_key_strings;
-use crate::{AtlasIndex, FilterCompileError, FtsColumnWeights, FtsQuery};
+use crate::{FilterCompileError, FtsColumnWeights, FtsQuery, SqliteIndexReader};
 
 #[test]
 fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@ fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         Some(&filter),
         10,
@@ -77,7 +77,7 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_index(
         &query,
         Some(&filter),
         10,
@@ -96,7 +96,7 @@ fn candidate_key_query_is_bounded_to_supplied_candidates() -> Result<(), Box<dyn
     super::create_contract_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_candidate_record_keys(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(
         &query,
         &[
             RecordKey::parse("actions:testAction1")?,
@@ -140,7 +140,7 @@ fn candidate_key_query_uses_or_matching_for_multiple_tokens()
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_candidate_record_keys(
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(
         &query,
         &[
             RecordKey::parse("actions:testAction2")?,
@@ -175,8 +175,11 @@ fn record_key_query_respects_structured_filters_order_and_limit()
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits =
-        AtlasIndex::open_read_only(&path)?.query_fts_record_keys(&query, Some(&filter), 1)?;
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_record_keys(
+        &query,
+        Some(&filter),
+        1,
+    )?;
 
     assert_eq!(
         hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
@@ -214,7 +217,7 @@ fn record_key_query_uses_or_matching_for_multiple_tokens() -> Result<(), Box<dyn
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_record_keys(&query, None, 3)?;
+    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_record_keys(&query, None, 3)?;
 
     assert_eq!(
         hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
@@ -260,7 +263,7 @@ fn ranked_query_reports_invalid_record_keys_from_matching_fts_rows()
     drop(connection);
 
     let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
-    let error = AtlasIndex::open_read_only(&path)?
+    let error = SqliteIndexReader::open_read_only(&path)?
         .query_fts_index(&query, None, 10, FtsColumnWeights::default())
         .expect_err("invalid record key should fail FTS query");
 

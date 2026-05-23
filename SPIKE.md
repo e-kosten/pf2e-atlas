@@ -330,9 +330,9 @@ Initial implementation should compute these live from graph patterns over canoni
 
 ### Ingest Write Path
 
-The primary spike implementation should build LadybugDB from the existing ingest-owned in-memory representations, not by exporting the completed SQLite artifact.
+The primary spike implementation should build LadybugDB from the existing normalized build payload, not by exporting the completed SQLite artifact.
 
-Add a parallel Ladybug writer under `atlas-ingest`, beside the current SQLite artifact writer, and feed it from the same normalized records, FTS projections, side-data facts, reference edges, aliases, metrics, content documents, generated records, and prepared embedding-unit metadata that already exist during index build. This is the closest spike shape to a possible production path because it tests whether the graph model fits Atlas's canonical data before it has been flattened into SQLite rows.
+Add a parallel Ladybug writer under `atlas-index`, beside the SQLite index writer, and feed it from the same `IndexBuildInput` used by SQLite: normalized records, FTS projections, side-data facts, reference edges, aliases, metrics, content documents, generated records, and prepared embedding-unit metadata. This is the closest spike shape to a possible production path because it tests whether the graph model fits Atlas's canonical data before it has been flattened into SQLite rows.
 
 Current spike status:
 
@@ -983,10 +983,10 @@ Ingest side:
 
 Search side:
 
-- `atlas-search` has a `SearchIndex` capability trait for the operations the product retrieval service actually needs.
-- `atlas_index::AtlasIndex` implements the trait, so existing SQLite behavior still routes through the same retrieval service.
+- `atlas-index` owns the `SearchIndex` capability trait for the operations the product retrieval service actually needs.
+- `atlas_index::SqliteIndexReader` implements the trait, so existing SQLite behavior still routes through the same retrieval service.
+- `atlas_index::LadybugIndexReader` implements the same trait for the Ladybug spike artifact, keeping Cypher, graph projection, FTS, and vector-index details out of CLI/runtime code while avoiding a separate asymmetric read crate.
 - `AtlasRetrievalService` now stores a boxed `SearchIndex`, with compatibility constructors for the current SQLite path and explicit constructors for future backend implementations.
-- `atlas-ladybug-index` implements the same trait for the Ladybug spike artifact and keeps Cypher, graph projection, FTS, and vector-index details out of CLI/runtime code.
 - `atlas search` can select the read backend with `--index-backend sqlite|ladybug`; `--ladybug-index` overrides the Ladybug artifact path.
 - `atlas record get` and `atlas record resolve` can now select the read backend with `--index-backend sqlite|ladybug`; `--ladybug-index` overrides the Ladybug artifact path. Graph context remains SQLite-owned for now.
 - The first Ladybug read path supports core spike cases: record hydration from graph node properties, filter-only record listing, record-family/level/rarity/pack/scalar text/scalar boolean/trait/repeated fact/simple metric filters, FTS through `SearchDocument`, vector search through `EmbeddingUnit`, and prefiltered vector search through a projected eligible embedding graph.
@@ -1357,14 +1357,17 @@ The Ladybug spike has crossed the threshold where continued feature work on larg
 Completed alignment slices:
 
 - `atlas-search` fusion, query analysis, and semantic collapse were extracted from `lib.rs` without changing behavior. This makes future ranking work easier to reason about and keeps the service facade closer to the intended architecture.
-- `atlas-ladybug-index` was split by read concern:
+- `atlas-index::ladybug::reader` was split by read concern:
   - `filter.rs` owns graph filter/projection lowering;
   - `row.rs` owns Ladybug row decoding and hydration helpers;
   - `search.rs` owns FTS and vector query execution;
   - `graph.rs` owns graph/reference/remaster reads;
   - `discovery.rs` owns filter discovery and facet/stat queries;
-  - `lib.rs` remains the backend facade, `SearchIndex` implementation, connection lifecycle, and record orchestration.
-- `atlas-ingest::ladybug` started its writer split:
+  - `reader.rs` remains the backend read facade, `SearchIndex` implementation, connection lifecycle, and record orchestration.
+- The separate `atlas-ladybug-index` crate was folded into `atlas-index` so read-side backend ownership is symmetric: `atlas-index` now contains the shared retrieval contract plus both SQLite and Ladybug backend implementations. `atlas-search` remains the product retrieval orchestrator and re-exports the shared types for compatibility.
+- Embedding cache hydration now follows that same backend boundary: `atlas-index` exposes `DocumentEmbeddingCacheReader`, `SqliteIndexReader` implements it for `document_embedding_cache`, and `atlas-ingest` consumes the trait while retaining the embedding reuse/generation policy.
+- The write-side handoff is now explicit: `atlas-index` exposes `IndexBuildInput`/`IndexBuildPack` as the backend-neutral normalized payload for index writers, while `atlas-ingest` converts from ingest-only `SourceLoad` after enrichment and embedding generation. SQLite and Ladybug writers now live in `atlas-index` and consume that handoff instead of reaching into ingest construction state.
+- `atlas-index::ladybug::writer` owns the Ladybug writer split:
   - `embeddings.rs` owns Ladybug embedding-unit collection, including the temporary legacy SQLite embedding reuse path;
   - `evidence.rs` owns graph evidence-unit construction from content documents and embedding-section policy;
   - `facts.rs` owns shared graph fact/key helpers used by node and relationship staging;
@@ -1373,4 +1376,4 @@ Completed alignment slices:
   - `parquet.rs` owns generic Arrow/Parquet staging helpers, staging directory setup, and `COPY FROM` execution;
   - `relationships.rs` owns Parquet staging for graph relationship tables;
   - `schema.rs` owns Ladybug schema and search/vector index creation;
-  - `writer.rs` is now the high-level Ladybug write orchestrator: collect embeddings, create schema, emit staging files, bulk-copy them, build optional search indexes, checkpoint, and publish.
+  - `orchestrator.rs` is now the high-level Ladybug write orchestrator: collect embeddings, create schema, emit staging files, bulk-copy them, build optional search indexes, checkpoint, and publish.

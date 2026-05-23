@@ -7,7 +7,6 @@ members = [
   "crates/atlas-embedding",
   "crates/atlas-ingest",
   "crates/atlas-index",
-  "crates/atlas-ladybug-index",
   "crates/atlas-ladybug-spike",
   "crates/atlas-record",
   "crates/atlas-runtime",
@@ -31,7 +30,6 @@ atlas-domain = { path = "crates/atlas-domain" }
 atlas-embedding = { path = "crates/atlas-embedding" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
-atlas-ladybug-index = { path = "crates/atlas-ladybug-index" }
 atlas-record = { path = "crates/atlas-record" }
 atlas-runtime = { path = "crates/atlas-runtime" }
 atlas-search = { path = "crates/atlas-search" }
