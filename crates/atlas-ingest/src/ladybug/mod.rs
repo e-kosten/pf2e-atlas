@@ -1,3 +1,4 @@
+pub(crate) mod evidence;
 pub(crate) mod output;
 pub(crate) mod parquet;
 pub(crate) mod schema;
