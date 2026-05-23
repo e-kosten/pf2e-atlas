@@ -214,9 +214,27 @@ fn minilm_budgeting_drops_lower_priority_sections_when_model_cache_exists() {
 
     assert!(budgeted.tokenization.truncated);
     assert_eq!(budgeted.tokenization.max_token_count, Some(512));
+    assert!(budgeted.final_token_count <= 512);
     assert!(budgeted_tokenization[0].token_count <= 512);
     assert!(budgeted.text.contains("Name: Venom Torrent"));
     assert!(budgeted.text.contains("Traits: Poison, Consumable"));
+    assert_eq!(budgeted.chunk_diagnostics.len(), chunks.len());
+    assert_eq!(
+        budgeted.chunk_diagnostics[0].outcome,
+        EmbeddingChunkBudgetOutcome::Accepted
+    );
+    assert!(
+        budgeted
+            .chunk_diagnostics
+            .iter()
+            .any(|chunk| chunk.outcome == EmbeddingChunkBudgetOutcome::Trimmed)
+    );
+    assert!(
+        budgeted
+            .chunk_diagnostics
+            .iter()
+            .any(|chunk| chunk.outcome == EmbeddingChunkBudgetOutcome::Dropped)
+    );
     assert!(
         budgeted
             .truncated_sections

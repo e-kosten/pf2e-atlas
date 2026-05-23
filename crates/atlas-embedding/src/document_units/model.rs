@@ -1,6 +1,7 @@
 use atlas_record::{ContentDocument, ContentSourceKind, RecordPresentationDocument};
 
-use crate::document_renderer::EmbeddingInputChunk;
+use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
+use crate::tokenization::EmbeddingChunkBudgetOutcome;
 use crate::unit_kind::EmbeddingUnitKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,4 +110,26 @@ pub struct DocumentEmbeddingSectionTruncation {
     pub section: String,
     pub document_count: usize,
     pub dropped_chunk_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentEmbeddingChunkBudgetDiagnostic {
+    pub embedding_unit_key: String,
+    pub record_key: String,
+    pub unit_kind: EmbeddingUnitKind,
+    pub label: Option<String>,
+    pub original_token_count: usize,
+    pub final_token_count: usize,
+    pub max_token_count: usize,
+    pub original_chunk_count: usize,
+    pub final_chunk_count: usize,
+    pub chunks: Vec<DocumentEmbeddingChunkBudgetDiagnosticChunk>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentEmbeddingChunkBudgetDiagnosticChunk {
+    pub section: EmbeddingInputSection,
+    pub outcome: EmbeddingChunkBudgetOutcome,
+    pub original_text: String,
+    pub final_text: Option<String>,
 }

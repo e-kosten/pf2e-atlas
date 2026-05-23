@@ -108,11 +108,19 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={}",
+            "embeddings: pending_document={} document={} reused={} generated={} cache_backend={} cache_path={} truncated={} max_tokens={} max_observed_tokens={}",
             report.pending_document_embedding_count,
             report.document_embedding_count,
             report.reused_document_embedding_count,
             report.generated_document_embedding_count,
+            report
+                .reusable_document_embedding_cache_backend
+                .as_deref()
+                .unwrap_or("none"),
+            report
+                .reusable_document_embedding_cache_path
+                .as_deref()
+                .unwrap_or("none"),
             report
                 .document_embedding_tokenization
                 .truncated_document_count,

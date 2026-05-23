@@ -96,6 +96,8 @@ pub(crate) fn build_artifact(
         document_embedding_count,
         reused_document_embedding_count: embedding_report.reused_count,
         generated_document_embedding_count: embedding_report.generated_count,
+        reusable_document_embedding_cache_backend: embedding_report.cache_backend,
+        reusable_document_embedding_cache_path: embedding_report.cache_path,
         document_embedding_tokenization:
             DocumentEmbeddingTokenizationReport::from_embedding_telemetry(
                 source.document_embedding_tokenization,

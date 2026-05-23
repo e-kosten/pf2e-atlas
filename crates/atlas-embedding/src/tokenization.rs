@@ -21,13 +21,40 @@ pub struct EmbeddingInputTokenization {
 pub struct BudgetedEmbeddingInput {
     pub text: String,
     pub tokenization: EmbeddingInputTokenization,
+    pub final_token_count: usize,
     pub truncated_sections: Vec<EmbeddingSectionTruncation>,
+    pub chunk_diagnostics: Vec<EmbeddingChunkBudgetDiagnostic>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingSectionTruncation {
     pub section: EmbeddingInputSection,
     pub dropped_chunk_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddingChunkBudgetDiagnostic {
+    pub section: EmbeddingInputSection,
+    pub outcome: EmbeddingChunkBudgetOutcome,
+    pub original_text: String,
+    pub final_text: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmbeddingChunkBudgetOutcome {
+    Accepted,
+    Trimmed,
+    Dropped,
+}
+
+impl EmbeddingChunkBudgetOutcome {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Accepted => "accepted",
+            Self::Trimmed => "trimmed",
+            Self::Dropped => "dropped",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -110,30 +137,54 @@ impl TextEmbeddingTokenizer {
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
                 tokenization: full_tokenization,
+                final_token_count: full_tokenization.token_count,
                 truncated_sections: Vec::new(),
+                chunk_diagnostics: Vec::new(),
             });
         };
         if full_tokenization.token_count <= max_token_count {
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
                 tokenization: full_tokenization,
+                final_token_count: full_tokenization.token_count,
                 truncated_sections: Vec::new(),
+                chunk_diagnostics: Vec::new(),
             });
         }
 
         let mut accepted = Vec::new();
         let mut truncated_sections = Vec::<EmbeddingSectionTruncation>::new();
+        let mut chunk_diagnostics = Vec::new();
         for chunk in chunks {
             let candidate = candidate_text(&accepted, chunk);
             if self.document_token_count(&candidate)? <= max_token_count {
                 accepted.push(chunk.clone());
+                chunk_diagnostics.push(EmbeddingChunkBudgetDiagnostic {
+                    section: chunk.section,
+                    outcome: EmbeddingChunkBudgetOutcome::Accepted,
+                    original_text: chunk.text.clone(),
+                    final_text: Some(chunk.text.clone()),
+                });
                 continue;
             }
             if chunk.truncatable
                 && let Some(trimmed_chunk) =
                     self.trim_chunk_to_fit(&accepted, chunk, max_token_count)?
             {
+                chunk_diagnostics.push(EmbeddingChunkBudgetDiagnostic {
+                    section: chunk.section,
+                    outcome: EmbeddingChunkBudgetOutcome::Trimmed,
+                    original_text: chunk.text.clone(),
+                    final_text: Some(trimmed_chunk.text.clone()),
+                });
                 accepted.push(trimmed_chunk);
+            } else {
+                chunk_diagnostics.push(EmbeddingChunkBudgetDiagnostic {
+                    section: chunk.section,
+                    outcome: EmbeddingChunkBudgetOutcome::Dropped,
+                    original_text: chunk.text.clone(),
+                    final_text: None,
+                });
             }
             increment_section_truncation(&mut truncated_sections, chunk.section);
         }
@@ -148,7 +199,9 @@ impl TextEmbeddingTokenizer {
                 max_token_count: Some(max_token_count),
                 truncated: true,
             },
+            final_token_count: token_count,
             truncated_sections,
+            chunk_diagnostics,
         })
     }
 

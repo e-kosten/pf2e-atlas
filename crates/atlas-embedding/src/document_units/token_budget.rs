@@ -10,6 +10,7 @@ use crate::tokenization::{
 use crate::unit_kind::EmbeddingUnitKind;
 
 use super::model::{
+    DocumentEmbeddingChunkBudgetDiagnostic, DocumentEmbeddingChunkBudgetDiagnosticChunk,
     DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
     DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
     DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding,
@@ -18,6 +19,22 @@ use super::model::{
 pub fn apply_document_embedding_token_budget(
     pending: &mut [PendingDocumentEmbedding],
     tokenizer: &TextEmbeddingTokenizer,
+) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
+    apply_document_embedding_token_budget_inner(pending, tokenizer, None)
+}
+
+pub fn apply_document_embedding_token_budget_with_diagnostics(
+    pending: &mut [PendingDocumentEmbedding],
+    tokenizer: &TextEmbeddingTokenizer,
+    diagnostics: &mut Vec<DocumentEmbeddingChunkBudgetDiagnostic>,
+) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
+    apply_document_embedding_token_budget_inner(pending, tokenizer, Some(diagnostics))
+}
+
+fn apply_document_embedding_token_budget_inner(
+    pending: &mut [PendingDocumentEmbedding],
+    tokenizer: &TextEmbeddingTokenizer,
+    mut diagnostics: Option<&mut Vec<DocumentEmbeddingChunkBudgetDiagnostic>>,
 ) -> Result<DocumentEmbeddingTokenizationTelemetry, EmbeddingError> {
     let inputs = pending
         .iter()
@@ -51,6 +68,33 @@ pub fn apply_document_embedding_token_budget(
                 entry.embedding_unit_key.clone(),
                 budgeted.truncated_sections,
             );
+        }
+        if let Some(diagnostics) = diagnostics.as_deref_mut() {
+            diagnostics.push(DocumentEmbeddingChunkBudgetDiagnostic {
+                embedding_unit_key: entry.embedding_unit_key.clone(),
+                record_key: entry.record_key.clone(),
+                unit_kind: entry.unit_kind,
+                label: entry.label.clone(),
+                original_token_count: tokenization.token_count,
+                final_token_count: budgeted.final_token_count,
+                max_token_count: tokenization.max_token_count.unwrap_or(0),
+                original_chunk_count: entry.input_chunks.len(),
+                final_chunk_count: budgeted
+                    .chunk_diagnostics
+                    .iter()
+                    .filter(|chunk| chunk.final_text.is_some())
+                    .count(),
+                chunks: budgeted
+                    .chunk_diagnostics
+                    .into_iter()
+                    .map(|chunk| DocumentEmbeddingChunkBudgetDiagnosticChunk {
+                        section: chunk.section,
+                        outcome: chunk.outcome,
+                        original_text: chunk.original_text,
+                        final_text: chunk.final_text,
+                    })
+                    .collect(),
+            });
         }
         entry.input_text = budgeted.text;
         entry.input_hash = hash_document_embedding_input(&entry.input_text);

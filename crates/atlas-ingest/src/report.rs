@@ -259,6 +259,8 @@ pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
         "document_embedding_count": report.document_embedding_count,
         "reused_document_embedding_count": report.reused_document_embedding_count,
         "generated_document_embedding_count": report.generated_document_embedding_count,
+        "reusable_document_embedding_cache_backend": report.reusable_document_embedding_cache_backend,
+        "reusable_document_embedding_cache_path": report.reusable_document_embedding_cache_path,
         "document_embedding_tokenization": document_embedding_tokenization_json(
             &report.document_embedding_tokenization,
         ),
