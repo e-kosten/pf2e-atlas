@@ -1,9 +1,15 @@
+use std::fs::{self, File};
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use atlas_embedding::{
-    EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokenizer,
-    apply_document_embedding_token_budget, generate_document_embeddings_with_reuse_using_batch,
+    DocumentEmbeddingChunkBudgetDiagnostic, EmbeddingRuntimeConfig, TextEmbedder,
+    TextEmbeddingTokenizer, apply_document_embedding_token_budget,
+    apply_document_embedding_token_budget_with_diagnostics,
+    generate_document_embeddings_with_reuse_using_batch,
 };
+use serde_json::json;
 use tracing::{debug, info};
 
 use crate::embedding_reuse;
@@ -15,6 +21,8 @@ use crate::source::model::{BuildArtifactOptions, EmbeddingTimingReport};
 pub(crate) struct DocumentEmbeddingGenerationReport {
     pub(crate) reused_count: usize,
     pub(crate) generated_count: usize,
+    pub(crate) cache_backend: Option<String>,
+    pub(crate) cache_path: Option<String>,
     pub(crate) timing: EmbeddingTimingReport,
 }
 
@@ -31,14 +39,20 @@ pub(crate) fn generate_document_embeddings_for_source(
         "document_embeddings",
         "Checking reusable document embeddings",
     );
+    let mut cache_backend = None;
+    let mut cache_path = None;
     let reusable_embeddings = if options.reuse_embeddings {
         match embedding_reuse::load_reusable_document_embeddings(options, &config) {
-            Ok(reusable_embeddings) => {
+            Ok(cache) => {
                 info!(
-                    reusable_document_embeddings = reusable_embeddings.len(),
+                    backend = cache.backend,
+                    path = %cache.path,
+                    reusable_document_embeddings = cache.embeddings.len(),
                     "loaded reusable document embeddings"
                 );
-                Some(reusable_embeddings)
+                cache_backend = Some(cache.backend.to_string());
+                cache_path = Some(cache.path);
+                Some(cache.embeddings)
             }
             Err(error) => {
                 info!(
@@ -59,9 +73,23 @@ pub(crate) fn generate_document_embeddings_for_source(
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
     embedding_progress("document_embeddings", "Applying document token budget");
     let tokenization_started_at = Instant::now();
-    source.document_embedding_tokenization =
-        apply_document_embedding_token_budget(&mut source.pending_document_embeddings, &tokenizer)
-            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    let chunk_diagnostics_path = embedding_chunk_diagnostics_path();
+    let mut chunk_diagnostics = Vec::new();
+    source.document_embedding_tokenization = match chunk_diagnostics_path.as_deref() {
+        Some(_) => apply_document_embedding_token_budget_with_diagnostics(
+            &mut source.pending_document_embeddings,
+            &tokenizer,
+            &mut chunk_diagnostics,
+        ),
+        None => apply_document_embedding_token_budget(
+            &mut source.pending_document_embeddings,
+            &tokenizer,
+        ),
+    }
+    .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    if let Some(path) = chunk_diagnostics_path {
+        write_embedding_chunk_diagnostics(&path, &chunk_diagnostics)?;
+    }
     timing.tokenization_duration_ms = tokenization_started_at.elapsed().as_millis();
     debug!(
         document_embeddings = source.document_embedding_tokenization.document_count,
@@ -152,12 +180,75 @@ pub(crate) fn generate_document_embeddings_for_source(
     Ok(DocumentEmbeddingGenerationReport {
         reused_count,
         generated_count,
+        cache_backend,
+        cache_path,
         timing,
     })
 }
 
 fn embedding_progress(phase: &'static str, message: &'static str) {
     info!(target: "atlas_progress", phase, "{message}");
+}
+
+fn embedding_chunk_diagnostics_path() -> Option<PathBuf> {
+    std::env::var_os("ATLAS_EMBEDDING_CHUNK_DIAGNOSTICS_JSONL")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+fn write_embedding_chunk_diagnostics(
+    path: &Path,
+    diagnostics: &[DocumentEmbeddingChunkBudgetDiagnostic],
+) -> Result<(), IngestError> {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    }
+    let file = File::create(path)
+        .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    let mut writer = BufWriter::new(file);
+    for diagnostic in diagnostics {
+        serde_json::to_writer(&mut writer, &embedding_chunk_diagnostic_json(diagnostic))
+            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+        writer
+            .write_all(b"\n")
+            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    }
+    writer
+        .flush()
+        .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    info!(
+        path = %path.display(),
+        over_limit_embedding_inputs = diagnostics.len(),
+        "wrote embedding chunk diagnostics"
+    );
+    Ok(())
+}
+
+fn embedding_chunk_diagnostic_json(
+    diagnostic: &DocumentEmbeddingChunkBudgetDiagnostic,
+) -> serde_json::Value {
+    json!({
+        "embedding_unit_key": diagnostic.embedding_unit_key,
+        "record_key": diagnostic.record_key,
+        "unit_kind": diagnostic.unit_kind.as_str(),
+        "label": diagnostic.label,
+        "original_token_count": diagnostic.original_token_count,
+        "final_token_count": diagnostic.final_token_count,
+        "max_token_count": diagnostic.max_token_count,
+        "original_chunk_count": diagnostic.original_chunk_count,
+        "final_chunk_count": diagnostic.final_chunk_count,
+        "chunks": diagnostic.chunks.iter().map(|chunk| {
+            json!({
+                "section": chunk.section.as_str(),
+                "outcome": chunk.outcome.as_str(),
+                "original_text": chunk.original_text,
+                "final_text": chunk.final_text,
+            })
+        }).collect::<Vec<_>>(),
+    })
 }
 
 fn apply_batch_timing(report: &mut EmbeddingTimingReport, mut batch_durations_ms: Vec<u128>) {

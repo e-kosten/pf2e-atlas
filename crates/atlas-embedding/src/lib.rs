@@ -26,13 +26,15 @@ pub use document_renderer::{
     render_presentation_document_embedding_chunks, render_presentation_document_for_embedding,
 };
 pub use document_units::{
+    DocumentEmbeddingChunkBudgetDiagnostic, DocumentEmbeddingChunkBudgetDiagnosticChunk,
     DocumentEmbeddingContentSource, DocumentEmbeddingRecordTruncationCoverage,
     DocumentEmbeddingSectionTruncation, DocumentEmbeddingSource,
     DocumentEmbeddingTokenizationTelemetry, DocumentEmbeddingTruncationExample,
     DocumentEmbeddingUnitKindTruncation, GeneratedDocumentEmbedding, GeneratedDocumentEmbeddings,
     PendingDocumentEmbedding, ReusableDocumentEmbedding, apply_document_embedding_token_budget,
-    build_document_embedding_units, generate_document_embeddings,
-    generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
+    apply_document_embedding_token_budget_with_diagnostics, build_document_embedding_units,
+    generate_document_embeddings, generate_document_embeddings_with_reuse,
+    generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 pub use error::EmbeddingError;
@@ -42,8 +44,8 @@ pub use model_cache::{
 };
 pub use text::normalize_embedding_text;
 pub use tokenization::{
-    BudgetedEmbeddingInput, EmbeddingInputTokenization, EmbeddingSectionTruncation,
-    TextEmbeddingTokenizer,
+    BudgetedEmbeddingInput, EmbeddingChunkBudgetDiagnostic, EmbeddingChunkBudgetOutcome,
+    EmbeddingInputTokenization, EmbeddingSectionTruncation, TextEmbeddingTokenizer,
 };
 pub use unit_kind::{EmbeddingUnitKind, ParseEmbeddingUnitKindError};
 

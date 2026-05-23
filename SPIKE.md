@@ -358,6 +358,36 @@ Embedding reuse is now backend-owned through the shared cache-reader trait:
 - `atlas-ingest` asks configured existing artifacts for reusable document embeddings before generating new vectors.
 - Treat SQLite or Ladybug only as embedding cache sources during reuse, not as the source of record, filter, FTS, graph, alias, metric, or discovery truth.
 
+A full rebuild has now proven Ladybug can be the actual embedding cache source. With the SQLite cache unavailable and the existing Ladybug artifact present, the build reported:
+
+```text
+embeddings: pending_document=29379 document=29379 reused=29379 generated=0 cache_backend=ladybug cache_path=.cache/ladybug-spike/with-embeddings.lbug truncated=584 max_tokens=512 max_observed_tokens=1736
+```
+
+This confirms the `DocumentEmbeddingCacheReader` boundary is not only a unit-test shape: ingest can reuse vectors from the Ladybug artifact and skip model inference. It does not skip tokenization/truncation analysis. The same run still spent noticeable time in embedding tokenization and in `Truncating over-limit embedding inputs`; this is expected with the current algorithm because every pending input is tokenized to compute the post-budget semantic input hash, and each over-limit input is currently budgeted by repeatedly rendering/tokenizing candidate chunk sets.
+
+Follow-up performance target: replace the repeated render/re-tokenize truncation loop with a tokenized-chunk budgeter derived from the existing structured content/embedding chunk breakdown. Ideally each embedding input is tokenized once into structured chunks, then truncation is mostly token-count arithmetic plus final deterministic text rendering for the cache hash.
+
+Optional diagnostics are available for the next rebuild:
+
+```bash
+ATLAS_EMBEDDING_CHUNK_DIAGNOSTICS_JSONL=.cache/ladybug-spike/embedding-chunks.jsonl
+```
+
+When set, ingest writes one JSON object per over-limit embedding input. Each row includes the embedding unit key, record key, unit kind, original/final token counts, original/final chunk counts, and each chunk's section, outcome (`accepted`, `trimmed`, or `dropped`), original text, and final text when any survives. This is intended to answer which sub-chunks actually survive before we optimize the token-budget algorithm.
+
+The first diagnostics run produced 584 rows, matching the build's over-limit input count. Findings:
+
+- 575 over-limit units were `parent`; only 9 were `heading_section`.
+- Average over-limit unit: 633 original tokens, 512 final tokens, 19.4 original chunks, 13.3 final chunks.
+- Worst case: 1,736 original tokens.
+- Accepted chunks were mostly `identity` (3,475), `summary` (2,280), `traits` (551), some `defense` (493), some `description` (326), and some `movement` (105).
+- Trimmed chunks were almost entirely `description` (433).
+- Dropped chunks were mostly `details` (1,647), `defense` (1,274), `movement` (639), plus a smaller number of `description` (36) and `aliases` (6).
+- Common dropped chunk labels were low-value artifact/source facts (`Foundry Document Type`, `Pack`, `Publication Family`) but also useful combat facts (`Speed`, `Speed Types`, `Saves`, `HP`, `AC`, `Immunities`, `Weaknesses`, `Resistances`).
+
+Interpretation: the current section order makes long descriptions consume much of the budget before defense/movement/details. This is not only a performance problem from repeated tokenization; it may also be an embedding-quality problem for creature/equipment/rules queries where compact mechanical facts are more useful than the tail of long prose. The next algorithm should evaluate whether compact mechanical facts should be budgeted before long descriptions, or whether description should be capped earlier.
+
 The Ladybug writer should map ingest data directly:
 
 - normalized records become `Record`
@@ -1238,6 +1268,7 @@ Initial search parity result against `.cache/ladybug-spike/with-embeddings.*`:
 - Filtered lexical spell quality is preserved for the direct hit. `fear --family spell --max-level 3` returned `Fear` first on both backends. Result totals differed materially: SQLite reported `26`, Ladybug reported `6`. Treat this as an FTS/filter semantics question, not only a speed question.
 - Semantic/vector concept search is the strongest parity result. `low level spell that makes enemies afraid --family spell --max-level 3 --retrieval vector` returned the same top five and `10/10` top-result overlap on both backends. `Dirge of Doom` and `Fear` appeared at positions `2` and `3` in both.
 - Realistic structured vector-only search is now parity-clean. `healing spell --family spell --max-level 3 --trait healing --retrieval vector`, `high armor creature --family creature --metric ac.value>=25 --retrieval vector`, `fear --family spell --publication-title "Pathfinder Player Core" --retrieval vector`, and `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL --retrieval vector` all produced `10/10` top-result overlap between SQLite and Ladybug. The metric case had minor near-tie ordering differences, but the candidate set matched.
+- Long-document vector search now has explicit baseline cases before changing chunk budgeting. The harness includes known over-limit embedding inputs for `Earn Income`, `Spell Repertoire`, `Revolutionary Innovation`, `Soulforger Dedication`, `Avatar`, and `Frost Drake`. In the current `.cache/ladybug-spike/with-embeddings.*` run, five of six long-document cases produced `10/10` top-result overlap between SQLite and Ladybug. The worst over-limit class-feature case produced `9/10` overlap, with the expected `Spell Repertoire` record at position `3` in SQLite and position `2` in Ladybug. These cases should be rerun before and after any token-budget or chunk-priority change.
 - Hybrid concept search is not yet parity-clean. The same query under `--retrieval hybrid` had only `1/10` top-result overlap. SQLite kept `Menacing Lament`, `Dirge of Doom`, and related fear spells near the top; Ladybug put weak lexical-looking results such as `Shadow Projectile`, `Curse of Recoil`, `Biting Words`, and `Shielded Arm` above the strong semantic results. This reinforces the FTS/RRF risk: Ladybug hybrid quality depends on lexical confidence gating, score fusion tuning, or query-intent-aware FTS weighting.
 - Actual CLI hybrid search now works for relationship-backed structured vector filters after changing the Ladybug reader to build a single coherent projected-graph pattern for `Record -> EmbeddingUnit` plus relationship filters. `healing spell --family spell --max-level 3 --trait healing --retrieval hybrid` and `high armor creature --family creature --metric ac.value>=25 --retrieval hybrid` both return results instead of failing in the vector lane. The remaining issue is ranking/result parity, not basic execution.
 - Publication-filtered lexical search preserves the direct hit. `fear --family spell --publication-title "Pathfinder Player Core"` returned `Fear` first on both backends, but SQLite reported `13` total results and Ladybug reported `3`.

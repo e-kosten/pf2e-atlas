@@ -7,10 +7,16 @@ use tracing::info;
 
 use crate::source::model::BuildArtifactOptions;
 
+pub(crate) struct ReusableDocumentEmbeddingCache {
+    pub(crate) backend: &'static str,
+    pub(crate) path: String,
+    pub(crate) embeddings: BTreeMap<String, ReusableDocumentEmbedding>,
+}
+
 pub(crate) fn load_reusable_document_embeddings(
     options: &BuildArtifactOptions,
     config: &EmbeddingRuntimeConfig,
-) -> Result<BTreeMap<String, ReusableDocumentEmbedding>, String> {
+) -> Result<ReusableDocumentEmbeddingCache, String> {
     let mut errors = Vec::new();
     for candidate in embedding_cache_candidates(options) {
         if !candidate.path.exists() {
@@ -24,7 +30,11 @@ pub(crate) fn load_reusable_document_embeddings(
                     reusable_document_embeddings = reusable_embeddings.len(),
                     "loaded reusable document embeddings"
                 );
-                return Ok(reusable_embeddings);
+                return Ok(ReusableDocumentEmbeddingCache {
+                    backend: candidate.backend,
+                    path: candidate.path.display().to_string(),
+                    embeddings: reusable_embeddings,
+                });
             }
             Err(error) => {
                 info!(

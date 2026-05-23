@@ -53,6 +53,8 @@ pub struct BuildArtifactReport {
     pub document_embedding_count: usize,
     pub reused_document_embedding_count: usize,
     pub generated_document_embedding_count: usize,
+    pub reusable_document_embedding_cache_backend: Option<String>,
+    pub reusable_document_embedding_cache_path: Option<String>,
     pub document_embedding_tokenization: DocumentEmbeddingTokenizationReport,
     pub embedding_timing: EmbeddingTimingReport,
     pub build_duration_ms: u128,

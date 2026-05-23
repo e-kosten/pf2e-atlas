@@ -172,6 +172,8 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
             "document_embedding_count": 0,
             "reused_document_embedding_count": 0,
             "generated_document_embedding_count": 0,
+            "reusable_document_embedding_cache_backend": null,
+            "reusable_document_embedding_cache_path": null,
             "document_embedding_tokenization": {
                 "document_count": 0,
                 "truncated_document_count": 0,
