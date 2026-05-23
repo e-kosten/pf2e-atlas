@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 use crate::query::tokenize_fts_query;
 use crate::{RetrievalMode, SemanticSearchHit};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FusionMethod {

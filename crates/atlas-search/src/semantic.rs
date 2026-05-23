@@ -131,3 +131,120 @@ fn compare_semantic_hits_for_rank(
         .then_with(|| left.record_key.cmp(&right.record_key))
         .then_with(|| left.embedding_unit_key.cmp(&right.embedding_unit_key))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
+        VectorSearchHit {
+            embedding_unit_key: unit.to_string(),
+            record_key: record.to_string(),
+            unit_kind: unit_kind.to_string(),
+            label: None,
+            distance,
+        }
+    }
+
+    #[test]
+    fn collapse_vector_hits_keeps_one_unit_per_record() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit("records:a#parent", "records:a", "parent", 0.1),
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.2,
+                ),
+                hit("records:b#parent", "records:b", "parent", 0.3),
+                hit("records:c#parent", "records:c", "parent", 0.4),
+            ],
+            2,
+            SemanticSearchMode::WeightedChunks,
+        );
+
+        assert_eq!(
+            collapsed
+                .iter()
+                .map(|hit| (hit.embedding_unit_key.as_str(), hit.record_key.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("records:a#parent", "records:a"),
+                ("records:b#parent", "records:b"),
+            ]
+        );
+    }
+
+    #[test]
+    fn collapse_vector_hits_allows_much_closer_child_to_recover_record() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.100,
+                ),
+                hit("records:a#parent", "records:a", "parent", 0.200),
+            ],
+            10,
+            SemanticSearchMode::WeightedChunks,
+        );
+
+        assert_eq!(
+            collapsed[0].embedding_unit_key,
+            "records:a#heading_section:1"
+        );
+        assert_eq!(collapsed[0].distance, 0.100);
+        assert_eq!(collapsed[0].rank_distance, 0.125);
+    }
+
+    #[test]
+    fn collapse_vector_hits_penalizes_records_without_parent_hit() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.100,
+                ),
+                hit("records:b#parent", "records:b", "parent", 0.145),
+            ],
+            10,
+            SemanticSearchMode::WeightedChunks,
+        );
+
+        assert_eq!(collapsed[0].embedding_unit_key, "records:b#parent");
+        assert_eq!(collapsed[0].rank_distance, 0.145);
+        assert_eq!(
+            collapsed[1].embedding_unit_key,
+            "records:a#heading_section:1"
+        );
+        assert_eq!(collapsed[1].rank_distance, 0.150);
+    }
+
+    #[test]
+    fn collapse_vector_hits_can_rank_chunks_without_unit_weights() {
+        let collapsed = collapse_vector_hits(
+            vec![
+                hit(
+                    "records:a#heading_section:1",
+                    "records:a",
+                    "heading_section",
+                    0.100,
+                ),
+                hit("records:a#parent", "records:a", "parent", 0.120),
+            ],
+            10,
+            SemanticSearchMode::Chunks,
+        );
+
+        assert_eq!(
+            collapsed[0].embedding_unit_key,
+            "records:a#heading_section:1"
+        );
+        assert_eq!(collapsed[0].rank_distance, 0.100);
+    }
+}
