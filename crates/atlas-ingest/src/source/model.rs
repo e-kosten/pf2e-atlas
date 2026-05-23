@@ -23,6 +23,7 @@ pub struct BuildArtifactOptions {
     pub embedding_cache_root: Option<PathBuf>,
     pub reuse_embeddings: bool,
     pub embedding_batch_size: usize,
+    pub ladybug_output_path: Option<PathBuf>,
 }
 
 impl BuildArtifactOptions {

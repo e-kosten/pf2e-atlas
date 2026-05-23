@@ -2,6 +2,7 @@ use std::fs;
 
 use atlas_index::{AtlasIndex, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
+use lbug::{Connection as LadybugConnection, Database, SystemConfig, Value as LadybugValue};
 use rusqlite::Connection;
 use serde_json::Value;
 
@@ -55,6 +56,7 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let (
@@ -133,6 +135,47 @@ fn loads_tolerant_foundry_source_and_normalizes_records() -> Result<(), Box<dyn 
     assert_eq!(creature_level_catalog_count, 1);
 
     drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn writes_minimal_ladybug_spike_artifact() -> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("build-ladybug");
+    write_fixture_source(&root)?;
+    let output_path = root.join("artifact.sqlite");
+    let ladybug_output_path = root.join("artifact.lbug");
+
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path,
+        manifest_path: None,
+        embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+        embedding_cache_root: None,
+        reuse_embeddings: true,
+        embedding_batch_size: 64,
+        ladybug_output_path: Some(ladybug_output_path.clone()),
+    })?;
+
+    assert!(ladybug_output_path.exists());
+    {
+        let database = Database::new(&ladybug_output_path, SystemConfig::default())?;
+        let connection = LadybugConnection::new(&database)?;
+        let mut result = connection.query("MATCH (r:Record) RETURN count(r);")?;
+        let count = result
+            .next()
+            .and_then(|mut row| row.pop())
+            .expect("record count should be returned");
+        assert_eq!(count, LadybugValue::Int64(5));
+
+        let mut result = connection
+            .query("MATCH (:Record)-[:HAS_SEARCH_DOCUMENT]->(:SearchDocument) RETURN count(*);")?;
+        let search_document_count = result
+            .next()
+            .and_then(|mut row| row.pop())
+            .expect("search document count should be returned");
+        assert_eq!(search_document_count, LadybugValue::Int64(5));
+    }
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -303,6 +346,7 @@ fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::
         embedding_cache_root: None,
         reuse_embeddings: false,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
 
     let wal_path = root.join("artifact.sqlite-wal");
@@ -318,6 +362,7 @@ fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::
         embedding_cache_root: None,
         reuse_embeddings: false,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
 
     assert!(output_path.exists());
@@ -405,6 +450,7 @@ fn resolves_namespaced_pf2e_pack_paths_from_manifest_declarations()
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
 
     assert_eq!(report.pack_count, 1);
@@ -447,6 +493,7 @@ fn extracts_remaster_links_from_journals_and_migrations() -> Result<(), Box<dyn 
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let remaster_link_count: usize =
@@ -512,6 +559,7 @@ fn populates_taxonomy_families_and_variant_groups() -> Result<(), Box<dyn std::e
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
     let connection = Connection::open(&output_path)?;
     let bosun_families: String = connection.query_row(
@@ -573,6 +621,7 @@ fn generates_affliction_records_from_staged_embedded_items()
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
     assert_eq!(report.diagnostics.generated_affliction_canonical_records, 1);
     assert_eq!(report.diagnostics.generated_affliction_instance_records, 1);
@@ -649,6 +698,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         embedding_cache_root: None,
         reuse_embeddings: true,
         embedding_batch_size: 64,
+        ladybug_output_path: None,
     })?;
 
     assert_eq!(report.pack_count, 4);

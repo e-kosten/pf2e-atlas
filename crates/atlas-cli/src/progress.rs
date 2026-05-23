@@ -3,7 +3,7 @@ use std::io::IsTerminal;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState, ProgressStyle};
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
@@ -197,6 +197,9 @@ impl CliProgressState {
             let progress_bar =
                 ProgressBar::with_draw_target(Some(total), ProgressDrawTarget::stderr_with_hz(10));
             progress_bar.set_style(progress_style(setup_timing));
+            if setup_timing {
+                progress_bar.enable_steady_tick(Duration::from_millis(100));
+            }
             self.progress_bar = Some(progress_bar);
             self.progress_phase = fields.phase.clone();
             self.progress_has_total = true;
@@ -208,10 +211,7 @@ impl CliProgressState {
             progress_bar.set_position(current);
             progress_bar.set_message(message.to_string());
             if setup_timing {
-                progress_bar.set_prefix(progress_prefix(
-                    self.started_at.elapsed(),
-                    self.phase_started_at.elapsed(),
-                ));
+                progress_bar.set_prefix(total_elapsed_prefix(self.started_at.elapsed()));
             }
             if current >= total {
                 progress_bar.finish_and_clear();
@@ -255,10 +255,7 @@ impl CliProgressState {
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.set_message(message.to_string());
             if setup_timing {
-                progress_bar.set_prefix(progress_prefix(
-                    self.started_at.elapsed(),
-                    self.phase_started_at.elapsed(),
-                ));
+                progress_bar.set_prefix(total_elapsed_prefix(self.started_at.elapsed()));
             }
         }
     }
@@ -324,22 +321,31 @@ impl tracing::field::Visit for EventFields {
 
 fn progress_style(setup_timing: bool) -> ProgressStyle {
     let template = if setup_timing {
-        "{prefix} [{bar:40.cyan/blue}] {pos}/{len} {msg}"
+        "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg}"
     } else {
         "[{bar:40.cyan/blue}] {pos}/{len} {msg}"
     };
-    ProgressStyle::with_template(template)
-        .expect("progress template is valid")
-        .progress_chars("=> ")
+    progress_style_with_phase_elapsed(template).progress_chars("=> ")
 }
 
 fn spinner_style(setup_timing: bool) -> ProgressStyle {
     let template = if setup_timing {
-        "{spinner:.cyan} {prefix} {msg}"
+        "[{prefix} | {phase_elapsed}] {spinner:.cyan} {msg}"
     } else {
         "{spinner:.cyan} {msg}"
     };
-    ProgressStyle::with_template(template).expect("spinner progress template is valid")
+    progress_style_with_phase_elapsed(template)
+}
+
+fn progress_style_with_phase_elapsed(template: &str) -> ProgressStyle {
+    ProgressStyle::with_template(template)
+        .expect("progress template is valid")
+        .with_key(
+            "phase_elapsed",
+            |state: &ProgressState, writer: &mut dyn fmt::Write| {
+                let _ = write!(writer, "{}", compact_elapsed(state.elapsed()));
+            },
+        )
 }
 
 fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
@@ -350,12 +356,8 @@ fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]
     line
 }
 
-fn progress_prefix(total_elapsed: Duration, phase_elapsed: Duration) -> String {
-    format!(
-        "[{} | {}]",
-        compact_elapsed(total_elapsed),
-        compact_elapsed(phase_elapsed)
-    )
+fn total_elapsed_prefix(total_elapsed: Duration) -> String {
+    compact_elapsed(total_elapsed)
 }
 
 fn log_elapsed_prefix(elapsed: Duration) -> String {
@@ -381,8 +383,8 @@ fn detailed_elapsed(elapsed: Duration) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        CliProgressState, ProgressMode, ProgressOptions, ProgressRenderMode, progress_prefix,
-        progress_render_mode_for_mode, should_render_event,
+        CliProgressState, ProgressMode, ProgressOptions, ProgressRenderMode,
+        progress_render_mode_for_mode, should_render_event, total_elapsed_prefix,
     };
     use std::time::{Duration, Instant};
 
@@ -514,10 +516,7 @@ mod tests {
     }
 
     #[test]
-    fn progress_prefix_shows_total_and_phase_elapsed() {
-        assert_eq!(
-            progress_prefix(Duration::from_secs(134), Duration::from_secs(37)),
-            "[02:14 | 00:37]"
-        );
+    fn total_elapsed_prefix_shows_compact_elapsed() {
+        assert_eq!(total_elapsed_prefix(Duration::from_secs(134)), "02:14");
     }
 }

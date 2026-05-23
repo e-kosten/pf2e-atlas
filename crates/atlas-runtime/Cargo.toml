@@ -10,5 +10,6 @@ rust-version.workspace = true
 atlas-embedding.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
+atlas-ladybug-index.workspace = true
 atlas-search.workspace = true
 tracing.workspace = true

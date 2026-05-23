@@ -274,6 +274,20 @@ struct FiltersFieldsOptions {
     filter_options: DiscoveryFilterOptions,
     #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = CliIndexBackend::Sqlite,
+        help = "Read filter discovery from the SQLite artifact or the LadybugDB spike artifact"
+    )]
+    index_backend: CliIndexBackend,
+    #[arg(long, help = "Override the LadybugDB spike artifact path")]
+    ladybug_index: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Force live/dynamic filter discovery instead of using SQLite discovery catalogs"
+    )]
+    disable_discovery_catalog: bool,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -330,6 +344,20 @@ struct FiltersValuesOptions {
     metric_domain: Option<String>,
     #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = CliIndexBackend::Sqlite,
+        help = "Read filter discovery from the SQLite artifact or the LadybugDB spike artifact"
+    )]
+    index_backend: CliIndexBackend,
+    #[arg(long, help = "Override the LadybugDB spike artifact path")]
+    ladybug_index: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Force live/dynamic filter discovery instead of using SQLite discovery catalogs"
+    )]
+    disable_discovery_catalog: bool,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -360,6 +388,11 @@ struct BuildIndexOptions {
     source: Option<PathBuf>,
     #[arg(long, help = "SQLite artifact path to write")]
     output: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Spike-only LadybugDB graph artifact path to write from the ingest pipeline"
+    )]
+    ladybug_output: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, help = "Write the ingest manifest report to this path")]
@@ -440,6 +473,15 @@ struct RecordGetOptions {
     include_raw: bool,
     #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = CliIndexBackend::Sqlite,
+        help = "Read records from the SQLite artifact or the LadybugDB spike artifact"
+    )]
+    index_backend: CliIndexBackend,
+    #[arg(long, help = "Override the LadybugDB spike artifact path")]
+    ladybug_index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -472,6 +514,15 @@ struct RecordResolveOptions {
     include_raw: bool,
     #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = CliIndexBackend::Sqlite,
+        help = "Resolve records from the SQLite artifact or the LadybugDB spike artifact"
+    )]
+    index_backend: CliIndexBackend,
+    #[arg(long, help = "Override the LadybugDB spike artifact path")]
+    ladybug_index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -508,6 +559,15 @@ struct SearchOptions {
     query: Option<String>,
     #[arg(long, help = "Override the SQLite artifact path")]
     index: Option<PathBuf>,
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = CliIndexBackend::Sqlite,
+        help = "Read search results from the SQLite artifact or the LadybugDB spike artifact"
+    )]
+    index_backend: CliIndexBackend,
+    #[arg(long, help = "Override the LadybugDB spike artifact path")]
+    ladybug_index: Option<PathBuf>,
     #[arg(
         long,
         default_value_t = 20,
@@ -766,6 +826,12 @@ enum CliRetrievalMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CliIndexBackend {
+    Sqlite,
+    Ladybug,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum CliFusionMethod {
     Rrf,
     WeightedRrf,
@@ -902,7 +968,13 @@ impl Command {
     }
 
     fn uses_setup_timing(&self) -> bool {
-        matches!(self, Self::Setup(_))
+        matches!(
+            self,
+            Self::Setup(_)
+                | Self::Index(IndexArgs {
+                    command: IndexCommand::Build(_),
+                })
+        )
     }
 }
 

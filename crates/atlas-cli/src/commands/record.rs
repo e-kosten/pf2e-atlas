@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
 use crate::terminal::TerminalStyle;
-use crate::{RecordGetOptions, RecordResolveOptions};
+use crate::{CliIndexBackend, RecordGetOptions, RecordResolveOptions};
 
 use super::filters::build_filter;
 
@@ -117,7 +117,11 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
             }
         }
     }
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
+    let runtime = match record_runtime(
+        options.path_mode.into(),
+        options.index,
+        options.ladybug_index,
+    ) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
             write_json_error("runtime_error", error)?;
@@ -125,7 +129,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
         }
         Err(error) => return Err(error),
     };
-    let service = match open_record_service(&runtime) {
+    let service = match open_record_service(&runtime, options.index_backend) {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error)?;
@@ -237,7 +241,11 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
         }
         Err(error) => return Err(error.message),
     };
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
+    let runtime = match record_runtime(
+        options.path_mode.into(),
+        options.index,
+        options.ladybug_index,
+    ) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
             write_json_error("runtime_error", error)?;
@@ -245,7 +253,7 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
         }
         Err(error) => return Err(error),
     };
-    let service = match open_record_service(&runtime) {
+    let service = match open_record_service(&runtime, options.index_backend) {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error)?;
@@ -659,6 +667,7 @@ fn invalid_input(json: bool, message: String) -> Result<ExitCode, String> {
 pub(crate) fn record_runtime(
     path_mode: atlas_runtime::AtlasPathMode,
     index: Option<std::path::PathBuf>,
+    ladybug_index: Option<std::path::PathBuf>,
 ) -> Result<AtlasRuntime, String> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode,
@@ -666,16 +675,20 @@ pub(crate) fn record_runtime(
             source_root: None,
             embedding_cache_root: None,
             index_path: index,
+            ladybug_index_path: ladybug_index,
         },
     })
 }
 
 pub(crate) fn open_record_service(
     runtime: &AtlasRuntime,
+    backend: CliIndexBackend,
 ) -> Result<atlas_search::AtlasRetrievalService, String> {
-    runtime
-        .open_record_retrieval_service()
-        .map_err(|error| error.to_string())
+    match backend {
+        CliIndexBackend::Sqlite => runtime.open_record_retrieval_service(),
+        CliIndexBackend::Ladybug => runtime.open_ladybug_record_retrieval_service(),
+    }
+    .map_err(|error| error.to_string())
 }
 
 pub(crate) fn search_error(error: SearchError) -> String {

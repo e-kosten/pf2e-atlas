@@ -2,12 +2,15 @@
 
 mod artifact;
 mod artifact_manifest;
+mod artifact_outputs;
 mod build;
 mod diagnostics;
 mod embedding_reuse;
 mod embeddings;
 mod error;
 mod generated;
+mod ladybug;
+mod progress;
 mod records;
 mod report;
 mod source;
@@ -21,6 +24,7 @@ pub use artifact_manifest::{
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
+pub use progress::format_duration_ms;
 pub use report::{
     SourceAnalysisEmbeddingReport, SourceAnalysisMetricReport, SourceAnalysisRelationshipReport,
     SourceAnalysisReport, SourceAnalysisSideDataReport, SourceAnalysisSourceReport,

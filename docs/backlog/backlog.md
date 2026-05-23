@@ -35,7 +35,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Add concise family-specific scan facts to Atlas search preview output so users can reject or select candidates with fewer follow-up lookups. Status: proposed.
 
 - [Rust CLI typo tolerant discovery](./items/rust-cli-typo-tolerant-discovery.md)
-  Track a deliberate fuzzy-name or suggestion path for misspelled canonical names without weakening strict record resolution. Status: proposed.
+  Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
 
 - [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
   Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage. Status: proposed.

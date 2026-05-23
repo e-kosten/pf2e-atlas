@@ -34,10 +34,10 @@ pub fn apply_document_embedding_token_budget(
         "applying document embedding truncation budget"
     );
     info!(target: "atlas_progress",
-        phase = "document_embedding_tokenization",
+        phase = "document_embedding_truncation",
         current = 0_u64,
         total = truncated_count as u64,
-        "Fitting embedding inputs to model limit"
+        "Truncating over-limit embedding inputs"
     );
     let mut processed_truncated = 0;
     let progress_interval = token_budget_progress_interval(truncated_count);
@@ -62,10 +62,10 @@ pub fn apply_document_embedding_token_budget(
                 "applied document embedding truncation budget batch"
             );
             info!(target: "atlas_progress",
-                phase = "document_embedding_tokenization",
+                phase = "document_embedding_truncation",
                 current = processed_truncated as u64,
                 total = truncated_count as u64,
-                "Fitting embedding inputs to model limit"
+                "Truncating over-limit embedding inputs"
             );
         }
     }

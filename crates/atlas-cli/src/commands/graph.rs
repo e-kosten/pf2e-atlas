@@ -8,8 +8,8 @@ use atlas_search::{
 };
 use serde::Serialize;
 
-use crate::GraphGetOptions;
 use crate::output::{write_json_data, write_json_error};
+use crate::{CliIndexBackend, GraphGetOptions};
 
 use super::record::{open_record_service, record_runtime, search_error, search_error_code};
 
@@ -65,7 +65,7 @@ pub(crate) fn run_graph_get(options: GraphGetOptions) -> Result<ExitCode, String
             return Err(format!("invalid record key `{}`: {error}", options.key));
         }
     };
-    let runtime = match record_runtime(options.path_mode.into(), options.index) {
+    let runtime = match record_runtime(options.path_mode.into(), options.index, None) {
         Ok(runtime) => runtime,
         Err(error) if options.json => {
             write_json_error("runtime_error", error)?;
@@ -73,7 +73,7 @@ pub(crate) fn run_graph_get(options: GraphGetOptions) -> Result<ExitCode, String
         }
         Err(error) => return Err(error),
     };
-    let service = match open_record_service(&runtime) {
+    let service = match open_record_service(&runtime, CliIndexBackend::Sqlite) {
         Ok(service) => service,
         Err(error) if options.json => {
             write_json_error("index_unavailable", error)?;

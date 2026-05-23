@@ -79,12 +79,13 @@ pub(crate) fn load_foundry_source_records(
         let pack_name = PackName::new(manifest_pack.name.clone()).map_err(|error| {
             IngestError::ManifestParseFailed(format!("invalid pack name: {error}"))
         })?;
+        let pack_label = source_pack_progress_label(&manifest_pack);
         info!(target: "atlas_progress",
             phase = "source_packs",
             current = pack_number as u64,
             total = manifest_pack_count as u64,
             "Scanning source pack: {pack}",
-            pack = manifest_pack.name.as_str()
+            pack = pack_label
         );
         let discover_started_at = Instant::now();
         let paths = json_files(&resolved_path)?;
@@ -94,7 +95,7 @@ pub(crate) fn load_foundry_source_records(
             current = pack_number as u64,
             total = manifest_pack_count as u64,
             "Loading source pack: {pack} (0/{files})",
-            pack = manifest_pack.name.as_str(),
+            pack = pack_label,
             files = paths.len()
         );
         let record_start = records.len();
@@ -148,7 +149,7 @@ pub(crate) fn load_foundry_source_records(
                     current = pack_number as u64,
                     total = manifest_pack_count as u64,
                     "Loading source pack: {pack} ({processed}/{files})",
-                    pack = manifest_pack.name.as_str(),
+                    pack = pack_label,
                     files = paths.len()
                 );
             }
@@ -159,8 +160,8 @@ pub(crate) fn load_foundry_source_records(
             phase = "source_packs",
             current = pack_number as u64,
             total = manifest_pack_count as u64,
-            "Finished source pack: {pack} ({record_count} records)",
-            pack = manifest_pack.name.as_str()
+            "Loading source pack: {pack} ({record_count} records loaded)",
+            pack = pack_label
         );
         if record_count > 0 {
             packs.push(LoadedPack {
@@ -211,6 +212,14 @@ pub(crate) fn load_foundry_source_records(
         skipped_records,
         warnings,
     })
+}
+
+fn source_pack_progress_label(pack: &ManifestPack) -> &str {
+    if pack.label.trim().is_empty() {
+        pack.name.as_str()
+    } else {
+        pack.label.as_str()
+    }
 }
 
 fn collect_content_parse_diagnostics(

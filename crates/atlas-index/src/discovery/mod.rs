@@ -16,8 +16,9 @@ pub(crate) fn list_filter_fields(
     connection: &Connection,
     filter: Option<&SearchFilterNode>,
     filter_json: Option<serde_json::Value>,
+    force_dynamic: bool,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
-    request::list_filter_fields(connection, filter, filter_json)
+    request::list_filter_fields(connection, filter, filter_json, force_dynamic)
 }
 
 pub(crate) fn list_filter_values(

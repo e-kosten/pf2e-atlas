@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use atlas_artifact::schema::{record_aliases, records as record_table};
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
+use rusqlite::types::Value;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 
 use crate::discovery::{self, DiscoveryError, FilterValueRequest};
@@ -21,6 +23,23 @@ use crate::{
 pub struct AtlasIndex {
     path: PathBuf,
     connection: Connection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordIdentityMatchKind {
+    Name,
+    NormalizedName,
+    Alias,
+    VariantName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordIdentityMatch {
+    pub record_key: RecordKey,
+    pub match_kind: RecordIdentityMatchKind,
+    pub matched_text: String,
+    pub alias_source: Option<String>,
+    pub alias_source_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -253,6 +272,162 @@ impl AtlasIndex {
         records::load_persisted_record_set_from_connection(&self.connection)
     }
 
+    pub fn resolve_record_identity_matches(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+        let exact = self.resolve_record_identity_matches_for_record_field(
+            RecordIdentityMatchKind::Name,
+            record_table::columns::NAME.name(),
+            query,
+            None,
+            filter,
+        )?;
+        if !exact.is_empty() {
+            return Ok(exact);
+        }
+
+        let normalized = self.resolve_record_identity_matches_for_record_field(
+            RecordIdentityMatchKind::NormalizedName,
+            record_table::columns::NORMALIZED_NAME.name(),
+            normalized_query,
+            Some(format!(
+                "{} IS NULL",
+                record_table::columns::VARIANT_LABEL.name()
+            )),
+            filter,
+        )?;
+        if !normalized.is_empty() {
+            return Ok(normalized);
+        }
+
+        let alias = self.resolve_alias_identity_matches(normalized_query, filter)?;
+        if !alias.is_empty() {
+            return Ok(alias);
+        }
+
+        self.resolve_record_identity_matches_for_record_field(
+            RecordIdentityMatchKind::VariantName,
+            record_table::columns::NORMALIZED_NAME.name(),
+            normalized_query,
+            Some(format!(
+                "{} IS NOT NULL",
+                record_table::columns::VARIANT_LABEL.name()
+            )),
+            filter,
+        )
+    }
+
+    fn resolve_record_identity_matches_for_record_field(
+        &self,
+        match_kind: RecordIdentityMatchKind,
+        column: &str,
+        value: &str,
+        extra_predicate: Option<String>,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+        let eligible = compile_eligible_records_query(filter)?;
+        let mut parameters = eligible.parameters;
+        parameters.push(Value::Text(value.to_string()));
+        let value_placeholder = format!("?{}", parameters.len());
+        let extra_predicate = extra_predicate
+            .map(|predicate| format!(" AND {predicate}"))
+            .unwrap_or_default();
+        let matched_expression = match match_kind {
+            RecordIdentityMatchKind::Name => record_table::columns::NAME.name(),
+            _ => record_table::columns::NORMALIZED_NAME.name(),
+        };
+        let sql = format!(
+            "WITH eligible(record_key) AS ({})
+             SELECT r.{record_key}, r.{matched_expression}
+             FROM {records_table} r
+             JOIN eligible e ON e.record_key = r.{record_key}
+             WHERE r.{column} = {value_placeholder}{extra_predicate}
+             ORDER BY r.{record_key}",
+            eligible.sql,
+            record_key = record_table::columns::RECORD_KEY.name(),
+            records_table = record_table::TABLE.name(),
+        );
+        let mut statement = self.connection.prepare(&sql).map_err(|error| {
+            FilterCompileError::QueryFailed(format!("record identity query failed: {error}"))
+        })?;
+        let rows = statement
+            .query_map(params_from_iter(parameters), |row| {
+                Ok(RecordIdentityMatch {
+                    record_key: RecordKey::parse(&row.get::<_, String>(0)?).map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            0,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?,
+                    match_kind,
+                    matched_text: row.get(1)?,
+                    alias_source: None,
+                    alias_source_ref: None,
+                })
+            })
+            .map_err(|error| {
+                FilterCompileError::QueryFailed(format!("record identity query failed: {error}"))
+            })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|error| {
+            FilterCompileError::QueryFailed(format!("record identity query failed: {error}"))
+        })
+    }
+
+    fn resolve_alias_identity_matches(
+        &self,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+        let eligible = compile_eligible_records_query(filter)?;
+        let mut parameters = eligible.parameters;
+        parameters.push(Value::Text(normalized_query.to_string()));
+        let value_placeholder = format!("?{}", parameters.len());
+        let sql = format!(
+            "WITH eligible(record_key) AS ({})
+             SELECT a.{canonical_record_key}, a.{alias_text}, a.{source_kind}, a.{source_ref}
+             FROM {aliases_table} a
+             JOIN eligible e ON e.record_key = a.{canonical_record_key}
+             WHERE a.{normalized_alias} = {value_placeholder}
+             ORDER BY a.{canonical_record_key}, a.{alias_text}",
+            eligible.sql,
+            aliases_table = record_aliases::TABLE.name(),
+            canonical_record_key = record_aliases::columns::CANONICAL_RECORD_KEY.name(),
+            alias_text = record_aliases::columns::ALIAS_TEXT.name(),
+            normalized_alias = record_aliases::columns::NORMALIZED_ALIAS.name(),
+            source_kind = record_aliases::columns::SOURCE_KIND.name(),
+            source_ref = record_aliases::columns::SOURCE_REF.name(),
+        );
+        let mut statement = self.connection.prepare(&sql).map_err(|error| {
+            FilterCompileError::QueryFailed(format!("record alias query failed: {error}"))
+        })?;
+        let rows = statement
+            .query_map(params_from_iter(parameters), |row| {
+                Ok(RecordIdentityMatch {
+                    record_key: RecordKey::parse(&row.get::<_, String>(0)?).map_err(|error| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            0,
+                            rusqlite::types::Type::Text,
+                            Box::new(error),
+                        )
+                    })?,
+                    match_kind: RecordIdentityMatchKind::Alias,
+                    matched_text: row.get(1)?,
+                    alias_source: Some(row.get(2)?),
+                    alias_source_ref: Some(row.get(3)?),
+                })
+            })
+            .map_err(|error| {
+                FilterCompileError::QueryFailed(format!("record alias query failed: {error}"))
+            })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|error| {
+            FilterCompileError::QueryFailed(format!("record alias query failed: {error}"))
+        })
+    }
+
     pub fn load_records_by_key(
         &self,
         keys: &[RecordKey],
@@ -272,8 +447,9 @@ impl AtlasIndex {
         &self,
         filter: Option<&SearchFilterNode>,
         filter_json: Option<serde_json::Value>,
+        force_dynamic: bool,
     ) -> Result<FilterFieldDiscovery, DiscoveryError> {
-        discovery::list_filter_fields(&self.connection, filter, filter_json)
+        discovery::list_filter_fields(&self.connection, filter, filter_json, force_dynamic)
     }
 
     pub fn list_filter_values(

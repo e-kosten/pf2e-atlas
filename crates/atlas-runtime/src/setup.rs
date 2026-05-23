@@ -259,6 +259,7 @@ pub(crate) fn ensure_setup(
                 },
                 reuse_embeddings: true,
                 embedding_batch_size: options.embedding_batch_size,
+                ladybug_output_path: None,
             }) {
                 Ok(report) => {
                     actions.push(SetupAction::new(
@@ -569,7 +570,14 @@ impl From<BuildArtifactReport> for SetupBuildReport {
             source_record_count: report.source_record_count,
             artifact_record_count: report.artifact_record_count,
             generated_record_count: report.generated_record_count,
+            pending_document_embedding_count: report.pending_document_embedding_count,
             document_embedding_count: report.document_embedding_count,
+            reused_document_embedding_count: report.reused_document_embedding_count,
+            generated_document_embedding_count: report.generated_document_embedding_count,
+            build_duration_ms: report.build_duration_ms,
+            embedding_tokenization_duration_ms: report.embedding_timing.tokenization_duration_ms,
+            embedding_model_load_duration_ms: report.embedding_timing.model_load_duration_ms,
+            embedding_generation_duration_ms: report.embedding_timing.generation_duration_ms,
         }
     }
 }
