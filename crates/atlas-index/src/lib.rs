@@ -43,8 +43,8 @@ pub use relationship_edges::GraphReferenceEdge;
 pub use search::{RecordResolutionMatchKind, RecordResolutionResult, SearchError, SearchIndex};
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
-    RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection, SqliteIndexReader,
-    SqliteIndexWriter,
+    FtsSearchLane, RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection,
+    SqliteIndexReader, SqliteIndexWriter,
 };
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,

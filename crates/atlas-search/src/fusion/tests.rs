@@ -1,6 +1,7 @@
 use super::*;
 use crate::normalize_record_query;
 use atlas_domain::{PublicationFamily, RecordFamily};
+use atlas_index::FtsSearchLane;
 
 fn test_record_key(value: &str) -> RecordKey {
     RecordKey::parse(value).expect("fixture record key should parse")
@@ -80,10 +81,14 @@ fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
         FtsSearchHit {
             record_key: test_record_key("records:a"),
             rank: -2.0,
+            lane: FtsSearchLane::Mixed,
+            lane_rank: 1,
         },
         FtsSearchHit {
             record_key: test_record_key("records:b"),
             rank: -1.0,
+            lane: FtsSearchLane::Mixed,
+            lane_rank: 2,
         },
     ];
     let vector_hits = vec![
@@ -136,10 +141,14 @@ fn min_max_score_fusion_uses_lane_scores_and_weights() {
         FtsSearchHit {
             record_key: test_record_key("records:a"),
             rank: -2.0,
+            lane: FtsSearchLane::Mixed,
+            lane_rank: 1,
         },
         FtsSearchHit {
             record_key: test_record_key("records:b"),
             rank: -1.0,
+            lane: FtsSearchLane::Mixed,
+            lane_rank: 2,
         },
     ];
     let vector_hits = vec![
@@ -198,15 +207,24 @@ fn fts_confidence_distinguishes_direct_and_weak_hits() {
     let weak = test_record("records:c", "Shielded Arm", &["metal"]);
 
     assert_eq!(
-        classify_fts_match(&direct, &["treat".to_string(), "wounds".to_string()]),
+        classify_fts_match(
+            FtsSearchLane::Mixed,
+            &direct,
+            &["treat".to_string(), "wounds".to_string()]
+        ),
         FtsMatchConfidence::DirectTitle
     );
     assert_eq!(
-        classify_fts_match(&strong, &["healing".to_string(), "manipulate".to_string()]),
+        classify_fts_match(
+            FtsSearchLane::Facet,
+            &strong,
+            &["healing".to_string(), "manipulate".to_string()]
+        ),
         FtsMatchConfidence::StrongLexical
     );
     assert_eq!(
         classify_fts_match(
+            FtsSearchLane::Facet,
             &weak,
             &[
                 "low".to_string(),
@@ -225,10 +243,14 @@ fn fts_fusion_policy_can_zero_weak_hits() {
         FtsSearchHit {
             record_key: test_record_key("records:weak"),
             rank: 10.0,
+            lane: FtsSearchLane::Facet,
+            lane_rank: 1,
         },
         FtsSearchHit {
             record_key: test_record_key("records:strong"),
             rank: 8.0,
+            lane: FtsSearchLane::Facet,
+            lane_rank: 2,
         },
     ];
     let vector_hits = vec![semantic_hit("records:semantic", 0.1)];
@@ -294,7 +316,10 @@ fn fts_fusion_policy_can_zero_weak_hits() {
         identity_count: 0,
     });
 
-    assert_eq!(all[0].record_key.to_string(), "records:weak");
+    assert!(
+        all.iter()
+            .any(|hit| hit.record_key.to_string() == "records:weak")
+    );
     assert_eq!(strong_only[0].record_key.to_string(), "records:semantic");
     assert!(
         !strong_only

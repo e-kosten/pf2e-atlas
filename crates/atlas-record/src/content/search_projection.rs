@@ -10,6 +10,7 @@ pub struct RecordFtsProjection {
     pub title: String,
     pub aliases: String,
     pub traits: String,
+    pub precision_terms: String,
     pub taxonomy_terms: String,
     pub constraint_terms: String,
     pub mechanic_terms: String,
@@ -30,6 +31,7 @@ pub fn build_record_fts_projection(
         title: record.name.clone(),
         aliases: aliases.join("\n"),
         traits: record.traits.join(" "),
+        precision_terms: precision_terms(record),
         ..RecordFtsProjection::default()
     };
     append_structured_terms(record, &mut projection);
@@ -52,6 +54,13 @@ pub fn build_record_fts_projection(
     }
 
     projection
+}
+
+fn precision_terms(record: &NormalizedRecord) -> String {
+    let mut terms = TermCollector::default();
+    terms.add_slug(record.record_family.as_str());
+    terms.add_slug(&record.foundry_record_type);
+    terms.render()
 }
 
 fn append_structured_terms(record: &NormalizedRecord, projection: &mut RecordFtsProjection) {
@@ -395,6 +404,7 @@ mod tests {
         assert_eq!(projection.title, "Test Record");
         assert_eq!(projection.aliases, "Alias");
         assert_eq!(projection.traits, "healing vitality");
+        assert_eq!(projection.precision_terms, "spell");
         assert_eq!(projection.headings, "Effect");
         assert_eq!(projection.body, "Effect\nMain body");
         assert_eq!(projection.facts, "Disable text");
@@ -472,6 +482,7 @@ mod tests {
         let projection = build_record_fts_projection(&record, &[]);
 
         assert_eq!(projection.traits, "healing vitality");
+        assert_eq!(projection.precision_terms, "spell");
         assert!(projection.taxonomy_terms.contains("focus spell"));
         assert!(projection.taxonomy_terms.contains("weapon"));
         assert!(projection.constraint_terms.contains("expert in Medicine"));

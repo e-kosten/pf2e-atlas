@@ -10,7 +10,7 @@ use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
 };
-use crate::sqlite::{FtsColumnWeights, FtsQuery, FtsSearchHit};
+use crate::sqlite::{FtsColumnWeights, FtsQuery, FtsSearchHit, FtsSearchLane};
 
 pub(crate) fn query_fts_index(
     connection: &Connection,
@@ -59,9 +59,12 @@ pub(crate) fn query_fts_index(
     hits.truncate(limit as usize);
     Ok(hits
         .into_iter()
-        .map(|hit| FtsSearchHit {
+        .enumerate()
+        .map(|(index, hit)| FtsSearchHit {
             record_key: hit.record_key,
             rank: hit.rank,
+            lane: FtsSearchLane::Mixed,
+            lane_rank: (index + 1) as u32,
         })
         .collect())
 }

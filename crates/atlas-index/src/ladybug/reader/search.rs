@@ -1,4 +1,4 @@
-use crate::{FtsQuery, FtsSearchHit, VectorSearchHit};
+use crate::{FtsQuery, FtsSearchHit, FtsSearchLane, VectorSearchHit};
 use atlas_domain::{RecordKey, SearchFilterNode};
 
 use super::filter::compile_scope;
@@ -18,9 +18,35 @@ impl LadybugIndexReader {
         if limit == 0 {
             return Ok(Vec::new());
         }
+        let mut hits = Vec::new();
+        hits.extend(self.query_search_document_fts_lane(
+            "search_document_title_alias_fts",
+            FtsSearchLane::TitleAlias,
+            fts_query,
+            filter,
+            limit,
+        )?);
+        hits.extend(self.query_search_document_fts_lane(
+            "search_document_facet_fts",
+            FtsSearchLane::Facet,
+            fts_query,
+            filter,
+            limit,
+        )?);
+        Ok(hits)
+    }
+
+    fn query_search_document_fts_lane(
+        &self,
+        index_name: &str,
+        lane: FtsSearchLane,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+    ) -> Result<Vec<FtsSearchHit>, LadybugIndexReaderError> {
         let scope = compile_scope(filter)?;
         let sql = format!(
-            "CALL QUERY_FTS_INDEX('SearchDocument', 'search_document_fts', {}, top := {})
+            "CALL QUERY_FTS_INDEX('SearchDocument', {}, {}, top := {})
              WITH node AS doc, score
              MATCH (record:Record)-[:HAS_SEARCH_DOCUMENT]->(doc)
              {}
@@ -28,6 +54,7 @@ impl LadybugIndexReader {
              RETURN record.record_key, score
              ORDER BY score DESC
              LIMIT {};",
+            string_literal(index_name),
             string_literal(&fts_query.as_match_query()),
             limit,
             scope.optional_match_suffix("record"),
@@ -36,10 +63,13 @@ impl LadybugIndexReader {
         );
         query_rows(&self.connection, &sql)?
             .iter()
-            .map(|row| {
+            .enumerate()
+            .map(|(index, row)| {
                 Ok(FtsSearchHit {
                     record_key: record_key_at(row, 0)?,
                     rank: float_at(row, 1)?,
+                    lane,
+                    lane_rank: (index + 1) as u32,
                 })
             })
             .collect()
@@ -53,20 +83,32 @@ impl LadybugIndexReader {
         if candidate_keys.is_empty() {
             return Ok(Vec::new());
         }
-        let sql = format!(
-            "CALL QUERY_FTS_INDEX('SearchDocument', 'search_document_fts', {}, top := {})
-             WITH node AS doc, score
-             MATCH (record:Record)-[:HAS_SEARCH_DOCUMENT]->(doc)
-             WHERE record.record_key IN {}
-             RETURN DISTINCT record.record_key;",
-            string_literal(&fts_query.as_match_query()),
-            candidate_keys.len(),
-            list_literal(candidate_keys.iter().map(ToString::to_string))
-        );
-        query_rows(&self.connection, &sql)?
-            .iter()
-            .map(|row| record_key_at(row, 0))
-            .collect()
+        let mut keys = Vec::new();
+        for index_name in [
+            "search_document_title_alias_fts",
+            "search_document_facet_fts",
+        ] {
+            let sql = format!(
+                "CALL QUERY_FTS_INDEX('SearchDocument', {}, {}, top := {})
+                 WITH node AS doc, score
+                 MATCH (record:Record)-[:HAS_SEARCH_DOCUMENT]->(doc)
+                 WHERE record.record_key IN {}
+                 RETURN DISTINCT record.record_key;",
+                string_literal(index_name),
+                string_literal(&fts_query.as_match_query()),
+                candidate_keys.len(),
+                list_literal(candidate_keys.iter().map(ToString::to_string))
+            );
+            keys.extend(
+                query_rows(&self.connection, &sql)?
+                    .iter()
+                    .map(|row| record_key_at(row, 0))
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
+        keys.sort();
+        keys.dedup();
+        Ok(keys)
     }
 
     pub(crate) fn query_vector_index_impl(
