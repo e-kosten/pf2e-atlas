@@ -91,6 +91,7 @@ pub struct FtsSearchHit {
     pub rank: f64,
     pub lane: FtsSearchLane,
     pub lane_rank: u32,
+    pub title_alias_texts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

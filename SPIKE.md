@@ -1324,10 +1324,12 @@ Search observations:
 - Vector-only parity remained unchanged: all vector cases in the harness still produced `10/10` top-result overlap, including all long-document semantic cases.
 - The projection behaves like a precision lane rather than a broad text lane. `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL --retrieval fts` returned no Ladybug hits because `frightened` only appears in reference/body/evidence text for those spells, not in the narrowed precision fields. This is acceptable for the precision-lane hypothesis but means body/evidence FTS must remain a separate explicit product surface if we need "search within text" behavior.
 - Lane provenance is visible in `--explain` through `fts_lane`. This exposed the important failure mode: `Practice Makes Perfect` ranked first for `low level spell that makes enemies afraid` because the title/alias lane matched only the token `makes`. The lane split tells us why the result won, but it does not by itself make weak lexical matches harmless.
-- The search eval harness now includes a `--fts-fusion-policy demote-weak` variant for the same concept query. With weak FTS votes demoted, Ladybug returned the vector ordering at the top: `Threatening Mimicry`, `Dirge of Doom`, `Menacing Lament`, `Fear`, `Horrific Visage`, with `10/10` top-result overlap against SQLite for that case.
-- Direct lexical behavior still survives demotion. `battle medicine --retrieval hybrid --fts-fusion-policy demote-weak` keeps the identity/direct-title results at the top, and the explain output shows `fts_lane: title-alias` plus `fts_confidence: direct-title` for the ranked title matches.
+- The default hybrid policy is now `demote-weak`. With weak FTS votes demoted, Ladybug returned the vector ordering at the top for `low level spell that makes enemies afraid`: `Threatening Mimicry`, `Dirge of Doom`, `Menacing Lament`, `Fear`, `Horrific Visage`, with `10/10` top-result overlap against SQLite for that case.
+- Direct lexical behavior still survives demotion. `battle medicine --retrieval hybrid` keeps the identity/direct-title results at the top, and the explain output shows `fts_lane: title-alias` plus `fts_confidence: direct-title` for the ranked title matches.
+- Hybrid fusion now carries title/alias text from FTS candidates into the search layer and applies deterministic title/alias coverage scoring before fusion. This keeps FTS as indexed candidate generation while making title-specific policy explicit in Rust. Stopword-omitted aliases and short prefixes are promoted when title/alias coverage is high, while one-token overlaps in multi-token queries stay weak.
+- The partial-title eval cases show the intended behavior: `battle med` now returns `Battle Medicine` first, `attack opportunity` returns Reactive Strike variants before generic "Opportunity" results, and `persistent damage --family spell` stays semantic-first instead of promoting `Persistent Servant`.
 
-Current interpretation: splitting FTS into title/alias and facet lanes is the right long-term shape because it gives real provenance instead of post-hoc guessing. But lane split alone is insufficient. Hybrid should pair lane provenance with confidence gating, most likely `demote-weak` or an intent-aware equivalent, so one-token title/facet matches do not overpower semantic results on natural-language queries.
+Current interpretation: splitting FTS into title/alias and facet lanes is the right long-term shape because it gives real provenance instead of post-hoc guessing. But lane split alone is insufficient. Hybrid should pair lane provenance with confidence gating, so the default now uses `demote-weak` to keep one-token title/facet matches from overpowering semantic results on natural-language queries.
 
 The spike harness now also has a broad non-FTS CLI parity mode:
 
@@ -1457,14 +1459,14 @@ Policy behavior:
 
 Current live-query read from both Ladybug and SQLite:
 
-- Direct/near-direct queries are protected by identity and direct-title evidence. `treat wounds`, `battle medicine`, and `fear --family spell` keep the direct record at the top.
+- Direct/near-direct queries are protected by identity and title/alias evidence. `treat wounds`, `battle medicine`, `fear --family spell`, `battle med`, and `attack opportunity` keep the intended title/alias records at or near the top.
 - `weighted-rrf + demote-weak` is the steadier conservative setting for title-ish and lexical queries. It cleans up obvious broad-OR noise without over-preferring semantic-only candidates.
 - `min-max-score + demote-weak` is better for natural-language concept queries. It improved `spell that makes enemies afraid --family spell`, `low level fear spell --family spell`, and `healing feat --family feat` by letting vector evidence outrank weak lexical rows.
 - `min-max-score + strong-only` is useful as a diagnostic upper bound for treating FTS as precision-only, but it can suppress medium lexical evidence too aggressively. It should not become the default without a better query-intent classifier.
 
 Most promising next shape:
 
-- Default hybrid should probably be `weighted-rrf + demote-weak`, or a tuned score fusion once query intent is understood.
+- Default hybrid is `weighted-rrf + demote-weak`; a tuned score fusion may replace it once query intent is understood.
 - Conceptual/natural-language queries should lean toward `min-max-score + demote-weak`.
 - Long-term, the retrieval layer likely needs query intent detection: exact/direct lexical queries should preserve strong FTS influence, while broad natural-language queries should demote FTS unless title/alias/high-value coverage is strong.
 
