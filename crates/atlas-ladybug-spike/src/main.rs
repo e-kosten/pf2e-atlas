@@ -18,7 +18,7 @@ mod search_eval;
 
 use atlas_cli::summarize_json;
 use cli_parity::run_cli_parity;
-use search_eval::run_search_eval;
+use search_eval::{run_search_eval, run_search_quality_matrix};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
@@ -97,6 +97,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
         return run_search_eval(&sqlite_path, &ladybug_path, &atlas_bin);
+    }
+    if mode == "search-quality-matrix" {
+        let sqlite_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.sqlite"));
+        let ladybug_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
+        let atlas_bin = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
+        return run_search_quality_matrix(&sqlite_path, &ladybug_path, &atlas_bin);
     }
     if mode == "cli-parity" {
         let sqlite_path = args

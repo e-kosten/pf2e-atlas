@@ -61,12 +61,22 @@ pub(crate) fn query_fts_index(
         .into_iter()
         .enumerate()
         .map(|(index, hit)| FtsSearchHit {
+            title_alias_texts: title_alias_texts(&hit.document),
             record_key: hit.record_key,
             rank: hit.rank,
             lane: FtsSearchLane::Mixed,
             lane_rank: (index + 1) as u32,
         })
         .collect())
+}
+
+fn title_alias_texts(document: &FtsDocument) -> Vec<String> {
+    std::iter::once(document.title.as_str())
+        .chain(document.aliases.lines())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn rerank_candidate_limit(limit: u32) -> u32 {

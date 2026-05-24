@@ -601,7 +601,7 @@ struct SearchOptions {
     retrieval: CliRetrievalMode,
     #[arg(long, value_enum, default_value_t = CliFusionMethod::WeightedRrf, help = "Fusion algorithm for hybrid retrieval")]
     fusion: CliFusionMethod,
-    #[arg(long, value_enum, default_value_t = CliFtsFusionPolicy::All, help = "Control how weak FTS candidates contribute to hybrid fusion")]
+    #[arg(long, value_enum, default_value_t = CliFtsFusionPolicy::DemoteWeak, help = "Control how weak FTS candidates contribute to hybrid fusion")]
     fts_fusion_policy: CliFtsFusionPolicy,
     #[arg(
         long,

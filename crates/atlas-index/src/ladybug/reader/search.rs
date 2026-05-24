@@ -2,7 +2,7 @@ use crate::{FtsQuery, FtsSearchHit, FtsSearchLane, VectorSearchHit};
 use atlas_domain::{RecordKey, SearchFilterNode};
 
 use super::filter::compile_scope;
-use super::row::{float_at, query_rows, record_key_at, vector_hit_from_row};
+use super::row::{float_at, query_rows, record_key_at, string_at, vector_hit_from_row};
 use super::{
     LadybugIndexReader, LadybugIndexReaderError, list_literal, stable_hash, string_literal,
     vector_literal,
@@ -51,7 +51,7 @@ impl LadybugIndexReader {
              MATCH (record:Record)-[:HAS_SEARCH_DOCUMENT]->(doc)
              {}
              {}
-             RETURN record.record_key, score
+             RETURN record.record_key, score, doc.title, doc.aliases
              ORDER BY score DESC
              LIMIT {};",
             string_literal(index_name),
@@ -70,6 +70,7 @@ impl LadybugIndexReader {
                     rank: float_at(row, 1)?,
                     lane,
                     lane_rank: (index + 1) as u32,
+                    title_alias_texts: title_alias_texts(string_at(row, 2)?, string_at(row, 3)?),
                 })
             })
             .collect()
@@ -171,4 +172,13 @@ impl LadybugIndexReader {
             .map(|row| vector_hit_from_row(row))
             .collect()
     }
+}
+
+fn title_alias_texts(title: String, aliases: String) -> Vec<String> {
+    std::iter::once(title.as_str())
+        .chain(aliases.lines())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
