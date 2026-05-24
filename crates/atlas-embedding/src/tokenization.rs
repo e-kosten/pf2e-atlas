@@ -26,6 +26,10 @@ pub struct BudgetedEmbeddingInput {
     pub chunk_diagnostics: Vec<EmbeddingChunkBudgetDiagnostic>,
 }
 
+pub(crate) struct TokenBudgetTokenizers {
+    unbounded: Tokenizer,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingSectionTruncation {
     pub section: EmbeddingInputSection,
@@ -131,20 +135,10 @@ impl TextEmbeddingTokenizer {
         &self,
         chunks: &[EmbeddingInputChunk],
     ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
-        let max_token_count = self.spec.max_input_tokens;
-        let mut budget_tokenizer = self.unbounded_tokenizer()?;
-        let special_token_overhead =
-            self.special_token_overhead_for_chunks(&mut budget_tokenizer, chunks)?;
-        let tokenized_chunks = self.tokenize_chunks(&mut budget_tokenizer, chunks)?;
-        let full_token_count =
-            self.input_token_count_from_chunks(special_token_overhead, &tokenized_chunks);
-        let Some(max_token_count) = max_token_count else {
-            let full_text = render_embedding_chunks_for_embedding(chunks);
-            let full_tokenization = self.single_text_tokenization_with(
-                &mut budget_tokenizer,
-                full_text.as_str(),
-                self.spec.document_prefix,
-            )?;
+        let full_text = render_embedding_chunks_for_embedding(chunks);
+        let mut tokenizers = self.token_budget_tokenizers()?;
+        let full_tokenization = self.analyze_document_input_with(&mut tokenizers, &full_text)?;
+        if !full_tokenization.truncated {
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
                 tokenization: full_tokenization,
@@ -152,24 +146,54 @@ impl TextEmbeddingTokenizer {
                 truncated_sections: Vec::new(),
                 chunk_diagnostics: Vec::new(),
             });
-        };
-
-        let full_tokenization = EmbeddingInputTokenization {
-            token_count: full_token_count,
-            max_token_count: Some(max_token_count),
-            truncated: full_token_count > max_token_count,
-        };
-        if !full_tokenization.truncated {
-            let full_text = render_embedding_chunks_for_embedding(chunks);
-            return Ok(BudgetedEmbeddingInput {
-                text: full_text,
-                tokenization: full_tokenization,
-                final_token_count: full_token_count,
-                truncated_sections: Vec::new(),
-                chunk_diagnostics: Vec::new(),
-            });
         }
+        self.budget_over_limit_document_input_with(&mut tokenizers, chunks, full_tokenization)
+    }
 
+    pub fn analyze_document_input(
+        &self,
+        text: &str,
+    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+        let mut tokenizers = self.token_budget_tokenizers()?;
+        self.analyze_document_input_with(&mut tokenizers, text)
+    }
+
+    pub(crate) fn analyze_document_input_with(
+        &self,
+        tokenizers: &mut TokenBudgetTokenizers,
+        text: &str,
+    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+        self.single_text_tokenization_with(
+            &mut tokenizers.unbounded,
+            text,
+            self.spec.document_prefix,
+        )
+    }
+
+    pub fn budget_over_limit_document_input(
+        &self,
+        chunks: &[EmbeddingInputChunk],
+        full_tokenization: EmbeddingInputTokenization,
+    ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
+        let mut tokenizers = self.token_budget_tokenizers()?;
+        self.budget_over_limit_document_input_with(&mut tokenizers, chunks, full_tokenization)
+    }
+
+    pub(crate) fn budget_over_limit_document_input_with(
+        &self,
+        tokenizers: &mut TokenBudgetTokenizers,
+        chunks: &[EmbeddingInputChunk],
+        full_tokenization: EmbeddingInputTokenization,
+    ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
+        let max_token_count = full_tokenization.max_token_count.ok_or_else(|| {
+            EmbeddingError::ModelRunFailed(
+                "cannot budget an over-limit document without a token limit".to_string(),
+            )
+        })?;
+        debug_assert!(full_tokenization.truncated);
+        let special_token_overhead =
+            self.special_token_overhead_for_chunks(&mut tokenizers.unbounded, chunks)?;
+        let tokenized_chunks = self.tokenize_chunks(&mut tokenizers.unbounded, chunks)?;
         let mut accepted = Vec::<(usize, EmbeddingInputChunk)>::new();
         let mut truncated_sections = Vec::<EmbeddingSectionTruncation>::new();
         let mut chunk_diagnostics = chunks
@@ -196,11 +220,15 @@ impl TextEmbeddingTokenizer {
             }
             let remaining = max_token_count.saturating_sub(estimated_token_count);
             if chunk.truncatable
-                && let Some(trimmed_chunk) =
-                    self.trim_chunk_to_token_budget(&mut budget_tokenizer, index, chunk, remaining)?
+                && let Some(trimmed_chunk) = self.trim_chunk_to_token_budget(
+                    &mut tokenizers.unbounded,
+                    index,
+                    chunk,
+                    remaining,
+                )?
             {
                 estimated_token_count += self.positioned_chunk_token_count(
-                    &mut budget_tokenizer,
+                    &mut tokenizers.unbounded,
                     index,
                     &trimmed_chunk,
                 )?;
@@ -220,7 +248,7 @@ impl TextEmbeddingTokenizer {
             .map(|(_, chunk)| chunk.clone())
             .collect::<Vec<_>>();
         let text = render_embedding_chunks_for_embedding(&accepted_chunks);
-        let token_count = self.document_token_count(&mut budget_tokenizer, &text)?;
+        let token_count = self.document_token_count(&mut tokenizers.unbounded, &text)?;
         if token_count > max_token_count {
             return Err(EmbeddingError::TokenBudgetExceeded {
                 estimated: estimated_token_count,
@@ -254,14 +282,6 @@ impl TextEmbeddingTokenizer {
                 Ok(TokenizedEmbeddingInputChunk { token_count })
             })
             .collect()
-    }
-
-    fn input_token_count_from_chunks(
-        &self,
-        special_token_overhead: usize,
-        chunks: &[TokenizedEmbeddingInputChunk],
-    ) -> usize {
-        special_token_overhead + chunks.iter().map(|chunk| chunk.token_count).sum::<usize>()
     }
 
     fn special_token_overhead_for_chunks(
@@ -300,6 +320,12 @@ impl TextEmbeddingTokenizer {
         } else {
             ("", format!("\n{}", chunk.text))
         }
+    }
+
+    pub(crate) fn token_budget_tokenizers(&self) -> Result<TokenBudgetTokenizers, EmbeddingError> {
+        Ok(TokenBudgetTokenizers {
+            unbounded: self.unbounded_tokenizer()?,
+        })
     }
 
     fn unbounded_tokenizer(&self) -> Result<Tokenizer, EmbeddingError> {
