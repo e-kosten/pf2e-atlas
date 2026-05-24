@@ -435,6 +435,7 @@ pub(crate) fn write_graph_node_parquet(
     let mut titles = Vec::new();
     let mut aliases = Vec::new();
     let mut traits = Vec::new();
+    let mut precision_terms = Vec::new();
     let mut taxonomy_terms = Vec::new();
     let mut constraint_terms = Vec::new();
     let mut mechanic_terms = Vec::new();
@@ -461,6 +462,7 @@ pub(crate) fn write_graph_node_parquet(
         titles.push(fts.title);
         aliases.push(fts.aliases);
         traits.push(fts.traits);
+        precision_terms.push(fts.precision_terms);
         taxonomy_terms.push(fts.taxonomy_terms);
         constraint_terms.push(fts.constraint_terms);
         mechanic_terms.push(fts.mechanic_terms);
@@ -480,6 +482,7 @@ pub(crate) fn write_graph_node_parquet(
             arrow_field("title", DataType::Utf8, false),
             arrow_field("aliases", DataType::Utf8, false),
             arrow_field("traits", DataType::Utf8, false),
+            arrow_field("precision_terms", DataType::Utf8, false),
             arrow_field("taxonomy_terms", DataType::Utf8, false),
             arrow_field("constraint_terms", DataType::Utf8, false),
             arrow_field("mechanic_terms", DataType::Utf8, false),
@@ -497,6 +500,7 @@ pub(crate) fn write_graph_node_parquet(
             arrow_strings(titles),
             arrow_strings(aliases),
             arrow_strings(traits),
+            arrow_strings(precision_terms),
             arrow_strings(taxonomy_terms),
             arrow_strings(constraint_terms),
             arrow_strings(mechanic_terms),

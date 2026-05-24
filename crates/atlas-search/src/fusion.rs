@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::FtsSearchHit;
+use atlas_index::{FtsSearchHit, FtsSearchLane};
 use atlas_record::PersistedRecord;
 use serde::{Deserialize, Serialize};
 
@@ -89,6 +89,7 @@ pub struct TextSearchExplain {
     pub fused_score: Option<f64>,
     pub fts_rank: Option<u32>,
     pub fts_score: Option<f64>,
+    pub fts_lane: Option<FtsSearchLane>,
     pub fts_confidence: Option<FtsMatchConfidence>,
     pub vector_rank: Option<u32>,
     pub vector_distance: Option<f64>,
@@ -130,6 +131,7 @@ struct FusionAccumulator {
     fused_score: f64,
     fts_rank: Option<u32>,
     fts_score: Option<f64>,
+    fts_lane: Option<FtsSearchLane>,
     fts_confidence: Option<FtsMatchConfidence>,
     vector_rank: Option<u32>,
     vector_distance: Option<f64>,
@@ -156,24 +158,22 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
     let mut by_key = BTreeMap::<RecordKey, FusionAccumulator>::new();
     if input.retrieval.uses_fts() {
         let fts_score_range = lane_score_range(input.fts_hits.iter().map(|hit| hit.rank));
-        for (index, hit) in input.fts_hits.iter().enumerate() {
+        for hit in input.fts_hits {
             if input.identity_keys.contains(&hit.record_key)
                 || input.excluded_keys.contains(&hit.record_key)
             {
                 continue;
             }
-            let rank = (index + 1) as u32;
+            let rank = hit.lane_rank.max(1);
             let entry = by_key
                 .entry(hit.record_key.clone())
                 .or_insert_with(|| FusionAccumulator::new(hit.record_key.clone()));
-            entry.fts_rank = Some(rank);
-            entry.fts_score = Some(hit.rank);
             let confidence = input
                 .records_by_key
                 .get(&hit.record_key)
-                .map(|record| classify_fts_match(record, input.fts_tokens))
+                .map(|record| classify_fts_match(hit.lane, record, input.fts_tokens))
                 .unwrap_or(FtsMatchConfidence::WeakLexical);
-            entry.fts_confidence = Some(confidence);
+            entry.record_best_fts_explain(rank, hit.rank, hit.lane, confidence);
             entry.fused_score += input.fusion.fts_policy.apply(
                 confidence,
                 lane_fusion_score(
@@ -181,7 +181,7 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                     hit.rank,
                     fts_score_range,
                     input.fusion,
-                    input.fusion.fts_weight,
+                    input.fusion.fts_weight * fts_lane_weight(hit.lane),
                 ),
             );
         }
@@ -234,6 +234,7 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 fused_score: Some(hit.fused_score),
                 fts_rank: hit.fts_rank,
                 fts_score: hit.fts_score,
+                fts_lane: hit.fts_lane,
                 fts_confidence: hit.fts_confidence,
                 vector_rank: hit.vector_rank,
                 vector_distance: hit.vector_distance,
@@ -262,6 +263,7 @@ pub(crate) fn identity_explain(index: usize) -> TextSearchExplain {
         fused_score: None,
         fts_rank: None,
         fts_score: None,
+        fts_lane: None,
         fts_confidence: None,
         vector_rank: None,
         vector_distance: None,
@@ -279,6 +281,7 @@ impl FusionAccumulator {
             fused_score: 0.0,
             fts_rank: None,
             fts_score: None,
+            fts_lane: None,
             fts_confidence: None,
             vector_rank: None,
             vector_distance: None,
@@ -287,6 +290,46 @@ impl FusionAccumulator {
             vector_label: None,
             vector_embedding_unit_key: None,
         }
+    }
+
+    fn record_best_fts_explain(
+        &mut self,
+        rank: u32,
+        score: f64,
+        lane: FtsSearchLane,
+        confidence: FtsMatchConfidence,
+    ) {
+        let should_replace = match (self.fts_confidence, self.fts_rank) {
+            (None, _) => true,
+            (Some(current_confidence), Some(current_rank)) => {
+                confidence_score(confidence) > confidence_score(current_confidence)
+                    || (confidence_score(confidence) == confidence_score(current_confidence)
+                        && rank < current_rank)
+            }
+            (Some(_), None) => true,
+        };
+        if should_replace {
+            self.fts_rank = Some(rank);
+            self.fts_score = Some(score);
+            self.fts_lane = Some(lane);
+            self.fts_confidence = Some(confidence);
+        }
+    }
+}
+
+fn confidence_score(confidence: FtsMatchConfidence) -> u8 {
+    match confidence {
+        FtsMatchConfidence::DirectTitle => 4,
+        FtsMatchConfidence::StrongLexical => 3,
+        FtsMatchConfidence::MediumLexical => 2,
+        FtsMatchConfidence::WeakLexical => 1,
+    }
+}
+
+fn fts_lane_weight(lane: FtsSearchLane) -> f64 {
+    match lane {
+        FtsSearchLane::Mixed | FtsSearchLane::TitleAlias => 1.0,
+        FtsSearchLane::Facet => 0.35,
     }
 }
 
@@ -357,6 +400,7 @@ fn lane_min_max_score(raw_score: f64, score_range: Option<LaneScoreRange>) -> Op
 }
 
 pub(crate) fn classify_fts_match(
+    lane: FtsSearchLane,
     record: &PersistedRecord,
     query_tokens: &[String],
 ) -> FtsMatchConfidence {
@@ -375,6 +419,13 @@ pub(crate) fn classify_fts_match(
     let query_covers_title = token_coverage(&title_token_refs, &query_tokens);
     if title_coverage >= 1.0 || query_covers_title >= 1.0 {
         return FtsMatchConfidence::DirectTitle;
+    }
+    if lane == FtsSearchLane::TitleAlias {
+        return if title_coverage >= 0.5 || query_covers_title >= 0.5 {
+            FtsMatchConfidence::StrongLexical
+        } else {
+            FtsMatchConfidence::WeakLexical
+        };
     }
 
     let high_value_tokens = high_value_record_tokens(record);

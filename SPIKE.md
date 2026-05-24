@@ -1148,10 +1148,13 @@ LBUG_RUST_BUILD_FROM_SOURCE=1 cargo run -p atlas-ladybug-spike -- baseline-parit
 Observed build details:
 
 - SQLite/Ladybug build wrote `29,674` records.
-- Embedding generation produced `29,379` document embeddings.
-- `584` embedding inputs were truncated at `max_tokens=512`; the maximum observed token count was `1,736`.
-- Ladybug checkpoint completed in about `122.7s` after the Ladybug write phase.
-- Total embedding build duration was about `1,084.8s`.
+- Current fresh run produced `29,178` document embeddings, all reused from the SQLite cache.
+- The build reported `cache_backend=sqlite`, `cache_path=.cache/ladybug-spike/with-embeddings.sqlite`, `generated=0`, and `embedding_generation=26ms`.
+- `1,005` embedding inputs were truncated at `max_tokens=512`; the maximum observed token count was `1,764`.
+- Total build duration was about `5m 11.6s`, including about `1m 32.4s` of embedding tokenization.
+- Ladybug checkpoint completed in about `2m 15s` after the Ladybug write/index phase.
+
+Previous full embedding builds produced `29,379` document embeddings with `584` truncated inputs. The lower current document count and higher truncation count are expected after the token-aware parent/child chunking change; the parity harness below is the guard for whether those semantic-shape changes preserved search behavior.
 
 Semantic/vector parity results:
 
@@ -1266,10 +1269,10 @@ Initial search parity result against `.cache/ladybug-spike/with-embeddings.*`:
 
 - Direct lexical title quality is preserved. `battle medicine` returned `Battle Medicine` first on both backends, with `8/10` top-result overlap. Ladybug was faster in this single CLI run, but the main conclusion is that direct title behavior survived.
 - Filtered lexical spell quality is preserved for the direct hit. `fear --family spell --max-level 3` returned `Fear` first on both backends. Result totals differed materially: SQLite reported `26`, Ladybug reported `6`. Treat this as an FTS/filter semantics question, not only a speed question.
-- Semantic/vector concept search is the strongest parity result. `low level spell that makes enemies afraid --family spell --max-level 3 --retrieval vector` returned the same top five and `10/10` top-result overlap on both backends. `Dirge of Doom` and `Fear` appeared at positions `2` and `3` in both.
+- Semantic/vector concept search is the strongest parity result. `low level spell that makes enemies afraid --family spell --max-level 3 --retrieval vector` returned the same top five and `10/10` top-result overlap on both backends. In the fresh chunking run, `Dirge of Doom`, `Menacing Lament`, and `Fear` appeared at positions `2`, `3`, and `4` in both.
 - Realistic structured vector-only search is now parity-clean. `healing spell --family spell --max-level 3 --trait healing --retrieval vector`, `high armor creature --family creature --metric ac.value>=25 --retrieval vector`, `fear --family spell --publication-title "Pathfinder Player Core" --retrieval vector`, and `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL --retrieval vector` all produced `10/10` top-result overlap between SQLite and Ladybug. The metric case had minor near-tie ordering differences, but the candidate set matched.
-- Long-document vector search now has explicit baseline cases before changing chunk budgeting. The harness includes known over-limit embedding inputs for `Earn Income`, `Spell Repertoire`, `Revolutionary Innovation`, `Soulforger Dedication`, `Avatar`, and `Frost Drake`. In the current `.cache/ladybug-spike/with-embeddings.*` run, five of six long-document cases produced `10/10` top-result overlap between SQLite and Ladybug. The worst over-limit class-feature case produced `9/10` overlap, with the expected `Spell Repertoire` record at position `3` in SQLite and position `2` in Ladybug. These cases should be rerun before and after any token-budget or chunk-priority change.
-- Hybrid concept search is not yet parity-clean. The same query under `--retrieval hybrid` had only `1/10` top-result overlap. SQLite kept `Menacing Lament`, `Dirge of Doom`, and related fear spells near the top; Ladybug put weak lexical-looking results such as `Shadow Projectile`, `Curse of Recoil`, `Biting Words`, and `Shielded Arm` above the strong semantic results. This reinforces the FTS/RRF risk: Ladybug hybrid quality depends on lexical confidence gating, score fusion tuning, or query-intent-aware FTS weighting.
+- Long-document vector search now has explicit baseline cases before changing chunk budgeting. The harness includes known over-limit embedding inputs for `Earn Income`, `Spell Repertoire`, `Revolutionary Innovation`, `Soulforger Dedication`, `Avatar`, and `Frost Drake`. In the fresh chunking run, all six long-document cases produced `10/10` top-result overlap between SQLite and Ladybug. The expected records appeared at the same ranks in both backends: `Earn Income` `@1`, `Spell Repertoire` `@2`, `Revolutionary Innovation` `@1`, `Soulforger Dedication` `@2`, `Avatar` `@1`, and `Frost Drake` `@1`.
+- Hybrid concept search is not yet parity-clean. The same query under `--retrieval hybrid` had only `2/10` top-result overlap. SQLite kept `Menacing Lament`, `Dirge of Doom`, and related fear spells near the top; Ladybug put weak lexical-looking results such as `Shadow Projectile`, `Biting Words`, `Curse of Recoil`, and `Humanoid Form` above the strong semantic results. This reinforces the FTS/RRF risk: Ladybug hybrid quality depends on lexical confidence gating, score fusion tuning, or query-intent-aware FTS weighting.
 - Actual CLI hybrid search now works for relationship-backed structured vector filters after changing the Ladybug reader to build a single coherent projected-graph pattern for `Record -> EmbeddingUnit` plus relationship filters. `healing spell --family spell --max-level 3 --trait healing --retrieval hybrid` and `high armor creature --family creature --metric ac.value>=25 --retrieval hybrid` both return results instead of failing in the vector lane. The remaining issue is ranking/result parity, not basic execution.
 - Publication-filtered lexical search preserves the direct hit. `fear --family spell --publication-title "Pathfinder Player Core"` returned `Fear` first on both backends, but SQLite reported `13` total results and Ladybug reported `3`.
 - Reference-derived FTS filtering is promising. `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL` produced `9/10` top-result overlap, with different ordering and totals (`63` SQLite vs `34` Ladybug).
@@ -1280,6 +1283,51 @@ Current search-quality read:
 - Ladybug FTS is good enough for direct/title-ish entry points in these cases, but result totals and ranking semantics differ from SQLite enough that it needs explicit quality tuning before it can be the only lexical backend.
 - Ladybug hybrid search is currently the weakest search surface. The issue is not just performance; weak lexical candidates can dominate or distort hybrid ranking unless the FTS lane is treated as precision-oriented evidence.
 - The next blocker is search quality, especially hybrid ranking and FTS candidate semantics. Vector-only results are strong; the major remaining divergence appears when the lexical lane participates.
+
+### Three-Lane Precision FTS Experiment
+
+The Ladybug `SearchDocument` FTS path was split from one mixed index into two explicit lexical lanes:
+
+- `search_document_title_alias_fts`: `title`, `aliases`;
+- `search_document_facet_fts`: `traits`, `precision_terms`, currently record family plus Foundry record type;
+- vector search remains the third lane for concept recall.
+
+The broader `SearchDocument` fields remain stored on the graph node for future experiments, but they no longer participate in the Ladybug `atlas search` FTS path. This intentionally removes body, facts, references, headings, metric terms, source terms, embedded content, and broad mechanical terms from the FTS lanes used by hybrid search.
+
+Fresh experiment command:
+
+```bash
+LBUG_RUST_BUILD_FROM_SOURCE=1 ATLAS_LADYBUG_CREATE_SEARCH_INDEXES=1 \
+  cargo run -p atlas-cli -- index build --progress always \
+  --source /Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/vendor/pf2e \
+  --output .cache/ladybug-spike/with-embeddings.sqlite \
+  --ladybug-output .cache/ladybug-spike/with-embeddings.lbug
+
+LBUG_RUST_BUILD_FROM_SOURCE=1 cargo run -p atlas-ladybug-spike -- search-eval \
+  .cache/ladybug-spike/with-embeddings.sqlite \
+  .cache/ladybug-spike/with-embeddings.lbug \
+  target/debug/atlas
+```
+
+Build observations:
+
+- The rebuild used the existing SQLite embedding cache: `29,178` reused, `0` generated.
+- Full build time was about `4m 39.8s`; embedding tokenization still accounted for about `1m 32.8s`.
+- The title/alias FTS index created in about `1.7s`.
+- The facet FTS index created in about `1.6s`.
+- The separate `EvidenceUnit` FTS index still created in about `29.5s`.
+- Vector index creation took about `21.3s`.
+
+Search observations:
+
+- Direct precision hits still work. `battle medicine` and filtered `fear` both returned the expected direct record at position `1`.
+- Vector-only parity remained unchanged: all vector cases in the harness still produced `10/10` top-result overlap, including all long-document semantic cases.
+- The projection behaves like a precision lane rather than a broad text lane. `frightened --family spell --references conditionitems:TBSHQspnbcqxsmjL --retrieval fts` returned no Ladybug hits because `frightened` only appears in reference/body/evidence text for those spells, not in the narrowed precision fields. This is acceptable for the precision-lane hypothesis but means body/evidence FTS must remain a separate explicit product surface if we need "search within text" behavior.
+- Lane provenance is visible in `--explain` through `fts_lane`. This exposed the important failure mode: `Practice Makes Perfect` ranked first for `low level spell that makes enemies afraid` because the title/alias lane matched only the token `makes`. The lane split tells us why the result won, but it does not by itself make weak lexical matches harmless.
+- The search eval harness now includes a `--fts-fusion-policy demote-weak` variant for the same concept query. With weak FTS votes demoted, Ladybug returned the vector ordering at the top: `Threatening Mimicry`, `Dirge of Doom`, `Menacing Lament`, `Fear`, `Horrific Visage`, with `10/10` top-result overlap against SQLite for that case.
+- Direct lexical behavior still survives demotion. `battle medicine --retrieval hybrid --fts-fusion-policy demote-weak` keeps the identity/direct-title results at the top, and the explain output shows `fts_lane: title-alias` plus `fts_confidence: direct-title` for the ranked title matches.
+
+Current interpretation: splitting FTS into title/alias and facet lanes is the right long-term shape because it gives real provenance instead of post-hoc guessing. But lane split alone is insufficient. Hybrid should pair lane provenance with confidence gating, most likely `demote-weak` or an intent-aware equivalent, so one-token title/facet matches do not overpower semantic results on natural-language queries.
 
 The spike harness now also has a broad non-FTS CLI parity mode:
 
@@ -1302,10 +1350,14 @@ This mode intentionally avoids FTS quality questions and drives the real CLI sur
 - metric-key discovery and concrete `ac.value` numeric stats;
 - vector-only search with scalar and reference-derived structured filters when an embedding artifact is supplied.
 
-Because the current local artifacts are split by age, the cleanest run is currently two-part:
+The fresh `.cache/ladybug-spike/with-embeddings.*` artifact now covers the full non-FTS matrix and vector cases in one run. The latest `cli-parity` run against this artifact was parity-clean for:
 
-- `.cache/ladybug-spike/metric-metadata.*` has current graph schema and no embeddings. On that artifact, all non-vector cases above are parity-clean against SQLite. Vector cases are blocked only because this artifact intentionally lacks embedding indexes.
-- `.cache/ladybug-spike/with-embeddings.*` has embedding indexes but was built before the latest graph discovery schema. On that artifact, record lookup, resolve, filter-only search, enum/numeric/boolean discovery that does not need the newer graph tables, and vector-only structured searches are parity-clean. Discovery cases that need newer `FilterValue` and metric metadata nodes are blocked by artifact staleness rather than by the current code.
+- record hydration across representative spell, equipment, creature, and hazard records;
+- strict record resolution;
+- filter-only search, including scalar, enum, relationship, metric, price, pagination, and reverse-reference filters;
+- filter field discovery;
+- enum, numeric, boolean, and metric-value discovery;
+- vector-only search with scalar and reference-derived structured filters.
 
 Parity gaps found by this mode are now fixed in the Ladybug reader:
 

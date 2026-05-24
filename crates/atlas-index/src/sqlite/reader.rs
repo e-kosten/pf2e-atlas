@@ -89,6 +89,25 @@ impl Default for FtsColumnWeights {
 pub struct FtsSearchHit {
     pub record_key: RecordKey,
     pub rank: f64,
+    pub lane: FtsSearchLane,
+    pub lane_rank: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FtsSearchLane {
+    Mixed,
+    TitleAlias,
+    Facet,
+}
+
+impl FtsSearchLane {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Mixed => "mixed",
+            Self::TitleAlias => "title-alias",
+            Self::Facet => "facet",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -83,6 +83,21 @@ fn search_eval_cases() -> &'static [SearchEvalCase] {
             note: "Hybrid query where weak OR-style FTS can add noise; compare ranking against vector lane.",
         },
         SearchEvalCase {
+            name: "hybrid concept spell demote weak FTS",
+            query: "low level spell that makes enemies afraid",
+            retrieval: "hybrid",
+            extra_args: &[
+                "--family",
+                "spell",
+                "--max-level",
+                "3",
+                "--fts-fusion-policy",
+                "demote-weak",
+            ],
+            expected_keys: &["spells-srd:1xLVcA8Y1onw7toT", "spells-srd:4koZzrnMXhhosn0D"],
+            note: "Same concept query with weak lexical votes demoted; tests whether lane provenance plus confidence gating preserves semantic ordering.",
+        },
+        SearchEvalCase {
             name: "trait structured hybrid",
             query: "healing spell",
             retrieval: "hybrid",
