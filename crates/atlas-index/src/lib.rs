@@ -40,7 +40,10 @@ pub use inspect::{
 pub use ladybug::{LadybugIndexReader, LadybugIndexReaderError, LadybugIndexWriter};
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
-pub use search::{RecordResolutionMatchKind, RecordResolutionResult, SearchError, SearchIndex};
+pub use search::{
+    RecordResolutionMatchKind, RecordResolutionResult, SearchCandidateRecord, SearchError,
+    SearchIndex,
+};
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
     FtsSearchLane, RecordIdentityMatch, RecordIdentityMatchKind, ReferenceEdgeDirection,

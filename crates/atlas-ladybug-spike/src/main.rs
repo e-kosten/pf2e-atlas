@@ -14,10 +14,12 @@ use serde_json::Value as JsonValue;
 
 mod atlas_cli;
 mod cli_parity;
+mod perf_eval;
 mod search_eval;
 
 use atlas_cli::summarize_json;
 use cli_parity::run_cli_parity;
+use perf_eval::run_cli_performance_eval;
 use search_eval::{run_search_eval, run_search_quality_matrix};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -127,6 +129,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
         return run_cli_parity(&sqlite_path, &ladybug_path, &atlas_bin);
+    }
+    if mode == "cli-performance" {
+        let sqlite_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.sqlite"));
+        let ladybug_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
+        let atlas_bin = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("target/debug/atlas"));
+        let repeats = args
+            .next()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(3);
+        return run_cli_performance_eval(&sqlite_path, &ladybug_path, &atlas_bin, repeats);
     }
     if mode == "fts-projection" {
         let path = args

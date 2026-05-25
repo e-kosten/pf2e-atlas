@@ -62,6 +62,34 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
 }
 
 #[test]
+fn loads_search_candidate_records_without_detail_hydration()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-search-candidates");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "INSERT INTO record_content (
+           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           contributes_to_references, label, content_json
+         ) VALUES (
+           'actions:testAction1', 0, 'description', 'public', 1, 1, NULL,
+           'not json'
+         )",
+        [],
+    )?;
+    drop(connection);
+
+    let candidates = SqliteIndexReader::open_read_only(&path)?
+        .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])?;
+
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].key.to_string(), "actions:testAction1");
+    assert_eq!(candidates[0].name, "Test Action 1");
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-record-set");
     create_contract_database(&path)?;

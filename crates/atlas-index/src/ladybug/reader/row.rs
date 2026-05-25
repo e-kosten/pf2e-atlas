@@ -8,10 +8,11 @@ use atlas_record::{
     SpellSideData,
 };
 use lbug::{Connection, Value};
+use std::time::Instant;
 
 use crate::{DiscoveryError, GraphReferenceEdge, VectorSearchHit};
 
-use super::{LadybugIndexReaderError, invalid};
+use super::{LadybugIndexReaderError, invalid, trace_ladybug_phase};
 
 pub(crate) fn record_from_row(row: &[Value]) -> Result<PersistedRecord, LadybugIndexReaderError> {
     let key = record_key_at(row, 0)?;
@@ -147,12 +148,36 @@ pub(crate) fn query_rows(
     connection: &Connection<'_>,
     sql: &str,
 ) -> Result<Vec<Vec<Value>>, LadybugIndexReaderError> {
+    query_rows_impl(connection, sql, None)
+}
+
+pub(crate) fn query_rows_traced(
+    connection: &Connection<'_>,
+    sql: &str,
+    phase: &str,
+) -> Result<Vec<Vec<Value>>, LadybugIndexReaderError> {
+    query_rows_impl(connection, sql, Some(phase))
+}
+
+fn query_rows_impl(
+    connection: &Connection<'_>,
+    sql: &str,
+    phase: Option<&str>,
+) -> Result<Vec<Vec<Value>>, LadybugIndexReaderError> {
+    let started_at = Instant::now();
     let mut result = connection
         .query(sql)
         .map_err(|error| LadybugIndexReaderError::Query(format!("{error}; query: {sql}")))?;
+    if let Some(phase) = phase {
+        trace_ladybug_phase(&format!("{phase}_execute"), started_at);
+    }
+    let started_at = Instant::now();
     let mut rows = Vec::new();
     for row in &mut result {
         rows.push(row.to_vec());
+    }
+    if let Some(phase) = phase {
+        trace_ladybug_phase(&format!("{phase}_materialize"), started_at);
     }
     Ok(rows)
 }

@@ -90,6 +90,46 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
 }
 
 #[test]
+fn precision_ranked_query_uses_title_alias_and_facet_lanes_only()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = super::temp_db_path("fts-precision-lanes");
+    super::create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute("DELETE FROM records_fts", [])?;
+    connection.execute(
+        "INSERT INTO records_fts (
+          record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms,
+          source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
+         ) VALUES
+          ('actions:testAction1', 'Dragon Strike', '', '', '', '', '', '', '', '', '', '', '', ''),
+          ('actions:testAction2', '', 'Wyrm Blow', '', '', '', '', '', '', '', '', '', '', ''),
+          ('actions:testAction3', '', '', 'dragon undead', '', '', '', '', '', '', '', '', '', ''),
+          ('actions:testAction4', '', '', '', '', '', '', '', '', '', 'dragon', '', '', '')",
+        [],
+    )?;
+    drop(connection);
+
+    let query = FtsQuery::from_tokens(vec!["dragon".to_string()]).expect("query");
+    let hits =
+        SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(&query, None, 10)?;
+
+    assert_eq!(
+        record_key_strings(&hits),
+        vec!["actions:testAction1", "actions:testAction3",]
+    );
+    assert!(
+        hits.iter()
+            .any(|hit| hit.lane == crate::FtsSearchLane::TitleAlias)
+    );
+    assert!(
+        hits.iter()
+            .any(|hit| hit.lane == crate::FtsSearchLane::Facet)
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn candidate_key_query_is_bounded_to_supplied_candidates() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-candidate-keys");
