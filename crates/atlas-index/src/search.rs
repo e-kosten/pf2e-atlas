@@ -12,8 +12,41 @@ use crate::{
     SqliteIndexReader, VectorQueryError, VectorSearchHit,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RecordLoadOptions {
+    pub include_raw_json: bool,
+}
+
+impl RecordLoadOptions {
+    pub const fn include_raw_json() -> Self {
+        Self {
+            include_raw_json: true,
+        }
+    }
+
+    pub const fn omit_raw_json() -> Self {
+        Self {
+            include_raw_json: false,
+        }
+    }
+}
+
+impl Default for RecordLoadOptions {
+    fn default() -> Self {
+        Self::include_raw_json()
+    }
+}
+
 pub trait SearchIndex {
     fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError>;
+    fn load_records_by_key_with_options(
+        &self,
+        keys: &[RecordKey],
+        options: RecordLoadOptions,
+    ) -> Result<Vec<PersistedRecord>, SearchError> {
+        let _ = options;
+        self.load_records_by_key(keys)
+    }
     fn load_search_candidate_records(
         &self,
         keys: &[RecordKey],
@@ -26,6 +59,16 @@ pub trait SearchIndex {
         _filter: Option<&SearchFilterNode>,
     ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
         Ok(None)
+    }
+    fn resolve_record_matches_with_options(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        let _ = options;
+        self.resolve_record_matches(query, normalized_query, filter)
     }
     fn reference_edges_for_seed(
         &self,
@@ -91,6 +134,16 @@ impl SearchIndex for SqliteIndexReader {
         Ok(SqliteIndexReader::load_records_by_key(self, keys)?)
     }
 
+    fn load_records_by_key_with_options(
+        &self,
+        keys: &[RecordKey],
+        options: RecordLoadOptions,
+    ) -> Result<Vec<PersistedRecord>, SearchError> {
+        Ok(SqliteIndexReader::load_records_by_key_with_options(
+            self, keys, options,
+        )?)
+    }
+
     fn load_search_candidate_records(
         &self,
         keys: &[RecordKey],
@@ -110,6 +163,21 @@ impl SearchIndex for SqliteIndexReader {
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        self.resolve_record_matches_with_options(
+            query,
+            normalized_query,
+            filter,
+            RecordLoadOptions::include_raw_json(),
+        )
+    }
+
+    fn resolve_record_matches_with_options(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
         let matches = SqliteIndexReader::resolve_record_identity_matches(
             self,
             query,
@@ -123,10 +191,11 @@ impl SearchIndex for SqliteIndexReader {
             .iter()
             .map(|hit| hit.record_key.clone())
             .collect::<Vec<_>>();
-        let records_by_key = SqliteIndexReader::load_records_by_key(self, &keys)?
-            .into_iter()
-            .map(|record| (record.key.clone(), record))
-            .collect::<BTreeMap<_, _>>();
+        let records_by_key =
+            SqliteIndexReader::load_records_by_key_with_options(self, &keys, options)?
+                .into_iter()
+                .map(|record| (record.key.clone(), record))
+                .collect::<BTreeMap<_, _>>();
         Ok(Some(
             matches
                 .into_iter()

@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 
 use atlas_domain::SearchFilterNode;
-use atlas_index::{FilteredRecordSort, RecordResolutionMatchKind, RecordResolutionResult};
+use atlas_index::{
+    FilteredRecordSort, RecordLoadOptions, RecordResolutionMatchKind, RecordResolutionResult,
+};
 use atlas_record::{PersistedRecord, RecordAlias};
 
 use crate::{AtlasRetrievalService, SearchError, normalize_record_query};
@@ -12,13 +14,24 @@ impl AtlasRetrievalService {
         query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Vec<RecordResolutionResult>, SearchError> {
+        self.resolve_record_with_options(query, filter, RecordLoadOptions::include_raw_json())
+    }
+
+    pub fn resolve_record_with_options(
+        &self,
+        query: &str,
+        filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
+    ) -> Result<Vec<RecordResolutionResult>, SearchError> {
         let resolved_filter = self.index.resolve_metric_filters(filter)?;
         let filter = resolved_filter.as_ref().or(filter);
         let normalized_query = normalize_record_query(query);
-        if let Some(mut matches) =
-            self.index
-                .resolve_record_matches(query, &normalized_query, filter)?
-        {
+        if let Some(mut matches) = self.index.resolve_record_matches_with_options(
+            query,
+            &normalized_query,
+            filter,
+            options,
+        )? {
             self.enrich_resolution_reference_labels(&mut matches)?;
             return Ok(matches);
         }

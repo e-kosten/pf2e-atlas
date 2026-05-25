@@ -4,7 +4,7 @@ use atlas_domain::RecordKey;
 use rusqlite::Connection;
 
 use super::{create_contract_database, temp_db_path};
-use crate::SqliteIndexReader;
+use crate::{RecordLoadOptions, SqliteIndexReader};
 
 #[test]
 fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
@@ -57,6 +57,23 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].key.to_string(), "actions:testAction1");
     assert_eq!(records[0].supplemental_content.len(), 1);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn load_records_by_key_can_omit_raw_source_json() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("load-records-by-key-without-raw");
+    create_contract_database(&path)?;
+
+    let records = SqliteIndexReader::open_read_only(&path)?.load_records_by_key_with_options(
+        &[RecordKey::parse("actions:testAction1")?],
+        RecordLoadOptions::omit_raw_json(),
+    )?;
+
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].key.to_string(), "actions:testAction1");
+    assert_eq!(records[0].raw_json, "");
     fs::remove_file(path)?;
     Ok(())
 }

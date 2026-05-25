@@ -8,7 +8,7 @@ use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, Search
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
-    SqliteIndexReader,
+    RecordLoadOptions, SqliteIndexReader,
 };
 use atlas_record::PersistedRecord;
 
@@ -172,7 +172,17 @@ impl AtlasRetrievalService {
         &self,
         record_keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, SearchError> {
-        let mut records = self.index.load_records_by_key(record_keys)?;
+        self.get_records_with_options(record_keys, RecordLoadOptions::include_raw_json())
+    }
+
+    pub fn get_records_with_options(
+        &self,
+        record_keys: &[RecordKey],
+        options: RecordLoadOptions,
+    ) -> Result<Vec<PersistedRecord>, SearchError> {
+        let mut records = self
+            .index
+            .load_records_by_key_with_options(record_keys, options)?;
         self.enrich_reference_labels(&mut records)?;
         Ok(records)
     }
@@ -194,12 +204,31 @@ impl AtlasRetrievalService {
         limit: u32,
         offset: u32,
     ) -> Result<FilterOnlyRecordPage, SearchError> {
+        self.filter_only_records_with_options(
+            filter,
+            sort,
+            limit,
+            offset,
+            RecordLoadOptions::include_raw_json(),
+        )
+    }
+
+    pub fn filter_only_records_with_options(
+        &self,
+        filter: Option<&SearchFilterNode>,
+        sort: FilteredRecordSort,
+        limit: u32,
+        offset: u32,
+        options: RecordLoadOptions,
+    ) -> Result<FilterOnlyRecordPage, SearchError> {
         let resolved_filter = self.index.resolve_metric_filters(filter)?;
         let filter = resolved_filter.as_ref().or(filter);
         let FilteredRecordKeyPage { record_keys, total } = self
             .index
             .list_filtered_record_keys(filter, sort, limit, offset)?;
-        let mut records = self.index.load_records_by_key(&record_keys)?;
+        let mut records = self
+            .index
+            .load_records_by_key_with_options(&record_keys, options)?;
         self.enrich_reference_labels(&mut records)?;
         Ok(FilterOnlyRecordPage {
             record_keys,

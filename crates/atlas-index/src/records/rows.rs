@@ -3,6 +3,8 @@ use atlas_domain::{PackName, RecordId, RecordKey};
 use atlas_record::PersistedRecord;
 use rusqlite::{Connection, Row, params_from_iter, types::Value};
 
+use crate::RecordLoadOptions;
+
 use super::RecordLoadError;
 use super::parse::{
     bool_column, invalid_parse, json_string_array, normalized_time, optional_content_document,
@@ -33,6 +35,7 @@ pub(super) fn read_record_rows(
 pub(super) fn read_record_rows_by_keys(
     connection: &Connection,
     keys: &[RecordKey],
+    options: RecordLoadOptions,
 ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
     if keys.is_empty() {
         return Ok(Vec::new());
@@ -45,11 +48,7 @@ pub(super) fn read_record_rows_by_keys(
         .map(|index| format!("?{index}"))
         .collect::<Vec<_>>()
         .join(", ");
-    let columns = PERSISTED_RECORD_COLUMNS
-        .iter()
-        .map(|column| column.name())
-        .collect::<Vec<_>>()
-        .join(", ");
+    let columns = persisted_record_columns_sql(options);
     let sql = format!(
         "SELECT {columns} FROM {table} WHERE {record_key} IN ({placeholders}) ORDER BY {record_key}",
         table = records::TABLE.name(),
@@ -69,6 +68,20 @@ pub(super) fn read_record_rows_by_keys(
         records.push(record_from_row(row)?);
     }
     Ok(records)
+}
+
+fn persisted_record_columns_sql(options: RecordLoadOptions) -> String {
+    PERSISTED_RECORD_COLUMNS
+        .iter()
+        .map(|column| {
+            if column == &records::columns::RAW_JSON && !options.include_raw_json {
+                "'' AS raw_json".to_string()
+            } else {
+                column.name().to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn record_from_row(row: &Row<'_>) -> Result<PersistedRecord, RecordLoadError> {

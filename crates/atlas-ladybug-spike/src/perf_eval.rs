@@ -293,6 +293,27 @@ fn perf_cases() -> &'static [PerfCase] {
             backend_support: BackendSupport::Both,
         },
         PerfCase {
+            category: "filter-values-dynamic",
+            name: "broad multi-family trait counts",
+            args: &[
+                "filters",
+                "values",
+                "--field",
+                "traits",
+                "--family",
+                "creature",
+                "--family",
+                "equipment",
+                "--family",
+                "feat",
+                "--sort",
+                "count",
+                "--disable-discovery-catalog",
+            ],
+            note: "Dynamic trait facet counts over several broad record families; forces SQLite off persisted discovery catalogs.",
+            backend_support: BackendSupport::Both,
+        },
+        PerfCase {
             category: "filter-values",
             name: "equipment rarity counts",
             args: &[

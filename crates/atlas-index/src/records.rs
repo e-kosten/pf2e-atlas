@@ -3,6 +3,8 @@ use atlas_record::{PersistedRecord, PersistedRecordSet};
 use rusqlite::Connection;
 use thiserror::Error;
 
+use crate::RecordLoadOptions;
+
 mod content;
 mod metrics;
 mod parse;
@@ -43,7 +45,19 @@ pub fn load_persisted_records_by_key_from_connection(
     connection: &Connection,
     keys: &[RecordKey],
 ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
-    let mut records = rows::read_record_rows_by_keys(connection, keys)?;
+    load_persisted_records_by_key_from_connection_with_options(
+        connection,
+        keys,
+        RecordLoadOptions::include_raw_json(),
+    )
+}
+
+pub fn load_persisted_records_by_key_from_connection_with_options(
+    connection: &Connection,
+    keys: &[RecordKey],
+    options: RecordLoadOptions,
+) -> Result<Vec<PersistedRecord>, RecordLoadError> {
+    let mut records = rows::read_record_rows_by_keys(connection, keys, options)?;
     attach_record_details_by_key(connection, &mut records, keys)?;
     Ok(records)
 }

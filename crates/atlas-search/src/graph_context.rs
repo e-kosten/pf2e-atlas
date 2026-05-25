@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::{GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection};
+use atlas_index::{GraphReferenceEdge, RecordLoadError, RecordLoadOptions, ReferenceEdgeDirection};
 use atlas_record::PersistedRecord;
 
 use crate::{AtlasRetrievalService, SearchError};
@@ -49,7 +49,14 @@ impl AtlasRetrievalService {
         &self,
         request: GraphContextRequest,
     ) -> Result<Option<GraphContextResult>, SearchError> {
-        let Some(seed) = self.get_record(&request.seed)? else {
+        let Some(seed) = self
+            .get_records_with_options(
+                std::slice::from_ref(&request.seed),
+                RecordLoadOptions::omit_raw_json(),
+            )?
+            .into_iter()
+            .next()
+        else {
             return Ok(None);
         };
         let outgoing = self.graph_context_section(
@@ -102,7 +109,7 @@ impl AtlasRetrievalService {
             .take(record_limit)
             .collect::<Vec<_>>();
         let mut records_by_key = self
-            .get_records(&retained_keys)?
+            .get_records_with_options(&retained_keys, RecordLoadOptions::omit_raw_json())?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();

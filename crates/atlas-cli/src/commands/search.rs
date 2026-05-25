@@ -1,5 +1,5 @@
 use atlas_domain::{DetailLevel, SearchFilterNode};
-use atlas_index::FilteredRecordSort;
+use atlas_index::{FilteredRecordSort, RecordLoadOptions};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
@@ -195,7 +195,18 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.to_string()),
     };
-    let page = match service.filter_only_records(filter.as_ref(), sort, limit, options.offset) {
+    let load_options = if options.include_raw {
+        RecordLoadOptions::include_raw_json()
+    } else {
+        RecordLoadOptions::omit_raw_json()
+    };
+    let page = match service.filter_only_records_with_options(
+        filter.as_ref(),
+        sort,
+        limit,
+        options.offset,
+        load_options,
+    ) {
         Ok(page) => page,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;
@@ -369,6 +380,7 @@ fn run_ranked_text_search(
         fts_top_k,
         vector_top_k,
         explain: options.explain,
+        include_raw_json: options.include_raw,
     })) {
         Ok(AtlasSearchResult::Text(result)) => result,
         Ok(AtlasSearchResult::Semantic(_)) => {
