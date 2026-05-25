@@ -41,8 +41,8 @@ pub use ladybug::{LadybugIndexReader, LadybugIndexReaderError, LadybugIndexWrite
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
 pub use search::{
-    RecordResolutionMatchKind, RecordResolutionResult, SearchCandidateRecord, SearchError,
-    SearchIndex,
+    RecordLoadOptions, RecordResolutionMatchKind, RecordResolutionResult, SearchCandidateRecord,
+    SearchError, SearchIndex,
 };
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::process::ExitCode;
 
 use atlas_domain::{DetailLevel, RecordKey};
+use atlas_index::RecordLoadOptions;
 use atlas_record::{RecordBlockJson, RecordJsonOptions, RecordSectionJson, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{RecordResolutionResult, SearchError};
@@ -137,7 +138,12 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
         }
         Err(error) => return Err(error),
     };
-    let records = match service.get_records(&keys) {
+    let load_options = if options.include_raw {
+        RecordLoadOptions::include_raw_json()
+    } else {
+        RecordLoadOptions::omit_raw_json()
+    };
+    let records = match service.get_records_with_options(&keys, load_options) {
         Ok(records) => records,
         Err(error) if options.json => {
             write_json_error(search_error_code(&error), error.to_string())?;
@@ -269,14 +275,20 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     let mut failed = 0;
     let mut results = Vec::new();
     for query in &options.queries {
-        let matches = match service.resolve_record(query, filter.as_ref()) {
-            Ok(matches) => matches,
-            Err(error) if options.json => {
-                write_json_error(search_error_code(&error), error.to_string())?;
-                return Ok(ExitCode::from(3));
-            }
-            Err(error) => return Err(search_error(error)),
+        let load_options = if options.include_raw {
+            RecordLoadOptions::include_raw_json()
+        } else {
+            RecordLoadOptions::omit_raw_json()
         };
+        let matches =
+            match service.resolve_record_with_options(query, filter.as_ref(), load_options) {
+                Ok(matches) => matches,
+                Err(error) if options.json => {
+                    write_json_error(search_error_code(&error), error.to_string())?;
+                    return Ok(ExitCode::from(3));
+                }
+                Err(error) => return Err(search_error(error)),
+            };
         let item = resolve_item(query, matches, record_options, options.alternatives);
         if item.error.is_some() {
             failed += 1;

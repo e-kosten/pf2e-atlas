@@ -3,8 +3,8 @@ use std::time::Instant;
 
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_index::{
-    FtsColumnWeights, FtsQuery, FtsSearchHit, RecordResolutionMatchKind, RecordResolutionResult,
-    SearchError,
+    FtsColumnWeights, FtsQuery, FtsSearchHit, RecordLoadOptions, RecordResolutionMatchKind,
+    RecordResolutionResult, SearchError,
 };
 use atlas_record::PersistedRecord;
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,7 @@ pub struct TextSearchRequest<'a> {
     pub fts_top_k: u32,
     pub vector_top_k: u32,
     pub explain: bool,
+    pub include_raw_json: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,7 +123,13 @@ impl AtlasRetrievalService {
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
         trace_search_phase("analyze_text_query", started_at);
         let started_at = Instant::now();
-        let identity_matches = self.resolve_record(request.query, filter)?;
+        let identity_load_options = if request.include_raw_json {
+            RecordLoadOptions::include_raw_json()
+        } else {
+            RecordLoadOptions::omit_raw_json()
+        };
+        let identity_matches =
+            self.resolve_record_with_options(request.query, filter, identity_load_options)?;
         trace_search_phase("resolve_record", started_at);
         let started_at = Instant::now();
         let fts_hits = if request.retrieval.uses_fts() {
@@ -204,15 +211,16 @@ impl AtlasRetrievalService {
         trace_search_phase("fuse_ranked_hits", started_at);
         let total = identity_matches.len() + fused.len();
         let started_at = Instant::now();
-        let mut page_records = page_text_search_records(
+        let mut page_records = page_text_search_records(PageTextSearchInput {
             identity_matches,
             fused,
-            request.offset,
-            request.limit,
-            request.retrieval,
-            request.explain,
-            self,
-        )?;
+            offset: request.offset,
+            limit: request.limit,
+            retrieval: request.retrieval,
+            explain: request.explain,
+            include_raw_json: request.include_raw_json,
+            service: self,
+        })?;
         trace_search_phase("hydrate_page_records", started_at);
         let started_at = Instant::now();
         self.enrich_text_record_reference_labels(&mut page_records)?;
@@ -295,15 +303,30 @@ fn ranked_candidate_keys(
     keys.into_iter().collect()
 }
 
-fn page_text_search_records(
+struct PageTextSearchInput<'a> {
     identity_matches: Vec<RecordResolutionResult>,
     fused: Vec<crate::fusion::FusedRankedHit>,
     offset: u32,
     limit: u32,
     retrieval: RetrievalMode,
     explain: bool,
-    service: &AtlasRetrievalService,
+    include_raw_json: bool,
+    service: &'a AtlasRetrievalService,
+}
+
+fn page_text_search_records(
+    input: PageTextSearchInput<'_>,
 ) -> Result<Vec<TextSearchRecord>, SearchError> {
+    let PageTextSearchInput {
+        identity_matches,
+        fused,
+        offset,
+        limit,
+        retrieval,
+        explain,
+        include_raw_json,
+        service,
+    } = input;
     let start = offset as usize;
     let end = start.saturating_add(limit as usize);
     let identity_count = identity_matches.len();
@@ -337,7 +360,14 @@ fn page_text_search_records(
         .iter()
         .map(|ranked| ranked.record_key.clone())
         .collect::<Vec<_>>();
-    let ranked_records = service.index.load_records_by_key(&ranked_keys)?;
+    let load_options = if include_raw_json {
+        RecordLoadOptions::include_raw_json()
+    } else {
+        RecordLoadOptions::omit_raw_json()
+    };
+    let ranked_records = service
+        .index
+        .load_records_by_key_with_options(&ranked_keys, load_options)?;
     let ranked_records_by_key = ranked_records
         .into_iter()
         .map(|record| (record.key.clone(), record))
@@ -394,6 +424,7 @@ mod tests {
             fts_top_k: 10,
             vector_top_k: 10,
             explain: false,
+            include_raw_json: false,
         };
 
         assert!(matches!(

@@ -1127,6 +1127,7 @@ Current read:
 - SQLite remains a stronger default for catalog-style discovery because it has precomputed discovery tables and richer metric metadata.
 - When catalogs are disabled, the comparison is more mixed: Ladybug dynamic graph traversal looks competitive or faster for some relationship-backed UI facets, while SQLite remains very fast for simple scalar numeric stats.
 - Ladybug's dynamic graph discovery may be good enough for many UI cases, but needs a broader benchmark across real filter trees before claiming parity.
+- The CLI performance harness now includes an explicit dynamic trait-discovery case for `traits` across `creature OR equipment OR feat`, with SQLite forced off persisted discovery catalogs via `--disable-discovery-catalog`. This separates production catalog speed from dynamic backend behavior for broad relationship-backed facets.
 - Ladybug `Metric` nodes are now self-describing: ingest writes `namespace_prefix`, `label`, `short_label`, `group_name`, and `known` from the shared `atlas-record` metric definitions. This preserves the existing SQLite metric path-collapse semantics while making metric browsing graph-native.
 - If Ladybug remains interesting, the next modeling task is to continue promoting currently JSON-only repeated fields into graph facts where the UI expects facet/filter behavior.
 - Embedded-mode concurrency is still an operational caveat: parallel Ladybug reads can hit file locking, so benchmark harnesses should run Ladybug commands serially or evaluate a sidecar/server strategy.

@@ -4,9 +4,9 @@ use std::time::Instant;
 
 use crate::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
-    FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge, RecordResolutionMatchKind,
-    RecordResolutionResult, ReferenceEdgeDirection, SearchCandidateRecord, SearchError,
-    SearchIndex, VectorSearchHit,
+    FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge, RecordLoadOptions,
+    RecordResolutionMatchKind, RecordResolutionResult, ReferenceEdgeDirection,
+    SearchCandidateRecord, SearchError, SearchIndex, VectorSearchHit,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterValueDiscovery, MetricDomain, MetricValueType, RecordKey,
@@ -92,6 +92,15 @@ impl SearchIndex for LadybugIndexReader {
         self.load_records_by_key_impl(keys).map_err(search_error)
     }
 
+    fn load_records_by_key_with_options(
+        &self,
+        keys: &[RecordKey],
+        options: RecordLoadOptions,
+    ) -> Result<Vec<PersistedRecord>, SearchError> {
+        self.load_records_by_key_with_options_impl(keys, options)
+            .map_err(search_error)
+    }
+
     fn load_search_candidate_records(
         &self,
         keys: &[RecordKey],
@@ -110,7 +119,22 @@ impl SearchIndex for LadybugIndexReader {
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
-        self.resolve_record_matches_impl(query, normalized_query, filter)
+        self.resolve_record_matches_with_options(
+            query,
+            normalized_query,
+            filter,
+            RecordLoadOptions::include_raw_json(),
+        )
+    }
+
+    fn resolve_record_matches_with_options(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        self.resolve_record_matches_with_options_impl(query, normalized_query, filter, options)
             .map(Some)
             .map_err(search_error)
     }
@@ -196,13 +220,37 @@ impl LadybugIndexReader {
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, LadybugIndexReaderError> {
+        self.load_records_by_key_with_options_impl(keys, RecordLoadOptions::include_raw_json())
+    }
+
+    fn load_records_by_key_with_options_impl(
+        &self,
+        keys: &[RecordKey],
+        options: RecordLoadOptions,
+    ) -> Result<Vec<PersistedRecord>, LadybugIndexReaderError> {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
         let total_started_at = Instant::now();
+        let raw_json_projection = if options.include_raw_json {
+            "record.raw_json"
+        } else {
+            "''"
+        };
+        let record_match = if keys.len() == 1 {
+            format!(
+                "MATCH (record:Record {{record_key: {}}})-[:FROM_PACK]->(pack:Pack)",
+                string_literal(&keys[0].to_string())
+            )
+        } else {
+            format!(
+                "MATCH (record:Record)-[:FROM_PACK]->(pack:Pack)
+                 WHERE record.record_key IN {}",
+                list_literal(keys.iter().map(ToString::to_string))
+            )
+        };
         let sql = format!(
-            "MATCH (record:Record)-[:FROM_PACK]->(pack:Pack)
-             WHERE record.record_key IN {}
+            "{record_match}
              RETURN record.record_key, record.id, record.name, record.normalized_name,
                     record.record_family, pack.pack_name, pack.pack_label,
                     record.foundry_document_type, record.foundry_record_type, record.level,
@@ -218,7 +266,7 @@ impl LadybugIndexReader {
                     record.blurb_json, record.folder_id, record.taxonomy_families_json,
                     record.variant_group_key, record.variant_base_name, record.variant_label,
                     record.variant_axes_json, record.variant_confidence, record.variant_source,
-                    record.is_default_visible, record.source_path, record.raw_json,
+                    record.is_default_visible, record.source_path, {raw_json_projection},
                     record.actor_size, record.actor_languages_json, record.actor_speed_types_json,
                     record.actor_senses_json, record.actor_immunities_json,
                     record.actor_resistances_json, record.actor_weaknesses_json,
@@ -229,8 +277,7 @@ impl LadybugIndexReader {
                     record.spell_range_text, record.spell_range_value, record.spell_target_text,
                     record.spell_area_type, record.spell_area_value, record.spell_save_type,
                     record.spell_sustained, record.spell_basic_save, record.spell_damage_types_json
-             ORDER BY record.record_key;",
-            list_literal(keys.iter().map(ToString::to_string))
+             ORDER BY record.record_key;"
         );
         let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_records_query_nodes")?;
         let started_at = Instant::now();
@@ -240,9 +287,6 @@ impl LadybugIndexReader {
             .collect::<Result<Vec<_>, _>>()?;
         trace_ladybug_phase("ladybug_load_records_decode_nodes", started_at);
         let started_at = Instant::now();
-        let traits = self.traits_for_keys(keys)?;
-        trace_ladybug_phase("ladybug_load_records_query_traits", started_at);
-        let started_at = Instant::now();
         let metrics = self.metrics_for_keys(keys)?;
         trace_ladybug_phase("ladybug_load_records_query_metrics", started_at);
         let started_at = Instant::now();
@@ -250,9 +294,6 @@ impl LadybugIndexReader {
         trace_ladybug_phase("ladybug_load_records_query_content", started_at);
         let started_at = Instant::now();
         for record in &mut records {
-            if let Some(values) = traits.get(&record.key) {
-                record.traits = values.clone();
-            }
             record.metrics = metrics.get(&record.key).cloned().unwrap_or_default();
             record.supplemental_content = supplemental_content
                 .get(&record.key)
@@ -343,11 +384,12 @@ impl LadybugIndexReader {
         })
     }
 
-    fn resolve_record_matches_impl(
+    fn resolve_record_matches_with_options_impl(
         &self,
         query: &str,
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
     ) -> Result<Vec<RecordResolutionResult>, LadybugIndexReaderError> {
         let exact = self.resolve_record_key_matches(
             RecordKeyMatchQuery {
@@ -359,6 +401,7 @@ impl LadybugIndexReader {
                 require_no_variant_label: false,
             },
             filter,
+            options,
         )?;
         if !exact.is_empty() {
             return Ok(exact);
@@ -374,12 +417,13 @@ impl LadybugIndexReader {
                 require_no_variant_label: true,
             },
             filter,
+            options,
         )?;
         if !normalized.is_empty() {
             return Ok(normalized);
         }
 
-        let alias = self.resolve_alias_matches(query, normalized_query, filter)?;
+        let alias = self.resolve_alias_matches(query, normalized_query, filter, options)?;
         if !alias.is_empty() {
             return Ok(alias);
         }
@@ -394,6 +438,7 @@ impl LadybugIndexReader {
                 require_no_variant_label: false,
             },
             filter,
+            options,
         )
     }
 
@@ -401,6 +446,7 @@ impl LadybugIndexReader {
         &self,
         key_query: RecordKeyMatchQuery<'_>,
         filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
     ) -> Result<Vec<RecordResolutionResult>, LadybugIndexReaderError> {
         let RecordKeyMatchQuery {
             query,
@@ -429,7 +475,7 @@ impl LadybugIndexReader {
             .iter()
             .map(|row| record_key_at(row, 0))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut records = self.load_records_by_key_impl(&keys)?;
+        let mut records = self.load_records_by_key_with_options_impl(&keys, options)?;
         records.sort_by(|left, right| left.key.cmp(&right.key));
         Ok(records
             .into_iter()
@@ -453,6 +499,7 @@ impl LadybugIndexReader {
         query: &str,
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
+        options: RecordLoadOptions,
     ) -> Result<Vec<RecordResolutionResult>, LadybugIndexReaderError> {
         let scope = compile_scope(filter)?;
         let sql = format!(
@@ -472,7 +519,7 @@ impl LadybugIndexReader {
             .map(|row| record_key_at(row, 0))
             .collect::<Result<Vec<_>, _>>()?;
         let records_by_key = self
-            .load_records_by_key_impl(&keys)?
+            .load_records_by_key_with_options_impl(&keys, options)?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
@@ -492,30 +539,6 @@ impl LadybugIndexReader {
             }
         }
         Ok(matches)
-    }
-
-    fn traits_for_keys(
-        &self,
-        keys: &[RecordKey],
-    ) -> Result<BTreeMap<RecordKey, Vec<String>>, LadybugIndexReaderError> {
-        let sql = format!(
-            "MATCH (record:Record)-[:HAS_TRAIT]->(trait:Trait)
-             WHERE record.record_key IN {}
-             RETURN record.record_key, trait.name
-             ORDER BY record.record_key, trait.name;",
-            list_literal(keys.iter().map(ToString::to_string))
-        );
-        let mut traits = BTreeMap::<RecordKey, Vec<String>>::new();
-        let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_traits_query")?;
-        let started_at = Instant::now();
-        for row in rows {
-            traits
-                .entry(record_key_at(&row, 0)?)
-                .or_default()
-                .push(string_at(&row, 1)?);
-        }
-        trace_ladybug_phase("ladybug_load_traits_decode", started_at);
-        Ok(traits)
     }
 
     fn metrics_for_keys(
