@@ -1,7 +1,5 @@
 use super::*;
-use crate::normalize_record_query;
-use atlas_domain::{PublicationFamily, RecordFamily};
-use atlas_index::FtsSearchLane;
+use atlas_index::{FtsSearchLane, SearchCandidateRecord};
 
 fn test_record_key(value: &str) -> RecordKey {
     RecordKey::parse(value).expect("fixture record key should parse")
@@ -44,54 +42,16 @@ fn title_fts_hit(record: &str, rank: f64, lane_rank: u32, texts: &[&str]) -> Fts
     }
 }
 
-fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
+fn test_record(key: &str, name: &str, traits: &[&str]) -> SearchCandidateRecord {
     let key = test_record_key(key);
-    PersistedRecord {
-        id: key.id().clone(),
-        pack_name: key.pack().clone(),
+    SearchCandidateRecord {
         key,
         name: name.to_string(),
-        normalized_name: normalize_record_query(name),
-        record_family: RecordFamily::Feat,
-        pack_label: "Test Pack".to_string(),
-        foundry_document_type: "Item".to_string(),
-        foundry_record_type: "feat".to_string(),
-        level: None,
-        rarity: None,
         traits: traits.iter().map(|value| value.to_string()).collect(),
         prerequisites: Vec::new(),
         system_category: None,
         system_group: None,
-        system_base_item: None,
-        system_usage: None,
-        system_price_json: None,
-        system_actions_value: None,
-        system_time_value: None,
-        system_duration_value: None,
-        price_cp: None,
-        activation_time: None,
-        duration: None,
-        metrics: Vec::new(),
-        actor_data: None,
-        item_data: None,
-        spell_data: None,
-        publication_title: None,
-        publication_remaster: false,
-        description: None,
-        blurb: None,
-        supplemental_content: Vec::new(),
-        publication_family: PublicationFamily::Unknown,
-        folder_id: None,
         taxonomy_families: Vec::new(),
-        variant_group_key: None,
-        variant_base_name: None,
-        variant_label: None,
-        variant_axes: Vec::new(),
-        variant_confidence: None,
-        variant_source: "test".to_string(),
-        source_path: "test.json".to_string(),
-        is_default_visible: true,
-        raw_json: "{}".to_string(),
     }
 }
 

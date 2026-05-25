@@ -16,8 +16,8 @@ use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_see
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordLoadError,
-    ValidationTarget, VectorQueryError, VectorSearchHit, check_index_connection, inspect, records,
-    validate_index_connection, vector,
+    SearchCandidateRecord, ValidationTarget, VectorQueryError, VectorSearchHit,
+    check_index_connection, inspect, records, validate_index_connection, vector,
 };
 
 pub struct SqliteIndexReader {
@@ -459,6 +459,87 @@ impl SqliteIndexReader {
         records::load_persisted_records_by_key_from_connection(&self.connection, keys)
     }
 
+    pub fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+        let parameters = keys
+            .iter()
+            .map(|key| Value::Text(key.to_string()))
+            .collect::<Vec<_>>();
+        let placeholders = (1..=parameters.len())
+            .map(|index| format!("?{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "SELECT {record_key}, {name}, {traits_json}, {taxonomy_families_json},
+                    {prerequisites_json}, {system_category}, {system_group}
+             FROM {table}
+             WHERE {record_key} IN ({placeholders})
+             ORDER BY {record_key}",
+            table = record_table::TABLE.name(),
+            record_key = record_table::columns::RECORD_KEY.name(),
+            name = record_table::columns::NAME.name(),
+            traits_json = record_table::columns::TRAITS_JSON.name(),
+            taxonomy_families_json = record_table::columns::TAXONOMY_FAMILIES_JSON.name(),
+            prerequisites_json = record_table::columns::PREREQUISITES_JSON.name(),
+            system_category = record_table::columns::SYSTEM_CATEGORY.name(),
+            system_group = record_table::columns::SYSTEM_GROUP.name(),
+        );
+        let mut statement = self
+            .connection
+            .prepare(&sql)
+            .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+        let rows = statement
+            .query_map(params_from_iter(parameters.iter()), |row| {
+                let record_key = row.get::<_, String>(0)?;
+                let traits_json = row.get::<_, String>(2)?;
+                let taxonomy_families_json = row.get::<_, String>(3)?;
+                let prerequisites_json = row.get::<_, String>(4)?;
+                Ok((
+                    record_key,
+                    row.get::<_, String>(1)?,
+                    traits_json,
+                    taxonomy_families_json,
+                    prerequisites_json,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                ))
+            })
+            .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+        rows.map(|row| {
+            let (
+                record_key,
+                name,
+                traits_json,
+                taxonomy_families_json,
+                prerequisites_json,
+                system_category,
+                system_group,
+            ) = row.map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+            Ok(SearchCandidateRecord {
+                key: RecordKey::parse(&record_key)
+                    .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
+                name,
+                traits: json_string_array("records.traits_json", &traits_json)?,
+                taxonomy_families: json_string_array(
+                    "records.taxonomy_families_json",
+                    &taxonomy_families_json,
+                )?,
+                prerequisites: json_string_array(
+                    "records.prerequisites_json",
+                    &prerequisites_json,
+                )?,
+                system_category,
+                system_group,
+            })
+        })
+        .collect()
+    }
+
     pub fn reference_edges_for_seed(
         &self,
         seed: &RecordKey,
@@ -577,6 +658,18 @@ impl SqliteIndexReader {
         fts::query_fts_index(&self.connection, fts_query, filter, limit, weights)
     }
 
+    pub fn query_precision_fts_index(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+    ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        fts::query_precision_fts_index(&self.connection, fts_query, filter, limit)
+    }
+
     pub fn query_fts_record_keys(
         &self,
         fts_query: &FtsQuery,
@@ -659,4 +752,9 @@ fn seeded_key_hash(seed: u64, key: &str) -> u64 {
         hash = hash.wrapping_mul(0x100000001b3);
     }
     hash
+}
+
+fn json_string_array(context: &str, value: &str) -> Result<Vec<String>, RecordLoadError> {
+    serde_json::from_str(value)
+        .map_err(|error| RecordLoadError::InvalidData(format!("{context}: {error}")))
 }

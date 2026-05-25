@@ -180,12 +180,14 @@ impl AtlasRetrievalService {
             &excluded_keys,
             request.retrieval,
         );
-        let ranked_records = self.index.load_records_by_key(&ranked_candidate_keys)?;
-        let records_by_key = ranked_records
+        let ranked_candidate_records = self
+            .index
+            .load_search_candidate_records(&ranked_candidate_keys)?;
+        let records_by_key = ranked_candidate_records
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
-        trace_search_phase("load_ranked_candidate_records", started_at);
+        trace_search_phase("load_fusion_candidate_records", started_at);
         let started_at = Instant::now();
         let fused = fuse_ranked_hits(FusionInput {
             fts_hits: &fts_hits,
@@ -201,38 +203,17 @@ impl AtlasRetrievalService {
         });
         trace_search_phase("fuse_ranked_hits", started_at);
         let total = identity_matches.len() + fused.len();
-        let mut all_matches = identity_matches
-            .into_iter()
-            .enumerate()
-            .map(|(index, identity)| TextSearchRecord {
-                record: identity.record,
-                match_info: TextSearchMatch::Identity {
-                    retrieval: request.retrieval,
-                    identity_match_kind: identity.match_kind,
-                    explain: request.explain.then(|| identity_explain(index)),
-                },
-            })
-            .collect::<Vec<_>>();
-
         let started_at = Instant::now();
-        all_matches.extend(fused.into_iter().filter_map(|ranked| {
-            records_by_key
-                .get(&ranked.record_key)
-                .map(|record| TextSearchRecord {
-                    record: record.clone(),
-                    match_info: TextSearchMatch::Ranked {
-                        retrieval: request.retrieval,
-                        explain: ranked.explain,
-                    },
-                })
-        }));
-
-        let mut page_records = all_matches
-            .into_iter()
-            .skip(request.offset as usize)
-            .take(request.limit as usize)
-            .collect::<Vec<_>>();
-        trace_search_phase("build_page_records", started_at);
+        let mut page_records = page_text_search_records(
+            identity_matches,
+            fused,
+            request.offset,
+            request.limit,
+            request.retrieval,
+            request.explain,
+            self,
+        )?;
+        trace_search_phase("hydrate_page_records", started_at);
         let started_at = Instant::now();
         self.enrich_text_record_reference_labels(&mut page_records)?;
         trace_search_phase("enrich_text_record_reference_labels", started_at);
@@ -312,6 +293,67 @@ fn ranked_candidate_keys(
     }
     keys.retain(|key| !identity_keys.contains(key) && !excluded_keys.contains(key));
     keys.into_iter().collect()
+}
+
+fn page_text_search_records(
+    identity_matches: Vec<RecordResolutionResult>,
+    fused: Vec<crate::fusion::FusedRankedHit>,
+    offset: u32,
+    limit: u32,
+    retrieval: RetrievalMode,
+    explain: bool,
+    service: &AtlasRetrievalService,
+) -> Result<Vec<TextSearchRecord>, SearchError> {
+    let start = offset as usize;
+    let end = start.saturating_add(limit as usize);
+    let identity_count = identity_matches.len();
+    let mut page_records = identity_matches
+        .into_iter()
+        .enumerate()
+        .skip(start)
+        .take(limit as usize)
+        .map(|(index, identity)| TextSearchRecord {
+            record: identity.record,
+            match_info: TextSearchMatch::Identity {
+                retrieval,
+                identity_match_kind: identity.match_kind,
+                explain: explain.then(|| identity_explain(index)),
+            },
+        })
+        .collect::<Vec<_>>();
+
+    if end <= identity_count || page_records.len() >= limit as usize {
+        return Ok(page_records);
+    }
+
+    let ranked_start = start.saturating_sub(identity_count);
+    let ranked_limit = (limit as usize).saturating_sub(page_records.len());
+    let page_fused = fused
+        .into_iter()
+        .skip(ranked_start)
+        .take(ranked_limit)
+        .collect::<Vec<_>>();
+    let ranked_keys = page_fused
+        .iter()
+        .map(|ranked| ranked.record_key.clone())
+        .collect::<Vec<_>>();
+    let ranked_records = service.index.load_records_by_key(&ranked_keys)?;
+    let ranked_records_by_key = ranked_records
+        .into_iter()
+        .map(|record| (record.key.clone(), record))
+        .collect::<BTreeMap<_, _>>();
+    page_records.extend(page_fused.into_iter().filter_map(|ranked| {
+        ranked_records_by_key
+            .get(&ranked.record_key)
+            .map(|record| TextSearchRecord {
+                record: record.clone(),
+                match_info: TextSearchMatch::Ranked {
+                    retrieval,
+                    explain: ranked.explain,
+                },
+            })
+    }));
+    Ok(page_records)
 }
 
 #[cfg(test)]

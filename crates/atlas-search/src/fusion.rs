@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::{FtsSearchHit, FtsSearchLane};
-use atlas_record::PersistedRecord;
+use atlas_index::{FtsSearchHit, FtsSearchLane, SearchCandidateRecord};
 use serde::{Deserialize, Serialize};
 
 use crate::query::tokenize_fts_query;
@@ -144,7 +143,7 @@ struct FusionAccumulator {
 pub(crate) struct FusionInput<'a> {
     pub fts_hits: &'a [FtsSearchHit],
     pub vector_hits: &'a [SemanticSearchHit],
-    pub records_by_key: &'a BTreeMap<RecordKey, PersistedRecord>,
+    pub records_by_key: &'a BTreeMap<RecordKey, SearchCandidateRecord>,
     pub fts_tokens: &'a [String],
     pub identity_keys: &'a BTreeSet<RecordKey>,
     pub excluded_keys: &'a BTreeSet<RecordKey>,
@@ -414,7 +413,7 @@ fn lane_min_max_score(raw_score: f64, score_range: Option<LaneScoreRange>) -> Op
 
 fn classify_fts_hit(
     hit: &FtsSearchHit,
-    record: &PersistedRecord,
+    record: &SearchCandidateRecord,
     query_tokens: &[String],
 ) -> FtsMatchConfidence {
     classify_fts_texts(
@@ -427,7 +426,7 @@ fn classify_fts_hit(
 
 fn classify_fts_texts<'a>(
     lane: FtsSearchLane,
-    record: &'a PersistedRecord,
+    record: &'a SearchCandidateRecord,
     query_tokens: &[String],
     title_alias_texts: impl Iterator<Item = &'a str>,
 ) -> FtsMatchConfidence {
@@ -594,7 +593,7 @@ fn is_title_stopword(token: &str) -> bool {
     )
 }
 
-fn high_value_record_tokens(record: &PersistedRecord) -> Vec<String> {
+fn high_value_record_tokens(record: &SearchCandidateRecord) -> Vec<String> {
     let mut tokens = tokenize_fts_query(&record.name);
     tokens.extend(
         record

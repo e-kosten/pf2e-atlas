@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::Instant;
 
 use crate::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
     FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge, RecordResolutionMatchKind,
-    RecordResolutionResult, ReferenceEdgeDirection, SearchError, SearchIndex, VectorSearchHit,
+    RecordResolutionResult, ReferenceEdgeDirection, SearchCandidateRecord, SearchError,
+    SearchIndex, VectorSearchHit,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterValueDiscovery, MetricDomain, MetricValueType, RecordKey,
@@ -24,8 +26,8 @@ mod row;
 mod search;
 use self::filter::compile_scope;
 use self::row::{
-    alias_from_row, bool_at, float_at, optional_string_at, query_rows, record_from_row,
-    record_key_at, string_at,
+    alias_from_row, bool_at, float_at, optional_string_at, query_rows, query_rows_traced,
+    record_from_row, record_key_at, string_at,
 };
 
 pub struct LadybugIndexReader {
@@ -88,6 +90,14 @@ struct RecordKeyMatchQuery<'a> {
 impl SearchIndex for LadybugIndexReader {
     fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError> {
         self.load_records_by_key_impl(keys).map_err(search_error)
+    }
+
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, SearchError> {
+        self.load_search_candidate_records_impl(keys)
+            .map_err(search_error)
     }
 
     fn load_record_set(&self) -> Result<PersistedRecordSet, SearchError> {
@@ -189,6 +199,7 @@ impl LadybugIndexReader {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
+        let total_started_at = Instant::now();
         let sql = format!(
             "MATCH (record:Record)-[:FROM_PACK]->(pack:Pack)
              WHERE record.record_key IN {}
@@ -221,14 +232,23 @@ impl LadybugIndexReader {
              ORDER BY record.record_key;",
             list_literal(keys.iter().map(ToString::to_string))
         );
-        let rows = query_rows(&self.connection, &sql)?;
+        let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_records_query_nodes")?;
+        let started_at = Instant::now();
         let mut records = rows
             .iter()
             .map(|row| record_from_row(row))
             .collect::<Result<Vec<_>, _>>()?;
+        trace_ladybug_phase("ladybug_load_records_decode_nodes", started_at);
+        let started_at = Instant::now();
         let traits = self.traits_for_keys(keys)?;
+        trace_ladybug_phase("ladybug_load_records_query_traits", started_at);
+        let started_at = Instant::now();
         let metrics = self.metrics_for_keys(keys)?;
+        trace_ladybug_phase("ladybug_load_records_query_metrics", started_at);
+        let started_at = Instant::now();
         let supplemental_content = self.supplemental_content_for_keys(keys)?;
+        trace_ladybug_phase("ladybug_load_records_query_content", started_at);
+        let started_at = Instant::now();
         for record in &mut records {
             if let Some(values) = traits.get(&record.key) {
                 record.traits = values.clone();
@@ -239,7 +259,55 @@ impl LadybugIndexReader {
                 .cloned()
                 .unwrap_or_default();
         }
+        trace_ladybug_phase("ladybug_load_records_assemble", started_at);
+        trace_ladybug_phase("ladybug_load_records_total", total_started_at);
         Ok(records)
+    }
+
+    fn load_search_candidate_records_impl(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, LadybugIndexReaderError> {
+        if keys.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = format!(
+            "MATCH (record:Record)
+             WHERE record.record_key IN {}
+             RETURN record.record_key, record.name, record.traits_json,
+                    record.taxonomy_families_json, record.prerequisites_json,
+                    record.system_category, record.system_group
+             ORDER BY record.record_key;",
+            list_literal(keys.iter().map(ToString::to_string))
+        );
+        let rows = query_rows_traced(
+            &self.connection,
+            &sql,
+            "ladybug_load_search_candidates_query",
+        )?;
+        let started_at = Instant::now();
+        let records = rows
+            .iter()
+            .map(|row| {
+                Ok(SearchCandidateRecord {
+                    key: record_key_at(row, 0)?,
+                    name: string_at(row, 1)?,
+                    traits: json_string_array("record.traits_json", &string_at(row, 2)?)?,
+                    taxonomy_families: json_string_array(
+                        "record.taxonomy_families_json",
+                        &string_at(row, 3)?,
+                    )?,
+                    prerequisites: json_string_array(
+                        "record.prerequisites_json",
+                        &string_at(row, 4)?,
+                    )?,
+                    system_category: optional_string_at(row, 5)?,
+                    system_group: optional_string_at(row, 6)?,
+                })
+            })
+            .collect();
+        trace_ladybug_phase("ladybug_load_search_candidates_decode", started_at);
+        records
     }
 
     fn load_record_set_impl(&self) -> Result<PersistedRecordSet, LadybugIndexReaderError> {
@@ -438,12 +506,15 @@ impl LadybugIndexReader {
             list_literal(keys.iter().map(ToString::to_string))
         );
         let mut traits = BTreeMap::<RecordKey, Vec<String>>::new();
-        for row in query_rows(&self.connection, &sql)? {
+        let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_traits_query")?;
+        let started_at = Instant::now();
+        for row in rows {
             traits
                 .entry(record_key_at(&row, 0)?)
                 .or_default()
                 .push(string_at(&row, 1)?);
         }
+        trace_ladybug_phase("ladybug_load_traits_decode", started_at);
         Ok(traits)
     }
 
@@ -461,7 +532,9 @@ impl LadybugIndexReader {
             list_literal(keys.iter().map(ToString::to_string))
         );
         let mut metrics = BTreeMap::<RecordKey, Vec<MetricRow>>::new();
-        for row in query_rows(&self.connection, &sql)? {
+        let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_metrics_query")?;
+        let started_at = Instant::now();
+        for row in rows {
             let value_type =
                 MetricValueType::from_canonical(&string_at(&row, 3)?).ok_or_else(|| {
                     LadybugIndexReaderError::InvalidData("invalid metric type".to_string())
@@ -483,6 +556,7 @@ impl LadybugIndexReader {
                     value,
                 });
         }
+        trace_ladybug_phase("ladybug_load_metrics_decode", started_at);
         Ok(metrics)
     }
 
@@ -501,7 +575,9 @@ impl LadybugIndexReader {
             list_literal(keys.iter().map(ToString::to_string))
         );
         let mut content = BTreeMap::<RecordKey, Vec<SupplementalContentDocument>>::new();
-        for row in query_rows(&self.connection, &sql)? {
+        let rows = query_rows_traced(&self.connection, &sql, "ladybug_load_content_query")?;
+        let started_at = Instant::now();
+        for row in rows {
             let source_kind = ContentSourceKind::from_canonical(&string_at(&row, 1)?)
                 .unwrap_or(ContentSourceKind::Description);
             let visibility = ContentVisibility::from_canonical(&string_at(&row, 2)?)
@@ -520,6 +596,7 @@ impl LadybugIndexReader {
                     document,
                 });
         }
+        trace_ladybug_phase("ladybug_load_content_decode", started_at);
         Ok(content)
     }
 }
@@ -559,6 +636,15 @@ fn stable_hash(value: &str) -> u64 {
     hash
 }
 
+pub(crate) fn trace_ladybug_phase(phase: &str, started_at: Instant) {
+    if std::env::var_os("ATLAS_SEARCH_TRACE").is_some() {
+        eprintln!(
+            "atlas-search trace: {phase} completed in {}ms",
+            started_at.elapsed().as_millis()
+        );
+    }
+}
+
 pub(crate) fn unsupported<T>(feature: &str) -> Result<T, LadybugIndexReaderError> {
     Err(LadybugIndexReaderError::Unsupported(format!(
         "{feature} is not implemented in the Ladybug read spike yet"
@@ -567,6 +653,11 @@ pub(crate) fn unsupported<T>(feature: &str) -> Result<T, LadybugIndexReaderError
 
 pub(crate) fn invalid(error: impl std::fmt::Display) -> LadybugIndexReaderError {
     LadybugIndexReaderError::InvalidData(error.to_string())
+}
+
+fn json_string_array(context: &str, value: &str) -> Result<Vec<String>, LadybugIndexReaderError> {
+    serde_json::from_str(value)
+        .map_err(|error| LadybugIndexReaderError::InvalidData(format!("{context}: {error}")))
 }
 
 fn search_error(error: LadybugIndexReaderError) -> SearchError {

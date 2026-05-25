@@ -14,6 +14,10 @@ use crate::{
 
 pub trait SearchIndex {
     fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError>;
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, SearchError>;
     fn load_record_set(&self) -> Result<PersistedRecordSet, SearchError>;
     fn resolve_record_matches(
         &self,
@@ -71,9 +75,29 @@ pub trait SearchIndex {
     ) -> Result<Vec<VectorSearchHit>, SearchError>;
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchCandidateRecord {
+    pub key: RecordKey,
+    pub name: String,
+    pub traits: Vec<String>,
+    pub taxonomy_families: Vec<String>,
+    pub prerequisites: Vec<String>,
+    pub system_category: Option<String>,
+    pub system_group: Option<String>,
+}
+
 impl SearchIndex for SqliteIndexReader {
     fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<PersistedRecord>, SearchError> {
         Ok(SqliteIndexReader::load_records_by_key(self, keys)?)
+    }
+
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, SearchError> {
+        Ok(SqliteIndexReader::load_search_candidate_records(
+            self, keys,
+        )?)
     }
 
     fn load_record_set(&self) -> Result<PersistedRecordSet, SearchError> {
@@ -182,10 +206,10 @@ impl SearchIndex for SqliteIndexReader {
         fts_query: &FtsQuery,
         filter: Option<&SearchFilterNode>,
         limit: u32,
-        weights: FtsColumnWeights,
+        _weights: FtsColumnWeights,
     ) -> Result<Vec<FtsSearchHit>, SearchError> {
-        Ok(SqliteIndexReader::query_fts_index(
-            self, fts_query, filter, limit, weights,
+        Ok(SqliteIndexReader::query_precision_fts_index(
+            self, fts_query, filter, limit,
         )?)
     }
 

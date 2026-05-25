@@ -1,11 +1,15 @@
+use std::time::Instant;
+
 use crate::{FtsQuery, FtsSearchHit, FtsSearchLane, VectorSearchHit};
 use atlas_domain::{RecordKey, SearchFilterNode};
 
 use super::filter::compile_scope;
-use super::row::{float_at, query_rows, record_key_at, string_at, vector_hit_from_row};
+use super::row::{
+    float_at, query_rows, query_rows_traced, record_key_at, string_at, vector_hit_from_row,
+};
 use super::{
     LadybugIndexReader, LadybugIndexReaderError, list_literal, stable_hash, string_literal,
-    vector_literal,
+    trace_ladybug_phase, vector_literal,
 };
 
 impl LadybugIndexReader {
@@ -44,7 +48,9 @@ impl LadybugIndexReader {
         filter: Option<&SearchFilterNode>,
         limit: u32,
     ) -> Result<Vec<FtsSearchHit>, LadybugIndexReaderError> {
+        let started_at = Instant::now();
         let scope = compile_scope(filter)?;
+        trace_ladybug_phase("ladybug_fts_compile_filter", started_at);
         let sql = format!(
             "CALL QUERY_FTS_INDEX('SearchDocument', {}, {}, top := {})
              WITH node AS doc, score
@@ -61,7 +67,13 @@ impl LadybugIndexReader {
             scope.where_clause("record"),
             limit
         );
-        query_rows(&self.connection, &sql)?
+        let rows = query_rows_traced(
+            &self.connection,
+            &sql,
+            &format!("ladybug_fts_{index_name}_query"),
+        )?;
+        let started_at = Instant::now();
+        let hits = rows
             .iter()
             .enumerate()
             .map(|(index, row)| {
@@ -73,7 +85,9 @@ impl LadybugIndexReader {
                     title_alias_texts: title_alias_texts(string_at(row, 2)?, string_at(row, 3)?),
                 })
             })
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        trace_ladybug_phase(&format!("ladybug_fts_{index_name}_decode"), started_at);
+        Ok(hits)
     }
 
     pub(crate) fn query_fts_candidate_record_keys_impl(
@@ -122,14 +136,19 @@ impl LadybugIndexReader {
         if limit == 0 {
             return Ok(Vec::new());
         }
+        let started_at = Instant::now();
         let scope = compile_scope(filter)?;
+        trace_ladybug_phase("ladybug_vector_compile_filter", started_at);
         let graph_name = if filter.is_some() {
             let projection = scope.embedding_projection_query("record", "embedding");
             let name = format!("eligible_embeddings_{}", stable_hash(&projection));
+            let started_at = Instant::now();
             let _ = self.connection.query(&format!(
                 "CALL DROP_PROJECTED_GRAPH({});",
                 string_literal(&name)
             ));
+            trace_ladybug_phase("ladybug_vector_drop_projection", started_at);
+            let started_at = Instant::now();
             self.connection
                 .query(&format!(
                     "CALL PROJECT_GRAPH_CYPHER({}, {});",
@@ -143,6 +162,7 @@ impl LadybugIndexReader {
                         string_literal(&projection)
                     ))
                 })?;
+            trace_ladybug_phase("ladybug_vector_create_projection", started_at);
             name
         } else {
             "EmbeddingUnit".to_string()
@@ -167,10 +187,14 @@ impl LadybugIndexReader {
             limit,
             limit
         );
-        query_rows(&self.connection, &sql)?
+        let rows = query_rows_traced(&self.connection, &sql, "ladybug_vector_query_index")?;
+        let started_at = Instant::now();
+        let hits = rows
             .iter()
             .map(|row| vector_hit_from_row(row))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        trace_ladybug_phase("ladybug_vector_decode_hits", started_at);
+        Ok(hits)
     }
 }
 

@@ -70,6 +70,112 @@ pub(crate) fn query_fts_index(
         .collect())
 }
 
+pub(crate) fn query_precision_fts_index(
+    connection: &Connection,
+    fts_query: &FtsQuery,
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+    let mut hits = Vec::new();
+    hits.extend(query_precision_fts_lane(
+        connection,
+        fts_query,
+        filter,
+        limit,
+        FtsSearchLane::TitleAlias,
+        &["title", "aliases"],
+        precision_title_alias_weights(),
+    )?);
+    hits.extend(query_precision_fts_lane(
+        connection,
+        fts_query,
+        filter,
+        limit,
+        FtsSearchLane::Facet,
+        &["traits", "taxonomy_terms"],
+        precision_facet_weights(),
+    )?);
+    Ok(hits)
+}
+
+fn query_precision_fts_lane(
+    connection: &Connection,
+    fts_query: &FtsQuery,
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+    lane: FtsSearchLane,
+    columns: &[&str],
+    weights: FtsColumnWeights,
+) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+    let mut hits = query_fts_documents(
+        connection,
+        &scoped_match_query(columns, &fts_query.as_disjunction_match_query()),
+        filter,
+        limit,
+        weights,
+        FtsMatchTier::Fallback,
+    )?;
+
+    let tokens = tokenize_query(&fts_query.tokens.join(" "));
+    let query_phrase = normalize_text(&fts_query.tokens.join(" "));
+    for hit in &mut hits {
+        hit.rank = adjusted_rank(&tokens, &query_phrase, hit, weights);
+    }
+    hits.sort_by(compare_fts_document_hits);
+    hits.truncate(limit as usize);
+    Ok(hits
+        .into_iter()
+        .enumerate()
+        .map(|(index, hit)| FtsSearchHit {
+            title_alias_texts: title_alias_texts(&hit.document),
+            record_key: hit.record_key,
+            rank: hit.rank,
+            lane,
+            lane_rank: (index + 1) as u32,
+        })
+        .collect())
+}
+
+fn scoped_match_query(columns: &[&str], match_query: &str) -> String {
+    format!("{{{}}} : ({match_query})", columns.join(" "))
+}
+
+fn precision_title_alias_weights() -> FtsColumnWeights {
+    FtsColumnWeights {
+        title: 8.0,
+        aliases: 8.0,
+        traits: 0.0,
+        taxonomy_terms: 0.0,
+        constraint_terms: 0.0,
+        mechanic_terms: 0.0,
+        source_terms: 0.0,
+        metric_terms: 0.0,
+        headings: 0.0,
+        body: 0.0,
+        facts: 0.0,
+        reference_terms: 0.0,
+        embedded_content: 0.0,
+    }
+}
+
+fn precision_facet_weights() -> FtsColumnWeights {
+    FtsColumnWeights {
+        title: 0.0,
+        aliases: 0.0,
+        traits: 4.0,
+        taxonomy_terms: 2.5,
+        constraint_terms: 0.0,
+        mechanic_terms: 0.0,
+        source_terms: 0.0,
+        metric_terms: 0.0,
+        headings: 0.0,
+        body: 0.0,
+        facts: 0.0,
+        reference_terms: 0.0,
+        embedded_content: 0.0,
+    }
+}
+
 fn title_alias_texts(document: &FtsDocument) -> Vec<String> {
     std::iter::once(document.title.as_str())
         .chain(document.aliases.lines())
