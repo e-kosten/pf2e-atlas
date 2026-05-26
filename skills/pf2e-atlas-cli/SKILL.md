@@ -96,7 +96,14 @@ atlas graph links conditionitems:AJh5ex99aV6VTggg --backlinks 3 --json
 atlas graph links bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --backlinks 6 --json
 ```
 
-By default, graph context includes outgoing references and omits backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `--outgoing 0 --backlinks <count>` for backlinks-only context. Graph context is retrieval only; it does not synthesize answers.
+By default, graph context includes outgoing references and omits backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `graph uses <record>` for the product-oriented version of backlinks-only context:
+
+```bash
+atlas graph uses conditionitems:AJh5ex99aV6VTggg --limit 25 --json
+atlas graph uses "Frightened" --json
+```
+
+Graph context is retrieval only; it does not synthesize answers.
 
 Use `graph variants` when comparing scaled versions, grades, or other detected variant groups. It accepts a canonical variant record key, an exact variant record name, or an exact variant base name:
 
