@@ -5,14 +5,14 @@ use atlas_artifact::schema::{
 use atlas_domain::FilterValuePolicy;
 use rusqlite::{Connection, params};
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
 use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
 use super::fields::known_family;
 
 const SAMPLE_LIMIT: usize = 100;
 
-pub(super) fn write_value_catalogs(connection: &Connection) -> Result<(), IngestError> {
+pub(super) fn write_value_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
     let value_insert = filter_value_catalog_insert_sql();
     let sample_insert = filter_sample_catalog_insert_sql();
     let numeric_insert = filter_numeric_catalog_insert_sql();
@@ -60,14 +60,14 @@ fn write_discrete_values(
     connection: &Connection,
     insert_sql: &str,
     seed: &FieldCatalogSeed,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     for row in collect_counts(connection, seed.value_sql)? {
         connection
             .execute(
                 insert_sql,
                 params![seed.field, row.record_family, row.value, row.count],
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
@@ -76,7 +76,7 @@ fn write_sample_values(
     connection: &Connection,
     insert_sql: &str,
     seed: &FieldCatalogSeed,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let mut rows = collect_counts(connection, seed.value_sql)?;
     rows.sort_by(|left, right| {
         left.record_family
@@ -100,7 +100,7 @@ fn write_sample_values(
                 insert_sql,
                 params![seed.field, row.record_family, row.value, row.count, rank],
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
@@ -109,7 +109,7 @@ fn write_numeric_values(
     connection: &Connection,
     insert_sql: &str,
     seed: &FieldCatalogSeed,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     for row in collect_numeric_stats(connection, seed.value_sql)? {
         connection
             .execute(
@@ -131,7 +131,7 @@ fn write_numeric_values(
                     row.max,
                 ],
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
@@ -139,7 +139,7 @@ fn write_numeric_values(
 fn write_metric_numeric_values(
     connection: &Connection,
     insert_sql: &str,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let mut statement = connection
         .prepare(
             "SELECT DISTINCT metric_domain, metric_key
@@ -147,14 +147,14 @@ fn write_metric_numeric_values(
              WHERE value_type = 'number'
              ORDER BY metric_domain, metric_key",
         )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let metric_rows = statement
         .query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let total = metric_rows.len() as u64;
     for (index, (metric_domain, metric_key)) in metric_rows.iter().enumerate() {
         super::progress(
@@ -184,7 +184,7 @@ fn write_metric_numeric_values(
                         row.max,
                     ],
                 )
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
     }
     super::progress(
@@ -203,7 +203,7 @@ struct CountRow {
     count: u64,
 }
 
-fn collect_counts(connection: &Connection, value_sql: &str) -> Result<Vec<CountRow>, IngestError> {
+fn collect_counts(connection: &Connection, value_sql: &str) -> Result<Vec<CountRow>, IndexWriteError> {
     let sql = format!(
         "WITH field_values(record_key, value) AS ({value_sql})
          SELECT NULL AS record_family, value, COUNT(*) AS catalog_count
@@ -221,7 +221,7 @@ fn collect_counts(connection: &Connection, value_sql: &str) -> Result<Vec<CountR
     );
     let mut statement = connection
         .prepare(&sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
             Ok((
@@ -230,11 +230,11 @@ fn collect_counts(connection: &Connection, value_sql: &str) -> Result<Vec<CountR
                 row.get::<_, u64>(2)?,
             ))
         })
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut counts = Vec::new();
     for row in rows {
         let (scope, value, count) =
-            row.map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         counts.push(CountRow {
             record_family: scope.and_then(|value| known_family(value.as_str())),
             value,
@@ -262,7 +262,7 @@ struct NumericRow {
 fn collect_numeric_stats(
     connection: &Connection,
     value_sql: &str,
-) -> Result<Vec<NumericRow>, IngestError> {
+) -> Result<Vec<NumericRow>, IndexWriteError> {
     let mut rows = Vec::new();
     rows.push(numeric_scope(connection, value_sql, None)?);
     for family in ALL_FAMILIES {
@@ -275,7 +275,7 @@ fn collect_metric_numeric_stats(
     connection: &Connection,
     metric_domain: &str,
     metric_key: &str,
-) -> Result<Vec<NumericRow>, IngestError> {
+) -> Result<Vec<NumericRow>, IndexWriteError> {
     let mut rows = Vec::new();
     rows.push(metric_numeric_scope(
         connection,
@@ -299,7 +299,7 @@ fn metric_numeric_scope(
     metric_domain: &str,
     metric_key: &str,
     family: Option<&'static str>,
-) -> Result<Option<NumericRow>, IngestError> {
+) -> Result<Option<NumericRow>, IndexWriteError> {
     let family_predicate = if family.is_some() {
         "AND r.record_family = ?3"
     } else {
@@ -319,23 +319,23 @@ fn metric_numeric_scope(
     );
     let mut statement = connection
         .prepare(&sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let values = if let Some(family) = family {
         statement
             .query_map(params![metric_domain, metric_key, family], |row| {
                 row.get::<_, f64>(0)
             })
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
     } else {
         statement
             .query_map(params![metric_domain, metric_key], |row| {
                 row.get::<_, f64>(0)
             })
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
     };
     if values.is_empty() {
         return Ok(None);
@@ -360,7 +360,7 @@ fn numeric_scope(
     connection: &Connection,
     value_sql: &str,
     family: Option<&'static str>,
-) -> Result<Option<NumericRow>, IngestError> {
+) -> Result<Option<NumericRow>, IndexWriteError> {
     let family_predicate = if family.is_some() {
         "AND r.record_family = ?1"
     } else {
@@ -378,19 +378,19 @@ fn numeric_scope(
     );
     let mut statement = connection
         .prepare(&sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let values = if let Some(family) = family {
         statement
             .query_map(params![family], |row| row.get::<_, f64>(0))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
     } else {
         statement
             .query_map([], |row| row.get::<_, f64>(0))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
     };
     if values.is_empty() {
         return Ok(None);
@@ -411,7 +411,7 @@ fn numeric_scope(
     }))
 }
 
-fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IngestError> {
+fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IndexWriteError> {
     match family {
         Some(family) => connection
             .query_row(
@@ -419,14 +419,14 @@ fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, 
                 params![family],
                 |row| row.get(0),
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string())),
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
         None => connection
             .query_row(
                 "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
                 [],
                 |row| row.get(0),
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string())),
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
     }
 }
 

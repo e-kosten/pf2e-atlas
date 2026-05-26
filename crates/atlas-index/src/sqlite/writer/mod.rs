@@ -15,6 +15,7 @@ mod metric_catalogs;
 mod packs;
 mod records;
 mod relationships;
+mod schema;
 mod vector_index;
 
 use discovery_catalogs::write_discovery_catalogs;
@@ -26,29 +27,55 @@ use records::write_records;
 use relationships::{write_record_aliases, write_reference_edges, write_remaster_links};
 use vector_index::write_record_vector_index;
 
-use crate::artifact::schema;
-use crate::error::IngestError;
-use crate::source::SourceLoad;
+use crate::{IndexArtifactWriter, IndexBuildInput, IndexWriteError};
 
-pub(crate) fn write_artifact(
+pub struct SqliteIndexWriter {
+    path: PathBuf,
+}
+
+impl SqliteIndexWriter {
+    pub fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
+impl IndexArtifactWriter for SqliteIndexWriter {
+    fn label(&self) -> &'static str {
+        "SQLite"
+    }
+
+    fn output_path(&self) -> &Path {
+        &self.path
+    }
+
+    fn write(
+        &self,
+        input: &IndexBuildInput<'_>,
+        embedding_model: EmbeddingModelId,
+    ) -> Result<(), IndexWriteError> {
+        write_artifact(&self.path, input, embedding_model)
+    }
+}
+
+fn write_artifact(
     path: &Path,
-    source: &SourceLoad,
+    input: &IndexBuildInput<'_>,
     embedding_model: EmbeddingModelId,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
 
-    if !source.document_embeddings.is_empty() {
+    if !input.document_embeddings.is_empty() {
         artifact_progress("artifact_write", "Loading sqlite vector extension");
         atlas_sqlite_vec::register_sqlite_vec_auto_extension()
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     let mut connection = Connection::open(output.temp_path())
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let transaction = connection
         .transaction()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     artifact_progress("artifact_write", "Creating artifact schema");
     info!("creating artifact schema");
     schema::create_artifact_schema(&transaction)?;
@@ -56,48 +83,48 @@ pub(crate) fn write_artifact(
     info!("writing artifact metadata");
     write_artifact_metadata(
         &transaction,
-        source.source_record_count,
-        source.records.len(),
-        source.records.len() - source.source_record_count,
-        &source.source_signature,
+        input.source_record_count,
+        input.artifact_record_count(),
+        input.generated_record_count(),
+        input.source_signature,
         embedding_model,
     )?;
     artifact_progress("artifact_write", "Writing packs");
-    info!(packs = source.packs.len(), "writing packs");
-    write_packs(&transaction, &source.packs)?;
+    info!(packs = input.packs.len(), "writing packs");
+    write_packs(&transaction, &input.packs)?;
     artifact_progress("artifact_write", "Writing records");
-    info!(records = source.records.len(), "writing records");
+    info!(records = input.artifact_record_count(), "writing records");
     write_records(
         &transaction,
-        &source.records,
-        &source.aliases,
-        &source.remaster_links,
+        &input.records,
+        input.aliases,
+        input.remaster_links,
     )?;
     artifact_progress("artifact_write", "Writing reference edges");
     info!(
-        reference_edges = source.references.len(),
+        reference_edges = input.references.len(),
         "writing reference edges"
     );
-    write_reference_edges(&transaction, &source.references)?;
+    write_reference_edges(&transaction, input.references)?;
     artifact_progress("artifact_write", "Writing record aliases");
-    info!(aliases = source.aliases.len(), "writing record aliases");
-    write_record_aliases(&transaction, &source.aliases)?;
+    info!(aliases = input.aliases.len(), "writing record aliases");
+    write_record_aliases(&transaction, input.aliases)?;
     artifact_progress("artifact_write", "Writing remaster links");
     info!(
-        remaster_links = source.remaster_links.len(),
+        remaster_links = input.remaster_links.len(),
         "writing remaster links"
     );
-    write_remaster_links(&transaction, &source.remaster_links)?;
+    write_remaster_links(&transaction, input.remaster_links)?;
     artifact_progress("artifact_write", "Writing document embedding cache");
     info!(
-        document_embeddings = source.document_embeddings.len(),
+        document_embeddings = input.document_embeddings.len(),
         "writing document embedding cache"
     );
-    write_document_embedding_cache(&transaction, &source.document_embeddings)?;
-    if !source.document_embeddings.is_empty() {
+    write_document_embedding_cache(&transaction, input.document_embeddings)?;
+    if !input.document_embeddings.is_empty() {
         artifact_progress("artifact_write", "Writing record vector index");
         info!(
-            document_embeddings = source.document_embeddings.len(),
+            document_embeddings = input.document_embeddings.len(),
             "writing record vector index"
         );
         write_record_vector_index(&transaction)?;
@@ -112,7 +139,7 @@ pub(crate) fn write_artifact(
     info!("committing artifact");
     transaction
         .commit()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     drop(connection);
     output.commit()
 }
@@ -127,12 +154,12 @@ struct ArtifactOutput {
 }
 
 impl ArtifactOutput {
-    fn prepare(target_path: &Path) -> Result<Self, IngestError> {
+    fn prepare(target_path: &Path) -> Result<Self, IndexWriteError> {
         if let Some(parent) = target_path.parent()
             && !parent.as_os_str().is_empty()
         {
             fs::create_dir_all(parent)
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
 
         let temp_path = temp_artifact_path(target_path)?;
@@ -148,7 +175,7 @@ impl ArtifactOutput {
         &self.temp_path
     }
 
-    fn commit(self) -> Result<(), IngestError> {
+    fn commit(self) -> Result<(), IndexWriteError> {
         remove_sqlite_files(&self.target_path)?;
         move_sqlite_files(&self.temp_path, &self.target_path)
     }
@@ -160,17 +187,17 @@ impl Drop for ArtifactOutput {
     }
 }
 
-fn temp_artifact_path(target_path: &Path) -> Result<PathBuf, IngestError> {
+fn temp_artifact_path(target_path: &Path) -> Result<PathBuf, IndexWriteError> {
     let parent = target_path.parent().unwrap_or_else(|| Path::new(""));
     let file_name = target_path
         .file_name()
         .ok_or_else(|| {
-            IngestError::ArtifactWriteFailed("artifact output path has no file name".to_string())
+            IndexWriteError::WriteFailed("artifact output path has no file name".to_string())
         })?
         .to_string_lossy();
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
         .as_nanos();
     Ok(parent.join(format!(
         "{file_name}.rebuild-{}-{timestamp}",
@@ -191,28 +218,28 @@ fn sqlite_paths(path: &Path) -> [PathBuf; 3] {
     ]
 }
 
-fn remove_sqlite_files(path: &Path) -> Result<(), IngestError> {
+fn remove_sqlite_files(path: &Path) -> Result<(), IndexWriteError> {
     for sqlite_path in sqlite_paths(path) {
         match fs::remove_file(&sqlite_path) {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(IngestError::ArtifactWriteFailed(error.to_string())),
+            Err(error) => return Err(IndexWriteError::WriteFailed(error.to_string())),
         }
     }
     Ok(())
 }
 
-fn move_sqlite_files(source_path: &Path, target_path: &Path) -> Result<(), IngestError> {
+fn move_sqlite_files(source_path: &Path, target_path: &Path) -> Result<(), IndexWriteError> {
     let source_paths = sqlite_paths(source_path);
     let target_paths = sqlite_paths(target_path);
 
     fs::rename(&source_paths[0], &target_paths[0])
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     for (source, target) in source_paths.iter().zip(target_paths.iter()).skip(1) {
         if source.exists() {
             fs::rename(source, target)
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
     }
 

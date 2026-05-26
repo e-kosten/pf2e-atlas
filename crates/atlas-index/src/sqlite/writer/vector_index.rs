@@ -4,9 +4,9 @@ use atlas_artifact::schema::{
 };
 use rusqlite::Connection;
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
-pub(super) fn write_record_vector_index(connection: &Connection) -> Result<(), IngestError> {
+pub(super) fn write_record_vector_index(connection: &Connection) -> Result<(), IndexWriteError> {
     let dimensions = embedding_dimensions(connection)?;
     connection
         .execute_batch(&format!(
@@ -15,35 +15,35 @@ pub(super) fn write_record_vector_index(connection: &Connection) -> Result<(), I
             table = TABLE_RECORD_VECTOR_INDEX,
             create_sql = record_vector_index_create_sql(dimensions)
         ))
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     let insert_sql = record_vector_index_insert_sql();
     let mut insert = connection
         .prepare(&insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut select = connection
         .prepare(&format!(
             "SELECT rowid, vector_blob
              FROM {TABLE_DOCUMENT_EMBEDDING_CACHE}
              ORDER BY embedding_unit_key"
         ))
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let rows = select
         .query_map([], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
         })
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     for row in rows {
         let (rowid, vector_blob) =
-            row.map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         insert
             .execute((rowid, vector_blob))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
-fn embedding_dimensions(connection: &Connection) -> Result<usize, IngestError> {
+fn embedding_dimensions(connection: &Connection) -> Result<usize, IndexWriteError> {
     let dimensions = connection
         .query_row(
             &format!(
@@ -54,9 +54,9 @@ fn embedding_dimensions(connection: &Connection) -> Result<usize, IngestError> {
             [],
             |row| row.get::<_, i64>(0),
         )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     usize::try_from(dimensions).map_err(|_| {
-        IngestError::ArtifactWriteFailed(format!(
+        IndexWriteError::WriteFailed(format!(
             "document embedding dimensions must be non-negative, got {dimensions}"
         ))
     })

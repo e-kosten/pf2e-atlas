@@ -1,16 +1,16 @@
 use atlas_artifact::schema::pack_insert_sql;
 use rusqlite::Connection;
 
-use crate::error::IngestError;
-use crate::source::LoadedPack;
+use crate::IndexWriteError;
+use crate::IndexBuildPack;
 
 pub(super) fn write_packs(
     connection: &Connection,
-    packs: &[LoadedPack],
-) -> Result<(), IngestError> {
+    packs: &[IndexBuildPack<'_>],
+) -> Result<(), IndexWriteError> {
     let mut statement = connection
         .prepare(&pack_insert_sql())
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     for pack in packs {
         statement
             .execute((
@@ -21,7 +21,7 @@ pub(super) fn write_packs(
                 pack.resolved_path.display().to_string(),
                 pack.record_count,
             ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }

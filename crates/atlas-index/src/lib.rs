@@ -7,6 +7,7 @@ use atlas_artifact::schema::required_tables;
 use rusqlite::Connection;
 use thiserror::Error;
 
+mod build_input;
 mod contract;
 mod database;
 mod discovery;
@@ -17,11 +18,15 @@ mod metadata;
 mod records;
 mod relationship_edges;
 mod sql;
+mod sqlite;
 #[cfg(test)]
 mod tests;
 mod validation;
 mod vector;
+mod write;
+mod writer_visibility;
 
+pub use build_input::{IndexBuildInput, IndexBuildPack};
 pub use database::{
     AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
     FtsSearchHit, ReferenceEdgeDirection,
@@ -38,7 +43,9 @@ pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
+pub use sqlite::SqliteIndexWriter;
 pub use vector::{VectorQueryError, VectorSearchHit};
+pub use write::{IndexArtifactWriter, IndexWriteError};
 
 #[derive(Debug, Error)]
 pub enum IndexValidationError {
