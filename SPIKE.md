@@ -41,6 +41,20 @@ The local prototype crate is `crates/atlas-ladybug-spike`. It uses the LadybugDB
 lbug = "0.16.1"
 ```
 
+The same spike crate now also includes GraphQLite for a SQLite-adjacent graph comparison:
+
+```toml
+graphqlite = "0.4.4"
+```
+
+GraphQLite is a SQLite extension with a Rust crate and bundled native extension by default. The first checked-in probe is intentionally small:
+
+```bash
+cargo run -p atlas-ladybug-spike -- graphqlite-smoke
+```
+
+It verifies that the bundled extension loads, bulk node and edge insertion work, and a Cypher relationship query can read a tiny PF2e-shaped graph. This is not yet an Atlas artifact writer; it is only the dependency and API smoke test needed before adding a GraphQLite projection writer.
+
 Installation was also tested in a clean minimal Rust project at `/private/tmp/pathfinder-mcp-worktrees/ladybug-install-repro`. That repro only depends on `lbug = "0.16.1"` and creates/query one in-memory node.
 
 Observed install/build paths on macOS arm64 with Rust 1.95.0:
@@ -610,6 +624,138 @@ Treat LadybugDB as a serious candidate only if it can:
 - support local offline artifact distribution and validation
 
 Prefer SQLite or another SQL-shaped backend if LadybugDB mainly recreates relational tables in graph syntax, if FTS/vector behavior is too limited, or if validation and packaging become materially harder.
+
+## GraphQLite Comparison Path
+
+GraphQLite is the next comparison target because the Ladybug work has shown two things at once:
+
+- Ladybug can model much of the current SQLite behavior, but current read-path performance is usually slower than SQLite for ordinary lookup, filtering, discovery, and hybrid search.
+- The remaining question is graph retrieval value, so the fair comparison is no longer Ladybug versus plain relational SQLite alone. It should also include a SQLite artifact with a narrow graph projection.
+
+The intended GraphQLite shape is a hybrid SQLite artifact, not a replacement for normal SQLite tables:
+
+- keep `records`, `record_traits`, `record_metrics`, `reference_edges`, FTS, vector cache, filter catalogs, and hydration tables as the authoritative product/runtime contract;
+- add a GraphQLite projection for graph-shaped facts only;
+- use GraphQLite to propose graph-retrieval candidates and explanation paths;
+- hydrate final records and run ordinary search/filter/discovery through the existing SQLite reader.
+
+The first GraphQLite projection stays deliberately narrow:
+
+- `(:Record {id, record_key, name, family, default_visible})`
+- `(:Pack {id, name, label})`
+- `(:Publication {id, title, family, remaster})`
+- `(:Trait {id, value})`
+- `(:TaxonomyFamily {id, value})`
+- `(:ContentUnit {id, content_key, record_key, source_kind, label})`
+- `(:EvidenceUnit {id, evidence_unit_key, record_key, source_content_unit_key, source_kind, visibility, unit_kind, label, ordinal, search_text})`
+- `(:VariantGroup {id, key})`
+- `(:VariantAxis {id, value})`
+- optional later nodes: curated `Concept`
+
+Initial edges:
+
+- `(Record)-[:HAS_TRAIT]->(Trait)` from normalized record traits
+- `(Record)-[:IN_PACK]->(Pack)` from source-pack membership
+- `(Record)-[:PUBLISHED_IN]->(Publication)` from normalized publication metadata
+- `(Record)-[:HAS_TAXONOMY_FAMILY]->(TaxonomyFamily)` from taxonomy enrichment
+- `(Record)-[:REFERENCES {source_kind, visibility, reference_text, display_text}]->(Record)` from policy-visible `reference_edges`
+- `(Record)-[:HAS_CONTENT_UNIT]->(ContentUnit)` from supplemental content and embedding/content-unit data
+- `(ContentUnit)-[:MENTIONS {source_kind, visibility, reference_text, display_text}]->(Record)` where the source unit can be identified
+- `(Record)-[:HAS_EVIDENCE_UNIT]->(EvidenceUnit)` from the shared graph evidence-unit builder
+- `(EvidenceUnit)-[:EVIDENCE_REFERENCES {source_kind, visibility, reference_text, display_text}]->(Record)` from references inside description, blurb, supplemental content, and embedded content evidence units
+- `(Record)-[:VARIANT_OF]->(VariantGroup)` from `variant_group_key`
+- `(Record)-[:HAS_VARIANT_AXIS]->(VariantAxis)` from variant-axis labels
+- `(Record)-[:REMASTERED_BY]->(Record)` from `remaster_links`
+
+Do not project metrics into GraphQLite by default. Metrics are scalar/range data and remain better modeled in `record_metrics` plus generated catalogs. If a graph-product query needs metric context, join/hydrate metric summaries from SQLite after GraphQLite returns candidate record keys, or add explicit bucket/concept nodes later as a separate experiment.
+
+The ingest/write pipeline now populates GraphQLite as part of every SQLite artifact write:
+
+1. Extend the SQLite writer, not ingest normalization. The normalized `IndexBuildInput` already contains records, references, aliases, remaster links, metrics, content, and embedding units after all ingest enrichment.
+2. Add a `sqlite/graphqlite` writer phase after normal SQLite table writes and before publish/checkpoint.
+3. Open or wrap the same SQLite database with GraphQLite, using the bundled extension first for the spike.
+4. Create the GraphQLite graph projection from `IndexBuildInput` with bulk APIs:
+   - bulk insert all graph nodes and keep the external-id to internal-rowid map;
+   - bulk insert edges using that map;
+   - avoid Cypher `CREATE` loops for full corpus writes.
+5. Persist projection metadata in `artifact_metadata`, for example `graphqlite_projection_version`, projected node/edge counts, and source signature compatibility.
+6. Add validation that projected GraphQLite node/edge counts match the authoritative SQLite rows used to create them.
+7. Add a read-side GraphQLite probe that returns only record keys plus evidence paths; existing SQLite hydration should remain the presentation source of truth.
+
+Fresh no-embedding build with the always-on projection:
+
+- Command: `cargo run -p atlas-cli -- index build --progress always --source vendor/pf2e --output .cache/graphqlite-eval.sqlite --no-embeddings`.
+- Build completed in about `2m 01s` after adding evidence units.
+- The GraphQLite projection phase took about `40.8s` from `Writing GraphQLite graph projection` to `Publishing artifact` after adding evidence units, up from about `16.4s` without them.
+- Projection metadata reported `220,479` nodes and `517,824` edges after adding evidence units.
+
+Initial read-pattern probe:
+
+- GraphQLite Cypher can read the embedded projection directly from the SQLite artifact.
+- Raw GraphQLite tables are visible to normal SQLite SQL: `nodes`, `edges`, `node_labels`, `property_keys`, typed node property tables, and typed edge property tables.
+- Direct joins between ordinary SQLite tables and GraphQLite tables are possible in one SQL statement. Example probes joined `records` to `HAS_TRAIT`, `REFERENCES`, and `HAS_CONTENT_UNIT`.
+- Raw table joins are EAV-shaped and not yet attractive as the main read path without additional indexes or helper views. In one local run, a `records + HAS_TRAIT` raw join took about `3.0s`, a `records + REFERENCES` backlink join took about `1.2s`, and a `records + HAS_CONTENT_UNIT` join took about `129ms`.
+- Cypher was more ergonomic for graph traversal probes in this first pass. The likely read shape remains: use GraphQLite/Cypher for graph candidate/evidence discovery, then hydrate final records from SQLite.
+
+Initial graph-native product probes:
+
+- `spells with fear trait that reference frightened`: `12` rows in about `85ms` in the latest local run. This is a promising graph-native product shape because it combines a categorical relationship and a reference relationship with direct evidence (`edge.display_text`, such as `Frightened 1`).
+- `records that reference frightened and also have a fear trait`: `12` rows in about `802ms`. This surfaced hazards, rules, and feats, not just spells. The result set reads like a cross-family “mechanics around fear/frightened” graph query, but it is slower than the narrower spell query.
+- `records sharing a target referenced by Fear`: `12` rows in about `42ms`, but it was broad because `Frightened` has many backlinks. This is useful as an explanation/candidate-expansion primitive, but needs ranking, dedupe, and default-graph policy gates before it becomes user-facing.
+- `records sharing traits with Fear`: `16` rows in about `7.6s` and was low quality because high-frequency traits such as `concentrate` dominate. Shared-trait similarity should downweight common traits, restrict by family, or use curated/weighted trait sets before being considered a product feature.
+- GraphQLite accepted aggregate `count(...)` queries, but in this first probe it did not group like Neo4j-style Cypher: `RETURN other.record_key, other.name, count(trait)` collapsed to one arbitrary row with the total evidence count. Treat aggregate/grouping support as incomplete until proven otherwise.
+- A more realistic “similar to Fear” shape is: use GraphQLite to return graph evidence rows, then score/collapse in Rust. For same-family spells sharing non-broad traits with `Fear`, Rust scoring over GraphQLite evidence produced `284` candidates from `412` evidence rows in about `1.6s`. The top records shared `emotion`, `fear`, and `mental`, including `Agonizing Despair`, `Ancestral Touch`, `Blistering Invective`, `Dirge of Doom`, `Horrific Visage`, and `Impending Doom`.
+- Rust-scored similarity by shared referenced mechanics produced `66` spell candidates from `78` evidence rows in about `3.1s`. Top results shared two referenced mechanics with `Fear`, including `Horrific Visage`, `Phantasmal Killer`, `Vision of Death`, and `Weird`.
+- `variant group neighbors` for `Fear` returned no rows, which is expected for that seed. Variant groups still look useful for variant browsing, but need seed cases chosen from records that actually have variant groups.
+- `creature content units with embedded gear/effects`: returned immediately and exposed embedded spell/effect/action content under creatures.
+- `content units that mention canonical records`: first-page runs completed immediately to low tens of milliseconds. This validates the `ContentUnit -> MENTIONS -> Record` shape: Beluthus embedded-item sections now connect directly to canonical conditions, spell effects, and spells such as `Stupefied`, `Stunned`, `Spell Effect: Bind Undead`, `Spell Effect: Death Knell`, `Banishment`, and `Possession`.
+- `same-evidence mechanic bridge`: now returns semantically comparable results to Ladybug after adding `EvidenceUnit` and `EVIDENCE_REFERENCES`, including records such as `Hu Ban-Niang`, `Cyclops Bully`, `Brandish Authority`, `Tut-Tut`, `Fear of God`, `Gorilla Pound`, `Antagonize`, and `Belittling Boast`. The direct GraphQLite query took about `15s`, compared with Ladybug's analogous query at about `130ms`; this is currently the clearest case where GraphQLite can model the fact but Ladybug is the better graph-query engine.
+- `mechanic impact map rows for Frightened`: first-page evidence rows returned in about `2ms`, showing that simple target-to-evidence expansion is fine; the slow path is specifically the two-target evidence intersection query.
+- `sample records with taxonomy families`: `16` rows in about `5ms`, showing taxonomy-family nodes on creature records such as `stargut-hydra`, `greater-barghest`, `protean`, and `ancestry-npcs`. This confirms the projection works, but useful product evaluation needs taxonomy-appropriate seeds rather than the `Fear` spell seed.
+- `publication neighbors for Fear`: `16` rows in about `10ms`. This confirms publication nodes work, but raw publication adjacency is mostly a browsing/explanation primitive; high-cardinality publications need additional ranking or a more focused question.
+- `pack neighbors for Fear`: `16` rows in about `1ms`. Pack nodes work and are useful for provenance/navigation, but broad pack adjacency is not itself a high-value search primitive.
+- `sample variant axes`: `16` rows in about `0ms`, surfacing axes such as `specialization` and `other` across creature variants. Like variant groups, this looks more useful for variant/progression browsing than general search.
+- `records sharing taxonomy families with Fear`: `0` rows because `Fear` has no taxonomy-family assignment. Taxonomy-family evaluation needs creature or item seeds instead of a spell seed.
+
+The strongest early GraphQLite product opportunities are not general record hydration or broad similarity. They are relationship-composition questions with explainable paths:
+
+- “show me spells that are both tagged `fear` and explicitly apply/reference `frightened`”;
+- “show me all content across families connected to this condition/trait/mechanic”;
+- “expand from this record through shared referenced mechanics, with edge evidence”;
+- “inspect embedded capabilities on creatures/NPCs and follow `MENTIONS` edges back to canonical records.”
+
+This keeps the fair comparison clean:
+
+- SQLite baseline: current relational tables plus optional custom recursive CTE/Rust graph logic.
+- SQLite + GraphQLite: current fast SQLite artifact plus a graph projection in the same `.sqlite` file.
+- Ladybug: separate graph-native artifact carrying graph/vector/search projections.
+
+GraphQLite should be judged on graph-retrieval product value, projection build cost, artifact size, extension packaging, and explanation quality. It should not be required to compete with SQLite's normal row hydration, catalogs, FTS, or vector cache unless we deliberately move those surfaces into the projection later.
+
+### Ladybug vs GraphQLite Graph Search Comparison
+
+Current comparison used:
+
+- Ladybug artifact: `.cache/ladybug-spike/with-embeddings.lbug`
+- GraphQLite artifact: `.cache/graphqlite-eval.sqlite`
+
+The artifacts are close enough for graph-shape comparison, but not identical. The GraphQLite artifact includes the newest `Pack`, `Publication`, `TaxonomyFamily`, `VariantAxis`, `ContentUnit -> MENTIONS -> Record`, and shared `EvidenceUnit` projection additions. The Ladybug artifact has the richer graph model with `Alias`, `Metric`, `SearchDocument`, and embedding/vector nodes.
+
+Observed comparison:
+
+- Relationship composition works in both. Both can answer `fear trait AND references frightened` and reference co-occurrence questions. GraphQLite returned the direct fear/frightened spell query in `85ms` in the latest local run; Ladybug's comparable product-eval graph queries were generally tens to low hundreds of milliseconds after compile.
+- More-like-this is currently stronger in Ladybug. Ladybug can express a combined relationship-ranked query natively using shared traits plus shared referenced records, returning strongly relevant rows such as `Horrific Visage`, `Invoke Spirits`, `Phantasmal Killer`, `Vision of Death`, and `Weird` in about `89ms` execution time. GraphQLite can return the same evidence rows, but aggregate/grouping behavior was not Neo4j-like in the first probe, so the useful ranking path currently collapses/scores in Rust. That produced good overlap but took about `1.6s` for shared traits and `3.1s` for shared references as separate passes.
+- Evidence-unit search is still stronger in Ladybug's current engine even after model parity improved. GraphQLite now projects the same shared `EvidenceUnit` shape for parent documents and content units, and it returns semantically comparable bridge rows. However, the direct GraphQLite two-target evidence bridge took about `15s`, while Ladybug's analogous query took about `130ms`.
+- Variant progression works in both. Ladybug returned Dread Ampoule's Lesser/Moderate/Greater/Major progression with level, label, and axes in about `4ms` execution time. GraphQLite returned the same four records in about `74ms`, but without level ordering in the graph result because the current projection intentionally keeps scalar/range data authoritative in SQLite.
+- Remaster-plus-shared-reference comparison works in both. GraphQLite returned shared-reference rows for remaster pairs in about `13ms`; Ladybug's product eval returned grouped remaster pairs with shared-reference counts in about `111ms` execution. The practical difference is again aggregation: Ladybug can group/count directly in Cypher, while GraphQLite may need Rust collapse for ranked output.
+- Alias and metric/ecology graph searches are currently Ladybug-only. Ladybug has `Alias` and `Metric` nodes/relationships and can run ambiguity and trait/metric ecology probes. GraphQLite intentionally does not project aliases or metrics yet, so those are not fair GraphQLite misses; they are model-scope differences.
+- Pack, publication, taxonomy-family, and variant-axis navigation are now GraphQLite-only in the current artifacts. These are useful provenance/browse edges, but broad pack/publication adjacency is not by itself a high-value search primitive. Taxonomy families and variant axes need better seed-specific product probes.
+
+Current read:
+
+- Ladybug is the better graph-query engine for complex graph ranking, aggregation, aliases, metrics, and evidence-unit search.
+- GraphQLite is compelling as a lightweight companion graph inside the SQLite artifact. It handles simple relationship composition, content-unit mentions, variants, remaster edges, pack/publication navigation, and direct candidate/evidence retrieval without giving up SQLite's existing fast row/search/filter surfaces.
+- The most useful next comparison is now narrower: decide whether the slow GraphQLite two-target evidence intersection can be made practical with query rewrites, raw-table indexes/views, or Rust-side set intersection over candidate evidence rows. If not, Ladybug has a clear advantage for evidence-bridge graph search. Separately, decide whether aliases belong in GraphQLite before comparing lookup-disambiguation graph features.
 
 ## Outputs
 

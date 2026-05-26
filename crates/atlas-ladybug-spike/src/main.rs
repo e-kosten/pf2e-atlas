@@ -14,11 +14,15 @@ use serde_json::Value as JsonValue;
 
 mod atlas_cli;
 mod cli_parity;
+mod graphqlite_eval;
 mod perf_eval;
 mod search_eval;
 
 use atlas_cli::summarize_json;
 use cli_parity::run_cli_parity;
+use graphqlite_eval::{
+    run_graphqlite_product_patterns, run_graphqlite_read_patterns, run_graphqlite_smoke_probe,
+};
 use perf_eval::run_cli_performance_eval;
 use search_eval::{run_search_eval, run_search_quality_matrix};
 
@@ -27,6 +31,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mode = args.next().unwrap_or_else(|| "in-memory".to_string());
     if mode == "bulk-parquet" {
         return run_bulk_parquet_probe();
+    }
+    if mode == "graphqlite-smoke" {
+        return run_graphqlite_smoke_probe();
+    }
+    if mode == "graphqlite-read-patterns" {
+        let path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/graphqlite-eval.sqlite"));
+        return run_graphqlite_read_patterns(&path);
+    }
+    if mode == "graphqlite-product-patterns" {
+        let path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/graphqlite-eval.sqlite"));
+        return run_graphqlite_product_patterns(&path);
     }
     if mode == "query-artifact" {
         let path = args

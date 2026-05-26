@@ -20,5 +20,6 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+graphqlite = "0.4.4"
 lbug.workspace = true
 rusqlite.workspace = true

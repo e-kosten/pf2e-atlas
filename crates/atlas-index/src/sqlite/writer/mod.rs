@@ -10,6 +10,7 @@ use tracing::info;
 
 mod discovery_catalogs;
 mod embeddings;
+mod graphqlite;
 mod labels;
 mod metadata;
 mod metric_catalogs;
@@ -21,6 +22,7 @@ mod vector_index;
 
 use discovery_catalogs::write_discovery_catalogs;
 use embeddings::write_document_embedding_cache;
+use graphqlite::write_graphqlite_projection;
 use metadata::write_artifact_metadata;
 use metric_catalogs::write_metric_catalogs;
 use packs::write_packs;
@@ -136,12 +138,19 @@ fn write_artifact(
     artifact_progress("artifact_write", "Writing filter discovery catalogs");
     info!("writing filter discovery catalogs");
     write_discovery_catalogs(&transaction)?;
-    artifact_progress("artifact_write", "Publishing artifact");
-    info!("committing artifact");
+    artifact_progress("artifact_write", "Finalizing SQLite artifact tables");
+    info!("committing SQLite artifact tables");
     transaction
         .commit()
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     drop(connection);
+
+    artifact_progress("artifact_write", "Writing GraphQLite graph projection");
+    info!("writing GraphQLite graph projection");
+    write_graphqlite_projection(output.temp_path(), input)?;
+
+    artifact_progress("artifact_write", "Publishing artifact");
+    info!("publishing artifact");
     output.commit()
 }
 

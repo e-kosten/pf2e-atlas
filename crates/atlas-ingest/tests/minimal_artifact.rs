@@ -2,6 +2,7 @@ use std::fs;
 
 use atlas_index::{SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
+use graphqlite::Graph;
 use lbug::{Connection as LadybugConnection, Database, SystemConfig, Value as LadybugValue};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -792,6 +793,21 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM spell_records", [], |row| row.get(0))?;
     let reference_edge_count: usize =
         connection.query_row("SELECT COUNT(*) FROM reference_edges", [], |row| row.get(0))?;
+    let graphqlite_projection_version: String = connection.query_row(
+        "SELECT value FROM artifact_metadata WHERE key = 'graphqlite_projection_version'",
+        [],
+        |row| row.get(0),
+    )?;
+    let graphqlite_node_count: String = connection.query_row(
+        "SELECT value FROM artifact_metadata WHERE key = 'graphqlite_node_count'",
+        [],
+        |row| row.get(0),
+    )?;
+    let graphqlite_edge_count: String = connection.query_row(
+        "SELECT value FROM artifact_metadata WHERE key = 'graphqlite_edge_count'",
+        [],
+        |row| row.get(0),
+    )?;
     let (reference_to, reference_display, reference_text): (String, String, String) = connection
         .query_row(
             "SELECT to_record_key, display_text, reference_text
@@ -944,6 +960,11 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(item_side_count, 4);
     assert_eq!(spell_side_count, 1);
     assert_eq!(reference_edge_count, 1);
+    assert_eq!(graphqlite_projection_version, "atlas-graphqlite-graph/v1");
+    let graphqlite_node_count: usize = graphqlite_node_count.parse()?;
+    let graphqlite_edge_count: usize = graphqlite_edge_count.parse()?;
+    assert!(graphqlite_node_count >= record_count);
+    assert!(graphqlite_edge_count >= trait_count + reference_edge_count);
     assert_eq!(reference_to, "spells:testSpell0001");
     assert_eq!(reference_display, "Heal");
     assert_eq!(reference_text, "Compendium.pf2e.spells.Item.testSpell0001");
@@ -981,6 +1002,37 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_damage_types, "[\"vitality\"]");
 
     drop(connection);
+    let graph = Graph::open(&output_path)?;
+    let trait_rows = graph.query(
+        "MATCH (:Record {record_key: 'spells:testSpell0001'})-[:HAS_TRAIT]->(trait:Trait)
+         RETURN trait.value",
+    )?;
+    let spell_traits: Vec<String> = trait_rows
+        .iter()
+        .map(|row| row.get("trait.value"))
+        .collect::<Result<_, _>>()?;
+    let reference_rows = graph.query(
+        "MATCH (:Record {record_key: 'actions:testAction0001'})-[:REFERENCES]->(target:Record)
+         RETURN target.record_key",
+    )?;
+    let evidence_reference_rows = graph.query(
+        "MATCH (:Record {record_key: 'actions:testAction0001'})-[:HAS_EVIDENCE_UNIT]->(evidence:EvidenceUnit)-[:EVIDENCE_REFERENCES]->(target:Record)
+         RETURN evidence.label, target.record_key",
+    )?;
+    let referenced_record_key: String = reference_rows
+        .get(0)
+        .ok_or("GraphQLite reference query returned no rows")?
+        .get("target.record_key")?;
+    let evidence_row = evidence_reference_rows
+        .get(0)
+        .ok_or("GraphQLite evidence reference query returned no rows")?;
+    let evidence_label: String = evidence_row.get("evidence.label")?;
+    let evidence_target_key: String = evidence_row.get("target.record_key")?;
+    assert!(spell_traits.iter().any(|value| value == "healing"));
+    assert_eq!(referenced_record_key, "spells:testSpell0001");
+    assert_eq!(evidence_label, "Description");
+    assert_eq!(evidence_target_key, "spells:testSpell0001");
+
     fs::remove_dir_all(root)?;
     Ok(())
 }

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-PF2e Atlas is a Rust workspace that builds and queries a local SQLite artifact from the Foundry PF2E source data. The primary product surface is the `atlas` CLI plus the first-party local-agent skill package installed by `atlas agent skills`.
+PF2e Atlas is a Rust workspace that builds and queries a local SQLite artifact from the Foundry PF2E source data. Current Rust-written SQLite artifacts also include an embedded GraphQLite graph projection for graph-retrieval evaluation. The primary product surface is the `atlas` CLI plus the first-party local-agent skill package installed by `atlas agent skills`.
 
 Read this document first when you need to understand crate ownership, then follow the focused docs:
 
@@ -13,7 +13,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-cli` owns command parsing, output, progress, exit codes, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration and result assembly.
-- `atlas-index` owns index backend contracts plus read/write implementations, including SQLite artifact validation, row readers, filter compilation, reference queries, vector SQL, reusable embedding-cache reads, backend-neutral build/write contracts, SQLite artifact writing, and the experimental Ladybug graph backend.
+- `atlas-index` owns index backend contracts plus read/write implementations, including SQLite artifact validation, row readers, filter compilation, reference queries, vector SQL, reusable embedding-cache reads, backend-neutral build/write contracts, SQLite artifact writing, the embedded GraphQLite projection writer, and the experimental Ladybug graph backend.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and conversion to backend-neutral index build input.
 - `atlas-record` owns normalized records, `ContentDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
@@ -29,7 +29,7 @@ If you remember one rule, remember this: product surfaces stay thin, and durable
 ```mermaid
 flowchart TD
     pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
-    ingest --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
+    ingest --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1<br/>+ GraphQLite projection"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
     cli --> runtime["atlas-runtime"]
@@ -79,7 +79,7 @@ Derived tags are a planned Rust redesign. The retained model should be defined a
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
 2. Ingest normalizes source records, parses rich content into `ContentDocument`, extracts references/traits/metrics/aliases, generates source-backed records, prepares embedding units, then hands normalized index-build inputs to configured artifact writers.
 3. `atlas-runtime` resolves source, embedding cache, and artifact paths for setup and query commands.
-4. `atlas-index` opens completed index artifacts read-only, validates contract/readiness, and provides typed backend query APIs. The SQLite artifact remains the current production contract; the Ladybug graph backend is spike-only.
+4. `atlas-index` opens completed index artifacts read-only, validates contract/readiness, and provides typed backend query APIs. The SQLite artifact remains the current production contract; Rust builds also embed a GraphQLite projection for graph comparison, while the Ladybug graph backend is spike-only.
 5. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
 6. `atlas-cli` presents command results and errors through stable terminal or JSON output.
 

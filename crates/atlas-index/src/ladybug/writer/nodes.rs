@@ -11,8 +11,8 @@ use atlas_record::{
 };
 
 use crate::IndexWriteError;
+use crate::graph_projection::evidence::evidence_units;
 use crate::ladybug::writer::embeddings::LadybugEmbedding;
-use crate::ladybug::writer::evidence::evidence_units;
 use crate::ladybug::writer::facts::{
     alias_key, filter_value_key, metric_key_id, metric_value_type, namespace_prefix,
     publication_key, record_filter_values,

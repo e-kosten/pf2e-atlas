@@ -13,6 +13,7 @@ mod discovery;
 mod embedding_cache;
 mod filters;
 mod fts;
+mod graph_projection;
 mod inspect;
 mod ladybug;
 mod metadata;
