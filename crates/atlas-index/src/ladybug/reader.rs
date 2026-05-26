@@ -4,9 +4,9 @@ use std::time::Instant;
 
 use crate::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
-    FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge, RecordLoadOptions,
-    RecordResolutionMatchKind, RecordResolutionResult, ReferenceEdgeDirection,
-    SearchCandidateRecord, SearchError, SearchIndex, VectorSearchHit,
+    FtsColumnWeights, FtsQuery, FtsSearchHit, GraphProductIndex, GraphReferenceEdge,
+    RecordLoadOptions, RecordResolutionMatchKind, RecordResolutionResult, ReferenceEdgeDirection,
+    RemasterLinks, SearchCandidateRecord, SearchError, SearchIndex, VariantGroup, VectorSearchHit,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterValueDiscovery, MetricDomain, MetricValueType, RecordKey,
@@ -139,15 +139,6 @@ impl SearchIndex for LadybugIndexReader {
             .map_err(search_error)
     }
 
-    fn reference_edges_for_seed(
-        &self,
-        seed: &RecordKey,
-        direction: ReferenceEdgeDirection,
-    ) -> Result<Vec<GraphReferenceEdge>, SearchError> {
-        self.reference_edges_for_seed_impl(seed, direction)
-            .map_err(search_error)
-    }
-
     fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -212,6 +203,44 @@ impl SearchIndex for LadybugIndexReader {
     ) -> Result<Vec<VectorSearchHit>, SearchError> {
         self.query_vector_index_impl(query_vector, filter, limit, include_child_units)
             .map_err(search_error)
+    }
+}
+
+impl GraphProductIndex for LadybugIndexReader {
+    fn reference_edges_for_seed(
+        &self,
+        seed: &RecordKey,
+        direction: ReferenceEdgeDirection,
+    ) -> Result<Vec<GraphReferenceEdge>, SearchError> {
+        self.reference_edges_for_seed_impl(seed, direction)
+            .map_err(search_error)
+    }
+
+    fn variant_group_for_record(
+        &self,
+        _seed: &RecordKey,
+    ) -> Result<Option<VariantGroup>, SearchError> {
+        Err(SearchError::UnsupportedRetrievalPattern(
+            "Ladybug graph variants",
+        ))
+    }
+
+    fn variant_groups_by_base_name(
+        &self,
+        _normalized_base_name: &str,
+    ) -> Result<Vec<VariantGroup>, SearchError> {
+        Err(SearchError::UnsupportedRetrievalPattern(
+            "Ladybug graph variant base names",
+        ))
+    }
+
+    fn remaster_links_for_record(
+        &self,
+        _seed: &RecordKey,
+    ) -> Result<Option<RemasterLinks>, SearchError> {
+        Err(SearchError::UnsupportedRetrievalPattern(
+            "Ladybug graph remaster links",
+        ))
     }
 }
 

@@ -86,17 +86,24 @@ atlas search "low level healing spell" --family spell --detail preview --limit 8
 atlas search --family equipment --rarity uncommon --detail preview --limit 20
 ```
 
-Use `graph get` when you already have a canonical record key and need connected one-hop reference context around that record. This is the right follow-up after `record resolve`, `record get`, or `search` identifies the key. Do not look for a separate rule-context command; the intended workflow is explicit key identification followed by graph context retrieval:
+Use `graph links` when you need connected one-hop reference context around a record. This is the right follow-up after `record resolve`, `record get`, or `search` identifies the key. Do not look for a separate rule-context command; the intended workflow is explicit record identification followed by graph context retrieval:
 
 ```bash
-atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --json
-atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
-atlas graph get spells-srd:sxQZ6yqTn0czJxVd --json
-atlas graph get conditionitems:AJh5ex99aV6VTggg --backlinks 3 --json
-atlas graph get bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --backlinks 6 --json
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --json
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
+atlas graph links spells-srd:sxQZ6yqTn0czJxVd --json
+atlas graph links conditionitems:AJh5ex99aV6VTggg --backlinks 3 --json
+atlas graph links bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --backlinks 6 --json
 ```
 
 By default, graph context includes outgoing references and omits backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `--outgoing 0 --backlinks <count>` for backlinks-only context. Graph context is retrieval only; it does not synthesize answers.
+
+Use `graph variants` when comparing scaled versions, grades, or other detected variant groups. It accepts a canonical variant record key, an exact variant record name, or an exact variant base name:
+
+```bash
+atlas graph variants "Dread Ampoule" --json
+atlas graph variants "Dread Ampoule (Moderate)" --json
+```
 
 For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--detail full --include-raw --json` only when raw source metadata is directly relevant.
 

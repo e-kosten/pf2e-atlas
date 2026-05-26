@@ -54,9 +54,15 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(record_resolve_help.contains("atlas filters fields"));
     assert!(record_resolve_help.contains("atlas filters values --field traits"));
 
-    let graph_get_help = help_output(&["graph", "get"])?;
-    assert!(graph_get_help.contains("atlas graph get"));
-    assert!(graph_get_help.contains("--backlinks"));
+    let graph_links_help = help_output(&["graph", "links"])?;
+    assert!(graph_links_help.contains("atlas graph links"));
+    assert!(graph_links_help.contains("--backlinks"));
+
+    let graph_variants_help = help_output(&["graph", "variants"])?;
+    assert!(graph_variants_help.contains("atlas graph variants"));
+
+    let graph_remaster_help = help_output(&["graph", "remaster"])?;
+    assert!(graph_remaster_help.contains("atlas graph remaster"));
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));

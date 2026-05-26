@@ -13,6 +13,7 @@ mod discovery;
 mod embedding_cache;
 mod filters;
 mod fts;
+mod graph_product;
 mod graph_projection;
 mod inspect;
 mod ladybug;
@@ -34,6 +35,7 @@ pub use build_input::{IndexBuildInput, IndexBuildPack};
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use filters::FilterCompileError;
+pub use graph_product::{GraphProductIndex, RemasterLinkRecord, RemasterLinks, VariantGroup};
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,

@@ -7,9 +7,8 @@ use thiserror::Error;
 
 use crate::{
     DiscoveryError, FilterCompileError, FilterValueRequest, FilteredRecordKeyPage,
-    FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit, GraphReferenceEdge,
-    IndexValidationError, RecordIdentityMatchKind, RecordLoadError, ReferenceEdgeDirection,
-    SqliteIndexReader, VectorQueryError, VectorSearchHit,
+    FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit, IndexValidationError,
+    RecordIdentityMatchKind, RecordLoadError, SqliteIndexReader, VectorQueryError, VectorSearchHit,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,11 +69,6 @@ pub trait SearchIndex {
         let _ = options;
         self.resolve_record_matches(query, normalized_query, filter)
     }
-    fn reference_edges_for_seed(
-        &self,
-        seed: &RecordKey,
-        direction: ReferenceEdgeDirection,
-    ) -> Result<Vec<GraphReferenceEdge>, SearchError>;
     fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -222,16 +216,6 @@ impl SearchIndex for SqliteIndexReader {
                 })
                 .collect(),
         ))
-    }
-
-    fn reference_edges_for_seed(
-        &self,
-        seed: &RecordKey,
-        direction: ReferenceEdgeDirection,
-    ) -> Result<Vec<GraphReferenceEdge>, SearchError> {
-        Ok(SqliteIndexReader::reference_edges_for_seed(
-            self, seed, direction,
-        )?)
     }
 
     fn resolve_metric_filters(

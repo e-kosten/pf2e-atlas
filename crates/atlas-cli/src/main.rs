@@ -47,7 +47,7 @@ enum Command {
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
-    #[command(about = "Retrieve local record reference graph context")]
+    #[command(about = "Explore record relationships")]
     Graph(GraphArgs),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
@@ -248,8 +248,12 @@ enum RecordCommand {
 
 #[derive(Debug, Subcommand)]
 enum GraphCommand {
-    #[command(about = "Fetch one-hop reference graph context for a known record key")]
-    Get(GraphGetOptions),
+    #[command(about = "Fetch one-hop reference links for a record")]
+    Links(GraphLinksOptions),
+    #[command(about = "Show variant siblings or progression for a record")]
+    Variants(GraphVariantsOptions),
+    #[command(about = "Show legacy/remaster links for a record")]
+    Remaster(GraphRemasterOptions),
 }
 
 #[derive(Debug, Subcommand)]
@@ -531,15 +535,49 @@ struct RecordResolveOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json\n  atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json"
+    after_help = "Examples:\n  atlas graph links actionspf2e:1kGNdIIhuglAjIp9\n  atlas graph links \"Demoralize\" --backlinks 4 --json\n  atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json"
 )]
-struct GraphGetOptions {
-    #[arg(help = "Canonical seed record key in pack:id form; this command does not resolve names")]
-    key: String,
+struct GraphLinksOptions {
+    #[arg(help = "Seed record key or strict resolvable record name")]
+    record_ref: String,
     #[arg(long, default_value_t = 8, value_parser = parse_graph_limit, help = "Maximum outgoing neighbor records to include, 0-50")]
     outgoing: usize,
     #[arg(long, default_value_t = 0, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-50; 0 disables backlinks")]
     backlinks: usize,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
+    detail: DetailLevel,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
+)]
+struct GraphVariantsOptions {
+    #[arg(help = "Seed record key or strict resolvable record name")]
+    record_ref: String,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
+    detail: DetailLevel,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas graph remaster \"Air Mephit\"\n  atlas graph remaster pathfinder-bestiary:KDRlxdIUADWHI6Vr --json"
+)]
+struct GraphRemasterOptions {
+    #[arg(help = "Seed record key or strict resolvable record name")]
+    record_ref: String,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     detail: DetailLevel,
     #[arg(long, help = "Override the SQLite artifact path")]
@@ -976,7 +1014,9 @@ impl Command {
                 RecordCommand::Resolve(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
-                GraphCommand::Get(options) => options.json,
+                GraphCommand::Links(options) => options.json,
+                GraphCommand::Variants(options) => options.json,
+                GraphCommand::Remaster(options) => options.json,
             },
             Self::Search(options) => options.json,
             Self::Filters(filters) => match &filters.command {
@@ -1014,7 +1054,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Graph(graph) => match graph.command {
-            GraphCommand::Get(options) => commands::graph::run_graph_get(options),
+            GraphCommand::Links(options) => commands::graph::run_graph_links(options),
+            GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
+            GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },
         Command::Search(options) => commands::search::run_search(*options),
         Command::Filters(filters) => match filters.command {
