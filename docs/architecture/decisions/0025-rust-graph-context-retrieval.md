@@ -17,10 +17,10 @@ Normal search already supports relationship filters such as records that referen
 Rust V1 graph retrieval is key-based graph context retrieval:
 
 ```bash
-atlas graph get <record-key>
+atlas graph links <record>
 ```
 
-The command retrieves a one-hop local graph context around one seed key. It includes outgoing references by default and includes backlinks only when the caller passes a positive backlink limit. It uses the default public non-embedded reference graph policy and authored `reference_edges` only.
+The command retrieves a one-hop local graph context around one seed record. It includes outgoing references by default and includes backlinks only when the caller passes a positive backlink limit. It uses the default public non-embedded reference graph policy and authored `reference_edges` only. The CLI accepts a canonical record key or a strict resolvable record name, but the backend graph read remains key-based.
 
 Rust does not directly port `pf2e_collect_rule_question_context` in V1. The intended agent workflow is explicit and two-step: use `record` or `search` to identify the correct key, then call graph context retrieval by key. A future rule-specific shortcut can be reconsidered only after real CLI usage shows that this explicit workflow is too costly.
 

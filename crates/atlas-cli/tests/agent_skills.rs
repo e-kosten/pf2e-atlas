@@ -134,9 +134,10 @@ fn differing_install_requires_force() -> Result<(), Box<dyn std::error::Error>> 
     assert!(forced.status.success());
     let installed_skill = fs::read_to_string(skill_dir.join("SKILL.md"))?;
     assert!(installed_skill.contains("# PF2e Atlas CLI"));
-    assert!(installed_skill.contains("atlas graph get"));
+    assert!(installed_skill.contains("atlas graph links"));
     assert!(
-        installed_skill.contains("explicit key identification followed by graph context retrieval")
+        installed_skill
+            .contains("explicit record identification followed by graph context retrieval")
     );
     assert!(installed_skill.contains("actionspf2e:1kGNdIIhuglAjIp9"));
     assert!(installed_skill.contains("spells-srd:sxQZ6yqTn0czJxVd"));

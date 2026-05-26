@@ -433,7 +433,7 @@ Explore questions such as:
 - what records most directly or indirectly depend on a condition, trait, rule, action, spell, item, or source concept?
 - what bridge records connect two mechanics, such as `frightened` and `demoralize`, or `fire` and `persistent damage`?
 - can search results be explained through paths, shared traits, references, variant groups, remaster links, aliases, and semantic units?
-- can a graph neighborhood become part of search ranking or result presentation, rather than only a separate `graph get` command?
+- can a graph neighborhood become part of search ranking or result presentation, rather than only a separate `graph links` command?
 - can concept-centric browsing over conditions, traits, mechanics, source concepts, and future derived tags become materially better than SQL edge-table browsing?
 - can impact analysis answer "if this rule changes, what records should we inspect?"
 

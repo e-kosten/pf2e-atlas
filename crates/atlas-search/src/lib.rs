@@ -8,7 +8,7 @@ use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, Search
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
-    RecordLoadOptions, SqliteIndexReader,
+    GraphProductIndex, RecordLoadOptions, RemasterLinks, SqliteIndexReader, VariantGroup,
 };
 use atlas_record::PersistedRecord;
 
@@ -45,11 +45,15 @@ pub use text::{
 ///
 /// The service owns record lookup, filter-only browse, graph context, and
 /// ranked lexical/vector/hybrid retrieval. Concrete index implementations stay
-/// behind the `SearchIndex` trait.
+/// behind focused index traits.
 pub struct AtlasRetrievalService {
-    pub(crate) index: Box<dyn SearchIndex>,
+    pub(crate) index: Box<dyn RetrievalIndex>,
     embedder: Option<TextEmbedder>,
 }
+
+pub trait RetrievalIndex: SearchIndex + GraphProductIndex {}
+
+impl<T> RetrievalIndex for T where T: SearchIndex + GraphProductIndex {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilterOnlyRecordPage {
@@ -64,6 +68,18 @@ pub struct SearchEmbeddingConfig {
     pub cache_root: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct GraphVariantGroupResult {
+    pub seed: Option<PersistedRecord>,
+    pub group: VariantGroup,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GraphRemasterLinksResult {
+    pub seed: PersistedRecord,
+    pub links: RemasterLinks,
+}
+
 impl AtlasRetrievalService {
     pub fn new(
         index: SqliteIndexReader,
@@ -73,7 +89,7 @@ impl AtlasRetrievalService {
     }
 
     pub fn new_with_index(
-        index: Box<dyn SearchIndex>,
+        index: Box<dyn RetrievalIndex>,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
         Ok(Self {
@@ -86,7 +102,7 @@ impl AtlasRetrievalService {
         Self::without_embeddings_with_index(Box::new(index))
     }
 
-    pub fn without_embeddings_with_index(index: Box<dyn SearchIndex>) -> Self {
+    pub fn without_embeddings_with_index(index: Box<dyn RetrievalIndex>) -> Self {
         Self {
             index,
             embedder: None,
@@ -253,6 +269,70 @@ impl AtlasRetrievalService {
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError> {
         self.index.list_filter_values(filter, request)
+    }
+
+    pub fn variant_group(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Option<GraphVariantGroupResult>, SearchError> {
+        let Some(seed) = self
+            .get_records_with_options(
+                std::slice::from_ref(record_key),
+                RecordLoadOptions::omit_raw_json(),
+            )?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        let group = self
+            .index
+            .variant_group_for_record(record_key)?
+            .unwrap_or_else(|| VariantGroup {
+                seed: Some(record_key.clone()),
+                variant_group_key: None,
+                records: Vec::new(),
+            });
+        Ok(Some(GraphVariantGroupResult {
+            seed: Some(seed),
+            group,
+        }))
+    }
+
+    pub fn variant_groups_by_base_name(
+        &self,
+        base_name: &str,
+    ) -> Result<Vec<GraphVariantGroupResult>, SearchError> {
+        let normalized_base_name = normalize_record_query(base_name);
+        self.index
+            .variant_groups_by_base_name(&normalized_base_name)?
+            .into_iter()
+            .map(|group| Ok(GraphVariantGroupResult { seed: None, group }))
+            .collect()
+    }
+
+    pub fn remaster_links(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Option<GraphRemasterLinksResult>, SearchError> {
+        let Some(seed) = self
+            .get_records_with_options(
+                std::slice::from_ref(record_key),
+                RecordLoadOptions::omit_raw_json(),
+            )?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        let links = self
+            .index
+            .remaster_links_for_record(record_key)?
+            .unwrap_or_else(|| RemasterLinks {
+                seed: record_key.clone(),
+                links: Vec::new(),
+            });
+        Ok(Some(GraphRemasterLinksResult { seed, links }))
     }
 }
 
