@@ -11,7 +11,10 @@ use atlas_search::{
 use serde::Serialize;
 
 use crate::output::{write_json_data, write_json_error};
-use crate::{CliIndexBackend, GraphLinksOptions, GraphRemasterOptions, GraphVariantsOptions};
+use crate::{
+    CliIndexBackend, GraphLinksOptions, GraphRemasterOptions, GraphUsesOptions,
+    GraphVariantsOptions,
+};
 
 use super::record::{open_record_service, record_runtime, search_error, search_error_code};
 
@@ -21,6 +24,13 @@ struct GraphLinksData {
     seed: GraphSeedJson,
     outgoing: GraphSectionJson,
     backlinks: GraphSectionJson,
+}
+
+#[derive(Debug, Serialize)]
+struct GraphUsesData {
+    detail: String,
+    seed: GraphSeedJson,
+    uses: GraphSectionJson,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,6 +154,56 @@ pub(crate) fn run_graph_links(options: GraphLinksOptions) -> Result<ExitCode, St
     Ok(ExitCode::SUCCESS)
 }
 
+pub(crate) fn run_graph_uses(options: GraphUsesOptions) -> Result<ExitCode, String> {
+    let runtime = match record_runtime(options.path_mode.into(), options.index, None) {
+        Ok(runtime) => runtime,
+        Err(error) if options.json => {
+            write_json_error("runtime_error", error)?;
+            return Ok(ExitCode::from(3));
+        }
+        Err(error) => return Err(error),
+    };
+    let service = match open_record_service(&runtime, CliIndexBackend::Sqlite) {
+        Ok(service) => service,
+        Err(error) if options.json => {
+            write_json_error("index_unavailable", error)?;
+            return Ok(ExitCode::from(3));
+        }
+        Err(error) => return Err(error),
+    };
+    let key = match resolve_graph_record_ref(&service, &options.record_ref, options.json)? {
+        Some(key) => key,
+        None => return Ok(ExitCode::from(1)),
+    };
+    let result = match service.graph_context(GraphContextRequest {
+        seed: key.clone(),
+        outgoing_limit: 0,
+        backlink_limit: options.limit,
+    }) {
+        Ok(Some(result)) => result,
+        Ok(None) => {
+            if options.json {
+                write_json_error("record_not_found", format!("record not found: {key}"))?;
+            } else {
+                eprintln!("record not found: {key}");
+            }
+            return Ok(ExitCode::from(1));
+        }
+        Err(error) if options.json => {
+            write_json_error(search_error_code(&error), error.to_string())?;
+            return Ok(ExitCode::from(3));
+        }
+        Err(error) => return Err(search_error(error)),
+    };
+    let data = graph_uses_data(&result, options.detail);
+    if options.json {
+        write_json_data(data)?;
+    } else {
+        print_graph_uses(&data, options.limit);
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 pub(crate) fn run_graph_variants(options: GraphVariantsOptions) -> Result<ExitCode, String> {
     let runtime = match record_runtime(options.path_mode.into(), options.index, None) {
         Ok(runtime) => runtime,
@@ -230,6 +290,20 @@ fn graph_links_data(result: &GraphContextResult, detail: DetailLevel) -> GraphLi
         },
         outgoing: graph_section_json(&result.outgoing, options),
         backlinks: graph_section_json(&result.backlinks, options),
+    }
+}
+
+fn graph_uses_data(result: &GraphContextResult, detail: DetailLevel) -> GraphUsesData {
+    let options = RecordJsonOptions {
+        detail,
+        include_source_json: false,
+    };
+    GraphUsesData {
+        detail: detail.to_string(),
+        seed: GraphSeedJson {
+            record: record_json(&result.seed, options),
+        },
+        uses: graph_section_json(&result.backlinks, options),
     }
 }
 
@@ -336,6 +410,14 @@ fn print_graph_links(data: &GraphLinksData, outgoing_limit: usize, backlink_limi
     );
     print_section("Outgoing", &data.outgoing, outgoing_limit, true);
     print_section("Backlinks", &data.backlinks, backlink_limit, false);
+}
+
+fn print_graph_uses(data: &GraphUsesData, limit: usize) {
+    println!(
+        "{}\t{}\t{}",
+        data.seed.record.key, data.seed.record.name, data.seed.record.record_family
+    );
+    print_section("Uses", &data.uses, limit, false);
 }
 
 fn print_graph_variants(data: &GraphVariantsData) {

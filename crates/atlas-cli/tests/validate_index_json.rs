@@ -58,6 +58,10 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(graph_links_help.contains("atlas graph links"));
     assert!(graph_links_help.contains("--backlinks"));
 
+    let graph_uses_help = help_output(&["graph", "uses"])?;
+    assert!(graph_uses_help.contains("atlas graph uses"));
+    assert!(graph_uses_help.contains("--limit"));
+
     let graph_variants_help = help_output(&["graph", "variants"])?;
     assert!(graph_variants_help.contains("atlas graph variants"));
 
