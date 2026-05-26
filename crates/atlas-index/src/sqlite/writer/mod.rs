@@ -27,7 +27,9 @@ use metadata::write_artifact_metadata;
 use metric_catalogs::write_metric_catalogs;
 use packs::write_packs;
 use records::write_records;
-use relationships::{write_record_aliases, write_reference_edges, write_remaster_links};
+use relationships::{
+    write_record_aliases, write_reference_edges, write_reference_occurrences, write_remaster_links,
+};
 use vector_index::write_record_vector_index;
 
 use crate::IndexWriteError;
@@ -109,6 +111,12 @@ fn write_artifact(
         "writing reference edges"
     );
     write_reference_edges(&transaction, input.references)?;
+    artifact_progress("artifact_write", "Writing reference occurrences");
+    info!(
+        records = input.records.len(),
+        "writing reference occurrences"
+    );
+    write_reference_occurrences(&transaction, &input.records)?;
     artifact_progress("artifact_write", "Writing record aliases");
     info!(aliases = input.aliases.len(), "writing record aliases");
     write_record_aliases(&transaction, input.aliases)?;

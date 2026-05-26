@@ -155,7 +155,7 @@ fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::err
 #[test]
 fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("unsupported-schema");
-    create_contract_database_with_override(&path, artifact_metadata_keys::SCHEMA_VERSION, "2")?;
+    create_contract_database_with_override(&path, artifact_metadata_keys::SCHEMA_VERSION, "999")?;
 
     let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 

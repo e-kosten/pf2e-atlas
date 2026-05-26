@@ -6,7 +6,8 @@ use super::{
     artifact_metadata, document_embedding_cache, filter_field_catalog, filter_numeric_catalog,
     filter_sample_catalog, filter_value_catalog, item_records, metric_key_catalog,
     metric_value_catalog, packs, record_aliases, record_content, record_metrics, record_traits,
-    record_vector_index, records, records_fts, reference_edges, remaster_links, spell_records,
+    record_vector_index, records, records_fts, reference_edges, reference_occurrences,
+    remaster_links, spell_records,
 };
 
 pub fn artifact_metadata_insert_sql() -> String {
@@ -58,6 +59,13 @@ pub fn document_embedding_cache_insert_sql() -> String {
 
 pub fn reference_edge_insert_sql() -> String {
     insert_or_ignore_sql(reference_edges::TABLE, reference_edges::ALL_COLUMNS)
+}
+
+pub fn reference_occurrence_insert_sql() -> String {
+    insert_or_ignore_sql(
+        reference_occurrences::TABLE,
+        reference_occurrences::ALL_COLUMNS,
+    )
 }
 
 pub fn record_alias_insert_sql() -> String {
@@ -454,9 +462,13 @@ const ARTIFACT_INDEX_SQL: &[&str] = &[
     "CREATE INDEX records_pack_name_idx ON records(pack_name)",
     "CREATE INDEX records_default_visible_idx ON records(is_default_visible)",
     "CREATE INDEX record_content_record_idx ON record_content(record_key)",
+    "CREATE INDEX record_content_key_idx ON record_content(record_key, content_key)",
     "CREATE INDEX record_content_visibility_idx ON record_content(visibility, source_kind)",
     "CREATE INDEX reference_edges_from_idx ON reference_edges(from_record_key)",
     "CREATE INDEX reference_edges_to_idx ON reference_edges(to_record_key)",
+    "CREATE INDEX reference_occurrences_record_idx ON reference_occurrences(record_key)",
+    "CREATE INDEX reference_occurrences_target_idx ON reference_occurrences(target_record_key)",
+    "CREATE INDEX reference_occurrences_content_idx ON reference_occurrences(record_key, content_key)",
     "CREATE INDEX record_aliases_canonical_idx ON record_aliases(canonical_record_key)",
     "CREATE INDEX record_aliases_normalized_alias_idx ON record_aliases(normalized_alias)",
     "CREATE INDEX remaster_links_remaster_idx ON remaster_links(remaster_record_key)",
@@ -502,7 +514,11 @@ mod tests {
         );
         assert_eq!(
             record_content_insert_sql(),
-            "INSERT INTO record_content (record_key, ordinal, source_kind, visibility, contributes_to_search, contributes_to_references, label, content_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+            "INSERT INTO record_content (record_key, content_key, ordinal, source_kind, visibility, contributes_to_search, contributes_to_references, label, content_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
+        );
+        assert_eq!(
+            reference_occurrence_insert_sql(),
+            "INSERT OR IGNORE INTO reference_occurrences (record_key, content_key, target_record_key, display_text, reference_text) VALUES (?1, ?2, ?3, ?4, ?5)"
         );
         assert_eq!(
             record_metric_insert_sql(),

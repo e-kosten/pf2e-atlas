@@ -31,20 +31,20 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
            contributes_to_references, label, content_json
          ) VALUES (
-           'actions:testAction1', 0, 'description', 'public', 1, 1, NULL,
+           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
            '{\"blocks\":[]}'
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
            contributes_to_references, label, content_json
          ) VALUES (
-           'actions:testAction2', 0, 'description', 'public', 1, 1, NULL,
+           'actions:testAction2', 'content:0', 0, 'description', 'public', 1, 1, NULL,
            'not json'
          )",
         [],
@@ -86,10 +86,10 @@ fn loads_search_candidate_records_without_detail_hydration()
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, ordinal, source_kind, visibility, contributes_to_search,
+           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
            contributes_to_references, label, content_json
          ) VALUES (
-           'actions:testAction1', 0, 'description', 'public', 1, 1, NULL,
+           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
            'not json'
          )",
         [],
