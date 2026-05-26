@@ -51,6 +51,38 @@ LadybugDB did not prove compelling as the main runtime backend:
 
 GraphQLite proved a graph projection can live beside SQLite, but did not add enough value over ordinary SQLite relationship tables to justify keeping it as a dependency.
 
+## Concrete Findings
+
+Packaging and runtime operations were a major adoption cost:
+
+- `lbug = "0.16.1"` worked in Rust, but the default prebuilt static archive path failed on macOS arm64 during the spike with missing native symbols such as `simsimd` and `yyjson`.
+- `LBUG_RUST_BUILD_FROM_SOURCE=1` worked, but requires a native C++ toolchain and CMake for development, CI, and release builders.
+- Loading Ladybug `FTS`, `VECTOR`, and `ALGO` extensions required an extension-capable binary. The spike binary needed `cargo:rustc-link-arg=-rdynamic` on non-Windows platforms.
+- The Homebrew dynamic-link path worked only with an internal source include workaround, which is too brittle for a product install story.
+- Concurrent embedded CLI reads against the same `.lbug` artifact could hit file-lock errors, unlike the normal SQLite read path.
+
+Bulk loading was necessary and effective:
+
+- The first row-by-row Cypher writer was not viable. A full build took about 86 minutes for Ladybug output, with relationship writes alone taking about 57 minutes.
+- Parquet staging plus Ladybug `COPY FROM` reduced the Ladybug output phase to roughly 83 seconds on the same full corpus.
+- The full-corpus graph writer proved the bulk shape against about 29,674 records, 82,382 content units, 73,239 reference edges, and copied embedding units.
+- The lesson is general: if a future graph backend is evaluated, bulk ingestion must be part of the first real prototype rather than a later optimization.
+
+Search and filtering findings were mixed:
+
+- Direct key lookup, scalar filters, relationship-backed filters, metric range filters, and facet counts were all expressible in Ladybug.
+- Ladybug vector search supported a projected-graph shape that could apply a parent-record filter before vector top-k. This was the strongest technical parity result for graph/vector integration.
+- Ladybug FTS did not support the same projected-graph prefilter shape. It targets concrete indexed node tables, so arbitrary UI filters require overfetch/post-filtering, per-scope materialized indexes, or upstream extension work.
+- Product-facing search comparison exposed that much of Ladybug's apparent slowness was initially reader-path overhead, especially identity resolution hydrating too much data before ranked search. Direct identity lookup fixed the worst case, but SQLite remained simpler and generally faster for ordinary product reads.
+- SQLite's catalog path remained very strong for UI discovery. Ladybug dynamic graph discovery was competitive in some relationship-heavy cases, but not enough to displace the SQLite catalog model.
+
+Graph product findings:
+
+- One-hop links/backlinks, variant navigation, remaster links, source maps, and impact counts are useful product surfaces, but they are not graph-database-specific.
+- Same-evidence and same-content co-reference was the most compelling graph-style product result.
+- Relationship-aware "more like this" was useful only when semantic similarity stayed primary and graph/trait overlap was used as modest, explainable support.
+- Long multi-hop explanations were easy to generate but often not useful enough; many paths were technically true without being a good user answer.
+
 ## Durable SQLite Learnings
 
 The strongest reusable outcome is not a graph database. It is a narrower SQLite provenance model:
