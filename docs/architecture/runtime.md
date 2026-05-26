@@ -9,7 +9,7 @@ The Rust architecture is deliberately crate-oriented. Crates should expose only 
 ```mermaid
 flowchart TD
     source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
-    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
+    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index,<br/>GraphQLite projection"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"]
     cli --> runtime["atlas-runtime<br/>path and setup policy"]
@@ -52,7 +52,7 @@ flowchart TD
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `ContentDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-artifact` | Physical SQLite table/column descriptors, descriptor-owned schema DDL, artifact metadata keys, schema SQL helpers, table contract constants, and SQLite vector-blob encoding. | Record normalization, writer policy, row hydration, user-facing search behavior, embedding model behavior. |
 | `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding reuse policy and embedding execution during builds, and conversion from ingest state to backend-neutral index build input. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, direct database access, shared backend contracts. |
-| `atlas-index` | Index backend contracts plus read and write implementations. The production SQLite backend owns completed-artifact access through `SqliteIndexReader`, artifact construction through `SqliteIndexWriter`, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, reusable embedding-cache reads, inspection summaries, and backend-neutral build handoff types. The spike Ladybug backend owns graph reads through `LadybugIndexReader` and graph artifact writes through `LadybugIndexWriter`. | Query embedding, CLI command presentation, ingest-time normalization policy, metric-definition ownership, product retrieval orchestration. |
+| `atlas-index` | Index backend contracts plus read and write implementations. The production SQLite backend owns completed-artifact access through `SqliteIndexReader`, artifact construction through `SqliteIndexWriter`, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, reusable embedding-cache reads, inspection summaries, the embedded GraphQLite graph projection, and backend-neutral build handoff types. The spike Ladybug backend owns graph reads through `LadybugIndexReader` and graph artifact writes through `LadybugIndexWriter`. | Query embedding, CLI command presentation, ingest-time normalization policy, metric-definition ownership, product retrieval orchestration. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService`, lexical/semantic composition, vector-hit collapse, and search ranking modes over read-only index handles. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation. |
 | `atlas-runtime` | Repo/global path resolution, setup policy, setup readiness and repair orchestration, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization, CLI JSON projection, deep artifact diagnostics. |
@@ -70,7 +70,7 @@ flowchart LR
     enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
     generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
     embedPrep --> handoff["atlas-index::IndexBuildInput<br/>normalized build handoff"]
-    handoff --> writer["atlas-index writers<br/>SQLite + spike Ladybug outputs"]
+    handoff --> writer["atlas-index writers<br/>SQLite + GraphQLite projection<br/>+ spike Ladybug outputs"]
     writer --> sqlite["Rust SQLite artifact"]
 
     record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
@@ -138,7 +138,7 @@ Filters compile to an authoritative SQL keyset before lexical or vector search. 
 
 Graph context retrieval is key-based and one-hop in the V1 Rust CLI. `atlas graph get <record-key>` routes through `AtlasRetrievalService`, loads the seed record through the normal record path, asks `SqliteIndexReader` for policy-visible `reference_edges`, applies deterministic edge ordering and unique-neighbor limits, then hydrates only retained neighbor records. Search relationship flags such as `--referenced-by` remain result-set filters; graph context retrieval returns a local context bundle with edge evidence, counts, and truncation metadata.
 
-Runtime index access goes through `atlas-index` backend handles. Production SQLite reads go through `SqliteIndexReader`; the Ladybug spike read path goes through `LadybugIndexReader` behind the same `SearchIndex` contract. Construction-time writes also go through `atlas-index`: ingest converts final ingest state into `IndexBuildInput`, chooses configured `IndexArtifactWriter` implementations, and lets each backend writer create, validate, checkpoint, and publish its artifact. Product surfaces route retrieval through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite/Ladybug artifacts or assemble retrieval dependencies directly.
+Runtime index access goes through `atlas-index` backend handles. Production SQLite reads go through `SqliteIndexReader`; the Ladybug spike read path goes through `LadybugIndexReader` behind the same `SearchIndex` contract. Construction-time writes also go through `atlas-index`: ingest converts final ingest state into `IndexBuildInput`, chooses configured `IndexArtifactWriter` implementations, and lets each backend writer create, validate, checkpoint, and publish its artifact. The SQLite writer always embeds the current GraphQLite graph projection in the SQLite artifact after the authoritative SQLite tables are committed. Product surfaces route retrieval through `atlas-runtime` and `AtlasRetrievalService`; they do not open SQLite/Ladybug artifacts or assemble retrieval dependencies directly.
 
 Embedding reuse follows the same boundary direction. `atlas-index` exposes backend-specific cached-vector readers such as `DocumentEmbeddingCacheReader` on `SqliteIndexReader`; `atlas-ingest` decides whether reuse is enabled, validates the target build context through the embedding model spec, merges reusable vectors with newly generated embeddings, and passes the resulting generated embeddings through `IndexBuildInput` to index writers.
 
@@ -159,6 +159,7 @@ The Rust SQLite artifact is the runtime contract between ingest and search. The 
 - reference graph: `reference_edges`
 - lexical search: `records_fts`
 - semantic cache and vector index: `document_embedding_cache`, `record_vector_index`
+- embedded graph projection: GraphQLite-owned node/edge tables plus `graphqlite_*` metadata rows
 
 ## Current Gaps And Deferred Shapes
 

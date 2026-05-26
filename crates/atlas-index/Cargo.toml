@@ -15,6 +15,7 @@ atlas-record.workspace = true
 atlas-sqlite-vec.workspace = true
 arrow-array = "57.0.0"
 arrow-schema = "57.0.0"
+graphqlite = "0.4.4"
 lbug.workspace = true
 parquet = { version = "57.0.0", features = ["arrow"] }
 rusqlite.workspace = true

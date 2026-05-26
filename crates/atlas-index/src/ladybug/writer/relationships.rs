@@ -3,14 +3,15 @@ use std::path::Path;
 
 use crate::IndexBuildInput;
 use arrow_schema::DataType;
+use atlas_record::MetricValue;
 use atlas_record::{
     ContentBlock, ContentDocument, ContentReference, ContentReferenceLocator,
     iter_content_references, render_plain_text,
 };
 
 use crate::IndexWriteError;
+use crate::graph_projection::evidence::evidence_units;
 use crate::ladybug::writer::embeddings::LadybugEmbedding;
-use crate::ladybug::writer::evidence::evidence_units;
 use crate::ladybug::writer::facts::{
     alias_key, filter_value_key, metric_key_id, publication_key, record_filter_values,
 };
@@ -19,7 +20,6 @@ use crate::ladybug::writer::parquet::{
     arrow_strings, write_parquet,
 };
 use crate::writer_visibility::RetrievalVisibility;
-use atlas_record::MetricValue;
 
 pub(crate) fn write_graph_relationship_parquet(
     staging_path: &Path,
