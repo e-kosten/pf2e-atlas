@@ -626,6 +626,42 @@ impl SqliteIndexReader {
         }
     }
 
+    pub fn filter_record_keys(
+        &self,
+        candidate_keys: &[RecordKey],
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordKey>, FilterCompileError> {
+        if candidate_keys.is_empty() {
+            return Ok(Vec::new());
+        }
+        if filter.is_none() {
+            return Ok(candidate_keys.to_vec());
+        }
+
+        let eligible = compile_eligible_records_query(filter)?;
+        let mut parameters = eligible.parameters;
+        let mut candidate_rows = Vec::with_capacity(candidate_keys.len());
+        for (ordinal, key) in candidate_keys.iter().enumerate() {
+            parameters.push(Value::Text(key.to_string()));
+            let key_placeholder = format!("?{}", parameters.len());
+            parameters.push(Value::Integer(ordinal as i64));
+            let ordinal_placeholder = format!("?{}", parameters.len());
+            candidate_rows.push(format!("({key_placeholder}, {ordinal_placeholder})"));
+        }
+        let sql = format!(
+            "WITH eligible(record_key) AS ({}),
+                  candidate(record_key, ordinal) AS (VALUES {})
+             SELECT candidate.record_key
+             FROM candidate
+             JOIN eligible ON eligible.record_key = candidate.record_key
+             ORDER BY candidate.ordinal",
+            eligible.sql,
+            candidate_rows.join(", ")
+        );
+        let query = FilteredRecordKeysQuery { sql, parameters };
+        read_record_keys(&self.connection, &query)
+    }
+
     pub fn validate_vector_index(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
         vector::validate_vector_index_connection(
             self.path.display().to_string(),

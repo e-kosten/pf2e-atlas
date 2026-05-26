@@ -80,6 +80,11 @@ pub trait SearchIndex {
         limit: u32,
         offset: u32,
     ) -> Result<FilteredRecordKeyPage, SearchError>;
+    fn filter_record_keys(
+        &self,
+        candidate_keys: &[RecordKey],
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordKey>, SearchError>;
     fn list_filter_fields(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -234,6 +239,18 @@ impl SearchIndex for SqliteIndexReader {
     ) -> Result<FilteredRecordKeyPage, SearchError> {
         Ok(SqliteIndexReader::list_filtered_record_keys(
             self, filter, sort, limit, offset,
+        )?)
+    }
+
+    fn filter_record_keys(
+        &self,
+        candidate_keys: &[RecordKey],
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordKey>, SearchError> {
+        Ok(SqliteIndexReader::filter_record_keys(
+            self,
+            candidate_keys,
+            filter,
         )?)
     }
 

@@ -48,7 +48,7 @@ enum Command {
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
     #[command(about = "Explore record relationships")]
-    Graph(GraphArgs),
+    Graph(Box<GraphArgs>),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
     #[command(about = "Discover filter fields and values")]
@@ -252,6 +252,8 @@ enum GraphCommand {
     Links(GraphLinksOptions),
     #[command(about = "Show records that reference or use a record")]
     Uses(GraphUsesOptions),
+    #[command(about = "Expand a semantic query through referenced mechanics")]
+    Expand(Box<GraphExpandOptions>),
     #[command(about = "Show variant siblings or progression for a record")]
     Variants(GraphVariantsOptions),
     #[command(about = "Show legacy/remaster links for a record")]
@@ -564,6 +566,38 @@ struct GraphUsesOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]
     record_ref: String,
     #[arg(long, default_value_t = 25, value_parser = parse_graph_limit, help = "Maximum records that use this record to include, 0-50")]
+    limit: usize,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
+    detail: DetailLevel,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas graph expand \"fear aura monster ability\"\n  atlas graph expand \"low level frightened spell\" --family spell --max-level 3 --semantic-limit 20 --mechanics 8 --min-support 2 --limit 20 --json"
+)]
+struct GraphExpandOptions {
+    #[arg(help = "Semantic query to expand through referenced mechanics")]
+    query: String,
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON; do not combine with convenience filter flags"
+    )]
+    filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: FilterOptions,
+    #[arg(long, default_value_t = 20, value_parser = parse_graph_limit, help = "Semantic seed records to inspect, 0-50")]
+    semantic_limit: usize,
+    #[arg(long, default_value_t = 8, value_parser = parse_graph_limit, help = "Mechanic records inferred from semantic seeds to retain, 0-50")]
+    mechanics: usize,
+    #[arg(long, default_value_t = 2, value_parser = parse_graph_limit, help = "Minimum semantic seed support required for inferred mechanics, 0-50")]
+    min_support: usize,
+    #[arg(long, default_value_t = 20, value_parser = parse_graph_limit, help = "Expanded records to include, 0-50")]
     limit: usize,
     #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
     detail: DetailLevel,
@@ -1037,6 +1071,7 @@ impl Command {
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
                 GraphCommand::Uses(options) => options.json,
+                GraphCommand::Expand(options) => options.json,
                 GraphCommand::Variants(options) => options.json,
                 GraphCommand::Remaster(options) => options.json,
             },
@@ -1078,6 +1113,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),
             GraphCommand::Uses(options) => commands::graph::run_graph_uses(options),
+            GraphCommand::Expand(options) => commands::graph::run_graph_expand(*options),
             GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
             GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },

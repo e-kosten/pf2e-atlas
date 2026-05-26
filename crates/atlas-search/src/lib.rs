@@ -14,6 +14,7 @@ use atlas_record::PersistedRecord;
 
 mod fusion;
 mod graph_context;
+mod graph_expand;
 mod query;
 mod references;
 mod resolution;
@@ -29,6 +30,10 @@ pub use fusion::{
 pub use graph_context::{
     GraphContextEdge, GraphContextEdgeSource, GraphContextRequest, GraphContextResult,
     GraphContextSection,
+};
+pub use graph_expand::{
+    GraphExpandEvidence, GraphExpandMechanic, GraphExpandRecord, GraphExpandRequest,
+    GraphExpandResult, GraphExpandSemanticSeed,
 };
 pub use query::TextQueryAnalysis;
 pub(crate) use query::{analyze_text_query, normalize_record_query};
