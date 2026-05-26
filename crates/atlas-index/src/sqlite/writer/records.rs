@@ -123,6 +123,7 @@ pub(super) fn write_records(
             insert_content
                 .execute(params![
                     record.key.to_string(),
+                    supplemental_content_key(ordinal),
                     ordinal as i64,
                     supplemental.source_kind.as_str(),
                     supplemental.visibility.as_str(),
@@ -231,6 +232,10 @@ pub(super) fn write_records(
         }
     }
     Ok(())
+}
+
+pub(crate) fn supplemental_content_key(ordinal: usize) -> String {
+    format!("content:{ordinal}")
 }
 
 fn json_array(values: &[String]) -> Result<String, IndexWriteError> {

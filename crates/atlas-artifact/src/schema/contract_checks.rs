@@ -1,7 +1,7 @@
 use super::{
     Column, ColumnCheck, TABLE_DESCRIPTORS, Table, actor_records, document_embedding_cache,
     item_records, packs, record_aliases, record_content, record_metrics, record_traits, records,
-    reference_edges, remaster_links, spell_records,
+    reference_edges, reference_occurrences, remaster_links, spell_records,
 };
 
 pub struct BooleanColumn {
@@ -70,6 +70,20 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         key: "reference_edges.to_record_key",
         table: reference_edges::TABLE,
         column: reference_edges::columns::TO_RECORD_KEY,
+        referenced_table: records::TABLE,
+        referenced_column: records::columns::RECORD_KEY,
+    },
+    RequiredReference {
+        key: "reference_occurrences.record_key",
+        table: reference_occurrences::TABLE,
+        column: reference_occurrences::columns::RECORD_KEY,
+        referenced_table: records::TABLE,
+        referenced_column: records::columns::RECORD_KEY,
+    },
+    RequiredReference {
+        key: "reference_occurrences.target_record_key",
+        table: reference_occurrences::TABLE,
+        column: reference_occurrences::columns::TARGET_RECORD_KEY,
         referenced_table: records::TABLE,
         referenced_column: records::columns::RECORD_KEY,
     },

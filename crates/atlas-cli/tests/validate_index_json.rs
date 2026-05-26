@@ -308,6 +308,7 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
     assert_eq!(inspect_json["tables"]["document_embedding_cache"], 0);
     assert_eq!(inspect_json["text"]["records_with_description"], 1);
     assert_eq!(inspect_json["relationships"]["reference_edges"], 1);
+    assert_eq!(inspect_json["relationships"]["reference_occurrences"], 1);
     assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
 
     fs::remove_dir_all(root)?;
@@ -1219,7 +1220,7 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
                 "index": path.display().to_string(),
                 "message": "artifact metadata is valid",
                 "artifact_contract_version": "pf2e-atlas-artifact/v1",
-                "schema_version": "1",
+                "schema_version": "2",
                 "source_kind": "foundry-pf2e",
                 "source_signature": "foundry-pf2e:fixture",
                 "source_record_count": "3",
@@ -1383,7 +1384,7 @@ fn validate_index_json_reports_embedding_mismatch() -> Result<(), Box<dyn std::e
                 "index": path.display().to_string(),
                 "message": "artifact metadata is incompatible with this runtime",
                 "artifact_contract_version": "pf2e-atlas-artifact/v1",
-                "schema_version": "1",
+                "schema_version": "2",
                 "source_kind": "foundry-pf2e",
                 "source_signature": "foundry-pf2e:fixture",
                 "source_record_count": "3",
@@ -1440,7 +1441,7 @@ fn validate_index_json_reports_missing_required_key() -> Result<(), Box<dyn std:
                 "index": path.display().to_string(),
                 "message": "artifact metadata table is missing required keys",
                 "artifact_contract_version": "pf2e-atlas-artifact/v1",
-                "schema_version": "1",
+                "schema_version": "2",
                 "source_kind": "foundry-pf2e",
                 "source_signature": "foundry-pf2e:fixture",
                 "source_record_count": "3",
@@ -1487,7 +1488,7 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
                 "index": path.display().to_string(),
                 "message": "artifact metadata is incompatible with this runtime",
                 "artifact_contract_version": "pf2e-atlas-artifact/v1",
-                "schema_version": "1",
+                "schema_version": "2",
                 "source_kind": "foundry-pf2e",
                 "source_signature": "stale:fixture",
                 "source_record_count": "3",
@@ -1529,7 +1530,7 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
 fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-unsupported-schema");
-    create_contract_database(&path, Some(("schema_version", "2")))?;
+    create_contract_database(&path, Some(("schema_version", "999")))?;
 
     let output = run_atlas(&path)?;
 
@@ -1545,7 +1546,7 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
                 "index": path.display().to_string(),
                 "message": "artifact metadata is incompatible with this runtime",
                 "artifact_contract_version": "pf2e-atlas-artifact/v1",
-                "schema_version": "2",
+                "schema_version": "999",
                 "source_kind": "foundry-pf2e",
                 "source_signature": "foundry-pf2e:fixture",
                 "source_record_count": "3",
@@ -1572,8 +1573,8 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
                         "family": "schema",
                         "message": "metadata key `schema_version` has an unsupported value",
                         "key": "schema_version",
-                        "expected": "1",
-                        "actual": "2"
+                        "expected": "2",
+                        "actual": "999"
                     }
                 ]
             }

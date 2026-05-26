@@ -14,12 +14,14 @@ use serde_json::Value as JsonValue;
 
 mod atlas_cli;
 mod cli_parity;
+mod graph_value_eval;
 mod graphqlite_eval;
 mod perf_eval;
 mod search_eval;
 
 use atlas_cli::summarize_json;
 use cli_parity::run_cli_parity;
+use graph_value_eval::run_graph_value_eval;
 use graphqlite_eval::{
     run_graphqlite_product_patterns, run_graphqlite_read_patterns, run_graphqlite_smoke_probe,
 };
@@ -76,6 +78,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/evidence-unit-scratch.lbug"));
         return run_graph_product_eval_probe(&path);
+    }
+    if mode == "graph-value-eval" {
+        let sqlite_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.sqlite"));
+        let ladybug_path = args
+            .next()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".cache/ladybug-spike/with-embeddings.lbug"));
+        return run_graph_value_eval(&sqlite_path, &ladybug_path);
     }
     if mode == "baseline-parity" {
         let path = args
