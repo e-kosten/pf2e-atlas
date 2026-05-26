@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::{
     DiscoveryError, DiscoveryValueSort, FilterValueRequest, FilteredRecordKeyPage,
     FilteredRecordSort,
@@ -182,6 +184,29 @@ impl LadybugIndexReader {
             .map(|row| record_key_at(row, 0))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(FilteredRecordKeyPage { record_keys, total })
+    }
+
+    pub(crate) fn filter_record_keys_impl(
+        &self,
+        candidate_keys: &[atlas_domain::RecordKey],
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<atlas_domain::RecordKey>, LadybugIndexReaderError> {
+        if candidate_keys.is_empty() {
+            return Ok(Vec::new());
+        }
+        if filter.is_none() {
+            return Ok(candidate_keys.to_vec());
+        }
+        let filtered_keys = self
+            .list_filtered_record_keys_impl(filter, FilteredRecordSort::RecordKey, u32::MAX, 0)?
+            .record_keys
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        Ok(candidate_keys
+            .iter()
+            .filter(|key| filtered_keys.contains(*key))
+            .cloned()
+            .collect())
     }
 
     fn count_matching_records_discovery(

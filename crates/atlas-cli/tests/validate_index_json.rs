@@ -62,6 +62,14 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(graph_uses_help.contains("atlas graph uses"));
     assert!(graph_uses_help.contains("--limit"));
 
+    let graph_expand_help = help_output(&["graph", "expand"])?;
+    assert!(graph_expand_help.contains("atlas graph expand"));
+    assert!(graph_expand_help.contains("--semantic-limit"));
+    assert!(graph_expand_help.contains("--mechanics"));
+    assert!(graph_expand_help.contains("--min-support"));
+    assert!(graph_expand_help.contains("--filter-json"));
+    assert!(graph_expand_help.contains("--family"));
+
     let graph_variants_help = help_output(&["graph", "variants"])?;
     assert!(graph_variants_help.contains("atlas graph variants"));
 

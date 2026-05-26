@@ -105,6 +105,13 @@ atlas graph uses "Frightened" --json
 
 Graph context is retrieval only; it does not synthesize answers.
 
+Use `graph expand` when a conceptual query should be grounded in mechanics. It runs semantic retrieval first, infers referenced mechanics from the semantic hits, keeps mechanics that meet `--min-support`, then expands back to records that use those mechanics with evidence. Use the same structured filter flags as search when the expansion should stay in a family, level band, rarity, trait set, publication, or metric scope:
+
+```bash
+atlas graph expand "fear aura monster ability" --semantic-limit 20 --mechanics 8 --limit 20 --json
+atlas graph expand "low level spell makes enemies afraid" --family spell --max-level 3 --min-support 2 --json
+```
+
 Use `graph variants` when comparing scaled versions, grades, or other detected variant groups. It accepts a canonical variant record key, an exact variant record name, or an exact variant base name:
 
 ```bash

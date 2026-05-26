@@ -18,6 +18,9 @@ use crate::{
 
 use super::record::{open_record_service, record_runtime, search_error, search_error_code};
 
+mod expand;
+pub(crate) use expand::run_graph_expand;
+
 #[derive(Debug, Serialize)]
 struct GraphLinksData {
     detail: String,

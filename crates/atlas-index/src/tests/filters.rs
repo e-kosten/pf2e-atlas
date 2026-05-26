@@ -7,6 +7,7 @@ use atlas_domain::{MetricMatch, NumericMatch, RecordFamily, RecordKey};
 use rusqlite::{Connection, params_from_iter};
 
 use super::{create_contract_database, temp_db_path};
+use crate::SqliteIndexReader;
 use crate::filters::{
     EligibleRecordsQuery, FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort,
     compile_eligible_records_query, compile_filtered_record_keys_query,
@@ -105,6 +106,46 @@ fn composes_filtered_record_key_queries_from_eligible_records()
             .sql
             .contains("JOIN records r ON r.record_key = e.record_key")
     );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn filters_candidate_record_keys_with_existing_filter_compiler()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("filter-candidate-keys");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET level = CASE record_key
+             WHEN 'actions:testAction1' THEN 1
+             WHEN 'actions:testAction2' THEN 4
+             ELSE 2
+         END",
+        [],
+    )?;
+    drop(connection);
+
+    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
+    let keys = reader.filter_record_keys(
+        &[
+            RecordKey::parse("actions:testAction1")?,
+            RecordKey::parse("actions:testAction2")?,
+            RecordKey::parse("actions:testAction3")?,
+        ],
+        Some(&filter),
+    )?;
+
+    assert_eq!(
+        keys,
+        vec![
+            RecordKey::parse("actions:testAction2")?,
+            RecordKey::parse("actions:testAction3")?
+        ]
+    );
+    drop(reader);
     fs::remove_file(path)?;
     Ok(())
 }

@@ -157,6 +157,15 @@ impl SearchIndex for LadybugIndexReader {
             .map_err(search_error)
     }
 
+    fn filter_record_keys(
+        &self,
+        candidate_keys: &[RecordKey],
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordKey>, SearchError> {
+        self.filter_record_keys_impl(candidate_keys, filter)
+            .map_err(search_error)
+    }
+
     fn list_filter_fields(
         &self,
         filter: Option<&SearchFilterNode>,
