@@ -8,7 +8,8 @@ use thiserror::Error;
 use crate::{
     DiscoveryError, FilterCompileError, FilterValueRequest, FilteredRecordKeyPage,
     FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit, IndexValidationError,
-    RecordIdentityMatchKind, RecordLoadError, SqliteIndexReader, VectorQueryError, VectorSearchHit,
+    RecordEmbeddingUnit, RecordIdentityMatchKind, RecordLoadError, SqliteIndexReader,
+    VectorQueryError, VectorSearchHit,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,6 +116,10 @@ pub trait SearchIndex {
         limit: u32,
         include_child_units: bool,
     ) -> Result<Vec<VectorSearchHit>, SearchError>;
+    fn load_record_embedding_units(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingUnit>, SearchError>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -308,6 +313,15 @@ impl SearchIndex for SqliteIndexReader {
             filter,
             limit,
             include_child_units,
+        )?)
+    }
+
+    fn load_record_embedding_units(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingUnit>, SearchError> {
+        Ok(SqliteIndexReader::load_record_embedding_units(
+            self, record_key,
         )?)
     }
 }

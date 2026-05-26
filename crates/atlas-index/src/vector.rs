@@ -1,8 +1,8 @@
 use atlas_artifact::{
     schema::{TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX},
-    storage::encode_f32_vector_blob,
+    storage::{decode_f32_vector_blob, encode_f32_vector_blob},
 };
-use atlas_domain::SearchFilterNode;
+use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::EmbeddingUnitKind;
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
@@ -31,6 +31,16 @@ pub struct VectorSearchHit {
     pub distance: f64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordEmbeddingUnit {
+    pub embedding_unit_key: String,
+    pub record_key: RecordKey,
+    pub unit_kind: String,
+    pub label: Option<String>,
+    pub ordinal: i64,
+    pub vector: Vec<f32>,
+}
+
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum VectorQueryError {
     #[error("vector query limit must be greater than zero")]
@@ -41,6 +51,11 @@ pub enum VectorQueryError {
     QueryFailed(String),
     #[error("vector query returned invalid unit kind: {0}")]
     InvalidUnitKind(String),
+    #[error("stored embedding unit `{embedding_unit_key}` had invalid vector data: {message}")]
+    InvalidStoredVector {
+        embedding_unit_key: String,
+        message: String,
+    },
     #[error(transparent)]
     Filter(#[from] FilterCompileError),
 }
@@ -124,6 +139,62 @@ pub fn query_vector_index(
             Ok(hit)
         })
         .collect()
+}
+
+pub fn load_record_embedding_units(
+    connection: &Connection,
+    record_key: &RecordKey,
+) -> Result<Vec<RecordEmbeddingUnit>, VectorQueryError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT embedding_unit_key, record_key, unit_kind, label, ordinal, vector_blob
+             FROM document_embedding_cache
+             WHERE record_key = ?1
+             ORDER BY ordinal ASC, embedding_unit_key ASC",
+        )
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([record_key.to_string()], |row| {
+            let embedding_unit_key: String = row.get(0)?;
+            let record_key_text: String = row.get(1)?;
+            let unit_kind: String = row.get(2)?;
+            let label: Option<String> = row.get(3)?;
+            let ordinal: i64 = row.get(4)?;
+            let vector_blob: Vec<u8> = row.get(5)?;
+            Ok((
+                embedding_unit_key,
+                record_key_text,
+                unit_kind,
+                label,
+                ordinal,
+                vector_blob,
+            ))
+        })
+        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    rows.map(|row| {
+        let (embedding_unit_key, record_key_text, unit_kind, label, ordinal, vector_blob) =
+            row.map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+        let record_key = RecordKey::parse(&record_key_text).map_err(|error| {
+            VectorQueryError::QueryFailed(format!(
+                "stored embedding `{embedding_unit_key}` had invalid record key `{record_key_text}`: {error}"
+            ))
+        })?;
+        let vector = decode_f32_vector_blob(&vector_blob).map_err(|error| {
+            VectorQueryError::InvalidStoredVector {
+                embedding_unit_key: embedding_unit_key.clone(),
+                message: error.to_string(),
+            }
+        })?;
+        Ok(RecordEmbeddingUnit {
+            embedding_unit_key,
+            record_key,
+            unit_kind: parse_embedding_unit_kind(unit_kind)?,
+            label,
+            ordinal,
+            vector,
+        })
+    })
+    .collect()
 }
 
 fn parse_embedding_unit_kind(value: String) -> Result<String, VectorQueryError> {

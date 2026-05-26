@@ -10,7 +10,7 @@ use atlas_record::{
 use lbug::{Connection, Value};
 use std::time::Instant;
 
-use crate::{DiscoveryError, GraphReferenceEdge, VectorSearchHit};
+use crate::{DiscoveryError, GraphReferenceEdge, RecordEmbeddingUnit, VectorSearchHit};
 
 use super::{LadybugIndexReaderError, invalid, trace_ladybug_phase};
 
@@ -142,6 +142,50 @@ pub(crate) fn vector_hit_from_row(
         label: optional_string_at(row, 3)?,
         distance: float_at(row, 4)?,
     })
+}
+
+pub(crate) fn record_embedding_unit_from_row(
+    row: &[Value],
+) -> Result<RecordEmbeddingUnit, LadybugIndexReaderError> {
+    let embedding_unit_key = string_at(row, 0)?;
+    Ok(RecordEmbeddingUnit {
+        embedding_unit_key: embedding_unit_key.clone(),
+        record_key: record_key_at(row, 1)?,
+        unit_kind: string_at(row, 2)?,
+        label: optional_string_at(row, 3)?,
+        ordinal: int_at(row, 4)?,
+        vector: vector_at(row, 5, &embedding_unit_key)?,
+    })
+}
+
+pub(crate) fn vector_at(
+    row: &[Value],
+    index: usize,
+    context: &str,
+) -> Result<Vec<f32>, LadybugIndexReaderError> {
+    let values = match row.get(index) {
+        Some(Value::Array(_, values) | Value::List(_, values)) => values,
+        Some(value) => {
+            return Err(LadybugIndexReaderError::InvalidData(format!(
+                "`{context}` vector column {index} had unexpected value {value:?}"
+            )));
+        }
+        None => {
+            return Err(LadybugIndexReaderError::InvalidData(format!(
+                "`{context}` vector column {index} is missing"
+            )));
+        }
+    };
+    values
+        .iter()
+        .map(|value| match value {
+            Value::Float(value) => Ok(*value),
+            Value::Double(value) => Ok(*value as f32),
+            other => Err(LadybugIndexReaderError::InvalidData(format!(
+                "`{context}` vector column {index} contains non-float value {other:?}"
+            ))),
+        })
+        .collect()
 }
 
 pub(crate) fn query_rows(
