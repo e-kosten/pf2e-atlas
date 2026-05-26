@@ -4,16 +4,16 @@ use atlas_artifact::{
 use atlas_embedding::GeneratedDocumentEmbedding;
 use rusqlite::{Connection, params};
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
 pub(super) fn write_document_embedding_cache(
     connection: &Connection,
     embeddings: &[GeneratedDocumentEmbedding],
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let insert_sql = document_embedding_cache_insert_sql();
     let mut insert = connection
         .prepare(&insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     for embedding in embeddings {
         insert
@@ -27,7 +27,7 @@ pub(super) fn write_document_embedding_cache(
                 embedding.dimensions as i64,
                 encode_f32_vector_blob(&embedding.vector),
             ])
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
 
     Ok(())

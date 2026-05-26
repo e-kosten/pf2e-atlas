@@ -6,9 +6,9 @@ mod values;
 use rusqlite::Connection;
 use tracing::info;
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
-pub(super) fn write_discovery_catalogs(connection: &Connection) -> Result<(), IngestError> {
+pub(super) fn write_discovery_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
     fields::write_field_catalogs(connection)?;
     values::write_value_catalogs(connection)
 }

@@ -1,15 +1,15 @@
 use rusqlite::Connection;
 
-use crate::error::IngestError;
-use crate::records::{RecordAlias, ReferenceEdge, RemasterLink};
+use crate::IndexWriteError;
+use atlas_record::{RecordAlias, ReferenceEdge, RemasterLink};
 
 pub(super) fn write_reference_edges(
     connection: &Connection,
     references: &[ReferenceEdge],
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let mut insert_reference = connection
         .prepare(&atlas_artifact::schema::reference_edge_insert_sql())
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     for reference in references {
         insert_reference
@@ -21,7 +21,7 @@ pub(super) fn write_reference_edges(
                 reference.source_kind.as_str(),
                 reference.visibility.as_str(),
             ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
@@ -29,10 +29,10 @@ pub(super) fn write_reference_edges(
 pub(super) fn write_record_aliases(
     connection: &Connection,
     aliases: &[RecordAlias],
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let mut insert_alias = connection
         .prepare(&atlas_artifact::schema::record_alias_insert_sql())
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     for alias in aliases {
         insert_alias
@@ -43,7 +43,7 @@ pub(super) fn write_record_aliases(
                 alias.source.as_str(),
                 alias.source_ref.as_str(),
             ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
@@ -51,10 +51,10 @@ pub(super) fn write_record_aliases(
 pub(super) fn write_remaster_links(
     connection: &Connection,
     remaster_links: &[RemasterLink],
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let mut insert_link = connection
         .prepare(&atlas_artifact::schema::remaster_link_insert_sql())
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
     for link in remaster_links {
         insert_link
@@ -64,7 +64,7 @@ pub(super) fn write_remaster_links(
                 link.source.as_str(),
                 link.source_ref.as_str(),
             ))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }

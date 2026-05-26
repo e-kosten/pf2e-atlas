@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use atlas_artifact::schema::filter_field_catalog_insert_sql;
 use rusqlite::{Connection, params};
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
 use super::stats::FieldStats;
 
 use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
-pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), IngestError> {
+pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
     let insert_sql = filter_field_catalog_insert_sql();
     let total = FIELD_SEEDS.len() as u64;
     for (index, seed) in FIELD_SEEDS.iter().enumerate() {
@@ -47,7 +47,7 @@ fn write_scope_with_stats(
     seed: &FieldCatalogSeed,
     record_family: Option<&str>,
     stats: FieldStats,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     connection
         .execute(
             insert_sql,
@@ -70,14 +70,14 @@ fn write_scope_with_stats(
                 seed.policy_reason,
             ],
         )
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     Ok(())
 }
 
 pub(super) fn collect_stats(
     connection: &Connection,
     value_sql: &str,
-) -> Result<BTreeMap<Option<&'static str>, FieldStats>, IngestError> {
+) -> Result<BTreeMap<Option<&'static str>, FieldStats>, IndexWriteError> {
     let sql = format!(
         "WITH field_values(record_key, value) AS ({value_sql}),
               scoped_values AS (
@@ -127,7 +127,7 @@ pub(super) fn collect_stats(
     );
     let mut statement = connection
         .prepare(&sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
             Ok((
@@ -142,11 +142,11 @@ pub(super) fn collect_stats(
                 row.get::<_, u64>(4)?,
             ))
         })
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut stats = BTreeMap::new();
     for row in rows {
         let (scope, mut field_stats, observed_record_count) =
-            row.map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let scope = scope.and_then(|value| known_family(value.as_str()));
         let matching_record_count = matching_count(connection, scope)?;
         field_stats.matching_record_count = matching_record_count;
@@ -156,7 +156,7 @@ pub(super) fn collect_stats(
     Ok(stats)
 }
 
-fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IngestError> {
+fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IndexWriteError> {
     match family {
         Some(family) => connection
             .query_row(
@@ -164,14 +164,14 @@ fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, 
                 params![family],
                 |row| row.get(0),
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string())),
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
         None => connection
             .query_row(
                 "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
                 [],
                 |row| row.get(0),
             )
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string())),
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
     }
 }
 

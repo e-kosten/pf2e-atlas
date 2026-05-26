@@ -2,13 +2,15 @@ use std::time::Instant;
 
 use tracing::info;
 
-use crate::artifact::writer;
+use atlas_index::{IndexArtifactWriter, SqliteIndexWriter};
+
 use crate::artifact_manifest::{
     ArtifactManifest, ArtifactManifestInput, adjacent_artifact_manifest_path,
     compute_source_position_report, write_artifact_manifest,
 };
 use crate::embeddings::generation::generate_document_embeddings_for_source;
 use crate::error::IngestError;
+use crate::index_build_input::index_build_input;
 use crate::source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
 };
@@ -40,12 +42,17 @@ pub(crate) fn build_artifact(
 
     let embedding_report = generate_document_embeddings_for_source(&mut source, &options)?;
 
-    info!(
-        output = %options.output_path.display(),
-        "writing artifact"
-    );
     let embedding_model = options.embedding_model()?;
-    writer::write_artifact(&options.output_path, &source, embedding_model)?;
+    let index_input = index_build_input(&source);
+    let output = SqliteIndexWriter::new(options.output_path.clone());
+    info!(
+        backend = output.label(),
+        output = %output.output_path().display(),
+        "writing artifact output"
+    );
+    output
+        .write(&index_input, embedding_model)
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let artifact_record_count = source.records.len();
     let source_record_count = source.source_record_count;
     let generated_record_count = artifact_record_count - source_record_count;

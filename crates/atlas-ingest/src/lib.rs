@@ -1,6 +1,5 @@
 #![deny(unsafe_code)]
 
-mod artifact;
 mod artifact_manifest;
 mod build;
 mod diagnostics;
@@ -8,6 +7,7 @@ mod embedding_reuse;
 mod embeddings;
 mod error;
 mod generated;
+mod index_build_input;
 mod records;
 mod report;
 mod source;

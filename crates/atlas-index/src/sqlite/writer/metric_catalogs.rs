@@ -3,9 +3,9 @@ use atlas_artifact::schema::{
 };
 use rusqlite::Connection;
 
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
-pub(super) fn write_metric_catalogs(connection: &Connection) -> Result<(), IngestError> {
+pub(super) fn write_metric_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
     connection
         .execute_batch(&format!(
             "{};
@@ -13,5 +13,5 @@ pub(super) fn write_metric_catalogs(connection: &Connection) -> Result<(), Inges
             metric_key_catalog_insert_select_sql(),
             metric_value_catalog_insert_select_sql()
         ))
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }

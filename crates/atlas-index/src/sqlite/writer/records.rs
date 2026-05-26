@@ -3,23 +3,22 @@ use atlas_artifact::schema::{
     record_metric_insert_sql, record_trait_insert_sql, records_fts_insert_sql,
     spell_record_insert_sql,
 };
-use atlas_record::build_record_fts_projection;
+use atlas_record::{NormalizedRecord, RecordAlias, RemasterLink, build_record_fts_projection};
 use rusqlite::{Connection, params};
 
 use super::labels::{
     metric_domain_label, metric_value_parts, publication_family_label, time_kind_label,
     time_unit_label,
 };
-use crate::error::IngestError;
-use crate::records::visibility::RetrievalVisibility;
-use crate::records::{LoadedSourceRecord, RecordAlias, RemasterLink};
+use crate::IndexWriteError;
+use crate::writer_visibility::RetrievalVisibility;
 
 pub(super) fn write_records(
     connection: &Connection,
-    records: &[LoadedSourceRecord],
+    records: &[&NormalizedRecord],
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let retrieval_visibility = RetrievalVisibility::from_remaster_links(remaster_links);
     let record_insert_sql = record_insert_sql();
     let record_trait_insert_sql = record_trait_insert_sql();
@@ -31,36 +30,35 @@ pub(super) fn write_records(
     let records_fts_insert_sql = records_fts_insert_sql();
     let mut insert_record = connection
         .prepare(&record_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_trait = connection
         .prepare(&record_trait_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_content = connection
         .prepare(&record_content_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_metric = connection
         .prepare(&record_metric_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_actor = connection
         .prepare(&actor_record_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_item = connection
         .prepare(&item_record_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_spell = connection
         .prepare(&spell_record_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let mut insert_fts = connection
         .prepare(&records_fts_insert_sql)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
-    for loaded in records {
-        let record = &loaded.record;
+    for record in records {
         let is_default_visible = retrieval_visibility.is_default_visible(record);
         let traits_json = serde_json::to_string(&record.traits)
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let prerequisites_json = serde_json::to_string(&record.prerequisites)
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let taxonomy_families_json = json_array(&record.taxonomy_families)?;
         let variant_axes_json = json_array(&record.variant_axes)?;
         let description_json = optional_json(&record.description)?;
@@ -117,10 +115,10 @@ pub(super) fn write_records(
                 i64::from(is_default_visible),
                 record.raw_json.as_str(),
             ])
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         for (ordinal, supplemental) in record.supplemental_content.iter().enumerate() {
             let content_json = serde_json::to_string(&supplemental.document)
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
             insert_content
                 .execute(params![
                     record.key.to_string(),
@@ -132,12 +130,12 @@ pub(super) fn write_records(
                     supplemental.label.as_deref(),
                     content_json,
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         for trait_value in &record.traits {
             insert_trait
                 .execute((record.key.to_string(), trait_value.as_str()))
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         if let Some(actor_data) = &record.actor_data {
             insert_actor
@@ -154,7 +152,7 @@ pub(super) fn write_records(
                     json_array(&actor_data.disable_skills)?,
                     i64::from(actor_data.is_complex),
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         if let Some(item_data) = &record.item_data {
             insert_item
@@ -169,7 +167,7 @@ pub(super) fn write_records(
                     item_data.hands_requirement.as_deref(),
                     json_array(&item_data.damage_types)?,
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         if let Some(spell_data) = &record.spell_data {
             insert_spell
@@ -187,7 +185,7 @@ pub(super) fn write_records(
                     i64::from(spell_data.basic_save),
                     json_array(&spell_data.damage_types)?,
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         for metric in &record.metrics {
             let (value_type, number_value, text_value, bool_value) =
@@ -202,7 +200,7 @@ pub(super) fn write_records(
                     text_value,
                     bool_value,
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
         if is_default_visible {
             let record_aliases = aliases
@@ -228,21 +226,21 @@ pub(super) fn write_records(
                     fts.references,
                     fts.embedded_content,
                 ])
-                .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         }
     }
     Ok(())
 }
 
-fn json_array(values: &[String]) -> Result<String, IngestError> {
+fn json_array(values: &[String]) -> Result<String, IndexWriteError> {
     serde_json::to_string(values)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }
 
-fn optional_json<T: serde::Serialize>(value: &Option<T>) -> Result<Option<String>, IngestError> {
+fn optional_json<T: serde::Serialize>(value: &Option<T>) -> Result<Option<String>, IndexWriteError> {
     value
         .as_ref()
         .map(serde_json::to_string)
         .transpose()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }

@@ -7,7 +7,7 @@ use atlas_embedding::{EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelId, embedding
 use rusqlite::Connection;
 
 use crate::artifact_manifest::ADJACENT_ARTIFACT_MANIFEST_PATH;
-use crate::error::IngestError;
+use crate::IndexWriteError;
 
 fn metadata_value(value: impl Into<String>) -> String {
     value.into()
@@ -20,7 +20,7 @@ pub(super) fn write_artifact_metadata(
     generated_record_count: usize,
     source_signature: &str,
     embedding_model: EmbeddingModelId,
-) -> Result<(), IngestError> {
+) -> Result<(), IndexWriteError> {
     let embedding_spec = embedding_model_spec(embedding_model);
     let metadata = [
         (
@@ -117,7 +117,7 @@ pub(super) fn write_artifact_metadata(
     for (key, value) in metadata {
         connection
             .execute(&insert_sql, (key, value))
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
