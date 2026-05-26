@@ -23,6 +23,30 @@ LadybugDB is interesting because graph traversal, structured predicates, full-te
 
 The product question is not only "can LadybugDB replace SQLite?" It is whether PF2e Atlas should become a local rules graph with search entry points. A successful LadybugDB design should make relationship-aware retrieval, graph context, concept browsing, and future TUI exploration materially better. If the prototype mostly recreates relational tables in Cypher, the architecture shift is probably not worthwhile.
 
+## Current Conclusion
+
+The spike has not found enough unique product value to justify replacing the SQLite artifact/runtime path with LadybugDB.
+
+LadybugDB was valuable as an exploratory graph engine. It made multi-hop and evidence-level questions easy to express, and it helped identify useful product ideas around relationship evidence, same-content co-reference, graph expansion, variant/remaster navigation, and relationship-aware "similar" ranking. However, the strongest useful ideas either already map cleanly to existing SQLite tables or can be captured with targeted relational additions.
+
+The most important durable SQLite-side learning from the spike is `reference_occurrences`: a narrow provenance table that records which logical content unit contained a resolved reference. This preserves the useful part of the evidence graph without adding a general graph database or duplicating content text. It enables same-content reference queries, future snippets/highlighting, and better "why did this match?" UX while keeping ordinary record hydration, filters, FTS, vectors, catalogs, and validation in SQLite.
+
+The graph-specific product probes produced this decision read:
+
+- Direct links, backlinks, remaster links, variants, aliases, trait overlap, source counts, and ordinary impact maps are already SQL-friendly.
+- Same-content co-reference is useful, but it is now SQL-friendly through `reference_occurrences`.
+- Long-chain path explanations were usually plausible but not clearly valuable. Many paths explain database connectivity more than gameplay meaning.
+- Relationship-aware similarity can help in narrow cases, but raw graph overlap was often sparse or noisy compared with semantic similarity and needed substantial weighting/hub suppression.
+- Ladybug query and artifact behavior remained operationally more complex than SQLite: source-build/native extension packaging, slower ordinary read surfaces, concurrency/file-lock caveats, and separate artifact management.
+- GraphQLite showed that a SQLite-adjacent graph projection is possible, but it did not add enough over normal SQLite join tables to become a preferred product dependency.
+
+Recommended end state:
+
+- Retire the Ladybug and GraphQLite paths as production candidates unless a future feature produces a concrete graph traversal requirement that SQLite cannot model cleanly.
+- Fold the useful improvements back into the SQLite path: reference occurrences, conservative precision FTS lessons, hybrid ranking/fusion lessons, embedding token-budget improvements, graph CLI surfaces that are useful over SQLite, and any architecture cleanup from the spike.
+- Keep `atlas-ladybug-spike` only as historical/reproducible spike tooling until the branch is cleaned up, then either remove it or quarantine it as non-product research code.
+- Before ending the spike branch, audit architecture drift and remove or document any Ladybug-specific abstractions that no longer serve the SQLite-first direction.
+
 ## Before Starting
 
 Refresh this worktree from the repository's local `main` branch before doing spike work:
