@@ -19,6 +19,7 @@ mod query;
 mod references;
 mod resolution;
 mod semantic;
+mod similar;
 mod text;
 
 pub use atlas_index::{
@@ -41,6 +42,10 @@ pub use semantic::{
     SemanticSearchHit, SemanticSearchMode, SemanticSearchResult, SemanticSearchTiming,
 };
 use semantic::{collapse_vector_hits, semantic_unit_limit};
+pub use similar::{
+    SimilarRecord, SimilarRecordGraphEvidence, SimilarRecordRequest, SimilarRecordResult,
+    SimilarRecordSemanticEvidence, SimilarScoreWeights, SimilarSharedMechanic,
+};
 pub use text::{
     AtlasSearchRequest, AtlasSearchResult, RetrievalMode, TextSearchMatch, TextSearchPage,
     TextSearchRecord, TextSearchRequest,

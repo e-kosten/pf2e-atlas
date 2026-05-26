@@ -5,8 +5,9 @@ use std::time::Instant;
 use crate::{
     DiscoveryError, FilterValueRequest, FilteredRecordKeyPage, FilteredRecordSort,
     FtsColumnWeights, FtsQuery, FtsSearchHit, GraphProductIndex, GraphReferenceEdge,
-    RecordLoadOptions, RecordResolutionMatchKind, RecordResolutionResult, ReferenceEdgeDirection,
-    RemasterLinks, SearchCandidateRecord, SearchError, SearchIndex, VariantGroup, VectorSearchHit,
+    RecordEmbeddingUnit, RecordLoadOptions, RecordResolutionMatchKind, RecordResolutionResult,
+    ReferenceEdgeDirection, RemasterLinks, SearchCandidateRecord, SearchError, SearchIndex,
+    VariantGroup, VectorSearchHit,
 };
 use atlas_domain::{
     FilterFieldDiscovery, FilterValueDiscovery, MetricDomain, MetricValueType, RecordKey,
@@ -211,6 +212,14 @@ impl SearchIndex for LadybugIndexReader {
         include_child_units: bool,
     ) -> Result<Vec<VectorSearchHit>, SearchError> {
         self.query_vector_index_impl(query_vector, filter, limit, include_child_units)
+            .map_err(search_error)
+    }
+
+    fn load_record_embedding_units(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingUnit>, SearchError> {
+        self.load_record_embedding_units_impl(record_key)
             .map_err(search_error)
     }
 }

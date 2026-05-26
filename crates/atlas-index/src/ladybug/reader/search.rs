@@ -1,11 +1,12 @@
 use std::time::Instant;
 
-use crate::{FtsQuery, FtsSearchHit, FtsSearchLane, VectorSearchHit};
+use crate::{FtsQuery, FtsSearchHit, FtsSearchLane, RecordEmbeddingUnit, VectorSearchHit};
 use atlas_domain::{RecordKey, SearchFilterNode};
 
 use super::filter::compile_scope;
 use super::row::{
-    float_at, query_rows, query_rows_traced, record_key_at, string_at, vector_hit_from_row,
+    float_at, query_rows, query_rows_traced, record_embedding_unit_from_row, record_key_at,
+    string_at, vector_hit_from_row,
 };
 use super::{
     LadybugIndexReader, LadybugIndexReaderError, list_literal, stable_hash, string_literal,
@@ -195,6 +196,28 @@ impl LadybugIndexReader {
             .collect::<Result<Vec<_>, _>>()?;
         trace_ladybug_phase("ladybug_vector_decode_hits", started_at);
         Ok(hits)
+    }
+
+    pub(crate) fn load_record_embedding_units_impl(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingUnit>, LadybugIndexReaderError> {
+        let sql = format!(
+            "MATCH (record:Record)-[:HAS_EMBEDDING_UNIT]->(embedding:EmbeddingUnit)
+             WHERE record.record_key = {}
+             RETURN embedding.embedding_unit_key, record.record_key, embedding.unit_kind,
+                    embedding.label, embedding.ordinal, embedding.embedding
+             ORDER BY embedding.ordinal ASC, embedding.embedding_unit_key ASC;",
+            string_literal(&record_key.to_string())
+        );
+        query_rows_traced(
+            &self.connection,
+            &sql,
+            "ladybug_load_record_embedding_units",
+        )?
+        .iter()
+        .map(|row| record_embedding_unit_from_row(row))
+        .collect()
     }
 }
 

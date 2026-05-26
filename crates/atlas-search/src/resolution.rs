@@ -32,6 +32,7 @@ impl AtlasRetrievalService {
             filter,
             options,
         )? {
+            dedupe_resolution_matches_by_record_key(&mut matches);
             self.enrich_resolution_reference_labels(&mut matches)?;
             return Ok(matches);
         }
@@ -102,9 +103,15 @@ impl AtlasRetrievalService {
             );
         }
 
+        dedupe_resolution_matches_by_record_key(&mut matches);
         self.enrich_resolution_reference_labels(&mut matches)?;
         Ok(matches)
     }
+}
+
+fn dedupe_resolution_matches_by_record_key(matches: &mut Vec<RecordResolutionResult>) {
+    let mut seen = BTreeSet::new();
+    matches.retain(|resolution| seen.insert(resolution.record.key.clone()));
 }
 
 fn resolution_matches_for_kind(
@@ -214,5 +221,92 @@ fn resolution_result(
         alias_source: alias.map(|alias| alias.source.as_str().to_string()),
         alias_source_ref: alias.map(|alias| alias.source_ref.clone()),
         record: record.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordId, RecordKey};
+
+    #[test]
+    fn dedupe_resolution_matches_collapses_duplicate_record_keys() {
+        let mut matches = vec![
+            resolution_for_test("actions:reactive", "Reactive Strike"),
+            resolution_for_test("actions:reactive", "Reactive Strike"),
+            resolution_for_test("actions:other", "Other"),
+        ];
+
+        dedupe_resolution_matches_by_record_key(&mut matches);
+
+        assert_eq!(
+            matches
+                .iter()
+                .map(|resolution| resolution.record.key.to_string())
+                .collect::<Vec<_>>(),
+            vec!["actions:reactive", "actions:other"]
+        );
+    }
+
+    fn resolution_for_test(key: &str, name: &str) -> RecordResolutionResult {
+        RecordResolutionResult {
+            query: "Attack of Opportunity".to_string(),
+            normalized_query: "attack of opportunity".to_string(),
+            match_kind: RecordResolutionMatchKind::Alias,
+            matched_text: "Attack of Opportunity".to_string(),
+            alias_source: Some("test".to_string()),
+            alias_source_ref: Some("test".to_string()),
+            record: record(key, name),
+        }
+    }
+
+    fn record(key: &str, name: &str) -> PersistedRecord {
+        PersistedRecord {
+            key: RecordKey::parse(key).expect("record key should parse"),
+            id: RecordId::new("test").expect("record id should parse"),
+            name: name.to_string(),
+            normalized_name: normalize_record_query(name),
+            record_family: RecordFamily::Rule,
+            pack_name: PackName::new("actions").expect("pack name should parse"),
+            pack_label: "Actions".to_string(),
+            foundry_document_type: "Item".to_string(),
+            foundry_record_type: "action".to_string(),
+            level: None,
+            rarity: None,
+            traits: Vec::new(),
+            prerequisites: Vec::new(),
+            system_category: None,
+            system_group: None,
+            system_base_item: None,
+            system_usage: None,
+            system_price_json: None,
+            system_actions_value: None,
+            system_time_value: None,
+            system_duration_value: None,
+            price_cp: None,
+            activation_time: None,
+            duration: None,
+            metrics: Vec::new(),
+            actor_data: None,
+            item_data: None,
+            spell_data: None,
+            publication_title: None,
+            publication_remaster: false,
+            description: None,
+            blurb: None,
+            supplemental_content: Vec::new(),
+            publication_family: PublicationFamily::Unknown,
+            folder_id: None,
+            taxonomy_families: Vec::new(),
+            variant_group_key: None,
+            variant_base_name: None,
+            variant_label: None,
+            variant_axes: Vec::new(),
+            variant_confidence: None,
+            variant_source: "none".to_string(),
+            source_path: "test.json".to_string(),
+            is_default_visible: true,
+            raw_json: "{}".to_string(),
+        }
     }
 }

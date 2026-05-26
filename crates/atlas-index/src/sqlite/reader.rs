@@ -693,6 +693,13 @@ impl SqliteIndexReader {
         )
     }
 
+    pub fn load_record_embedding_units(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<crate::RecordEmbeddingUnit>, VectorQueryError> {
+        vector::load_record_embedding_units(&self.connection, record_key)
+    }
+
     pub fn query_fts_index(
         &self,
         fts_query: &FtsQuery,

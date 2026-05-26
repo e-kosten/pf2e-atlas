@@ -112,6 +112,13 @@ atlas graph expand "fear aura monster ability" --semantic-limit 20 --mechanics 8
 atlas graph expand "low level spell makes enemies afraid" --family spell --max-level 3 --min-support 2 --json
 ```
 
+Use `similar` when you already have a seed record and want records like it. This uses the seed record's stored embedding, applies normal structured filters to candidate records, and adds graph/trait overlap as evidence:
+
+```bash
+atlas similar "Dirge of Doom" --family spell --json
+atlas similar "Shield Block" --limit 12 --explain
+```
+
 Use `graph variants` when comparing scaled versions, grades, or other detected variant groups. It accepts a canonical variant record key, an exact variant record name, or an exact variant base name:
 
 ```bash

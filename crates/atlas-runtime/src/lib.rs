@@ -168,6 +168,14 @@ impl AtlasRuntime {
         ))
     }
 
+    pub fn open_vector_record_retrieval_service(
+        &self,
+    ) -> Result<AtlasRetrievalService, SearchError> {
+        Ok(AtlasRetrievalService::without_embeddings(
+            self.open_search_index()?,
+        ))
+    }
+
     pub fn open_ladybug_record_retrieval_service(
         &self,
     ) -> Result<AtlasRetrievalService, SearchError> {
