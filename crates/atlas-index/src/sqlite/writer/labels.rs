@@ -1,6 +1,5 @@
 use atlas_domain::{MetricDomain, MetricValueType, PublicationFamily, TimeKind, TimeUnit};
-
-use crate::records::MetricValue;
+use atlas_record::MetricValue;
 
 pub(super) fn metric_value_parts(
     value: &MetricValue,

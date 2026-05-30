@@ -121,6 +121,7 @@ pub mod record_content {
         use super::{Column, TABLE};
 
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const CONTENT_KEY: Column = Column::new(TABLE, "content_key");
         pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
@@ -133,6 +134,7 @@ pub mod record_content {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::RECORD_KEY,
+        columns::CONTENT_KEY,
         columns::ORDINAL,
         columns::SOURCE_KIND,
         columns::VISIBILITY,

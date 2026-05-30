@@ -262,6 +262,120 @@ fn explicit_content_edges_replace_broad_raw_json_reference_scan()
 }
 
 #[test]
+fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = fixture_root("reference-occurrences");
+    fs::create_dir_all(root.join("packs/actions"))?;
+    fs::create_dir_all(root.join("packs/spells"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{
+          "packs": [
+            { "name": "actions", "label": "Actions", "type": "Item", "path": "packs/actions" },
+            { "name": "spells", "label": "Spells", "type": "Item", "path": "packs/spells" }
+          ]
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/actions/occurrence-action.json"),
+        r#"{
+          "_id": "occurrenceAction1",
+          "name": "Occurrence Action",
+          "type": "action",
+          "system": {
+            "description": {
+              "value": "<p>Use @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal One}, then @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Two}.</p>"
+            },
+            "details": {
+              "publicNotes": "<p>Also see @UUID[Compendium.pf2e.spells.Item.targetSpell01]{Heal Notes}.</p>"
+            }
+          }
+        }"#,
+    )?;
+    fs::write(
+        root.join("packs/spells/target-spell.json"),
+        r#"{
+          "_id": "targetSpell01",
+          "name": "Target Spell",
+          "type": "spell",
+          "system": {
+            "description": { "value": "<p>A target spell.</p>" }
+          }
+        }"#,
+    )?;
+
+    let output_path = root.join("artifact.sqlite");
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+        embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+        embedding_cache_root: None,
+        reuse_embeddings: true,
+        embedding_batch_size: 64,
+    })?;
+
+    let connection = Connection::open(&output_path)?;
+    let mut statement = connection.prepare(
+        "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text
+         FROM reference_occurrences
+         WHERE record_key = 'actions:occurrenceAction1'
+         ORDER BY CASE content_key WHEN 'description' THEN 0 ELSE 1 END, occurrence_ordinal",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    assert_eq!(
+        rows,
+        vec![
+            (
+                "description".to_string(),
+                0,
+                "spells:targetSpell01".to_string(),
+                "description".to_string(),
+                "public".to_string(),
+                "Heal One".to_string(),
+                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
+            ),
+            (
+                "description".to_string(),
+                1,
+                "spells:targetSpell01".to_string(),
+                "description".to_string(),
+                "public".to_string(),
+                "Heal Two".to_string(),
+                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
+            ),
+            (
+                "content:0".to_string(),
+                0,
+                "spells:targetSpell01".to_string(),
+                "public_notes".to_string(),
+                "public".to_string(),
+                "Heal Notes".to_string(),
+                "Compendium.pf2e.spells.Item.targetSpell01".to_string(),
+            ),
+        ]
+    );
+
+    drop(statement);
+    drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
 fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("source-signature");
     write_fixture_source(&root)?;

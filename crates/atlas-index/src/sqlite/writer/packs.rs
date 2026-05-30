@@ -1,8 +1,8 @@
 use atlas_artifact::schema::pack_insert_sql;
 use rusqlite::Connection;
 
-use crate::IndexWriteError;
 use crate::IndexBuildPack;
+use crate::IndexWriteError;
 
 pub(super) fn write_packs(
     connection: &Connection,
@@ -14,10 +14,10 @@ pub(super) fn write_packs(
     for pack in packs {
         statement
             .execute((
-                pack.name.as_str(),
-                pack.label.as_str(),
-                pack.document_type.as_str(),
-                pack.declared_path.as_str(),
+                pack.name.to_string(),
+                pack.label,
+                pack.document_type,
+                pack.declared_path,
                 pack.resolved_path.display().to_string(),
                 pack.record_count,
             ))

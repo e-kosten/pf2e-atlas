@@ -203,7 +203,10 @@ struct CountRow {
     count: u64,
 }
 
-fn collect_counts(connection: &Connection, value_sql: &str) -> Result<Vec<CountRow>, IndexWriteError> {
+fn collect_counts(
+    connection: &Connection,
+    value_sql: &str,
+) -> Result<Vec<CountRow>, IndexWriteError> {
     let sql = format!(
         "WITH field_values(record_key, value) AS ({value_sql})
          SELECT NULL AS record_family, value, COUNT(*) AS catalog_count

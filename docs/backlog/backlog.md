@@ -63,4 +63,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust artifact crate boundary review](./items/rust-artifact-crate-boundary-review.md)
   Decide whether `atlas-artifact` should remain a standalone SQLite artifact contract crate or fold into `atlas-index`. Status: proposed.
 
+- [Rust artifact JSON content model review](./items/rust-artifact-json-content-model-review.md)
+  Decide whether rich content JSON, content rows, and reference occurrence provenance should be refactored into a stronger artifact model. Status: proposed.
+
 See [Backlog Done / Superseded](./history/done-and-superseded.md) for completed and retired items.

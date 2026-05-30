@@ -149,6 +149,10 @@ impl AtlasIndex {
         &self.path
     }
 
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.connection
+    }
+
     pub fn validate(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
         validate_index_connection(self.path.display().to_string(), &self.connection)
     }
