@@ -1,5 +1,6 @@
 use super::*;
-use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordId};
+use atlas_domain::RecordFamily;
+use atlas_index::SearchCandidateRecord;
 
 fn test_record_key(value: &str) -> RecordKey {
     RecordKey::parse(value).expect("fixture record key should parse")
@@ -35,55 +36,17 @@ fn title_fts_hit(record: &str, rank: f64, lane_rank: u32, texts: &[&str]) -> Fts
     }
 }
 
-fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
+fn test_record(key: &str, name: &str, traits: &[&str]) -> SearchCandidateRecord {
     let key = test_record_key(key);
-    let id = RecordId::new("fixture").expect("fixture id should parse");
-    PersistedRecord {
+    SearchCandidateRecord {
         key,
-        id,
         name: name.to_string(),
-        normalized_name: name.to_lowercase(),
-        record_family: RecordFamily::Spell,
-        pack_name: PackName::new("records").expect("fixture pack should parse"),
-        pack_label: "Records".to_string(),
-        foundry_document_type: "Item".to_string(),
         foundry_record_type: "spell".to_string(),
-        level: None,
-        rarity: None,
         traits: traits.iter().map(|value| (*value).to_string()).collect(),
-        prerequisites: Vec::new(),
+        record_family: RecordFamily::Spell,
+        taxonomy_families: Vec::new(),
         system_category: None,
         system_group: None,
-        system_base_item: None,
-        system_usage: None,
-        system_price_json: None,
-        system_actions_value: None,
-        system_time_value: None,
-        system_duration_value: None,
-        price_cp: None,
-        activation_time: None,
-        duration: None,
-        metrics: Vec::new(),
-        actor_data: None,
-        item_data: None,
-        spell_data: None,
-        publication_title: None,
-        publication_remaster: false,
-        description: None,
-        blurb: None,
-        supplemental_content: Vec::new(),
-        publication_family: PublicationFamily::Unknown,
-        folder_id: None,
-        taxonomy_families: Vec::new(),
-        variant_group_key: None,
-        variant_base_name: None,
-        variant_label: None,
-        variant_axes: Vec::new(),
-        variant_confidence: None,
-        variant_source: "none".to_string(),
-        source_path: "fixture".to_string(),
-        is_default_visible: true,
-        raw_json: "{}".to_string(),
     }
 }
 
@@ -101,7 +64,7 @@ fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
         .into_iter()
         .collect::<BTreeSet<_>>();
     let excluded_keys = BTreeSet::new();
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:b"),
             test_record("records:b", "Battle Medicine", &["healing"]),
@@ -115,7 +78,7 @@ fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
     let fused = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &["battle".to_string(), "medicine".to_string()],
         identity_keys: &identity_keys,
         excluded_keys: &excluded_keys,
@@ -150,7 +113,7 @@ fn title_alias_rerank_promotes_missing_stopword_alias() {
         title_fts_hit("records:target", 2.0, 1, &["Target of Opportunity"]),
     ];
     let vector_hits = vec![semantic_hit("records:target", 0.1)];
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:reactive"),
             test_record("records:reactive", "Reactive Strike", &[]),
@@ -164,7 +127,7 @@ fn title_alias_rerank_promotes_missing_stopword_alias() {
     let fused = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &["attack".to_string(), "opportunity".to_string()],
         identity_keys: &BTreeSet::new(),
         excluded_keys: &BTreeSet::new(),
@@ -187,7 +150,7 @@ fn title_alias_rerank_promotes_missing_stopword_alias() {
 fn default_policy_demotes_weak_fts_hits_below_vector_hits() {
     let fts_hits = vec![fts_hit("records:weak", 1.0, FtsSearchLane::Facet, 1)];
     let vector_hits = vec![semantic_hit("records:semantic", 0.1)];
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:weak"),
             test_record("records:weak", "Shielded Arm", &["metal"]),
@@ -201,7 +164,7 @@ fn default_policy_demotes_weak_fts_hits_below_vector_hits() {
     let fused = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &[
             "low".to_string(),
             "level".to_string(),
@@ -230,7 +193,7 @@ fn default_policy_demotes_weak_fts_hits_below_vector_hits() {
     let all_policy = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &[
             "low".to_string(),
             "level".to_string(),
@@ -253,7 +216,7 @@ fn default_policy_demotes_weak_fts_hits_below_vector_hits() {
     let demote_weak = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &[
             "low".to_string(),
             "level".to_string(),
@@ -285,7 +248,7 @@ fn fts_fusion_policy_can_zero_weak_hits() {
         fts_hit("records:strong", 8.0, FtsSearchLane::Facet, 2),
     ];
     let vector_hits = vec![semantic_hit("records:semantic", 0.1)];
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:weak"),
             test_record("records:weak", "Shielded Arm", &["metal"]),
@@ -303,7 +266,7 @@ fn fts_fusion_policy_can_zero_weak_hits() {
     let strong_only = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &vector_hits,
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &["fear".to_string()],
         identity_keys: &BTreeSet::new(),
         excluded_keys: &BTreeSet::new(),
@@ -379,7 +342,7 @@ fn zero_weight_fts_drops_fts_only_hits() {
         title_fts_hit("records:strong", 1.0, 1, &["Fear"]),
         fts_hit("records:weak", 2.0, FtsSearchLane::Facet, 2),
     ];
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:strong"),
             test_record("records:strong", "Fear", &["emotion"]),
@@ -393,7 +356,7 @@ fn zero_weight_fts_drops_fts_only_hits() {
     let fused = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &[],
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &["fear".to_string()],
         identity_keys: &BTreeSet::new(),
         excluded_keys: &BTreeSet::new(),
@@ -414,7 +377,7 @@ fn zero_weight_fts_drops_fts_only_hits() {
 
 #[test]
 fn lane_and_confidence_weights_affect_fused_order() {
-    let records_by_key = BTreeMap::from([
+    let candidates_by_key = BTreeMap::from([
         (
             test_record_key("records:title"),
             test_record("records:title", "Fear Strike", &[]),
@@ -442,7 +405,7 @@ fn lane_and_confidence_weights_affect_fused_order() {
     let fused = fuse_ranked_hits(FusionInput {
         fts_hits: &fts_hits,
         vector_hits: &[],
-        records_by_key: &records_by_key,
+        candidates_by_key: &candidates_by_key,
         fts_tokens: &["fear".to_string(), "strike".to_string()],
         identity_keys: &BTreeSet::new(),
         excluded_keys: &BTreeSet::new(),

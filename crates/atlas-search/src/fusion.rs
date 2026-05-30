@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::{FtsSearchHit, FtsSearchLane};
-use atlas_record::PersistedRecord;
+use atlas_index::{FtsSearchHit, FtsSearchLane, SearchCandidateRecord};
 use serde::{Deserialize, Serialize};
 
 use crate::semantic::SemanticSearchHit;
@@ -95,7 +94,7 @@ struct FusionAccumulator {
 pub(crate) struct FusionInput<'a> {
     pub fts_hits: &'a [FtsSearchHit],
     pub vector_hits: &'a [SemanticSearchHit],
-    pub records_by_key: &'a BTreeMap<RecordKey, PersistedRecord>,
+    pub candidates_by_key: &'a BTreeMap<RecordKey, SearchCandidateRecord>,
     pub fts_tokens: &'a [String],
     pub identity_keys: &'a BTreeSet<RecordKey>,
     pub excluded_keys: &'a BTreeSet<RecordKey>,
@@ -119,7 +118,7 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 .entry(hit.record_key.clone())
                 .or_insert_with(|| FusionAccumulator::new(hit.record_key.clone()));
             let confidence = input
-                .records_by_key
+                .candidates_by_key
                 .get(&hit.record_key)
                 .map(|record| classify_fts_hit(hit, record, input.fts_tokens))
                 .unwrap_or(FtsMatchConfidence::WeakLexical);
