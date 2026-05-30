@@ -9,15 +9,16 @@ use thiserror::Error;
 
 mod build_input;
 mod contract;
-mod database;
 mod discovery;
 mod embedding_cache;
 mod filters;
 mod fts;
+mod graph_product;
 mod inspect;
 mod metadata;
 mod records;
 mod relationship_edges;
+mod search;
 mod sql;
 mod sqlite;
 #[cfg(test)]
@@ -27,21 +28,24 @@ mod vector;
 mod write;
 mod writer_visibility;
 
-pub use build_input::{IndexBuildInput, IndexBuildPack};
-pub use database::{
-    AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
-    FtsSearchHit, FtsSearchLane, ReferenceEdgeDirection,
-};
+pub use build_input::{IndexBuildInput, IndexBuildInputError, IndexBuildPack};
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use filters::FilterCompileError;
+pub use graph_product::{
+    GraphReadIndex, IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup,
+};
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
-pub use sqlite::SqliteIndexWriter;
+pub use search::SearchIndex;
+pub use sqlite::{
+    FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
+    FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader, SqliteIndexWriter,
+};
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,

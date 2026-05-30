@@ -3,14 +3,18 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use atlas_domain::RemasterLinkSource;
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
 use atlas_index::{
-    AtlasIndex, FilterCompileError, IndexValidationError, RecordLoadError, VectorQueryError,
+    FilterCompileError, GraphReadIndex, IndexValidationError, RecordLoadError, SearchIndex,
+    SqliteIndexReader, VectorQueryError,
 };
+use atlas_record::PersistedRecord;
 use thiserror::Error;
 
 mod fusion;
 mod graph_context;
+mod graph_product;
 mod query;
 mod records;
 mod references;
@@ -43,9 +47,13 @@ pub use text::{
 /// filter-only list, and ranked FTS/vector/hybrid search should be added here
 /// rather than as peer public services.
 pub struct AtlasRetrievalService {
-    pub(crate) index: AtlasIndex,
+    pub(crate) index: Box<dyn RetrievalIndex>,
     pub(crate) embedder: Option<TextEmbedder>,
 }
+
+pub trait RetrievalIndex: SearchIndex + GraphReadIndex {}
+
+impl<T> RetrievalIndex for T where T: SearchIndex + GraphReadIndex {}
 
 #[derive(Debug, Error)]
 pub enum SearchError {
@@ -73,9 +81,37 @@ pub struct SearchEmbeddingConfig {
     pub cache_root: PathBuf,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct GraphVariantGroupResult {
+    pub seed: Option<PersistedRecord>,
+    pub variant_group_key: Option<String>,
+    pub variants: Vec<PersistedRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GraphRemasterLinksResult {
+    pub seed: PersistedRecord,
+    pub links: Vec<GraphRemasterLinkResult>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GraphRemasterLinkResult {
+    pub remaster_record: PersistedRecord,
+    pub legacy_record: PersistedRecord,
+    pub source: RemasterLinkSource,
+    pub source_ref: String,
+}
+
 impl AtlasRetrievalService {
     pub fn new(
-        index: AtlasIndex,
+        index: SqliteIndexReader,
+        embedding_config: &SearchEmbeddingConfig,
+    ) -> Result<Self, SearchError> {
+        Self::new_with_index(Box::new(index), embedding_config)
+    }
+
+    pub fn new_with_index(
+        index: Box<dyn RetrievalIndex>,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
         Ok(Self {
@@ -84,7 +120,11 @@ impl AtlasRetrievalService {
         })
     }
 
-    pub fn without_embeddings(index: AtlasIndex) -> Self {
+    pub fn without_embeddings(index: SqliteIndexReader) -> Self {
+        Self::without_embeddings_with_index(Box::new(index))
+    }
+
+    pub fn without_embeddings_with_index(index: Box<dyn RetrievalIndex>) -> Self {
         Self {
             index,
             embedder: None,

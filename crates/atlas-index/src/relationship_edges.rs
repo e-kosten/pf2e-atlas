@@ -3,9 +3,9 @@ use atlas_domain::RecordKey;
 use atlas_record::{ContentSourceKind, ContentVisibility};
 use rusqlite::{Connection, params};
 
-use crate::database::ReferenceEdgeDirection;
 use crate::filters::default_reference_edge_sql_predicate;
 use crate::records::RecordLoadError;
+use crate::sqlite::ReferenceEdgeDirection;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphReferenceEdge {

@@ -481,16 +481,16 @@ fn check_for_target(
     paths: &ResolvedAtlasPaths,
     target: ValidationTarget,
 ) -> ArtifactValidationReport {
-    let base_report = match atlas_index::AtlasIndex::open_read_only(&paths.index_path) {
+    let base_report = match atlas_index::SqliteIndexReader::open_read_only(&paths.index_path) {
         Ok(index) => index.check_report(),
         Err(error) => return atlas_index::validation_report_for_error(&paths.index_path, error),
     };
     if base_report.status != ValidationStatus::Ok || matches!(target, ValidationTarget::BaseOnly) {
         return base_report;
     }
-    match atlas_index::AtlasIndex::open_read_only_with_vectors(&paths.index_path) {
+    match atlas_index::SqliteIndexReader::open_read_only_with_vectors(&paths.index_path) {
         Ok(index) => index.check_embedding_readiness_report(),
-        Err(error) => match atlas_index::AtlasIndex::open_read_only(&paths.index_path) {
+        Err(error) => match atlas_index::SqliteIndexReader::open_read_only(&paths.index_path) {
             Ok(index) => index.vector_extension_unavailable_report(
                 ValidationTarget::EmbeddingsOnly,
                 error.to_string(),

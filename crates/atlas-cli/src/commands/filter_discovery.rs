@@ -96,7 +96,7 @@ pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCo
 fn open_index(
     index: Option<std::path::PathBuf>,
     path_mode: atlas_runtime::AtlasPathMode,
-) -> Result<atlas_index::AtlasIndex, String> {
+) -> Result<atlas_index::SqliteIndexReader, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode,
         overrides: AtlasPathOverrides {

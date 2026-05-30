@@ -86,7 +86,7 @@ Explore available filters and nearby record context:
 
 ```bash
 atlas filters fields
-atlas graph get actionspf2e:1kGNdIIhuglAjIp9
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9
 ```
 
 ## Agent Skill

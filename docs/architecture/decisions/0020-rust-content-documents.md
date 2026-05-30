@@ -41,7 +41,7 @@ All plain-text and retrieval documents are projections:
 
 Reference edges must persist source kind and visibility so graph consumers can distinguish public primary content, embedded capability content, GM/private content, internal implementation sources, and generated relationship facts. Default backlink and public graph views use public primary content unless a caller explicitly asks for expanded visibility or embedded-source edges.
 
-`ContentDocument` is owned by `atlas-record`. `atlas-ingest` parses Foundry source fields into content documents, resolves references, assigns content visibility/source policy, and writes artifact rows. `atlas-embedding` owns embedding-specific chunk selection, token budgeting, model-facing rendering, unit metadata, and semantic input hashes, but it does not parse raw Foundry markup. `atlas-artifact` owns the physical content and reference-edge storage contract. `atlas-index` validates and reads that artifact contract.
+`ContentDocument` is owned by `atlas-record`. `atlas-ingest` parses Foundry source fields into content documents, resolves references, assigns content visibility/source policy, and prepares build input rows. `atlas-embedding` owns embedding-specific chunk selection, token budgeting, model-facing rendering, unit metadata, and semantic input hashes, but it does not parse raw Foundry markup. `atlas-artifact` owns the physical content and reference-edge storage contract. `atlas-index` writes, validates, and reads that artifact contract.
 
 Journal pages and rollable table results are recognized as rich content, but they are deferred to a separate child/subdocument design. They should not be flattened into broad parent records or recovered through raw JSON scanning.
 

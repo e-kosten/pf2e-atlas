@@ -7,7 +7,7 @@ use atlas_embedding::{
 };
 use thiserror::Error;
 
-use crate::AtlasIndex;
+use crate::SqliteIndexReader;
 
 pub trait DocumentEmbeddingCacheReader {
     fn load_reusable_document_embeddings(
@@ -16,7 +16,7 @@ pub trait DocumentEmbeddingCacheReader {
     ) -> Result<BTreeMap<String, ReusableDocumentEmbedding>, DocumentEmbeddingCacheError>;
 }
 
-impl DocumentEmbeddingCacheReader for AtlasIndex {
+impl DocumentEmbeddingCacheReader for SqliteIndexReader {
     fn load_reusable_document_embeddings(
         &self,
         spec: EmbeddingModelSpec,
@@ -79,7 +79,7 @@ pub enum DocumentEmbeddingCacheError {
 }
 
 fn validate_embedding_identity(
-    index: &AtlasIndex,
+    index: &SqliteIndexReader,
     spec: EmbeddingModelSpec,
 ) -> Result<(), DocumentEmbeddingCacheError> {
     for (key, expected) in [
@@ -144,7 +144,7 @@ fn validate_embedding_identity(
 }
 
 fn metadata_value(
-    index: &AtlasIndex,
+    index: &SqliteIndexReader,
     key: &str,
 ) -> Result<Option<String>, DocumentEmbeddingCacheError> {
     let mut statement = index

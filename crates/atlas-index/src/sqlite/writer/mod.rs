@@ -88,7 +88,7 @@ fn write_artifact(
         &transaction,
         input.source_record_count,
         input.artifact_record_count(),
-        input.generated_record_count(),
+        input.generated_record_count()?,
         input.source_signature,
         embedding_model,
     )?;
