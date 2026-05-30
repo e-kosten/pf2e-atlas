@@ -15,6 +15,9 @@ use super::model::{
     DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding,
 };
 
+const DOCUMENT_EMBEDDING_BUDGET_PHASE: &str = "document_embedding_budget";
+const DOCUMENT_EMBEDDING_BUDGET_MESSAGE: &str = "Truncating over-limit embedding inputs";
+
 pub fn apply_document_embedding_token_budget(
     pending: &mut [PendingDocumentEmbedding],
     tokenizer: &TextEmbeddingTokenizer,
@@ -33,12 +36,7 @@ pub fn apply_document_embedding_token_budget(
         truncated_document_embeddings = truncated_count,
         "applying document embedding truncation budget"
     );
-    info!(target: "atlas_progress",
-        phase = "document_embedding_tokenization",
-        current = 0_u64,
-        total = truncated_count as u64,
-        "Fitting embedding inputs to model limit"
-    );
+    emit_document_embedding_budget_progress(0, truncated_count as u64);
     let mut processed_truncated = 0;
     let progress_interval = token_budget_progress_interval(truncated_count);
     for (entry, tokenization) in pending.iter_mut().zip(tokenizations.iter()) {
@@ -61,11 +59,9 @@ pub fn apply_document_embedding_token_budget(
                 truncated_document_embeddings = truncated_count,
                 "applied document embedding truncation budget batch"
             );
-            info!(target: "atlas_progress",
-                phase = "document_embedding_tokenization",
-                current = processed_truncated as u64,
-                total = truncated_count as u64,
-                "Fitting embedding inputs to model limit"
+            emit_document_embedding_budget_progress(
+                processed_truncated as u64,
+                truncated_count as u64,
             );
         }
     }
@@ -82,6 +78,15 @@ pub fn apply_document_embedding_token_budget(
 
 fn token_budget_progress_interval(total: usize) -> usize {
     (total / 100).clamp(25, 500)
+}
+
+fn emit_document_embedding_budget_progress(current: u64, total: u64) {
+    info!(target: "atlas_progress",
+        phase = DOCUMENT_EMBEDDING_BUDGET_PHASE,
+        current,
+        total,
+        "{DOCUMENT_EMBEDDING_BUDGET_MESSAGE}"
+    );
 }
 
 pub(super) fn summarize_document_embedding_tokenization(
@@ -292,4 +297,96 @@ fn summarize_section_truncations(
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod progress_tests {
+    use std::sync::{Arc, Mutex};
+
+    use tracing::{Event, Subscriber};
+    use tracing_subscriber::Layer;
+    use tracing_subscriber::layer::Context;
+    use tracing_subscriber::prelude::*;
+
+    use super::{
+        DOCUMENT_EMBEDDING_BUDGET_MESSAGE, DOCUMENT_EMBEDDING_BUDGET_PHASE,
+        emit_document_embedding_budget_progress,
+    };
+
+    #[derive(Clone, Debug, Default)]
+    struct CapturedProgressEvents {
+        events: Arc<Mutex<Vec<CapturedProgressEvent>>>,
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct CapturedProgressEvent {
+        phase: Option<String>,
+        message: Option<String>,
+    }
+
+    impl CapturedProgressEvents {
+        fn contains(&self, phase: &str, message: &str) -> bool {
+            self.events.lock().unwrap().iter().any(|event| {
+                event.phase.as_deref() == Some(phase)
+                    && event
+                        .message
+                        .as_deref()
+                        .is_some_and(|value| value.contains(message))
+            })
+        }
+    }
+
+    impl<S> Layer<S> for CapturedProgressEvents
+    where
+        S: Subscriber,
+    {
+        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+            if event.metadata().target() != "atlas_progress" {
+                return;
+            }
+            let mut visitor = CapturedProgressEvent::default();
+            event.record(&mut visitor);
+            self.events.lock().unwrap().push(visitor);
+        }
+    }
+
+    impl tracing::field::Visit for CapturedProgressEvent {
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            match field.name() {
+                "phase" => self.phase = Some(value.to_string()),
+                "message" => self.message = Some(value.to_string()),
+                _ => {}
+            }
+        }
+
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            if field.name() == "message" {
+                self.message = Some(format!("{value:?}"));
+            }
+        }
+    }
+
+    #[test]
+    fn document_budget_progress_event_text_describes_truncation() {
+        assert_eq!(DOCUMENT_EMBEDDING_BUDGET_PHASE, "document_embedding_budget");
+        assert_eq!(
+            DOCUMENT_EMBEDDING_BUDGET_MESSAGE,
+            "Truncating over-limit embedding inputs"
+        );
+    }
+
+    #[test]
+    fn document_budget_emits_progress_event_text() {
+        let events = CapturedProgressEvents::default();
+        let subscriber = tracing_subscriber::registry().with(events.clone());
+
+        tracing::subscriber::with_default(subscriber, || {
+            emit_document_embedding_budget_progress(1, 2);
+        });
+
+        assert!(events.contains(
+            DOCUMENT_EMBEDDING_BUDGET_PHASE,
+            DOCUMENT_EMBEDDING_BUDGET_MESSAGE
+        ));
+    }
 }

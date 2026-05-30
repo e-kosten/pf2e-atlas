@@ -569,7 +569,14 @@ impl From<BuildArtifactReport> for SetupBuildReport {
             source_record_count: report.source_record_count,
             artifact_record_count: report.artifact_record_count,
             generated_record_count: report.generated_record_count,
+            pending_document_embedding_count: report.pending_document_embedding_count,
             document_embedding_count: report.document_embedding_count,
+            reused_document_embedding_count: report.reused_document_embedding_count,
+            generated_document_embedding_count: report.generated_document_embedding_count,
+            build_duration_ms: report.build_duration_ms,
+            embedding_tokenization_duration_ms: report.embedding_timing.tokenization_duration_ms,
+            embedding_model_load_duration_ms: report.embedding_timing.model_load_duration_ms,
+            embedding_generation_duration_ms: report.embedding_timing.generation_duration_ms,
         }
     }
 }
@@ -647,6 +654,10 @@ fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
 mod tests {
     use atlas_embedding::EmbeddingModelId;
     use atlas_index::ArtifactMetadataSummary;
+    use atlas_ingest::{
+        BuildArtifactReport, DocumentEmbeddingTokenizationReport, EmbeddingTimingReport,
+        IngestDiagnostics,
+    };
 
     use super::*;
 
@@ -689,5 +700,46 @@ mod tests {
         let report = selected_model_validation(report, SetupTarget::Records, &config);
 
         assert_eq!(report.status, ValidationStatus::Ok);
+    }
+
+    #[test]
+    fn setup_build_report_preserves_build_counts_and_timing() {
+        let report = SetupBuildReport::from(BuildArtifactReport {
+            output_path: PathBuf::from("/tmp/index.sqlite"),
+            pack_count: 3,
+            record_count: 29,
+            source_record_count: 23,
+            artifact_record_count: 29,
+            generated_record_count: 6,
+            pending_document_embedding_count: 19,
+            document_embedding_count: 17,
+            reused_document_embedding_count: 11,
+            generated_document_embedding_count: 6,
+            document_embedding_tokenization: DocumentEmbeddingTokenizationReport::default(),
+            embedding_timing: EmbeddingTimingReport {
+                tokenization_duration_ms: 101,
+                model_load_duration_ms: 202,
+                generation_duration_ms: 303,
+                ..Default::default()
+            },
+            build_duration_ms: 404,
+            source_signature: "foundry-pf2e:fixture".to_string(),
+            diagnostics: IngestDiagnostics::default(),
+            skipped_records: Vec::new(),
+            warnings: Vec::new(),
+        });
+
+        assert_eq!(report.source_signature, "foundry-pf2e:fixture");
+        assert_eq!(report.source_record_count, 23);
+        assert_eq!(report.artifact_record_count, 29);
+        assert_eq!(report.generated_record_count, 6);
+        assert_eq!(report.pending_document_embedding_count, 19);
+        assert_eq!(report.document_embedding_count, 17);
+        assert_eq!(report.reused_document_embedding_count, 11);
+        assert_eq!(report.generated_document_embedding_count, 6);
+        assert_eq!(report.build_duration_ms, 404);
+        assert_eq!(report.embedding_tokenization_duration_ms, 101);
+        assert_eq!(report.embedding_model_load_duration_ms, 202);
+        assert_eq!(report.embedding_generation_duration_ms, 303);
     }
 }

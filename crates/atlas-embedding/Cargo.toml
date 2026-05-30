@@ -17,3 +17,4 @@ ureq.workspace = true
 
 [dev-dependencies]
 atlas-domain.workspace = true
+tracing-subscriber.workspace = true
