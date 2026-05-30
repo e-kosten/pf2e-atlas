@@ -28,8 +28,8 @@ The Rust implementation is a workspace inside this repository. It includes only 
 - `atlas-domain` owns shared Rust contracts and typed runtime vocabulary.
 - `atlas-record` owns storage-agnostic normalized record DTOs shared by ingest, artifact writing, index loading, and future runtime surfaces. `NormalizedRecord` is the ingest-built construction shape; `PersistedRecord` and `PersistedRecordSet` are durable artifact read shapes.
 - `atlas-artifact` owns shared SQLite artifact schema descriptors, ordered record column descriptors, SQL builders for shared table shapes, and artifact metadata contract values.
-- `atlas-ingest` owns Foundry source loading, normalized ingest records, and SQLite artifact writing.
-- `atlas-index` owns artifact/index opening and startup validation.
+- `atlas-ingest` owns Foundry source loading, normalized ingest records, build orchestration, and build-input handoff.
+- `atlas-index` owns artifact/index opening, startup validation, and SQLite artifact writing.
 - `atlas-cli` owns the local `atlas` command surface and agent skill installation.
 
 Future crates such as search, embedding, and TUI should be added only when their first real slice lands. Empty placeholder crates should not be created just to reserve names.

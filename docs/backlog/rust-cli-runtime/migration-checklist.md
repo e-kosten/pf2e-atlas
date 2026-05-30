@@ -20,7 +20,7 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 - [x] `atlas record get` and `atlas record resolve`.
 - [x] `atlas search` with filter-only, FTS, vector, and hybrid retrieval.
 - [x] `atlas filters fields` and `atlas filters values`.
-- [x] `atlas graph get` for bounded one-hop graph context.
+- [x] `atlas graph links|uses|variants|remaster` for bounded graph/product context.
 - [x] Stable CLI JSON envelope and exit-code classes.
 - [x] First-party PF2e Atlas CLI skill package with install and doctor commands.
 - [x] Rust workspace promoted to repository root.
@@ -65,7 +65,7 @@ atlas index validate --json
 atlas record resolve "Treat Wounds" --json
 atlas search "low level healing spell" --limit 5 --json
 atlas filters fields --json
-atlas graph get actionspf2e:1kGNdIIhuglAjIp9 --json
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --json
 atlas agent skills doctor --json
 ```
 

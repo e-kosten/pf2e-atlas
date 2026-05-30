@@ -18,7 +18,7 @@ use crate::{
     validate_index_connection, vector,
 };
 
-pub struct AtlasIndex {
+pub struct SqliteIndexReader {
     path: PathBuf,
     connection: Connection,
 }
@@ -150,7 +150,7 @@ pub struct FilteredRecordKeyPage {
     pub total: u64,
 }
 
-impl AtlasIndex {
+impl SqliteIndexReader {
     pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, IndexValidationError> {
         let path = path.as_ref().to_path_buf();
         let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)

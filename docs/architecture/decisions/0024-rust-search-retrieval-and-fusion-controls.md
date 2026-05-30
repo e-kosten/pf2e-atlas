@@ -54,7 +54,7 @@ The Rust CLI should not expose Node-era `balanced` or `concept` profiles as norm
 
 ## Consequences
 
-`atlas-search::AtlasRetrievalService` owns identity tiering, FTS/vector lane orchestration, fusion, result assembly, and search-window shaping. `atlas-index::AtlasIndex` owns direct SQLite access for FTS and vector retrieval. `atlas-cli` owns only argument parsing, JSON/human presentation, and exit codes.
+`atlas-search::AtlasRetrievalService` owns identity tiering, FTS/vector lane orchestration, fusion, result assembly, and search-window shaping. `atlas-index::SearchIndex` is the read contract used by retrieval, and `atlas-index::SqliteIndexReader` owns direct SQLite access for FTS and vector retrieval. `atlas-cli` owns only argument parsing, JSON/human presentation, and exit codes.
 
 The temporary `atlas search semantic --query ...` diagnostic branch should be removed once normal `atlas search <text>` covers vector retrieval.
 

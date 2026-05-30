@@ -73,8 +73,10 @@ impl AtlasRuntime {
         &self.paths.index_path
     }
 
-    pub fn open_index(&self) -> Result<atlas_index::AtlasIndex, atlas_index::IndexValidationError> {
-        atlas_index::AtlasIndex::open_read_only(&self.paths.index_path)
+    pub fn open_index(
+        &self,
+    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {
+        atlas_index::SqliteIndexReader::open_read_only(&self.paths.index_path)
     }
 
     pub fn ensure_setup(&self, options: RuntimeSetupOptions) -> RuntimeSetupReport {
@@ -147,8 +149,8 @@ impl AtlasRuntime {
 
     pub fn open_search_index(
         &self,
-    ) -> Result<atlas_index::AtlasIndex, atlas_index::IndexValidationError> {
-        atlas_index::AtlasIndex::open_read_only_with_vectors(&self.paths.index_path)
+    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {
+        atlas_index::SqliteIndexReader::open_read_only_with_vectors(&self.paths.index_path)
     }
 
     pub fn open_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {

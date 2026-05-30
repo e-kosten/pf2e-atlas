@@ -1,6 +1,6 @@
 use std::fs;
 
-use atlas_index::{AtlasIndex, ValidationStatus};
+use atlas_index::{SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -438,7 +438,7 @@ fn rebuild_replaces_existing_artifact_and_sidecars() -> Result<(), Box<dyn std::
     assert!(!wal_path.exists());
     assert!(!shm_path.exists());
 
-    let validation = AtlasIndex::open_read_only(&output_path)?.validate()?;
+    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
 
     fs::remove_dir_all(root)?;
@@ -696,7 +696,7 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.generated_record_count, 2);
     assert_eq!(report.pending_document_embedding_count, 2);
     assert_eq!(report.document_embedding_count, 0);
-    let validation = AtlasIndex::open_read_only(&output_path)?.validate()?;
+    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("1"));
     assert_eq!(validation.artifact_record_count.as_deref(), Some("3"));
@@ -775,7 +775,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
-    let validation = AtlasIndex::open_read_only(&output_path)?.validate()?;
+    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(
         validation.source_signature.as_deref(),

@@ -13,9 +13,9 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-cli` owns command parsing, output, progress, exit codes, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration and result assembly.
-- `atlas-index` owns artifact validation, row readers, filter compilation, reference queries, and vector SQL.
+- `atlas-index` owns artifact validation, row readers, SQLite artifact writing, filter compilation, reference queries, and vector SQL.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
-- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and artifact writing.
+- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, `ContentDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - `atlas-artifact` owns physical SQLite table/column descriptors, schema SQL, vector blob encoding, and contract constants.
 - `atlas-discovery` owns filter discovery field and value policy.
@@ -28,8 +28,9 @@ If you remember one rule, remember this: product surfaces stay thin, and durable
 
 ```mermaid
 flowchart TD
-    pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
-    ingest --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
+    pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
+    ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
+    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
 
     skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
     cli --> runtime["atlas-runtime"]
@@ -77,11 +78,12 @@ Derived tags are a planned Rust redesign. The retained model should be defined a
 ## Data Flow
 
 1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
-2. Ingest normalizes source records, parses rich content into `ContentDocument`, extracts references/traits/metrics/aliases, generates source-backed records, and writes a complete SQLite artifact.
-3. `atlas-runtime` resolves source, embedding cache, and artifact paths for setup and query commands.
-4. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
-5. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
-6. `atlas-cli` presents command results and errors through stable terminal or JSON output.
+2. Ingest normalizes source records, parses rich content into `ContentDocument`, extracts references/traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
+3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
+4. `atlas-runtime` resolves source, embedding cache, and artifact paths for setup and query commands.
+5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
+6. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
+7. `atlas-cli` presents command results and errors through stable terminal or JSON output.
 
 ## Editing Guidance
 

@@ -1,16 +1,16 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_artifact::schema::TABLE_RECORDS_FTS;
 use atlas_domain::{RecordKey, SearchFilterNode};
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
-use crate::database::{FtsColumnWeights, FtsQuery, FtsSearchHit, FtsSearchLane};
 use crate::filters::{FilterCompileError, compile_eligible_records_query};
 use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
 };
+use crate::sqlite::{FtsColumnWeights, FtsQuery, FtsSearchHit, FtsSearchLane};
 
 pub(crate) fn query_weighted_fts_index(
     connection: &Connection,
@@ -76,12 +76,13 @@ pub(crate) fn query_precision_fts_index(
     filter: Option<&SearchFilterNode>,
     limit: u32,
 ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+    let candidate_limit = rerank_candidate_limit(limit);
     let mut hits = Vec::new();
     hits.extend(query_precision_fts_lane(
         connection,
         fts_query,
         filter,
-        limit,
+        candidate_limit,
         FtsSearchLane::TitleAlias,
         &["title", "aliases"],
         precision_title_alias_weights(),
@@ -90,20 +91,36 @@ pub(crate) fn query_precision_fts_index(
         connection,
         fts_query,
         filter,
-        limit,
+        candidate_limit,
         FtsSearchLane::Facet,
         &["traits", "taxonomy_terms"],
         precision_facet_weights(),
     )?);
-    hits.sort_by(|left, right| {
-        left.rank
-            .total_cmp(&right.rank)
-            .then_with(|| left.lane_rank.cmp(&right.lane_rank))
-            .then_with(|| left.lane.as_str().cmp(right.lane.as_str()))
-            .then_with(|| left.record_key.cmp(&right.record_key))
-    });
+    hits = best_precision_hit_per_record(hits);
+    hits.sort_by(compare_precision_hits);
     hits.truncate(limit as usize);
     Ok(hits)
+}
+
+fn best_precision_hit_per_record(hits: Vec<FtsSearchHit>) -> Vec<FtsSearchHit> {
+    let mut best_by_record = BTreeMap::<RecordKey, FtsSearchHit>::new();
+    for hit in hits {
+        match best_by_record.get(&hit.record_key) {
+            Some(existing) if compare_precision_hits(existing, &hit).is_le() => {}
+            _ => {
+                best_by_record.insert(hit.record_key.clone(), hit);
+            }
+        }
+    }
+    best_by_record.into_values().collect()
+}
+
+fn compare_precision_hits(left: &FtsSearchHit, right: &FtsSearchHit) -> std::cmp::Ordering {
+    left.rank
+        .total_cmp(&right.rank)
+        .then_with(|| left.lane_rank.cmp(&right.lane_rank))
+        .then_with(|| left.lane.as_str().cmp(right.lane.as_str()))
+        .then_with(|| left.record_key.cmp(&right.record_key))
 }
 
 fn query_precision_fts_lane(
@@ -229,6 +246,9 @@ pub(crate) fn query_fts_candidate_record_keys(
     fts_query: &FtsQuery,
     candidate_keys: &[RecordKey],
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
+    if candidate_keys.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut parameters = vec![Value::Text(fts_query.as_disjunction_match_query())];
     let query_placeholder = "?1";
     let candidate_placeholders = candidate_keys

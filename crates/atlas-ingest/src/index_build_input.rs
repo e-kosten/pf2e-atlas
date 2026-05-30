@@ -49,7 +49,8 @@ mod tests {
     use crate::source::{LoadedPack, SourceLoad};
 
     #[test]
-    fn maps_source_load_to_index_build_input_without_changing_boundaries() {
+    fn maps_source_load_to_index_build_input_without_changing_boundaries()
+    -> Result<(), Box<dyn std::error::Error>> {
         let source_record = record("source-pack", "source-record", RecordFamily::Rule);
         let generated_record = record("generated-pack", "generated-record", RecordFamily::Rule);
         let source_key = source_record.key.clone();
@@ -122,7 +123,7 @@ mod tests {
         assert_eq!(input.source_signature, source.source_signature);
         assert_eq!(input.source_record_count, 1);
         assert_eq!(input.artifact_record_count(), 2);
-        assert_eq!(input.generated_record_count(), 1);
+        assert_eq!(input.generated_record_count()?, 1);
 
         assert_eq!(input.packs.len(), 1);
         assert_eq!(input.packs[0].name, &source.packs[0].name);
@@ -149,6 +150,7 @@ mod tests {
             input.document_embeddings,
             source.document_embeddings.as_slice()
         );
+        Ok(())
     }
 
     fn record(pack_name: &str, id: &str, record_family: RecordFamily) -> NormalizedRecord {

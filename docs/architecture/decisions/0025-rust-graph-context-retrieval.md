@@ -14,19 +14,22 @@ Normal search already supports relationship filters such as records that referen
 
 ## Decision
 
-Rust V1 graph retrieval is key-based graph context retrieval:
+Rust graph retrieval exposes explicit graph product commands:
 
 ```bash
-atlas graph get <record-key>
+atlas graph links <record>
+atlas graph uses <record>
+atlas graph variants <record>
+atlas graph remaster <record>
 ```
 
-The command retrieves a one-hop local graph context around one seed key. It includes outgoing references by default and includes backlinks only when the caller passes a positive backlink limit. It uses the default public non-embedded reference graph policy and authored `reference_edges` only.
+`graph links` retrieves a one-hop local graph context around one seed record. It accepts a canonical record key or strict resolvable record name, includes outgoing references by default, and includes backlinks only when the caller passes a positive backlink limit. `graph uses` is the backlinks-focused form for records that reference or use the seed. Both commands use the default public non-embedded reference graph policy and authored `reference_edges` only. `graph variants` exposes variant siblings/progressions from variant metadata, and `graph remaster` exposes legacy/remaster relationships from `remaster_links`.
 
-Rust does not directly port `pf2e_collect_rule_question_context` in V1. The intended agent workflow is explicit and two-step: use `record` or `search` to identify the correct key, then call graph context retrieval by key. A future rule-specific shortcut can be reconsidered only after real CLI usage shows that this explicit workflow is too costly.
+Rust does not directly port `pf2e_collect_rule_question_context` in V1. The intended agent workflow is explicit and two-step: use `record` or `search` to identify the correct record, then call a graph command for the specific relationship view. A future rule-specific shortcut can be reconsidered only after real CLI usage shows that this explicit workflow is too costly.
 
 Search relationship flags remain result-set filters. `atlas search --referenced-by` is not renamed or replaced by graph command wording. `--backlinks` is graph-command wording only.
 
-V1 graph retrieval does not include aliases, remaster links, name similarity, multi-hop traversal, graph scoring, semantic/vector search, answer synthesis, or visual graph output. Deeper local graph behavior is tracked separately in `docs/backlog/items/rust-graph-context-deeper-local-graph.md`.
+V1 graph retrieval does not include name similarity, multi-hop traversal, graph scoring, semantic/vector search, answer synthesis, or visual graph output. Deeper local graph behavior is tracked separately in `docs/backlog/items/rust-graph-context-deeper-local-graph.md`.
 
 The old rule-specific Rust DTOs are not accepted contracts. Implementation should delete `RuleContext*` and avoid compatibility aliases from `RuleGraph*` to generic names. V1 graph DTOs should live with the owning runtime crate, likely `atlas-search`, unless another Rust surface needs the exact same contract.
 

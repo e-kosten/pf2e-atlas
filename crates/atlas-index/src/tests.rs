@@ -26,18 +26,19 @@ use crate::filters::{
 };
 use crate::vector::compile_vector_knn_query;
 use crate::{
-    ArtifactContractFamily, AtlasIndex, ReferenceEdgeDirection, ValidationCode, ValidationStatus,
-    VectorQueryError,
+    ArtifactContractFamily, DocumentEmbeddingCacheReader, ReferenceEdgeDirection,
+    SqliteIndexReader, ValidationCode, ValidationStatus, VectorQueryError,
 };
 
 mod fts;
+mod graph_product;
 
 #[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("valid");
     create_contract_database(&path)?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -64,7 +65,7 @@ fn reports_legacy_metadata_without_accepting_it_as_contract()
     )?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingArtifactMetadata);
@@ -78,7 +79,7 @@ fn reports_missing_required_metadata_key() -> Result<(), Box<dyn std::error::Err
     let path = temp_db_path("missing-key");
     create_contract_database_without(&path, artifact_metadata_keys::EMBEDDING_DTYPE)?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingRequiredMetadata);
@@ -99,7 +100,7 @@ fn reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
         "stale:fixture",
     )?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::StaleSourceSignature);
@@ -117,7 +118,7 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         "unknown/model",
     )?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -138,7 +139,7 @@ fn reports_embedding_unit_policy_mismatch() -> Result<(), Box<dyn std::error::Er
         "legacy-child-sections/v0",
     )?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -164,7 +165,7 @@ fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::err
     insert_minimal_contract_rows(&connection)?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -177,7 +178,7 @@ fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>
     let path = temp_db_path("unsupported-schema");
     create_contract_database_with_override(&path, artifact_metadata_keys::SCHEMA_VERSION, "2")?;
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
@@ -194,7 +195,7 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     connection.execute("DROP TABLE item_records", [])?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -219,7 +220,7 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -239,7 +240,7 @@ fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error:
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     fs::remove_file(path)?;
@@ -254,7 +255,7 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
     insert_document_embedding_cache_rows(&connection, 383, 384 * size_of::<f32>())?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -283,7 +284,7 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
     )?;
     drop(connection);
 
-    let report = AtlasIndex::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -296,11 +297,118 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
 }
 
 #[test]
+fn loads_reusable_document_embedding_cache_rows() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-load");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
+    drop(connection);
+
+    let reusable = SqliteIndexReader::open_read_only(&path)?
+        .load_reusable_document_embeddings(default_embedding_model_spec())?;
+
+    assert_eq!(reusable.len(), 3);
+    let embedding = reusable
+        .get("actions:testAction1#parent")
+        .expect("fixture embedding should load");
+    assert_eq!(embedding.input_hash, "fixture-hash-1");
+    assert_eq!(embedding.dimensions, 384);
+    assert_eq!(embedding.vector.len(), 384);
+    assert!(embedding.vector.iter().all(|value| *value == 0.0));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reusable_document_embedding_cache_rejects_metadata_mismatch()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-metadata-mismatch");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE artifact_metadata SET value = 'unknown/model' WHERE key = ?1",
+        [artifact_metadata_keys::EMBEDDING_MODEL_ID],
+    )?;
+    insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_reusable_document_embeddings(default_embedding_model_spec())
+        .expect_err("mismatched metadata should reject cache reuse");
+
+    assert!(
+        error
+            .to_string()
+            .contains("embedding metadata `embedding_model_id` is unknown/model")
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reusable_document_embedding_cache_rejects_wrong_dimensions()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-wrong-dimensions");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 383, 383 * size_of::<f32>())?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_reusable_document_embeddings(default_embedding_model_spec())
+        .expect_err("wrong dimensions should reject cache reuse");
+
+    assert!(
+        error
+            .to_string()
+            .contains("has 383 dimensions; expected 384")
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reusable_document_embedding_cache_rejects_wrong_blob_length()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-wrong-blob");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    insert_document_embedding_cache_rows(&connection, 384, 4)?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_reusable_document_embeddings(default_embedding_model_spec())
+        .expect_err("wrong blob length should reject cache reuse");
+
+    assert!(error.to_string().contains("vector blob has 4 bytes"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn reusable_document_embedding_cache_reports_missing_table()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("document-embedding-cache-missing-table");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute("DROP TABLE document_embedding_cache", [])?;
+    drop(connection);
+
+    let error = SqliteIndexReader::open_read_only(&path)?
+        .load_reusable_document_embeddings(default_embedding_model_spec())
+        .expect_err("missing table should report query error");
+
+    assert!(error.to_string().contains("embedding cache query failed"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("vector-table-missing");
     create_contract_database(&path)?;
 
-    let report = AtlasIndex::open_read_only_with_vectors(&path)?.validate_vector_index()?;
+    let report = SqliteIndexReader::open_read_only_with_vectors(&path)?.validate_vector_index()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
@@ -328,9 +436,9 @@ fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn 
     drop(connection);
 
     let check_report =
-        AtlasIndex::open_read_only_with_vectors(&path)?.check_embedding_readiness_report();
+        SqliteIndexReader::open_read_only_with_vectors(&path)?.check_embedding_readiness_report();
     let validate_report =
-        AtlasIndex::open_read_only_with_vectors(&path)?.validate_vector_index()?;
+        SqliteIndexReader::open_read_only_with_vectors(&path)?.validate_vector_index()?;
 
     assert_eq!(check_report.status, ValidationStatus::Ok);
     assert_eq!(validate_report.status, ValidationStatus::Error);
@@ -349,7 +457,7 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     let path = temp_db_path("load-records");
     create_contract_database(&path)?;
 
-    let records = AtlasIndex::open_read_only(&path)?.load_records()?;
+    let records = SqliteIndexReader::open_read_only(&path)?.load_records()?;
 
     assert_eq!(records.len(), 3);
     assert_eq!(records[0].key.to_string(), "actions:testAction1");
@@ -411,7 +519,7 @@ fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::e
     )?;
     drop(connection);
 
-    let record_set = AtlasIndex::open_read_only(&path)?.load_record_set()?;
+    let record_set = SqliteIndexReader::open_read_only(&path)?.load_record_set()?;
 
     assert_eq!(record_set.records.len(), 3);
     assert_eq!(record_set.reference_edges.len(), 1);
@@ -619,7 +727,7 @@ fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
         "public",
     )?;
 
-    let index = AtlasIndex::open_read_only(&path)?;
+    let index = SqliteIndexReader::open_read_only(&path)?;
     let edges = index.reference_edges_for_seed(
         &RecordKey::parse("actions:testAction1")?,
         ReferenceEdgeDirection::Outgoing,
@@ -660,7 +768,7 @@ fn reference_edges_for_seed_returns_policy_visible_backlinks()
         "private",
     )?;
 
-    let index = AtlasIndex::open_read_only(&path)?;
+    let index = SqliteIndexReader::open_read_only(&path)?;
     let edges = index.reference_edges_for_seed(
         &RecordKey::parse("actions:testAction1")?,
         ReferenceEdgeDirection::Backlink,

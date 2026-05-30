@@ -20,6 +20,7 @@ use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};
 
 const MAX_LIMIT: u32 = 100;
+const MAX_RANKED_CANDIDATE_WINDOW: u32 = 5_000;
 
 #[derive(Debug, Serialize)]
 struct SearchData {
@@ -291,6 +292,21 @@ fn run_ranked_text_search(
         }
         return Err(message);
     }
+    let ranked_window = options.offset.saturating_add(limit);
+    if ranked_window > MAX_RANKED_CANDIDATE_WINDOW
+        || options.fts_top_k > MAX_RANKED_CANDIDATE_WINDOW
+        || options.vector_top_k > MAX_RANKED_CANDIDATE_WINDOW
+    {
+        let message = format!(
+            "ranked search candidate windows must be at most {MAX_RANKED_CANDIDATE_WINDOW}; got --offset {}, --limit {limit}, --fts-top-k {}, --vector-top-k {}",
+            options.offset, options.fts_top_k, options.vector_top_k
+        );
+        if options.json {
+            write_json_error("invalid_option", message)?;
+            return Ok(ExitCode::from(2));
+        }
+        return Err(message);
+    }
     search_progress("Resolving Atlas paths", "resolve");
     let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.path_mode.into(),
@@ -348,7 +364,6 @@ fn run_ranked_text_search(
         }
     };
     search_progress("Searching records", "search");
-    let ranked_window = options.offset.saturating_add(limit);
     let fts_top_k = options.fts_top_k.max(ranked_window);
     let vector_top_k = options.vector_top_k.max(ranked_window);
     let result = match search.search(AtlasSearchRequest::Text(TextSearchRequest {

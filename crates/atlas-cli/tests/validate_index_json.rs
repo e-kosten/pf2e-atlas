@@ -54,9 +54,9 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(record_resolve_help.contains("atlas filters fields"));
     assert!(record_resolve_help.contains("atlas filters values --field traits"));
 
-    let graph_get_help = help_output(&["graph", "get"])?;
-    assert!(graph_get_help.contains("atlas graph get"));
-    assert!(graph_get_help.contains("--backlinks"));
+    let graph_links_help = help_output(&["graph", "links"])?;
+    assert!(graph_links_help.contains("atlas graph links"));
+    assert!(graph_links_help.contains("--backlinks"));
 
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
@@ -702,6 +702,66 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     let offset_window_json: Value = serde_json::from_slice(&offset_window_output.stdout)?;
     let offset_window_data = ok_data(&offset_window_json);
     assert_eq!(offset_window_data["candidate_windows"]["fts_top_k"], 3);
+
+    let oversized_window_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--fts-top-k",
+            "5001",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(oversized_window_output.status.code(), Some(2));
+    let oversized_window_json: Value = serde_json::from_slice(&oversized_window_output.stdout)?;
+    assert_eq!(oversized_window_json["status"], "error");
+    assert_eq!(oversized_window_json["error"]["code"], "invalid_option");
+    assert!(
+        oversized_window_json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("ranked search candidate windows must be at most 5000")
+    );
+
+    for args in [
+        vec![
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--vector-top-k",
+            "5001",
+        ],
+        vec![
+            "search",
+            "healing",
+            "--retrieval",
+            "fts",
+            "--offset",
+            "5000",
+        ],
+    ] {
+        let oversized_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(args)
+            .arg("--index")
+            .arg(&index_path)
+            .arg("--json")
+            .output()?;
+        assert_eq!(oversized_output.status.code(), Some(2));
+        let oversized_json: Value = serde_json::from_slice(&oversized_output.stdout)?;
+        assert_eq!(oversized_json["status"], "error");
+        assert_eq!(oversized_json["error"]["code"], "invalid_option");
+        assert!(
+            oversized_json["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("ranked search candidate windows must be at most 5000")
+        );
+    }
 
     let default_hybrid_without_embeddings = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["search", "healing", "--index"])

@@ -43,7 +43,7 @@ Potential capabilities:
 
 ## Acceptance Sketch
 
-- Secondary retrieval is opt-in and cannot appear in default `atlas graph get` output.
+- Secondary retrieval is opt-in and cannot appear in default `atlas graph links` output.
 - JSON output distinguishes direct neighbors from secondary/derived local graph results.
 - Every secondary result includes a deterministic explanation, such as "referenced by two direct neighbors" or "links back to the seed."
 - Tests cover at least one high-degree hub case where naive expansion would over-include noisy records.
