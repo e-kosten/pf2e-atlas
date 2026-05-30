@@ -1,23 +1,54 @@
 use std::collections::BTreeMap;
 
-use atlas_artifact::schema::record_content_select_sql;
+use atlas_artifact::schema::{RECORD_CONTENT_COLUMNS, record_content, record_content_select_sql};
+use atlas_domain::RecordKey;
 use atlas_record::SupplementalContentDocument;
-use rusqlite::Connection;
+use rusqlite::{Connection, params_from_iter, types::Value};
 
 use super::RecordLoadError;
 use super::parse::{
     content_document, optional_string, parse_content_source_kind, parse_content_visibility,
     required_bool, required_string,
 };
+use super::scoped::{key_parameters, select_by_keys_sql};
 
 pub(super) fn read_record_content(
     connection: &Connection,
 ) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
+    read_record_content_from_sql(connection, &record_content_select_sql(), Vec::new())
+}
+
+pub(super) fn read_record_content_by_keys(
+    connection: &Connection,
+    keys: &[RecordKey],
+) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let parameters = key_parameters(keys);
+    let sql = select_by_keys_sql(
+        record_content::TABLE.name(),
+        RECORD_CONTENT_COLUMNS,
+        record_content::columns::RECORD_KEY.name(),
+        &[
+            record_content::columns::RECORD_KEY.name(),
+            record_content::columns::ORDINAL.name(),
+        ],
+        parameters.len(),
+    );
+    read_record_content_from_sql(connection, &sql, parameters)
+}
+
+fn read_record_content_from_sql(
+    connection: &Connection,
+    sql: &str,
+    parameters: Vec<Value>,
+) -> Result<BTreeMap<String, Vec<SupplementalContentDocument>>, RecordLoadError> {
     let mut statement = connection
-        .prepare(&record_content_select_sql())
+        .prepare(sql)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut rows = statement
-        .query([])
+        .query(params_from_iter(parameters.iter()))
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let mut values: BTreeMap<String, Vec<SupplementalContentDocument>> = BTreeMap::new();
     while let Some(row) = rows

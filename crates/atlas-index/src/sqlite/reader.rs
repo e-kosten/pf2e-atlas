@@ -14,8 +14,8 @@ use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_see
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordLoadError,
-    ValidationTarget, VectorQueryError, VectorSearchHit, check_index_connection, inspect, records,
-    validate_index_connection, vector,
+    SearchCandidateRecord, ValidationTarget, VectorQueryError, VectorSearchHit,
+    check_index_connection, inspect, records, validate_index_connection, vector,
 };
 
 pub struct SqliteIndexReader {
@@ -282,6 +282,13 @@ impl SqliteIndexReader {
         keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
         records::load_persisted_records_by_key_from_connection(&self.connection, keys)
+    }
+
+    pub fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
+        records::load_search_candidate_records_from_connection(&self.connection, keys)
     }
 
     pub fn reference_edges_for_seed(

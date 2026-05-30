@@ -1,4 +1,4 @@
-use atlas_domain::{RecordKey, SearchFilterNode};
+use atlas_domain::{RecordFamily, RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
 
 use crate::{
@@ -13,6 +13,11 @@ pub trait SearchIndex {
     ) -> Result<Vec<PersistedRecord>, RecordLoadError>;
 
     fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError>;
+
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError>;
 
     fn resolve_metric_filters(
         &self,
@@ -54,6 +59,18 @@ pub trait SearchIndex {
     ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError>;
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchCandidateRecord {
+    pub key: RecordKey,
+    pub name: String,
+    pub traits: Vec<String>,
+    pub record_family: RecordFamily,
+    pub foundry_record_type: String,
+    pub taxonomy_families: Vec<String>,
+    pub system_category: Option<String>,
+    pub system_group: Option<String>,
+}
+
 impl SearchIndex for SqliteIndexReader {
     fn load_records_by_key(
         &self,
@@ -64,6 +81,13 @@ impl SearchIndex for SqliteIndexReader {
 
     fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError> {
         SqliteIndexReader::load_record_set(self)
+    }
+
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
+        SqliteIndexReader::load_search_candidate_records(self, keys)
     }
 
     fn resolve_metric_filters(

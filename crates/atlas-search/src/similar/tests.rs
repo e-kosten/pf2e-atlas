@@ -3,7 +3,7 @@ use atlas_domain::{PackName, PublicationFamily, RecordFamily, SearchFilterNode};
 use atlas_index::{
     FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsSearchHit,
     GraphReadIndex, GraphReferenceEdge, IndexRemasterLinks, IndexVariantGroup, RecordLoadError,
-    SearchIndex, VectorQueryError, VectorSearchHit,
+    SearchCandidateRecord, SearchIndex, VectorQueryError, VectorSearchHit,
 };
 use atlas_record::{ContentSourceKind, ContentVisibility, PersistedRecordSet};
 
@@ -242,6 +242,17 @@ impl SearchIndex for FakeSimilarIndex {
         })
     }
 
+    fn load_search_candidate_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
+        Ok(self
+            .load_records_by_key(keys)?
+            .into_iter()
+            .map(search_candidate_from_record)
+            .collect())
+    }
+
     fn resolve_metric_filters(
         &self,
         _filter: Option<&SearchFilterNode>,
@@ -422,5 +433,18 @@ fn fake_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
         source_path: format!("packs/actions/{name}.json"),
         is_default_visible: true,
         raw_json: "{}".to_string(),
+    }
+}
+
+fn search_candidate_from_record(record: PersistedRecord) -> SearchCandidateRecord {
+    SearchCandidateRecord {
+        key: record.key,
+        name: record.name,
+        traits: record.traits,
+        record_family: record.record_family,
+        foundry_record_type: record.foundry_record_type,
+        taxonomy_families: record.taxonomy_families,
+        system_category: record.system_category,
+        system_group: record.system_group,
     }
 }

@@ -333,6 +333,26 @@ mod tests {
             })
         }
 
+        fn load_search_candidate_records(
+            &self,
+            keys: &[RecordKey],
+        ) -> Result<Vec<atlas_index::SearchCandidateRecord>, RecordLoadError> {
+            Ok(self
+                .load_records_by_key(keys)?
+                .into_iter()
+                .map(|record| atlas_index::SearchCandidateRecord {
+                    key: record.key,
+                    name: record.name,
+                    traits: record.traits,
+                    record_family: record.record_family,
+                    foundry_record_type: record.foundry_record_type,
+                    taxonomy_families: record.taxonomy_families,
+                    system_category: record.system_category,
+                    system_group: record.system_group,
+                })
+                .collect())
+        }
+
         fn resolve_metric_filters(
             &self,
             _filter: Option<&atlas_domain::SearchFilterNode>,

@@ -1,5 +1,4 @@
-use atlas_index::{FtsSearchHit, FtsSearchLane};
-use atlas_record::PersistedRecord;
+use atlas_index::{FtsSearchHit, FtsSearchLane, SearchCandidateRecord};
 use serde::{Deserialize, Serialize};
 
 use crate::query::tokenize_fts_query;
@@ -89,7 +88,7 @@ pub(super) fn fts_confidence_weight(lane: FtsSearchLane, confidence: FtsMatchCon
 
 pub(super) fn classify_fts_hit(
     hit: &FtsSearchHit,
-    record: &PersistedRecord,
+    record: &SearchCandidateRecord,
     query_tokens: &[String],
 ) -> FtsMatchConfidence {
     classify_fts_texts(
@@ -102,7 +101,7 @@ pub(super) fn classify_fts_hit(
 
 fn classify_fts_texts<'a>(
     lane: FtsSearchLane,
-    record: &'a PersistedRecord,
+    record: &'a SearchCandidateRecord,
     query_tokens: &[String],
     title_alias_texts: impl Iterator<Item = &'a str>,
 ) -> FtsMatchConfidence {
@@ -247,7 +246,7 @@ fn significant_tokens<'a>(tokens: impl Iterator<Item = &'a str>) -> Vec<&'a str>
     tokens.filter(|token| token.len() > 1).collect()
 }
 
-fn high_value_record_tokens(record: &PersistedRecord) -> Vec<String> {
+fn high_value_record_tokens(record: &SearchCandidateRecord) -> Vec<String> {
     let mut tokens = Vec::new();
     tokens.extend(tokenize_fts_query(&record.name));
     tokens.extend(
@@ -287,61 +286,23 @@ fn token_coverage(query_tokens: &[&str], candidate_tokens: &[&str]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordId};
+    use atlas_domain::RecordFamily;
 
     fn test_record_key(value: &str) -> atlas_domain::RecordKey {
         atlas_domain::RecordKey::parse(value).expect("fixture record key should parse")
     }
 
-    fn test_record(key: &str, name: &str, traits: &[&str]) -> PersistedRecord {
+    fn test_record(key: &str, name: &str, traits: &[&str]) -> SearchCandidateRecord {
         let key = test_record_key(key);
-        let id = RecordId::new("fixture").expect("fixture id should parse");
-        PersistedRecord {
+        SearchCandidateRecord {
             key,
-            id,
             name: name.to_string(),
-            normalized_name: name.to_lowercase(),
-            record_family: RecordFamily::Spell,
-            pack_name: PackName::new("records").expect("fixture pack should parse"),
-            pack_label: "Records".to_string(),
-            foundry_document_type: "Item".to_string(),
             foundry_record_type: "spell".to_string(),
-            level: None,
-            rarity: None,
             traits: traits.iter().map(|value| (*value).to_string()).collect(),
-            prerequisites: Vec::new(),
+            record_family: RecordFamily::Spell,
+            taxonomy_families: Vec::new(),
             system_category: None,
             system_group: None,
-            system_base_item: None,
-            system_usage: None,
-            system_price_json: None,
-            system_actions_value: None,
-            system_time_value: None,
-            system_duration_value: None,
-            price_cp: None,
-            activation_time: None,
-            duration: None,
-            metrics: Vec::new(),
-            actor_data: None,
-            item_data: None,
-            spell_data: None,
-            publication_title: None,
-            publication_remaster: false,
-            description: None,
-            blurb: None,
-            supplemental_content: Vec::new(),
-            publication_family: PublicationFamily::Unknown,
-            folder_id: None,
-            taxonomy_families: Vec::new(),
-            variant_group_key: None,
-            variant_base_name: None,
-            variant_label: None,
-            variant_axes: Vec::new(),
-            variant_confidence: None,
-            variant_source: "none".to_string(),
-            source_path: "fixture".to_string(),
-            is_default_visible: true,
-            raw_json: "{}".to_string(),
         }
     }
 
