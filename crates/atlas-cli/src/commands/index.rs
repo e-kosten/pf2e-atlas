@@ -8,7 +8,7 @@ use atlas_ingest::{
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::Value;
 
-use crate::output::{write_json_data, write_validation_report};
+use crate::output::{format_duration_ms, write_json_data, write_validation_report};
 use crate::{
     AnalyzeIndexOptions, BuildIndexOptions, CheckIndexOptions, IndexPathOptions,
     ValidateIndexOptions,
@@ -106,7 +106,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report.source_record_count, report.generated_record_count, report.artifact_record_count
         );
         eprintln!(
-            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={} build_duration_ms={}",
+            "embeddings: pending_document={} document={} reused={} generated={} truncated={} max_tokens={} max_observed_tokens={}",
             report.pending_document_embedding_count,
             report.document_embedding_count,
             report.reused_document_embedding_count,
@@ -121,7 +121,13 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report
                 .document_embedding_tokenization
                 .max_observed_token_count,
-            report.build_duration_ms
+        );
+        eprintln!(
+            "timing: build={} embedding_tokenization={} embedding_model_load={} embedding_generation={}",
+            format_duration_ms(report.build_duration_ms),
+            format_duration_ms(report.embedding_timing.tokenization_duration_ms),
+            format_duration_ms(report.embedding_timing.model_load_duration_ms),
+            format_duration_ms(report.embedding_timing.generation_duration_ms),
         );
         eprintln!("source signature: {}", report.source_signature);
         eprintln!(

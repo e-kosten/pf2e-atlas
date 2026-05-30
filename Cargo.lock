@@ -148,6 +148,7 @@ dependencies = [
  "thiserror",
  "tokenizers",
  "tracing",
+ "tracing-subscriber",
  "ureq",
 ]
 

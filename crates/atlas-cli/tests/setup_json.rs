@@ -109,7 +109,55 @@ fn setup_json_reports_overridden_paths_and_default_model() -> Result<(), Box<dyn
     assert_eq!(actual["paths"]["index"], index.display().to_string());
     assert_eq!(actual["readiness"]["records"]["status"], "ready");
     assert_eq!(actual["readiness"]["semantic_search"]["status"], "skipped");
+    assert_eq!(actual["build"]["source_record_count"], 1);
+    assert_eq!(actual["build"]["artifact_record_count"], 1);
+    assert_eq!(actual["build"]["generated_record_count"], 0);
+    assert_eq!(actual["build"]["pending_document_embedding_count"], 1);
+    assert_eq!(actual["build"]["document_embedding_count"], 0);
+    assert_eq!(actual["build"]["reused_document_embedding_count"], 0);
+    assert_eq!(actual["build"]["generated_document_embedding_count"], 0);
+    assert!(actual["build"]["build_duration_ms"].as_u64().is_some());
+    assert_eq!(actual["build"]["embedding_tokenization_duration_ms"], 0);
+    assert_eq!(actual["build"]["embedding_model_load_duration_ms"], 0);
+    assert_eq!(actual["build"]["embedding_generation_duration_ms"], 0);
     assert!(index.is_file());
+
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn setup_human_output_reports_build_timing_summary() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("cli-setup-human-build");
+    let source = root.join("source");
+    let cache = root.join("hf-models");
+    let index = root.join("index.sqlite");
+    write_fixture_source(&source)?;
+
+    let output = atlas_command()
+        .args([
+            "setup",
+            "--path-mode",
+            "global",
+            "--offline",
+            "--no-embeddings",
+            "--source",
+        ])
+        .arg(&source)
+        .args(["--embedding-cache-path"])
+        .arg(&cache)
+        .args(["--index"])
+        .arg(&index)
+        .output()?;
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("build:"));
+    let duration = value_after_prefix(&stdout, "  duration: ");
+    assert_human_duration(duration);
+    assert!(stdout.contains("  records: source=1 generated=0 artifact=1"));
+    assert!(stdout.contains("  embeddings: pending_document=1 document=0 reused=0 generated=0"));
+    assert!(stdout.contains("  embedding timing: tokenization=0ms model_load=0ms generation=0ms"));
 
     let _ = fs::remove_dir_all(root);
     Ok(())
@@ -556,6 +604,22 @@ fn assert_plans_rebuild_after_source_analysis(
 fn ok_data(value: &Value) -> &Value {
     assert_eq!(value["status"], "ok");
     value.get("data").expect("ok envelope should contain data")
+}
+
+fn value_after_prefix<'a>(text: &'a str, prefix: &str) -> &'a str {
+    text.lines()
+        .find_map(|line| line.strip_prefix(prefix))
+        .expect("expected output line")
+}
+
+fn assert_human_duration(value: &str) {
+    assert!(
+        value.ends_with("ms")
+            || value.ends_with('s')
+            || value.contains("m ")
+            || value.contains("h "),
+        "expected human-readable duration, got {value:?}"
+    );
 }
 
 fn temp_root(name: &str) -> PathBuf {

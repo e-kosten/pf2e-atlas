@@ -3,7 +3,7 @@ use std::io::IsTerminal;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressState, ProgressStyle};
 use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
@@ -41,7 +41,6 @@ struct CliProgressLayer {
 struct CliProgressState {
     is_interactive: bool,
     started_at: Instant,
-    phase_started_at: Instant,
     progress_bar: Option<ProgressBar>,
     progress_phase: Option<String>,
     progress_has_total: bool,
@@ -63,7 +62,6 @@ impl CliProgressLayer {
             state: Mutex::new(CliProgressState {
                 is_interactive: std::io::stderr().is_terminal(),
                 started_at: Instant::now(),
-                phase_started_at: Instant::now(),
                 progress_bar: None,
                 progress_phase: None,
                 progress_has_total: false,
@@ -189,32 +187,47 @@ impl CliProgressState {
             return;
         }
 
-        let phase_changed = fields.phase.as_ref() != self.progress_phase.as_ref();
+        self.ensure_progress_bar(
+            fields.phase.clone(),
+            total,
+            setup_timing,
+            ProgressDrawTarget::stderr_with_hz(10),
+        );
+
+        self.update_progress_bar(current, total, message, setup_timing);
+    }
+
+    fn ensure_progress_bar(
+        &mut self,
+        phase: Option<String>,
+        total: u64,
+        setup_timing: bool,
+        draw_target: ProgressDrawTarget,
+    ) {
+        let phase_changed = phase.as_ref() != self.progress_phase.as_ref();
         if phase_changed || !self.progress_has_total {
-            if phase_changed {
-                self.phase_started_at = Instant::now();
-            }
             if let Some(progress_bar) = self.progress_bar.take() {
                 progress_bar.finish_and_clear();
             }
-            let progress_bar =
-                ProgressBar::with_draw_target(Some(total), ProgressDrawTarget::stderr_with_hz(10));
+            let progress_bar = ProgressBar::with_draw_target(Some(total), draw_target);
             progress_bar.set_style(progress_style(setup_timing));
+            if setup_timing {
+                progress_bar.enable_steady_tick(Duration::from_millis(100));
+            }
             self.progress_bar = Some(progress_bar);
-            self.progress_phase = fields.phase.clone();
+            self.progress_phase = phase;
             self.progress_has_total = true;
         } else if let Some(progress_bar) = &self.progress_bar {
             progress_bar.set_length(total);
         }
+    }
 
+    fn update_progress_bar(&mut self, current: u64, total: u64, message: &str, setup_timing: bool) {
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.set_position(current);
             progress_bar.set_message(message.to_string());
             if setup_timing {
-                progress_bar.set_prefix(progress_prefix(
-                    self.started_at.elapsed(),
-                    self.phase_started_at.elapsed(),
-                ));
+                progress_bar.set_prefix(total_elapsed_prefix(self.started_at.elapsed()));
             }
             if current >= total {
                 progress_bar.finish_and_clear();
@@ -223,6 +236,20 @@ impl CliProgressState {
                 self.progress_has_total = false;
             }
         }
+    }
+
+    #[cfg(test)]
+    fn progress_with_draw_target_for_test(
+        &mut self,
+        fields: &EventFields,
+        message: &str,
+        setup_timing: bool,
+        draw_target: ProgressDrawTarget,
+    ) {
+        let total = fields.total.expect("test progress event should have total");
+        let current = fields.current.unwrap_or(0);
+        self.ensure_progress_bar(fields.phase.clone(), total, setup_timing, draw_target);
+        self.update_progress_bar(current, total, message, setup_timing);
     }
 
     fn spinner(
@@ -243,27 +270,47 @@ impl CliProgressState {
             return;
         }
 
-        let phase_changed = phase != self.progress_phase.as_ref();
+        self.ensure_spinner(phase.cloned(), setup_timing, ProgressDrawTarget::stderr());
+        self.update_spinner(message, setup_timing);
+    }
+
+    fn ensure_spinner(
+        &mut self,
+        phase: Option<String>,
+        setup_timing: bool,
+        draw_target: ProgressDrawTarget,
+    ) {
+        let phase_changed = phase.as_ref() != self.progress_phase.as_ref();
         if phase_changed {
             self.clear_progress();
-            self.phase_started_at = Instant::now();
-            let progress_bar = ProgressBar::with_draw_target(None, ProgressDrawTarget::stderr());
+            let progress_bar = ProgressBar::with_draw_target(None, draw_target);
             progress_bar.set_style(spinner_style(setup_timing));
             progress_bar.enable_steady_tick(Duration::from_millis(100));
             self.progress_bar = Some(progress_bar);
-            self.progress_phase = phase.cloned();
+            self.progress_phase = phase;
             self.progress_has_total = false;
         }
+    }
 
+    fn update_spinner(&mut self, message: &str, setup_timing: bool) {
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.set_message(message.to_string());
             if setup_timing {
-                progress_bar.set_prefix(progress_prefix(
-                    self.started_at.elapsed(),
-                    self.phase_started_at.elapsed(),
-                ));
+                progress_bar.set_prefix(total_elapsed_prefix(self.started_at.elapsed()));
             }
         }
+    }
+
+    #[cfg(test)]
+    fn spinner_with_draw_target_for_test(
+        &mut self,
+        phase: Option<String>,
+        message: &str,
+        setup_timing: bool,
+        draw_target: ProgressDrawTarget,
+    ) {
+        self.ensure_spinner(phase, setup_timing, draw_target);
+        self.update_spinner(message, setup_timing);
     }
 
     fn clear_progress(&mut self) {
@@ -326,29 +373,48 @@ impl tracing::field::Visit for EventFields {
 }
 
 fn progress_style(setup_timing: bool) -> ProgressStyle {
-    let template = if setup_timing {
-        "{prefix} [{bar:40.cyan/blue}] {pos}/{len} {msg}"
-    } else {
-        "[{bar:40.cyan/blue}] {pos}/{len} {msg}"
-    };
-    ProgressStyle::with_template(template)
-        .unwrap_or_else(|error| {
-            eprintln!("invalid progress bar template: {error}");
-            ProgressStyle::default_bar()
-        })
+    progress_style_with_phase_elapsed(progress_template(setup_timing), ProgressStyle::default_bar)
         .progress_chars("=> ")
 }
 
 fn spinner_style(setup_timing: bool) -> ProgressStyle {
-    let template = if setup_timing {
-        "{spinner:.cyan} {prefix} {msg}"
+    progress_style_with_phase_elapsed(
+        spinner_template(setup_timing),
+        ProgressStyle::default_spinner,
+    )
+}
+
+fn progress_template(setup_timing: bool) -> &'static str {
+    if setup_timing {
+        "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg}"
+    } else {
+        "[{bar:40.cyan/blue}] {pos}/{len} {msg}"
+    }
+}
+
+fn spinner_template(setup_timing: bool) -> &'static str {
+    if setup_timing {
+        "[{prefix} | {phase_elapsed}] {spinner:.cyan} {msg}"
     } else {
         "{spinner:.cyan} {msg}"
-    };
-    ProgressStyle::with_template(template).unwrap_or_else(|error| {
-        eprintln!("invalid progress spinner template: {error}");
-        ProgressStyle::default_spinner()
-    })
+    }
+}
+
+fn progress_style_with_phase_elapsed(
+    template: &str,
+    fallback: fn() -> ProgressStyle,
+) -> ProgressStyle {
+    ProgressStyle::with_template(template)
+        .unwrap_or_else(|error| {
+            eprintln!("invalid progress template: {error}");
+            fallback()
+        })
+        .with_key(
+            "phase_elapsed",
+            |state: &ProgressState, writer: &mut dyn fmt::Write| {
+                let _ = write!(writer, "{}", compact_elapsed(state.elapsed()));
+            },
+        )
 }
 
 fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
@@ -359,12 +425,8 @@ fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]
     line
 }
 
-fn progress_prefix(total_elapsed: Duration, phase_elapsed: Duration) -> String {
-    format!(
-        "[{} | {}]",
-        compact_elapsed(total_elapsed),
-        compact_elapsed(phase_elapsed)
-    )
+fn total_elapsed_prefix(total_elapsed: Duration) -> String {
+    compact_elapsed(total_elapsed)
 }
 
 fn log_elapsed_prefix(elapsed: Duration) -> String {
@@ -390,10 +452,66 @@ fn detailed_elapsed(elapsed: Duration) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        CliProgressState, ProgressMode, ProgressOptions, ProgressRenderMode, progress_prefix,
-        progress_render_mode_for_mode, should_render_event,
+        CliProgressState, EventFields, ProgressMode, ProgressOptions, ProgressRenderMode,
+        progress_render_mode_for_mode, progress_template, should_render_event, spinner_template,
+        total_elapsed_prefix,
     };
+    use indicatif::{ProgressBar, ProgressDrawTarget, TermLike};
+    use std::io;
+    use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
+
+    #[derive(Clone, Debug, Default)]
+    struct RecordingTerm {
+        contents: Arc<Mutex<String>>,
+    }
+
+    impl RecordingTerm {
+        fn contents(&self) -> String {
+            self.contents.lock().unwrap().clone()
+        }
+    }
+
+    impl TermLike for RecordingTerm {
+        fn width(&self) -> u16 {
+            80
+        }
+
+        fn move_cursor_up(&self, _n: usize) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn move_cursor_down(&self, _n: usize) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn move_cursor_right(&self, _n: usize) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn move_cursor_left(&self, _n: usize) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn write_line(&self, value: &str) -> io::Result<()> {
+            self.write_str(value)?;
+            self.write_str("\n")
+        }
+
+        fn write_str(&self, value: &str) -> io::Result<()> {
+            self.contents.lock().unwrap().push_str(value);
+            Ok(())
+        }
+
+        fn clear_line(&self) -> io::Result<()> {
+            self.contents.lock().unwrap().clear();
+            Ok(())
+        }
+
+        fn flush(&self) -> io::Result<()> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn progress_events_render_by_default() {
@@ -483,7 +601,6 @@ mod tests {
         let mut state = CliProgressState {
             is_interactive: false,
             started_at: Instant::now(),
-            phase_started_at: Instant::now(),
             progress_bar: None,
             progress_phase: None,
             progress_has_total: false,
@@ -505,7 +622,6 @@ mod tests {
         let mut state = CliProgressState {
             is_interactive: false,
             started_at: Instant::now(),
-            phase_started_at: Instant::now(),
             progress_bar: None,
             progress_phase: None,
             progress_has_total: false,
@@ -523,10 +639,120 @@ mod tests {
     }
 
     #[test]
-    fn progress_prefix_shows_total_and_phase_elapsed() {
+    fn total_elapsed_prefix_shows_compact_elapsed_time() {
+        assert_eq!(total_elapsed_prefix(Duration::from_secs(134)), "02:14");
+    }
+
+    #[test]
+    fn setup_timing_templates_put_elapsed_prefix_first() {
         assert_eq!(
-            progress_prefix(Duration::from_secs(134), Duration::from_secs(37)),
-            "[02:14 | 00:37]"
+            progress_template(true),
+            "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg}"
         );
+        assert_eq!(
+            spinner_template(true),
+            "[{prefix} | {phase_elapsed}] {spinner:.cyan} {msg}"
+        );
+    }
+
+    #[test]
+    fn setup_timing_progress_renders_total_and_phase_elapsed() {
+        let term = RecordingTerm::default();
+        let progress_bar = ProgressBar::with_draw_target(
+            Some(5),
+            ProgressDrawTarget::term_like(Box::new(term.clone())),
+        );
+        progress_bar.set_style(super::progress_style(true));
+        progress_bar.set_prefix("00:42");
+        progress_bar.set_position(2);
+        progress_bar.set_message("Rendering progress");
+        progress_bar.tick();
+
+        let rendered = term.contents();
+        assert!(
+            rendered.starts_with("[00:42 | 00:00] "),
+            "rendered progress should start with total and phase elapsed: {rendered:?}"
+        );
+        assert!(rendered.contains("2/5 Rendering progress"));
+    }
+
+    #[test]
+    fn progress_state_renders_total_and_phase_elapsed() {
+        let term = RecordingTerm::default();
+        let mut state = CliProgressState {
+            is_interactive: true,
+            started_at: Instant::now() - Duration::from_secs(42),
+            progress_bar: None,
+            progress_phase: None,
+            progress_has_total: false,
+        };
+        let fields = EventFields {
+            message: None,
+            phase: Some("phase_one".to_string()),
+            current: Some(2),
+            total: Some(5),
+            complete: false,
+            fields: Vec::new(),
+        };
+
+        state.progress_with_draw_target_for_test(
+            &fields,
+            "State progress",
+            true,
+            ProgressDrawTarget::term_like(Box::new(term.clone())),
+        );
+
+        let rendered = term.contents();
+        assert!(
+            rendered.starts_with("[00:42 | 00:00] "),
+            "rendered state progress should use total elapsed and per-phase elapsed: {rendered:?}"
+        );
+        assert!(rendered.contains("2/5 State progress"));
+    }
+
+    #[test]
+    fn setup_timing_spinner_renders_total_and_phase_elapsed() {
+        let term = RecordingTerm::default();
+        let progress_bar = ProgressBar::with_draw_target(
+            None,
+            ProgressDrawTarget::term_like(Box::new(term.clone())),
+        );
+        progress_bar.set_style(super::spinner_style(true));
+        progress_bar.set_prefix("00:42");
+        progress_bar.set_message("Rendering spinner");
+        progress_bar.tick();
+
+        let rendered = term.contents();
+        assert!(
+            rendered.starts_with("[00:42 | 00:00] "),
+            "rendered spinner should start with total and phase elapsed: {rendered:?}"
+        );
+        assert!(rendered.contains("Rendering spinner"));
+    }
+
+    #[test]
+    fn spinner_state_renders_total_and_phase_elapsed() {
+        let term = RecordingTerm::default();
+        let mut state = CliProgressState {
+            is_interactive: true,
+            started_at: Instant::now() - Duration::from_secs(42),
+            progress_bar: None,
+            progress_phase: None,
+            progress_has_total: false,
+        };
+
+        state.spinner_with_draw_target_for_test(
+            Some("phase_one".to_string()),
+            "State spinner",
+            true,
+            ProgressDrawTarget::term_like(Box::new(term.clone())),
+        );
+
+        let rendered = term.contents();
+        assert!(
+            rendered.starts_with("[00:42 | 00:00] "),
+            "rendered state spinner should use total elapsed and per-phase elapsed: {rendered:?}"
+        );
+        assert!(rendered.contains("State spinner"));
     }
 }

@@ -10,6 +10,9 @@ use crate::document_renderer::{
 use crate::error::EmbeddingError;
 use crate::text::{normalize_embedding_text, prefixed_text};
 
+const DOCUMENT_EMBEDDING_TOKENIZATION_PHASE: &str = "document_embedding_tokenization";
+const DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE: &str = "Analyzing document embedding tokenization";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EmbeddingInputTokenization {
     pub token_count: usize,
@@ -64,10 +67,10 @@ impl TextEmbeddingTokenizer {
             "analyzing document embedding tokenization"
         );
         info!(target: "atlas_progress",
-            phase = "document_embedding_tokenization",
+            phase = DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
             current = 0_u64,
             total = total as u64,
-            "Analyzing document embedding tokenization"
+            "{DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE}"
         );
         for (index, text) in texts.iter().enumerate() {
             let current = index + 1;
@@ -84,10 +87,10 @@ impl TextEmbeddingTokenizer {
                     "analyzed document embedding tokenization batch"
                 );
                 info!(target: "atlas_progress",
-                    phase = "document_embedding_tokenization",
+                    phase = DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
                     current = current as u64,
                     total = total as u64,
-                    "Analyzed document embedding tokenization"
+                    "{DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE}"
                 );
             }
         }
@@ -296,4 +299,123 @@ pub(crate) fn apply_model_truncation(
             .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::sync::{Arc, Mutex};
+
+    use tokenizers::Tokenizer;
+    use tokenizers::models::wordlevel::WordLevel;
+    use tracing::{Event, Subscriber};
+    use tracing_subscriber::Layer;
+    use tracing_subscriber::layer::Context;
+    use tracing_subscriber::prelude::*;
+
+    use super::{
+        DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE, DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
+        TextEmbeddingTokenizer,
+    };
+    use crate::catalog::{EmbeddingModelId, embedding_model_spec};
+
+    #[derive(Clone, Debug, Default)]
+    struct CapturedProgressEvents {
+        events: Arc<Mutex<Vec<CapturedProgressEvent>>>,
+    }
+
+    #[derive(Clone, Debug, Default)]
+    struct CapturedProgressEvent {
+        phase: Option<String>,
+        message: Option<String>,
+    }
+
+    impl CapturedProgressEvents {
+        fn contains(&self, phase: &str, message: &str) -> bool {
+            self.events.lock().unwrap().iter().any(|event| {
+                event.phase.as_deref() == Some(phase)
+                    && event
+                        .message
+                        .as_deref()
+                        .is_some_and(|value| value.contains(message))
+            })
+        }
+    }
+
+    impl<S> Layer<S> for CapturedProgressEvents
+    where
+        S: Subscriber,
+    {
+        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+            if event.metadata().target() != "atlas_progress" {
+                return;
+            }
+            let mut visitor = CapturedProgressEvent::default();
+            event.record(&mut visitor);
+            self.events.lock().unwrap().push(visitor);
+        }
+    }
+
+    impl tracing::field::Visit for CapturedProgressEvent {
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            match field.name() {
+                "phase" => self.phase = Some(value.to_string()),
+                "message" => self.message = Some(value.to_string()),
+                _ => {}
+            }
+        }
+
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            if field.name() == "message" {
+                self.message = Some(format!("{value:?}"));
+            }
+        }
+    }
+
+    #[test]
+    fn document_tokenization_progress_event_text_is_active() {
+        assert_eq!(
+            DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
+            "document_embedding_tokenization"
+        );
+        assert_eq!(
+            DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE,
+            "Analyzing document embedding tokenization"
+        );
+    }
+
+    #[test]
+    fn document_tokenization_emits_progress_event_text() {
+        let events = CapturedProgressEvents::default();
+        let subscriber = tracing_subscriber::registry().with(events.clone());
+        let tokenizer = fixture_tokenizer();
+
+        tracing::subscriber::with_default(subscriber, || {
+            tokenizer
+                .analyze_document_inputs(&["alpha beta"])
+                .expect("fixture tokenizer should analyze input");
+        });
+
+        assert!(events.contains(
+            DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
+            DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE
+        ));
+    }
+
+    fn fixture_tokenizer() -> TextEmbeddingTokenizer {
+        let mut vocab_path = std::env::temp_dir();
+        vocab_path.push(format!(
+            "atlas-embedding-test-vocab-{}-{}.json",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("tokenization")
+        ));
+        fs::write(&vocab_path, r#"{"[UNK]":0}"#).expect("fixture vocab should be writable");
+        let model = WordLevel::from_file(&vocab_path.display().to_string(), "[UNK]".to_string())
+            .expect("fixture word-level tokenizer should build");
+        let _ = fs::remove_file(vocab_path);
+        TextEmbeddingTokenizer {
+            spec: embedding_model_spec(EmbeddingModelId::MiniLmL12V2),
+            tokenizer: Tokenizer::new(model),
+        }
+    }
 }

@@ -1273,6 +1273,35 @@ fn search_rejects_unweighted_rrf_with_lane_weights() -> Result<(), Box<dyn std::
 }
 
 #[test]
+fn build_index_human_output_reports_timing_summary() -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-build-human");
+    write_fixture_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .arg("--no-embeddings")
+        .output()?;
+
+    assert!(build_output.status.success());
+    let stdout = String::from_utf8(build_output.stdout)?;
+    assert!(stdout.contains("ok: wrote 1 records from 1 packs"));
+    let stderr = String::from_utf8(build_output.stderr)?;
+    assert!(stderr.contains("embeddings: pending_document=1 document=0 reused=0 generated=0"));
+    assert!(!stderr.contains("build_duration_ms="));
+    let build_duration = timing_value(&stderr, "build=");
+    assert_human_duration(build_duration);
+    assert!(stderr.contains("embedding_tokenization=0ms"));
+    assert!(stderr.contains("embedding_model_load=0ms"));
+    assert!(stderr.contains("embedding_generation=0ms"));
+
+    Ok(())
+}
+
+#[test]
 fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-valid");
     create_contract_database(&path, None)?;
@@ -1740,6 +1769,26 @@ fn temp_source_root(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_dir_all(&path);
     path
+}
+
+fn timing_value<'a>(text: &'a str, prefix: &str) -> &'a str {
+    text.lines()
+        .find(|line| line.starts_with("timing: "))
+        .and_then(|line| {
+            line.split_whitespace()
+                .find_map(|part| part.strip_prefix(prefix))
+        })
+        .expect("expected timing value")
+}
+
+fn assert_human_duration(value: &str) {
+    assert!(
+        value.ends_with("ms")
+            || value.ends_with('s')
+            || value.contains("m ")
+            || value.contains("h "),
+        "expected human-readable duration, got {value:?}"
+    );
 }
 
 fn record_sections(record: &Value) -> Vec<&str> {
