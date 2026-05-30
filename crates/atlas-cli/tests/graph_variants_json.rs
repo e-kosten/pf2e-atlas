@@ -5,10 +5,8 @@ use serde_json::Value;
 
 mod support;
 
-use support::graph::{
-    create_contract_database, insert_second_variant_group, insert_variant_group, ok_data,
-    temp_db_path,
-};
+use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::graph::{insert_second_variant_group, insert_variant_group};
 
 #[test]
 fn graph_variants_json_returns_group_siblings() -> Result<(), Box<dyn std::error::Error>> {

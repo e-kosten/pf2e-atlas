@@ -6,14 +6,13 @@ fn test_record_key(value: &str) -> RecordKey {
 }
 
 fn semantic_hit(record: &str, distance: f64) -> SemanticSearchHit {
-    SemanticSearchHit {
-        record_key: record.to_string(),
-        embedding_unit_key: format!("{record}#parent"),
-        unit_kind: "parent".to_string(),
-        label: None,
+    SemanticSearchHit::new(
+        record.to_string(),
+        "parent".to_string(),
+        None,
         distance,
-        rank_distance: distance,
-    }
+        distance,
+    )
 }
 
 fn fts_hit(record: &str, rank: f64, lane: FtsSearchLane, lane_rank: u32) -> FtsSearchHit {

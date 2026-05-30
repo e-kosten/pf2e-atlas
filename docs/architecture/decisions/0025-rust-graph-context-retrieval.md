@@ -29,7 +29,7 @@ Rust does not directly port `pf2e_collect_rule_question_context` in V1. The inte
 
 Search relationship flags remain result-set filters. `atlas search --referenced-by` is not renamed or replaced by graph command wording. `--backlinks` is graph-command wording only.
 
-V1 graph retrieval does not include name similarity, multi-hop traversal, graph scoring, semantic/vector search, answer synthesis, or visual graph output. Deeper local graph behavior is tracked separately in `docs/backlog/items/rust-graph-context-deeper-local-graph.md`.
+V1 graph context retrieval does not include name similarity, multi-hop traversal, graph scoring, answer synthesis, or visual graph output. Record-to-record semantic similarity is a separate retrieval surface exposed as `atlas similar`; it stays under `atlas-search` and uses stored SQLite embeddings with modest shared-reference and shared-trait evidence rather than becoming a graph subcommand. Deeper local graph behavior is tracked separately in `docs/backlog/items/rust-graph-context-deeper-local-graph.md`.
 
 The old rule-specific Rust DTOs are not accepted contracts. Implementation should delete `RuleContext*` and avoid compatibility aliases from `RuleGraph*` to generic names. V1 graph DTOs should live with the owning runtime crate, likely `atlas-search`, unless another Rust surface needs the exact same contract.
 

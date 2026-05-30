@@ -38,4 +38,5 @@ tracing-subscriber.workspace = true
 
 [dev-dependencies]
 atlas-artifact = { workspace = true, features = ["test-support"] }
+atlas-sqlite-vec.workspace = true
 rusqlite.workspace = true

@@ -49,6 +49,8 @@ enum Command {
     Record(RecordArgs),
     #[command(about = "Retrieve local record reference graph context")]
     Graph(GraphArgs),
+    #[command(about = "Find records similar to a seed record")]
+    Similar(Box<SimilarOptions>),
     #[command(about = "Run Atlas search commands")]
     Search(Box<SearchOptions>),
     #[command(about = "Discover filter fields and values")]
@@ -560,6 +562,56 @@ struct GraphRemasterOptions {
 
 #[derive(Debug, Args)]
 #[command(
+    after_help = "Examples:\n  atlas similar \"Dirge of Doom\"\n  atlas similar \"Shield Block\" --limit 12 --explain --json\n  atlas similar spells-srd:RDXXE7wMrSPCLv5k --family spell --max-level 5"
+)]
+struct SimilarOptions {
+    #[arg(help = "Seed record key or strict resolvable record name")]
+    record_ref: String,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    index: Option<PathBuf>,
+    #[arg(long, default_value_t = 20, value_parser = parse_similar_limit, help = "Maximum similar records to return, 1-100")]
+    limit: u32,
+    #[arg(long, default_value_t = 100, value_parser = parse_similar_limit, help = "Vector candidate records to inspect before graph reranking, 1-100")]
+    candidates: u32,
+    #[arg(
+        long,
+        default_value_t = 0.80,
+        help = "Semantic vector-distance score weight for similar ranking"
+    )]
+    semantic_weight: f64,
+    #[arg(
+        long,
+        default_value_t = 0.15,
+        help = "Shared reference graph score weight for similar ranking"
+    )]
+    reference_weight: f64,
+    #[arg(
+        long,
+        default_value_t = 0.05,
+        help = "Shared trait score weight for similar ranking"
+    )]
+    trait_weight: f64,
+    #[arg(
+        long,
+        help = "Canonical SearchFilterNode JSON; do not combine with convenience filter flags"
+    )]
+    filter_json: Option<String>,
+    #[command(flatten)]
+    filter_options: FilterOptions,
+    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
+    detail: DetailLevel,
+    #[arg(long, help = "Include raw source JSON in JSON output")]
+    include_raw: bool,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    path_mode: CliPathMode,
+    #[arg(long, action = ArgAction::SetTrue, help = "Include similarity evidence in human output")]
+    explain: bool,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
     after_help = "Examples:\n  atlas search --family spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --family creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --family creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --family spell\n  atlas filters values --field metric --family creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
 )]
 struct SearchOptions {
@@ -953,6 +1005,7 @@ impl Command {
                 GraphCommand::Variants(options) => options.json,
                 GraphCommand::Remaster(options) => options.json,
             },
+            Self::Similar(options) => options.json,
             Self::Search(options) => options.json,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
@@ -988,6 +1041,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
             GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },
+        Command::Similar(options) => commands::similar::run_similar(*options),
         Command::Search(options) => commands::search::run_search(*options),
         Command::Filters(filters) => match filters.command {
             FiltersCommand::Fields(options) => {
@@ -1020,5 +1074,18 @@ fn parse_graph_limit(value: &str) -> Result<usize, String> {
         Ok(limit)
     } else {
         Err(format!("graph limit must be between 0 and 50, got {limit}"))
+    }
+}
+
+fn parse_similar_limit(value: &str) -> Result<u32, String> {
+    let limit = value
+        .parse::<u32>()
+        .map_err(|error| format!("invalid similar limit `{value}`: {error}"))?;
+    if (1..=100).contains(&limit) {
+        Ok(limit)
+    } else {
+        Err(format!(
+            "similar limit must be between 1 and 100, got {limit}"
+        ))
     }
 }

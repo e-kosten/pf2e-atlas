@@ -36,11 +36,28 @@ impl SemanticSearchMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticSearchHit {
     pub record_key: String,
-    pub embedding_unit_key: String,
     pub unit_kind: String,
     pub label: Option<String>,
     pub distance: f64,
     pub rank_distance: f64,
+}
+
+impl SemanticSearchHit {
+    pub(crate) fn new(
+        record_key: String,
+        unit_kind: String,
+        label: Option<String>,
+        distance: f64,
+        rank_distance: f64,
+    ) -> Self {
+        Self {
+            record_key,
+            unit_kind,
+            label,
+            distance,
+            rank_distance,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -153,14 +170,13 @@ fn best_record_hit(
 }
 
 fn semantic_hit_from_vector_hit(hit: VectorSearchHit, rank_distance: f64) -> SemanticSearchHit {
-    SemanticSearchHit {
-        record_key: hit.record_key,
-        embedding_unit_key: hit.embedding_unit_key,
-        unit_kind: hit.unit_kind,
-        label: hit.label,
-        distance: hit.distance,
+    SemanticSearchHit::new(
+        hit.record_key,
+        hit.unit_kind,
+        hit.label,
+        hit.distance,
         rank_distance,
-    }
+    )
 }
 
 fn rank_distance(hit: &VectorSearchHit, has_parent: bool, mode: SemanticSearchMode) -> f64 {
@@ -189,7 +205,8 @@ fn compare_semantic_hits_for_rank(
         .total_cmp(&right.rank_distance)
         .then_with(|| left.distance.total_cmp(&right.distance))
         .then_with(|| left.record_key.cmp(&right.record_key))
-        .then_with(|| left.embedding_unit_key.cmp(&right.embedding_unit_key))
+        .then_with(|| left.unit_kind.cmp(&right.unit_kind))
+        .then_with(|| left.label.cmp(&right.label))
 }
 
 #[cfg(test)]
@@ -197,8 +214,8 @@ mod tests {
     use super::*;
 
     fn hit(unit: &str, record: &str, unit_kind: &str, distance: f64) -> VectorSearchHit {
+        let _ = unit;
         VectorSearchHit {
-            embedding_unit_key: unit.to_string(),
             record_key: record.to_string(),
             unit_kind: unit_kind.to_string(),
             label: None,
@@ -227,12 +244,9 @@ mod tests {
         assert_eq!(
             collapsed
                 .iter()
-                .map(|hit| (hit.embedding_unit_key.as_str(), hit.record_key.as_str()))
+                .map(|hit| hit.record_key.as_str())
                 .collect::<Vec<_>>(),
-            vec![
-                ("records:a#parent", "records:a"),
-                ("records:b#parent", "records:b"),
-            ]
+            vec!["records:a", "records:b"]
         );
     }
 
@@ -252,10 +266,7 @@ mod tests {
             SemanticSearchMode::WeightedChunks,
         );
 
-        assert_eq!(
-            collapsed[0].embedding_unit_key,
-            "records:a#heading_section:1"
-        );
+        assert_eq!(collapsed[0].unit_kind, "heading_section");
         assert_eq!(collapsed[0].distance, 0.100);
         assert_eq!(collapsed[0].rank_distance, 0.125);
     }
@@ -276,12 +287,9 @@ mod tests {
             SemanticSearchMode::WeightedChunks,
         );
 
-        assert_eq!(collapsed[0].embedding_unit_key, "records:b#parent");
+        assert_eq!(collapsed[0].record_key, "records:b");
         assert_eq!(collapsed[0].rank_distance, 0.145);
-        assert_eq!(
-            collapsed[1].embedding_unit_key,
-            "records:a#heading_section:1"
-        );
+        assert_eq!(collapsed[1].unit_kind, "heading_section");
         assert_eq!(collapsed[1].rank_distance, 0.150);
     }
 
@@ -301,10 +309,7 @@ mod tests {
             SemanticSearchMode::Chunks,
         );
 
-        assert_eq!(
-            collapsed[0].embedding_unit_key,
-            "records:a#heading_section:1"
-        );
+        assert_eq!(collapsed[0].unit_kind, "heading_section");
         assert_eq!(collapsed[0].rank_distance, 0.100);
     }
 }

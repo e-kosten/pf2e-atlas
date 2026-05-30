@@ -5,10 +5,8 @@ use serde_json::Value;
 
 mod support;
 
-use support::graph::{
-    assert_section_edges_point_to_returned_records, create_contract_database, insert_graph_edges,
-    ok_data, temp_db_path,
-};
+use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::graph::{assert_section_edges_point_to_returned_records, insert_graph_edges};
 
 #[test]
 fn graph_uses_json_returns_backlinks_as_uses() -> Result<(), Box<dyn std::error::Error>> {

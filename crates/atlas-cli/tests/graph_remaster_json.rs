@@ -5,7 +5,8 @@ use serde_json::Value;
 
 mod support;
 
-use support::graph::{create_contract_database, insert_remaster_link, ok_data, temp_db_path};
+use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::graph::insert_remaster_link;
 
 #[test]
 fn graph_remaster_json_returns_legacy_and_remaster_links() -> Result<(), Box<dyn std::error::Error>>

@@ -19,6 +19,7 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 - [x] `atlas setup` first-run install/repair flow.
 - [x] `atlas record get` and `atlas record resolve`.
 - [x] `atlas search` with filter-only, FTS, vector, and hybrid retrieval.
+- [x] `atlas similar` for stored-embedding record-to-record retrieval with modest shared-reference/shared-trait evidence.
 - [x] `atlas filters fields` and `atlas filters values`.
 - [x] `atlas graph links|uses|variants|remaster` for bounded graph/product context.
 - [x] Stable CLI JSON envelope and exit-code classes.

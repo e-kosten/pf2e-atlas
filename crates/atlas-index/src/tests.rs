@@ -32,6 +32,7 @@ use crate::{
 
 mod fts;
 mod graph_product;
+mod vector;
 
 #[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {

@@ -106,6 +106,7 @@ dependencies = [
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "atlas-sqlite-vec",
  "clap",
  "clap_complete",
  "indicatif",

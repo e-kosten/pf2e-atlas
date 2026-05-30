@@ -163,6 +163,17 @@ impl AtlasRuntime {
         ))
     }
 
+    pub fn open_vector_record_retrieval_service(
+        &self,
+    ) -> Result<AtlasRetrievalService, SearchError> {
+        let index = self.open_search_index()?;
+        let report = index.validate_embedding_readiness()?;
+        if report.status != atlas_index::ValidationStatus::Ok {
+            return Err(atlas_index::IndexValidationError::InvalidArtifact(report.message).into());
+        }
+        Ok(AtlasRetrievalService::without_embeddings(index))
+    }
+
     pub fn open_retrieval_service_with_model(
         &self,
         model_id: impl Into<String>,
