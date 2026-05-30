@@ -70,6 +70,26 @@ impl Default for FtsColumnWeights {
 pub struct FtsSearchHit {
     pub record_key: RecordKey,
     pub rank: f64,
+    pub lane: FtsSearchLane,
+    pub lane_rank: u32,
+    pub title_alias_texts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FtsSearchLane {
+    Mixed,
+    TitleAlias,
+    Facet,
+}
+
+impl FtsSearchLane {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Mixed => "mixed",
+            Self::TitleAlias => "title-alias",
+            Self::Facet => "facet",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -368,7 +388,12 @@ impl AtlasIndex {
         )
     }
 
-    pub fn query_fts_index(
+    /// Query the broad weighted FTS projection directly.
+    ///
+    /// Product ranked search uses [`Self::query_precision_fts_index`]. This
+    /// lower-level path remains available for diagnostics, tests, and measured
+    /// tuning of broad FTS behavior.
+    pub fn query_weighted_fts_index(
         &self,
         fts_query: &FtsQuery,
         filter: Option<&SearchFilterNode>,
@@ -378,7 +403,19 @@ impl AtlasIndex {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        fts::query_fts_index(&self.connection, fts_query, filter, limit, weights)
+        fts::query_weighted_fts_index(&self.connection, fts_query, filter, limit, weights)
+    }
+
+    pub fn query_precision_fts_index(
+        &self,
+        fts_query: &FtsQuery,
+        filter: Option<&SearchFilterNode>,
+        limit: u32,
+    ) -> Result<Vec<FtsSearchHit>, FilterCompileError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+        fts::query_precision_fts_index(&self.connection, fts_query, filter, limit)
     }
 
     pub fn query_fts_record_keys(

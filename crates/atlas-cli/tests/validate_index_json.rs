@@ -616,6 +616,7 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         "healing"
     );
     assert_eq!(fts_search_data["fusion"]["method"], "weighted-rrf");
+    assert_eq!(fts_search_data["fusion"]["fts_policy"], "demote-weak");
     assert_eq!(fts_search_data["candidate_windows"]["fts_top_k"], 200);
     assert_eq!(fts_search_data["candidate_windows"]["vector_top_k"], 200);
     assert_eq!(fts_search_data["sort"]["kind"], "ranked");
@@ -630,6 +631,31 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         fts_search_data["results"][0]["match"]["explain"]["fts_rank"],
         1
     );
+    assert_eq!(
+        fts_search_data["results"][0]["match"]["explain"]["fts_lane"],
+        "facet"
+    );
+    assert_eq!(
+        fts_search_data["results"][0]["match"]["explain"]["fts_confidence"],
+        "strong-lexical"
+    );
+
+    let body_only_fts_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "treating",
+            "--retrieval",
+            "fts",
+            "--explain",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(body_only_fts_output.status.success());
+    let body_only_fts_json: Value = serde_json::from_slice(&body_only_fts_output.stdout)?;
+    let body_only_fts_data = ok_data(&body_only_fts_json);
+    assert_eq!(body_only_fts_data["pagination"]["total"], 0);
 
     let excluded_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([

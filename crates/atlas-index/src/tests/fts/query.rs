@@ -4,7 +4,7 @@ use atlas_domain::{NumericMatch, RecordKey};
 use rusqlite::Connection;
 
 use super::record_key_strings;
-use crate::{AtlasIndex, FilterCompileError, FtsColumnWeights, FtsQuery};
+use crate::{AtlasIndex, FilterCompileError, FtsColumnWeights, FtsQuery, FtsSearchLane};
 
 #[test]
 fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@ fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         Some(&filter),
         10,
@@ -77,7 +77,7 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         Some(&filter),
         10,
@@ -85,6 +85,180 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
     )?;
 
     assert_eq!(record_key_strings(&hits), vec!["actions:testAction2"]);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn std::error::Error>> {
+    let path = super::temp_db_path("fts-precision-lanes");
+    super::create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET level = CASE record_key
+             WHEN 'actions:testAction1' THEN 1
+             WHEN 'actions:testAction2' THEN 2
+             ELSE 3
+         END",
+        [],
+    )?;
+    super::replace_fts_rows(
+        &connection,
+        &[
+            (
+                "actions:testAction1",
+                "Reactive Strike",
+                "Attack of Opportunity",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ),
+            (
+                "actions:testAction2",
+                "Fire Dragon Lore",
+                "",
+                "dragon",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ),
+            (
+                "actions:testAction3",
+                "Body Match",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "fire dragon",
+            ),
+        ],
+    )?;
+    connection.execute(
+        "UPDATE records_fts SET traits = 'fire' WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
+    drop(connection);
+
+    let title_query = FtsQuery::from_tokens(vec!["attack".to_string(), "opportunity".to_string()])
+        .expect("query");
+    let title_hits =
+        AtlasIndex::open_read_only(&path)?.query_precision_fts_index(&title_query, None, 10)?;
+    assert!(title_hits.iter().any(|hit| {
+        hit.record_key.to_string() == "actions:testAction1"
+            && hit.lane == FtsSearchLane::TitleAlias
+            && hit.lane_rank == 1
+            && hit
+                .title_alias_texts
+                .contains(&"Attack of Opportunity".to_string())
+    }));
+
+    let facet_query =
+        FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
+    let hits =
+        AtlasIndex::open_read_only(&path)?.query_precision_fts_index(&facet_query, None, 10)?;
+
+    assert!(
+        hits.iter()
+            .any(|hit| hit.record_key.to_string() == "actions:testAction2"
+                && hit.lane == FtsSearchLane::Facet
+                && hit.lane_rank == 1)
+    );
+    assert!(
+        hits.iter()
+            .any(|hit| hit.record_key.to_string() == "actions:testAction2"
+                && hit.lane == FtsSearchLane::TitleAlias)
+    );
+    assert!(
+        !hits
+            .iter()
+            .any(|hit| hit.record_key.to_string() == "actions:testAction3")
+    );
+
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 3.0 });
+    let filtered_hits = AtlasIndex::open_read_only(&path)?.query_precision_fts_index(
+        &facet_query,
+        Some(&filter),
+        10,
+    )?;
+    assert!(filtered_hits.is_empty());
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn precision_query_applies_global_limit_after_lane_merge() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = super::temp_db_path("fts-precision-limit");
+    super::create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    super::replace_fts_rows(
+        &connection,
+        &[
+            (
+                "actions:testAction1",
+                "Fire Dragon",
+                "",
+                "fire dragon",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ),
+            (
+                "actions:testAction2",
+                "Fire Dragon Ally",
+                "",
+                "fire dragon",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ),
+            (
+                "actions:testAction3",
+                "",
+                "",
+                "fire dragon",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ),
+        ],
+    )?;
+    drop(connection);
+
+    let query =
+        FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
+    let hits = AtlasIndex::open_read_only(&path)?.query_precision_fts_index(&query, None, 1)?;
+
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].record_key.to_string(), "actions:testAction1");
+    assert_eq!(hits[0].lane, FtsSearchLane::TitleAlias);
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn precision_query_zero_limit_returns_no_hits() -> Result<(), Box<dyn std::error::Error>> {
+    let path = super::temp_db_path("fts-precision-zero-limit");
+    super::create_contract_database(&path)?;
+
+    let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
+    let hits = AtlasIndex::open_read_only(&path)?.query_precision_fts_index(&query, None, 0)?;
+
+    assert!(hits.is_empty());
     fs::remove_file(path)?;
     Ok(())
 }
@@ -261,7 +435,7 @@ fn ranked_query_reports_invalid_record_keys_from_matching_fts_rows()
 
     let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
     let error = AtlasIndex::open_read_only(&path)?
-        .query_fts_index(&query, None, 10, FtsColumnWeights::default())
+        .query_weighted_fts_index(&query, None, 10, FtsColumnWeights::default())
         .expect_err("invalid record key should fail FTS query");
 
     assert!(matches!(error, FilterCompileError::InvalidValue(_)));

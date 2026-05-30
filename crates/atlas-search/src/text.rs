@@ -1,12 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::{RecordKey, SearchFilterNode};
-use atlas_index::{FtsColumnWeights, FtsQuery, FtsSearchHit};
+use atlas_index::{FtsQuery, FtsSearchHit};
 use atlas_record::PersistedRecord;
 use serde::{Deserialize, Serialize};
 
 use crate::fusion::{
-    FusionInput, FusionMethod, FusionOptions, TextSearchExplain, fuse_ranked_hits, identity_explain,
+    DEFAULT_FTS_FUSION_POLICY, FusionInput, FusionMethod, FusionOptions, TextSearchExplain,
+    fuse_ranked_hits, identity_explain,
 };
 use crate::query::{TextQueryAnalysis, analyze_text_query};
 use crate::resolution::{RecordResolutionMatchKind, RecordResolutionResult};
@@ -116,12 +117,10 @@ impl AtlasRetrievalService {
         let identity_matches = self.resolve_record(request.query, filter)?;
         let fts_hits = if request.retrieval.uses_fts() {
             match fts_query.as_ref() {
-                Some(fts_query) => self.index.query_fts_index(
-                    fts_query,
-                    filter,
-                    request.fts_top_k,
-                    FtsColumnWeights::default(),
-                )?,
+                Some(fts_query) => {
+                    self.index
+                        .query_precision_fts_index(fts_query, filter, request.fts_top_k)?
+                }
                 None => Vec::new(),
             }
         } else {
@@ -156,13 +155,25 @@ impl AtlasRetrievalService {
             .iter()
             .map(|identity| identity.record.key.clone())
             .collect::<BTreeSet<_>>();
+        let fusion_candidate_keys = candidate_keys(&identity_matches, &fts_hits, &vector_hits)
+            .into_iter()
+            .filter(|key| !excluded_keys.contains(key))
+            .collect::<Vec<_>>();
+        let candidate_records = self.index.load_records_by_key(&fusion_candidate_keys)?;
+        let records_by_key = candidate_records
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect::<BTreeMap<_, _>>();
         let fused = fuse_ranked_hits(FusionInput {
             fts_hits: &fts_hits,
             vector_hits: &vector_hits,
+            records_by_key: &records_by_key,
+            fts_tokens: &query.fts_tokens,
             identity_keys: &identity_keys,
             excluded_keys: &excluded_keys,
             retrieval: request.retrieval,
             fusion: request.fusion,
+            fts_policy: DEFAULT_FTS_FUSION_POLICY,
             explain: request.explain,
             identity_count: identity_matches.len(),
         });
@@ -180,17 +191,8 @@ impl AtlasRetrievalService {
             })
             .collect::<Vec<_>>();
 
-        let needed_keys = fused
-            .iter()
-            .map(|ranked| ranked.record_key.clone())
-            .collect::<Vec<_>>();
-        let records = self.index.load_records_by_key(&needed_keys)?;
-        let by_key = records
-            .into_iter()
-            .map(|record| (record.key.clone(), record))
-            .collect::<BTreeMap<_, _>>();
         all_matches.extend(fused.into_iter().filter_map(|ranked| {
-            by_key
+            records_by_key
                 .get(&ranked.record_key)
                 .map(|record| TextSearchRecord {
                     record: record.clone(),

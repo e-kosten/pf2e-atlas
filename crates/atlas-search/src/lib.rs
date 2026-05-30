@@ -18,7 +18,10 @@ mod resolution;
 mod semantic;
 mod text;
 
-pub use fusion::{FusionMethod, FusionOptions, TextSearchExplain};
+pub use fusion::{
+    DEFAULT_FTS_FUSION_POLICY_NAME, FtsMatchConfidence, FusionMethod, FusionOptions,
+    TextSearchExplain,
+};
 pub use graph_context::{
     GraphContextEdge, GraphContextEdgeSource, GraphContextRequest, GraphContextResult,
     GraphContextSection,

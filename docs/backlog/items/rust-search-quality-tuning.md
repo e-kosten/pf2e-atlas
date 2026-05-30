@@ -17,7 +17,11 @@ Evaluate and choose Rust search defaults from measured search-quality runs after
 
 The tuning pass should cover:
 
-- FTS column and BM25 weights.
+- Whether the broad weighted FTS path should be removed entirely or retained only as a diagnostic/tuning primitive now that precision FTS is the product default.
+- Precision FTS lane tuning, including whether family/type/source facets should join the current title/alias and trait/taxonomy lanes.
+- FTS confidence policy tuning, including the current `demote-weak` default and whether weak/medium lexical evidence should be discounted differently in hybrid fusion.
+- Candidate hydration cost in ranked search. Precision FTS confidence currently hydrates bounded FTS/vector candidates before final fusion; if larger candidate windows become necessary, consider a lighter ranking-facts load instead of full record hydration.
+- FTS column and BM25 weights for any retained broad weighted FTS diagnostic path.
 - Top-k search-quality fixtures from the bakeoff set.
 - Rust-owned embedding and ranking comparison harnesses for repeatable model, query, and fusion experiments.
 - accepted-difference reports against observed task quality.
@@ -40,7 +44,7 @@ The outcome should be documented defaults plus the smallest stable configuration
 
 ## Notes
 
-Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use weighted RRF with equal FTS/vector lane weights.
+Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use precision FTS, weighted RRF with equal FTS/vector lane weights, and a weak-evidence demotion policy.
 
 ## Related
 

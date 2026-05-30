@@ -45,7 +45,7 @@ fn weighted_ranking_prefers_title_matches_over_body_matches()
     drop(connection);
 
     let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         10,
@@ -104,7 +104,7 @@ fn weighted_ranking_covers_structured_term_columns() -> Result<(), Box<dyn std::
 
     let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
     let index = AtlasIndex::open_read_only(&path)?;
-    let taxonomy_weighted = index.query_fts_index(
+    let taxonomy_weighted = index.query_weighted_fts_index(
         &query,
         None,
         10,
@@ -124,7 +124,7 @@ fn weighted_ranking_covers_structured_term_columns() -> Result<(), Box<dyn std::
         ]
     );
 
-    let source_weighted = index.query_fts_index(
+    let source_weighted = index.query_weighted_fts_index(
         &query,
         None,
         10,
@@ -174,7 +174,7 @@ fn weighted_ranking_covers_all_fts_columns() -> Result<(), Box<dyn std::error::E
         drop(connection);
 
         let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
-        let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+        let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
             &query,
             None,
             1,
@@ -214,7 +214,7 @@ fn strict_conjunction_tier_ranks_before_or_fallback() -> Result<(), Box<dyn std:
 
     let query =
         FtsQuery::from_tokens(vec!["shield".to_string(), "block".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         3,
@@ -261,7 +261,7 @@ fn fallback_rows_are_deduped_and_truncated_after_strict_rows()
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         2,
@@ -327,7 +327,7 @@ fn title_phrase_signals_rank_above_body_matches() -> Result<(), Box<dyn std::err
         "check".to_string(),
     ])
     .expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         1,
@@ -387,7 +387,7 @@ fn token_coverage_signals_rank_high_value_matches_above_body_only_matches()
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         1,
@@ -451,7 +451,7 @@ fn partial_title_match_ranks_above_body_only_phrase_match() -> Result<(), Box<dy
         "prevention".to_string(),
     ])
     .expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         1,
@@ -519,7 +519,7 @@ fn effect_records_are_downranked_below_canonical_records() -> Result<(), Box<dyn
     drop(connection);
 
     let query = FtsQuery::from_tokens(vec!["fly".to_string(), "speed".to_string()]).expect("query");
-    let hits = AtlasIndex::open_read_only(&path)?.query_fts_index(
+    let hits = AtlasIndex::open_read_only(&path)?.query_weighted_fts_index(
         &query,
         None,
         2,
