@@ -50,7 +50,7 @@ pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
-pub use vector::{VectorQueryError, VectorSearchHit};
+pub use vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
 pub use write::{IndexArtifactWriter, IndexWriteError};
 
 #[derive(Debug, Error)]

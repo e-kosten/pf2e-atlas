@@ -6,9 +6,10 @@ use serde_json::Value;
 
 mod support;
 
+use support::db::{create_contract_database, ok_data, temp_db_path};
 use support::graph::{
-    assert_section_edges_point_to_returned_records, create_contract_database, insert_graph_edges,
-    insert_reference_edge, ok_data, set_record_visibility, temp_db_path,
+    assert_section_edges_point_to_returned_records, insert_graph_edges, insert_reference_edge,
+    set_record_visibility,
 };
 
 #[test]

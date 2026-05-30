@@ -69,7 +69,6 @@ pub struct TextSearchExplain {
     pub vector_rank_distance: Option<f64>,
     pub vector_unit_kind: Option<String>,
     pub vector_label: Option<String>,
-    pub vector_embedding_unit_key: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -91,7 +90,6 @@ struct FusionAccumulator {
     vector_rank_distance: Option<f64>,
     vector_unit_kind: Option<String>,
     vector_label: Option<String>,
-    vector_embedding_unit_key: Option<String>,
 }
 
 pub(crate) struct FusionInput<'a> {
@@ -157,7 +155,6 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
             entry.vector_rank_distance = Some(hit.rank_distance);
             entry.vector_unit_kind = Some(hit.unit_kind.clone());
             entry.vector_label = hit.label.clone();
-            entry.vector_embedding_unit_key = Some(hit.embedding_unit_key.clone());
             entry.fused_score +=
                 lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.vector_weight);
         }
@@ -185,7 +182,6 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 vector_rank_distance: hit.vector_rank_distance,
                 vector_unit_kind: hit.vector_unit_kind,
                 vector_label: hit.vector_label,
-                vector_embedding_unit_key: hit.vector_embedding_unit_key,
             }),
         })
         .collect()
@@ -204,7 +200,6 @@ pub(crate) fn identity_explain(index: usize) -> TextSearchExplain {
         vector_rank_distance: None,
         vector_unit_kind: None,
         vector_label: None,
-        vector_embedding_unit_key: None,
     }
 }
 
@@ -222,7 +217,6 @@ impl FusionAccumulator {
             vector_rank_distance: None,
             vector_unit_kind: None,
             vector_label: None,
-            vector_embedding_unit_key: None,
         }
     }
 

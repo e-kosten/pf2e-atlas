@@ -127,8 +127,6 @@ struct SearchExplainJson {
     vector_unit_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vector_label: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    vector_embedding_unit_key: Option<String>,
 }
 
 pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
@@ -629,7 +627,6 @@ fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
         vector_rank_distance: explain.vector_rank_distance,
         vector_unit_kind: explain.vector_unit_kind,
         vector_label: explain.vector_label,
-        vector_embedding_unit_key: explain.vector_embedding_unit_key,
     }
 }
 

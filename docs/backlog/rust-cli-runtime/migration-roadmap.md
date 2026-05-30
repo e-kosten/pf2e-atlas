@@ -11,6 +11,7 @@ PF2e Atlas is centered on a Rust local runtime with `atlas` as the command surfa
 - `atlas record get`: exact key lookup.
 - `atlas record resolve`: strict name and verified-alias resolution.
 - `atlas search`: ranked text search and deterministic filter-only listing.
+- `atlas similar`: stored-embedding record-to-record retrieval with modest shared-reference/shared-trait evidence.
 - `atlas filters fields|values`: schema and value discovery.
 - `atlas graph links|uses|variants|remaster`: bounded graph/product context for known or strictly resolved records.
 - `atlas agent skills install|doctor`: first-party skill installation and inspection.

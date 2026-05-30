@@ -383,6 +383,13 @@ mod tests {
         ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
             Ok(Vec::new())
         }
+
+        fn load_record_embedding_vectors(
+            &self,
+            _record_key: &RecordKey,
+        ) -> Result<Vec<atlas_index::RecordEmbeddingVector>, VectorQueryError> {
+            Ok(Vec::new())
+        }
     }
 
     impl GraphReadIndex for FakeIndex {

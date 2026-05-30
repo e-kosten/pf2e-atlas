@@ -58,6 +58,12 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(graph_links_help.contains("atlas graph links"));
     assert!(graph_links_help.contains("--backlinks"));
 
+    let similar_help = help_output(&["similar"])?;
+    assert!(similar_help.contains("atlas similar \"Dirge of Doom\""));
+    assert!(similar_help.contains("--semantic-weight"));
+    assert!(similar_help.contains("--reference-weight"));
+    assert!(similar_help.contains("--trait-weight"));
+
     let search_help = help_output(&["search"])?;
     assert!(search_help.contains("atlas search \"low level healing spell\""));
     assert!(search_help.contains("atlas search --family creature --metric 'ac.value>=25'"));

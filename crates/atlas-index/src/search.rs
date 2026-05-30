@@ -3,7 +3,7 @@ use atlas_record::{PersistedRecord, PersistedRecordSet};
 
 use crate::{
     FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsSearchHit,
-    RecordLoadError, SqliteIndexReader, VectorQueryError, VectorSearchHit,
+    RecordEmbeddingVector, RecordLoadError, SqliteIndexReader, VectorQueryError, VectorSearchHit,
 };
 
 pub trait SearchIndex {
@@ -47,6 +47,11 @@ pub trait SearchIndex {
         limit: u32,
         include_child_units: bool,
     ) -> Result<Vec<VectorSearchHit>, VectorQueryError>;
+
+    fn load_record_embedding_vectors(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError>;
 }
 
 impl SearchIndex for SqliteIndexReader {
@@ -109,5 +114,12 @@ impl SearchIndex for SqliteIndexReader {
             limit,
             include_child_units,
         )
+    }
+
+    fn load_record_embedding_vectors(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError> {
+        SqliteIndexReader::load_record_embedding_vectors(self, record_key)
     }
 }

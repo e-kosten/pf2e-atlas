@@ -388,6 +388,13 @@ impl SqliteIndexReader {
         )
     }
 
+    pub fn load_record_embedding_vectors(
+        &self,
+        record_key: &RecordKey,
+    ) -> Result<Vec<crate::RecordEmbeddingVector>, VectorQueryError> {
+        vector::load_record_embedding_vectors(&self.connection, record_key)
+    }
+
     /// Query the broad weighted FTS projection directly.
     ///
     /// Product ranked search uses [`Self::query_precision_fts_index`]. This

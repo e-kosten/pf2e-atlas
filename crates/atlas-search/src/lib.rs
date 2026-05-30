@@ -20,6 +20,7 @@ mod records;
 mod references;
 mod resolution;
 mod semantic;
+mod similar;
 mod text;
 
 pub use fusion::{
@@ -35,6 +36,10 @@ pub use records::FilterOnlyRecordPage;
 pub use resolution::{RecordResolutionMatchKind, RecordResolutionResult};
 pub use semantic::{
     SemanticSearchHit, SemanticSearchMode, SemanticSearchResult, SemanticSearchTiming,
+};
+pub use similar::{
+    SimilarRecord, SimilarRecordGraphEvidence, SimilarRecordRequest, SimilarRecordResult,
+    SimilarRecordSemanticEvidence, SimilarScoreWeights, SimilarSharedReference,
 };
 pub use text::{
     AtlasSearchRequest, AtlasSearchResult, RetrievalMode, TextSearchMatch, TextSearchPage,
