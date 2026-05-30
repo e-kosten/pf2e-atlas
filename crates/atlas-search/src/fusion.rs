@@ -1,11 +1,25 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::FtsSearchHit;
+use atlas_index::{FtsSearchHit, FtsSearchLane};
+use atlas_record::PersistedRecord;
 use serde::{Deserialize, Serialize};
 
 use crate::semantic::SemanticSearchHit;
 use crate::text::RetrievalMode;
+
+mod fts;
+#[cfg(test)]
+mod tests;
+
+pub(crate) use fts::DEFAULT_FTS_FUSION_POLICY;
+pub use fts::FtsMatchConfidence;
+use fts::{
+    DEFAULT_FTS_FUSION_POLICY_LABEL, FtsFusionPolicy, classify_fts_hit, confidence_score,
+    effective_fts_rank, fts_confidence_weight, fts_lane_weight,
+};
+
+pub const DEFAULT_FTS_FUSION_POLICY_NAME: &str = DEFAULT_FTS_FUSION_POLICY_LABEL;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -48,6 +62,8 @@ pub struct TextSearchExplain {
     pub fused_score: Option<f64>,
     pub fts_rank: Option<u32>,
     pub fts_score: Option<f64>,
+    pub fts_lane: Option<FtsSearchLane>,
+    pub fts_confidence: Option<FtsMatchConfidence>,
     pub vector_rank: Option<u32>,
     pub vector_distance: Option<f64>,
     pub vector_rank_distance: Option<f64>,
@@ -68,6 +84,8 @@ struct FusionAccumulator {
     fused_score: f64,
     fts_rank: Option<u32>,
     fts_score: Option<f64>,
+    fts_lane: Option<FtsSearchLane>,
+    fts_confidence: Option<FtsMatchConfidence>,
     vector_rank: Option<u32>,
     vector_distance: Option<f64>,
     vector_rank_distance: Option<f64>,
@@ -79,10 +97,13 @@ struct FusionAccumulator {
 pub(crate) struct FusionInput<'a> {
     pub fts_hits: &'a [FtsSearchHit],
     pub vector_hits: &'a [SemanticSearchHit],
+    pub records_by_key: &'a BTreeMap<RecordKey, PersistedRecord>,
+    pub fts_tokens: &'a [String],
     pub identity_keys: &'a BTreeSet<RecordKey>,
     pub excluded_keys: &'a BTreeSet<RecordKey>,
     pub retrieval: RetrievalMode,
     pub fusion: FusionOptions,
+    pub fts_policy: FtsFusionPolicy,
     pub explain: bool,
     pub identity_count: usize,
 }
@@ -90,20 +111,30 @@ pub(crate) struct FusionInput<'a> {
 pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
     let mut by_key = BTreeMap::<RecordKey, FusionAccumulator>::new();
     if input.retrieval.uses_fts() {
-        for (index, hit) in input.fts_hits.iter().enumerate() {
+        for hit in input.fts_hits {
             if input.identity_keys.contains(&hit.record_key)
                 || input.excluded_keys.contains(&hit.record_key)
             {
                 continue;
             }
-            let rank = (index + 1) as u32;
             let entry = by_key
                 .entry(hit.record_key.clone())
                 .or_insert_with(|| FusionAccumulator::new(hit.record_key.clone()));
-            entry.fts_rank = Some(rank);
-            entry.fts_score = Some(hit.rank);
-            entry.fused_score +=
-                lane_rrf_score(rank, input.fusion.rank_constant, input.fusion.fts_weight);
+            let confidence = input
+                .records_by_key
+                .get(&hit.record_key)
+                .map(|record| classify_fts_hit(hit, record, input.fts_tokens))
+                .unwrap_or(FtsMatchConfidence::WeakLexical);
+            let rank = effective_fts_rank(hit.lane_rank.max(1), hit.lane, confidence);
+            entry.record_best_fts_explain(rank, hit.rank, hit.lane, confidence);
+            let score = lane_rrf_score(
+                rank,
+                input.fusion.rank_constant,
+                input.fusion.fts_weight
+                    * fts_lane_weight(hit.lane)
+                    * fts_confidence_weight(hit.lane, confidence),
+            );
+            entry.fused_score += input.fts_policy.apply(confidence, score);
         }
     }
     if input.retrieval.uses_vector() {
@@ -132,7 +163,10 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
         }
     }
 
-    let mut fused = by_key.into_values().collect::<Vec<_>>();
+    let mut fused = by_key
+        .into_values()
+        .filter(retains_fused_hit)
+        .collect::<Vec<_>>();
     fused.sort_by(compare_fused_hits);
     fused
         .into_iter()
@@ -144,6 +178,8 @@ pub(crate) fn fuse_ranked_hits(input: FusionInput<'_>) -> Vec<FusedRankedHit> {
                 fused_score: Some(hit.fused_score),
                 fts_rank: hit.fts_rank,
                 fts_score: hit.fts_score,
+                fts_lane: hit.fts_lane,
+                fts_confidence: hit.fts_confidence,
                 vector_rank: hit.vector_rank,
                 vector_distance: hit.vector_distance,
                 vector_rank_distance: hit.vector_rank_distance,
@@ -161,6 +197,8 @@ pub(crate) fn identity_explain(index: usize) -> TextSearchExplain {
         fused_score: None,
         fts_rank: None,
         fts_score: None,
+        fts_lane: None,
+        fts_confidence: None,
         vector_rank: None,
         vector_distance: None,
         vector_rank_distance: None,
@@ -177,6 +215,8 @@ impl FusionAccumulator {
             fused_score: 0.0,
             fts_rank: None,
             fts_score: None,
+            fts_lane: None,
+            fts_confidence: None,
             vector_rank: None,
             vector_distance: None,
             vector_rank_distance: None,
@@ -185,6 +225,34 @@ impl FusionAccumulator {
             vector_embedding_unit_key: None,
         }
     }
+
+    fn record_best_fts_explain(
+        &mut self,
+        rank: u32,
+        score: f64,
+        lane: FtsSearchLane,
+        confidence: FtsMatchConfidence,
+    ) {
+        let should_replace = match (self.fts_confidence, self.fts_rank) {
+            (None, _) => true,
+            (Some(current_confidence), Some(current_rank)) => {
+                confidence_score(confidence) > confidence_score(current_confidence)
+                    || (confidence_score(confidence) == confidence_score(current_confidence)
+                        && rank < current_rank)
+            }
+            (Some(_), None) => true,
+        };
+        if should_replace {
+            self.fts_rank = Some(rank);
+            self.fts_score = Some(score);
+            self.fts_lane = Some(lane);
+            self.fts_confidence = Some(confidence);
+        }
+    }
+}
+
+fn retains_fused_hit(hit: &FusionAccumulator) -> bool {
+    hit.fused_score > 0.0 || hit.vector_rank.is_some()
 }
 
 fn lane_rrf_score(rank: u32, rank_constant: f64, weight: f64) -> f64 {
@@ -206,68 +274,5 @@ fn compare_optional_rank(left: Option<u32>, right: Option<u32>) -> std::cmp::Ord
         (Some(_), None) => std::cmp::Ordering::Less,
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => std::cmp::Ordering::Equal,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn weighted_rrf_combines_lanes_and_excludes_identity_matches() {
-        let fts_hits = vec![
-            FtsSearchHit {
-                record_key: RecordKey::parse("records:a").unwrap(),
-                rank: -2.0,
-            },
-            FtsSearchHit {
-                record_key: RecordKey::parse("records:b").unwrap(),
-                rank: -1.0,
-            },
-        ];
-        let vector_hits = vec![
-            SemanticSearchHit {
-                record_key: "records:b".to_string(),
-                embedding_unit_key: "records:b#parent".to_string(),
-                unit_kind: "parent".to_string(),
-                label: None,
-                distance: 0.1,
-                rank_distance: 0.1,
-            },
-            SemanticSearchHit {
-                record_key: "records:c".to_string(),
-                embedding_unit_key: "records:c#parent".to_string(),
-                unit_kind: "parent".to_string(),
-                label: None,
-                distance: 0.2,
-                rank_distance: 0.2,
-            },
-        ];
-        let identity_keys = [RecordKey::parse("records:a").unwrap()]
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-        let excluded_keys = BTreeSet::new();
-
-        let fused = fuse_ranked_hits(FusionInput {
-            fts_hits: &fts_hits,
-            vector_hits: &vector_hits,
-            identity_keys: &identity_keys,
-            excluded_keys: &excluded_keys,
-            retrieval: RetrievalMode::Hybrid,
-            fusion: FusionOptions::default(),
-            explain: true,
-            identity_count: 1,
-        });
-
-        assert_eq!(
-            fused
-                .iter()
-                .map(|hit| hit.record_key.to_string())
-                .collect::<Vec<_>>(),
-            vec!["records:b", "records:c"]
-        );
-        assert_eq!(fused[0].explain.as_ref().unwrap().rank, 2);
-        assert_eq!(fused[0].explain.as_ref().unwrap().fts_rank, Some(2));
-        assert_eq!(fused[0].explain.as_ref().unwrap().vector_rank, Some(1));
     }
 }

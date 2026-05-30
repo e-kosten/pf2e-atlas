@@ -3,8 +3,8 @@ use atlas_index::FilteredRecordSort;
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{
-    AtlasSearchRequest, AtlasSearchResult, FusionOptions, RetrievalMode, SearchError,
-    TextSearchExplain, TextSearchMatch, TextSearchRequest,
+    AtlasSearchRequest, AtlasSearchResult, DEFAULT_FTS_FUSION_POLICY_NAME, FusionOptions,
+    RetrievalMode, SearchError, TextSearchExplain, TextSearchMatch, TextSearchRequest,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -47,6 +47,7 @@ struct SearchFusionJson {
     fts_weight: f64,
     vector_weight: f64,
     rank_constant: f64,
+    fts_policy: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +112,10 @@ struct SearchExplainJson {
     fts_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     fts_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_lane: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fts_confidence: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vector_rank: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -412,6 +417,7 @@ fn run_ranked_text_search(
             fts_weight: result.fusion.fts_weight,
             vector_weight: result.fusion.vector_weight,
             rank_constant: result.fusion.rank_constant,
+            fts_policy: DEFAULT_FTS_FUSION_POLICY_NAME,
         }),
         candidate_windows: options.explain.then_some(SearchCandidateWindowsJson {
             fts_top_k,
@@ -601,6 +607,8 @@ fn search_explain_json(explain: TextSearchExplain) -> SearchExplainJson {
         fused_score: explain.fused_score,
         fts_rank: explain.fts_rank,
         fts_score: explain.fts_score,
+        fts_lane: explain.fts_lane.map(|lane| lane.as_str()),
+        fts_confidence: explain.fts_confidence.map(|confidence| confidence.as_str()),
         vector_rank: explain.vector_rank,
         vector_distance: explain.vector_distance,
         vector_rank_distance: explain.vector_rank_distance,

@@ -30,7 +30,7 @@ mod writer_visibility;
 pub use build_input::{IndexBuildInput, IndexBuildPack};
 pub use database::{
     AtlasIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery,
-    FtsSearchHit, ReferenceEdgeDirection,
+    FtsSearchHit, FtsSearchLane, ReferenceEdgeDirection,
 };
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
