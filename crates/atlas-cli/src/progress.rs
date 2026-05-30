@@ -95,7 +95,10 @@ where
             .map(str::to_string)
             .unwrap_or_else(|| event.metadata().name().to_string());
 
-        let mut state = self.state.lock().expect("progress state is not poisoned");
+        let mut state = match self.state.lock() {
+            Ok(state) => state,
+            Err(poisoned) => poisoned.into_inner(),
+        };
         if target == "atlas_progress" {
             let render = progress_render_mode(self.options, state.is_interactive);
             if render.enabled() {
@@ -329,7 +332,10 @@ fn progress_style(setup_timing: bool) -> ProgressStyle {
         "[{bar:40.cyan/blue}] {pos}/{len} {msg}"
     };
     ProgressStyle::with_template(template)
-        .expect("progress template is valid")
+        .unwrap_or_else(|error| {
+            eprintln!("invalid progress bar template: {error}");
+            ProgressStyle::default_bar()
+        })
         .progress_chars("=> ")
 }
 
@@ -339,7 +345,10 @@ fn spinner_style(setup_timing: bool) -> ProgressStyle {
     } else {
         "{spinner:.cyan} {msg}"
     };
-    ProgressStyle::with_template(template).expect("spinner progress template is valid")
+    ProgressStyle::with_template(template).unwrap_or_else(|error| {
+        eprintln!("invalid progress spinner template: {error}");
+        ProgressStyle::default_spinner()
+    })
 }
 
 fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {

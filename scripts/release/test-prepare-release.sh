@@ -11,7 +11,7 @@ trap cleanup EXIT INT TERM
 work="$tmp/work"
 fake_bin="$tmp/bin"
 log="$tmp/commands.log"
-mkdir -p "$work/scripts/release" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
+mkdir -p "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
 for release_check in validate-release-tooling.sh test-prepare-release.sh; do
@@ -22,6 +22,12 @@ exit 0
 EOF_RELEASE_CHECK
   chmod +x "$work/scripts/release/$release_check"
 done
+cat > "$work/scripts/git-hooks/test-common.sh" <<'EOF_GIT_HOOK_CHECK'
+#!/bin/sh
+printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
+exit 0
+EOF_GIT_HOOK_CHECK
+chmod +x "$work/scripts/git-hooks/test-common.sh"
 cat > "$work/scripts/release/generate-notices.py" <<'EOF_NOTICES'
 #!/bin/sh
 printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
@@ -300,6 +306,18 @@ open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --o
 }
 grep -q 'scripts/release/validate-release-tooling.sh' "$log" || {
   echo "prepare-release --open-pr did not run release tooling validation" >&2
+  exit 1
+}
+grep -q 'scripts/git-hooks/test-common.sh' "$log" || {
+  echo "prepare-release --open-pr did not run git-hook validation" >&2
+  exit 1
+}
+grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
+  echo "prepare-release --open-pr did not run broad clippy validation" >&2
+  exit 1
+}
+grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
+  echo "prepare-release --open-pr did not run strict runtime clippy validation" >&2
   exit 1
 }
 grep -q 'cargo test --workspace' "$log" || {

@@ -37,7 +37,8 @@ pub(crate) fn load_foundry_source(
     source_progress("source_normalize", "Generating derived affliction records");
     info!("generating derived affliction records");
     let generated_afflictions =
-        afflictions::build_generated_afflictions(&source.records, &reference_index);
+        afflictions::build_generated_afflictions(&source.records, &reference_index)
+            .map_err(|error| IngestError::GeneratedAfflictionFailed(error.to_string()))?;
     let generated_references = generated_afflictions.references.clone();
     if !generated_afflictions.records.is_empty() {
         let canonical_count = generated_afflictions

@@ -8,10 +8,8 @@ pub(super) enum HtmlNode {
 }
 
 pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
-    let mut stack = vec![OpenElement {
-        name: "document".to_string(),
-        children: Vec::new(),
-    }];
+    let mut root = Vec::new();
+    let mut stack = Vec::new();
     let mut offset = 0;
 
     while offset < value.len() {
@@ -26,6 +24,7 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
                 ParsedTag::Start { name, self_closing } => {
                     if is_void_tag(&name) || self_closing {
                         push_child(
+                            &mut root,
                             &mut stack,
                             HtmlNode::Element {
                                 name,
@@ -39,7 +38,7 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
                         });
                     }
                 }
-                ParsedTag::End { name } => close_element(&mut stack, &name),
+                ParsedTag::End { name } => close_element(&mut root, &mut stack, &name),
                 ParsedTag::CommentOrDirective => {}
             }
             continue;
@@ -48,23 +47,23 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
         let next_tag = rest.find('<').unwrap_or(rest.len());
         if next_tag > 0 {
             push_child(
+                &mut root,
                 &mut stack,
                 HtmlNode::Text(decode_entities(&rest[..next_tag])),
             );
             offset += next_tag;
         } else {
-            let character = rest
-                .chars()
-                .next()
-                .expect("offset should be inside input while parsing content");
-            push_child(&mut stack, HtmlNode::Text(character.to_string()));
+            let Some(character) = rest.chars().next() else {
+                break;
+            };
+            push_child(&mut root, &mut stack, HtmlNode::Text(character.to_string()));
             offset += character.len_utf8();
         }
     }
 
-    while stack.len() > 1 {
-        let element = stack.pop().expect("stack has element to close");
+    while let Some(element) = stack.pop() {
         push_child(
+            &mut root,
             &mut stack,
             HtmlNode::Element {
                 name: element.name,
@@ -73,11 +72,7 @@ pub(super) fn parse_html_fragment(value: &str) -> Vec<HtmlNode> {
         );
     }
 
-    stack
-        .pop()
-        .expect("document root exists")
-        .children
-        .into_iter()
+    root.into_iter()
         .filter(|node| !node_is_empty_text(node))
         .collect()
 }
@@ -88,25 +83,25 @@ struct OpenElement {
     children: Vec<HtmlNode>,
 }
 
-fn push_child(stack: &mut [OpenElement], child: HtmlNode) {
-    stack
-        .last_mut()
-        .expect("document root remains on the stack")
-        .children
-        .push(child);
+fn push_child(root: &mut Vec<HtmlNode>, stack: &mut [OpenElement], child: HtmlNode) {
+    if let Some(parent) = stack.last_mut() {
+        parent.children.push(child);
+    } else {
+        root.push(child);
+    }
 }
 
-fn close_element(stack: &mut Vec<OpenElement>, name: &str) {
+fn close_element(root: &mut Vec<HtmlNode>, stack: &mut Vec<OpenElement>, name: &str) {
     let Some(position) = stack.iter().rposition(|element| element.name == name) else {
         return;
     };
-    if position == 0 {
-        return;
-    }
 
     while stack.len() > position {
-        let element = stack.pop().expect("matched open element exists");
+        let Some(element) = stack.pop() else {
+            break;
+        };
         push_child(
+            root,
             stack,
             HtmlNode::Element {
                 name: element.name,

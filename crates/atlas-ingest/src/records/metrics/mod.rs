@@ -25,8 +25,8 @@ pub(crate) fn extract_metrics(
     record_type: &str,
 ) -> Result<Vec<MetricRow>, String> {
     let metrics = match document_type {
-        "Actor" => actor::extract_actor_metrics(raw),
-        "Item" => item::extract_item_metrics(raw, record_type),
+        "Actor" => actor::extract_actor_metrics(raw)?,
+        "Item" => item::extract_item_metrics(raw, record_type)?,
         _ => Vec::new(),
     };
     let metrics = dedupe_metrics(metrics);
@@ -50,19 +50,21 @@ fn add_defined_metric_number(
     metrics: &mut Vec<MetricRow>,
     definition: metric_definitions::MetricDefinition,
     value: Option<f64>,
-) {
-    add_metric_number(
-        metrics,
-        definition.domain(),
-        exact_metric_key(definition),
-        value,
-    );
+) -> Result<(), String> {
+    let key = exact_metric_definition_key(definition)?;
+    add_metric_number(metrics, definition.domain(), key, value);
+    Ok(())
 }
 
-fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
-    definition
-        .exact_key()
-        .expect("static metric definition should have an exact key")
+fn exact_metric_definition_key(
+    definition: metric_definitions::MetricDefinition,
+) -> Result<&'static str, String> {
+    definition.exact_key().ok_or_else(|| {
+        format!(
+            "expected static metric definition for {} metric",
+            definition.domain().as_str()
+        )
+    })
 }
 
 fn add_metric_number(

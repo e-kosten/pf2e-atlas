@@ -10,6 +10,22 @@ use super::model::{
     ReusableDocumentEmbedding,
 };
 
+#[derive(Debug, thiserror::Error)]
+pub enum DocumentEmbeddingGenerationError<E> {
+    #[error("{0}")]
+    Embed(E),
+    #[error("{0}")]
+    Embedding(EmbeddingError),
+}
+
+impl DocumentEmbeddingGenerationError<EmbeddingError> {
+    pub fn into_embedding_error(self) -> EmbeddingError {
+        match self {
+            Self::Embed(error) | Self::Embedding(error) => error,
+        }
+    }
+}
+
 pub fn generate_document_embeddings(
     pending: &[PendingDocumentEmbedding],
     embedder: &mut TextEmbedder,
@@ -17,7 +33,8 @@ pub fn generate_document_embeddings(
     Ok(
         generate_document_embeddings_with_reuse_using(pending, None, |input| {
             embedder.embed_document(input)
-        })?
+        })
+        .map_err(DocumentEmbeddingGenerationError::into_embedding_error)?
         .embeddings,
     )
 }
@@ -30,13 +47,14 @@ pub fn generate_document_embeddings_with_reuse(
     generate_document_embeddings_with_reuse_using_batch(pending, reusable_embeddings, 1, |inputs| {
         embedder.embed_documents(inputs)
     })
+    .map_err(DocumentEmbeddingGenerationError::into_embedding_error)
 }
 
 pub fn generate_document_embeddings_with_reuse_using<E>(
     pending: &[PendingDocumentEmbedding],
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     mut embed_document: impl FnMut(&str) -> Result<Vec<f32>, E>,
-) -> Result<GeneratedDocumentEmbeddings, E> {
+) -> Result<GeneratedDocumentEmbeddings, DocumentEmbeddingGenerationError<E>> {
     generate_document_embeddings_with_reuse_using_batch(pending, reusable_embeddings, 1, |inputs| {
         inputs
             .iter()
@@ -50,7 +68,7 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
     reusable_embeddings: Option<&BTreeMap<String, ReusableDocumentEmbedding>>,
     batch_size: usize,
     mut embed_documents: impl FnMut(&[&str]) -> Result<Vec<Vec<f32>>, E>,
-) -> Result<GeneratedDocumentEmbeddings, E> {
+) -> Result<GeneratedDocumentEmbeddings, DocumentEmbeddingGenerationError<E>> {
     let total = pending.len();
     let progress_interval = embedding_progress_interval(total);
     let batch_size = batch_size.max(1);
@@ -87,8 +105,15 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
             .iter()
             .map(|index| pending[*index].input_text.as_str())
             .collect::<Vec<_>>();
-        let vectors = embed_documents(&inputs)?;
-        debug_assert_eq!(vectors.len(), chunk.len());
+        let vectors = embed_documents(&inputs).map_err(DocumentEmbeddingGenerationError::Embed)?;
+        if vectors.len() != chunk.len() {
+            return Err(DocumentEmbeddingGenerationError::Embedding(
+                EmbeddingError::UnexpectedEmbeddingOutputCount {
+                    expected: chunk.len(),
+                    actual: vectors.len(),
+                },
+            ));
+        }
         for (chunk_index, vector) in vectors.into_iter().enumerate() {
             let index = chunk[chunk_index];
             let entry = &pending[index];
@@ -124,11 +149,18 @@ pub fn generate_document_embeddings_with_reuse_using_batch<E>(
         );
     }
 
+    let embeddings = generated.into_iter().flatten().collect::<Vec<_>>();
+    if embeddings.len() != total {
+        return Err(DocumentEmbeddingGenerationError::Embedding(
+            EmbeddingError::UnexpectedEmbeddingOutputCount {
+                expected: total,
+                actual: embeddings.len(),
+            },
+        ));
+    }
+
     Ok(GeneratedDocumentEmbeddings {
-        embeddings: generated
-            .into_iter()
-            .map(|entry| entry.expect("every pending embedding is generated or reused"))
-            .collect(),
+        embeddings,
         reused_count,
         generated_count,
     })

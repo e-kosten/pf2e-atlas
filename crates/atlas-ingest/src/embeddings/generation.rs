@@ -128,10 +128,14 @@ pub(crate) fn generate_document_embeddings_for_source(
                 timing.model_load_duration_ms = load_started_at.elapsed().as_millis();
             }
             let batch_started_at = Instant::now();
-            let vectors = embedder
-                .as_mut()
-                .expect("embedder was initialized")
-                .embed_documents(inputs)?;
+            let vectors = match embedder.as_mut() {
+                Some(embedder) => embedder.embed_documents(inputs)?,
+                None => {
+                    return Err(atlas_embedding::EmbeddingError::ModelRunFailed(
+                        "embedder was not initialized".to_string(),
+                    ));
+                }
+            };
             batch_durations_ms.push(batch_started_at.elapsed().as_millis());
             Ok::<Vec<Vec<f32>>, atlas_embedding::EmbeddingError>(vectors)
         },

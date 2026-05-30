@@ -8,13 +8,16 @@ use crate::source::normalize::pointer_string;
 use super::value::slugify_metric_segment;
 use super::{add_defined_metric_number, add_metric_number};
 
-pub(super) fn extract_disable_metrics(raw: &Value, metrics: &mut Vec<MetricRow>) {
+pub(super) fn extract_disable_metrics(
+    raw: &Value,
+    metrics: &mut Vec<MetricRow>,
+) -> Result<(), String> {
     let Some(disable_markup) = pointer_string(raw, "/system/details/disable") else {
-        return;
+        return Ok(());
     };
     let checks = parse_disable_checks(&disable_markup);
     if checks.is_empty() {
-        return;
+        return Ok(());
     }
 
     let all_dcs = checks
@@ -26,12 +29,12 @@ pub(super) fn extract_disable_metrics(raw: &Value, metrics: &mut Vec<MetricRow>)
             metrics,
             metric_definitions::actor::disable::DC_MIN,
             Some(min),
-        );
+        )?;
         add_defined_metric_number(
             metrics,
             metric_definitions::actor::disable::DC_MAX,
             Some(max),
-        );
+        )?;
     }
 
     for skill in HAZARD_DISABLE_SKILLS {
@@ -69,6 +72,7 @@ pub(super) fn extract_disable_metrics(raw: &Value, metrics: &mut Vec<MetricRow>)
             );
         }
     }
+    Ok(())
 }
 
 #[derive(Debug, PartialEq)]

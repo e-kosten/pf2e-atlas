@@ -54,7 +54,9 @@ pub(super) fn extract_remaster_journal_changes(
             }
 
             let old_cell = &cells[0];
-            let new_cell = cells.last().expect("row should have at least two cells");
+            let Some(new_cell) = cells.last() else {
+                continue;
+            };
             let targets = resolve_journal_targets(new_cell, index);
             if targets.is_empty() {
                 continue;
