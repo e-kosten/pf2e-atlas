@@ -82,7 +82,14 @@ Build and test from the repository root:
 
 ```bash
 cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
+cargo clippy --workspace --lib --bins -- -D warnings \
+  -D clippy::unwrap_used \
+  -D clippy::expect_used \
+  -D clippy::panic \
+  -D clippy::unimplemented \
+  -D clippy::todo \
+  -D clippy::unreachable
 cargo test --workspace
 cargo build --workspace
 ```
@@ -207,7 +214,14 @@ Run these before opening a branch for review, merging back to `main`, or prepari
 
 ```bash
 cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
+cargo clippy --workspace --lib --bins -- -D warnings \
+  -D clippy::unwrap_used \
+  -D clippy::expect_used \
+  -D clippy::panic \
+  -D clippy::unimplemented \
+  -D clippy::todo \
+  -D clippy::unreachable
 cargo test --workspace
 cargo build --workspace
 ```

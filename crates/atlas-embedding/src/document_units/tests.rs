@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 
 use atlas_domain::{RecordFamily, RecordKey};
 use atlas_record::{
@@ -12,13 +13,14 @@ use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
 use crate::document_units::builder::pending_embedding_unit;
 use crate::document_units::token_budget::summarize_document_embedding_tokenization;
 use crate::document_units::{
-    DocumentEmbeddingContentSource, DocumentEmbeddingRecordTruncationCoverage,
-    DocumentEmbeddingSectionTruncation, DocumentEmbeddingSource,
-    DocumentEmbeddingTruncationExample, DocumentEmbeddingUnitKindTruncation,
-    PendingDocumentEmbedding, ReusableDocumentEmbedding, build_document_embedding_units,
-    generate_document_embeddings_with_reuse_using,
+    DocumentEmbeddingContentSource, DocumentEmbeddingGenerationError,
+    DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
+    DocumentEmbeddingSource, DocumentEmbeddingTruncationExample,
+    DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding, ReusableDocumentEmbedding,
+    build_document_embedding_units, generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
+use crate::error::EmbeddingError;
 use crate::tokenization::{EmbeddingInputTokenization, EmbeddingSectionTruncation};
 use crate::unit_kind::EmbeddingUnitKind;
 
@@ -229,7 +231,7 @@ fn generates_document_vectors_from_pending_inputs() {
     ];
 
     let generated = generate_document_embeddings_with_reuse_using(&pending, None, |input| {
-        Ok::<_, std::convert::Infallible>(vec![input.len() as f32, 1.0])
+        Ok::<_, Infallible>(vec![input.len() as f32, 1.0])
     })
     .expect("fixture embedding should succeed")
     .embeddings;
@@ -262,7 +264,7 @@ fn reuses_matching_document_vectors() {
 
     let generated =
         generate_document_embeddings_with_reuse_using(&pending, Some(&reusable), |input| {
-            Ok::<_, std::convert::Infallible>(vec![input.len() as f32, 1.0])
+            Ok::<_, Infallible>(vec![input.len() as f32, 1.0])
         })
         .expect("fixture embedding should succeed");
 
@@ -284,7 +286,7 @@ fn generates_missing_document_vectors_in_batches() {
     let generated =
         generate_document_embeddings_with_reuse_using_batch(&pending, None, 2, |inputs| {
             batch_lengths.push(inputs.len());
-            Ok::<_, std::convert::Infallible>(
+            Ok::<_, EmbeddingError>(
                 inputs
                     .iter()
                     .map(|input| vec![input.len() as f32, inputs.len() as f32])
@@ -305,6 +307,53 @@ fn generates_missing_document_vectors_in_batches() {
     );
     assert_eq!(generated.embeddings[0].vector, vec![11.0, 2.0]);
     assert_eq!(generated.embeddings[2].vector, vec![11.0, 1.0]);
+}
+
+#[test]
+fn errors_when_batch_returns_too_few_document_vectors() {
+    let pending = vec![
+        pending_embedding_with_hash("packs:first", "first input", "first-hash"),
+        pending_embedding_with_hash("packs:second", "second input", "second-hash"),
+    ];
+
+    let error = generate_document_embeddings_with_reuse_using_batch(&pending, None, 2, |_inputs| {
+        Ok::<_, Infallible>(vec![vec![1.0]])
+    })
+    .expect_err("short batch output should fail");
+
+    assert!(matches!(
+        error,
+        DocumentEmbeddingGenerationError::Embedding(
+            EmbeddingError::UnexpectedEmbeddingOutputCount {
+                expected: 2,
+                actual: 1
+            }
+        )
+    ));
+}
+
+#[test]
+fn errors_when_batch_returns_too_many_document_vectors() {
+    let pending = vec![pending_embedding_with_hash(
+        "packs:first",
+        "first input",
+        "first-hash",
+    )];
+
+    let error = generate_document_embeddings_with_reuse_using_batch(&pending, None, 1, |_inputs| {
+        Ok::<_, Infallible>(vec![vec![1.0], vec![2.0]])
+    })
+    .expect_err("long batch output should fail");
+
+    assert!(matches!(
+        error,
+        DocumentEmbeddingGenerationError::Embedding(
+            EmbeddingError::UnexpectedEmbeddingOutputCount {
+                expected: 1,
+                actual: 2
+            }
+        )
+    ));
 }
 
 #[test]

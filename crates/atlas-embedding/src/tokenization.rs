@@ -104,10 +104,7 @@ impl TextEmbeddingTokenizer {
     ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
         let max_token_count = self.spec.max_input_tokens;
         let full_text = render_embedding_chunks_for_embedding(chunks);
-        let full_tokenization = self
-            .analyze_texts(&[full_text.as_str()], self.spec.document_prefix)?
-            .pop()
-            .expect("single text returns one tokenization");
+        let full_tokenization = self.analyze_single_text(&full_text, self.spec.document_prefix)?;
         let Some(max_token_count) = max_token_count else {
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
@@ -154,18 +151,14 @@ impl TextEmbeddingTokenizer {
         })
     }
 
-    fn analyze_texts(
+    fn analyze_single_text(
         &self,
-        texts: &[&str],
+        text: &str,
         prefix: &str,
-    ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
+    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
         let max_token_count = self.spec.max_input_tokens;
         let mut tokenizer = self.unbounded_tokenizer()?;
-
-        texts
-            .iter()
-            .map(|text| analyze_text(&mut tokenizer, text, prefix, max_token_count))
-            .collect()
+        analyze_text(&mut tokenizer, text, prefix, max_token_count)
     }
 
     fn unbounded_tokenizer(&self) -> Result<Tokenizer, EmbeddingError> {
@@ -179,9 +172,7 @@ impl TextEmbeddingTokenizer {
 
     fn document_token_count(&self, text: &str) -> Result<usize, EmbeddingError> {
         Ok(self
-            .analyze_texts(&[text], self.spec.document_prefix)?
-            .pop()
-            .expect("single text returns one tokenization")
+            .analyze_single_text(text, self.spec.document_prefix)?
             .token_count)
     }
 

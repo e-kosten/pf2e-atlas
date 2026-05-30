@@ -26,4 +26,6 @@ pub enum EmbeddingError {
     UnexpectedHiddenStateShape(Vec<usize>),
     #[error("model returned {actual} dimensions, but embedding catalog expects {expected}")]
     DimensionMismatch { expected: usize, actual: usize },
+    #[error("embedding model returned {actual} outputs for {expected} inputs")]
+    UnexpectedEmbeddingOutputCount { expected: usize, actual: usize },
 }

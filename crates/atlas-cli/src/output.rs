@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use atlas_index::{ArtifactValidationReport, ValidationCode, ValidationStatus};
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 #[derive(Debug, Serialize)]
 struct SuccessEnvelope<T>
@@ -108,92 +108,107 @@ pub(crate) fn write_validation_report(
 }
 
 fn validation_report_data(report: &ArtifactValidationReport) -> Value {
-    let mut data = json!({
-        "valid": report.status == ValidationStatus::Ok,
-        "code": validation_code_json(&report.code),
-        "index": report.index,
-        "message": report.message,
-    });
+    let mut object = Map::from_iter([
+        (
+            "valid".to_string(),
+            Value::Bool(report.status == ValidationStatus::Ok),
+        ),
+        (
+            "code".to_string(),
+            Value::String(validation_code_json(&report.code).to_string()),
+        ),
+        ("index".to_string(), Value::String(report.index.clone())),
+        ("message".to_string(), Value::String(report.message.clone())),
+    ]);
 
-    let object = data
-        .as_object_mut()
-        .expect("validation report data should be an object");
     insert_optional(
-        object,
+        &mut object,
         "artifact_contract_version",
         &report.artifact_contract_version,
     );
-    insert_optional(object, "schema_version", &report.schema_version);
-    insert_optional(object, "source_kind", &report.source_kind);
-    insert_optional(object, "source_signature", &report.source_signature);
-    insert_optional(object, "source_record_count", &report.source_record_count);
+    insert_optional(&mut object, "schema_version", &report.schema_version);
+    insert_optional(&mut object, "source_kind", &report.source_kind);
+    insert_optional(&mut object, "source_signature", &report.source_signature);
     insert_optional(
-        object,
+        &mut object,
+        "source_record_count",
+        &report.source_record_count,
+    );
+    insert_optional(
+        &mut object,
         "artifact_record_count",
         &report.artifact_record_count,
     );
     insert_optional(
-        object,
+        &mut object,
         "generated_record_count",
         &report.generated_record_count,
     );
     insert_optional(
-        object,
+        &mut object,
         "content_hash_algorithm",
         &report.content_hash_algorithm,
     );
     insert_optional(
-        object,
+        &mut object,
         "embedding_provider_family",
         &report.embedding_provider_family,
     );
-    insert_optional(object, "embedding_model_id", &report.embedding_model_id);
     insert_optional(
-        object,
+        &mut object,
+        "embedding_model_id",
+        &report.embedding_model_id,
+    );
+    insert_optional(
+        &mut object,
         "embedding_model_revision",
         &report.embedding_model_revision,
     );
     insert_optional(
-        object,
+        &mut object,
         "embedding_tokenizer_id",
         &report.embedding_tokenizer_id,
     );
-    insert_optional(object, "embedding_pooling", &report.embedding_pooling);
+    insert_optional(&mut object, "embedding_pooling", &report.embedding_pooling);
     insert_optional(
-        object,
+        &mut object,
         "embedding_normalization",
         &report.embedding_normalization,
     );
-    insert_optional(object, "embedding_dimensions", &report.embedding_dimensions);
-    insert_optional(object, "embedding_dtype", &report.embedding_dtype);
     insert_optional(
-        object,
+        &mut object,
+        "embedding_dimensions",
+        &report.embedding_dimensions,
+    );
+    insert_optional(&mut object, "embedding_dtype", &report.embedding_dtype);
+    insert_optional(
+        &mut object,
         "embedding_distance_metric",
         &report.embedding_distance_metric,
     );
     insert_optional(
-        object,
+        &mut object,
         "embedding_document_prefix",
         &report.embedding_document_prefix,
     );
     insert_optional(
-        object,
+        &mut object,
         "embedding_query_prefix",
         &report.embedding_query_prefix,
     );
     insert_optional(
-        object,
+        &mut object,
         "embedding_unit_policy_version",
         &report.embedding_unit_policy_version,
     );
-    insert_optional(object, "fts_tokenizer", &report.fts_tokenizer);
+    insert_optional(&mut object, "fts_tokenizer", &report.fts_tokenizer);
     insert_optional(
-        object,
+        &mut object,
         "adjacent_manifest_path",
         &report.adjacent_manifest_path,
     );
     insert_optional(
-        object,
+        &mut object,
         "legacy_schema_version",
         &report.legacy_schema_version,
     );
@@ -208,25 +223,28 @@ fn validation_report_data(report: &ArtifactValidationReport) -> Value {
                     .diagnostics
                     .iter()
                     .map(|diagnostic| {
-                        let mut value = json!({
-                            "code": validation_code_json(&diagnostic.code),
-                            "family": diagnostic.family,
-                            "message": diagnostic.message,
-                        });
-                        let object = value
-                            .as_object_mut()
-                            .expect("validation diagnostic data should be an object");
-                        insert_optional(object, "key", &diagnostic.key);
-                        insert_optional(object, "expected", &diagnostic.expected);
-                        insert_optional(object, "actual", &diagnostic.actual);
-                        value
+                        let mut object = Map::from_iter([
+                            (
+                                "code".to_string(),
+                                Value::String(validation_code_json(&diagnostic.code).to_string()),
+                            ),
+                            ("family".to_string(), json!(diagnostic.family)),
+                            (
+                                "message".to_string(),
+                                Value::String(diagnostic.message.clone()),
+                            ),
+                        ]);
+                        insert_optional(&mut object, "key", &diagnostic.key);
+                        insert_optional(&mut object, "expected", &diagnostic.expected);
+                        insert_optional(&mut object, "actual", &diagnostic.actual);
+                        Value::Object(object)
                     })
                     .collect(),
             ),
         );
     }
 
-    data
+    Value::Object(object)
 }
 
 fn insert_optional(
@@ -274,5 +292,68 @@ fn validation_code_json(code: &ValidationCode) -> &'static str {
         ValidationCode::ManifestMismatch => "manifest_mismatch",
         ValidationCode::VectorExtensionUnavailable => "vector_extension_unavailable",
         ValidationCode::QueryFailed => "query_failed",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_index::{
+        ArtifactContractFamily, ArtifactValidationDiagnostic, ArtifactValidationReport,
+    };
+
+    use super::*;
+
+    #[test]
+    fn validation_report_json_includes_optional_metadata_and_diagnostics() {
+        let report = ArtifactValidationReport {
+            status: ValidationStatus::Error,
+            code: ValidationCode::MissingRequiredMetadata,
+            index: "artifact.sqlite".to_string(),
+            message: "missing metadata".to_string(),
+            artifact_contract_version: Some("1".to_string()),
+            schema_version: Some("1".to_string()),
+            source_kind: Some("foundry-pf2e".to_string()),
+            source_signature: Some("signature".to_string()),
+            source_record_count: Some("10".to_string()),
+            artifact_record_count: Some("12".to_string()),
+            generated_record_count: Some("2".to_string()),
+            content_hash_algorithm: Some("sha256".to_string()),
+            embedding_provider_family: Some("fastembed".to_string()),
+            embedding_model_id: Some("model".to_string()),
+            embedding_model_revision: Some("revision".to_string()),
+            embedding_tokenizer_id: Some("tokenizer".to_string()),
+            embedding_pooling: Some("mean".to_string()),
+            embedding_normalization: Some("l2".to_string()),
+            embedding_dimensions: Some("384".to_string()),
+            embedding_dtype: Some("f32".to_string()),
+            embedding_distance_metric: Some("cosine".to_string()),
+            embedding_document_prefix: Some("document:".to_string()),
+            embedding_query_prefix: Some("query:".to_string()),
+            embedding_unit_policy_version: Some("policy".to_string()),
+            fts_tokenizer: Some("unicode61".to_string()),
+            adjacent_manifest_path: Some("manifest.json".to_string()),
+            missing_keys: vec!["schema_version".to_string()],
+            diagnostics: vec![ArtifactValidationDiagnostic {
+                code: ValidationCode::MissingRequiredMetadata,
+                family: ArtifactContractFamily::Contract,
+                message: "missing schema_version".to_string(),
+                key: Some("schema_version".to_string()),
+                expected: Some("present".to_string()),
+                actual: Some("missing".to_string()),
+            }],
+            legacy_schema_version: Some("0".to_string()),
+        };
+
+        let data = validation_report_data(&report);
+
+        assert_eq!(data["valid"], false);
+        assert_eq!(data["code"], "missing_required_metadata");
+        assert_eq!(data["artifact_contract_version"], "1");
+        assert_eq!(data["embedding_model_id"], "model");
+        assert_eq!(data["missing_keys"][0], "schema_version");
+        assert_eq!(data["diagnostics"][0]["key"], "schema_version");
+        assert_eq!(data["diagnostics"][0]["expected"], "present");
+        assert_eq!(data["diagnostics"][0]["actual"], "missing");
+        assert_eq!(data["legacy_schema_version"], "0");
     }
 }

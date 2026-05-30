@@ -5,8 +5,8 @@ mod token_budget;
 
 pub use builder::build_document_embedding_units;
 pub use generation::{
-    generate_document_embeddings, generate_document_embeddings_with_reuse,
-    generate_document_embeddings_with_reuse_using,
+    DocumentEmbeddingGenerationError, generate_document_embeddings,
+    generate_document_embeddings_with_reuse, generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 pub use model::{

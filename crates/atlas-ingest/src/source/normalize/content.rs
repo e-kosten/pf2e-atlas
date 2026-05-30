@@ -358,10 +358,9 @@ fn parse_text_inlines(
             push_text_inline(&mut inlines, &rest[..next_signal]);
             offset += next_signal;
         } else {
-            let character = rest
-                .chars()
-                .next()
-                .expect("offset should be inside input while parsing text");
+            let Some(character) = rest.chars().next() else {
+                break;
+            };
             push_text_inline(&mut inlines, &character.to_string());
             offset += character.len_utf8();
         }

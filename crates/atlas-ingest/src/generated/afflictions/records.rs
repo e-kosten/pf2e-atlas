@@ -1,33 +1,23 @@
-use atlas_domain::{PackName, RecordFamily, RecordId};
+use atlas_domain::RecordFamily;
 use serde_json::{Value, json};
 
-use crate::diagnostics::{
-    DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTION_INSTANCES_PACK_NAME,
-    DERIVED_AFFLICTIONS_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_NAME,
-};
+use crate::diagnostics::{DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_LABEL};
 use crate::generated::afflictions::source_facts::affliction_family_label;
 use crate::generated::afflictions::{AfflictionOccurrence, DerivedAfflictionRecordInput};
 use crate::records::{LoadedSourceRecord, NormalizedRecord, SourceConstructionFacts};
 use crate::source::normalize::normalize_text;
 
 pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> LoadedSourceRecord {
-    let id = RecordId::new(input.id).expect("derived id is valid");
-    let raw_json = serde_json::to_string(&input.raw).expect("derived raw JSON serializes");
+    let id = input.key.id().clone();
+    let pack_name = input.key.pack().clone();
+    let raw_json = input.raw.to_string();
     let record = NormalizedRecord {
         key: input.key,
         id,
         name: input.name.clone(),
         normalized_name: normalize_text(&input.name),
         record_family: RecordFamily::Affliction,
-        pack_name: PackName::new(
-            if input.is_default_visible {
-                DERIVED_AFFLICTIONS_PACK_NAME
-            } else {
-                DERIVED_AFFLICTION_INSTANCES_PACK_NAME
-            }
-            .to_string(),
-        )
-        .expect("static pack name"),
+        pack_name,
         pack_label: if input.is_default_visible {
             DERIVED_AFFLICTIONS_PACK_LABEL
         } else {

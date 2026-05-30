@@ -6,6 +6,7 @@ use atlas_ingest::{
     BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
+use serde_json::Value;
 
 use crate::output::{write_json_data, write_validation_report};
 use crate::{
@@ -87,11 +88,12 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     .map_err(|error| error.to_string())?;
 
     if options.json {
-        let mut data = build_artifact_json(&report);
-        data.as_object_mut()
-            .expect("build artifact JSON should be an object")
-            .remove("status");
-        write_json_data(data)?;
+        let data = build_artifact_json(&report);
+        let Value::Object(mut object) = data else {
+            return Err("build artifact JSON should be an object".to_string());
+        };
+        object.remove("status");
+        write_json_data(Value::Object(object))?;
     } else {
         println!(
             "ok: wrote {} records from {} packs to {}",

@@ -36,24 +36,21 @@ pub(super) fn cluster_affliction_occurrences(
 
 pub(super) fn choose_affliction_authoritative_candidate(
     occurrences: &[AfflictionOccurrence],
-) -> (&AfflictionOccurrence, Option<&NormalizedRecord>) {
-    let representative = occurrences
-        .iter()
-        .min_by(|left, right| {
-            right
-                .source_record
-                .is_some()
-                .cmp(&left.source_record.is_some())
-                .then_with(|| {
-                    left.host_record
-                        .key
-                        .to_string()
-                        .cmp(&right.host_record.key.to_string())
-                })
-                .then_with(|| left.occurrence_ref.cmp(&right.occurrence_ref))
-        })
-        .expect("non-empty cluster");
-    (representative, representative.source_record.as_ref())
+) -> Option<(&AfflictionOccurrence, Option<&NormalizedRecord>)> {
+    let representative = occurrences.iter().min_by(|left, right| {
+        right
+            .source_record
+            .is_some()
+            .cmp(&left.source_record.is_some())
+            .then_with(|| {
+                left.host_record
+                    .key
+                    .to_string()
+                    .cmp(&right.host_record.key.to_string())
+            })
+            .then_with(|| left.occurrence_ref.cmp(&right.occurrence_ref))
+    })?;
+    Some((representative, representative.source_record.as_ref()))
 }
 
 fn find_parent(parent: &mut [usize], index: usize) -> usize {

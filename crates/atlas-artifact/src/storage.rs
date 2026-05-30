@@ -42,10 +42,13 @@ pub fn decode_f32_vector_blob(blob: &[u8]) -> Result<Vec<f32>, VectorBlobDecodeE
         return Err(VectorBlobDecodeError { len: blob.len() });
     }
 
-    Ok(blob
-        .chunks_exact(F32_VECTOR_ELEMENT_BYTES)
-        .map(|chunk| f32::from_le_bytes(chunk.try_into().expect("chunk length is fixed")))
-        .collect())
+    let mut vector = Vec::with_capacity(blob.len() / F32_VECTOR_ELEMENT_BYTES);
+    for chunk in blob.chunks_exact(F32_VECTOR_ELEMENT_BYTES) {
+        let mut bytes = [0_u8; F32_VECTOR_ELEMENT_BYTES];
+        bytes.copy_from_slice(chunk);
+        vector.push(f32::from_le_bytes(bytes));
+    }
+    Ok(vector)
 }
 
 pub const fn f32_vector_blob_len(dimensions: usize) -> usize {
