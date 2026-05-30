@@ -11,6 +11,7 @@ mod build_input;
 mod contract;
 mod database;
 mod discovery;
+mod embedding_cache;
 mod filters;
 mod fts;
 mod inspect;
@@ -32,6 +33,7 @@ pub use database::{
     FtsSearchHit, ReferenceEdgeDirection,
 };
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
+pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
 pub use filters::FilterCompileError;
 pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
@@ -39,11 +41,11 @@ pub use inspect::{
 };
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
+pub use sqlite::SqliteIndexWriter;
 pub use validation::{
     ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
-pub use sqlite::SqliteIndexWriter;
 pub use vector::{VectorQueryError, VectorSearchHit};
 pub use write::{IndexArtifactWriter, IndexWriteError};
 

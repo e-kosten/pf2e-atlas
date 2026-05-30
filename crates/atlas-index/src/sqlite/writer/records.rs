@@ -3,7 +3,7 @@ use atlas_artifact::schema::{
     record_metric_insert_sql, record_trait_insert_sql, records_fts_insert_sql,
     spell_record_insert_sql,
 };
-use atlas_record::{NormalizedRecord, RecordAlias, RemasterLink, build_record_fts_projection};
+use atlas_record::{NormalizedRecord, build_record_fts_projection};
 use rusqlite::{Connection, params};
 
 use super::labels::{
@@ -12,6 +12,7 @@ use super::labels::{
 };
 use crate::IndexWriteError;
 use crate::writer_visibility::RetrievalVisibility;
+use atlas_record::{RecordAlias, RemasterLink};
 
 pub(super) fn write_records(
     connection: &Connection,
@@ -122,6 +123,7 @@ pub(super) fn write_records(
             insert_content
                 .execute(params![
                     record.key.to_string(),
+                    supplemental_content_key(ordinal),
                     ordinal as i64,
                     supplemental.source_kind.as_str(),
                     supplemental.visibility.as_str(),
@@ -232,12 +234,17 @@ pub(super) fn write_records(
     Ok(())
 }
 
-fn json_array(values: &[String]) -> Result<String, IndexWriteError> {
-    serde_json::to_string(values)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
+pub(crate) fn supplemental_content_key(ordinal: usize) -> String {
+    format!("content:{ordinal}")
 }
 
-fn optional_json<T: serde::Serialize>(value: &Option<T>) -> Result<Option<String>, IndexWriteError> {
+fn json_array(values: &[String]) -> Result<String, IndexWriteError> {
+    serde_json::to_string(values).map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
+}
+
+fn optional_json<T: serde::Serialize>(
+    value: &Option<T>,
+) -> Result<Option<String>, IndexWriteError> {
     value
         .as_ref()
         .map(serde_json::to_string)

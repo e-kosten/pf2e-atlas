@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::{IndexArtifactWriter, IndexBuildInput};
 use atlas_embedding::EmbeddingModelId;
 use rusqlite::Connection;
 use tracing::info;
@@ -24,10 +25,12 @@ use metadata::write_artifact_metadata;
 use metric_catalogs::write_metric_catalogs;
 use packs::write_packs;
 use records::write_records;
-use relationships::{write_record_aliases, write_reference_edges, write_remaster_links};
+use relationships::{
+    write_record_aliases, write_reference_edges, write_reference_occurrences, write_remaster_links,
+};
 use vector_index::write_record_vector_index;
 
-use crate::{IndexArtifactWriter, IndexBuildInput, IndexWriteError};
+use crate::IndexWriteError;
 
 pub struct SqliteIndexWriter {
     path: PathBuf,
@@ -93,7 +96,7 @@ fn write_artifact(
     info!(packs = input.packs.len(), "writing packs");
     write_packs(&transaction, &input.packs)?;
     artifact_progress("artifact_write", "Writing records");
-    info!(records = input.artifact_record_count(), "writing records");
+    info!(records = input.records.len(), "writing records");
     write_records(
         &transaction,
         &input.records,
@@ -106,6 +109,12 @@ fn write_artifact(
         "writing reference edges"
     );
     write_reference_edges(&transaction, input.references)?;
+    artifact_progress("artifact_write", "Writing reference occurrences");
+    info!(
+        records = input.records.len(),
+        "writing reference occurrences"
+    );
+    write_reference_occurrences(&transaction, &input.records)?;
     artifact_progress("artifact_write", "Writing record aliases");
     info!(aliases = input.aliases.len(), "writing record aliases");
     write_record_aliases(&transaction, input.aliases)?;
@@ -135,12 +144,15 @@ fn write_artifact(
     artifact_progress("artifact_write", "Writing filter discovery catalogs");
     info!("writing filter discovery catalogs");
     write_discovery_catalogs(&transaction)?;
-    artifact_progress("artifact_write", "Publishing artifact");
-    info!("committing artifact");
+    artifact_progress("artifact_write", "Finalizing SQLite artifact tables");
+    info!("committing SQLite artifact tables");
     transaction
         .commit()
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     drop(connection);
+
+    artifact_progress("artifact_write", "Publishing artifact");
+    info!("publishing artifact");
     output.commit()
 }
 

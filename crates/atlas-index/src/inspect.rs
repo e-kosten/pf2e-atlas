@@ -1,6 +1,6 @@
 use atlas_artifact::schema::{
     TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
-    TABLE_REFERENCE_EDGES, TABLE_REMASTER_LINKS, required_tables,
+    TABLE_REFERENCE_EDGES, TABLE_REFERENCE_OCCURRENCES, TABLE_REMASTER_LINKS, required_tables,
 };
 use rusqlite::Connection;
 use serde::Serialize;
@@ -57,6 +57,7 @@ pub struct VariantCoverageReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RelationshipCoverageReport {
     pub reference_edges: usize,
+    pub reference_occurrences: usize,
     pub record_aliases: usize,
     pub remaster_links: usize,
 }
@@ -236,6 +237,7 @@ fn inspect_relationships(
 ) -> Result<RelationshipCoverageReport, IndexValidationError> {
     Ok(RelationshipCoverageReport {
         reference_edges: count_rows(connection, TABLE_REFERENCE_EDGES)?,
+        reference_occurrences: count_rows(connection, TABLE_REFERENCE_OCCURRENCES)?,
         record_aliases: count_rows(connection, TABLE_RECORD_ALIASES)?,
         remaster_links: count_rows(connection, TABLE_REMASTER_LINKS)?,
     })

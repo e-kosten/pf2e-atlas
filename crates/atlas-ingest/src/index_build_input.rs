@@ -96,12 +96,10 @@ mod tests {
                 record_key: source_key.to_string(),
                 unit_kind: EmbeddingUnitKind::Parent,
                 label: None,
-                source_kind: None,
                 ordinal: 0,
                 input_chunks: Vec::new(),
                 input_text: "source record".to_string(),
                 input_hash: "pending-hash".to_string(),
-                child_candidates: Vec::new(),
             }],
             document_embeddings: vec![GeneratedDocumentEmbedding {
                 embedding_unit_key: "source-pack.source-record#parent".to_string(),

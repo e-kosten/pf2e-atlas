@@ -88,7 +88,7 @@ Graph product findings:
 The strongest reusable outcome is not a graph database. It is a narrower SQLite provenance model:
 
 ```text
-reference_occurrences(record_key, content_key, target_record_key, display_text, reference_text)
+reference_occurrences(record_key, content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text)
 ```
 
 This table records which logical content unit contained a resolved reference without duplicating content text. Logical content keys identify:

@@ -21,7 +21,7 @@ pub use metrics::{metric_key_catalog, metric_value_catalog, record_metrics};
 pub use record_tables::{
     actor_records, item_records, record_content, record_traits, records, spell_records,
 };
-pub use relationships::{record_aliases, reference_edges, remaster_links};
+pub use relationships::{record_aliases, reference_edges, reference_occurrences, remaster_links};
 pub use search::records_fts;
 
 const CONTENT_SOURCE_KINDS: &[&str] = &[
@@ -51,6 +51,7 @@ pub const TABLE_RECORDS: &str = records::TABLE.name();
 pub const TABLE_RECORD_CONTENT: &str = record_content::TABLE.name();
 pub const TABLE_RECORD_TRAITS: &str = record_traits::TABLE.name();
 pub const TABLE_REFERENCE_EDGES: &str = reference_edges::TABLE.name();
+pub const TABLE_REFERENCE_OCCURRENCES: &str = reference_occurrences::TABLE.name();
 pub const TABLE_RECORD_ALIASES: &str = record_aliases::TABLE.name();
 pub const TABLE_REMASTER_LINKS: &str = remaster_links::TABLE.name();
 pub const TABLE_RECORD_METRICS: &str = record_metrics::TABLE.name();
@@ -72,6 +73,7 @@ pub const PERSISTED_RECORD_COLUMNS: &[Column] = records::PERSISTED_COLUMNS;
 pub const RECORD_CONTENT_COLUMNS: &[Column] = record_content::ALL_COLUMNS;
 pub const RECORD_TRAIT_COLUMNS: &[Column] = record_traits::ALL_COLUMNS;
 pub const REFERENCE_EDGE_COLUMNS: &[Column] = reference_edges::ALL_COLUMNS;
+pub const REFERENCE_OCCURRENCE_COLUMNS: &[Column] = reference_occurrences::ALL_COLUMNS;
 pub const RECORD_ALIAS_COLUMNS: &[Column] = record_aliases::ALL_COLUMNS;
 pub const REMASTER_LINK_COLUMNS: &[Column] = remaster_links::ALL_COLUMNS;
 pub const RECORD_METRIC_COLUMNS: &[Column] = record_metrics::ALL_COLUMNS;
@@ -152,6 +154,7 @@ const RECORD_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
 
 const RECORD_CONTENT_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
     text_not_null(record_content::columns::RECORD_KEY),
+    text_not_null(record_content::columns::CONTENT_KEY),
     integer_not_null(record_content::columns::ORDINAL),
     closed_text_not_null(record_content::columns::SOURCE_KIND, CONTENT_SOURCE_KINDS),
     closed_text_not_null(record_content::columns::VISIBILITY, CONTENT_VISIBILITIES),
@@ -163,7 +166,7 @@ const RECORD_CONTENT_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
 const RECORD_CONTENT_CONSTRAINTS: &[TableConstraint] = &[
     primary_key(&[
         record_content::columns::RECORD_KEY,
-        record_content::columns::ORDINAL,
+        record_content::columns::CONTENT_KEY,
     ]),
     cascade_foreign_key(
         &[record_content::columns::RECORD_KEY],
@@ -210,6 +213,40 @@ const REFERENCE_EDGE_CONSTRAINTS: &[TableConstraint] = &[
     ),
     cascade_foreign_key(
         &[reference_edges::columns::TO_RECORD_KEY],
+        records::TABLE,
+        &[records::columns::RECORD_KEY],
+    ),
+];
+
+const REFERENCE_OCCURRENCE_COLUMN_DESCRIPTORS: &[ColumnDescriptor] = &[
+    text_not_null(reference_occurrences::columns::RECORD_KEY),
+    text_not_null(reference_occurrences::columns::CONTENT_KEY),
+    integer_not_null(reference_occurrences::columns::OCCURRENCE_ORDINAL),
+    text_not_null(reference_occurrences::columns::TARGET_RECORD_KEY),
+    closed_text_not_null(
+        reference_occurrences::columns::SOURCE_KIND,
+        CONTENT_SOURCE_KINDS,
+    ),
+    closed_text_not_null(
+        reference_occurrences::columns::VISIBILITY,
+        CONTENT_VISIBILITIES,
+    ),
+    text(reference_occurrences::columns::DISPLAY_TEXT),
+    text_not_null(reference_occurrences::columns::REFERENCE_TEXT),
+];
+const REFERENCE_OCCURRENCE_CONSTRAINTS: &[TableConstraint] = &[
+    primary_key(&[
+        reference_occurrences::columns::RECORD_KEY,
+        reference_occurrences::columns::CONTENT_KEY,
+        reference_occurrences::columns::OCCURRENCE_ORDINAL,
+    ]),
+    cascade_foreign_key(
+        &[reference_occurrences::columns::RECORD_KEY],
+        records::TABLE,
+        &[records::columns::RECORD_KEY],
+    ),
+    cascade_foreign_key(
+        &[reference_occurrences::columns::TARGET_RECORD_KEY],
         records::TABLE,
         &[records::columns::RECORD_KEY],
     ),
@@ -496,6 +533,11 @@ pub const TABLE_DESCRIPTORS: &[TableDescriptor] = &[
         reference_edges::TABLE,
         REFERENCE_EDGE_COLUMN_DESCRIPTORS,
         REFERENCE_EDGE_CONSTRAINTS,
+    ),
+    TableDescriptor::ordinary(
+        reference_occurrences::TABLE,
+        REFERENCE_OCCURRENCE_COLUMN_DESCRIPTORS,
+        REFERENCE_OCCURRENCE_CONSTRAINTS,
     ),
     TableDescriptor::ordinary(
         record_aliases::TABLE,

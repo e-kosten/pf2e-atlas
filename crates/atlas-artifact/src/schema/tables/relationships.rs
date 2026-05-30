@@ -26,6 +26,36 @@ pub mod reference_edges {
     ];
 }
 
+pub mod reference_occurrences {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("reference_occurrences");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const CONTENT_KEY: Column = Column::new(TABLE, "content_key");
+        pub const OCCURRENCE_ORDINAL: Column = Column::new(TABLE, "occurrence_ordinal");
+        pub const TARGET_RECORD_KEY: Column = Column::new(TABLE, "target_record_key");
+        pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
+        pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
+        pub const DISPLAY_TEXT: Column = Column::new(TABLE, "display_text");
+        pub const REFERENCE_TEXT: Column = Column::new(TABLE, "reference_text");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::CONTENT_KEY,
+        columns::OCCURRENCE_ORDINAL,
+        columns::TARGET_RECORD_KEY,
+        columns::SOURCE_KIND,
+        columns::VISIBILITY,
+        columns::DISPLAY_TEXT,
+        columns::REFERENCE_TEXT,
+    ];
+}
+
 pub mod record_aliases {
     use super::{Column, Table};
 
