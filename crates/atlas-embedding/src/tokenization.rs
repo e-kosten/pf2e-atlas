@@ -10,7 +10,9 @@ use crate::document_renderer::{
 use crate::error::EmbeddingError;
 use crate::text::{normalize_embedding_text, prefixed_text};
 
+#[cfg(test)]
 const DOCUMENT_EMBEDDING_TOKENIZATION_PHASE: &str = "document_embedding_tokenization";
+#[cfg(test)]
 const DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE: &str = "Analyzing document embedding tokenization";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,16 +23,49 @@ pub struct EmbeddingInputTokenization {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BudgetedEmbeddingInput {
+pub(crate) struct BudgetedEmbeddingInput {
     pub text: String,
     pub tokenization: EmbeddingInputTokenization,
+    pub final_token_count: usize,
     pub truncated_sections: Vec<EmbeddingSectionTruncation>,
+    pub chunk_diagnostics: Vec<EmbeddingChunkBudgetDiagnostic>,
+}
+
+pub(crate) struct TokenBudgetTokenizers {
+    unbounded: Tokenizer,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingSectionTruncation {
     pub section: EmbeddingInputSection,
     pub dropped_chunk_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct EmbeddingChunkBudgetDiagnostic {
+    pub section: EmbeddingInputSection,
+    pub outcome: EmbeddingChunkBudgetOutcome,
+    pub source_kind: Option<atlas_record::ContentSourceKind>,
+    pub group_key: Option<String>,
+    pub original_text: String,
+    pub final_text: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EmbeddingChunkBudgetOutcome {
+    Accepted,
+    Trimmed,
+    Dropped,
+}
+
+impl EmbeddingChunkBudgetOutcome {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Accepted => "accepted",
+            Self::Trimmed => "trimmed",
+            Self::Dropped => "dropped",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +88,8 @@ impl TextEmbeddingTokenizer {
         Ok(Self { spec, tokenizer })
     }
 
-    pub fn analyze_document_inputs(
+    #[cfg(test)]
+    pub(crate) fn analyze_document_inputs(
         &self,
         texts: &[&str],
     ) -> Result<Vec<EmbeddingInputTokenization>, EmbeddingError> {
@@ -101,48 +137,115 @@ impl TextEmbeddingTokenizer {
         Ok(results)
     }
 
-    pub fn budget_document_input(
+    #[cfg(test)]
+    pub(crate) fn budget_document_input(
         &self,
         chunks: &[EmbeddingInputChunk],
     ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
-        let max_token_count = self.spec.max_input_tokens;
         let full_text = render_embedding_chunks_for_embedding(chunks);
-        let full_tokenization = self.analyze_single_text(&full_text, self.spec.document_prefix)?;
-        let Some(max_token_count) = max_token_count else {
+        let mut tokenizers = self.token_budget_tokenizers()?;
+        let full_tokenization = self.analyze_document_input_with(&mut tokenizers, &full_text)?;
+        if !full_tokenization.truncated {
             return Ok(BudgetedEmbeddingInput {
                 text: full_text,
                 tokenization: full_tokenization,
+                final_token_count: full_tokenization.token_count,
                 truncated_sections: Vec::new(),
-            });
-        };
-        if full_tokenization.token_count <= max_token_count {
-            return Ok(BudgetedEmbeddingInput {
-                text: full_text,
-                tokenization: full_tokenization,
-                truncated_sections: Vec::new(),
+                chunk_diagnostics: Vec::new(),
             });
         }
+        self.budget_over_limit_document_input_with(&mut tokenizers, chunks, full_tokenization)
+    }
 
-        let mut accepted = Vec::new();
+    pub(crate) fn analyze_document_input_with(
+        &self,
+        tokenizers: &mut TokenBudgetTokenizers,
+        text: &str,
+    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+        self.single_text_tokenization_with(
+            &mut tokenizers.unbounded,
+            text,
+            self.spec.document_prefix,
+        )
+    }
+
+    pub(crate) fn budget_over_limit_document_input_with(
+        &self,
+        tokenizers: &mut TokenBudgetTokenizers,
+        chunks: &[EmbeddingInputChunk],
+        full_tokenization: EmbeddingInputTokenization,
+    ) -> Result<BudgetedEmbeddingInput, EmbeddingError> {
+        let max_token_count = full_tokenization.max_token_count.ok_or_else(|| {
+            EmbeddingError::ModelRunFailed(
+                "cannot budget an over-limit document without a token limit".to_string(),
+            )
+        })?;
+        debug_assert!(full_tokenization.truncated);
+        let special_token_overhead =
+            self.special_token_overhead_for_chunks(&mut tokenizers.unbounded, chunks)?;
+        let tokenized_chunks = self.tokenize_chunks(&mut tokenizers.unbounded, chunks)?;
+        let mut accepted = Vec::<(usize, EmbeddingInputChunk)>::new();
         let mut truncated_sections = Vec::<EmbeddingSectionTruncation>::new();
-        for chunk in chunks {
-            let candidate = candidate_text(&accepted, chunk);
-            if self.document_token_count(&candidate)? <= max_token_count {
-                accepted.push(chunk.clone());
+        let mut chunk_diagnostics = chunks
+            .iter()
+            .map(|chunk| EmbeddingChunkBudgetDiagnostic {
+                section: chunk.section,
+                outcome: EmbeddingChunkBudgetOutcome::Dropped,
+                source_kind: chunk.source_kind,
+                group_key: chunk.group_key.clone(),
+                original_text: chunk.text.clone(),
+                final_text: None,
+            })
+            .collect::<Vec<_>>();
+        let mut estimated_token_count = special_token_overhead;
+        for index in prioritized_chunk_indexes(chunks) {
+            let chunk = &chunks[index];
+            let tokenized = &tokenized_chunks[index];
+            if estimated_token_count + tokenized.token_count <= max_token_count {
+                accepted.push((index, chunk.clone()));
+                estimated_token_count += tokenized.token_count;
+                chunk_diagnostics[index].outcome = EmbeddingChunkBudgetOutcome::Accepted;
+                chunk_diagnostics[index].final_text = Some(chunk.text.clone());
                 continue;
             }
+            let remaining = max_token_count.saturating_sub(estimated_token_count);
             if chunk.truncatable
-                && let Some(trimmed_chunk) =
-                    self.trim_chunk_to_fit(&accepted, chunk, max_token_count)?
+                && let Some(trimmed_chunk) = self.trim_chunk_to_token_budget(
+                    &mut tokenizers.unbounded,
+                    index,
+                    chunk,
+                    remaining,
+                )?
             {
-                accepted.push(trimmed_chunk);
+                estimated_token_count += self.positioned_chunk_token_count(
+                    &mut tokenizers.unbounded,
+                    index,
+                    &trimmed_chunk,
+                )?;
+                chunk_diagnostics[index].outcome = EmbeddingChunkBudgetOutcome::Trimmed;
+                chunk_diagnostics[index].final_text = Some(trimmed_chunk.text.clone());
+                accepted.push((index, trimmed_chunk));
+            } else {
+                chunk_diagnostics[index].outcome = EmbeddingChunkBudgetOutcome::Dropped;
+                chunk_diagnostics[index].final_text = None;
             }
             increment_section_truncation(&mut truncated_sections, chunk.section);
         }
 
-        let text = render_embedding_chunks_for_embedding(&accepted);
-        let token_count = self.document_token_count(&text)?;
-        debug_assert!(token_count <= max_token_count);
+        accepted.sort_by_key(|(index, _)| *index);
+        let accepted_chunks = accepted
+            .iter()
+            .map(|(_, chunk)| chunk.clone())
+            .collect::<Vec<_>>();
+        let text = render_embedding_chunks_for_embedding(&accepted_chunks);
+        let token_count = self.document_token_count(&mut tokenizers.unbounded, &text)?;
+        if token_count > max_token_count {
+            return Err(EmbeddingError::TokenBudgetExceeded {
+                estimated: estimated_token_count,
+                actual: token_count,
+                max: max_token_count,
+            });
+        }
         Ok(BudgetedEmbeddingInput {
             text,
             tokenization: EmbeddingInputTokenization {
@@ -150,18 +253,69 @@ impl TextEmbeddingTokenizer {
                 max_token_count: Some(max_token_count),
                 truncated: true,
             },
+            final_token_count: token_count,
             truncated_sections,
+            chunk_diagnostics,
         })
     }
 
-    fn analyze_single_text(
+    fn tokenize_chunks(
         &self,
-        text: &str,
-        prefix: &str,
-    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
-        let max_token_count = self.spec.max_input_tokens;
-        let mut tokenizer = self.unbounded_tokenizer()?;
-        analyze_text(&mut tokenizer, text, prefix, max_token_count)
+        tokenizer: &mut Tokenizer,
+        chunks: &[EmbeddingInputChunk],
+    ) -> Result<Vec<TokenizedEmbeddingInputChunk>, EmbeddingError> {
+        chunks
+            .iter()
+            .enumerate()
+            .map(|(index, chunk)| {
+                let token_count = self.positioned_chunk_token_count(tokenizer, index, chunk)?;
+                Ok(TokenizedEmbeddingInputChunk { token_count })
+            })
+            .collect()
+    }
+
+    fn special_token_overhead_for_chunks(
+        &self,
+        tokenizer: &mut Tokenizer,
+        chunks: &[EmbeddingInputChunk],
+    ) -> Result<usize, EmbeddingError> {
+        let Some(chunk) = chunks.first() else {
+            return Ok(0);
+        };
+        let (prefix, text) = self.positioned_chunk_text(0, chunk);
+        let without_special_tokens =
+            analyze_text_with_special_tokens(tokenizer, &text, prefix, None, false)?.token_count;
+        let with_special_tokens =
+            analyze_text_with_special_tokens(tokenizer, &text, prefix, None, true)?.token_count;
+        Ok(with_special_tokens.saturating_sub(without_special_tokens))
+    }
+
+    fn positioned_chunk_token_count(
+        &self,
+        tokenizer: &mut Tokenizer,
+        index: usize,
+        chunk: &EmbeddingInputChunk,
+    ) -> Result<usize, EmbeddingError> {
+        let (prefix, text) = self.positioned_chunk_text(index, chunk);
+        Ok(analyze_text_with_special_tokens(tokenizer, &text, prefix, None, false)?.token_count)
+    }
+
+    fn positioned_chunk_text<'a>(
+        &'a self,
+        index: usize,
+        chunk: &'a EmbeddingInputChunk,
+    ) -> (&'static str, String) {
+        if index == 0 {
+            (self.spec.document_prefix, chunk.text.clone())
+        } else {
+            ("", format!("\n{}", chunk.text))
+        }
+    }
+
+    pub(crate) fn token_budget_tokenizers(&self) -> Result<TokenBudgetTokenizers, EmbeddingError> {
+        Ok(TokenBudgetTokenizers {
+            unbounded: self.unbounded_tokenizer()?,
+        })
     }
 
     fn unbounded_tokenizer(&self) -> Result<Tokenizer, EmbeddingError> {
@@ -173,18 +327,39 @@ impl TextEmbeddingTokenizer {
         Ok(tokenizer)
     }
 
-    fn document_token_count(&self, text: &str) -> Result<usize, EmbeddingError> {
-        Ok(self
-            .analyze_single_text(text, self.spec.document_prefix)?
-            .token_count)
+    fn document_token_count(
+        &self,
+        tokenizer: &mut Tokenizer,
+        text: &str,
+    ) -> Result<usize, EmbeddingError> {
+        Ok(analyze_text(
+            tokenizer,
+            text,
+            self.spec.document_prefix,
+            self.spec.max_input_tokens,
+        )?
+        .token_count)
     }
 
-    fn trim_chunk_to_fit(
+    fn single_text_tokenization_with(
         &self,
-        accepted: &[EmbeddingInputChunk],
+        tokenizer: &mut Tokenizer,
+        text: &str,
+        prefix: &str,
+    ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+        analyze_text(tokenizer, text, prefix, self.spec.max_input_tokens)
+    }
+
+    fn trim_chunk_to_token_budget(
+        &self,
+        tokenizer: &mut Tokenizer,
+        index: usize,
         chunk: &EmbeddingInputChunk,
-        max_token_count: usize,
+        token_budget: usize,
     ) -> Result<Option<EmbeddingInputChunk>, EmbeddingError> {
+        if token_budget == 0 {
+            return Ok(None);
+        }
         let Some((prefix, body)) = chunk.text.split_once(": ") else {
             return Ok(None);
         };
@@ -200,9 +375,12 @@ impl TextEmbeddingTokenizer {
                 section: chunk.section,
                 text: format!("{prefix}: {}", words[..mid].join(" ")),
                 truncatable: chunk.truncatable,
+                source_kind: chunk.source_kind,
+                group_key: chunk.group_key.clone(),
             };
-            let candidate = candidate_text(accepted, &candidate_chunk);
-            if self.document_token_count(&candidate)? <= max_token_count {
+            if self.positioned_chunk_token_count(tokenizer, index, &candidate_chunk)?
+                <= token_budget
+            {
                 low = mid;
             } else {
                 high = mid - 1;
@@ -215,8 +393,15 @@ impl TextEmbeddingTokenizer {
             section: chunk.section,
             text: format!("{prefix}: {}", words[..low].join(" ")),
             truncatable: chunk.truncatable,
+            source_kind: chunk.source_kind,
+            group_key: chunk.group_key.clone(),
         }))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TokenizedEmbeddingInputChunk {
+    token_count: usize,
 }
 
 fn analyze_text(
@@ -224,6 +409,16 @@ fn analyze_text(
     text: &str,
     prefix: &str,
     max_token_count: Option<usize>,
+) -> Result<EmbeddingInputTokenization, EmbeddingError> {
+    analyze_text_with_special_tokens(tokenizer, text, prefix, max_token_count, true)
+}
+
+fn analyze_text_with_special_tokens(
+    tokenizer: &mut Tokenizer,
+    text: &str,
+    prefix: &str,
+    max_token_count: Option<usize>,
+    add_special_tokens: bool,
 ) -> Result<EmbeddingInputTokenization, EmbeddingError> {
     let normalized = normalize_embedding_text(&prefixed_text(text, prefix));
     if normalized.is_empty() {
@@ -234,7 +429,7 @@ fn analyze_text(
         });
     }
     let encoding = tokenizer
-        .encode(EncodeInput::Single(normalized.into()), true)
+        .encode(EncodeInput::Single(normalized.into()), add_special_tokens)
         .map_err(|error| EmbeddingError::TokenizationFailed(error.to_string()))?;
     let token_count = encoding.get_ids().len();
     Ok(EmbeddingInputTokenization {
@@ -244,17 +439,79 @@ fn analyze_text(
     })
 }
 
-fn tokenization_progress_interval(total: usize) -> usize {
-    (total / 100).clamp(500, 5_000)
+#[cfg(test)]
+impl TextEmbeddingTokenizer {
+    pub(crate) fn whitespace_wordlevel_for_tests(max_input_tokens: usize) -> Self {
+        Self::whitespace_wordlevel_with_prefix_for_tests(max_input_tokens, "")
+    }
+
+    pub(crate) fn whitespace_wordlevel_with_prefix_for_tests(
+        max_input_tokens: usize,
+        document_prefix: &'static str,
+    ) -> Self {
+        let tokenizer = <Tokenizer as std::str::FromStr>::from_str(
+            r#"{
+                "version": "1.0",
+                "truncation": null,
+                "padding": null,
+                "added_tokens": [],
+                "normalizer": null,
+                "pre_tokenizer": { "type": "Whitespace" },
+                "post_processor": {
+                    "type": "TemplateProcessing",
+                    "single": [
+                        { "SpecialToken": { "id": "[CLS]", "type_id": 0 } },
+                        { "Sequence": { "id": "A", "type_id": 0 } },
+                        { "SpecialToken": { "id": "[SEP]", "type_id": 0 } }
+                    ],
+                    "pair": [
+                        { "SpecialToken": { "id": "[CLS]", "type_id": 0 } },
+                        { "Sequence": { "id": "A", "type_id": 0 } },
+                        { "SpecialToken": { "id": "[SEP]", "type_id": 0 } },
+                        { "Sequence": { "id": "B", "type_id": 1 } },
+                        { "SpecialToken": { "id": "[SEP]", "type_id": 1 } }
+                    ],
+                    "special_tokens": {
+                        "[CLS]": { "id": "[CLS]", "ids": [1], "tokens": ["[CLS]"] },
+                        "[SEP]": { "id": "[SEP]", "ids": [2], "tokens": ["[SEP]"] }
+                    }
+                },
+                "decoder": null,
+                "model": {
+                    "type": "WordLevel",
+                    "vocab": {
+                        "[UNK]": 0,
+                        "[CLS]": 1,
+                        "[SEP]": 2
+                    },
+                    "unk_token": "[UNK]"
+                }
+            }"#,
+        )
+        .expect("test tokenizer JSON is valid");
+        Self {
+            spec: EmbeddingModelSpec {
+                provider_family: "test",
+                model_id: "test-wordlevel",
+                model_revision: "test",
+                tokenizer_id: "test-wordlevel",
+                max_input_tokens: Some(max_input_tokens),
+                pooling: crate::catalog::PoolingStrategy::Mean,
+                normalization: crate::catalog::Normalization::L2,
+                dimensions: 1,
+                dtype: crate::catalog::VectorDType::F32,
+                distance_metric: crate::catalog::DistanceMetric::Cosine,
+                document_prefix,
+                query_prefix: "",
+            },
+            tokenizer,
+        }
+    }
 }
 
-fn candidate_text(accepted: &[EmbeddingInputChunk], chunk: &EmbeddingInputChunk) -> String {
-    let mut candidate = render_embedding_chunks_for_embedding(accepted);
-    if !candidate.is_empty() {
-        candidate.push('\n');
-    }
-    candidate.push_str(&chunk.text);
-    candidate
+#[cfg(test)]
+fn tokenization_progress_interval(total: usize) -> usize {
+    (total / 100).clamp(500, 5_000)
 }
 
 fn increment_section_truncation(
@@ -271,6 +528,28 @@ fn increment_section_truncation(
             section,
             dropped_chunk_count: 1,
         });
+    }
+}
+
+fn prioritized_chunk_indexes(chunks: &[EmbeddingInputChunk]) -> Vec<usize> {
+    let mut indexes = (0..chunks.len()).collect::<Vec<_>>();
+    indexes.sort_by_key(|index| (chunk_budget_priority(&chunks[*index]), *index));
+    indexes
+}
+
+fn chunk_budget_priority(chunk: &EmbeddingInputChunk) -> u8 {
+    match chunk.section {
+        EmbeddingInputSection::Identity => 0,
+        EmbeddingInputSection::Traits => 1,
+        EmbeddingInputSection::Classification | EmbeddingInputSection::Summary => 2,
+        EmbeddingInputSection::Defense
+        | EmbeddingInputSection::Movement
+        | EmbeddingInputSection::Offense
+        | EmbeddingInputSection::Routine
+        | EmbeddingInputSection::References => 3,
+        EmbeddingInputSection::Description => 4,
+        EmbeddingInputSection::Aliases => 5,
+        EmbeddingInputSection::Details => 6,
     }
 }
 
@@ -303,119 +582,74 @@ pub(crate) fn apply_model_truncation(
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::sync::{Arc, Mutex};
+    use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
 
-    use tokenizers::Tokenizer;
-    use tokenizers::models::wordlevel::WordLevel;
-    use tracing::{Event, Subscriber};
-    use tracing_subscriber::Layer;
-    use tracing_subscriber::layer::Context;
-    use tracing_subscriber::prelude::*;
+    use super::*;
 
-    use super::{
-        DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE, DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
-        TextEmbeddingTokenizer,
-    };
-    use crate::catalog::{EmbeddingModelId, embedding_model_spec};
+    #[test]
+    fn chunk_budget_counts_special_tokens_once() {
+        let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(6);
+        let budgeted = tokenizer
+            .budget_document_input(&[
+                EmbeddingInputChunk::line(EmbeddingInputSection::Identity, "Name: one"),
+                EmbeddingInputChunk::line(EmbeddingInputSection::Description, "Description: two"),
+            ])
+            .expect("input should fit exactly");
 
-    #[derive(Clone, Debug, Default)]
-    struct CapturedProgressEvents {
-        events: Arc<Mutex<Vec<CapturedProgressEvent>>>,
-    }
-
-    #[derive(Clone, Debug, Default)]
-    struct CapturedProgressEvent {
-        phase: Option<String>,
-        message: Option<String>,
-    }
-
-    impl CapturedProgressEvents {
-        fn contains(&self, phase: &str, message: &str) -> bool {
-            self.events.lock().unwrap().iter().any(|event| {
-                event.phase.as_deref() == Some(phase)
-                    && event
-                        .message
-                        .as_deref()
-                        .is_some_and(|value| value.contains(message))
-            })
-        }
-    }
-
-    impl<S> Layer<S> for CapturedProgressEvents
-    where
-        S: Subscriber,
-    {
-        fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
-            if event.metadata().target() != "atlas_progress" {
-                return;
-            }
-            let mut visitor = CapturedProgressEvent::default();
-            event.record(&mut visitor);
-            self.events.lock().unwrap().push(visitor);
-        }
-    }
-
-    impl tracing::field::Visit for CapturedProgressEvent {
-        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-            match field.name() {
-                "phase" => self.phase = Some(value.to_string()),
-                "message" => self.message = Some(value.to_string()),
-                _ => {}
-            }
-        }
-
-        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-            if field.name() == "message" {
-                self.message = Some(format!("{value:?}"));
-            }
-        }
+        assert!(!budgeted.tokenization.truncated);
+        assert_eq!(budgeted.tokenization.token_count, 6);
+        assert_eq!(budgeted.final_token_count, 6);
+        assert!(budgeted.chunk_diagnostics.is_empty());
     }
 
     #[test]
-    fn document_tokenization_progress_event_text_is_active() {
-        assert_eq!(
-            DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
-            "document_embedding_tokenization"
-        );
-        assert_eq!(
-            DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE,
-            "Analyzing document embedding tokenization"
-        );
+    fn chunk_budget_counts_document_prefix_once() {
+        let tokenizer =
+            TextEmbeddingTokenizer::whitespace_wordlevel_with_prefix_for_tests(9, "prefix words");
+        let budgeted = tokenizer
+            .budget_document_input(&[
+                EmbeddingInputChunk::line(EmbeddingInputSection::Identity, "Name: one"),
+                EmbeddingInputChunk::truncatable_line(
+                    EmbeddingInputSection::Description,
+                    "Description: two three four five",
+                ),
+            ])
+            .expect("input should budget without double-counting prefix");
+
+        assert!(budgeted.tokenization.truncated);
+        assert_eq!(budgeted.final_token_count, 9);
+        assert!(budgeted.text.contains("two three"));
     }
 
     #[test]
-    fn document_tokenization_emits_progress_event_text() {
-        let events = CapturedProgressEvents::default();
-        let subscriber = tracing_subscriber::registry().with(events.clone());
-        let tokenizer = fixture_tokenizer();
+    fn chunk_budget_prioritizes_mechanics_and_references_over_description() {
+        let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(15);
+        let budgeted = tokenizer
+            .budget_document_input(&[
+                EmbeddingInputChunk::line(EmbeddingInputSection::Identity, "Name: Guardian"),
+                EmbeddingInputChunk::line(EmbeddingInputSection::Defense, "AC: 25"),
+                EmbeddingInputChunk::line(EmbeddingInputSection::Offense, "Attack: claw +15"),
+                EmbeddingInputChunk::truncatable_line(
+                    EmbeddingInputSection::Description,
+                    "Description: soft flavor text should be truncated before mechanics",
+                ),
+                EmbeddingInputChunk::truncatable_line(
+                    EmbeddingInputSection::References,
+                    "References: frightened, fear",
+                ),
+            ])
+            .expect("input should budget mechanics before description");
 
-        tracing::subscriber::with_default(subscriber, || {
-            tokenizer
-                .analyze_document_inputs(&["alpha beta"])
-                .expect("fixture tokenizer should analyze input");
-        });
-
-        assert!(events.contains(
-            DOCUMENT_EMBEDDING_TOKENIZATION_PHASE,
-            DOCUMENT_EMBEDDING_TOKENIZATION_MESSAGE
-        ));
-    }
-
-    fn fixture_tokenizer() -> TextEmbeddingTokenizer {
-        let mut vocab_path = std::env::temp_dir();
-        vocab_path.push(format!(
-            "atlas-embedding-test-vocab-{}-{}.json",
-            std::process::id(),
-            std::thread::current().name().unwrap_or("tokenization")
-        ));
-        fs::write(&vocab_path, r#"{"[UNK]":0}"#).expect("fixture vocab should be writable");
-        let model = WordLevel::from_file(&vocab_path.display().to_string(), "[UNK]".to_string())
-            .expect("fixture word-level tokenizer should build");
-        let _ = fs::remove_file(vocab_path);
-        TextEmbeddingTokenizer {
-            spec: embedding_model_spec(EmbeddingModelId::MiniLmL12V2),
-            tokenizer: Tokenizer::new(model),
-        }
+        assert!(budgeted.tokenization.truncated);
+        assert!(budgeted.text.contains("AC: 25"));
+        assert!(budgeted.text.contains("Attack: claw +15"));
+        assert!(budgeted.text.contains("References: frightened, fear"));
+        assert!(!budgeted.text.contains("soft flavor text"));
+        assert!(
+            budgeted
+                .truncated_sections
+                .iter()
+                .any(|section| section.section == EmbeddingInputSection::Description)
+        );
     }
 }

@@ -16,7 +16,10 @@ pub use model::{
     DocumentEmbeddingUnitKindTruncation, GeneratedDocumentEmbedding, GeneratedDocumentEmbeddings,
     PendingDocumentEmbedding, ReusableDocumentEmbedding,
 };
-pub use token_budget::apply_document_embedding_token_budget;
+pub use token_budget::{
+    apply_document_embedding_token_budget,
+    apply_document_embedding_token_budget_with_diagnostic_jsonl,
+};
 
 #[cfg(test)]
 mod tests;

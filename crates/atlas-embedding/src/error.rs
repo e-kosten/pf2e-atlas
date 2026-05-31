@@ -28,4 +28,14 @@ pub enum EmbeddingError {
     DimensionMismatch { expected: usize, actual: usize },
     #[error("embedding model returned {actual} outputs for {expected} inputs")]
     UnexpectedEmbeddingOutputCount { expected: usize, actual: usize },
+    #[error(
+        "composed embedding input exceeded token budget: estimated {estimated}, actual {actual}, max {max}"
+    )]
+    TokenBudgetExceeded {
+        estimated: usize,
+        actual: usize,
+        max: usize,
+    },
+    #[error("failed to write embedding diagnostics to {path}: {message}")]
+    DiagnosticWriteFailed { path: String, message: String },
 }
