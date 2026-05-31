@@ -1,6 +1,6 @@
-use atlas_artifact::schema::records;
+use crate::schema_inventory::records;
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::SearchFilterNode;
-use rusqlite::types::Value;
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
@@ -10,13 +10,13 @@ use super::sql_render::{RECORDS_ALIAS, record_column};
 #[derive(Debug, Clone, PartialEq)]
 pub struct EligibleRecordsQuery {
     pub sql: String,
-    pub parameters: Vec<Value>,
+    pub parameters: Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilteredRecordKeysQuery {
     pub sql: String,
-    pub parameters: Vec<Value>,
+    pub parameters: Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

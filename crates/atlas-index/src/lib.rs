@@ -1,14 +1,17 @@
 #![deny(unsafe_code)]
 
-use atlas_artifact::metadata::{
+use crate::artifact_metadata::{
     ARTIFACT_METADATA_TABLE, LEGACY_METADATA_TABLE, REQUIRED_ARTIFACT_METADATA_KEYS,
 };
-use atlas_artifact::schema::required_tables;
+use crate::schema_inventory::required_tables;
 use rusqlite::Connection;
 use thiserror::Error;
 
+pub mod artifact_metadata;
+mod artifact_schema;
+pub mod artifact_storage;
+mod artifact_validation;
 mod build_input;
-mod contract;
 mod discovery;
 mod embedding_cache;
 mod filters;
@@ -18,9 +21,14 @@ mod inspect;
 mod metadata;
 mod records;
 mod relationship_edges;
+mod schema;
+mod schema_inventory;
 mod search;
 mod sql;
 mod sqlite;
+pub mod sqlite_vector_index;
+#[cfg(feature = "test-support")]
+pub mod test_support;
 #[cfg(test)]
 mod tests;
 mod validation;
@@ -49,7 +57,7 @@ pub use sqlite::{
     FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader, SqliteIndexWriter,
 };
 pub use validation::{
-    ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationDiagnostic,
+    ArtifactMetadataSummary, ArtifactValidationDiagnostic, ArtifactValidationFamily,
     ArtifactValidationReport, ValidationCode, ValidationStatus, ValidationTarget,
 };
 pub use vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
@@ -75,7 +83,8 @@ pub(crate) fn validate_index_connection(
     }
 
     let artifact_metadata = metadata::read_metadata(connection, ARTIFACT_METADATA_TABLE)?;
-    let diagnostics = contract::validate_artifact_contract(connection, &artifact_metadata)?;
+    let diagnostics =
+        artifact_validation::validate_artifact_coherence(connection, &artifact_metadata)?;
     if diagnostics.is_empty() {
         Ok(metadata_report)
     } else {
@@ -98,13 +107,13 @@ pub(crate) fn check_index_connection(
     }
 
     let diagnostics = required_tables()
-        .into_iter()
+        .iter()
         .filter_map(|table| {
             let table_name = table.name();
             match sql::table_exists(connection, table_name) {
                 Ok(true) => None,
-                Ok(false) => Some(Ok(contract::contract_diagnostic(
-                    ArtifactContractFamily::Schema,
+                Ok(false) => Some(Ok(artifact_validation::artifact_validation_diagnostic(
+                    ArtifactValidationFamily::Schema,
                     format!("required artifact table `{table_name}` is missing"),
                     Some(format!("table:{table_name}")),
                     Some("present".to_string()),

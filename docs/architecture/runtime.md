@@ -27,13 +27,12 @@ flowchart TD
       domain["atlas-domain<br/>request/filter/output vocabulary"]
       discovery["atlas-discovery<br/>filter discovery field policy"]
       record["atlas-record<br/>normalized records, ContentDocument,<br/>presentation and projections"]
-      artifactSchema["atlas-artifact<br/>SQLite schema descriptors<br/>and contract constants"]
+      artifactSchema["atlas-index<br/>Diesel schema, migrations,<br/>and artifact contract constants"]
     end
 
     ingest --> domain
     ingest --> discovery
     ingest --> record
-    ingest --> artifactSchema
     index --> domain
     index --> discovery
     index --> record
@@ -48,11 +47,10 @@ flowchart TD
 | Crate | Owns | Should not own |
 | --- | --- | --- |
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
-| `atlas-discovery` | Shared filter discovery field policy: field ids, groups, value policies, operators, CLI flag mappings, applicability, default value ordering, and source SQL projections for generated catalogs. | Physical SQLite schema descriptors, artifact metadata, row hydration, CLI presentation, runtime query execution. |
+| `atlas-discovery` | Shared filter discovery field policy: field ids, groups, value policies, operators, CLI flag mappings, applicability, default value ordering, and source SQL projections for generated catalogs. | Physical SQLite schema ownership, artifact metadata, row hydration, CLI presentation, runtime query execution. |
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, `ContentDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
-| `atlas-artifact` | Physical SQLite table/column descriptors, descriptor-owned schema DDL, artifact metadata keys, schema SQL helpers, table contract constants, and SQLite vector-blob encoding. | Record normalization, writer policy, row hydration, user-facing search behavior, embedding model behavior. |
 | `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
-| `atlas-index` | Read-only completed-artifact access through the `SearchIndex` trait and `SqliteIndexReader`, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership. |
+| `atlas-index` | Read-only completed-artifact access through the `SearchIndex` trait and `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService`, lexical/semantic composition, vector-hit collapse, and search ranking modes over read-only index handles. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation. |
 | `atlas-runtime` | Repo/global path resolution, setup policy, setup readiness and repair orchestration, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization, CLI JSON projection, deep artifact diagnostics. |
@@ -76,7 +74,7 @@ flowchart LR
 
     record["atlas-record<br/>NormalizedRecord + ContentDocument"] -. model .-> normalize
     discovery["atlas-discovery<br/>filter discovery field policy"] -. catalog policy .-> writer
-    artifact["atlas-artifact<br/>table descriptors + insert SQL"] -. schema .-> writer
+    artifactSchema["atlas-index Diesel schema<br/>and migrations"] -. schema .-> writer
     embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
     sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
 ```

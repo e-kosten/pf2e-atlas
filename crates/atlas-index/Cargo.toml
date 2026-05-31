@@ -6,18 +6,18 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+test-support = []
+
 [dependencies]
-atlas-artifact.workspace = true
 atlas-discovery.workspace = true
 atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-record.workspace = true
 atlas-sqlite-vec.workspace = true
+diesel.workspace = true
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-
-[dev-dependencies]
-atlas-artifact = { workspace = true, features = ["test-support"] }

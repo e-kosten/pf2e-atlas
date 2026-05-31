@@ -2,7 +2,7 @@ use atlas_domain::{
     FilterDiscoveryExecution, FilterFieldDiscovery, FilterValueDiscovery, FilterValuePolicy,
     FilterValueSort, RecordFamily, SearchFilterNode,
 };
-use rusqlite::Connection;
+use diesel::SqliteConnection;
 
 use super::catalog;
 use super::definitions::{
@@ -31,7 +31,7 @@ pub struct FilterValueRequest {
 }
 
 pub(super) fn list_filter_fields(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     filter_json: Option<serde_json::Value>,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
@@ -57,7 +57,7 @@ pub(super) fn list_filter_fields(
 }
 
 pub(super) fn list_filter_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {

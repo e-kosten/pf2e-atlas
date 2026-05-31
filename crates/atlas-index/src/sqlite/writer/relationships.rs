@@ -1,4 +1,5 @@
-use rusqlite::Connection;
+use diesel::SqliteConnection;
+use diesel::prelude::*;
 
 use crate::IndexWriteError;
 use atlas_record::{
@@ -7,43 +8,42 @@ use atlas_record::{
     iter_content_references, render_plain_text,
 };
 
+use super::models::{RecordAliasRow, ReferenceEdgeRow, ReferenceOccurrenceRow, RemasterLinkRow};
 use super::records::supplemental_content_key;
 
 pub(super) fn write_reference_edges(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     references: &[ReferenceEdge],
 ) -> Result<(), IndexWriteError> {
-    let mut insert_reference = connection
-        .prepare(&atlas_artifact::schema::reference_edge_insert_sql())
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-
-    for reference in references {
-        insert_reference
-            .execute((
-                reference.from_record_key.to_string(),
-                reference.to_record_key.to_string(),
-                reference.display_text.as_deref(),
-                reference.reference_text.as_str(),
-                reference.source_kind.as_str(),
-                reference.visibility.as_str(),
-            ))
+    let rows = references
+        .iter()
+        .map(|reference| ReferenceEdgeRow {
+            from_record_key: reference.from_record_key.to_string(),
+            to_record_key: reference.to_record_key.to_string(),
+            display_text: reference.display_text.clone(),
+            reference_text: reference.reference_text.clone(),
+            source_kind: reference.source_kind.as_str().to_string(),
+            visibility: reference.visibility.as_str().to_string(),
+        })
+        .collect::<Vec<_>>();
+    if !rows.is_empty() {
+        diesel::insert_or_ignore_into(crate::schema::reference_edges::table)
+            .values(&rows)
+            .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
 pub(super) fn write_reference_occurrences(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     records: &[&NormalizedRecord],
 ) -> Result<(), IndexWriteError> {
-    let mut insert_occurrence = connection
-        .prepare(&atlas_artifact::schema::reference_occurrence_insert_sql())
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-
+    let mut rows = Vec::new();
     for record in records {
         if let Some(document) = &record.description {
-            write_document_reference_occurrences(
-                &mut insert_occurrence,
+            collect_document_reference_occurrences(
+                &mut rows,
                 record,
                 "description",
                 ContentSourceKind::Description,
@@ -52,8 +52,8 @@ pub(super) fn write_reference_occurrences(
             )?;
         }
         if let Some(document) = &record.blurb {
-            write_document_reference_occurrences(
-                &mut insert_occurrence,
+            collect_document_reference_occurrences(
+                &mut rows,
                 record,
                 "blurb",
                 ContentSourceKind::Blurb,
@@ -63,8 +63,8 @@ pub(super) fn write_reference_occurrences(
         }
         for (ordinal, supplemental) in record.supplemental_content.iter().enumerate() {
             if supplemental.contributes_to_references {
-                write_document_reference_occurrences(
-                    &mut insert_occurrence,
+                collect_document_reference_occurrences(
+                    &mut rows,
                     record,
                     &supplemental_content_key(ordinal),
                     supplemental.source_kind,
@@ -74,12 +74,17 @@ pub(super) fn write_reference_occurrences(
             }
         }
     }
-
+    if !rows.is_empty() {
+        diesel::insert_or_ignore_into(crate::schema::reference_occurrences::table)
+            .values(&rows)
+            .execute(connection)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    }
     Ok(())
 }
 
-fn write_document_reference_occurrences(
-    insert_occurrence: &mut rusqlite::Statement<'_>,
+fn collect_document_reference_occurrences(
+    rows: &mut Vec<ReferenceOccurrenceRow>,
     record: &NormalizedRecord,
     content_key: &str,
     source_kind: ContentSourceKind,
@@ -91,61 +96,65 @@ fn write_document_reference_occurrences(
         let Some(target_record_key) = &reference.resolved_key else {
             continue;
         };
-        insert_occurrence
-            .execute((
-                record.key.to_string(),
-                content_key,
-                occurrence_ordinal,
-                target_record_key.to_string(),
-                source_kind.as_str(),
-                visibility.as_str(),
-                content_reference_display_text(reference).as_deref(),
-                content_reference_text(reference),
-            ))
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-        occurrence_ordinal += 1;
+        rows.push(ReferenceOccurrenceRow {
+            record_key: record.key.to_string(),
+            content_key: content_key.to_string(),
+            occurrence_ordinal,
+            target_record_key: target_record_key.to_string(),
+            source_kind: source_kind.as_str().to_string(),
+            visibility: visibility.as_str().to_string(),
+            display_text: content_reference_display_text(reference),
+            reference_text: content_reference_text(reference),
+        });
+        occurrence_ordinal = occurrence_ordinal.checked_add(1).ok_or_else(|| {
+            IndexWriteError::WriteFailed(
+                "reference occurrence ordinal does not fit in i64".to_string(),
+            )
+        })?;
     }
     Ok(())
 }
 
 pub(super) fn write_record_aliases(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     aliases: &[RecordAlias],
 ) -> Result<(), IndexWriteError> {
-    let mut insert_alias = connection
-        .prepare(&atlas_artifact::schema::record_alias_insert_sql())
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-
-    for alias in aliases {
-        insert_alias
-            .execute((
-                alias.canonical_record_key.to_string(),
-                alias.alias_text.as_str(),
-                alias.normalized_alias.as_str(),
-                alias.source.as_str(),
-                alias.source_ref.as_str(),
-            ))
+    let rows = aliases
+        .iter()
+        .map(|alias| RecordAliasRow {
+            canonical_record_key: alias.canonical_record_key.to_string(),
+            alias_text: alias.alias_text.clone(),
+            normalized_alias: alias.normalized_alias.clone(),
+            source_kind: alias.source.as_str().to_string(),
+            source_ref: alias.source_ref.clone(),
+        })
+        .collect::<Vec<_>>();
+    if !rows.is_empty() {
+        diesel::insert_or_ignore_into(crate::schema::record_aliases::table)
+            .values(&rows)
+            .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
 pub(super) fn write_remaster_links(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     remaster_links: &[RemasterLink],
 ) -> Result<(), IndexWriteError> {
-    let mut insert_link = connection
-        .prepare(&atlas_artifact::schema::remaster_link_insert_sql())
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-
-    for link in remaster_links {
-        insert_link
-            .execute((
-                link.remaster_record_key.to_string(),
-                link.legacy_record_key.to_string(),
-                link.source.as_str(),
-                link.source_ref.as_str(),
-            ))
+    let rows = remaster_links
+        .iter()
+        .map(|link| RemasterLinkRow {
+            remaster_record_key: link.remaster_record_key.to_string(),
+            legacy_record_key: link.legacy_record_key.to_string(),
+            source_kind: link.source.as_str().to_string(),
+            source_ref: link.source_ref.clone(),
+        })
+        .collect::<Vec<_>>();
+    if !rows.is_empty() {
+        diesel::insert_or_ignore_into(crate::schema::remaster_links::table)
+            .values(&rows)
+            .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())

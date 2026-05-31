@@ -1,11 +1,15 @@
-use atlas_artifact::schema::{
+use crate::schema_inventory::{
     record_aliases as artifact_record_aliases, records as artifact_records,
 };
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
-use rusqlite::{Connection, OpenFlags, Row, params_from_iter, types::Value};
+use diesel::connection::SimpleConnection;
+use diesel::sql_types::{Nullable, Text};
+use diesel::{Connection as DieselConnection, QueryableByName, RunQueryDsl, SqliteConnection};
+use rusqlite::{Connection, OpenFlags};
 
 use crate::discovery::{self, DiscoveryError, FilterValueRequest};
 use crate::filters::{
@@ -14,6 +18,7 @@ use crate::filters::{
 };
 use crate::fts;
 use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_seed};
+use crate::sqlite::raw_sql::{CountRow, RecordKeyRow, SqlBindValue, bind_sql_query};
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordIdentityMatch,
@@ -24,7 +29,7 @@ use crate::{
 
 pub struct SqliteIndexReader {
     path: PathBuf,
-    connection: Connection,
+    diesel_connection: RefCell<SqliteConnection>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,9 +162,22 @@ pub struct FilteredRecordKeyPage {
 impl SqliteIndexReader {
     pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, IndexValidationError> {
         let path = path.as_ref().to_path_buf();
-        let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        if !path.exists() {
+            return Err(IndexValidationError::Unavailable(format!(
+                "unable to open database file: {}",
+                path.display()
+            )));
+        }
+        let database_url = read_only_sqlite_uri(&path);
+        let mut diesel_connection = SqliteConnection::establish(&database_url)
             .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
-        Ok(Self { path, connection })
+        diesel_connection
+            .batch_execute("PRAGMA query_only = ON")
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
+        Ok(Self {
+            path,
+            diesel_connection: RefCell::new(diesel_connection),
+        })
     }
 
     pub fn open_read_only_with_vectors(
@@ -173,12 +191,23 @@ impl SqliteIndexReader {
         &self.path
     }
 
-    pub(crate) fn connection(&self) -> &Connection {
-        &self.connection
+    fn validation_connection(&self) -> Result<Connection, IndexValidationError> {
+        Connection::open_with_flags(&self.path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|error| IndexValidationError::Unavailable(error.to_string()))
+    }
+
+    pub(crate) fn with_diesel_connection<T>(
+        &self,
+        f: impl FnOnce(&mut SqliteConnection) -> T,
+    ) -> T {
+        f(&mut self.diesel_connection.borrow_mut())
     }
 
     pub fn validate(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
-        validate_index_connection(self.path.display().to_string(), &self.connection)
+        validate_index_connection(
+            self.path.display().to_string(),
+            &self.validation_connection()?,
+        )
     }
 
     pub fn validate_report(&self) -> ArtifactValidationReport {
@@ -189,7 +218,10 @@ impl SqliteIndexReader {
     }
 
     pub fn check(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
-        check_index_connection(self.path.display().to_string(), &self.connection)
+        check_index_connection(
+            self.path.display().to_string(),
+            &self.validation_connection()?,
+        )
     }
 
     pub fn check_report(&self) -> ArtifactValidationReport {
@@ -201,14 +233,20 @@ impl SqliteIndexReader {
 
     pub fn check_embedding_readiness_report(&self) -> ArtifactValidationReport {
         match self.check() {
-            Ok(report) => match vector::check_embedding_readiness_connection(
-                self.path.display().to_string(),
-                report,
-                &self.connection,
-            ) {
-                Ok(report) => report,
-                Err(error) => crate::validation_report_from_error(&self.path, error),
-            },
+            Ok(report) => {
+                let connection = match self.validation_connection() {
+                    Ok(connection) => connection,
+                    Err(error) => return crate::validation_report_from_error(&self.path, error),
+                };
+                match vector::check_embedding_readiness_connection(
+                    self.path.display().to_string(),
+                    report,
+                    &connection,
+                ) {
+                    Ok(report) => report,
+                    Err(error) => crate::validation_report_from_error(&self.path, error),
+                }
+            }
             Err(error) => crate::validation_report_from_error(&self.path, error),
         }
     }
@@ -229,7 +267,7 @@ impl SqliteIndexReader {
     ) -> Result<ArtifactValidationReport, IndexValidationError> {
         vector::validate_embedding_readiness_connection(
             self.path.display().to_string(),
-            &self.connection,
+            &self.validation_connection()?,
         )
     }
 
@@ -239,15 +277,18 @@ impl SqliteIndexReader {
         message: String,
     ) -> ArtifactValidationReport {
         let base_report = match target {
-            ValidationTarget::EmbeddingsOnly => {
-                match crate::validate_index_metadata_connection(
-                    self.path.display().to_string(),
-                    &self.connection,
-                ) {
-                    Ok(report) => report,
-                    Err(error) => crate::validation_report_from_error(&self.path, error),
+            ValidationTarget::EmbeddingsOnly => match self.validation_connection() {
+                Ok(connection) => {
+                    match crate::validate_index_metadata_connection(
+                        self.path.display().to_string(),
+                        &connection,
+                    ) {
+                        Ok(report) => report,
+                        Err(error) => crate::validation_report_from_error(&self.path, error),
+                    }
                 }
-            }
+                Err(error) => crate::validation_report_from_error(&self.path, error),
+            },
             ValidationTarget::BaseOnly | ValidationTarget::Full => self.validate_report(),
         };
         vector::vector_extension_unavailable_report_from_base(
@@ -269,30 +310,40 @@ impl SqliteIndexReader {
         inspect::inspect_index_connection(
             self.path.display().to_string(),
             validation,
-            &self.connection,
+            &self.validation_connection()?,
         )
     }
 
     pub fn load_records(&self) -> Result<Vec<PersistedRecord>, RecordLoadError> {
-        records::load_persisted_records_from_connection(&self.connection)
+        records::load_persisted_records_from_diesel_connection(
+            &mut self.diesel_connection.borrow_mut(),
+        )
     }
 
     pub fn load_record_set(&self) -> Result<PersistedRecordSet, RecordLoadError> {
-        records::load_persisted_record_set_from_connection(&self.connection)
+        records::load_persisted_record_set_from_diesel_connection(
+            &mut self.diesel_connection.borrow_mut(),
+        )
     }
 
     pub fn load_records_by_key(
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
-        records::load_persisted_records_by_key_from_connection(&self.connection, keys)
+        records::load_persisted_records_by_key_from_diesel_connection(
+            &mut self.diesel_connection.borrow_mut(),
+            keys,
+        )
     }
 
     pub fn load_search_candidate_records(
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
-        records::load_search_candidate_records_from_connection(&self.connection, keys)
+        records::load_search_candidate_records_from_diesel_connection(
+            &mut self.diesel_connection.borrow_mut(),
+            keys,
+        )
     }
 
     pub fn resolve_record_identity_matches(
@@ -301,7 +352,12 @@ impl SqliteIndexReader {
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-        resolve_record_identity_matches(&self.connection, query, normalized_query, filter)
+        resolve_record_identity_matches(
+            &mut self.diesel_connection.borrow_mut(),
+            query,
+            normalized_query,
+            filter,
+        )
     }
 
     pub fn reference_edges_for_seed(
@@ -309,7 +365,7 @@ impl SqliteIndexReader {
         seed: &RecordKey,
         direction: ReferenceEdgeDirection,
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
-        read_reference_edges_for_seed(&self.connection, seed, direction)
+        read_reference_edges_for_seed(&mut self.diesel_connection.borrow_mut(), seed, direction)
     }
 
     pub fn list_filter_fields(
@@ -317,7 +373,11 @@ impl SqliteIndexReader {
         filter: Option<&SearchFilterNode>,
         filter_json: Option<serde_json::Value>,
     ) -> Result<FilterFieldDiscovery, DiscoveryError> {
-        discovery::list_filter_fields(&self.connection, filter, filter_json)
+        discovery::list_filter_fields(
+            &mut self.diesel_connection.borrow_mut(),
+            filter,
+            filter_json,
+        )
     }
 
     pub fn list_filter_values(
@@ -325,14 +385,14 @@ impl SqliteIndexReader {
         filter: Option<&SearchFilterNode>,
         request: FilterValueRequest,
     ) -> Result<FilterValueDiscovery, DiscoveryError> {
-        discovery::list_filter_values(&self.connection, filter, request)
+        discovery::list_filter_values(&mut self.diesel_connection.borrow_mut(), filter, request)
     }
 
     pub fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Option<SearchFilterNode>, FilterCompileError> {
-        discovery::resolve_filter_metrics(&self.connection, filter)
+        discovery::resolve_filter_metrics(&mut self.diesel_connection.borrow_mut(), filter)
             .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
     }
 
@@ -351,7 +411,8 @@ impl SqliteIndexReader {
                     None,
                     None,
                 )?;
-                let mut record_keys = read_record_keys(&self.connection, &query)?;
+                let mut record_keys =
+                    read_record_keys(&mut self.diesel_connection.borrow_mut(), &query)?;
                 record_keys.sort_by_key(|key| seeded_key_hash(seed, &key.to_string()));
                 let total = record_keys.len() as u64;
                 let record_keys = record_keys
@@ -362,7 +423,8 @@ impl SqliteIndexReader {
                 Ok(FilteredRecordKeyPage { record_keys, total })
             }
             sort => {
-                let total = count_filtered_records(&self.connection, filter)?;
+                let total =
+                    count_filtered_records(&mut self.diesel_connection.borrow_mut(), filter)?;
                 let query = compile_filtered_record_keys_query(
                     filter,
                     sql_sort(sort),
@@ -370,7 +432,10 @@ impl SqliteIndexReader {
                     Some(offset),
                 )?;
                 Ok(FilteredRecordKeyPage {
-                    record_keys: read_record_keys(&self.connection, &query)?,
+                    record_keys: read_record_keys(
+                        &mut self.diesel_connection.borrow_mut(),
+                        &query,
+                    )?,
                     total,
                 })
             }
@@ -381,7 +446,7 @@ impl SqliteIndexReader {
         vector::validate_vector_index_connection(
             self.path.display().to_string(),
             self.validate()?,
-            &self.connection,
+            &self.validation_connection()?,
         )
     }
 
@@ -400,7 +465,7 @@ impl SqliteIndexReader {
         include_child_units: bool,
     ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
         vector::query_vector_index(
-            &self.connection,
+            &mut self.diesel_connection.borrow_mut(),
             query_vector,
             filter,
             limit,
@@ -412,7 +477,7 @@ impl SqliteIndexReader {
         &self,
         record_key: &RecordKey,
     ) -> Result<Vec<crate::RecordEmbeddingVector>, VectorQueryError> {
-        vector::load_record_embedding_vectors(&self.connection, record_key)
+        vector::load_record_embedding_vectors(&mut self.diesel_connection.borrow_mut(), record_key)
     }
 
     /// Query the broad weighted FTS projection directly.
@@ -430,7 +495,13 @@ impl SqliteIndexReader {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        fts::query_weighted_fts_index(&self.connection, fts_query, filter, limit, weights)
+        fts::query_weighted_fts_index(
+            &mut self.diesel_connection.borrow_mut(),
+            fts_query,
+            filter,
+            limit,
+            weights,
+        )
     }
 
     pub fn query_precision_fts_index(
@@ -442,7 +513,12 @@ impl SqliteIndexReader {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        fts::query_precision_fts_index(&self.connection, fts_query, filter, limit)
+        fts::query_precision_fts_index(
+            &mut self.diesel_connection.borrow_mut(),
+            fts_query,
+            filter,
+            limit,
+        )
     }
 
     pub fn query_fts_record_keys(
@@ -454,7 +530,12 @@ impl SqliteIndexReader {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        fts::query_fts_record_keys(&self.connection, fts_query, filter, limit)
+        fts::query_fts_record_keys(
+            &mut self.diesel_connection.borrow_mut(),
+            fts_query,
+            filter,
+            limit,
+        )
     }
 
     pub fn query_fts_candidate_record_keys(
@@ -465,51 +546,47 @@ impl SqliteIndexReader {
         if candidate_keys.is_empty() {
             return Ok(Vec::new());
         }
-        fts::query_fts_candidate_record_keys(&self.connection, fts_query, candidate_keys)
+        fts::query_fts_candidate_record_keys(
+            &mut self.diesel_connection.borrow_mut(),
+            fts_query,
+            candidate_keys,
+        )
     }
 }
 
 fn count_filtered_records(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, FilterCompileError> {
     let eligible = compile_eligible_records_query(filter)?;
     let sql = format!(
-        "WITH eligible(record_key) AS ({}) SELECT COUNT(*) FROM eligible",
+        "WITH eligible(record_key) AS ({}) SELECT COUNT(*) AS count FROM eligible",
         eligible.sql
     );
-    connection
-        .query_row(&sql, params_from_iter(eligible.parameters.iter()), |row| {
-            row.get::<_, u64>(0)
-        })
+    bind_sql_query(sql, &eligible.parameters)
+        .get_result::<CountRow>(connection)
+        .map(|row| row.count as u64)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
 }
 
 fn read_record_keys(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     query: &FilteredRecordKeysQuery,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
-    let mut statement = connection
-        .prepare(&query.sql)
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    let keys = statement
-        .query_map(params_from_iter(query.parameters.iter()), |row| {
-            row.get::<_, String>(0)
-        })
+    let keys = bind_sql_query(query.sql.clone(), &query.parameters)
+        .load::<RecordKeyRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .into_iter()
         .map(|row| {
-            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
-                .and_then(|value| {
-                    RecordKey::parse(&value)
-                        .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
-                })
+            RecordKey::parse(&row.record_key)
+                .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(keys)
 }
 
 fn resolve_record_identity_matches(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     query: &str,
     normalized_query: &str,
     filter: Option<&SearchFilterNode>,
@@ -532,7 +609,7 @@ struct IdentityQuery {
     match_kind: RecordIdentityMatchKind,
     from_sql: String,
     where_sql: String,
-    parameters: Vec<Value>,
+    parameters: Vec<SqlBindValue>,
     order_sql: String,
 }
 
@@ -541,7 +618,7 @@ fn identity_name_query(query: &str) -> IdentityQuery {
         match_kind: RecordIdentityMatchKind::Name,
         from_sql: format!("{} r", artifact_records::TABLE.name()),
         where_sql: "r.name = ?".to_string(),
-        parameters: vec![Value::Text(query.to_string())],
+        parameters: vec![SqlBindValue::Text(query.to_string())],
         order_sql: "r.record_key ASC".to_string(),
     }
 }
@@ -551,7 +628,7 @@ fn identity_normalized_name_query(normalized_query: &str) -> IdentityQuery {
         match_kind: RecordIdentityMatchKind::NormalizedName,
         from_sql: format!("{} r", artifact_records::TABLE.name()),
         where_sql: "r.variant_label IS NULL AND r.normalized_name = ?".to_string(),
-        parameters: vec![Value::Text(normalized_query.to_string())],
+        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
         order_sql: "r.record_key ASC".to_string(),
     }
 }
@@ -565,7 +642,7 @@ fn identity_alias_query(normalized_query: &str) -> IdentityQuery {
             artifact_record_aliases::TABLE.name()
         ),
         where_sql: "a.normalized_alias = ?".to_string(),
-        parameters: vec![Value::Text(normalized_query.to_string())],
+        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
         order_sql: "r.record_key ASC, a.source_kind ASC, a.source_ref ASC".to_string(),
     }
 }
@@ -575,13 +652,13 @@ fn identity_variant_name_query(normalized_query: &str) -> IdentityQuery {
         match_kind: RecordIdentityMatchKind::VariantName,
         from_sql: format!("{} r", artifact_records::TABLE.name()),
         where_sql: "r.variant_label IS NOT NULL AND r.normalized_name = ?".to_string(),
-        parameters: vec![Value::Text(normalized_query.to_string())],
+        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
         order_sql: "r.record_key ASC".to_string(),
     }
 }
 
 fn read_identity_matches(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     identity_query: IdentityQuery,
 ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
@@ -622,54 +699,46 @@ fn read_identity_matches(
         where_sql = identity_query.where_sql,
         order_sql = identity_query.order_sql,
     );
-    let mut statement = connection
-        .prepare(&sql)
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    let mut rows = statement
-        .query(params_from_iter(parameters.iter()))
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    let mut matches = Vec::new();
-    while let Some(row) = rows
-        .next()
+    let mut matches = bind_sql_query(sql, &parameters)
+        .load::<IdentityMatchRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
-    {
-        matches.push(identity_match_from_row(row, identity_query.match_kind)?);
-    }
+        .into_iter()
+        .map(|row| identity_match_from_row(row, identity_query.match_kind))
+        .collect::<Result<Vec<_>, _>>()?;
     matches.dedup_by(|left, right| left.record_key == right.record_key);
     Ok(matches)
 }
 
 fn identity_match_from_row(
-    row: &Row<'_>,
+    row: IdentityMatchRow,
     match_kind: RecordIdentityMatchKind,
 ) -> Result<RecordIdentityMatch, FilterCompileError> {
-    let record_key = row
-        .get::<_, String>("record_key")
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
-        .and_then(|value| {
-            RecordKey::parse(&value).map_err(|error| {
-                FilterCompileError::InvalidValue(format!(
-                    "identity result record_key `{value}` is invalid: {error}"
-                ))
-            })
-        })?;
-    let matched_text = row
-        .get::<_, String>("matched_text")
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    let alias_source = row
-        .get::<_, Option<String>>("alias_source")
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    let alias_source_ref = row
-        .get::<_, Option<String>>("alias_source_ref")
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
+    let record_key = RecordKey::parse(&row.record_key).map_err(|error| {
+        FilterCompileError::InvalidValue(format!(
+            "identity result record_key `{}` is invalid: {error}",
+            row.record_key
+        ))
+    })?;
 
     Ok(RecordIdentityMatch {
         record_key,
         match_kind,
-        matched_text,
-        alias_source,
-        alias_source_ref,
+        matched_text: row.matched_text,
+        alias_source: row.alias_source,
+        alias_source_ref: row.alias_source_ref,
     })
+}
+
+#[derive(QueryableByName)]
+struct IdentityMatchRow {
+    #[diesel(sql_type = Text)]
+    record_key: String,
+    #[diesel(sql_type = Text)]
+    matched_text: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    alias_source: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    alias_source_ref: Option<String>,
 }
 
 fn sql_sort(sort: FilteredRecordSort) -> SqlFilteredRecordSort {
@@ -691,4 +760,18 @@ fn seeded_key_hash(seed: u64, key: &str) -> u64 {
         hash = hash.wrapping_mul(0x100000001b3);
     }
     hash
+}
+
+fn read_only_sqlite_uri(path: &Path) -> String {
+    let path = path.to_string_lossy();
+    let mut escaped = String::with_capacity(path.len());
+    for ch in path.chars() {
+        match ch {
+            '?' => escaped.push_str("%3f"),
+            '#' => escaped.push_str("%23"),
+            '%' => escaped.push_str("%25"),
+            _ => escaped.push(ch),
+        }
+    }
+    format!("file:{escaped}?mode=ro")
 }

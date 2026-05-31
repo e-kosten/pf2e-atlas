@@ -1,6 +1,6 @@
 use atlas_domain::RecordKey;
 use atlas_record::{PersistedRecord, PersistedRecordSet};
-use rusqlite::Connection;
+use diesel::SqliteConnection;
 use thiserror::Error;
 
 mod candidates;
@@ -9,7 +9,6 @@ mod metrics;
 mod parse;
 mod relationships;
 mod rows;
-mod scoped;
 mod side_data;
 
 #[derive(Debug, Error)]
@@ -22,27 +21,27 @@ pub enum RecordLoadError {
     InvalidData(String),
 }
 
-pub fn load_persisted_record_set_from_connection(
-    connection: &Connection,
+pub fn load_persisted_record_set_from_diesel_connection(
+    connection: &mut SqliteConnection,
 ) -> Result<PersistedRecordSet, RecordLoadError> {
     Ok(PersistedRecordSet {
-        records: load_persisted_records_from_connection(connection)?,
+        records: load_persisted_records_from_diesel_connection(connection)?,
         reference_edges: relationships::read_reference_edges(connection)?,
         aliases: relationships::read_aliases(connection)?,
         remaster_links: relationships::read_remaster_links(connection)?,
     })
 }
 
-pub fn load_persisted_records_from_connection(
-    connection: &Connection,
+pub fn load_persisted_records_from_diesel_connection(
+    connection: &mut SqliteConnection,
 ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
     let mut records = rows::read_record_rows(connection)?;
     attach_record_details(connection, &mut records)?;
     Ok(records)
 }
 
-pub fn load_persisted_records_by_key_from_connection(
-    connection: &Connection,
+pub fn load_persisted_records_by_key_from_diesel_connection(
+    connection: &mut SqliteConnection,
     keys: &[RecordKey],
 ) -> Result<Vec<PersistedRecord>, RecordLoadError> {
     let mut records = rows::read_record_rows_by_keys(connection, keys)?;
@@ -50,15 +49,15 @@ pub fn load_persisted_records_by_key_from_connection(
     Ok(records)
 }
 
-pub fn load_search_candidate_records_from_connection(
-    connection: &Connection,
+pub fn load_search_candidate_records_from_diesel_connection(
+    connection: &mut SqliteConnection,
     keys: &[RecordKey],
 ) -> Result<Vec<crate::SearchCandidateRecord>, RecordLoadError> {
     candidates::read_search_candidate_records_by_keys(connection, keys)
 }
 
 fn attach_record_details(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     records: &mut [PersistedRecord],
 ) -> Result<(), RecordLoadError> {
     let metrics = metrics::read_metrics(connection)?;
@@ -80,7 +79,7 @@ fn attach_record_details(
 }
 
 fn attach_record_details_by_key(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     records: &mut [PersistedRecord],
     keys: &[RecordKey],
 ) -> Result<(), RecordLoadError> {

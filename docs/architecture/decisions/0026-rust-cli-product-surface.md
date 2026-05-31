@@ -35,7 +35,6 @@ New durable behavior should route through the owning Rust crate:
 - command presentation in `atlas-cli`
 - path/setup policy in `atlas-runtime`
 - retrieval orchestration in `atlas-search`
-- artifact access, validation, and writing in `atlas-index`
+- artifact schema, access, validation, and writing in `atlas-index`
 - source loading, normalization, enrichment, build-time embeddings, and build-input handoff in `atlas-ingest`
-- schema descriptors in `atlas-artifact`
 - normalized record/content models in `atlas-record`

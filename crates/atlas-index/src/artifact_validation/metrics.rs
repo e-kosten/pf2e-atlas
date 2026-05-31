@@ -2,8 +2,8 @@ use rusqlite::Connection;
 
 use crate::sql::count_sql;
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 pub(super) fn validate_metric_values(
@@ -32,8 +32,8 @@ pub(super) fn validate_metric_values(
     ] {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Data,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Data,
                 format!("metric value shape `{key}` is inconsistent with value_type"),
                 Some(key.to_string()),
                 Some("exactly one matching value column".to_string()),
@@ -52,8 +52,8 @@ pub(super) fn validate_metric_catalogs(
     for (key, sql) in METRIC_CATALOG_CHECKS {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Data,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Data,
                 format!("metric catalog coverage check `{key}` failed"),
                 Some(key.to_string()),
                 Some("catalog rows match default-visible metrics".to_string()),
@@ -89,8 +89,8 @@ fn validate_metric_catalog_uniqueness(
         );
         let duplicates = count_sql(connection, &sql)?;
         if duplicates > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Data,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Data,
                 format!("{duplicates} {table} keys have duplicate rows"),
                 Some(format!("{table}.duplicate_rows")),
                 Some("catalog rows have null-safe unique keys".to_string()),

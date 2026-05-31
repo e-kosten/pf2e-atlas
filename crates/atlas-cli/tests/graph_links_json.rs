@@ -6,7 +6,7 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
 use support::graph::{
     assert_section_edges_point_to_returned_records, insert_graph_edges, insert_reference_edge,
     set_record_visibility,
@@ -15,7 +15,7 @@ use support::graph::{
 #[test]
 fn graph_links_json_returns_bounded_context() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -75,7 +75,7 @@ fn graph_links_json_returns_bounded_context() -> Result<(), Box<dyn std::error::
 #[test]
 fn graph_links_json_keeps_empty_sections_stable() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-empty");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -112,7 +112,7 @@ fn graph_links_json_keeps_empty_sections_stable() -> Result<(), Box<dyn std::err
 #[test]
 fn graph_links_json_defaults_to_outgoing_only() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-default");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -138,7 +138,7 @@ fn graph_links_json_defaults_to_outgoing_only() -> Result<(), Box<dyn std::error
 #[test]
 fn graph_links_json_supports_backlinks_only() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-backlinks-only");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -174,7 +174,7 @@ fn graph_links_json_supports_backlinks_only() -> Result<(), Box<dyn std::error::
 fn graph_links_json_reports_missing_seed_like_record_get() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-graph-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "links", "actions:missing", "--index"])
@@ -194,7 +194,7 @@ fn graph_links_json_reports_missing_seed_like_record_get() -> Result<(), Box<dyn
 #[test]
 fn graph_links_json_rejects_invalid_limit() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-miss");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "links", "not-a-key", "--index"])
@@ -236,7 +236,7 @@ fn graph_links_json_rejects_invalid_limit() -> Result<(), Box<dyn std::error::Er
 #[test]
 fn graph_links_json_reports_ambiguous_name_resolution() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-ambiguous");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -264,7 +264,7 @@ fn graph_links_json_reports_ambiguous_name_resolution() -> Result<(), Box<dyn st
 fn graph_links_json_reports_resolution_query_failures_as_operational()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-resolution-failure");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute("DROP TABLE record_aliases", [])?;
 
@@ -286,7 +286,7 @@ fn graph_links_json_reports_resolution_query_failures_as_operational()
 #[test]
 fn graph_links_json_accepts_upper_bound_and_detail() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-upper-bound");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -316,7 +316,7 @@ fn graph_links_json_accepts_upper_bound_and_detail() -> Result<(), Box<dyn std::
 #[test]
 fn graph_links_human_output_is_summary_oriented() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-human");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -344,7 +344,7 @@ fn graph_links_human_output_is_summary_oriented() -> Result<(), Box<dyn std::err
 fn graph_links_json_preserves_localized_and_null_display_text()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-localized");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_reference_edge(
         &connection,
@@ -388,7 +388,7 @@ fn graph_links_json_preserves_localized_and_null_display_text()
 #[test]
 fn graph_links_json_accepts_non_default_visible_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-hidden-seed");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
     set_record_visibility(&path, "actions:testAction1", false)?;
 

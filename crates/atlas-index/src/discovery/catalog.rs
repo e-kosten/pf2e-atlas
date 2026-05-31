@@ -1,37 +1,41 @@
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::{
     FilterFieldGroup, FilterFieldInfo, FilterFieldStats, FilterFieldType, FilterOperator,
     FilterSample, FilterValueCount, FilterValuePayload, FilterValuePolicy, RecordFamily,
 };
-use rusqlite::{Connection, OptionalExtension, params};
+use diesel::OptionalExtension;
+use diesel::sql_types::{BigInt, Double, Nullable, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
 use super::definitions::FieldDefinition;
 use super::error::{DiscoveryError, query_error};
 use super::request::{DiscoveryValueSort, FilterValueRequest};
 use super::stats;
+use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 pub(super) fn fields(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: Option<RecordFamily>,
 ) -> Result<Vec<FilterFieldInfo>, DiscoveryError> {
-    let mut statement = connection
-        .prepare(
-            "SELECT field, field_type, field_group, value_policy, operators_json, cli_flags_json,
-                    applicable_families_json
-             FROM filter_field_catalog
-             WHERE (record_family IS NULL AND ?1 IS NULL) OR record_family = ?1
-             ORDER BY field",
-        )
-        .map_err(query_error)?;
     let scope = scope.map(record_family_string);
-    statement
-        .query_map(params![scope], field_info_from_row)
-        .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)
+    bind_sql_query(
+        "SELECT field, field_type, field_group, value_policy, operators_json, cli_flags_json,
+                applicable_families_json
+         FROM filter_field_catalog
+         WHERE (record_family IS NULL AND ?1 IS NULL) OR record_family = ?1
+         ORDER BY field"
+            .to_string(),
+        &[optional_text_value(scope)],
+    )
+    .load::<FilterFieldInfoRow>(connection)
+    .map_err(query_error)?
+    .into_iter()
+    .map(filter_field_info_from_row)
+    .collect()
 }
 
 pub(super) fn values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     scope: Option<RecordFamily>,
     request: &FilterValueRequest,
@@ -62,7 +66,7 @@ pub(super) fn values(
 }
 
 fn enumerable_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     field: &str,
     scope: Option<RecordFamily>,
     sort: DiscoveryValueSort,
@@ -77,46 +81,56 @@ fn enumerable_values(
          WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)
          ORDER BY {order}"
     );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    statement
-        .query_map(params![field, scope], |row| {
-            Ok(FilterValueCount {
-                value: row.get(0)?,
-                count: row.get(1)?,
+    bind_sql_query(
+        sql,
+        &[
+            SqlBindValue::Text(field.to_string()),
+            optional_text_value(scope),
+        ],
+    )
+    .load::<FilterValueCountRow>(connection)
+    .map_err(query_error)
+    .map(|rows| {
+        rows.into_iter()
+            .map(|row| FilterValueCount {
+                value: row.value,
+                count: row.catalog_count as u64,
             })
-        })
-        .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)
+            .collect()
+    })
 }
 
 fn sample_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     field: &str,
     scope: Option<RecordFamily>,
     sample_limit: usize,
 ) -> Result<FilterValuePayload, DiscoveryError> {
     let scope = scope.map(record_family_string);
     let stats = field_stats(connection, field, scope.as_deref())?;
-    let mut statement = connection
-        .prepare(
-            "SELECT value, catalog_count
-             FROM filter_sample_catalog
-             WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)
-             ORDER BY sample_rank ASC
-             LIMIT ?3",
-        )
-        .map_err(query_error)?;
-    let examples = statement
-        .query_map(params![field, scope, sample_limit as u64], |row| {
-            Ok(stats::sample_example(&FilterValueCount {
-                value: row.get(0)?,
-                count: row.get(1)?,
-            }))
+    let examples = bind_sql_query(
+        "SELECT value, catalog_count
+         FROM filter_sample_catalog
+         WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)
+         ORDER BY sample_rank ASC
+         LIMIT ?3"
+            .to_string(),
+        &[
+            SqlBindValue::Text(field.to_string()),
+            optional_text_value(scope),
+            SqlBindValue::Integer(sample_limit as i64),
+        ],
+    )
+    .load::<FilterValueCountRow>(connection)
+    .map_err(query_error)?
+    .into_iter()
+    .map(|row| {
+        stats::sample_example(&FilterValueCount {
+            value: row.value,
+            count: row.catalog_count as u64,
         })
-        .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)?;
+    })
+    .collect::<Vec<_>>();
     let null_count = stats.null_count;
     Ok(FilterValuePayload::Sample {
         sample: FilterSample {
@@ -132,83 +146,85 @@ fn sample_values(
 }
 
 fn numeric_stats(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     field: &str,
     scope: Option<RecordFamily>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
     let scope = scope.map(record_family_string);
-    connection
-        .query_row(
-            "SELECT catalog_count, null_count, min, p05, p25, p50, mean, p75, p95, max
-             FROM filter_numeric_catalog
-             WHERE field = ?1
-               AND metric_domain IS NULL
-               AND metric_key IS NULL
-               AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)",
-            params![field, scope],
-            stats::numeric_stats_from_row,
-        )
-        .optional()
-        .map_err(query_error)?
-        .ok_or_else(|| {
-            DiscoveryError::FieldNotApplicable(format!(
-                "field `{field}` has no numeric catalog rows"
-            ))
-        })
+    bind_sql_query(
+        "SELECT catalog_count, null_count, min, p05, p25, p50, mean, p75, p95, max
+         FROM filter_numeric_catalog
+         WHERE field = ?1
+           AND metric_domain IS NULL
+           AND metric_key IS NULL
+           AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)"
+            .to_string(),
+        &[
+            SqlBindValue::Text(field.to_string()),
+            optional_text_value(scope),
+        ],
+    )
+    .get_result::<NumericStatsRow>(connection)
+    .optional()
+    .map_err(query_error)?
+    .map(numeric_stats_from_row)
+    .ok_or_else(|| {
+        DiscoveryError::FieldNotApplicable(format!("field `{field}` has no numeric catalog rows"))
+    })
 }
 
 fn field_stats(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     field: &str,
     scope: Option<&str>,
 ) -> Result<FilterFieldStats, DiscoveryError> {
-    connection
-        .query_row(
-            "SELECT value_count, distinct_count, singleton_count, singleton_ratio,
-                    observation_singleton_ratio, null_count
-             FROM filter_field_catalog
-             WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)",
-            params![field, scope],
-            |row| {
-                Ok(FilterFieldStats {
-                    value_count: row.get(0)?,
-                    distinct_count: row.get(1)?,
-                    singleton_count: row.get(2)?,
-                    singleton_ratio: row.get(3)?,
-                    observation_singleton_ratio: row.get(4)?,
-                    null_count: row.get(5)?,
-                })
-            },
-        )
-        .map_err(query_error)
+    bind_sql_query(
+        "SELECT value_count, distinct_count, singleton_count, singleton_ratio,
+                observation_singleton_ratio, null_count
+         FROM filter_field_catalog
+         WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)"
+            .to_string(),
+        &[
+            SqlBindValue::Text(field.to_string()),
+            optional_text_ref_value(scope),
+        ],
+    )
+    .get_result::<FilterFieldStatsRow>(connection)
+    .map(filter_field_stats_from_row)
+    .map_err(query_error)
 }
 
 fn field_null_count(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     field: &str,
     scope: Option<RecordFamily>,
 ) -> Result<u64, DiscoveryError> {
     let scope = scope.map(record_family_string);
-    connection
-        .query_row(
-            "SELECT null_count
-             FROM filter_field_catalog
-             WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)",
-            params![field, scope],
-            |row| row.get(0),
-        )
-        .map_err(query_error)
+    bind_sql_query(
+        "SELECT null_count AS count
+         FROM filter_field_catalog
+         WHERE field = ?1 AND ((record_family IS NULL AND ?2 IS NULL) OR record_family = ?2)"
+            .to_string(),
+        &[
+            SqlBindValue::Text(field.to_string()),
+            optional_text_value(scope),
+        ],
+    )
+    .get_result::<CountRow>(connection)
+    .map(|row| row.count as u64)
+    .map_err(query_error)
 }
 
-fn field_info_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FilterFieldInfo> {
+fn filter_field_info_from_row(row: FilterFieldInfoRow) -> Result<FilterFieldInfo, DiscoveryError> {
     Ok(FilterFieldInfo {
-        field: row.get(0)?,
-        field_type: parse_field_type(row.get::<_, String>(1)?.as_str()),
-        group: parse_field_group(row.get::<_, String>(2)?.as_str()),
-        value_policy: parse_value_policy(row.get::<_, String>(3)?.as_str()),
-        operators: parse_json_operators(&row.get::<_, String>(4)?),
-        cli_flags: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
-        applicable_families: serde_json::from_str(&row.get::<_, String>(6)?).unwrap_or_default(),
+        field: row.field,
+        field_type: parse_field_type(&row.field_type),
+        group: parse_field_group(&row.field_group),
+        value_policy: parse_value_policy(&row.value_policy),
+        operators: parse_json_operators(&row.operators_json),
+        cli_flags: serde_json::from_str(&row.cli_flags_json).unwrap_or_default(),
+        applicable_families: serde_json::from_str(&row.applicable_families_json)
+            .unwrap_or_default(),
         catalog_available: true,
     })
 }
@@ -273,4 +289,106 @@ fn record_family_string(value: RecordFamily) -> String {
         .ok()
         .and_then(|value| value.as_str().map(str::to_string))
         .unwrap_or_else(|| format!("{value:?}").to_lowercase())
+}
+
+fn optional_text_value(value: Option<String>) -> SqlBindValue {
+    value.map(SqlBindValue::Text).unwrap_or(SqlBindValue::Null)
+}
+
+fn optional_text_ref_value(value: Option<&str>) -> SqlBindValue {
+    value
+        .map(|value| SqlBindValue::Text(value.to_string()))
+        .unwrap_or(SqlBindValue::Null)
+}
+
+fn numeric_stats_from_row(row: NumericStatsRow) -> atlas_domain::NumericFieldStats {
+    atlas_domain::NumericFieldStats {
+        count: row.catalog_count as u64,
+        null_count: row.null_count as u64,
+        min: row.min,
+        p05: row.p05,
+        p25: row.p25,
+        p50: row.p50,
+        mean: row.mean,
+        p75: row.p75,
+        p95: row.p95,
+        max: row.max,
+    }
+}
+
+fn filter_field_stats_from_row(row: FilterFieldStatsRow) -> FilterFieldStats {
+    FilterFieldStats {
+        value_count: row.value_count as u64,
+        distinct_count: row.distinct_count as u64,
+        singleton_count: row.singleton_count as u64,
+        singleton_ratio: row.singleton_ratio,
+        observation_singleton_ratio: row.observation_singleton_ratio,
+        null_count: row.null_count as u64,
+    }
+}
+
+#[derive(QueryableByName)]
+struct FilterFieldInfoRow {
+    #[diesel(sql_type = Text)]
+    field: String,
+    #[diesel(sql_type = Text)]
+    field_type: String,
+    #[diesel(sql_type = Text)]
+    field_group: String,
+    #[diesel(sql_type = Text)]
+    value_policy: String,
+    #[diesel(sql_type = Text)]
+    operators_json: String,
+    #[diesel(sql_type = Text)]
+    cli_flags_json: String,
+    #[diesel(sql_type = Text)]
+    applicable_families_json: String,
+}
+
+#[derive(QueryableByName)]
+struct FilterValueCountRow {
+    #[diesel(sql_type = Text)]
+    value: String,
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+}
+
+#[derive(QueryableByName)]
+struct NumericStatsRow {
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+    #[diesel(sql_type = BigInt)]
+    null_count: i64,
+    #[diesel(sql_type = Nullable<Double>)]
+    min: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p05: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p25: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p50: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    mean: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p75: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p95: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    max: Option<f64>,
+}
+
+#[derive(QueryableByName)]
+struct FilterFieldStatsRow {
+    #[diesel(sql_type = BigInt)]
+    value_count: i64,
+    #[diesel(sql_type = BigInt)]
+    distinct_count: i64,
+    #[diesel(sql_type = BigInt)]
+    singleton_count: i64,
+    #[diesel(sql_type = Double)]
+    singleton_ratio: f64,
+    #[diesel(sql_type = Double)]
+    observation_singleton_ratio: f64,
+    #[diesel(sql_type = BigInt)]
+    null_count: i64,
 }

@@ -7,13 +7,13 @@ mod request;
 mod stats;
 
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, SearchFilterNode};
-use rusqlite::Connection;
+use diesel::SqliteConnection;
 
 pub use error::DiscoveryError;
 pub use request::{DiscoveryValueSort, FilterValueRequest};
 
 pub(crate) fn list_filter_fields(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     filter_json: Option<serde_json::Value>,
 ) -> Result<FilterFieldDiscovery, DiscoveryError> {
@@ -21,7 +21,7 @@ pub(crate) fn list_filter_fields(
 }
 
 pub(crate) fn list_filter_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
@@ -29,7 +29,7 @@ pub(crate) fn list_filter_values(
 }
 
 pub(crate) fn resolve_filter_metrics(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<Option<SearchFilterNode>, DiscoveryError> {
     metrics::resolve_filter_metrics(connection, filter)

@@ -9,6 +9,7 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 - `SearchIndex` read contract and `SqliteIndexReader` read handles.
 - `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
 - Artifact validation diagnostics and validation reports.
+- Diesel schema, migrations, and ordinary relational writer/reader row models.
 - Row readers and hydration into `atlas-record` models.
 - Filter-to-SQL keyset compilation.
 - Vector query SQL over `document_embedding_cache` and `record_vector_index`.
@@ -17,11 +18,10 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 ## Should Not Own
 
 - Ingest-time source normalization.
-- Physical table/column inventories that belong in `atlas-artifact`.
 - Query embedding generation.
 - Product-level search ranking or vector-hit collapse.
 - CLI presentation.
 
 ## Boundary Notes
 
-Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` may own SQL execution semantics, but physical schema names should come from `atlas-artifact` and product-facing retrieval behavior should compose through `atlas-search`.
+Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` owns the SQLite artifact contract; ordinary relational access should use Diesel, while FTS5, sqlite-vec, dynamic filter relations, and validation pragmas may stay as explicit raw SQL. Product-facing retrieval behavior should compose through `atlas-search`.
