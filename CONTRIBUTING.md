@@ -98,6 +98,7 @@ Install the CLI from this clone:
 
 ```bash
 cargo install --path crates/atlas-cli --locked
+# or: just install
 ```
 
 Generate shell completions:
