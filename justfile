@@ -17,6 +17,11 @@ preflight:
 verify:
     scripts/verify.sh
 
+[doc('Install the local atlas CLI from this checkout')]
+[group('development')]
+install:
+    cargo install --path crates/atlas-cli --locked
+
 [doc('Rebase, verify, fast-forward main, and verify main again')]
 [group('development')]
 land-worktree:

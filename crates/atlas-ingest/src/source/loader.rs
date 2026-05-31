@@ -1,8 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use atlas_domain::PackName;
+use rayon::prelude::*;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tracing::info;
@@ -21,7 +23,7 @@ struct SourceSignatureRecord {
     content_hash: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 struct SourceLoadTiming {
     discover_duration: Duration,
     read_duration: Duration,
@@ -31,10 +33,24 @@ struct SourceLoadTiming {
     signature_duration: Duration,
 }
 
+#[derive(Debug)]
+struct LoadedSourceFile {
+    record: crate::records::LoadedSourceRecord,
+    source_signature: SourceSignatureRecord,
+}
+
+#[derive(Debug)]
+struct ProcessedSourceFile {
+    path: PathBuf,
+    timing: SourceLoadTiming,
+    result: Result<LoadedSourceFile, IngestError>,
+}
+
 pub(crate) fn load_foundry_source_records(
     source_root: impl AsRef<Path>,
     manifest_path: Option<&Path>,
 ) -> Result<SourceLoad, IngestError> {
+    let load_started_at = Instant::now();
     let source_root = source_root.as_ref();
     if !source_root.is_dir() {
         return Err(IngestError::SourceUnavailable(format!(
@@ -100,57 +116,45 @@ pub(crate) fn load_foundry_source_records(
         let record_start = records.len();
 
         let record_progress_interval = record_progress_interval(paths.len());
-        for (record_index, path) in paths.iter().enumerate() {
-            let raw_record = match read_json_record(path, &mut timing) {
-                Ok(raw_record) => raw_record,
-                Err(error) => {
-                    skipped_records.push(SkippedRecord {
-                        path: path.to_path_buf(),
-                        reason: error.to_string(),
-                    });
-                    warnings.push(error.to_string());
-                    continue;
+        let processed_count = AtomicUsize::new(0);
+        let processed_files = paths
+            .par_iter()
+            .map(|path| {
+                let processed_file =
+                    process_source_file(source_root, &manifest_pack, &pack_name, path);
+                let processed = processed_count.fetch_add(1, Ordering::Relaxed) + 1;
+                if processed == paths.len() || processed.is_multiple_of(record_progress_interval) {
+                    info!(target: "atlas_progress",
+                        phase = "source_packs",
+                        current = pack_number as u64,
+                        total = manifest_pack_count as u64,
+                        "Loading source pack: {pack} ({processed}/{files})",
+                        pack = manifest_pack.name.as_str(),
+                        files = paths.len()
+                    );
                 }
-            };
-            let normalize_started_at = Instant::now();
-            let normalized_record = normalize_record(
-                &manifest_pack,
-                &pack_name,
-                path,
-                source_root,
-                raw_record.value,
-            );
-            timing.normalize_duration += normalize_started_at.elapsed();
-            match normalized_record {
-                Ok(record) => {
+                processed_file
+            })
+            .collect::<Vec<_>>();
+
+        for processed_file in processed_files {
+            add_timing(&mut timing, processed_file.timing);
+            match processed_file.result {
+                Ok(loaded) => {
                     collect_content_parse_diagnostics(
-                        &record.facts.content_parse_diagnostics,
+                        &loaded.record.facts.content_parse_diagnostics,
                         &mut diagnostics,
                     );
-                    source_signature_records.push(SourceSignatureRecord {
-                        source_path: relative_source_path(source_root, path),
-                        content_hash: raw_record.content_hash,
-                    });
-                    records.push(record);
+                    source_signature_records.push(loaded.source_signature);
+                    records.push(loaded.record);
                 }
                 Err(error) => {
                     skipped_records.push(SkippedRecord {
-                        path: path.to_path_buf(),
+                        path: processed_file.path,
                         reason: error.to_string(),
                     });
                     warnings.push(error.to_string());
                 }
-            }
-            let processed = record_index + 1;
-            if processed == paths.len() || processed % record_progress_interval == 0 {
-                info!(target: "atlas_progress",
-                    phase = "source_packs",
-                    current = pack_number as u64,
-                    total = manifest_pack_count as u64,
-                    "Loading source pack: {pack} ({processed}/{files})",
-                    pack = manifest_pack.name.as_str(),
-                    files = paths.len()
-                );
             }
         }
 
@@ -186,6 +190,7 @@ pub(crate) fn load_foundry_source_records(
     timing.signature_duration = signature_started_at.elapsed();
     let source_record_count = records.len();
     info!(
+        load_wall_ms = load_started_at.elapsed().as_millis(),
         discover_ms = timing.discover_duration.as_millis(),
         read_ms = timing.read_duration.as_millis(),
         hash_ms = timing.hash_duration.as_millis(),
@@ -211,6 +216,47 @@ pub(crate) fn load_foundry_source_records(
         skipped_records,
         warnings,
     })
+}
+
+fn process_source_file(
+    source_root: &Path,
+    manifest_pack: &ManifestPack,
+    pack_name: &PackName,
+    path: &Path,
+) -> ProcessedSourceFile {
+    let mut timing = SourceLoadTiming::default();
+    let result = read_json_record(path, &mut timing).and_then(|raw_record| {
+        let normalize_started_at = Instant::now();
+        let normalized_record = normalize_record(
+            manifest_pack,
+            pack_name,
+            path,
+            source_root,
+            raw_record.value,
+        );
+        timing.normalize_duration += normalize_started_at.elapsed();
+        normalized_record.map(|record| LoadedSourceFile {
+            record,
+            source_signature: SourceSignatureRecord {
+                source_path: relative_source_path(source_root, path),
+                content_hash: raw_record.content_hash,
+            },
+        })
+    });
+    ProcessedSourceFile {
+        path: path.to_path_buf(),
+        timing,
+        result,
+    }
+}
+
+fn add_timing(total: &mut SourceLoadTiming, timing: SourceLoadTiming) {
+    total.discover_duration += timing.discover_duration;
+    total.read_duration += timing.read_duration;
+    total.hash_duration += timing.hash_duration;
+    total.parse_duration += timing.parse_duration;
+    total.normalize_duration += timing.normalize_duration;
+    total.signature_duration += timing.signature_duration;
 }
 
 fn collect_content_parse_diagnostics(
