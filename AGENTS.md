@@ -47,11 +47,7 @@ When writing or editing docs, prefer statements of current behavior and current 
 
 - `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.
 - `scripts/preflight.sh`: verify the current checkout is a linked worktree on a non-`main` branch.
-- `cargo fmt --check`: verify Rust formatting.
-- `cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro`: run Clippy with warnings and `dbg!` denied across all targets.
-- `cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable`: run strict non-test runtime Clippy.
-- `cargo test --workspace`: run the Rust test suite.
-- `cargo build --workspace`: build all workspace crates.
+- `just verify` or `scripts/verify.sh`: run the Rust fmt, clippy, test, and build gate.
 - `cargo run -p atlas-cli -- --help`: run the CLI from source.
 - `cargo run -p atlas-cli -- setup --check --json`: inspect setup readiness from source.
 - `cargo install --path crates/atlas-cli --locked`: install the local `atlas` CLI.
@@ -79,17 +75,8 @@ Rust workspace tests are the primary validation surface. Add or update tests und
 Run the Rust verification gate before committing non-docs changes:
 
 ```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-cargo clippy --workspace --lib --bins -- -D warnings \
-  -D clippy::unwrap_used \
-  -D clippy::expect_used \
-  -D clippy::panic \
-  -D clippy::unimplemented \
-  -D clippy::todo \
-  -D clippy::unreachable
-cargo test --workspace
-cargo build --workspace
+just verify
+# or: scripts/verify.sh
 ```
 
 Docs-only or instruction-only changes do not require the Rust verification gate unless the change also affects executable examples, generated output expectations, or another validated artifact.

@@ -4,6 +4,7 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 
 sh -n \
+  "$repo_root/scripts/verify.sh" \
   "$repo_root/scripts/prepare-release.sh" \
   "$repo_root/scripts/install/atlas-installer.sh" \
   "$repo_root/scripts/release/validate-release-assets.sh" \
