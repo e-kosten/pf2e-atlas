@@ -206,6 +206,7 @@ fn resolution_matches_for_kind(
         }
     }
     matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
+    matches.dedup_by(|left, right| left.record.key == right.record.key);
     matches
 }
 
@@ -225,5 +226,94 @@ fn resolution_result(
         alias_source: alias.map(|alias| alias.source.as_str().to_string()),
         alias_source_ref: alias.map(|alias| alias.source_ref.clone()),
         record: record.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordKey};
+    use atlas_record::{AliasSource, PersistedRecord, RecordAlias};
+
+    use super::*;
+
+    #[test]
+    fn alias_resolution_returns_one_match_per_record_key() {
+        let record = fake_record("actions:KAVf7AmRnbCAHrkT", "Reactive Strike");
+        let aliases = vec![
+            fake_alias(&record.key, "Attack of Opportunity", "legacy"),
+            fake_alias(&record.key, "Attack of Opportunity", "alternate"),
+        ];
+
+        let matches = resolution_matches_for_kind(
+            "Attack of Opportunity",
+            "attack of opportunity",
+            RecordResolutionMatchKind::Alias,
+            std::slice::from_ref(&record),
+            &aliases,
+        );
+
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].record.key, record.key);
+    }
+
+    fn fake_alias(record_key: &RecordKey, alias_text: &str, source_ref: &str) -> RecordAlias {
+        RecordAlias {
+            canonical_record_key: record_key.clone(),
+            alias_text: alias_text.to_string(),
+            normalized_alias: alias_text.to_lowercase(),
+            source: AliasSource::CompendiumSource,
+            source_ref: source_ref.to_string(),
+        }
+    }
+
+    fn fake_record(key: &str, name: &str) -> PersistedRecord {
+        let key = RecordKey::parse(key).expect("fixture key should parse");
+        PersistedRecord {
+            id: key.id().clone(),
+            key,
+            name: name.to_string(),
+            normalized_name: name.to_lowercase(),
+            record_family: RecordFamily::Rule,
+            pack_name: PackName::new("actions").expect("fixture pack should parse"),
+            pack_label: "Actions".to_string(),
+            foundry_document_type: "Item".to_string(),
+            foundry_record_type: "action".to_string(),
+            level: None,
+            rarity: None,
+            traits: Vec::new(),
+            prerequisites: Vec::new(),
+            system_category: None,
+            system_group: None,
+            system_base_item: None,
+            system_usage: None,
+            system_price_json: None,
+            system_actions_value: None,
+            system_time_value: None,
+            system_duration_value: None,
+            price_cp: None,
+            activation_time: None,
+            duration: None,
+            metrics: Vec::new(),
+            actor_data: None,
+            item_data: None,
+            spell_data: None,
+            publication_title: None,
+            publication_remaster: false,
+            description: None,
+            blurb: None,
+            supplemental_content: Vec::new(),
+            publication_family: PublicationFamily::Unknown,
+            folder_id: None,
+            taxonomy_families: Vec::new(),
+            variant_group_key: None,
+            variant_base_name: None,
+            variant_label: None,
+            variant_axes: Vec::new(),
+            variant_confidence: None,
+            variant_source: "none".to_string(),
+            source_path: format!("packs/actions/{name}.json"),
+            is_default_visible: true,
+            raw_json: "{}".to_string(),
+        }
     }
 }
