@@ -269,7 +269,7 @@ fn graph_links_json_reports_resolution_query_failures_as_operational()
     connection.execute("DROP TABLE record_aliases", [])?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["graph", "links", "Test Action 1", "--index"])
+        .args(["graph", "links", "Missing Alias", "--index"])
         .arg(&path)
         .arg("--json")
         .output()?;

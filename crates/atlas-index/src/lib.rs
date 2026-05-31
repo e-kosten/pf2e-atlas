@@ -41,7 +41,9 @@ pub use inspect::{
 };
 pub use records::RecordLoadError;
 pub use relationship_edges::GraphReferenceEdge;
-pub use search::{SearchCandidateRecord, SearchIndex};
+pub use search::{
+    RecordIdentityMatch, RecordIdentityMatchKind, SearchCandidateRecord, SearchIndex,
+};
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
     FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader, SqliteIndexWriter,

@@ -1,5 +1,8 @@
 use atlas_domain::SearchFilterNode;
-use atlas_index::FilteredRecordSort;
+use atlas_index::{
+    FilterCompileError, FilteredRecordSort, RecordIdentityMatch, RecordIdentityMatchKind,
+    RecordLoadError,
+};
 use atlas_record::{PersistedRecord, RecordAlias};
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +49,13 @@ impl AtlasRetrievalService {
         let resolved_filter = self.index.resolve_metric_filters(filter)?;
         let filter = resolved_filter.as_ref().or(filter);
         let normalized_query = normalize_record_query(query);
+        if let Some(mut matches) =
+            self.resolve_record_with_index(query, &normalized_query, filter)?
+        {
+            self.enrich_resolution_reference_labels(&mut matches)?;
+            return Ok(matches);
+        }
+
         let mut record_set = self.index.load_record_set()?;
         record_set
             .records
@@ -115,6 +125,64 @@ impl AtlasRetrievalService {
 
         self.enrich_resolution_reference_labels(&mut matches)?;
         Ok(matches)
+    }
+}
+
+impl AtlasRetrievalService {
+    fn resolve_record_with_index(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
+        let identity_matches =
+            match self
+                .index
+                .resolve_record_identity_matches(query, normalized_query, filter)
+            {
+                Ok(Some(matches)) => matches,
+                Ok(None) => return Ok(None),
+                Err(FilterCompileError::QueryFailed(message)) => {
+                    return Err(SearchError::RecordLoad(RecordLoadError::QueryFailed(
+                        message,
+                    )));
+                }
+                Err(FilterCompileError::InvalidValue(message)) => {
+                    return Err(SearchError::RecordLoad(RecordLoadError::InvalidData(
+                        message,
+                    )));
+                }
+                Err(error) => return Err(SearchError::Filter(error)),
+            };
+        if identity_matches.is_empty() {
+            return Ok(Some(Vec::new()));
+        }
+
+        let record_keys = identity_matches
+            .iter()
+            .map(|identity| identity.record_key.clone())
+            .collect::<Vec<_>>();
+        let records = self
+            .index
+            .load_records_by_key(&record_keys)?
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut matches = identity_matches
+            .into_iter()
+            .filter_map(|identity| {
+                let record = records.get(&identity.record_key)?;
+                Some(resolution_result_from_identity(
+                    query,
+                    normalized_query,
+                    identity,
+                    record,
+                ))
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
+        matches.dedup_by(|left, right| left.record.key == right.record.key);
+        Ok(Some(matches))
     }
 }
 
@@ -225,6 +293,28 @@ fn resolution_result(
         matched_text,
         alias_source: alias.map(|alias| alias.source.as_str().to_string()),
         alias_source_ref: alias.map(|alias| alias.source_ref.clone()),
+        record: record.clone(),
+    }
+}
+
+fn resolution_result_from_identity(
+    query: &str,
+    normalized_query: &str,
+    identity: RecordIdentityMatch,
+    record: &PersistedRecord,
+) -> RecordResolutionResult {
+    RecordResolutionResult {
+        query: query.to_string(),
+        normalized_query: normalized_query.to_string(),
+        match_kind: match identity.match_kind {
+            RecordIdentityMatchKind::Name => RecordResolutionMatchKind::Name,
+            RecordIdentityMatchKind::NormalizedName => RecordResolutionMatchKind::NormalizedName,
+            RecordIdentityMatchKind::Alias => RecordResolutionMatchKind::Alias,
+            RecordIdentityMatchKind::VariantName => RecordResolutionMatchKind::VariantName,
+        },
+        matched_text: identity.matched_text,
+        alias_source: identity.alias_source,
+        alias_source_ref: identity.alias_source_ref,
         record: record.clone(),
     }
 }

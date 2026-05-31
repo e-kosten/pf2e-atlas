@@ -1,10 +1,10 @@
 use std::fs;
 
-use atlas_domain::{RecordFamily, RecordKey};
+use atlas_domain::{NumericMatch, RecordFamily, RecordKey};
 use rusqlite::Connection;
 
 use super::{create_contract_database, temp_db_path};
-use crate::SqliteIndexReader;
+use crate::{RecordIdentityMatchKind, SqliteIndexReader};
 
 #[test]
 fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
@@ -219,6 +219,100 @@ fn load_search_candidate_records_rejects_invalid_family() -> Result<(), Box<dyn 
         .expect_err("invalid candidate family should be rejected");
 
     assert!(error.to_string().contains("record_family"));
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn resolves_identity_matches_in_sql_with_match_precedence_and_deduplication()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("resolve-identity-sql");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET name = CASE record_key
+             WHEN 'actions:testAction1' THEN 'Reactive Strike'
+             WHEN 'actions:testAction2' THEN 'Reactive Strike'
+             ELSE name
+         END,
+             normalized_name = CASE record_key
+             WHEN 'actions:testAction1' THEN 'reactive strike'
+             WHEN 'actions:testAction2' THEN 'reactive strike'
+             ELSE normalized_name
+         END",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+             VALUES ('actions:testAction1', 'Attack of Opportunity', 'attack of opportunity', 'compendium_source', 'fixture-a')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+             VALUES ('actions:testAction1', 'Attack of Opportunity', 'attack of opportunity', 'migration', 'fixture-b')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_aliases (canonical_record_key, alias_text, normalized_alias, source_kind, source_ref)
+             VALUES ('actions:testAction2', 'Attack of Opportunity', 'attack of opportunity', 'compendium_source', 'fixture-c')",
+        [],
+    )?;
+    drop(connection);
+
+    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
+        "Attack of Opportunity",
+        "attack of opportunity",
+        None,
+    )?;
+
+    assert_eq!(
+        matches
+            .iter()
+            .map(|hit| hit.record_key.to_string())
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction1", "actions:testAction2"]
+    );
+    assert!(
+        matches
+            .iter()
+            .all(|hit| hit.match_kind == RecordIdentityMatchKind::Alias)
+    );
+    assert_eq!(matches[0].matched_text, "Attack of Opportunity");
+    assert!(matches[0].alias_source.is_some());
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn resolve_identity_matches_respects_structural_filters() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_db_path("resolve-identity-filtered");
+    create_contract_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET name = 'Reactive Strike',
+             normalized_name = 'reactive strike',
+             level = CASE record_key
+                 WHEN 'actions:testAction1' THEN 1
+                 WHEN 'actions:testAction2' THEN 2
+                 ELSE 3
+             END",
+        [],
+    )?;
+    drop(connection);
+
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Eq { value: 2.0 });
+    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
+        "Reactive Strike",
+        "reactive strike",
+        Some(&filter),
+    )?;
+
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].record_key.to_string(), "actions:testAction2");
+    assert_eq!(matches[0].match_kind, RecordIdentityMatchKind::Name);
     fs::remove_file(path)?;
     Ok(())
 }
