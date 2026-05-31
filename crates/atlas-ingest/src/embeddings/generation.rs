@@ -1,8 +1,12 @@
+use std::ffi::OsString;
+use std::path::PathBuf;
 use std::time::Instant;
 
 use atlas_embedding::{
     EmbeddingRuntimeConfig, TextEmbedder, TextEmbeddingTokenizer,
-    apply_document_embedding_token_budget, generate_document_embeddings_with_reuse_using_batch,
+    apply_document_embedding_token_budget,
+    apply_document_embedding_token_budget_with_diagnostic_jsonl,
+    generate_document_embeddings_with_reuse_using_batch,
 };
 use tracing::{debug, info};
 
@@ -63,9 +67,19 @@ pub(crate) fn generate_document_embeddings_for_source(
         .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
     embedding_progress("document_embeddings", "Applying document token budget");
     let tokenization_started_at = Instant::now();
-    source.document_embedding_tokenization =
-        apply_document_embedding_token_budget(&mut source.pending_document_embeddings, &tokenizer)
-            .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
+    let chunk_diagnostics_path = embedding_chunk_diagnostics_path();
+    source.document_embedding_tokenization = match chunk_diagnostics_path.as_deref() {
+        Some(path) => apply_document_embedding_token_budget_with_diagnostic_jsonl(
+            &mut source.pending_document_embeddings,
+            &tokenizer,
+            path,
+        ),
+        None => apply_document_embedding_token_budget(
+            &mut source.pending_document_embeddings,
+            &tokenizer,
+        ),
+    }
+    .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?;
     timing.tokenization_duration_ms = tokenization_started_at.elapsed().as_millis();
     debug!(
         document_embeddings = source.document_embedding_tokenization.document_count,
@@ -164,6 +178,16 @@ fn embedding_progress(phase: &'static str, message: &'static str) {
     info!(target: "atlas_progress", phase, "{message}");
 }
 
+fn embedding_chunk_diagnostics_path() -> Option<PathBuf> {
+    embedding_chunk_diagnostics_path_from(std::env::var_os(
+        "ATLAS_EMBEDDING_CHUNK_DIAGNOSTICS_JSONL",
+    ))
+}
+
+fn embedding_chunk_diagnostics_path_from(value: Option<OsString>) -> Option<PathBuf> {
+    value.filter(|value| !value.is_empty()).map(PathBuf::from)
+}
+
 fn apply_batch_timing(report: &mut EmbeddingTimingReport, mut batch_durations_ms: Vec<u128>) {
     report.batch_count = batch_durations_ms.len();
     if batch_durations_ms.is_empty() {
@@ -182,4 +206,29 @@ fn percentile(sorted: &[u128], percentile: usize) -> Option<u128> {
     }
     let index = ((sorted.len() - 1) * percentile).div_ceil(100);
     sorted.get(index).copied()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    use super::embedding_chunk_diagnostics_path_from;
+
+    #[test]
+    fn chunk_diagnostics_path_is_absent_by_default_and_for_empty_values() {
+        assert_eq!(embedding_chunk_diagnostics_path_from(None), None);
+        assert_eq!(
+            embedding_chunk_diagnostics_path_from(Some(OsString::new())),
+            None
+        );
+    }
+
+    #[test]
+    fn chunk_diagnostics_path_uses_nonempty_env_value() {
+        assert_eq!(
+            embedding_chunk_diagnostics_path_from(Some(OsString::from("diagnostics.jsonl"))),
+            Some(PathBuf::from("diagnostics.jsonl"))
+        );
+    }
 }

@@ -25,10 +25,49 @@ pub struct PendingDocumentEmbedding {
     pub record_key: String,
     pub unit_kind: EmbeddingUnitKind,
     pub label: Option<String>,
+    pub(crate) source_kind: Option<ContentSourceKind>,
     pub ordinal: usize,
-    pub input_chunks: Vec<EmbeddingInputChunk>,
+    pub(crate) input_chunks: Vec<EmbeddingInputChunk>,
     pub input_text: String,
     pub input_hash: String,
+    pub(crate) child_candidates: Vec<PendingDocumentEmbeddingCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PendingDocumentEmbeddingCandidate {
+    pub embedding_unit_key: String,
+    pub record_key: String,
+    pub unit_kind: EmbeddingUnitKind,
+    pub label: Option<String>,
+    pub source_kind: ContentSourceKind,
+    pub group_key: String,
+    pub ordinal: usize,
+    pub input_chunks: Vec<EmbeddingInputChunk>,
+}
+
+impl PendingDocumentEmbedding {
+    pub fn prepared(
+        embedding_unit_key: String,
+        record_key: String,
+        unit_kind: EmbeddingUnitKind,
+        label: Option<String>,
+        ordinal: usize,
+        input_text: String,
+        input_hash: String,
+    ) -> Self {
+        Self {
+            embedding_unit_key,
+            record_key,
+            unit_kind,
+            label,
+            source_kind: None,
+            ordinal,
+            input_chunks: Vec::new(),
+            input_text,
+            input_hash,
+            child_candidates: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

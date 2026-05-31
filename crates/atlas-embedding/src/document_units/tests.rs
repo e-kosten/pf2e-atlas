@@ -53,7 +53,7 @@ Aliases: Legacy Visible"
 }
 
 #[test]
-fn content_documents_build_child_units() {
+fn content_documents_build_child_candidates() {
     let content_document = ContentDocument::new(vec![
         ContentBlock::Heading {
             level: 2,
@@ -82,15 +82,17 @@ fn content_documents_build_child_units() {
         }],
     }]);
 
+    assert_eq!(pending.len(), 1);
     assert!(
-        pending
+        pending[0]
+            .child_candidates
             .iter()
             .any(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
     );
 }
 
 #[test]
-fn content_documents_do_not_build_child_units_from_synthetic_sections() {
+fn content_documents_fold_synthetic_sections_into_leading_child_candidate() {
     let content_document = ContentDocument::new(vec![
         ContentBlock::Paragraph {
             content: vec![
@@ -130,10 +132,21 @@ fn content_documents_do_not_build_child_units_from_synthetic_sections() {
 
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].embedding_unit_key, "packs:visible1#parent");
+    assert_eq!(pending[0].child_candidates.len(), 1);
+    let candidate = &pending[0].child_candidates[0];
+    assert_eq!(
+        candidate.embedding_unit_key,
+        "packs:visible1#heading_section:1"
+    );
+    assert_eq!(candidate.label.as_deref(), Some("Description"));
+    let input_text =
+        crate::document_renderer::render_embedding_chunks_for_embedding(&candidate.input_chunks);
+    assert!(input_text.contains("Critical Success You win."));
+    assert!(input_text.contains("Treasure by Level"));
 }
 
 #[test]
-fn explicit_heading_child_units_include_synthetic_section_blocks() {
+fn explicit_heading_child_candidates_include_synthetic_section_blocks() {
     let content_document = ContentDocument::new(vec![
         ContentBlock::Heading {
             level: 2,
@@ -187,27 +200,30 @@ fn explicit_heading_child_units_include_synthetic_section_blocks() {
         }],
     }]);
 
-    assert_eq!(pending.len(), 2);
-    let heading = pending
+    assert_eq!(pending.len(), 1);
+    let heading = pending[0]
+        .child_candidates
         .iter()
         .find(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
         .expect("explicit heading child unit exists");
     assert_eq!(heading.label.as_deref(), Some("Outcomes"));
-    assert!(heading.input_text.contains("Critical Success You win."));
-    assert!(heading.input_text.contains("Treasure by Level"));
-    let intro_index = heading.input_text.find("Intro text.").expect("intro text");
+    let input_text =
+        crate::document_renderer::render_embedding_chunks_for_embedding(&heading.input_chunks);
+    assert!(input_text.contains("Critical Success You win."));
+    assert!(input_text.contains("Treasure by Level"));
+    let intro_index = input_text.find("Intro text.").expect("intro text");
     let outcome_index = heading
-        .input_text
+        .input_chunks
+        .iter()
+        .map(|chunk| chunk.text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
         .find("Critical Success You win.")
         .expect("synthetic strong-lead text");
-    let table_index = heading
-        .input_text
+    let table_index = input_text
         .find("Treasure by Level")
         .expect("synthetic table text");
-    let follow_up_index = heading
-        .input_text
-        .find("Follow-up text.")
-        .expect("follow-up text");
+    let follow_up_index = input_text.find("Follow-up text.").expect("follow-up text");
     assert!(intro_index < outcome_index);
     assert!(outcome_index < table_index);
     assert!(table_index < follow_up_index);
@@ -367,6 +383,7 @@ fn summarizes_document_embedding_tokenization_truncation_examples() {
             record_key: "packs:longer".to_string(),
             unit_kind: EmbeddingUnitKind::HeadingSection,
             label: Some("Longer Section".to_string()),
+            source_kind: None,
             ordinal: 1,
             input_chunks: vec![EmbeddingInputChunk::line(
                 EmbeddingInputSection::Description,
@@ -374,6 +391,7 @@ fn summarizes_document_embedding_tokenization_truncation_examples() {
             )],
             input_text: "longer child".to_string(),
             input_hash: hash_document_embedding_input("longer child"),
+            child_candidates: Vec::new(),
         },
     ];
     let tokenizations = vec![
@@ -491,6 +509,7 @@ fn pending_embedding_with_hash(
         format!("{record_key}#parent"),
         record_key.to_string(),
         EmbeddingUnitKind::Parent,
+        None,
         None,
         0,
         vec![EmbeddingInputChunk::line(

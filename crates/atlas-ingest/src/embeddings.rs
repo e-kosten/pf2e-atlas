@@ -231,11 +231,11 @@ mod tests {
 
         let summary = summarize_pending_document_embeddings(&pending);
 
-        assert_eq!(summary.total_units, 3);
+        assert_eq!(summary.total_units, 1);
         assert_eq!(summary.parent_units, 1);
-        assert_eq!(summary.child_units, 2);
-        assert_eq!(summary.records_with_child_units, 1);
-        assert_eq!(summary.max_child_units_per_record, 2);
+        assert_eq!(summary.child_units, 0);
+        assert_eq!(summary.records_with_child_units, 0);
+        assert_eq!(summary.max_child_units_per_record, 0);
     }
 
     fn text_document(text: &str) -> ContentDocument {

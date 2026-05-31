@@ -144,6 +144,7 @@ dependencies = [
  "atlas-domain",
  "atlas-record",
  "ort",
+ "serde_json",
  "sha2",
  "thiserror",
  "tokenizers",

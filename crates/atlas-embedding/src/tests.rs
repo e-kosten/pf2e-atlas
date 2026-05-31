@@ -7,6 +7,8 @@ use atlas_record::{
     PresentationSectionKind, PresentationText, RecordPresentationDocument,
 };
 
+use crate::document_renderer::{EmbeddingInputChunk, EmbeddingInputSection};
+
 use super::*;
 
 const MODEL_CACHE_ENV: &str = "ATLAS_EMBEDDING_TEST_CACHE";
@@ -223,8 +225,9 @@ fn minilm_budgeting_drops_lower_priority_sections_when_model_cache_exists() {
             .iter()
             .any(|section| section.section == EmbeddingInputSection::Description)
     );
+    assert!(budgeted.text.contains("References: poison"));
     assert!(
-        budgeted
+        !budgeted
             .truncated_sections
             .iter()
             .any(|section| section.section == EmbeddingInputSection::References)
