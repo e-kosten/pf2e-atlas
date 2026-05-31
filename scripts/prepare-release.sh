@@ -429,21 +429,7 @@ run_release_pr_checks() {
   run_check scripts/release/validate-release-tooling.sh
   run_check scripts/release/test-prepare-release.sh
   run_check scripts/git-hooks/test-common.sh
-  run_check cargo fmt --check
-  run_check cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-  run_strict_runtime_clippy
-  run_check cargo test --workspace
-  run_check cargo build --workspace
-}
-
-run_strict_runtime_clippy() {
-  run_check cargo clippy --workspace --lib --bins -- -D warnings \
-    -D clippy::unwrap_used \
-    -D clippy::expect_used \
-    -D clippy::panic \
-    -D clippy::unimplemented \
-    -D clippy::todo \
-    -D clippy::unreachable
+  run_check scripts/verify.sh
 }
 
 run_check() {
@@ -481,11 +467,7 @@ if [ "$open_pr" -eq 1 ]; then
   info "  scripts/release/validate-release-tooling.sh"
   info "  scripts/release/test-prepare-release.sh"
   info "  scripts/git-hooks/test-common.sh"
-  info "  cargo fmt --check"
-  info "  cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro"
-  info "  cargo clippy --workspace --lib --bins -- -D warnings -D clippy::{unwrap_used,expect_used,panic,unimplemented,todo,unreachable}"
-  info "  cargo test --workspace"
-  info "  cargo build --workspace"
+  info "  scripts/verify.sh"
 
   if [ "$dry_run" -eq 1 ]; then
     info "Dry run: would run checks, commit release-prep files, push $release_branch, and create a PR to main."
@@ -611,11 +593,7 @@ else
 fi
 
 info "Local checks:"
-info "  cargo fmt --check"
-info "  cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro"
-info "  cargo clippy --workspace --lib --bins -- -D warnings -D clippy::{unwrap_used,expect_used,panic,unimplemented,todo,unreachable}"
-info "  cargo test --workspace"
-info "  cargo build --workspace"
+info "  scripts/verify.sh"
 info "  dist plan --verbose error --tag $tag --allow-dirty"
 
 if [ "$dry_run" -eq 1 ]; then
@@ -632,11 +610,7 @@ if [ "$yes" -ne 1 ]; then
   esac
 fi
 
-run_check cargo fmt --check
-run_check cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-run_strict_runtime_clippy
-run_check cargo test --workspace
-run_check cargo build --workspace
+run_check scripts/verify.sh
 run_check dist plan --verbose error --tag "$tag" --allow-dirty
 ensure_clean_worktree
 

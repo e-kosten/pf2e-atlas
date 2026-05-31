@@ -76,22 +76,14 @@ Install tracked git hooks and verify this checkout:
 ```bash
 scripts/install-git-hooks.sh
 scripts/preflight.sh
+# or: just dev-setup
 ```
 
 Build and test from the repository root:
 
 ```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-cargo clippy --workspace --lib --bins -- -D warnings \
-  -D clippy::unwrap_used \
-  -D clippy::expect_used \
-  -D clippy::panic \
-  -D clippy::unimplemented \
-  -D clippy::todo \
-  -D clippy::unreachable
-cargo test --workspace
-cargo build --workspace
+just verify
+# or: scripts/verify.sh
 ```
 
 Run the CLI from source:
@@ -132,6 +124,7 @@ Releases use a three-step flow:
 
 ```bash
 scripts/prepare-release.sh --prepare-pr
+# or: just release-prepare
 ```
 
 The helper prompts for the release version, creates `release/v<version>`, updates
@@ -147,6 +140,7 @@ open the release-preparation PR:
 
 ```bash
 scripts/prepare-release.sh --open-pr
+# or: just release-open-pr
 ```
 
 The helper verifies the release-prep branch, checks that the release notes no
@@ -158,6 +152,8 @@ files, pushes the branch, and opens a PR to `main`.
 ```bash
 scripts/prepare-release.sh --publish --dry-run
 scripts/prepare-release.sh --publish
+# or: just release-publish-dry
+# or: just release-publish
 ```
 
 The helper switches to `main`, fast-forwards to `origin/main`, reads the
@@ -169,6 +165,7 @@ Running `scripts/prepare-release.sh` without a mode flag opens an interactive
 picker for the workflow steps. Non-interactive shells must pass
 `--prepare-pr`, `--open-pr`, or `--publish`. Interactive pickers use `fzf` when it is
 available, with numbered prompts as the portable fallback.
+Run `just release` to use the same interactive picker through the task runner.
 
 Release candidates use Cargo prerelease versions and tags such as `0.1.0-rc.1` and `v0.1.0-rc.1`. The final release gets a separate version commit and rebuilds final artifacts as `0.1.0`; do not rename or promote RC artifacts.
 
@@ -213,17 +210,8 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 Run these before opening a branch for review, merging back to `main`, or preparing a commit manually:
 
 ```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-cargo clippy --workspace --lib --bins -- -D warnings \
-  -D clippy::unwrap_used \
-  -D clippy::expect_used \
-  -D clippy::panic \
-  -D clippy::unimplemented \
-  -D clippy::todo \
-  -D clippy::unreachable
-cargo test --workspace
-cargo build --workspace
+just verify
+# or: scripts/verify.sh
 ```
 
 Tracked git hooks live in `.githooks/` and enforce:
@@ -237,6 +225,7 @@ Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktr
 
 ```bash
 scripts/land-worktree.sh
+# or: just land
 ```
 
 Run that command from the linked task worktree. It rebases onto `main`, runs the Rust verification gate, fast-forwards `main`, and reruns the same gate on `main`.

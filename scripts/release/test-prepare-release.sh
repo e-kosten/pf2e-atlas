@@ -14,6 +14,8 @@ log="$tmp/commands.log"
 mkdir -p "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
+cp "$repo_root/scripts/verify.sh" "$work/scripts/verify.sh"
+chmod +x "$work/scripts/verify.sh"
 for release_check in validate-release-tooling.sh test-prepare-release.sh; do
   cat > "$work/scripts/release/$release_check" <<'EOF_RELEASE_CHECK'
 #!/bin/sh
@@ -73,6 +75,10 @@ case "$1" in
     exit 0
     ;;
   rev-parse)
+    if [ "$2" = "--show-toplevel" ]; then
+      pwd
+      exit 0
+    fi
     if [ "$2" = "--verify" ]; then
       case "$3" in
         release/v0.1.0|release/v0.1.0-rc.1)

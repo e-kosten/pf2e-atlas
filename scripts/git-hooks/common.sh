@@ -51,20 +51,7 @@ staged_changes_are_docs_only() {
 }
 
 run_required_verification() {
-  (
-    cd "$(repo_root)"
-    cargo fmt --check
-    cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-    cargo clippy --workspace --lib --bins -- -D warnings \
-      -D clippy::unwrap_used \
-      -D clippy::expect_used \
-      -D clippy::panic \
-      -D clippy::unimplemented \
-      -D clippy::todo \
-      -D clippy::unreachable
-    cargo test --workspace
-    cargo build --workspace
-  )
+  "$(repo_root)/scripts/verify.sh"
 }
 
 push_range_is_docs_only() {
