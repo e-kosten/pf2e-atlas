@@ -1,9 +1,9 @@
-use atlas_artifact::schema::{
+use crate::schema_inventory::{
     Column, Table, actor_records, item_records, record_metrics, record_traits, records,
     spell_records,
 };
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::NumericMetricOperator;
-use rusqlite::types::Value;
 
 pub(super) const RECORDS_ALIAS: &str = "r";
 pub(super) const REFERENCE_EDGES_ALIAS: &str = "re";
@@ -62,8 +62,8 @@ pub(super) fn json_array_empty_sql(column: &str) -> String {
     format!("NOT EXISTS (SELECT 1 FROM json_each(COALESCE({column}, '[]')))")
 }
 
-pub(super) fn push_integer_parameter(parameters: &mut Vec<Value>, value: u32) -> String {
-    parameters.push(Value::Integer(i64::from(value)));
+pub(super) fn push_integer_parameter(parameters: &mut Vec<SqlBindValue>, value: u32) -> String {
+    parameters.push(SqlBindValue::Integer(i64::from(value)));
     format!("?{}", parameters.len())
 }
 

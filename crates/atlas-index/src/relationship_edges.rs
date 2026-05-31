@@ -1,11 +1,14 @@
-use atlas_artifact::schema::{Column, reference_edges};
+use crate::schema_inventory::{Column, reference_edges};
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::RecordKey;
 use atlas_record::{ContentSourceKind, ContentVisibility};
-use rusqlite::{Connection, params};
+use diesel::sql_types::{Nullable, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
 use crate::filters::default_reference_edge_sql_predicate;
 use crate::records::RecordLoadError;
 use crate::sqlite::ReferenceEdgeDirection;
+use crate::sqlite::raw_sql::bind_sql_query;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphReferenceEdge {
@@ -18,7 +21,7 @@ pub struct GraphReferenceEdge {
 }
 
 pub(crate) fn read_reference_edges_for_seed(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     seed: &RecordKey,
     direction: ReferenceEdgeDirection,
 ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
@@ -57,49 +60,55 @@ pub(crate) fn read_reference_edges_for_seed(
         order_column = aliased_reference_column(alias, order_column),
         default_predicate = default_reference_edge_sql_predicate(alias),
     );
-    let mut statement = connection
-        .prepare(&sql)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    statement
-        .query_map(params![seed.to_string()], |row| {
-            let from = row.get::<_, String>(0)?;
-            let to = row.get::<_, String>(1)?;
-            let source_kind = row.get::<_, String>(4)?;
-            let visibility = row.get::<_, String>(5)?;
-            Ok((from, to, row.get(2)?, row.get(3)?, source_kind, visibility))
-        })
+    bind_sql_query(sql, &[SqlBindValue::Text(seed.to_string())])
+        .load::<ReferenceEdgeRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+        .into_iter()
         .map(|row| {
-            row.map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-                .and_then(
-                    |(from, to, display_text, reference_text, source_kind, visibility)| {
-                        Ok(GraphReferenceEdge {
-                            from_record_key: RecordKey::parse(&from)
-                                .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
-                            to_record_key: RecordKey::parse(&to)
-                                .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
-                            display_text,
-                            reference_text,
-                            source_kind: ContentSourceKind::from_canonical(&source_kind)
-                                .ok_or_else(|| {
-                                    RecordLoadError::InvalidData(format!(
-                                        "unknown content source kind `{source_kind}`"
-                                    ))
-                                })?,
-                            visibility: ContentVisibility::from_canonical(&visibility).ok_or_else(
-                                || {
-                                    RecordLoadError::InvalidData(format!(
-                                        "unknown content visibility `{visibility}`"
-                                    ))
-                                },
-                            )?,
-                        })
+            Ok(GraphReferenceEdge {
+                from_record_key: RecordKey::parse(&row.from_record_key)
+                    .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
+                to_record_key: RecordKey::parse(&row.to_record_key)
+                    .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
+                display_text: row.display_text,
+                reference_text: row.reference_text,
+                source_kind: ContentSourceKind::from_canonical(&row.source_kind).ok_or_else(
+                    || {
+                        RecordLoadError::InvalidData(format!(
+                            "unknown content source kind `{}`",
+                            row.source_kind
+                        ))
                     },
-                )
+                )?,
+                visibility: ContentVisibility::from_canonical(&row.visibility).ok_or_else(
+                    || {
+                        RecordLoadError::InvalidData(format!(
+                            "unknown content visibility `{}`",
+                            row.visibility
+                        ))
+                    },
+                )?,
+            })
         })
         .collect()
 }
 
 fn aliased_reference_column(alias: &str, column: Column) -> String {
     format!("{}.{}", alias, column.name())
+}
+
+#[derive(QueryableByName)]
+struct ReferenceEdgeRow {
+    #[diesel(sql_type = Text)]
+    from_record_key: String,
+    #[diesel(sql_type = Text)]
+    to_record_key: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    display_text: Option<String>,
+    #[diesel(sql_type = Text)]
+    reference_text: String,
+    #[diesel(sql_type = Text)]
+    source_kind: String,
+    #[diesel(sql_type = Text)]
+    visibility: String,
 }

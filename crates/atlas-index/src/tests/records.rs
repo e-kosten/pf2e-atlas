@@ -3,13 +3,13 @@ use std::fs;
 use atlas_domain::{NumericMatch, RecordFamily, RecordKey};
 use rusqlite::Connection;
 
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 use crate::{RecordIdentityMatchKind, SqliteIndexReader};
 
 #[test]
 fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-records");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let records = SqliteIndexReader::open_read_only(&path)?.load_records()?;
 
@@ -27,7 +27,7 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
 #[test]
 fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-records-by-key-scoped");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_metrics (
@@ -143,7 +143,7 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
 fn loads_search_candidate_records_without_detail_hydration()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-search-candidates");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -185,7 +185,7 @@ fn loads_search_candidate_records_without_detail_hydration()
 #[test]
 fn load_search_candidate_records_rejects_invalid_json() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-search-candidates-invalid-json");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records SET traits_json = 'not json' WHERE record_key = 'actions:testAction1'",
@@ -206,7 +206,7 @@ fn load_search_candidate_records_rejects_invalid_json() -> Result<(), Box<dyn st
 fn load_search_candidate_records_rejects_invalid_family() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("load-search-candidates-invalid-family");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records SET record_family = 'not-a-family' WHERE record_key = 'actions:testAction1'",
@@ -227,7 +227,7 @@ fn load_search_candidate_records_rejects_invalid_family() -> Result<(), Box<dyn 
 fn resolves_identity_matches_in_sql_with_match_precedence_and_deduplication()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("resolve-identity-sql");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -288,7 +288,7 @@ fn resolves_identity_matches_in_sql_with_match_precedence_and_deduplication()
 fn resolve_identity_matches_respects_structural_filters() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("resolve-identity-filtered");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -320,7 +320,7 @@ fn resolve_identity_matches_respects_structural_filters() -> Result<(), Box<dyn 
 #[test]
 fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("load-record-set");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO reference_edges (from_record_key, to_record_key, display_text, reference_text, source_kind, visibility)

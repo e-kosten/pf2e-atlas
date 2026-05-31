@@ -6,7 +6,7 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
 use support::graph::insert_reference_edge;
 use support::vector::insert_vector_embeddings;
 
@@ -50,7 +50,7 @@ fn similar_json_returns_semantic_and_reference_evidence() -> Result<(), Box<dyn 
 #[test]
 fn similar_json_reports_vector_readiness_errors() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-similar-no-vectors");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["similar", "actions:testAction1", "--index"])
@@ -283,7 +283,7 @@ fn assert_json_key_absent(value: &Value, key: &str) {
 }
 
 fn create_similar_database(path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    create_contract_database(path)?;
+    create_valid_artifact_database(path)?;
     insert_vector_embeddings(path)?;
     let connection = Connection::open(path)?;
     connection.execute(

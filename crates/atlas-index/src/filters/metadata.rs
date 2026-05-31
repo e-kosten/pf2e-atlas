@@ -1,4 +1,4 @@
-use atlas_artifact::schema::{
+use crate::schema_inventory::{
     Column, Table, actor_records, item_records, record_traits, records, spell_records,
 };
 use atlas_domain::metadata::{

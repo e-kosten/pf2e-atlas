@@ -329,7 +329,7 @@ mod tests {
     use std::time::Duration;
 
     use atlas_index::{
-        ArtifactContractFamily, ArtifactValidationDiagnostic, ArtifactValidationReport,
+        ArtifactValidationDiagnostic, ArtifactValidationFamily, ArtifactValidationReport,
     };
 
     use super::*;
@@ -366,7 +366,7 @@ mod tests {
             missing_keys: vec!["schema_version".to_string()],
             diagnostics: vec![ArtifactValidationDiagnostic {
                 code: ValidationCode::MissingRequiredMetadata,
-                family: ArtifactContractFamily::Contract,
+                family: ArtifactValidationFamily::Contract,
                 message: "missing schema_version".to_string(),
                 key: Some("schema_version".to_string()),
                 expected: Some("present".to_string()),

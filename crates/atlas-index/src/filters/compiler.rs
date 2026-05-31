@@ -1,13 +1,13 @@
-use atlas_artifact::schema::records;
+use crate::schema_inventory::records;
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::SearchFilterNode;
-use rusqlite::types::Value;
 
 use super::error::FilterCompileError;
 use super::sql_render::record_column;
 
 #[derive(Default)]
 pub(super) struct FilterCompiler {
-    pub(super) parameters: Vec<Value>,
+    pub(super) parameters: Vec<SqlBindValue>,
 }
 
 impl FilterCompiler {
@@ -55,18 +55,18 @@ impl FilterCompiler {
     }
 
     pub(super) fn text(&mut self, value: &str) -> String {
-        self.push(Value::Text(value.to_string()))
+        self.push(SqlBindValue::Text(value.to_string()))
     }
 
     pub(super) fn number(&mut self, value: f64) -> String {
-        self.push(Value::Real(value))
+        self.push(SqlBindValue::Real(value))
     }
 
     pub(super) fn boolean(&mut self, value: bool) -> String {
-        self.push(Value::Integer(if value { 1 } else { 0 }))
+        self.push(SqlBindValue::Integer(if value { 1 } else { 0 }))
     }
 
-    pub(super) fn push(&mut self, value: Value) -> String {
+    pub(super) fn push(&mut self, value: SqlBindValue) -> String {
         self.parameters.push(value);
         format!("?{}", self.parameters.len())
     }

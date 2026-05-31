@@ -31,15 +31,7 @@ pub mod document_embedding_cache {
 }
 
 pub mod record_vector_index {
-    use super::{Column, Table};
+    use super::Table;
 
     pub const TABLE: Table = Table::new("record_vector_index");
-
-    pub mod columns {
-        use super::{Column, TABLE};
-
-        pub const EMBEDDING: Column = Column::new(TABLE, "embedding");
-    }
-
-    pub const ALL_COLUMNS: &[Column] = &[columns::EMBEDDING];
 }

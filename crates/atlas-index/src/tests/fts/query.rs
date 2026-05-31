@@ -9,7 +9,7 @@ use crate::{FilterCompileError, FtsColumnWeights, FtsQuery, FtsSearchLane, Sqlit
 #[test]
 fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-filtered");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -43,7 +43,7 @@ fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::
 fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-filtered-fallback");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -92,7 +92,7 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
 #[test]
 fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-precision-lanes");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -203,7 +203,7 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
 fn precision_query_applies_global_limit_after_lane_merge() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-precision-limit");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     super::replace_fts_rows(
         &connection,
@@ -261,7 +261,7 @@ fn precision_query_applies_global_limit_after_lane_merge() -> Result<(), Box<dyn
 fn precision_query_applies_limit_after_record_deduplication()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-precision-deduplicate");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     super::replace_fts_rows(
         &connection,
@@ -323,7 +323,7 @@ fn precision_query_applies_limit_after_record_deduplication()
 #[test]
 fn precision_query_zero_limit_returns_no_hits() -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-precision-zero-limit");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
     let hits =
@@ -338,7 +338,7 @@ fn precision_query_zero_limit_returns_no_hits() -> Result<(), Box<dyn std::error
 fn candidate_key_query_is_bounded_to_supplied_candidates() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-candidate-keys");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
     let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(
@@ -361,7 +361,7 @@ fn candidate_key_query_is_bounded_to_supplied_candidates() -> Result<(), Box<dyn
 fn candidate_key_query_returns_empty_for_empty_candidates() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-candidate-keys-empty");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
     let hits =
@@ -376,7 +376,7 @@ fn candidate_key_query_returns_empty_for_empty_candidates() -> Result<(), Box<dy
 fn candidate_key_query_uses_or_matching_for_multiple_tokens()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-candidate-keys-or");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     super::replace_fts_rows(
         &connection,
@@ -420,7 +420,7 @@ fn candidate_key_query_uses_or_matching_for_multiple_tokens()
 fn record_key_query_respects_structured_filters_order_and_limit()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-record-key-query");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -453,7 +453,7 @@ fn record_key_query_respects_structured_filters_order_and_limit()
 fn record_key_query_uses_or_matching_for_multiple_tokens() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = super::temp_db_path("fts-record-key-query-or");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     super::replace_fts_rows(
         &connection,
@@ -508,7 +508,7 @@ fn query_drops_unsafe_tokens_before_rendering() {
 fn ranked_query_reports_invalid_record_keys_from_matching_fts_rows()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-invalid-record-key");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records

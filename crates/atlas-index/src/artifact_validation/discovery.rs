@@ -1,8 +1,8 @@
 use rusqlite::{Connection, Params};
 
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 mod fields;
@@ -66,8 +66,8 @@ pub(super) fn push_duplicate_diagnostic(
 }
 
 pub(super) fn discovery_diagnostic(key: &str, message: String) -> ArtifactValidationDiagnostic {
-    contract_diagnostic(
-        ArtifactContractFamily::Data,
+    artifact_validation_diagnostic(
+        ArtifactValidationFamily::Data,
         message,
         Some(key.to_string()),
         Some("filter discovery catalogs match default-visible records".to_string()),

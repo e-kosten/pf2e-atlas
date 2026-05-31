@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{IndexArtifactWriter, IndexBuildInput};
 use atlas_embedding::EmbeddingModelId;
-use rusqlite::Connection;
+use diesel::{Connection, SqliteConnection};
 use tracing::info;
 
 mod discovery_catalogs;
@@ -13,6 +13,7 @@ mod embeddings;
 mod labels;
 mod metadata;
 mod metric_catalogs;
+mod models;
 mod packs;
 mod records;
 mod relationships;
@@ -74,81 +75,79 @@ fn write_artifact(
         atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    let mut connection = Connection::open(output.temp_path())
+    let database_url = output.temp_path().to_string_lossy().into_owned();
+    let mut connection = SqliteConnection::establish(&database_url)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let transaction = connection
-        .transaction()
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    artifact_progress("artifact_write", "Creating artifact schema");
-    info!("creating artifact schema");
-    schema::create_artifact_schema(&transaction)?;
-    artifact_progress("artifact_write", "Writing artifact metadata");
-    info!("writing artifact metadata");
-    write_artifact_metadata(
-        &transaction,
-        input.source_record_count,
-        input.artifact_record_count(),
-        input.generated_record_count()?,
-        input.source_signature,
-        embedding_model,
-    )?;
-    artifact_progress("artifact_write", "Writing packs");
-    info!(packs = input.packs.len(), "writing packs");
-    write_packs(&transaction, &input.packs)?;
-    artifact_progress("artifact_write", "Writing records");
-    info!(records = input.records.len(), "writing records");
-    write_records(
-        &transaction,
-        &input.records,
-        input.aliases,
-        input.remaster_links,
-    )?;
-    artifact_progress("artifact_write", "Writing reference edges");
-    info!(
-        reference_edges = input.references.len(),
-        "writing reference edges"
-    );
-    write_reference_edges(&transaction, input.references)?;
-    artifact_progress("artifact_write", "Writing reference occurrences");
-    info!(
-        records = input.records.len(),
-        "writing reference occurrences"
-    );
-    write_reference_occurrences(&transaction, &input.records)?;
-    artifact_progress("artifact_write", "Writing record aliases");
-    info!(aliases = input.aliases.len(), "writing record aliases");
-    write_record_aliases(&transaction, input.aliases)?;
-    artifact_progress("artifact_write", "Writing remaster links");
-    info!(
-        remaster_links = input.remaster_links.len(),
-        "writing remaster links"
-    );
-    write_remaster_links(&transaction, input.remaster_links)?;
-    artifact_progress("artifact_write", "Writing document embedding cache");
-    info!(
-        document_embeddings = input.document_embeddings.len(),
-        "writing document embedding cache"
-    );
-    write_document_embedding_cache(&transaction, input.document_embeddings)?;
-    if !input.document_embeddings.is_empty() {
-        artifact_progress("artifact_write", "Writing record vector index");
+    connection.transaction::<_, IndexWriteError, _>(|connection| {
+        artifact_progress("artifact_write", "Creating artifact schema");
+        info!("creating artifact schema");
+        schema::create_artifact_schema(connection)?;
+        artifact_progress("artifact_write", "Writing artifact metadata");
+        info!("writing artifact metadata");
+        write_artifact_metadata(
+            connection,
+            input.source_record_count,
+            input.artifact_record_count(),
+            input.generated_record_count()?,
+            input.source_signature,
+            embedding_model,
+        )?;
+        artifact_progress("artifact_write", "Writing packs");
+        info!(packs = input.packs.len(), "writing packs");
+        write_packs(connection, &input.packs)?;
+        artifact_progress("artifact_write", "Writing records");
+        info!(records = input.records.len(), "writing records");
+        write_records(
+            connection,
+            &input.records,
+            input.aliases,
+            input.remaster_links,
+        )?;
+        artifact_progress("artifact_write", "Writing reference edges");
+        info!(
+            reference_edges = input.references.len(),
+            "writing reference edges"
+        );
+        write_reference_edges(connection, input.references)?;
+        artifact_progress("artifact_write", "Writing reference occurrences");
+        info!(
+            records = input.records.len(),
+            "writing reference occurrences"
+        );
+        write_reference_occurrences(connection, &input.records)?;
+        artifact_progress("artifact_write", "Writing record aliases");
+        info!(aliases = input.aliases.len(), "writing record aliases");
+        write_record_aliases(connection, input.aliases)?;
+        artifact_progress("artifact_write", "Writing remaster links");
+        info!(
+            remaster_links = input.remaster_links.len(),
+            "writing remaster links"
+        );
+        write_remaster_links(connection, input.remaster_links)?;
+        artifact_progress("artifact_write", "Writing document embedding cache");
         info!(
             document_embeddings = input.document_embeddings.len(),
-            "writing record vector index"
+            "writing document embedding cache"
         );
-        write_record_vector_index(&transaction)?;
-    }
-    artifact_progress("artifact_write", "Writing metric catalogs");
-    info!("writing metric catalogs");
-    write_metric_catalogs(&transaction)?;
-    artifact_progress("artifact_write", "Writing filter discovery catalogs");
-    info!("writing filter discovery catalogs");
-    write_discovery_catalogs(&transaction)?;
-    artifact_progress("artifact_write", "Finalizing SQLite artifact tables");
-    info!("committing SQLite artifact tables");
-    transaction
-        .commit()
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        write_document_embedding_cache(connection, input.document_embeddings)?;
+        if !input.document_embeddings.is_empty() {
+            artifact_progress("artifact_write", "Writing record vector index");
+            info!(
+                document_embeddings = input.document_embeddings.len(),
+                "writing record vector index"
+            );
+            write_record_vector_index(connection)?;
+        }
+        artifact_progress("artifact_write", "Writing metric catalogs");
+        info!("writing metric catalogs");
+        write_metric_catalogs(connection)?;
+        artifact_progress("artifact_write", "Writing filter discovery catalogs");
+        info!("writing filter discovery catalogs");
+        write_discovery_catalogs(connection)?;
+        artifact_progress("artifact_write", "Finalizing SQLite artifact tables");
+        info!("committing SQLite artifact tables");
+        Ok(())
+    })?;
     drop(connection);
 
     artifact_progress("artifact_write", "Publishing artifact");

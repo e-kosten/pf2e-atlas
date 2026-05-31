@@ -1,10 +1,13 @@
-use atlas_artifact::schema::create_artifact_schema_sql;
-use rusqlite::Connection;
+use diesel::SqliteConnection;
+use diesel::connection::SimpleConnection;
 
 use crate::IndexWriteError;
+use crate::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
 
-pub(crate) fn create_artifact_schema(connection: &Connection) -> Result<(), IndexWriteError> {
+pub(crate) fn create_artifact_schema(
+    connection: &mut SqliteConnection,
+) -> Result<(), IndexWriteError> {
     connection
-        .execute_batch(&create_artifact_schema_sql())
+        .batch_execute(CREATE_ARTIFACT_SCHEMA_SQL)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }

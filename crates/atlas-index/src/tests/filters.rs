@@ -4,18 +4,20 @@ use atlas_domain::metadata::{
     MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
 };
 use atlas_domain::{MetricMatch, NumericMatch, RecordFamily, RecordKey};
+use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 use crate::filters::{
     EligibleRecordsQuery, FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort,
     compile_eligible_records_query, compile_filtered_record_keys_query,
 };
+use crate::sqlite::raw_sql::SqlBindValue;
 
 #[test]
 fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-empty");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records SET is_default_visible = 0 WHERE record_key = 'actions:testAction3'",
@@ -33,7 +35,7 @@ fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::
 #[test]
 fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-basic");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -77,7 +79,7 @@ fn rejects_empty_boolean_groups_at_compile_boundary() {
 fn composes_filtered_record_key_queries_from_eligible_records()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-record-query");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -112,7 +114,7 @@ fn composes_filtered_record_key_queries_from_eligible_records()
 #[test]
 fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-side-tables");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text, source_kind, visibility)
@@ -203,7 +205,8 @@ fn query_eligible_keys(
     compiled: &EligibleRecordsQuery,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut statement = connection.prepare(&format!("{} ORDER BY record_key", compiled.sql))?;
-    let rows = statement.query_map(params_from_iter(compiled.parameters.iter()), |row| {
+    let parameters = rusqlite_values(&compiled.parameters);
+    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
         row.get::<_, String>(0)
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -214,8 +217,22 @@ fn query_filtered_record_keys(
     compiled: &FilteredRecordKeysQuery,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut statement = connection.prepare(&compiled.sql)?;
-    let rows = statement.query_map(params_from_iter(compiled.parameters.iter()), |row| {
+    let parameters = rusqlite_values(&compiled.parameters);
+    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
         row.get::<_, String>(0)
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+fn rusqlite_values(values: &[SqlBindValue]) -> Vec<Value> {
+    values
+        .iter()
+        .map(|value| match value {
+            SqlBindValue::Null => Value::Null,
+            SqlBindValue::Integer(value) => Value::Integer(*value),
+            SqlBindValue::Real(value) => Value::Real(*value),
+            SqlBindValue::Text(value) => Value::Text(value.clone()),
+            SqlBindValue::Blob(value) => Value::Blob(value.clone()),
+        })
+        .collect()
 }

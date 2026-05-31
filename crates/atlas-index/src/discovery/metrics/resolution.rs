@@ -1,5 +1,5 @@
 use atlas_domain::{MetricKeyDiscovery, RecordFamily, SearchFilterNode};
-use rusqlite::Connection;
+use diesel::SqliteConnection;
 
 use super::query::{
     metric_label_matches, metric_matches_query, metric_query_tokens, normalize_metric_label,
@@ -8,7 +8,7 @@ use super::{MetricCatalogScope, catalog_metric_keys, metric_candidates};
 use crate::discovery::error::DiscoveryError;
 
 pub(in crate::discovery) fn resolve_filter_metrics(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<Option<SearchFilterNode>, DiscoveryError> {
     let Some(filter) = filter else {

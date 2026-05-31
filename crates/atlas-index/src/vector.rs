@@ -1,25 +1,28 @@
-use atlas_artifact::{
-    schema::{TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX},
-    storage::{decode_f32_vector_blob, encode_f32_vector_blob},
-};
+use crate::artifact_storage::{decode_f32_vector_blob, encode_f32_vector_blob};
+use crate::schema_inventory::{TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX};
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::EmbeddingUnitKind;
-use rusqlite::types::Value;
-use rusqlite::{Connection, params_from_iter};
+use diesel::sql_types::{BigInt, Binary, Double, Nullable, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
+use rusqlite::Connection;
 use thiserror::Error;
 
-use crate::contract::{contract_diagnostic, contract_diagnostic_with_code};
+use crate::artifact_validation::{
+    artifact_validation_diagnostic, artifact_validation_diagnostic_with_code,
+};
 use crate::filters::{FilterCompileError, compile_eligible_records_query};
 use crate::sql::{count_rows, count_sql, table_exists};
+use crate::sqlite::raw_sql::bind_sql_query;
 use crate::{
-    ArtifactContractFamily, ArtifactMetadataSummary, ArtifactValidationReport,
+    ArtifactMetadataSummary, ArtifactValidationFamily, ArtifactValidationReport,
     IndexValidationError, ValidationCode, ValidationStatus,
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VectorKnnQuery {
     pub sql: String,
-    pub parameters: Vec<Value>,
+    pub parameters: Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,9 +91,10 @@ pub(crate) fn compile_vector_knn_query(
     let mut parameters = eligible.parameters;
     let vector_placeholder = push_parameter(
         &mut parameters,
-        Value::Blob(encode_f32_vector_blob(query_vector)),
+        SqlBindValue::Blob(encode_f32_vector_blob(query_vector)),
     );
-    let limit_placeholder = push_parameter(&mut parameters, Value::Integer(i64::from(limit)));
+    let limit_placeholder =
+        push_parameter(&mut parameters, SqlBindValue::Integer(i64::from(limit)));
     let unit_filter = if include_child_units {
         ""
     } else {
@@ -120,93 +124,102 @@ pub(crate) fn compile_vector_knn_query(
 }
 
 pub fn query_vector_index(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     query_vector: &[f32],
     filter: Option<&SearchFilterNode>,
     limit: u32,
     include_child_units: bool,
 ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
     let compiled = compile_vector_knn_query(query_vector, filter, limit, include_child_units)?;
-    let mut statement = connection
-        .prepare(&compiled.sql)
-        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    let rows = statement
-        .query_map(params_from_iter(compiled.parameters.iter()), |row| {
-            Ok(VectorSearchHit {
-                record_key: row.get(0)?,
-                unit_kind: row.get(1)?,
-                label: row.get(2)?,
-                distance: row.get(3)?,
-            })
-        })
-        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    let rows = rows
-        .collect::<Result<Vec<_>, _>>()
+    let rows = bind_sql_query(compiled.sql, &compiled.parameters)
+        .load::<VectorSearchHitRow>(connection)
         .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
     rows.into_iter()
-        .map(|mut hit| {
-            hit.unit_kind = parse_embedding_unit_kind(hit.unit_kind)?;
-            Ok(hit)
+        .map(|row| {
+            Ok(VectorSearchHit {
+                record_key: row.record_key,
+                unit_kind: parse_embedding_unit_kind(row.unit_kind)?,
+                label: row.label,
+                distance: row.distance,
+            })
         })
         .collect()
 }
 
 pub fn load_record_embedding_vectors(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     record_key: &RecordKey,
 ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError> {
-    let mut statement = connection
-        .prepare(
-            "SELECT unit_kind, label, ordinal, dimensions, vector_blob
-             FROM document_embedding_cache
-             WHERE record_key = ?1
-             ORDER BY ordinal ASC, embedding_unit_key ASC",
-        )
-        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-    let rows = statement
-        .query_map([record_key.to_string()], |row| {
-            let unit_kind: String = row.get(0)?;
-            let label: Option<String> = row.get(1)?;
-            let ordinal: i64 = row.get(2)?;
-            let dimensions: i64 = row.get(3)?;
-            let vector_blob: Vec<u8> = row.get(4)?;
-            Ok((unit_kind, label, ordinal, dimensions, vector_blob))
-        })
-        .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
+    let rows = bind_sql_query(
+        "SELECT unit_kind, label, ordinal, dimensions, vector_blob
+         FROM document_embedding_cache
+         WHERE record_key = ?1
+         ORDER BY ordinal ASC, embedding_unit_key ASC"
+            .to_string(),
+        &[SqlBindValue::Text(record_key.to_string())],
+    )
+    .load::<RecordEmbeddingVectorRow>(connection)
+    .map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
     let record_key = record_key.to_string();
-    rows.map(|row| {
-        let (unit_kind, label, ordinal, dimensions, vector_blob) =
-            row.map_err(|error| VectorQueryError::QueryFailed(error.to_string()))?;
-        let vector = decode_f32_vector_blob(&vector_blob).map_err(|error| {
-            VectorQueryError::InvalidStoredVector {
-                record_key: record_key.clone(),
-                unit_kind: unit_kind.clone(),
-                ordinal,
-                message: error.to_string(),
+    rows.into_iter()
+        .map(|row| {
+            let vector = decode_f32_vector_blob(&row.vector_blob).map_err(|error| {
+                VectorQueryError::InvalidStoredVector {
+                    record_key: record_key.clone(),
+                    unit_kind: row.unit_kind.clone(),
+                    ordinal: row.ordinal,
+                    message: error.to_string(),
+                }
+            })?;
+            let declared_dimensions = usize::try_from(row.dimensions).map_err(|error| {
+                VectorQueryError::QueryFailed(format!(
+                    "stored embedding vector for `{record_key}` ({} #{}) had invalid dimensions `{}`: {error}",
+                    row.unit_kind, row.ordinal, row.dimensions
+                ))
+            })?;
+            if declared_dimensions != vector.len() {
+                return Err(VectorQueryError::InvalidStoredDimensions {
+                    record_key: record_key.clone(),
+                    unit_kind: row.unit_kind.clone(),
+                    ordinal: row.ordinal,
+                    declared_dimensions,
+                    decoded_dimensions: vector.len(),
+                });
             }
-        })?;
-        let declared_dimensions = usize::try_from(dimensions).map_err(|error| {
-            VectorQueryError::QueryFailed(format!(
-                "stored embedding vector for `{record_key}` ({unit_kind} #{ordinal}) had invalid dimensions `{dimensions}`: {error}"
-            ))
-        })?;
-        if declared_dimensions != vector.len() {
-            return Err(VectorQueryError::InvalidStoredDimensions {
-                record_key: record_key.clone(),
-                unit_kind: unit_kind.clone(),
-                ordinal,
-                declared_dimensions,
-                decoded_dimensions: vector.len(),
-            });
-        }
-        Ok(RecordEmbeddingVector {
-            unit_kind: parse_embedding_unit_kind(unit_kind)?,
-            label,
-            ordinal,
-            vector,
+            Ok(RecordEmbeddingVector {
+                unit_kind: parse_embedding_unit_kind(row.unit_kind)?,
+                label: row.label,
+                ordinal: row.ordinal,
+                vector,
+            })
         })
-    })
-    .collect()
+        .collect()
+}
+
+#[derive(QueryableByName)]
+struct VectorSearchHitRow {
+    #[diesel(sql_type = Text)]
+    record_key: String,
+    #[diesel(sql_type = Text)]
+    unit_kind: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    label: Option<String>,
+    #[diesel(sql_type = Double)]
+    distance: f64,
+}
+
+#[derive(QueryableByName)]
+struct RecordEmbeddingVectorRow {
+    #[diesel(sql_type = Text)]
+    unit_kind: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    label: Option<String>,
+    #[diesel(sql_type = BigInt)]
+    ordinal: i64,
+    #[diesel(sql_type = BigInt)]
+    dimensions: i64,
+    #[diesel(sql_type = Binary)]
+    vector_blob: Vec<u8>,
 }
 
 fn parse_embedding_unit_kind(value: String) -> Result<String, VectorQueryError> {
@@ -266,8 +279,8 @@ pub(crate) fn check_embedding_readiness_connection(
 
     let mut diagnostics = Vec::new();
     if !table_exists(connection, TABLE_RECORD_VECTOR_INDEX)? {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Schema,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Schema,
             format!("required vector table `{TABLE_RECORD_VECTOR_INDEX}` is missing"),
             Some(format!("table:{TABLE_RECORD_VECTOR_INDEX}")),
             Some("present".to_string()),
@@ -293,8 +306,8 @@ fn validate_vector_index_with_loaded_connection(
 ) -> Result<ArtifactValidationReport, IndexValidationError> {
     let mut diagnostics = Vec::new();
     if !table_exists(connection, TABLE_DOCUMENT_EMBEDDING_CACHE)? {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Schema,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Schema,
             format!("required embedding table `{TABLE_DOCUMENT_EMBEDDING_CACHE}` is missing"),
             Some(format!("table:{TABLE_DOCUMENT_EMBEDDING_CACHE}")),
             Some("present".to_string()),
@@ -302,8 +315,8 @@ fn validate_vector_index_with_loaded_connection(
         ));
     }
     if !table_exists(connection, TABLE_RECORD_VECTOR_INDEX)? {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Schema,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Schema,
             format!("required vector table `{TABLE_RECORD_VECTOR_INDEX}` is missing"),
             Some(format!("table:{TABLE_RECORD_VECTOR_INDEX}")),
             Some("present".to_string()),
@@ -344,8 +357,8 @@ fn vector_extension_unavailable_report(
     ArtifactValidationReport::incompatible_metadata(
         index,
         summary,
-        vec![contract_diagnostic_with_code(
-            ArtifactContractFamily::Embedding,
+        vec![artifact_validation_diagnostic_with_code(
+            ArtifactValidationFamily::Embedding,
             "sqlite-vec extension is unavailable for vector index operations".to_string(),
             Some("sqlite_vec".to_string()),
             Some("available".to_string()),
@@ -369,7 +382,7 @@ pub(crate) fn register_sqlite_vec_extension() -> Result<(), String> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension().map_err(|error| error.to_string())
 }
 
-fn push_parameter(parameters: &mut Vec<Value>, value: Value) -> String {
+fn push_parameter(parameters: &mut Vec<SqlBindValue>, value: SqlBindValue) -> String {
     parameters.push(value);
     format!("?{}", parameters.len())
 }
@@ -381,8 +394,8 @@ fn validate_vector_index_coverage(
     let vector_rows = count_rows(connection, TABLE_RECORD_VECTOR_INDEX)?;
     let cache_rows = count_rows(connection, TABLE_DOCUMENT_EMBEDDING_CACHE)?;
     if vector_rows != cache_rows {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Embedding,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Embedding,
             "record vector index row count must match document embedding cache row count"
                 .to_string(),
             Some("record_vector_index:document_embedding_cache_count".to_string()),
@@ -415,8 +428,8 @@ fn validate_vector_index_coverage(
     ] {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Embedding,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Embedding,
                 format!("record vector index coverage check `{key}` failed"),
                 Some(key.to_string()),
                 Some(expected.to_string()),

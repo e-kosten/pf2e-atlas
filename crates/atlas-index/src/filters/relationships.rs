@@ -1,4 +1,4 @@
-use atlas_artifact::schema::{records, reference_edges};
+use crate::schema_inventory::{records, reference_edges};
 use atlas_domain::RecordKey;
 use atlas_record::{
     ReferenceGraphMode, ReferenceGraphPolicy, ReferenceVisibilityPolicy, reference_graph_policy,

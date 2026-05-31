@@ -10,7 +10,7 @@ The Rust runtime needs shared ownership rules for artifact shape, metric meaning
 
 ## Decision
 
-`atlas-artifact` owns physical SQLite artifact shape and storage encodings. Ordered table/column descriptors drive production insert and select SQL for artifact table shapes, and the crate owns `f32` vector blob encoding/decoding. Runtime crates may own query predicates, row mapping, validation reports, and search semantics, but they should not duplicate full table column inventories or SQLite byte-layout helpers.
+`atlas-index` owns physical SQLite artifact shape and storage encodings. Diesel migrations and schema declarations drive ordinary relational table creation, writer rows, and stable reader hydration. `atlas-index` also owns artifact metadata constants, narrow validation requirements for external artifact files, and `f32` vector blob encoding/decoding. Raw SQL remains appropriate inside `atlas-index` for SQLite facilities that Diesel does not model well: FTS5, sqlite-vec virtual tables, dynamic filter/discovery relations, and validation pragmas. Raw-SQL helpers may keep stable table and column names, but not a parallel schema descriptor model for Diesel-owned tables. The former `atlas-artifact` crate is retired.
 
 `atlas-record` owns storage-agnostic normalized metric definitions. `MetricRow` remains open-ended record data, while typed static and pattern definitions describe known metric keys, value types, labels, namespaces, and groups. Ingest uses definition-owned key helpers for known metrics and validates emitted rows against the catalog during metric extraction. Emitted metric keys and value types are ingest invariants; broader source-field coverage analysis belongs to explicit offline audit tooling rather than default artifact builds.
 
@@ -20,8 +20,8 @@ The Rust runtime needs shared ownership rules for artifact shape, metric meaning
 
 Adding or renaming normalized metrics should happen in `atlas-record::metrics`, with ingest extraction and presentation/search consumers referring to the definition or pattern helper rather than repeating anonymous strings.
 
-Vector storage code belongs at the artifact boundary even though vector values are produced by `atlas-embedding` and queried by `atlas-index`.
+Vector storage code belongs at the index artifact boundary even though vector values are produced by `atlas-embedding` and queried by `atlas-index`.
 
 Reference graph behavior can evolve through a named policy and SQL lowering rather than adding a derived boolean column that could drift from the semantic definition.
 
-Descriptor-owned SQL is not a general query engine. Filtering, ranking, vector KNN query shape, pagination, and user-facing search semantics remain owned by `atlas-index` and `atlas-search`.
+Diesel schema ownership is not a general query-engine mandate. Filtering, ranking, vector KNN query shape, pagination, FTS, and user-facing search semantics remain owned by `atlas-index` and `atlas-search`, using raw SQL where the database feature is inherently dynamic or SQLite-specific.

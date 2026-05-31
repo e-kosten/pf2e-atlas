@@ -5,13 +5,13 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
 use support::graph::{assert_section_edges_point_to_returned_records, insert_graph_edges};
 
 #[test]
 fn graph_uses_json_returns_backlinks_as_uses() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-uses");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -48,7 +48,7 @@ fn graph_uses_json_returns_backlinks_as_uses() -> Result<(), Box<dyn std::error:
 #[test]
 fn graph_uses_json_resolves_record_names() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-uses-name");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -70,7 +70,7 @@ fn graph_uses_json_resolves_record_names() -> Result<(), Box<dyn std::error::Err
 #[test]
 fn graph_uses_human_output_is_backlink_oriented() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-uses-human");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_graph_edges(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -100,7 +100,7 @@ fn graph_uses_human_output_is_backlink_oriented() -> Result<(), Box<dyn std::err
 #[test]
 fn graph_uses_json_reports_missing_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-uses-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "uses", "actions:missing", "--index"])
