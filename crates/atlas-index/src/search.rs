@@ -19,6 +19,15 @@ pub trait SearchIndex {
         keys: &[RecordKey],
     ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError>;
 
+    fn resolve_record_identity_matches(
+        &self,
+        _query: &str,
+        _normalized_query: &str,
+        _filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<Vec<RecordIdentityMatch>>, FilterCompileError> {
+        Ok(None)
+    }
+
     fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -71,6 +80,23 @@ pub struct SearchCandidateRecord {
     pub system_group: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordIdentityMatch {
+    pub record_key: RecordKey,
+    pub match_kind: RecordIdentityMatchKind,
+    pub matched_text: String,
+    pub alias_source: Option<String>,
+    pub alias_source_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordIdentityMatchKind {
+    Name,
+    NormalizedName,
+    Alias,
+    VariantName,
+}
+
 impl SearchIndex for SqliteIndexReader {
     fn load_records_by_key(
         &self,
@@ -88,6 +114,20 @@ impl SearchIndex for SqliteIndexReader {
         keys: &[RecordKey],
     ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
         SqliteIndexReader::load_search_candidate_records(self, keys)
+    }
+
+    fn resolve_record_identity_matches(
+        &self,
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Option<Vec<RecordIdentityMatch>>, FilterCompileError> {
+        Ok(Some(SqliteIndexReader::resolve_record_identity_matches(
+            self,
+            query,
+            normalized_query,
+            filter,
+        )?))
     }
 
     fn resolve_metric_filters(
