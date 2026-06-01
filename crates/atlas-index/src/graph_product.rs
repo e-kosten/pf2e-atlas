@@ -1,10 +1,12 @@
-use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::{RecordKey, RemasterLinkSource};
 use diesel::OptionalExtension;
-use diesel::sql_types::{Nullable, Text};
-use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
+use diesel::dsl::sql;
+use diesel::prelude::*;
+use diesel::sql_types::{Bool, Text};
+use diesel::sqlite::Sqlite;
+use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 
-use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
+use crate::schema::{records, remaster_links};
 use crate::{GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection, SqliteIndexReader};
 
 pub trait GraphReadIndex {
@@ -86,14 +88,12 @@ fn variant_group_for_record(
     connection: &mut SqliteConnection,
     seed: &RecordKey,
 ) -> Result<Option<IndexVariantGroup>, RecordLoadError> {
-    let variant_group_key = bind_sql_query(
-        "SELECT variant_group_key FROM records WHERE record_key = ?1".to_string(),
-        &[SqlBindValue::Text(seed.to_string())],
-    )
-    .get_result::<VariantGroupKeyRow>(connection)
-    .optional()
-    .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    .map(|row| row.variant_group_key);
+    let variant_group_key = records::table
+        .filter(records::record_key.eq(seed.to_string()))
+        .select(records::variant_group_key)
+        .get_result::<Option<String>>(connection)
+        .optional()
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let Some(variant_group_key) = variant_group_key else {
         return Ok(None);
     };
@@ -111,21 +111,23 @@ fn variant_groups_by_base_name(
     connection: &mut SqliteConnection,
     normalized_base_name: &str,
 ) -> Result<Vec<IndexVariantGroup>, RecordLoadError> {
-    let group_keys = bind_sql_query(
-        "SELECT DISTINCT variant_group_key
-         FROM records
-         WHERE variant_group_key IS NOT NULL
-           AND LOWER(TRIM(variant_base_name)) = ?1
-           AND is_default_visible = 1
-         ORDER BY variant_group_key"
-            .to_string(),
-        &[SqlBindValue::Text(normalized_base_name.to_string())],
-    )
-    .load::<VariantGroupKeyRequiredRow>(connection)
-    .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let group_keys = records::table
+        .filter(records::variant_group_key.is_not_null())
+        .filter(
+            sql::<Bool>("LOWER(TRIM(variant_base_name)) = ").bind::<Text, _>(normalized_base_name),
+        )
+        .filter(records::is_default_visible.eq(true))
+        .select(records::variant_group_key)
+        .distinct()
+        .order(records::variant_group_key.asc())
+        .load::<Option<String>>(connection)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
     group_keys
         .into_iter()
-        .map(|row| variant_group_by_key(connection, &row.variant_group_key, false))
+        .map(|group_key| variant_group_by_key(connection, &group_key, false))
         .collect()
 }
 
@@ -134,31 +136,30 @@ fn variant_group_by_key(
     group_key: &str,
     include_hidden: bool,
 ) -> Result<IndexVariantGroup, RecordLoadError> {
-    let visibility_clause = if include_hidden {
-        ""
-    } else {
-        " AND is_default_visible = 1"
-    };
-    let record_keys = bind_sql_query(
-        format!(
-            "SELECT record_key
-             FROM records
-             WHERE variant_group_key = ?1{visibility_clause}
-             ORDER BY COALESCE(level, 9223372036854775807), name, record_key"
-        ),
-        &[SqlBindValue::Text(group_key.to_string())],
-    )
-    .load::<RecordKeyRow>(connection)
-    .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    .into_iter()
-    .map(|row| {
-        RecordKey::parse(&row.record_key).map_err(|error| {
-            RecordLoadError::InvalidData(format!(
-                "records.record_key must be a valid record key: {error}"
-            ))
+    let mut query = records::table
+        .filter(records::variant_group_key.eq(group_key))
+        .select(records::record_key)
+        .order((
+            sql::<diesel::sql_types::BigInt>("COALESCE(level, 9223372036854775807)"),
+            records::name.asc(),
+            records::record_key.asc(),
+        ))
+        .into_boxed();
+    if !include_hidden {
+        query = query.filter(records::is_default_visible.eq(true));
+    }
+    let record_keys = query
+        .load::<String>(connection)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
+        .into_iter()
+        .map(|record_key| {
+            RecordKey::parse(&record_key).map_err(|error| {
+                RecordLoadError::InvalidData(format!(
+                    "records.record_key must be a valid record key: {error}"
+                ))
+            })
         })
-    })
-    .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(IndexVariantGroup {
         variant_group_key: Some(group_key.to_string()),
         record_keys,
@@ -169,28 +170,32 @@ fn remaster_links_for_record(
     connection: &mut SqliteConnection,
     seed: &RecordKey,
 ) -> Result<Option<IndexRemasterLinks>, RecordLoadError> {
-    let exists = bind_sql_query(
-        "SELECT COUNT(*) AS count FROM records WHERE record_key = ?1".to_string(),
-        &[SqlBindValue::Text(seed.to_string())],
-    )
-    .get_result::<CountRow>(connection)
-    .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    .count
+    let seed_key = seed.to_string();
+    let exists = records::table
+        .filter(records::record_key.eq(&seed_key))
+        .count()
+        .get_result::<i64>(connection)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
         > 0;
     if !exists {
         return Ok(None);
     }
 
-    let link_rows = bind_sql_query(
-        "SELECT remaster_record_key, legacy_record_key, source_kind, source_ref
-         FROM remaster_links
-         WHERE remaster_record_key = ?1 OR legacy_record_key = ?1
-         ORDER BY remaster_record_key, legacy_record_key, source_kind, source_ref"
-            .to_string(),
-        &[SqlBindValue::Text(seed.to_string())],
-    )
-    .load::<RemasterLinkRow>(connection)
-    .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
+    let link_rows = remaster_links::table
+        .filter(
+            remaster_links::remaster_record_key
+                .eq(&seed_key)
+                .or(remaster_links::legacy_record_key.eq(&seed_key)),
+        )
+        .select(RemasterLinkRow::as_select())
+        .order((
+            remaster_links::remaster_record_key.asc(),
+            remaster_links::legacy_record_key.asc(),
+            remaster_links::source_kind.asc(),
+            remaster_links::source_ref.asc(),
+        ))
+        .load::<RemasterLinkRow>(connection)
+        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
     let links = link_rows
         .into_iter()
         .map(|link| {
@@ -220,32 +225,12 @@ fn remaster_links_for_record(
     Ok(Some(IndexRemasterLinks { links }))
 }
 
-#[derive(QueryableByName)]
-struct VariantGroupKeyRow {
-    #[diesel(sql_type = Nullable<Text>)]
-    variant_group_key: Option<String>,
-}
-
-#[derive(QueryableByName)]
-struct VariantGroupKeyRequiredRow {
-    #[diesel(sql_type = Text)]
-    variant_group_key: String,
-}
-
-#[derive(QueryableByName)]
-struct RecordKeyRow {
-    #[diesel(sql_type = Text)]
-    record_key: String,
-}
-
-#[derive(QueryableByName)]
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = remaster_links)]
+#[diesel(check_for_backend(Sqlite))]
 struct RemasterLinkRow {
-    #[diesel(sql_type = Text)]
     remaster_record_key: String,
-    #[diesel(sql_type = Text)]
     legacy_record_key: String,
-    #[diesel(sql_type = Text)]
     source_kind: String,
-    #[diesel(sql_type = Text)]
     source_ref: String,
 }

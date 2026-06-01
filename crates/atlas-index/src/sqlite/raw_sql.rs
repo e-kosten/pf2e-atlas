@@ -1,11 +1,10 @@
 use diesel::query_builder::{BoxedSqlQuery, SqlQuery};
-use diesel::sql_types::{BigInt, Binary, Double, Nullable, Text};
+use diesel::sql_types::{BigInt, Binary, Double, Text};
 use diesel::sqlite::Sqlite;
 use diesel::{QueryableByName, sql_query};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum SqlBindValue {
-    Null,
     Integer(i64),
     Real(f64),
     Text(String),
@@ -31,7 +30,6 @@ pub(crate) fn bind_sql_query(
     let mut query = sql_query(sql).into_boxed::<Sqlite>();
     for parameter in parameters {
         query = match parameter {
-            SqlBindValue::Null => query.bind::<Nullable<Text>, _>(None::<String>),
             SqlBindValue::Integer(value) => query.bind::<BigInt, _>(*value),
             SqlBindValue::Real(value) => query.bind::<Double, _>(*value),
             SqlBindValue::Text(value) => query.bind::<Text, _>(value.clone()),

@@ -232,7 +232,6 @@ fn rusqlite_values(values: &[SqlBindValue]) -> Vec<Value> {
     values
         .iter()
         .map(|value| match value {
-            SqlBindValue::Null => Value::Null,
             SqlBindValue::Integer(value) => Value::Integer(*value),
             SqlBindValue::Real(value) => Value::Real(*value),
             SqlBindValue::Text(value) => Value::Text(value.clone()),
