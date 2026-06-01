@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/atlas-artifact",
   "crates/atlas-cli",
   "crates/atlas-discovery",
   "crates/atlas-domain",
@@ -23,7 +22,6 @@ homepage = "https://github.com/e-kosten/pf2e-atlas"
 rust-version = "1.95"
 
 [workspace.dependencies]
-atlas-artifact = { path = "crates/atlas-artifact" }
 atlas-discovery = { path = "crates/atlas-discovery" }
 atlas-domain = { path = "crates/atlas-domain" }
 atlas-embedding = { path = "crates/atlas-embedding" }
@@ -35,6 +33,7 @@ atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 clap = { version = "4.5.53", features = ["derive"] }
 clap_complete = "4.5.60"
+diesel = { version = "2.3.3", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "64-column-tables"] }
 indicatif = "0.18.3"
 inquire = { version = "0.9.4", default-features = false, features = ["crossterm"] }
 rand = "0.9.2"

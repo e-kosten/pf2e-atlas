@@ -1,20 +1,19 @@
 use std::fs;
 use std::mem::size_of;
 
-use atlas_artifact::schema::{record_vector_index_create_sql, record_vector_index_insert_sql};
-use atlas_artifact::storage::encode_f32_vector_blob;
+use crate::artifact_storage::encode_f32_vector_blob;
 use rusqlite::Connection;
 
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 use crate::{
-    ArtifactContractFamily, DocumentEmbeddingCacheReader, SqliteIndexReader, ValidationCode,
+    ArtifactValidationFamily, DocumentEmbeddingCacheReader, SqliteIndexReader, ValidationCode,
     ValidationStatus,
 };
 
 #[test]
 fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
@@ -30,7 +29,7 @@ fn accepts_complete_document_embedding_cache() -> Result<(), Box<dyn std::error:
 fn sqlite_index_loads_reusable_document_embedding_cache() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("embedding-cache-reader");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
@@ -53,11 +52,11 @@ fn sqlite_index_loads_reusable_document_embedding_cache() -> Result<(), Box<dyn 
 fn reusable_document_embedding_cache_rejects_metadata_mismatch()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-metadata-mismatch");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE artifact_metadata SET value = 'unknown/model' WHERE key = ?1",
-        [atlas_artifact::metadata::artifact_metadata_keys::EMBEDDING_MODEL_ID],
+        [crate::artifact_metadata::artifact_metadata_keys::EMBEDDING_MODEL_ID],
     )?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
@@ -79,7 +78,7 @@ fn reusable_document_embedding_cache_rejects_metadata_mismatch()
 fn reusable_document_embedding_cache_rejects_wrong_dimensions()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-wrong-dimensions");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 383, 383 * size_of::<f32>())?;
     drop(connection);
@@ -101,7 +100,7 @@ fn reusable_document_embedding_cache_rejects_wrong_dimensions()
 fn reusable_document_embedding_cache_rejects_wrong_blob_length()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-wrong-blob");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 384, 4)?;
     drop(connection);
@@ -119,7 +118,7 @@ fn reusable_document_embedding_cache_rejects_wrong_blob_length()
 fn reusable_document_embedding_cache_reports_missing_table()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-missing-table");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute("DROP TABLE document_embedding_cache", [])?;
     drop(connection);
@@ -136,7 +135,7 @@ fn reusable_document_embedding_cache_reports_missing_table()
 #[test]
 fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("document-embedding-cache-dimensions");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 383, 384 * size_of::<f32>())?;
     drop(connection);
@@ -146,7 +145,7 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Embedding
+        diagnostic.family == ArtifactValidationFamily::Embedding
             && diagnostic.key.as_deref() == Some("document_embedding_cache:dimensions")
     }));
     fs::remove_file(path)?;
@@ -157,7 +156,7 @@ fn reports_document_embedding_cache_dimension_mismatch() -> Result<(), Box<dyn s
 fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("document-embedding-cache-coverage");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO document_embedding_cache (
@@ -175,7 +174,7 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Embedding
+        diagnostic.family == ArtifactValidationFamily::Embedding
             && diagnostic.key.as_deref() == Some("document_embedding_cache:default_visible_count")
     }));
     fs::remove_file(path)?;
@@ -185,14 +184,14 @@ fn reports_incomplete_document_embedding_cache_coverage() -> Result<(), Box<dyn 
 #[test]
 fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("vector-table-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let report = SqliteIndexReader::open_read_only_with_vectors(&path)?.validate_vector_index()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
     assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Schema
+        diagnostic.family == ArtifactValidationFamily::Schema
             && diagnostic.key.as_deref() == Some("table:record_vector_index")
     }));
     fs::remove_file(path)?;
@@ -203,13 +202,13 @@ fn vector_validation_reports_missing_vector_table() -> Result<(), Box<dyn std::e
 fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("vector-check-skips-coverage");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     crate::vector::register_sqlite_vec_extension()?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
-    connection.execute_batch(&record_vector_index_create_sql(384))?;
+    connection.execute_batch(&crate::sqlite_vector_index::create_sql(384))?;
     connection.execute(
-        &record_vector_index_insert_sql(),
+        &crate::sqlite_vector_index::insert_sql(),
         (1_i64, encode_f32_vector_blob(&vec![0.0_f32; 384])),
     )?;
     drop(connection);
@@ -222,7 +221,7 @@ fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn 
     assert_eq!(check_report.status, ValidationStatus::Ok);
     assert_eq!(validate_report.status, ValidationStatus::Error);
     assert!(validate_report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.family == ArtifactContractFamily::Embedding
+        diagnostic.family == ArtifactValidationFamily::Embedding
             && diagnostic.key.as_deref()
                 == Some("record_vector_index:document_embedding_cache_count")
     }));

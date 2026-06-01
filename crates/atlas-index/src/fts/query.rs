@@ -1,19 +1,21 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use atlas_artifact::schema::TABLE_RECORDS_FTS;
+use crate::schema_inventory::TABLE_RECORDS_FTS;
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::{RecordKey, SearchFilterNode};
-use rusqlite::types::Value;
-use rusqlite::{Connection, params_from_iter};
+use diesel::sql_types::{Double, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::{FilterCompileError, compile_eligible_records_query};
+use crate::filters::{FilterCompileError, SqliteEligibleRecordKeyset};
 use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
 };
+use crate::sqlite::raw_sql::{RecordKeyRow, bind_sql_query};
 use crate::sqlite::{FtsColumnWeights, FtsQuery, FtsSearchHit, FtsSearchLane};
 
 pub(crate) fn query_weighted_fts_index(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
     limit: u32,
@@ -71,7 +73,7 @@ pub(crate) fn query_weighted_fts_index(
 }
 
 pub(crate) fn query_precision_fts_index(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
     limit: u32,
@@ -124,7 +126,7 @@ fn compare_precision_hits(left: &FtsSearchHit, right: &FtsSearchHit) -> std::cmp
 }
 
 fn query_precision_fts_lane(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
     limit: u32,
@@ -215,46 +217,44 @@ fn rerank_candidate_limit(limit: u32) -> u32 {
 }
 
 pub(crate) fn query_fts_record_keys(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     filter: Option<&SearchFilterNode>,
     limit: u32,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(Value::Text(fts_query.as_disjunction_match_query()));
-    parameters.push(Value::Integer(i64::from(limit)));
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT f.record_key
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let query_placeholder = builder.push_text(fts_query.as_disjunction_match_query());
+            let limit_placeholder = builder.push_integer(i64::from(limit));
+            format!(
+                "SELECT f.record_key
          FROM {fts_table} f
-         WHERE {fts_table} MATCH ?{query_index}
+         WHERE {fts_table} MATCH {query_placeholder}
            AND f.record_key IN (SELECT record_key FROM eligible)
          ORDER BY f.record_key ASC
-         LIMIT ?{limit_index}",
-        eligible_sql = eligible.sql,
-        fts_table = TABLE_RECORDS_FTS,
-        query_index = parameters.len() - 1,
-        limit_index = parameters.len(),
-    );
+         LIMIT {limit_placeholder}",
+                fts_table = TABLE_RECORDS_FTS,
+            )
+        });
 
-    read_record_key_query(connection, &sql, &parameters)
+    read_record_key_query(connection, &query.sql, &query.parameters)
 }
 
 pub(crate) fn query_fts_candidate_record_keys(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     fts_query: &FtsQuery,
     candidate_keys: &[RecordKey],
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
     if candidate_keys.is_empty() {
         return Ok(Vec::new());
     }
-    let mut parameters = vec![Value::Text(fts_query.as_disjunction_match_query())];
+    let mut parameters = vec![SqlBindValue::Text(fts_query.as_disjunction_match_query())];
     let query_placeholder = "?1";
     let candidate_placeholders = candidate_keys
         .iter()
         .map(|key| {
-            parameters.push(Value::Text(key.to_string()));
+            parameters.push(SqlBindValue::Text(key.to_string()));
             format!("?{}", parameters.len())
         })
         .collect::<Vec<_>>()
@@ -272,20 +272,19 @@ pub(crate) fn query_fts_candidate_record_keys(
 }
 
 fn query_fts_documents(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     match_query: &str,
     filter: Option<&SearchFilterNode>,
     limit: u32,
     weights: FtsColumnWeights,
     tier: FtsMatchTier,
 ) -> Result<Vec<FtsDocumentHit>, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(Value::Text(match_query.to_string()));
-    parameters.push(Value::Integer(i64::from(limit)));
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT f.record_key,
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+        |builder| {
+            let query_placeholder = builder.push_text(match_query.to_string());
+            let limit_placeholder = builder.push_integer(i64::from(limit));
+            format!(
+                "SELECT f.record_key,
                 bm25({fts_table}, 0.0, {title}, {aliases}, {traits}, {taxonomy_terms}, {constraint_terms}, {mechanic_terms}, {source_terms}, {metric_terms}, {headings}, {body}, {facts}, {reference_terms}, {embedded_content}) AS rank,
                 f.title,
                 f.aliases,
@@ -304,94 +303,113 @@ fn query_fts_documents(
                 r.foundry_record_type
          FROM {fts_table} f
          JOIN records r ON r.record_key = f.record_key
-         WHERE {fts_table} MATCH ?{query_index}
+         WHERE {fts_table} MATCH {query_placeholder}
            AND f.record_key IN (SELECT record_key FROM eligible)
          ORDER BY rank ASC, f.record_key ASC
-         LIMIT ?{limit_index}",
-        eligible_sql = eligible.sql,
-        fts_table = TABLE_RECORDS_FTS,
-        title = weights.title,
-        aliases = weights.aliases,
-        traits = weights.traits,
-        taxonomy_terms = weights.taxonomy_terms,
-        constraint_terms = weights.constraint_terms,
-        mechanic_terms = weights.mechanic_terms,
-        source_terms = weights.source_terms,
-        metric_terms = weights.metric_terms,
-        headings = weights.headings,
-        body = weights.body,
-        facts = weights.facts,
-        reference_terms = weights.reference_terms,
-        embedded_content = weights.embedded_content,
-        query_index = parameters.len() - 1,
-        limit_index = parameters.len(),
+         LIMIT {limit_placeholder}",
+                fts_table = TABLE_RECORDS_FTS,
+                title = weights.title,
+                aliases = weights.aliases,
+                traits = weights.traits,
+                taxonomy_terms = weights.taxonomy_terms,
+                constraint_terms = weights.constraint_terms,
+                mechanic_terms = weights.mechanic_terms,
+                source_terms = weights.source_terms,
+                metric_terms = weights.metric_terms,
+                headings = weights.headings,
+                body = weights.body,
+                facts = weights.facts,
+                reference_terms = weights.reference_terms,
+                embedded_content = weights.embedded_content,
+            )
+        },
     );
 
-    let mut statement = connection
-        .prepare(&sql)
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, f64>(1)?,
-                FtsDocument {
-                    title: row.get(2)?,
-                    aliases: row.get(3)?,
-                    traits: row.get(4)?,
-                    taxonomy_terms: row.get(5)?,
-                    constraint_terms: row.get(6)?,
-                    mechanic_terms: row.get(7)?,
-                    source_terms: row.get(8)?,
-                    metric_terms: row.get(9)?,
-                    headings: row.get(10)?,
-                    body: row.get(11)?,
-                    facts: row.get(12)?,
-                    reference_terms: row.get(13)?,
-                    embedded_content: row.get(14)?,
-                    record_family: row.get(15)?,
-                    foundry_record_type: row.get(16)?,
-                },
-            ))
-        })
+    bind_sql_query(query.sql, &query.parameters)
+        .load::<FtsDocumentRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .into_iter()
         .map(|row| {
-            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
-                .and_then(|(record_key, base_rank, document)| {
-                    Ok(FtsDocumentHit {
-                        record_key: RecordKey::parse(&record_key)
-                            .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))?,
-                        base_rank,
-                        rank: base_rank,
-                        tier,
-                        document,
-                    })
-                })
+            Ok(FtsDocumentHit {
+                record_key: RecordKey::parse(&row.record_key)
+                    .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))?,
+                base_rank: row.rank,
+                rank: row.rank,
+                tier,
+                document: FtsDocument {
+                    title: row.title,
+                    aliases: row.aliases,
+                    traits: row.traits,
+                    taxonomy_terms: row.taxonomy_terms,
+                    constraint_terms: row.constraint_terms,
+                    mechanic_terms: row.mechanic_terms,
+                    source_terms: row.source_terms,
+                    metric_terms: row.metric_terms,
+                    headings: row.headings,
+                    body: row.body,
+                    facts: row.facts,
+                    reference_terms: row.reference_terms,
+                    embedded_content: row.embedded_content,
+                    record_family: row.record_family,
+                    foundry_record_type: row.foundry_record_type,
+                },
+            })
         })
         .collect()
 }
 
 fn read_record_key_query(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     sql: &str,
-    parameters: &[Value],
+    parameters: &[SqlBindValue],
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
-    let mut statement = connection
-        .prepare(sql)
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?;
-    statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            row.get::<_, String>(0)
-        })
+    bind_sql_query(sql.to_string(), parameters)
+        .load::<RecordKeyRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
+        .into_iter()
         .map(|row| {
-            row.map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
-                .and_then(|record_key| {
-                    RecordKey::parse(&record_key)
-                        .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
-                })
+            RecordKey::parse(&row.record_key)
+                .map_err(|error| FilterCompileError::InvalidValue(error.to_string()))
         })
         .collect()
+}
+
+#[derive(QueryableByName)]
+struct FtsDocumentRow {
+    #[diesel(sql_type = Text)]
+    record_key: String,
+    #[diesel(sql_type = Double)]
+    rank: f64,
+    #[diesel(sql_type = Text)]
+    title: String,
+    #[diesel(sql_type = Text)]
+    aliases: String,
+    #[diesel(sql_type = Text)]
+    traits: String,
+    #[diesel(sql_type = Text)]
+    taxonomy_terms: String,
+    #[diesel(sql_type = Text)]
+    constraint_terms: String,
+    #[diesel(sql_type = Text)]
+    mechanic_terms: String,
+    #[diesel(sql_type = Text)]
+    source_terms: String,
+    #[diesel(sql_type = Text)]
+    metric_terms: String,
+    #[diesel(sql_type = Text)]
+    headings: String,
+    #[diesel(sql_type = Text)]
+    body: String,
+    #[diesel(sql_type = Text)]
+    facts: String,
+    #[diesel(sql_type = Text)]
+    reference_terms: String,
+    #[diesel(sql_type = Text)]
+    embedded_content: String,
+    #[diesel(sql_type = Text)]
+    record_family: String,
+    #[diesel(sql_type = Text)]
+    foundry_record_type: String,
 }
 
 #[cfg(test)]

@@ -1,16 +1,16 @@
 use std::fs;
 
-use atlas_artifact::storage::encode_f32_vector_blob;
+use crate::artifact_storage::encode_f32_vector_blob;
 use atlas_domain::RecordKey;
 use rusqlite::Connection;
 
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 use crate::{SqliteIndexReader, VectorQueryError};
 
 #[test]
 fn loads_record_embedding_vectors_for_similarity_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("record-embedding-vectors");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO document_embedding_cache (
@@ -56,7 +56,7 @@ fn loads_record_embedding_vectors_for_similarity_seed() -> Result<(), Box<dyn st
 fn load_record_embedding_vectors_rejects_invalid_unit_kind()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("record-embedding-vectors-invalid-kind");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO document_embedding_cache (
@@ -88,7 +88,7 @@ fn load_record_embedding_vectors_rejects_invalid_unit_kind()
 fn load_record_embedding_vectors_rejects_invalid_vector_blob()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("record-embedding-vectors-invalid-blob");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO document_embedding_cache (
@@ -121,7 +121,7 @@ fn load_record_embedding_vectors_rejects_invalid_vector_blob()
 fn load_record_embedding_vectors_rejects_dimension_mismatch()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("record-embedding-vectors-dimension-mismatch");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO document_embedding_cache (

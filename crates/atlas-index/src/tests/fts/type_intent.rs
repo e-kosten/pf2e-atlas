@@ -9,7 +9,7 @@ use crate::{FtsColumnWeights, FtsQuery, SqliteIndexReader};
 fn type_intent_can_promote_matching_family_under_low_final_limit()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-type-intent");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -84,7 +84,7 @@ fn type_intent_can_promote_matching_family_under_low_final_limit()
 fn mixed_case_tokens_are_normalized_before_type_intent_lowering()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-mixed-case-type-intent");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -158,7 +158,7 @@ fn mixed_case_tokens_are_normalized_before_type_intent_lowering()
 fn type_intent_uses_internal_candidate_window_before_final_truncation()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-type-intent-candidate-window");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -293,7 +293,7 @@ fn type_intent_uses_internal_candidate_window_before_final_truncation()
 fn secondary_type_intent_promotes_matching_equipment_type_on_database_path()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-secondary-type-intent");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -368,7 +368,7 @@ fn secondary_type_intent_promotes_matching_equipment_type_on_database_path()
 fn all_type_intent_query_skips_strict_and_uses_or_fallback()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = super::temp_db_path("fts-type-intent-only");
-    super::create_contract_database(&path)?;
+    super::create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records

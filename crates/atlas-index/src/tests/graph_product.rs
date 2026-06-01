@@ -5,13 +5,13 @@ use rusqlite::Connection;
 
 use crate::{GraphReadIndex, ReferenceEdgeDirection, SqliteIndexReader};
 
-use super::{create_contract_database, insert_reference_edge, temp_db_path};
+use super::{create_valid_artifact_database, insert_reference_edge, temp_db_path};
 
 #[test]
 fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-outgoing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_reference_edge(
         &path,
         "actions:testAction1",
@@ -61,7 +61,7 @@ fn reference_edges_for_seed_returns_policy_visible_outgoing_edges()
 fn reference_edges_for_seed_returns_policy_visible_backlinks()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-backlinks");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_reference_edge(
         &path,
         "actions:testAction2",
@@ -100,7 +100,7 @@ fn reference_edges_for_seed_returns_policy_visible_backlinks()
 #[test]
 fn variant_group_returns_ordered_siblings() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-variant-group");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_variant_group(&connection)?;
     drop(connection);
@@ -130,7 +130,7 @@ fn variant_group_returns_ordered_siblings() -> Result<(), Box<dyn std::error::Er
 #[test]
 fn variant_group_reports_missing_and_non_variant_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-variant-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let reader = SqliteIndexReader::open_read_only(&path)?;
     assert!(
@@ -152,7 +152,7 @@ fn variant_group_reports_missing_and_non_variant_seed() -> Result<(), Box<dyn st
 fn variant_base_name_returns_default_visible_matching_groups()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-variant-base");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     insert_variant_group(&connection)?;
     connection.execute(
@@ -188,7 +188,7 @@ fn variant_base_name_returns_default_visible_matching_groups()
 #[test]
 fn remaster_links_are_bidirectional_and_can_be_empty() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("graph-remaster");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO remaster_links (remaster_record_key, legacy_record_key, source_kind, source_ref)

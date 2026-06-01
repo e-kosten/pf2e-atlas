@@ -17,6 +17,6 @@ pub enum DiscoveryError {
     QueryFailed(String),
 }
 
-pub(super) fn query_error(error: rusqlite::Error) -> DiscoveryError {
+pub(super) fn query_error(error: impl std::fmt::Display) -> DiscoveryError {
     DiscoveryError::QueryFailed(error.to_string())
 }

@@ -3,8 +3,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atlas_artifact::test_support::{
-    create_minimal_contract_schema, insert_contract_metadata_entries, insert_minimal_contract_rows,
+use atlas_index::test_support::{
+    create_minimal_artifact_schema, insert_artifact_metadata_entries, insert_minimal_artifact_rows,
     legacy_minilm_metadata_entries,
 };
 use rusqlite::Connection;
@@ -15,11 +15,11 @@ pub fn ok_data(value: &Value) -> &Value {
     value.get("data").expect("ok envelope should contain data")
 }
 
-pub fn create_contract_database(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn create_valid_artifact_database(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
-    create_minimal_contract_schema(&connection)?;
-    insert_contract_metadata_entries(&connection, legacy_minilm_metadata_entries(), None)?;
-    insert_minimal_contract_rows(&connection)?;
+    create_minimal_artifact_schema(&connection)?;
+    insert_artifact_metadata_entries(&connection, legacy_minilm_metadata_entries(), None)?;
+    insert_minimal_artifact_rows(&connection)?;
     Ok(())
 }
 

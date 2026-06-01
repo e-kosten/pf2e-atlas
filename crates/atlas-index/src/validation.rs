@@ -36,7 +36,7 @@ pub enum ValidationCode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ArtifactValidationDiagnostic {
     pub code: ValidationCode,
-    pub family: ArtifactContractFamily,
+    pub family: ArtifactValidationFamily,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
@@ -48,7 +48,7 @@ pub struct ArtifactValidationDiagnostic {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ArtifactContractFamily {
+pub enum ArtifactValidationFamily {
     Contract,
     Schema,
     Source,

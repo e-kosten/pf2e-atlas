@@ -1,10 +1,10 @@
-use atlas_artifact::schema::{REQUIRED_REFERENCES, orphan_reference_sql};
+use crate::schema_inventory::{REQUIRED_REFERENCES, orphan_reference_sql};
 use rusqlite::Connection;
 
 use crate::sql::count_sql;
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 pub(super) fn validate_relationships(
@@ -15,8 +15,8 @@ pub(super) fn validate_relationships(
         let sql = orphan_reference_sql(reference);
         let invalid = count_sql(connection, &sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Data,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Data,
                 format!("relationship check `{}` failed", reference.key),
                 Some(reference.key.to_string()),
                 Some("0 invalid rows".to_string()),
@@ -27,8 +27,8 @@ pub(super) fn validate_relationships(
     for (key, sql) in RELATIONSHIP_POLICY_CHECKS {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Data,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Data,
                 format!("relationship check `{key}` failed"),
                 Some(key.to_string()),
                 Some("0 invalid rows".to_string()),

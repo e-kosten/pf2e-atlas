@@ -23,4 +23,4 @@ This crate decides where source data, embedding caches, and artifacts live for r
 
 ## Boundary Notes
 
-Product surfaces should compose through this crate for paths and service construction. Durable search behavior still belongs in `atlas-search`, read access in `atlas-index`, and physical schema in `atlas-artifact`.
+Product surfaces should compose through this crate for paths and service construction. Durable search behavior still belongs in `atlas-search`; read access, artifact validation, and physical SQLite schema ownership belong in `atlas-index`.

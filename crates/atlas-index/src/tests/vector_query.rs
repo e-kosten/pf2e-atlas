@@ -3,6 +3,7 @@ use atlas_domain::metadata::{MetadataPredicate, MetadataSetField, MetadataSetMat
 
 use crate::VectorQueryError;
 use crate::filters::FilterCompileError;
+use crate::sqlite::raw_sql::SqlBindValue;
 use crate::vector::compile_vector_knn_query;
 
 #[test]
@@ -31,17 +32,17 @@ fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::
     assert_eq!(compiled.parameters.len(), 4);
     assert_eq!(
         compiled.parameters[0],
-        rusqlite::types::Value::Text("rule".to_string())
+        SqlBindValue::Text("rule".to_string())
     );
     assert_eq!(
         compiled.parameters[1],
-        rusqlite::types::Value::Text("actions".to_string())
+        SqlBindValue::Text("actions".to_string())
     );
     assert_eq!(
         compiled.parameters[2],
-        rusqlite::types::Value::Blob(vec![0, 0, 128, 62, 0, 0, 0, 63, 0, 0, 64, 63])
+        SqlBindValue::Blob(vec![0, 0, 128, 62, 0, 0, 0, 63, 0, 0, 64, 63])
     );
-    assert_eq!(compiled.parameters[3], rusqlite::types::Value::Integer(12));
+    assert_eq!(compiled.parameters[3], SqlBindValue::Integer(12));
     Ok(())
 }
 

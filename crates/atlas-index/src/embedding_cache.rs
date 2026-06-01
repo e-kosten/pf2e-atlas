@@ -1,13 +1,17 @@
 use std::collections::BTreeMap;
 
-use atlas_artifact::metadata::{ARTIFACT_METADATA_TABLE, artifact_metadata_keys};
-use atlas_artifact::storage::{decode_f32_vector_blob, f32_vector_blob_len};
+use crate::artifact_metadata::artifact_metadata_keys;
+use crate::artifact_storage::{decode_f32_vector_blob, f32_vector_blob_len};
 use atlas_embedding::{
     EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelSpec, ReusableDocumentEmbedding,
 };
+use diesel::prelude::*;
+use diesel::sqlite::Sqlite;
+use diesel::{Queryable, Selectable, SelectableHelper};
 use thiserror::Error;
 
 use crate::SqliteIndexReader;
+use crate::schema::{artifact_metadata, document_embedding_cache};
 
 pub trait DocumentEmbeddingCacheReader {
     fn load_reusable_document_embeddings(
@@ -22,43 +26,34 @@ impl DocumentEmbeddingCacheReader for SqliteIndexReader {
         spec: EmbeddingModelSpec,
     ) -> Result<BTreeMap<String, ReusableDocumentEmbedding>, DocumentEmbeddingCacheError> {
         validate_embedding_identity(self, spec)?;
-        let mut select = self
-            .connection()
-            .prepare(
-                "SELECT embedding_unit_key, semantic_input_hash, dimensions, vector_blob
-                 FROM document_embedding_cache",
-            )
-            .map_err(|error| DocumentEmbeddingCacheError::Query(error.to_string()))?;
-        let rows = select
-            .query_map([], |row| {
-                let embedding_unit_key: String = row.get(0)?;
-                let input_hash: String = row.get(1)?;
-                let dimensions: i64 = row.get(2)?;
-                let vector_blob: Vec<u8> = row.get(3)?;
-                Ok((embedding_unit_key, input_hash, dimensions, vector_blob))
+        let rows = self
+            .with_diesel_connection(|connection| {
+                document_embedding_cache::table
+                    .select(ReusableEmbeddingRow::as_select())
+                    .load::<ReusableEmbeddingRow>(connection)
             })
             .map_err(|error| DocumentEmbeddingCacheError::Query(error.to_string()))?;
 
         let expected_dimensions = spec.dimensions;
         let mut reusable = BTreeMap::new();
         for row in rows {
-            let (embedding_unit_key, input_hash, dimensions, vector_blob) =
-                row.map_err(|error| DocumentEmbeddingCacheError::Query(error.to_string()))?;
-            let dimensions = usize::try_from(dimensions).map_err(|_| {
+            let dimensions = usize::try_from(row.dimensions).map_err(|_| {
                 DocumentEmbeddingCacheError::InvalidCache(format!(
-                    "cached embedding `{embedding_unit_key}` has invalid dimensions"
+                    "cached embedding `{}` has invalid dimensions",
+                    row.embedding_unit_key
                 ))
             })?;
             if dimensions != expected_dimensions {
                 return Err(DocumentEmbeddingCacheError::InvalidCache(format!(
-                    "cached embedding `{embedding_unit_key}` has {dimensions} dimensions; expected {expected_dimensions}"
+                    "cached embedding `{}` has {dimensions} dimensions; expected {expected_dimensions}",
+                    row.embedding_unit_key
                 )));
             }
-            let vector = decode_vector_blob(&embedding_unit_key, &vector_blob, dimensions)?;
+            let vector = decode_vector_blob(&row.embedding_unit_key, &row.vector_blob, dimensions)?;
             reusable.insert(
-                embedding_unit_key,
+                row.embedding_unit_key,
                 ReusableDocumentEmbedding {
-                    input_hash,
+                    input_hash: row.semantic_input_hash,
                     dimensions,
                     vector,
                 },
@@ -147,17 +142,16 @@ fn metadata_value(
     index: &SqliteIndexReader,
     key: &str,
 ) -> Result<Option<String>, DocumentEmbeddingCacheError> {
-    let mut statement = index
-        .connection()
-        .prepare(&format!(
-            "SELECT value FROM {ARTIFACT_METADATA_TABLE} WHERE key = ?1"
-        ))
-        .map_err(|error| DocumentEmbeddingCacheError::Query(error.to_string()))?;
-    match statement.query_row([key], |row| row.get(0)) {
-        Ok(value) => Ok(Some(value)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(error) => Err(DocumentEmbeddingCacheError::Query(error.to_string())),
-    }
+    index
+        .with_diesel_connection(|connection| {
+            artifact_metadata::table
+                .filter(artifact_metadata::key.eq(key))
+                .select(MetadataValueRow::as_select())
+                .get_result::<MetadataValueRow>(connection)
+                .optional()
+        })
+        .map(|row| row.map(|row| row.value))
+        .map_err(|error| DocumentEmbeddingCacheError::Query(error.to_string()))
 }
 
 fn decode_vector_blob(
@@ -174,4 +168,21 @@ fn decode_vector_blob(
     }
     decode_f32_vector_blob(blob)
         .map_err(|error| DocumentEmbeddingCacheError::InvalidCache(error.to_string()))
+}
+
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = document_embedding_cache)]
+#[diesel(check_for_backend(Sqlite))]
+struct ReusableEmbeddingRow {
+    embedding_unit_key: String,
+    semantic_input_hash: String,
+    dimensions: i64,
+    vector_blob: Vec<u8>,
+}
+
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = artifact_metadata)]
+#[diesel(check_for_backend(Sqlite))]
+struct MetadataValueRow {
+    value: String,
 }

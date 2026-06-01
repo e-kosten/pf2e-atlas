@@ -1,4 +1,4 @@
-use atlas_artifact::schema::{record_metrics, records};
+use crate::schema_inventory::{record_metrics, records};
 use atlas_domain::{MetricMatch, NumericMetricOperator, ScalarValue};
 
 use super::FilterCompiler;

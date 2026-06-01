@@ -108,8 +108,6 @@ pub mod records {
         columns::IS_DEFAULT_VISIBLE,
         columns::RAW_JSON,
     ];
-
-    pub const PERSISTED_COLUMNS: &[Column] = ALL_COLUMNS;
 }
 
 pub mod record_content {

@@ -4,12 +4,14 @@ mod staging;
 mod stats;
 mod values;
 
-use rusqlite::Connection;
+use diesel::SqliteConnection;
 use tracing::info;
 
 use crate::IndexWriteError;
 
-pub(super) fn write_discovery_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
+pub(super) fn write_discovery_catalogs(
+    connection: &mut SqliteConnection,
+) -> Result<(), IndexWriteError> {
     staging::stage_discovery_values(connection)?;
     fields::write_field_catalogs(connection)?;
     values::write_value_catalogs(connection)?;

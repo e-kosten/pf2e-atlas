@@ -4,25 +4,29 @@ use atlas_domain::metadata::{
     MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
 };
 use atlas_domain::{MetricMatch, NumericMatch, RecordFamily, RecordKey};
+use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 use crate::filters::{
-    EligibleRecordsQuery, FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort,
-    compile_eligible_records_query, compile_filtered_record_keys_query,
+    CompiledSqliteEligibleRecordKeyset, FilterCompileError, SqliteEligibleRecordKeyset,
+    SqliteFilterSqlQuery, SqliteFilteredRecordSort,
 };
+use crate::sqlite::raw_sql::SqlBindValue;
+use crate::vector::compile_vector_knn_query;
+use crate::{FilteredRecordSort, FtsQuery, SqliteIndexReader};
 
 #[test]
 fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-empty");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records SET is_default_visible = 0 WHERE record_key = 'actions:testAction3'",
         [],
     )?;
 
-    let compiled = compile_eligible_records_query(None)?;
+    let compiled = SqliteEligibleRecordKeyset::new(None).compile()?;
     let keys = query_eligible_keys(&connection, &compiled)?;
 
     assert_eq!(keys, vec!["actions:testAction1", "actions:testAction2"]);
@@ -33,7 +37,7 @@ fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::
 #[test]
 fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-basic");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -47,7 +51,7 @@ fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error:
         atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule),
         atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 }),
     ]);
-    let compiled = compile_eligible_records_query(Some(&filter))?;
+    let compiled = SqliteEligibleRecordKeyset::new(Some(&filter)).compile()?;
     let keys = query_eligible_keys(&connection, &compiled)?;
 
     assert_eq!(keys, vec!["actions:testAction2", "actions:testAction3"]);
@@ -58,14 +62,16 @@ fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error:
 #[test]
 fn rejects_empty_boolean_groups_at_compile_boundary() {
     assert_eq!(
-        compile_eligible_records_query(Some(&atlas_domain::SearchFilterNode::any_of(Vec::new())))
+        SqliteEligibleRecordKeyset::new(Some(&atlas_domain::SearchFilterNode::any_of(Vec::new())))
+            .compile()
             .unwrap_err(),
         FilterCompileError::InvalidValue(
             "filter `any_of` must contain at least one child".to_string()
         )
     );
     assert_eq!(
-        compile_eligible_records_query(Some(&atlas_domain::SearchFilterNode::all_of(Vec::new())))
+        SqliteEligibleRecordKeyset::new(Some(&atlas_domain::SearchFilterNode::all_of(Vec::new())))
+            .compile()
             .unwrap_err(),
         FilterCompileError::InvalidValue(
             "filter `all_of` must contain at least one child".to_string()
@@ -77,7 +83,7 @@ fn rejects_empty_boolean_groups_at_compile_boundary() {
 fn composes_filtered_record_key_queries_from_eligible_records()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-record-query");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
@@ -90,12 +96,9 @@ fn composes_filtered_record_key_queries_from_eligible_records()
     )?;
 
     let filter = atlas_domain::SearchFilterNode::record_family(RecordFamily::Rule);
-    let compiled = compile_filtered_record_keys_query(
-        Some(&filter),
-        FilteredRecordSort::LevelDesc,
-        Some(2),
-        Some(0),
-    )?;
+    let compiled = SqliteEligibleRecordKeyset::new(Some(&filter))
+        .compile()?
+        .into_record_keys_query(SqliteFilteredRecordSort::LevelDesc, Some(2), Some(0));
     let keys = query_filtered_record_keys(&connection, &compiled)?;
 
     assert_eq!(keys, vec!["actions:testAction2", "actions:testAction3"]);
@@ -110,9 +113,77 @@ fn composes_filtered_record_key_queries_from_eligible_records()
 }
 
 #[test]
+fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("filter-cross-surface");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET level = CASE record_key
+             WHEN 'actions:testAction1' THEN 1
+             WHEN 'actions:testAction2' THEN 2
+             ELSE 3
+         END,
+         is_default_visible = CASE record_key
+             WHEN 'actions:testAction3' THEN 0
+             ELSE 1
+         END",
+        [],
+    )?;
+    drop(connection);
+
+    let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
+    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let filtered_keys =
+        reader.list_filtered_record_keys(Some(&filter), FilteredRecordSort::RecordKey, 10, 0)?;
+    let fts_query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("valid FTS query");
+    let fts_keys = reader.query_fts_record_keys(&fts_query, Some(&filter), 10)?;
+    let identity_matches =
+        reader.resolve_record_identity_matches("Test Action 2", "test action 2", Some(&filter))?;
+
+    assert_eq!(
+        filtered_keys
+            .record_keys
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction2"]
+    );
+    assert_eq!(
+        fts_keys.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        vec!["actions:testAction2"]
+    );
+    assert_eq!(
+        identity_matches
+            .iter()
+            .map(|matched| matched.record_key.to_string())
+            .collect::<Vec<_>>(),
+        vec!["actions:testAction2"]
+    );
+    assert!(
+        reader
+            .resolve_record_identity_matches("Test Action 3", "test action 3", Some(&filter))?
+            .is_empty()
+    );
+
+    let keyset = SqliteEligibleRecordKeyset::new(Some(&filter)).compile()?;
+    let vector_query = compile_vector_knn_query(&[0.25, 0.5], Some(&filter), 10, false)?;
+    assert!(vector_query.sql.contains(&keyset.eligible_cte_sql()));
+    assert_eq!(
+        vector_query.parameters[..keyset.parameters().len()],
+        keyset.parameters()[..],
+        "vector search should reuse the same structured-filter binds before its vector parameters"
+    );
+
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-side-tables");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO reference_edges (from_record_key, to_record_key, reference_text, source_kind, visibility)
@@ -163,7 +234,7 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
         }),
         atlas_domain::SearchFilterNode::metric("defense.ac", MetricMatch::Gte { value: 18.0 }),
     ]);
-    let compiled = compile_eligible_records_query(Some(&filter))?;
+    let compiled = SqliteEligibleRecordKeyset::new(Some(&filter)).compile()?;
     let keys = query_eligible_keys(&connection, &compiled)?;
 
     assert_eq!(keys, vec!["actions:testAction1"]);
@@ -185,13 +256,17 @@ fn reports_filters_that_cannot_be_lowered_authoritatively() {
     });
 
     assert_eq!(
-        compile_eligible_records_query(Some(&derived_tags)).unwrap_err(),
+        SqliteEligibleRecordKeyset::new(Some(&derived_tags))
+            .compile()
+            .unwrap_err(),
         FilterCompileError::Unsupported {
             filter: "metadata.set.derived_tags".to_string(),
         }
     );
     assert_eq!(
-        compile_eligible_records_query(Some(&hands)).unwrap_err(),
+        SqliteEligibleRecordKeyset::new(Some(&hands))
+            .compile()
+            .unwrap_err(),
         FilterCompileError::Unsupported {
             filter: "metadata.number.hands".to_string(),
         }
@@ -200,10 +275,12 @@ fn reports_filters_that_cannot_be_lowered_authoritatively() {
 
 fn query_eligible_keys(
     connection: &Connection,
-    compiled: &EligibleRecordsQuery,
+    compiled: &CompiledSqliteEligibleRecordKeyset,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut statement = connection.prepare(&format!("{} ORDER BY record_key", compiled.sql))?;
-    let rows = statement.query_map(params_from_iter(compiled.parameters.iter()), |row| {
+    let mut statement =
+        connection.prepare(&format!("{} ORDER BY record_key", compiled.select_sql()))?;
+    let parameters = rusqlite_values(compiled.parameters());
+    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
         row.get::<_, String>(0)
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
@@ -211,11 +288,24 @@ fn query_eligible_keys(
 
 fn query_filtered_record_keys(
     connection: &Connection,
-    compiled: &FilteredRecordKeysQuery,
+    compiled: &SqliteFilterSqlQuery,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut statement = connection.prepare(&compiled.sql)?;
-    let rows = statement.query_map(params_from_iter(compiled.parameters.iter()), |row| {
+    let parameters = rusqlite_values(&compiled.parameters);
+    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
         row.get::<_, String>(0)
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+fn rusqlite_values(values: &[SqlBindValue]) -> Vec<Value> {
+    values
+        .iter()
+        .map(|value| match value {
+            SqlBindValue::Integer(value) => Value::Integer(*value),
+            SqlBindValue::Real(value) => Value::Real(*value),
+            SqlBindValue::Text(value) => Value::Text(value.clone()),
+            SqlBindValue::Blob(value) => Value::Blob(value.clone()),
+        })
+        .collect()
 }

@@ -21,4 +21,4 @@ This crate is for lightweight request, filter, identifier, and output primitives
 
 ## Boundary Notes
 
-Use this crate when two or more crates need the same semantic vocabulary. If the concept has storage shape, prefer `atlas-artifact`; if it is a normalized record/content concept, prefer `atlas-record`; if it is source-specific extraction policy, prefer `atlas-ingest`.
+Use this crate when two or more crates need the same semantic vocabulary. If the concept has SQLite artifact storage shape, prefer `atlas-index`; if it is a normalized record/content concept, prefer `atlas-record`; if it is source-specific extraction policy, prefer `atlas-ingest`.

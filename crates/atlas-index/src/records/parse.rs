@@ -5,7 +5,6 @@ use atlas_domain::{
 use atlas_record::{
     AliasSource, ContentDocument, ContentSourceKind, ContentVisibility, NormalizedTime,
 };
-use rusqlite::Row;
 
 use super::RecordLoadError;
 
@@ -29,62 +28,6 @@ pub(super) fn normalized_time(
     }))
 }
 
-pub(super) fn required_string(
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<String, RecordLoadError> {
-    row.get(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-}
-
-pub(super) fn optional_string(
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<Option<String>, RecordLoadError> {
-    row.get(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-}
-
-pub(super) fn optional_i64(
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<Option<i64>, RecordLoadError> {
-    row.get(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-}
-
-pub(super) fn optional_f64(
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<Option<f64>, RecordLoadError> {
-    row.get(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-}
-
-pub(super) fn required_f64(row: &Row<'_>, column: &'static str) -> Result<f64, RecordLoadError> {
-    row.get(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))
-}
-
-pub(super) fn required_bool(row: &Row<'_>, column: &'static str) -> Result<bool, RecordLoadError> {
-    bool_column(column, row, column)
-}
-
-pub(super) fn bool_column(
-    name: &'static str,
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<bool, RecordLoadError> {
-    match row
-        .get::<_, i64>(column)
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    {
-        0 => Ok(false),
-        1 => Ok(true),
-        value => Err(invalid_value(name, value.to_string())),
-    }
-}
-
 pub(super) fn json_string_array(
     name: &'static str,
     value: &str,
@@ -92,17 +35,6 @@ pub(super) fn json_string_array(
     serde_json::from_str(value).map_err(|error| {
         RecordLoadError::InvalidData(format!("{name} must be a JSON string array: {error}"))
     })
-}
-
-pub(super) fn optional_content_document(
-    name: &'static str,
-    row: &Row<'_>,
-    column: &'static str,
-) -> Result<Option<ContentDocument>, RecordLoadError> {
-    optional_string(row, column)?
-        .as_deref()
-        .map(|value| content_document(name, value))
-        .transpose()
 }
 
 pub(super) fn content_document(

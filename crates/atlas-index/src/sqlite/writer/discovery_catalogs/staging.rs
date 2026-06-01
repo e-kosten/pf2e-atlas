@@ -1,4 +1,7 @@
-use rusqlite::{Connection, params};
+use diesel::connection::SimpleConnection;
+use diesel::prelude::*;
+use diesel::sql_types::Text;
+use diesel::{SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
 
@@ -6,17 +9,19 @@ use super::field_seeds::FIELD_SEEDS;
 
 const TEMP_DISCOVERY_VALUES: &str = "temp_discovery_values";
 
-pub(super) fn stage_discovery_values(connection: &Connection) -> Result<(), IndexWriteError> {
+pub(super) fn stage_discovery_values(
+    connection: &mut SqliteConnection,
+) -> Result<(), IndexWriteError> {
     connection
-        .execute_batch(
+        .batch_execute(
             "DROP TABLE IF EXISTS temp_discovery_values;
-             CREATE TEMP TABLE temp_discovery_values (
-               field TEXT NOT NULL,
-               record_key TEXT NOT NULL,
-               record_family TEXT NOT NULL,
-               value TEXT,
-               numeric_value REAL
-             );",
+         CREATE TEMP TABLE temp_discovery_values (
+           field TEXT NOT NULL,
+           record_key TEXT NOT NULL,
+           record_family TEXT NOT NULL,
+           value TEXT,
+           numeric_value REAL
+         );",
         )
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
@@ -32,7 +37,7 @@ pub(super) fn stage_discovery_values(connection: &Connection) -> Result<(), Inde
             "WITH field_values(record_key, value) AS ({value_sql})
              INSERT INTO {TEMP_DISCOVERY_VALUES}
                  (field, record_key, record_family, value, numeric_value)
-             SELECT ?1,
+             SELECT ?,
                     fv.record_key,
                     r.record_family,
                     CAST(fv.value AS TEXT),
@@ -42,23 +47,24 @@ pub(super) fn stage_discovery_values(connection: &Connection) -> Result<(), Inde
              WHERE r.is_default_visible = 1",
             value_sql = seed.value_sql
         );
-        connection
-            .execute(&sql, params![seed.field])
+        sql_query(sql)
+            .bind::<Text, _>(seed.field)
+            .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
 
     connection
-        .execute_batch(
+        .batch_execute(
             "CREATE INDEX temp_discovery_values_field_scope_value_idx
-               ON temp_discovery_values(field, record_family, value);
-             CREATE INDEX temp_discovery_values_field_value_idx
-               ON temp_discovery_values(field, value);
-             CREATE INDEX temp_discovery_values_field_scope_numeric_idx
-               ON temp_discovery_values(field, record_family, numeric_value);
-             CREATE INDEX temp_discovery_values_field_record_idx
-               ON temp_discovery_values(field, record_key);
-             CREATE INDEX temp_discovery_values_field_scope_record_idx
-               ON temp_discovery_values(field, record_family, record_key);",
+           ON temp_discovery_values(field, record_family, value);
+         CREATE INDEX temp_discovery_values_field_value_idx
+           ON temp_discovery_values(field, value);
+         CREATE INDEX temp_discovery_values_field_scope_numeric_idx
+           ON temp_discovery_values(field, record_family, numeric_value);
+         CREATE INDEX temp_discovery_values_field_record_idx
+           ON temp_discovery_values(field, record_key);
+         CREATE INDEX temp_discovery_values_field_scope_record_idx
+           ON temp_discovery_values(field, record_family, record_key);",
         )
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     super::progress(
@@ -70,8 +76,11 @@ pub(super) fn stage_discovery_values(connection: &Connection) -> Result<(), Inde
     Ok(())
 }
 
-pub(super) fn drop_discovery_values(connection: &Connection) -> Result<(), IndexWriteError> {
-    connection
-        .execute_batch("DROP TABLE IF EXISTS temp_discovery_values;")
+pub(super) fn drop_discovery_values(
+    connection: &mut SqliteConnection,
+) -> Result<(), IndexWriteError> {
+    sql_query("DROP TABLE IF EXISTS temp_discovery_values;")
+        .execute(connection)
+        .map(|_| ())
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }

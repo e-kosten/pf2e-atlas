@@ -1,3 +1,4 @@
+pub(crate) mod raw_sql;
 mod reader;
 mod writer;
 
