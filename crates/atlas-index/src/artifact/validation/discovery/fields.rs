@@ -264,21 +264,21 @@ fn expected_field_stats(
                 WHERE r.is_default_visible = 1
                   {family_predicate}
               )
-         SELECT COALESCE(SUM(value_count), 0),
-                (SELECT matching_record_count FROM matching),
+         SELECT COALESCE(SUM(value_count), 0) AS value_count,
+                (SELECT matching_record_count FROM matching) AS matching_record_count,
                 (SELECT matching_record_count FROM matching)
-                  - (SELECT observed_record_count FROM observed),
-                COUNT(*),
-                COALESCE(SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END), 0)
+                  - (SELECT observed_record_count FROM observed) AS null_count,
+                COUNT(*) AS distinct_count,
+                COALESCE(SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END), 0) AS singleton_count
          FROM counts"
     );
     let map_row = |row: &rusqlite::Row<'_>| {
         Ok(FieldStats {
-            value_count: row.get(0)?,
-            matching_record_count: row.get(1)?,
-            null_count: row.get(2)?,
-            distinct_count: row.get(3)?,
-            singleton_count: row.get(4)?,
+            value_count: row.get("value_count")?,
+            matching_record_count: row.get("matching_record_count")?,
+            null_count: row.get("null_count")?,
+            distinct_count: row.get("distinct_count")?,
+            singleton_count: row.get("singleton_count")?,
         })
     };
     match family {

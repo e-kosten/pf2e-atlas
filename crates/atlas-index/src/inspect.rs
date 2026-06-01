@@ -151,17 +151,22 @@ fn inspect_records(connection: &Connection) -> Result<RecordCoverageReport, Inde
         )?,
         by_record_family: count_grouped(
             connection,
-            "SELECT record_family, COUNT(*) FROM records GROUP BY record_family",
+            "SELECT record_family AS group_key, COUNT(*) AS row_count
+             FROM records
+             GROUP BY record_family",
         )?,
         by_foundry_taxonomy: count_grouped(
             connection,
-            "SELECT foundry_document_type || '|' || foundry_record_type, COUNT(*)
+            "SELECT foundry_document_type || '|' || foundry_record_type AS group_key,
+                    COUNT(*) AS row_count
              FROM records
              GROUP BY foundry_document_type, foundry_record_type",
         )?,
         by_publication_family: count_grouped(
             connection,
-            "SELECT publication_family, COUNT(*) FROM records GROUP BY publication_family",
+            "SELECT publication_family AS group_key, COUNT(*) AS row_count
+             FROM records
+             GROUP BY publication_family",
         )?,
     })
 }
@@ -194,7 +199,7 @@ fn inspect_taxonomy(
         )?,
         top_taxonomy_families: count_grouped(
             connection,
-            "SELECT taxonomy_family.value, COUNT(*)
+            "SELECT taxonomy_family.value AS group_key, COUNT(*) AS row_count
              FROM records, json_each(records.taxonomy_families_json) AS taxonomy_family
              GROUP BY taxonomy_family.value
              ORDER BY COUNT(*) DESC, taxonomy_family.value ASC
@@ -217,14 +222,14 @@ fn inspect_variants(
         )?,
         by_source: count_grouped(
             connection,
-            "SELECT variant_source, COUNT(*)
+            "SELECT variant_source AS group_key, COUNT(*) AS row_count
              FROM records
              WHERE variant_group_key IS NOT NULL
              GROUP BY variant_source",
         )?,
         by_axis: count_grouped(
             connection,
-            "SELECT variant_axis.value, COUNT(*)
+            "SELECT variant_axis.value AS group_key, COUNT(*) AS row_count
              FROM records, json_each(records.variant_axes_json) AS variant_axis
              WHERE records.variant_group_key IS NOT NULL
              GROUP BY variant_axis.value",
@@ -247,11 +252,14 @@ fn inspect_metrics(connection: &Connection) -> Result<MetricCoverageReport, Inde
     Ok(MetricCoverageReport {
         metric_rows_by_domain: count_grouped(
             connection,
-            "SELECT metric_domain, COUNT(*) FROM record_metrics GROUP BY metric_domain",
+            "SELECT metric_domain AS group_key, COUNT(*) AS row_count
+             FROM record_metrics
+             GROUP BY metric_domain",
         )?,
         metric_keys_by_domain: count_grouped(
             connection,
-            "SELECT metric_domain, COUNT(DISTINCT metric_key)
+            "SELECT metric_domain AS group_key,
+                    COUNT(DISTINCT metric_key) AS row_count
              FROM record_metrics
              GROUP BY metric_domain",
         )?,
@@ -279,7 +287,10 @@ fn count_grouped(
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, usize>(1)?))
+            Ok((
+                row.get::<_, String>("group_key")?,
+                row.get::<_, usize>("row_count")?,
+            ))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut counts = BTreeMap::new();

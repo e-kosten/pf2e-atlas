@@ -32,13 +32,16 @@ pub(crate) fn read_metadata(
     connection: &Connection,
     table: &str,
 ) -> Result<BTreeMap<String, String>, IndexValidationError> {
-    let sql = format!("SELECT key, value FROM {table}");
+    let sql = format!("SELECT key AS metadata_key, value AS metadata_value FROM {table}");
     let mut statement = connection
         .prepare(&sql)
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            Ok((
+                row.get::<_, String>("metadata_key")?,
+                row.get::<_, String>("metadata_value")?,
+            ))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
 
