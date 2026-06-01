@@ -1,93 +1,24 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use atlas_domain::{RecordKey, SearchFilterNode};
-use atlas_index::{
-    FilterCompileError, FilterReadIndex, FtsQuery, FtsReadIndex, FtsSearchHit, RecordReadIndex,
-    SearchCandidateRecord,
-};
-use atlas_record::PersistedRecord;
-use serde::{Deserialize, Serialize};
+use atlas_index::FtsQuery;
 
-use crate::fusion::{
-    DEFAULT_FTS_FUSION_POLICY, FusionInput, FusionMethod, FusionOptions, TextSearchExplain,
-    fuse_ranked_hits, identity_explain,
-};
-use crate::query::{TextQueryAnalysis, analyze_text_query};
-use crate::records::{
-    RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
-};
-use crate::semantic::{
-    SemanticRetrieval, SemanticSearchHit, SemanticSearchMode, SemanticSearchRequest,
-};
+use crate::fusion::{DEFAULT_FTS_FUSION_POLICY, FusionInput, fuse_ranked_hits};
+use crate::query::analyze_text_query;
+use crate::semantic::{SemanticSearchMode, SemanticSearchRequest};
 use crate::{AtlasRetrievalService, SearchError};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RetrievalMode {
-    Fts,
-    Vector,
-    Hybrid,
-}
+mod request;
+mod results;
+mod sources;
 
-impl RetrievalMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Fts => "fts",
-            Self::Vector => "vector",
-            Self::Hybrid => "hybrid",
-        }
-    }
-
-    pub(crate) const fn uses_fts(self) -> bool {
-        matches!(self, Self::Fts | Self::Hybrid)
-    }
-
-    pub(crate) const fn uses_vector(self) -> bool {
-        matches!(self, Self::Vector | Self::Hybrid)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextSearchRequest<'a> {
-    pub query: &'a str,
-    pub exclude: Option<&'a str>,
-    pub filter: Option<&'a SearchFilterNode>,
-    pub limit: u32,
-    pub offset: u32,
-    pub retrieval: RetrievalMode,
-    pub fusion: FusionOptions,
-    pub fts_top_k: u32,
-    pub vector_top_k: u32,
-    pub explain: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextSearchResult {
-    pub query: TextQueryAnalysis,
-    pub retrieval: RetrievalMode,
-    pub fusion: FusionOptions,
-    pub records: Vec<TextSearchRecord>,
-    pub total: u64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextSearchRecord {
-    pub record: PersistedRecord,
-    pub match_info: TextSearchMatch,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TextSearchMatch {
-    Identity {
-        retrieval: RetrievalMode,
-        identity_match_kind: RecordResolutionMatchKind,
-        explain: Option<TextSearchExplain>,
-    },
-    Ranked {
-        retrieval: RetrievalMode,
-        explain: Option<TextSearchExplain>,
-    },
-}
+use request::validate_search_text_request;
+pub use request::{RetrievalMode, TextSearchRequest};
+pub use results::{TextSearchMatch, TextSearchRecord, TextSearchResult};
+use results::{TextSearchResultItem, candidate_keys, identity_records};
+use sources::{
+    load_records_by_key, load_search_candidate_records, query_fts_candidate_record_keys,
+    query_precision_fts_index, resolve_identity_tier, resolve_text_filter, search_vector_lane,
+};
 
 pub trait TextRetrieval {
     fn search_text(
@@ -177,18 +108,8 @@ impl TextRetrieval for AtlasRetrievalService {
             identity_count: identity_matches.len(),
         });
         let total = identity_matches.len() + fused.len();
-        let identity_records = identity_matches
-            .into_iter()
-            .enumerate()
-            .map(|(index, identity)| TextSearchRecord {
-                record: identity.record,
-                match_info: TextSearchMatch::Identity {
-                    retrieval: request.retrieval,
-                    identity_match_kind: identity.match_kind,
-                    explain: request.explain.then(|| identity_explain(index)),
-                },
-            })
-            .collect::<Vec<_>>();
+        let identity_records =
+            identity_records(identity_matches, request.retrieval, request.explain);
         let mut page_items = identity_records
             .into_iter()
             .map(|record| TextSearchResultItem::Identity(Box::new(record)))
@@ -234,148 +155,94 @@ impl TextRetrieval for AtlasRetrievalService {
     }
 }
 
-fn resolve_identity_tier<S>(
-    search: &S,
-    query: &str,
-    filter: Option<&SearchFilterNode>,
-) -> Result<Vec<RecordResolutionResult>, SearchError>
-where
-    S: RecordRetrieval + ?Sized,
-{
-    search.resolve_record(ResolveRecordRequest { query, filter })
-}
-
-fn search_vector_lane<S>(
-    search: &mut S,
-    request: SemanticSearchRequest<'_>,
-) -> Result<Vec<SemanticSearchHit>, SearchError>
-where
-    S: SemanticRetrieval + ?Sized,
-{
-    Ok(search.search_semantic(request)?.hits)
-}
-
-fn resolve_text_filter<I>(
-    index: &I,
-    filter: Option<&SearchFilterNode>,
-) -> Result<Option<SearchFilterNode>, SearchError>
-where
-    I: FilterReadIndex + ?Sized,
-{
-    index
-        .resolve_metric_filters(filter)
-        .map_err(SearchError::from_filter)
-}
-
-fn query_precision_fts_index<I>(
-    index: &I,
-    fts_query: &FtsQuery,
-    filter: Option<&SearchFilterNode>,
-    limit: u32,
-) -> Result<Vec<FtsSearchHit>, SearchError>
-where
-    I: FtsReadIndex + ?Sized,
-{
-    index
-        .query_precision_fts_index(fts_query, filter, limit)
-        .map_err(SearchError::from_filter)
-}
-
-fn query_fts_candidate_record_keys<I>(
-    index: &I,
-    fts_query: &FtsQuery,
-    candidate_keys: &[RecordKey],
-) -> Result<Vec<RecordKey>, FilterCompileError>
-where
-    I: FtsReadIndex + ?Sized,
-{
-    index.query_fts_candidate_record_keys(fts_query, candidate_keys)
-}
-
-fn load_search_candidate_records<I>(
-    index: &I,
-    keys: &[RecordKey],
-) -> Result<Vec<SearchCandidateRecord>, SearchError>
-where
-    I: RecordReadIndex + ?Sized,
-{
-    index
-        .load_search_candidate_records(keys)
-        .map_err(SearchError::from_record_load)
-}
-
-fn load_records_by_key<I>(
-    index: &I,
-    keys: &[RecordKey],
-) -> Result<Vec<PersistedRecord>, SearchError>
-where
-    I: RecordReadIndex + ?Sized,
-{
-    index
-        .load_records_by_key(keys)
-        .map_err(SearchError::from_record_load)
-}
-
-enum TextSearchResultItem {
-    Identity(Box<TextSearchRecord>),
-    Ranked(crate::fusion::FusedRankedHit),
-}
-
-fn validate_search_text_request(request: &TextSearchRequest<'_>) -> Result<(), SearchError> {
-    if let Some(filter) = request.filter {
-        filter
-            .validate()
-            .map_err(|error| SearchError::invalid_search_options(error.to_string()))?;
-    }
-    if request.fusion.method == FusionMethod::Rrf
-        && ((request.fusion.fts_weight - 1.0).abs() > f64::EPSILON
-            || (request.fusion.vector_weight - 1.0).abs() > f64::EPSILON)
-    {
-        return Err(SearchError::invalid_search_options(
-            "unweighted rrf does not accept lane weights; use weighted-rrf".to_string(),
-        ));
-    }
-    if request.fusion.rank_constant <= 0.0
-        || request.fusion.fts_weight < 0.0
-        || request.fusion.vector_weight < 0.0
-    {
-        return Err(SearchError::invalid_search_options(
-            "fusion weights must be non-negative and rank constant must be greater than zero"
-                .to_string(),
-        ));
-    }
-    Ok(())
-}
-
-fn candidate_keys(
-    identity_matches: &[RecordResolutionResult],
-    fts_hits: &[FtsSearchHit],
-    vector_hits: &[SemanticSearchHit],
-) -> Vec<RecordKey> {
-    let mut keys = identity_matches
-        .iter()
-        .map(|identity| identity.record.key.clone())
-        .collect::<BTreeSet<_>>();
-    keys.extend(fts_hits.iter().map(|hit| hit.record_key.clone()));
-    keys.extend(vector_hits.iter().map(|hit| hit.record_key.clone()));
-    keys.into_iter().collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use atlas_domain::{MetricDomain, PackName, PublicationFamily, RecordFamily};
+    use crate::fusion::{FusionMethod, FusionOptions};
+    use atlas_domain::{
+        MetricDomain, PackName, PublicationFamily, RecordFamily, RecordKey, SearchFilterNode,
+    };
     use atlas_index::{
         FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort,
-        FtsReadIndex, FtsSearchLane, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks,
-        IndexVariantGroup, RecordEmbeddingVector, RecordIdentityMatch, RecordReadIndex,
-        ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex, SearchCandidateRecord,
-        VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
+        FtsReadIndex, FtsSearchHit, FtsSearchLane, GraphReferenceEdge, IdentityReadIndex,
+        IndexRemasterLinks, IndexVariantGroup, RecordEmbeddingVector, RecordIdentityMatch,
+        RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
+        SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
+        VectorSearchHit,
     };
     use atlas_record::{MetricRow, MetricValue, PersistedRecord, PersistedRecordSet};
+
+    macro_rules! impl_unused_text_index_capabilities {
+        ($type:ty) => {
+            impl IdentityReadIndex for $type {
+                fn resolve_record_identity_matches(
+                    &self,
+                    _query: &str,
+                    _normalized_query: &str,
+                    _filter: Option<&SearchFilterNode>,
+                ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+                    Ok(Vec::new())
+                }
+            }
+
+            impl VectorReadIndex for $type {
+                fn query_vector_index(
+                    &self,
+                    _query_vector: &[f32],
+                    _filter: Option<&SearchFilterNode>,
+                    _limit: u32,
+                    _include_child_units: bool,
+                ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
+                    Ok(Vec::new())
+                }
+
+                fn load_record_embedding_vectors(
+                    &self,
+                    _record_key: &RecordKey,
+                ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError> {
+                    Ok(Vec::new())
+                }
+            }
+
+            impl ReferenceReadIndex for $type {
+                fn reference_edges_for_seed(
+                    &self,
+                    _seed: &RecordKey,
+                    _direction: ReferenceEdgeDirection,
+                ) -> Result<Vec<GraphReferenceEdge>, atlas_index::RecordLoadError> {
+                    Ok(Vec::new())
+                }
+            }
+
+            impl VariantReadIndex for $type {
+                fn variant_group_for_record(
+                    &self,
+                    _seed: &RecordKey,
+                ) -> Result<Option<IndexVariantGroup>, atlas_index::RecordLoadError> {
+                    Ok(None)
+                }
+
+                fn variant_groups_by_base_name(
+                    &self,
+                    _normalized_base_name: &str,
+                ) -> Result<Vec<IndexVariantGroup>, atlas_index::RecordLoadError> {
+                    Ok(Vec::new())
+                }
+            }
+
+            impl RemasterReadIndex for $type {
+                fn remaster_links_for_record(
+                    &self,
+                    _seed: &RecordKey,
+                ) -> Result<Option<IndexRemasterLinks>, atlas_index::RecordLoadError> {
+                    Ok(None)
+                }
+            }
+        };
+    }
 
     #[test]
     fn search_text_uses_candidates_for_fusion_and_hydrates_ranked_page_only() {
@@ -510,17 +377,6 @@ mod tests {
         }
     }
 
-    impl IdentityReadIndex for FakeTextIndex {
-        fn resolve_record_identity_matches(
-            &self,
-            _query: &str,
-            _normalized_query: &str,
-            _filter: Option<&SearchFilterNode>,
-        ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-            Ok(Vec::new())
-        }
-    }
-
     impl FilterReadIndex for FakeTextIndex {
         fn resolve_metric_filters(
             &self,
@@ -583,59 +439,7 @@ mod tests {
         }
     }
 
-    impl VectorReadIndex for FakeTextIndex {
-        fn query_vector_index(
-            &self,
-            _query_vector: &[f32],
-            _filter: Option<&SearchFilterNode>,
-            _limit: u32,
-            _include_child_units: bool,
-        ) -> Result<Vec<VectorSearchHit>, VectorQueryError> {
-            Ok(Vec::new())
-        }
-
-        fn load_record_embedding_vectors(
-            &self,
-            _record_key: &RecordKey,
-        ) -> Result<Vec<RecordEmbeddingVector>, VectorQueryError> {
-            Ok(Vec::new())
-        }
-    }
-
-    impl ReferenceReadIndex for FakeTextIndex {
-        fn reference_edges_for_seed(
-            &self,
-            _seed: &RecordKey,
-            _direction: ReferenceEdgeDirection,
-        ) -> Result<Vec<GraphReferenceEdge>, atlas_index::RecordLoadError> {
-            Ok(Vec::new())
-        }
-    }
-
-    impl VariantReadIndex for FakeTextIndex {
-        fn variant_group_for_record(
-            &self,
-            _seed: &RecordKey,
-        ) -> Result<Option<IndexVariantGroup>, atlas_index::RecordLoadError> {
-            Ok(None)
-        }
-
-        fn variant_groups_by_base_name(
-            &self,
-            _normalized_base_name: &str,
-        ) -> Result<Vec<IndexVariantGroup>, atlas_index::RecordLoadError> {
-            Ok(Vec::new())
-        }
-    }
-
-    impl RemasterReadIndex for FakeTextIndex {
-        fn remaster_links_for_record(
-            &self,
-            _seed: &RecordKey,
-        ) -> Result<Option<IndexRemasterLinks>, atlas_index::RecordLoadError> {
-            Ok(None)
-        }
-    }
+    impl_unused_text_index_capabilities!(FakeTextIndex);
 
     fn fake_record(key: &str, name: &str) -> PersistedRecord {
         let key = RecordKey::parse(key).expect("fixture key should parse");
