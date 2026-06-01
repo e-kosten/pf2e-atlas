@@ -52,6 +52,29 @@ release-publish-dry *args:
 release-publish *args:
     scripts/prepare-release.sh --publish {{args}}
 
+[doc('Install a published Atlas release/RC; optional leading version defaults to the crate version')]
+[group('release')]
+release-install *args:
+    #!/usr/bin/env sh
+    set -eu
+    set -- {{args}}
+    case "${1:-}" in
+      v[0-9]*|[0-9]*)
+        version="$1"
+        shift
+        ;;
+      *)
+        version=$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)
+        ;;
+    esac
+    case "$version" in
+      v*) tag="$version" ;;
+      *) tag="v$version" ;;
+    esac
+    curl --proto '=https' --tlsv1.2 -LsSf \
+      "https://github.com/e-kosten/pf2e-atlas/releases/download/$tag/atlas-installer.sh" |
+      sh -s -- --version "$tag" "$@"
+
 [doc('Run static release script, manifest, notices, and workflow checks')]
 [group('release')]
 release-check-tools:
