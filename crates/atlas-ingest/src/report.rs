@@ -9,10 +9,7 @@ use serde_json::{Value, json};
 use crate::diagnostics::IngestDiagnostics;
 use crate::error::IngestError;
 use crate::records::{LoadedSourceRecord, MetricValue};
-use crate::source::model::{
-    BuildArtifactReport, DocumentEmbeddingTokenizationReport,
-    DocumentEmbeddingTruncationExampleReport, SkippedRecord, SourceLoad,
-};
+use crate::source::model::{SkippedRecord, SourceLoad};
 use crate::source_pipeline;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -236,111 +233,6 @@ pub(crate) fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
                 "examples": diagnostic.examples,
             })
         }).collect::<Vec<_>>(),
-    })
-}
-
-pub(crate) fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
-    skipped_record_reports(skipped_records)
-        .into_iter()
-        .map(|record| json!(record))
-        .collect()
-}
-
-pub fn build_artifact_json(report: &BuildArtifactReport) -> Value {
-    json!({
-        "status": "ok",
-        "output": report.output_path.display().to_string(),
-        "pack_count": report.pack_count,
-        "record_count": report.record_count,
-        "source_record_count": report.source_record_count,
-        "artifact_record_count": report.artifact_record_count,
-        "generated_record_count": report.generated_record_count,
-        "pending_document_embedding_count": report.pending_document_embedding_count,
-        "document_embedding_count": report.document_embedding_count,
-        "reused_document_embedding_count": report.reused_document_embedding_count,
-        "generated_document_embedding_count": report.generated_document_embedding_count,
-        "document_embedding_tokenization": document_embedding_tokenization_json(
-            &report.document_embedding_tokenization,
-        ),
-        "embedding_timing": {
-            "tokenization_duration_ms": report.embedding_timing.tokenization_duration_ms,
-            "model_load_duration_ms": report.embedding_timing.model_load_duration_ms,
-            "generation_duration_ms": report.embedding_timing.generation_duration_ms,
-            "batch_count": report.embedding_timing.batch_count,
-            "batch_duration_min_ms": report.embedding_timing.batch_duration_min_ms,
-            "batch_duration_p50_ms": report.embedding_timing.batch_duration_p50_ms,
-            "batch_duration_p95_ms": report.embedding_timing.batch_duration_p95_ms,
-            "batch_duration_max_ms": report.embedding_timing.batch_duration_max_ms,
-        },
-        "build_duration_ms": report.build_duration_ms,
-        "source_signature": report.source_signature,
-        "diagnostics": diagnostics_json(&report.diagnostics),
-        "skipped_record_count": report.skipped_records.len(),
-        "skipped_records": skipped_records_json(&report.skipped_records),
-        "warnings": report.warnings,
-    })
-}
-
-fn document_embedding_tokenization_json(telemetry: &DocumentEmbeddingTokenizationReport) -> Value {
-    json!({
-        "document_count": telemetry.document_count,
-        "truncated_document_count": telemetry.truncated_document_count,
-        "max_token_count": telemetry.max_token_count,
-        "max_observed_token_count": telemetry.max_observed_token_count,
-        "total_observed_token_count": telemetry.total_observed_token_count,
-        "total_tokens_over_limit": telemetry.total_tokens_over_limit,
-        "unit_kind_truncations": telemetry.unit_kind_truncations
-            .iter()
-            .map(|truncation| {
-                json!({
-                    "unit_kind": truncation.unit_kind,
-                    "unit_count": truncation.unit_count,
-                    "record_count": truncation.record_count,
-                    "total_tokens_over_limit": truncation.total_tokens_over_limit,
-                    "max_observed_token_count": truncation.max_observed_token_count,
-                    "examples": truncation.examples
-                        .iter()
-                        .map(truncation_example_json)
-                        .collect::<Vec<_>>(),
-                })
-            })
-            .collect::<Vec<_>>(),
-        "record_truncation_coverage": {
-            "record_count": telemetry.record_truncation_coverage.record_count,
-            "records_with_child_units": telemetry.record_truncation_coverage.records_with_child_units,
-            "records_with_any_truncated_unit": telemetry.record_truncation_coverage.records_with_any_truncated_unit,
-            "records_with_truncated_parent_unit": telemetry.record_truncation_coverage.records_with_truncated_parent_unit,
-            "records_with_truncated_child_unit": telemetry.record_truncation_coverage.records_with_truncated_child_unit,
-            "records_with_truncated_parent_and_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_and_child_units,
-            "records_with_truncated_parent_and_all_child_units_fit": telemetry.record_truncation_coverage.records_with_truncated_parent_and_all_child_units_fit,
-            "records_with_truncated_parent_without_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_without_child_units,
-        },
-        "section_truncations": telemetry.section_truncations
-            .iter()
-            .map(|section| {
-                json!({
-                    "section": section.section,
-                    "document_count": section.document_count,
-                    "dropped_chunk_count": section.dropped_chunk_count,
-                })
-            })
-            .collect::<Vec<_>>(),
-        "truncated_examples": telemetry.truncated_examples
-            .iter()
-            .map(truncation_example_json)
-            .collect::<Vec<_>>(),
-    })
-}
-
-fn truncation_example_json(example: &DocumentEmbeddingTruncationExampleReport) -> Value {
-    json!({
-        "embedding_unit_key": example.embedding_unit_key,
-        "record_key": example.record_key,
-        "unit_kind": example.unit_kind,
-        "label": example.label,
-        "token_count": example.token_count,
-        "max_token_count": example.max_token_count,
-        "truncated_sections": example.truncated_sections,
     })
 }
 

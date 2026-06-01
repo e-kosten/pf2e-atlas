@@ -3,10 +3,12 @@ use std::process::ExitCode;
 
 use atlas_index::ValidationTarget;
 use atlas_ingest::{
-    BuildArtifactOptions, analyze_foundry_source, build_artifact, build_artifact_json,
+    BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
+    DocumentEmbeddingTruncationExampleReport, IngestDiagnostics, SkippedRecord,
+    analyze_foundry_source, build_artifact,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::output::{format_duration_ms, write_json_data, write_validation_report};
 
@@ -91,12 +93,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     .map_err(|error| error.to_string())?;
 
     if options.json {
-        let data = build_artifact_json(&report);
-        let Value::Object(mut object) = data else {
-            return Err("build artifact JSON should be an object".to_string());
-        };
-        object.remove("status");
-        write_json_data(Value::Object(object))?;
+        write_json_data(build_artifact_json(&report))?;
     } else {
         println!(
             "ok: wrote {} records from {} packs to {}",
@@ -169,6 +166,143 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     }
 
     Ok(ExitCode::SUCCESS)
+}
+
+fn build_artifact_json(report: &BuildArtifactReport) -> Value {
+    json!({
+        "output": report.output_path.display().to_string(),
+        "pack_count": report.pack_count,
+        "record_count": report.record_count,
+        "source_record_count": report.source_record_count,
+        "artifact_record_count": report.artifact_record_count,
+        "generated_record_count": report.generated_record_count,
+        "pending_document_embedding_count": report.pending_document_embedding_count,
+        "document_embedding_count": report.document_embedding_count,
+        "reused_document_embedding_count": report.reused_document_embedding_count,
+        "generated_document_embedding_count": report.generated_document_embedding_count,
+        "document_embedding_tokenization": document_embedding_tokenization_json(
+            &report.document_embedding_tokenization,
+        ),
+        "embedding_timing": {
+            "tokenization_duration_ms": report.embedding_timing.tokenization_duration_ms,
+            "model_load_duration_ms": report.embedding_timing.model_load_duration_ms,
+            "generation_duration_ms": report.embedding_timing.generation_duration_ms,
+            "batch_count": report.embedding_timing.batch_count,
+            "batch_duration_min_ms": report.embedding_timing.batch_duration_min_ms,
+            "batch_duration_p50_ms": report.embedding_timing.batch_duration_p50_ms,
+            "batch_duration_p95_ms": report.embedding_timing.batch_duration_p95_ms,
+            "batch_duration_max_ms": report.embedding_timing.batch_duration_max_ms,
+        },
+        "build_duration_ms": report.build_duration_ms,
+        "source_signature": report.source_signature,
+        "diagnostics": diagnostics_json(&report.diagnostics),
+        "skipped_record_count": report.skipped_records.len(),
+        "skipped_records": skipped_records_json(&report.skipped_records),
+        "warnings": report.warnings,
+    })
+}
+
+fn diagnostics_json(diagnostics: &IngestDiagnostics) -> Value {
+    json!({
+        "taxonomy": {
+            "folder_records": diagnostics.taxonomy_folder_records,
+            "glossary_records": diagnostics.taxonomy_glossary_records,
+        },
+        "variants": {
+            "parenthetical_records": diagnostics.variant_parenthetical_records,
+            "suffix_records": diagnostics.variant_suffix_records,
+            "creature_blurb_records": diagnostics.variant_creature_blurb_records,
+            "creature_suffix_records": diagnostics.variant_creature_suffix_records,
+            "exact_base_records": diagnostics.variant_exact_base_records,
+        },
+        "generated_afflictions": {
+            "canonical_records": diagnostics.generated_affliction_canonical_records,
+            "instance_records": diagnostics.generated_affliction_instance_records,
+            "reference_edges": diagnostics.generated_affliction_reference_edges,
+        },
+        "dropped_inline_macros": diagnostics.dropped_inline_macros.iter().map(|(name, diagnostic)| {
+            json!({
+                "name": name,
+                "count": diagnostic.count,
+                "examples": diagnostic.examples,
+            })
+        }).collect::<Vec<_>>(),
+    })
+}
+
+fn skipped_records_json(skipped_records: &[SkippedRecord]) -> Vec<Value> {
+    skipped_records
+        .iter()
+        .map(|record| {
+            json!({
+                "path": record.path.display().to_string(),
+                "reason": record.reason,
+            })
+        })
+        .collect()
+}
+
+fn document_embedding_tokenization_json(telemetry: &DocumentEmbeddingTokenizationReport) -> Value {
+    json!({
+        "document_count": telemetry.document_count,
+        "truncated_document_count": telemetry.truncated_document_count,
+        "max_token_count": telemetry.max_token_count,
+        "max_observed_token_count": telemetry.max_observed_token_count,
+        "total_observed_token_count": telemetry.total_observed_token_count,
+        "total_tokens_over_limit": telemetry.total_tokens_over_limit,
+        "unit_kind_truncations": telemetry.unit_kind_truncations
+            .iter()
+            .map(|truncation| {
+                json!({
+                    "unit_kind": truncation.unit_kind,
+                    "unit_count": truncation.unit_count,
+                    "record_count": truncation.record_count,
+                    "total_tokens_over_limit": truncation.total_tokens_over_limit,
+                    "max_observed_token_count": truncation.max_observed_token_count,
+                    "examples": truncation.examples
+                        .iter()
+                        .map(truncation_example_json)
+                        .collect::<Vec<_>>(),
+                })
+            })
+            .collect::<Vec<_>>(),
+        "record_truncation_coverage": {
+            "record_count": telemetry.record_truncation_coverage.record_count,
+            "records_with_child_units": telemetry.record_truncation_coverage.records_with_child_units,
+            "records_with_any_truncated_unit": telemetry.record_truncation_coverage.records_with_any_truncated_unit,
+            "records_with_truncated_parent_unit": telemetry.record_truncation_coverage.records_with_truncated_parent_unit,
+            "records_with_truncated_child_unit": telemetry.record_truncation_coverage.records_with_truncated_child_unit,
+            "records_with_truncated_parent_and_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_and_child_units,
+            "records_with_truncated_parent_and_all_child_units_fit": telemetry.record_truncation_coverage.records_with_truncated_parent_and_all_child_units_fit,
+            "records_with_truncated_parent_without_child_units": telemetry.record_truncation_coverage.records_with_truncated_parent_without_child_units,
+        },
+        "section_truncations": telemetry.section_truncations
+            .iter()
+            .map(|section| {
+                json!({
+                    "section": section.section,
+                    "document_count": section.document_count,
+                    "dropped_chunk_count": section.dropped_chunk_count,
+                })
+            })
+            .collect::<Vec<_>>(),
+        "truncated_examples": telemetry.truncated_examples
+            .iter()
+            .map(truncation_example_json)
+            .collect::<Vec<_>>(),
+    })
+}
+
+fn truncation_example_json(example: &DocumentEmbeddingTruncationExampleReport) -> Value {
+    json!({
+        "embedding_unit_key": example.embedding_unit_key,
+        "record_key": example.record_key,
+        "unit_kind": example.unit_kind,
+        "label": example.label,
+        "token_count": example.token_count,
+        "max_token_count": example.max_token_count,
+        "truncated_sections": example.truncated_sections,
+    })
 }
 
 pub(crate) fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {

@@ -24,7 +24,7 @@ pub use error::IngestError;
 pub use report::{
     SourceAnalysisEmbeddingReport, SourceAnalysisMetricReport, SourceAnalysisRelationshipReport,
     SourceAnalysisReport, SourceAnalysisSideDataReport, SourceAnalysisSourceReport,
-    SourceAnalysisTextReport, analyze_foundry_source, build_artifact_json,
+    SourceAnalysisTextReport, analyze_foundry_source,
 };
 pub use source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingRecordTruncationCoverageReport,
