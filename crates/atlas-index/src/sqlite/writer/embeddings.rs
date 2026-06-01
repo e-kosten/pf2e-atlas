@@ -36,10 +36,12 @@ pub(super) fn write_document_embedding_cache(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    diesel::insert_into(crate::schema::document_embedding_cache::table)
-        .values(&rows)
-        .execute(connection)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
+        diesel::insert_into(crate::schema::document_embedding_cache::table)
+            .values(rows)
+            .execute(connection)
+            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    }
     Ok(())
 }
 
@@ -61,6 +63,12 @@ mod tests {
         dimensions: i64,
         #[diesel(sql_type = Binary)]
         vector_blob: Vec<u8>,
+    }
+
+    #[derive(QueryableByName)]
+    struct CountRow {
+        #[diesel(sql_type = BigInt)]
+        count: i64,
     }
 
     #[test]
@@ -88,28 +96,36 @@ mod tests {
                   '[]', 'none', 'packs/actions/test-action.json', 1, '{}')"
             )
             .expect("record row should insert");
-        let embeddings = vec![GeneratedDocumentEmbedding {
-            embedding_unit_key: "actions:testAction1#parent".to_string(),
-            record_key: "actions:testAction1".to_string(),
-            unit_kind: atlas_embedding::EmbeddingUnitKind::Parent,
-            label: None,
-            ordinal: 0,
-            input_hash: "fixture-hash".to_string(),
-            dimensions: 2,
-            vector: vec![1.0, -2.5],
-        }];
+        let embeddings = (0..4_100)
+            .map(|index| GeneratedDocumentEmbedding {
+                embedding_unit_key: format!("actions:testAction1#child-{index}"),
+                record_key: "actions:testAction1".to_string(),
+                unit_kind: atlas_embedding::EmbeddingUnitKind::HeadingSection,
+                label: Some(format!("Child {index}")),
+                ordinal: index,
+                input_hash: format!("fixture-hash-{index}"),
+                dimensions: 2,
+                vector: vec![1.0, -2.5],
+            })
+            .collect::<Vec<_>>();
 
         write_document_embedding_cache(&mut connection, &embeddings)
-            .expect("document embedding row should write");
+            .expect("document embedding rows should write in batches");
+
+        let count = sql_query("SELECT COUNT(*) AS count FROM document_embedding_cache")
+            .get_result::<CountRow>(&mut connection)
+            .expect("document embedding rows should be countable")
+            .count;
+        assert_eq!(count, embeddings.len() as i64);
 
         let row = sql_query(
             "SELECT semantic_input_hash, dimensions, vector_blob
                  FROM document_embedding_cache
-                 WHERE embedding_unit_key = 'actions:testAction1#parent'",
+                 WHERE embedding_unit_key = 'actions:testAction1#child-4099'",
         )
         .get_result::<EmbeddingCacheFixtureRow>(&mut connection)
         .expect("document embedding row should be readable");
-        assert_eq!(row.semantic_input_hash, "fixture-hash");
+        assert_eq!(row.semantic_input_hash, "fixture-hash-4099");
         assert_eq!(row.dimensions, 2);
         assert_eq!(
             decode_f32_vector_blob(&row.vector_blob).expect("vector blob should decode"),

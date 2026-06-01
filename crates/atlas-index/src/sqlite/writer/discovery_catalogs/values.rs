@@ -57,21 +57,21 @@ pub(super) fn write_value_catalogs(
     );
     numeric_rows.extend(metric_numeric_value_rows(connection)?);
 
-    if !value_rows.is_empty() {
+    for rows in value_rows.chunks(super::super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::filter_value_catalog::table)
-            .values(&value_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !sample_rows.is_empty() {
+    for rows in sample_rows.chunks(super::super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::filter_sample_catalog::table)
-            .values(&sample_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !numeric_rows.is_empty() {
+    for rows in numeric_rows.chunks(super::super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::filter_numeric_catalog::table)
-            .values(&numeric_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }

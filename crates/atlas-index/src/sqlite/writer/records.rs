@@ -198,51 +198,51 @@ pub(super) fn write_records(
             });
         }
     }
-    if !record_rows.is_empty() {
+    for rows in record_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::records::table)
-            .values(&record_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !content_rows.is_empty() {
+    for rows in content_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_content::table)
-            .values(&content_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !trait_rows.is_empty() {
+    for rows in trait_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_traits::table)
-            .values(&trait_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !actor_rows.is_empty() {
+    for rows in actor_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::actor_records::table)
-            .values(&actor_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !item_rows.is_empty() {
+    for rows in item_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::item_records::table)
-            .values(&item_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !spell_rows.is_empty() {
+    for rows in spell_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::spell_records::table)
-            .values(&spell_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !metric_rows.is_empty() {
+    for rows in metric_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_metrics::table)
-            .values(&metric_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !fts_rows.is_empty() {
+    for rows in fts_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::records_fts::table)
-            .values(&fts_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
