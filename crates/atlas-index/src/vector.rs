@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::artifact_validation::{
     artifact_validation_diagnostic, artifact_validation_diagnostic_with_code,
 };
-use crate::filters::{FilterCompileError, compile_eligible_records_query};
+use crate::filters::{EligibleRecordKeyset, FilterCompileError};
 use crate::sql::{count_rows, count_sql, table_exists};
 use crate::sqlite::raw_sql::bind_sql_query;
 use crate::{
@@ -87,22 +87,18 @@ pub(crate) fn compile_vector_knn_query(
         return Err(VectorQueryError::EmptyQueryVector);
     }
 
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    let vector_placeholder = push_parameter(
-        &mut parameters,
-        SqlBindValue::Blob(encode_f32_vector_blob(query_vector)),
-    );
-    let limit_placeholder =
-        push_parameter(&mut parameters, SqlBindValue::Integer(i64::from(limit)));
     let unit_filter = if include_child_units {
         ""
     } else {
         "AND candidate.unit_kind = 'parent'"
     };
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT e.record_key, e.unit_kind, e.label, v.distance
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let vector_placeholder = builder.push_blob(encode_f32_vector_blob(query_vector));
+            let limit_placeholder = builder.push_integer(i64::from(limit));
+            format!(
+                "SELECT e.record_key, e.unit_kind, e.label, v.distance
          FROM {vector_table} v
          JOIN {cache_table} e ON e.rowid = v.rowid
          WHERE v.embedding MATCH {vector_placeholder}
@@ -112,15 +108,18 @@ pub(crate) fn compile_vector_knn_query(
              FROM {cache_table} candidate
              WHERE candidate.record_key IN (SELECT record_key FROM eligible)
                {unit_filter}
-           )
+         )
          ORDER BY v.distance ASC",
-        eligible_sql = eligible.sql,
-        vector_table = TABLE_RECORD_VECTOR_INDEX,
-        cache_table = TABLE_DOCUMENT_EMBEDDING_CACHE,
-        unit_filter = unit_filter,
-    );
+                vector_table = TABLE_RECORD_VECTOR_INDEX,
+                cache_table = TABLE_DOCUMENT_EMBEDDING_CACHE,
+                unit_filter = unit_filter,
+            )
+        });
 
-    Ok(VectorKnnQuery { sql, parameters })
+    Ok(VectorKnnQuery {
+        sql: query.sql,
+        parameters: query.parameters,
+    })
 }
 
 pub fn query_vector_index(
@@ -380,11 +379,6 @@ fn probe_sqlite_vec(connection: &Connection) -> Result<(), String> {
 
 pub(crate) fn register_sqlite_vec_extension() -> Result<(), String> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension().map_err(|error| error.to_string())
-}
-
-fn push_parameter(parameters: &mut Vec<SqlBindValue>, value: SqlBindValue) -> String {
-    parameters.push(value);
-    format!("?{}", parameters.len())
 }
 
 fn validate_vector_index_coverage(

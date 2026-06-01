@@ -6,7 +6,7 @@ use atlas_domain::{RecordKey, SearchFilterNode};
 use diesel::sql_types::{Double, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::{FilterCompileError, compile_eligible_records_query};
+use crate::filters::{EligibleRecordKeyset, FilterCompileError};
 use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
@@ -222,25 +222,23 @@ pub(crate) fn query_fts_record_keys(
     filter: Option<&SearchFilterNode>,
     limit: u32,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(SqlBindValue::Text(fts_query.as_disjunction_match_query()));
-    parameters.push(SqlBindValue::Integer(i64::from(limit)));
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT f.record_key
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let query_placeholder = builder.push_text(fts_query.as_disjunction_match_query());
+            let limit_placeholder = builder.push_integer(i64::from(limit));
+            format!(
+                "SELECT f.record_key
          FROM {fts_table} f
-         WHERE {fts_table} MATCH ?{query_index}
+         WHERE {fts_table} MATCH {query_placeholder}
            AND f.record_key IN (SELECT record_key FROM eligible)
          ORDER BY f.record_key ASC
-         LIMIT ?{limit_index}",
-        eligible_sql = eligible.sql,
-        fts_table = TABLE_RECORDS_FTS,
-        query_index = parameters.len() - 1,
-        limit_index = parameters.len(),
-    );
+         LIMIT {limit_placeholder}",
+                fts_table = TABLE_RECORDS_FTS,
+            )
+        });
 
-    read_record_key_query(connection, &sql, &parameters)
+    read_record_key_query(connection, &query.sql, &query.parameters)
 }
 
 pub(crate) fn query_fts_candidate_record_keys(
@@ -281,13 +279,12 @@ fn query_fts_documents(
     weights: FtsColumnWeights,
     tier: FtsMatchTier,
 ) -> Result<Vec<FtsDocumentHit>, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(SqlBindValue::Text(match_query.to_string()));
-    parameters.push(SqlBindValue::Integer(i64::from(limit)));
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT f.record_key,
+    let query = EligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+        |builder| {
+            let query_placeholder = builder.push_text(match_query.to_string());
+            let limit_placeholder = builder.push_integer(i64::from(limit));
+            format!(
+                "SELECT f.record_key,
                 bm25({fts_table}, 0.0, {title}, {aliases}, {traits}, {taxonomy_terms}, {constraint_terms}, {mechanic_terms}, {source_terms}, {metric_terms}, {headings}, {body}, {facts}, {reference_terms}, {embedded_content}) AS rank,
                 f.title,
                 f.aliases,
@@ -306,30 +303,29 @@ fn query_fts_documents(
                 r.foundry_record_type
          FROM {fts_table} f
          JOIN records r ON r.record_key = f.record_key
-         WHERE {fts_table} MATCH ?{query_index}
+         WHERE {fts_table} MATCH {query_placeholder}
            AND f.record_key IN (SELECT record_key FROM eligible)
          ORDER BY rank ASC, f.record_key ASC
-         LIMIT ?{limit_index}",
-        eligible_sql = eligible.sql,
-        fts_table = TABLE_RECORDS_FTS,
-        title = weights.title,
-        aliases = weights.aliases,
-        traits = weights.traits,
-        taxonomy_terms = weights.taxonomy_terms,
-        constraint_terms = weights.constraint_terms,
-        mechanic_terms = weights.mechanic_terms,
-        source_terms = weights.source_terms,
-        metric_terms = weights.metric_terms,
-        headings = weights.headings,
-        body = weights.body,
-        facts = weights.facts,
-        reference_terms = weights.reference_terms,
-        embedded_content = weights.embedded_content,
-        query_index = parameters.len() - 1,
-        limit_index = parameters.len(),
+         LIMIT {limit_placeholder}",
+                fts_table = TABLE_RECORDS_FTS,
+                title = weights.title,
+                aliases = weights.aliases,
+                traits = weights.traits,
+                taxonomy_terms = weights.taxonomy_terms,
+                constraint_terms = weights.constraint_terms,
+                mechanic_terms = weights.mechanic_terms,
+                source_terms = weights.source_terms,
+                metric_terms = weights.metric_terms,
+                headings = weights.headings,
+                body = weights.body,
+                facts = weights.facts,
+                reference_terms = weights.reference_terms,
+                embedded_content = weights.embedded_content,
+            )
+        },
     );
 
-    bind_sql_query(sql, &parameters)
+    bind_sql_query(query.sql, &query.parameters)
         .load::<FtsDocumentRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
         .into_iter()

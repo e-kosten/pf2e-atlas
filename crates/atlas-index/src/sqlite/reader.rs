@@ -13,8 +13,8 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::discovery::{self, DiscoveryError, FilterValueRequest};
 use crate::filters::{
-    FilterCompileError, FilteredRecordKeysQuery, FilteredRecordSort as SqlFilteredRecordSort,
-    compile_eligible_records_query, compile_filtered_record_keys_query,
+    EligibleRecordKeyset, FilterCompileError, FilterSqlQuery,
+    FilteredRecordSort as SqlFilteredRecordSort,
 };
 use crate::fts;
 use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_seed};
@@ -405,12 +405,9 @@ impl SqliteIndexReader {
     ) -> Result<FilteredRecordKeyPage, FilterCompileError> {
         match sort {
             FilteredRecordSort::Random { seed } => {
-                let query = compile_filtered_record_keys_query(
-                    filter,
-                    SqlFilteredRecordSort::RecordKeyAsc,
-                    None,
-                    None,
-                )?;
+                let query = EligibleRecordKeyset::new(filter)
+                    .compile()?
+                    .into_record_keys_query(SqlFilteredRecordSort::RecordKeyAsc, None, None);
                 let mut record_keys =
                     read_record_keys(&mut self.diesel_connection.borrow_mut(), &query)?;
                 record_keys.sort_by_key(|key| seeded_key_hash(seed, &key.to_string()));
@@ -425,12 +422,9 @@ impl SqliteIndexReader {
             sort => {
                 let total =
                     count_filtered_records(&mut self.diesel_connection.borrow_mut(), filter)?;
-                let query = compile_filtered_record_keys_query(
-                    filter,
-                    sql_sort(sort),
-                    Some(limit),
-                    Some(offset),
-                )?;
+                let query = EligibleRecordKeyset::new(filter)
+                    .compile()?
+                    .into_record_keys_query(sql_sort(sort), Some(limit), Some(offset));
                 Ok(FilteredRecordKeyPage {
                     record_keys: read_record_keys(
                         &mut self.diesel_connection.borrow_mut(),
@@ -558,12 +552,8 @@ fn count_filtered_records(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({}) SELECT COUNT(*) AS count FROM eligible",
-        eligible.sql
-    );
-    bind_sql_query(sql, &eligible.parameters)
+    let query = EligibleRecordKeyset::new(filter).compile()?.count_query();
+    bind_sql_query(query.sql, &query.parameters)
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))
@@ -571,7 +561,7 @@ fn count_filtered_records(
 
 fn read_record_keys(
     connection: &mut SqliteConnection,
-    query: &FilteredRecordKeysQuery,
+    query: &FilterSqlQuery,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
     let keys = bind_sql_query(query.sql.clone(), &query.parameters)
         .load::<RecordKeyRow>(connection)
@@ -662,12 +652,12 @@ fn read_identity_matches(
     filter: Option<&SearchFilterNode>,
     identity_query: IdentityQuery,
 ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.extend(identity_query.parameters);
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible_sql})
-         SELECT
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            builder.extend(identity_query.parameters);
+            format!(
+                "SELECT
            r.record_key,
            {matched_text} AS matched_text,
            {alias_source} AS alias_source,
@@ -676,30 +666,30 @@ fn read_identity_matches(
          JOIN eligible e ON e.record_key = r.record_key
          WHERE {where_sql}
          ORDER BY {order_sql}",
-        eligible_sql = eligible.sql,
-        matched_text = match identity_query.match_kind {
-            RecordIdentityMatchKind::Name => "r.name",
-            RecordIdentityMatchKind::NormalizedName | RecordIdentityMatchKind::VariantName =>
-                "r.normalized_name",
-            RecordIdentityMatchKind::Alias => "a.alias_text",
-        },
-        alias_source = match identity_query.match_kind {
-            RecordIdentityMatchKind::Alias => "a.source_kind",
-            RecordIdentityMatchKind::Name
-            | RecordIdentityMatchKind::NormalizedName
-            | RecordIdentityMatchKind::VariantName => "NULL",
-        },
-        alias_source_ref = match identity_query.match_kind {
-            RecordIdentityMatchKind::Alias => "a.source_ref",
-            RecordIdentityMatchKind::Name
-            | RecordIdentityMatchKind::NormalizedName
-            | RecordIdentityMatchKind::VariantName => "NULL",
-        },
-        from_sql = identity_query.from_sql,
-        where_sql = identity_query.where_sql,
-        order_sql = identity_query.order_sql,
-    );
-    let mut matches = bind_sql_query(sql, &parameters)
+                matched_text = match identity_query.match_kind {
+                    RecordIdentityMatchKind::Name => "r.name",
+                    RecordIdentityMatchKind::NormalizedName
+                    | RecordIdentityMatchKind::VariantName => "r.normalized_name",
+                    RecordIdentityMatchKind::Alias => "a.alias_text",
+                },
+                alias_source = match identity_query.match_kind {
+                    RecordIdentityMatchKind::Alias => "a.source_kind",
+                    RecordIdentityMatchKind::Name
+                    | RecordIdentityMatchKind::NormalizedName
+                    | RecordIdentityMatchKind::VariantName => "NULL",
+                },
+                alias_source_ref = match identity_query.match_kind {
+                    RecordIdentityMatchKind::Alias => "a.source_ref",
+                    RecordIdentityMatchKind::Name
+                    | RecordIdentityMatchKind::NormalizedName
+                    | RecordIdentityMatchKind::VariantName => "NULL",
+                },
+                from_sql = identity_query.from_sql,
+                where_sql = identity_query.where_sql,
+                order_sql = identity_query.order_sql,
+            )
+        });
+    let mut matches = bind_sql_query(query.sql, &query.parameters)
         .load::<IdentityMatchRow>(connection)
         .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
         .into_iter()

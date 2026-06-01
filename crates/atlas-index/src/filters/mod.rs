@@ -11,9 +11,6 @@ use compiler::FilterCompiler;
 
 pub use error::FilterCompileError;
 #[cfg(test)]
-pub(crate) use query::EligibleRecordsQuery;
-pub(crate) use query::{
-    FilteredRecordKeysQuery, FilteredRecordSort, compile_eligible_records_query,
-    compile_filtered_record_keys_query,
-};
+pub(crate) use query::CompiledEligibleRecordKeyset;
+pub(crate) use query::{EligibleRecordKeyset, FilterSqlQuery, FilteredRecordSort};
 pub(crate) use relationships::default_reference_edge_sql_predicate;
