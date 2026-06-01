@@ -4,19 +4,27 @@ use atlas_domain::SearchFilterNode;
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
-use super::sql_render::push_integer_parameter;
 use super::sql_render::{RECORDS_ALIAS, record_column};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EligibleRecordsQuery {
+pub(crate) struct EligibleRecordKeyset<'a> {
+    filter: Option<&'a SearchFilterNode>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct FilterSqlQuery {
     pub sql: String,
     pub parameters: Vec<SqlBindValue>,
 }
 
+pub(crate) struct FilterSqlBuilder<'a> {
+    parameters: &'a mut Vec<SqlBindValue>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct FilteredRecordKeysQuery {
-    pub sql: String,
-    pub parameters: Vec<SqlBindValue>,
+pub(crate) struct CompiledEligibleRecordKeyset {
+    select_sql: String,
+    parameters: Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,80 +37,130 @@ pub enum FilteredRecordSort {
     PriceDesc,
 }
 
-pub(crate) fn compile_eligible_records_query(
-    filter: Option<&SearchFilterNode>,
-) -> Result<EligibleRecordsQuery, FilterCompileError> {
-    let mut compiler = FilterCompiler::default();
-    let base = format!(
-        "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
-        record_key = record_column(records::columns::RECORD_KEY),
-        records_table = records::TABLE.name(),
-        records_alias = RECORDS_ALIAS,
-        default_visible = record_column(records::columns::IS_DEFAULT_VISIBLE),
-    );
-    let sql = match filter {
-        Some(filter) => format!("{base} AND ({})", compiler.compile_node(filter)?),
-        None => base,
-    };
+impl<'a> EligibleRecordKeyset<'a> {
+    pub(crate) fn new(filter: Option<&'a SearchFilterNode>) -> Self {
+        Self { filter }
+    }
 
-    Ok(EligibleRecordsQuery {
-        sql,
-        parameters: compiler.parameters,
-    })
+    pub(crate) fn compile(self) -> Result<CompiledEligibleRecordKeyset, FilterCompileError> {
+        let mut compiler = FilterCompiler::default();
+        let base = format!(
+            "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
+            record_key = record_column(records::columns::RECORD_KEY),
+            records_table = records::TABLE.name(),
+            records_alias = RECORDS_ALIAS,
+            default_visible = record_column(records::columns::IS_DEFAULT_VISIBLE),
+        );
+        let select_sql = match self.filter {
+            Some(filter) => format!("{base} AND ({})", compiler.compile_node(filter)?),
+            None => base,
+        };
+
+        Ok(CompiledEligibleRecordKeyset {
+            select_sql,
+            parameters: compiler.parameters,
+        })
+    }
 }
 
-pub(crate) fn compile_filtered_record_keys_query(
-    filter: Option<&SearchFilterNode>,
-    sort: FilteredRecordSort,
-    limit: Option<u32>,
-    offset: Option<u32>,
-) -> Result<FilteredRecordKeysQuery, FilterCompileError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    Ok(eligible.into_record_keys_query(sort, limit, offset))
-}
+impl CompiledEligibleRecordKeyset {
+    #[cfg(test)]
+    pub(crate) fn select_sql(&self) -> &str {
+        &self.select_sql
+    }
 
-impl EligibleRecordsQuery {
-    pub fn into_record_keys_query(
+    #[cfg(test)]
+    pub(crate) fn parameters(&self) -> &[SqlBindValue] {
+        &self.parameters
+    }
+
+    pub(crate) fn eligible_cte_sql(&self) -> String {
+        format!("eligible(record_key) AS ({})", self.select_sql)
+    }
+
+    pub(crate) fn with_eligible_cte(
+        self,
+        build_body: impl FnOnce(&mut FilterSqlBuilder<'_>) -> String,
+    ) -> FilterSqlQuery {
+        let cte = self.eligible_cte_sql();
+        let mut parameters = self.parameters;
+        let mut builder = FilterSqlBuilder {
+            parameters: &mut parameters,
+        };
+        let body = build_body(&mut builder);
+        FilterSqlQuery {
+            sql: format!("WITH {cte} {body}"),
+            parameters,
+        }
+    }
+
+    pub(crate) fn count_query(self) -> FilterSqlQuery {
+        self.with_eligible_cte(|_| "SELECT COUNT(*) AS count FROM eligible".to_string())
+    }
+
+    pub(crate) fn into_record_keys_query(
         self,
         sort: FilteredRecordSort,
         limit: Option<u32>,
         offset: Option<u32>,
-    ) -> FilteredRecordKeysQuery {
-        let mut parameters = self.parameters;
-        let mut sql = format!(
-            "WITH eligible(record_key) AS ({})
-             SELECT {}
-             FROM eligible e
-             JOIN {} {} ON {} = e.record_key
-             ORDER BY {}",
-            self.sql,
-            record_column(records::columns::RECORD_KEY),
-            records::TABLE.name(),
-            RECORDS_ALIAS,
-            record_column(records::columns::RECORD_KEY),
-            sort.sql()
-        );
+    ) -> FilterSqlQuery {
+        self.with_eligible_cte(|builder| {
+            let mut sql = format!(
+                "SELECT {}
+                 FROM eligible e
+                 JOIN {} {} ON {} = e.record_key
+                 ORDER BY {}",
+                record_column(records::columns::RECORD_KEY),
+                records::TABLE.name(),
+                RECORDS_ALIAS,
+                record_column(records::columns::RECORD_KEY),
+                sort.sql()
+            );
 
-        match (limit, offset) {
-            (Some(limit), Some(offset)) => {
-                let limit_placeholder = push_integer_parameter(&mut parameters, limit);
-                let offset_placeholder = push_integer_parameter(&mut parameters, offset);
-                sql.push_str(&format!(
-                    " LIMIT {limit_placeholder} OFFSET {offset_placeholder}"
-                ));
+            match (limit, offset) {
+                (Some(limit), Some(offset)) => {
+                    let limit_placeholder = builder.push_integer(i64::from(limit));
+                    let offset_placeholder = builder.push_integer(i64::from(offset));
+                    sql.push_str(&format!(
+                        " LIMIT {limit_placeholder} OFFSET {offset_placeholder}"
+                    ));
+                }
+                (Some(limit), None) => {
+                    let limit_placeholder = builder.push_integer(i64::from(limit));
+                    sql.push_str(&format!(" LIMIT {limit_placeholder}"));
+                }
+                (None, Some(offset)) => {
+                    let offset_placeholder = builder.push_integer(i64::from(offset));
+                    sql.push_str(&format!(" LIMIT -1 OFFSET {offset_placeholder}"));
+                }
+                (None, None) => {}
             }
-            (Some(limit), None) => {
-                let limit_placeholder = push_integer_parameter(&mut parameters, limit);
-                sql.push_str(&format!(" LIMIT {limit_placeholder}"));
-            }
-            (None, Some(offset)) => {
-                let offset_placeholder = push_integer_parameter(&mut parameters, offset);
-                sql.push_str(&format!(" LIMIT -1 OFFSET {offset_placeholder}"));
-            }
-            (None, None) => {}
-        }
 
-        FilteredRecordKeysQuery { sql, parameters }
+            sql
+        })
+    }
+}
+
+impl FilterSqlBuilder<'_> {
+    pub(crate) fn push(&mut self, value: SqlBindValue) -> String {
+        self.parameters.push(value);
+        format!("?{}", self.parameters.len())
+    }
+
+    pub(crate) fn push_integer(&mut self, value: i64) -> String {
+        self.push(SqlBindValue::Integer(value))
+    }
+
+    pub(crate) fn push_text(&mut self, value: impl Into<String>) -> String {
+        self.push(SqlBindValue::Text(value.into()))
+    }
+
+    pub(crate) fn push_blob(&mut self, value: Vec<u8>) -> String {
+        self.push(SqlBindValue::Blob(value))
+    }
+
+    pub(crate) fn extend(&mut self, values: Vec<SqlBindValue>) {
+        self.parameters.extend(values);
     }
 }
 

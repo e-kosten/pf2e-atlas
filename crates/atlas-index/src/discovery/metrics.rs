@@ -9,7 +9,7 @@ use diesel::OptionalExtension;
 use diesel::sql_types::{BigInt, Double, Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::compile_eligible_records_query;
+use crate::filters::EligibleRecordKeyset;
 use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 use super::error::{DiscoveryError, query_error};
@@ -138,34 +138,34 @@ fn metric_keys(
     metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    let mut predicates = Vec::new();
-    if let Some(prefix) = prefix {
-        parameters.push(SqlBindValue::Text(format!("{prefix}%")));
-        predicates.push(format!("rm.metric_key LIKE ?{}", parameters.len()));
-    }
-    if let Some(domain) = domain {
-        parameters.push(SqlBindValue::Text(domain.to_string()));
-        predicates.push(format!("rm.metric_domain = ?{}", parameters.len()));
-    }
-    let where_extra = if predicates.is_empty() {
-        String::new()
-    } else {
-        format!(" AND {}", predicates.join(" AND "))
-    };
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.metric_domain, r.record_family, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
+    let query = EligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+        |builder| {
+            let mut predicates = Vec::new();
+            if let Some(prefix) = prefix {
+                let placeholder = builder.push_text(format!("{prefix}%"));
+                predicates.push(format!("rm.metric_key LIKE {placeholder}"));
+            }
+            if let Some(domain) = domain {
+                let placeholder = builder.push_text(domain);
+                predicates.push(format!("rm.metric_domain = {placeholder}"));
+            }
+            let where_extra = if predicates.is_empty() {
+                String::new()
+            } else {
+                format!(" AND {}", predicates.join(" AND "))
+            };
+            format!(
+                "SELECT rm.metric_domain, r.record_family, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
          JOIN records r ON r.record_key = rm.record_key
          WHERE 1 = 1 {where_extra}
          GROUP BY rm.metric_domain, r.record_family, rm.metric_key, rm.value_type
          ORDER BY rm.metric_key ASC, r.record_family ASC",
-        eligible = eligible.sql,
+            )
+        },
     );
-    let rows = bind_sql_query(sql, &parameters)
+    let rows = bind_sql_query(query.sql, &query.parameters)
         .load::<MetricKeyRow>(connection)
         .map_err(query_error)?;
     let label_query = label_query.map(normalize_metric_label);
@@ -289,28 +289,25 @@ fn metric_text_values(
     if let Some(scope) = catalog_scope {
         return catalog_metric_text_values(connection, scope, metric);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(SqlBindValue::Text(metric.metric_domain.clone()));
-    parameters.push(SqlBindValue::Text(metric.metric_key.clone()));
-    parameters.push(SqlBindValue::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.text_value AS value, COUNT(*) AS catalog_count
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT rm.text_value AS value, COUNT(*) AS catalog_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}
            AND rm.text_value IS NOT NULL
          GROUP BY rm.text_value
          ORDER BY COUNT(*) DESC, rm.text_value ASC",
-        eligible = eligible.sql,
-    );
-    bind_sql_query(sql, &parameters)
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
         .load::<MetricValueCountRow>(connection)
         .map_err(query_error)
         .map(filter_value_counts_from_rows)
@@ -325,28 +322,25 @@ fn metric_boolean_counts(
     if let Some(scope) = catalog_scope {
         return catalog_metric_boolean_counts(connection, scope, metric);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(SqlBindValue::Text(metric.metric_domain.clone()));
-    parameters.push(SqlBindValue::Text(metric.metric_key.clone()));
-    parameters.push(SqlBindValue::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT
            SUM(CASE WHEN rm.bool_value = 1 THEN 1 ELSE 0 END) AS true_count,
            SUM(CASE WHEN rm.bool_value = 0 THEN 1 ELSE 0 END) AS false_count,
            (SELECT COUNT(*) FROM eligible) - COUNT(rm.bool_value) AS null_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}",
-        eligible = eligible.sql,
-    );
-    bind_sql_query(sql, &parameters)
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}",
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
         .get_result::<BooleanCountsRow>(connection)
         .map(|row| BooleanFieldCounts {
             r#true: row.true_count.unwrap_or(0) as u64,
@@ -367,27 +361,24 @@ fn metric_numeric_stats(
     {
         return Ok(stats);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(SqlBindValue::Text(metric.metric_domain.clone()));
-    parameters.push(SqlBindValue::Text(metric.metric_key.clone()));
-    parameters.push(SqlBindValue::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.number_value AS number_value
+    let query = EligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT rm.number_value AS number_value
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}
            AND rm.number_value IS NOT NULL
          ORDER BY rm.number_value ASC",
-        eligible = eligible.sql,
-    );
-    let values = bind_sql_query(sql, &parameters)
+            )
+        });
+    let values = bind_sql_query(query.sql, &query.parameters)
         .load::<MetricNumericValueRow>(connection)
         .map_err(query_error)?
         .into_iter()
