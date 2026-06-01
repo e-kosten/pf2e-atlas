@@ -5,22 +5,22 @@ use atlas_domain::{
     RemasterLinkSource, TimeKind, TimeUnit,
 };
 
-pub mod content;
+mod content;
 mod json_projection;
 pub mod metrics;
-pub mod presentation;
+mod presentation;
 mod presentation_format;
 mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
-pub mod reference_policy;
+mod reference_policy;
 
 pub use content::{
     ContentBlock, ContentDefinitionItem, ContentDocument, ContentFtsField, ContentInline,
-    ContentReference, ContentReferenceLocator, ContentSectionNode, ContentSectionOrigin,
-    ContentSourceKind, ContentVisibility, RecordFtsProjection, SupplementalContentDocument,
-    build_content_section_tree, build_record_fts_projection, iter_content_references,
-    render_markdown_like, render_plain_text, visit_content_references_mut,
+    ContentReference, ContentReferenceIter, ContentReferenceLocator, ContentSectionNode,
+    ContentSectionOrigin, ContentSourceKind, ContentVisibility, RecordFtsProjection,
+    SupplementalContentDocument, build_content_section_tree, build_record_fts_projection,
+    iter_content_references, render_markdown_like, render_plain_text, visit_content_references_mut,
 };
 pub use json_projection::{
     RecordBlockJson, RecordJson, RecordJsonOptions, RecordSectionJson, record_json,
