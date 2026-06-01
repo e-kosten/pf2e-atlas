@@ -27,7 +27,9 @@ pub(super) fn query_count_pair<P: Params>(
     params: P,
 ) -> Result<(u64, u64), IndexValidationError> {
     connection
-        .query_row(sql, params, |row| Ok((row.get(0)?, row.get(1)?)))
+        .query_row(sql, params, |row| {
+            Ok((row.get("missing_count")?, row.get("stale_count")?))
+        })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))
 }
 

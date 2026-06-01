@@ -119,7 +119,7 @@ pub(super) fn value_catalog_diff(
               ON ((a.record_family IS NULL AND e.record_family IS NULL)
                   OR a.record_family = e.record_family)
              AND a.value = e.value
-            WHERE a.value IS NULL),
+            WHERE a.value IS NULL) AS missing_count,
            (SELECT COUNT(*)
             FROM actual a
             LEFT JOIN expected e
@@ -128,7 +128,7 @@ pub(super) fn value_catalog_diff(
              AND a.value = e.value
             WHERE e.value IS NULL
                OR a.catalog_count <> e.catalog_count
-               OR COALESCE(a.sample_rank, 0) <> COALESCE(e.sample_rank, 0))"
+               OR COALESCE(a.sample_rank, 0) <> COALESCE(e.sample_rank, 0)) AS stale_count"
     );
     query_count_pair(connection, &sql, params![field])
 }

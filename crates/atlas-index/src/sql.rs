@@ -29,7 +29,7 @@ pub(crate) fn table_columns(
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
-            Ok((row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+            Ok((row.get::<_, String>("name")?, row.get::<_, String>("type")?))
         })
         .map_err(|error| IndexValidationError::QueryFailed(error.to_string()))?;
     let mut columns = BTreeMap::new();

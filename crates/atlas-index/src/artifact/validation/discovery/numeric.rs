@@ -125,7 +125,7 @@ fn numeric_field_catalog_diff(
             LEFT JOIN actual a
               ON ((a.record_family IS NULL AND e.record_family IS NULL)
                   OR a.record_family = e.record_family)
-            WHERE a.catalog_count IS NULL),
+            WHERE a.catalog_count IS NULL) AS missing_count,
            (SELECT COUNT(*)
             FROM actual a
             LEFT JOIN expected e
@@ -141,7 +141,7 @@ fn numeric_field_catalog_diff(
                OR ABS(a.mean - e.mean) > 0.000001
                OR ABS(a.p75 - e.p75) > 0.000001
                OR ABS(a.p95 - e.p95) > 0.000001
-               OR ABS(a.max - e.max) > 0.000001)"
+               OR ABS(a.max - e.max) > 0.000001) AS stale_count"
     );
     query_count_pair(connection, &sql, params![field])
 }
@@ -211,7 +211,7 @@ fn metric_numeric_catalog_diff(
                  OR a.record_family = e.record_family)
             AND a.metric_domain = e.metric_domain
             AND a.metric_key = e.metric_key
-           WHERE a.metric_key IS NULL),
+           WHERE a.metric_key IS NULL) AS missing_count,
           (SELECT COUNT(*)
            FROM actual a
            LEFT JOIN expected e
@@ -229,7 +229,7 @@ fn metric_numeric_catalog_diff(
               OR ABS(a.mean - e.mean) > 0.000001
               OR ABS(a.p75 - e.p75) > 0.000001
               OR ABS(a.p95 - e.p95) > 0.000001
-              OR ABS(a.max - e.max) > 0.000001)";
+              OR ABS(a.max - e.max) > 0.000001) AS stale_count";
     query_count_pair(connection, sql, [])
 }
 
