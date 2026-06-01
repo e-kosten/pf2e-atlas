@@ -1,14 +1,14 @@
-use atlas_artifact::metadata::artifact_metadata_keys;
-use atlas_artifact::schema::TABLE_DOCUMENT_EMBEDDING_CACHE;
-use atlas_artifact::storage::f32_vector_blob_len;
+use crate::artifact_metadata::artifact_metadata_keys;
+use crate::artifact_storage::f32_vector_blob_len;
+use crate::schema_inventory::TABLE_DOCUMENT_EMBEDDING_CACHE;
 use atlas_embedding::EmbeddingUnitKind;
 use rusqlite::Connection;
 use std::collections::BTreeMap;
 
 use crate::sql::{count_rows, count_sql};
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 pub(super) fn validate_document_embedding_cache(
@@ -30,8 +30,8 @@ pub(super) fn validate_document_embedding_cache(
         "SELECT COUNT(*) FROM document_embedding_cache WHERE unit_kind = 'parent'",
     )?;
     if parent_units != default_visible_records {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Embedding,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Embedding,
             "document embedding cache parent unit count must match default-visible record count"
                 .to_string(),
             Some("document_embedding_cache:default_visible_count".to_string()),
@@ -51,8 +51,8 @@ pub(super) fn validate_document_embedding_cache(
             ),
         )?;
         if invalid_dimensions > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Embedding,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Embedding,
                 "document embedding cache dimensions must match embedding metadata".to_string(),
                 Some("document_embedding_cache:dimensions".to_string()),
                 Some(expected_dimensions.to_string()),
@@ -68,8 +68,8 @@ pub(super) fn validate_document_embedding_cache(
             ),
         )?;
         if invalid_blob_bytes > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Embedding,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Embedding,
                 "document embedding cache vector blob length must match embedding dimensions"
                     .to_string(),
                 Some("document_embedding_cache:vector_blob".to_string()),
@@ -116,8 +116,8 @@ pub(super) fn validate_document_embedding_cache(
     ] {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Embedding,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Embedding,
                 format!("document embedding cache coverage check `{key}` failed"),
                 Some(key.to_string()),
                 Some(expected.to_string()),

@@ -1,59 +1,49 @@
-use atlas_artifact::schema::{
-    TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_RECORD_VECTOR_INDEX, record_vector_index_create_sql,
-    record_vector_index_insert_sql,
-};
-use rusqlite::Connection;
+use diesel::prelude::*;
+use diesel::sql_types::{BigInt, Binary};
+use diesel::{SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
+use crate::schema::document_embedding_cache;
 
-pub(super) fn write_record_vector_index(connection: &Connection) -> Result<(), IndexWriteError> {
+const TABLE_RECORD_VECTOR_INDEX: &str = "record_vector_index";
+
+pub(super) fn write_record_vector_index(
+    connection: &mut SqliteConnection,
+) -> Result<(), IndexWriteError> {
     let dimensions = embedding_dimensions(connection)?;
-    connection
-        .execute_batch(&format!(
-            "DROP TABLE IF EXISTS {table};
-             {create_sql}",
-            table = TABLE_RECORD_VECTOR_INDEX,
-            create_sql = record_vector_index_create_sql(dimensions)
-        ))
+    sql_query(format!("DROP TABLE IF EXISTS {TABLE_RECORD_VECTOR_INDEX}"))
+        .execute(connection)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    sql_query(format!(
+        "CREATE VIRTUAL TABLE {TABLE_RECORD_VECTOR_INDEX} USING vec0(embedding FLOAT[{dimensions}])"
+    ))
+    .execute(connection)
+    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
-    let insert_sql = record_vector_index_insert_sql();
-    let mut insert = connection
-        .prepare(&insert_sql)
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let mut select = connection
-        .prepare(&format!(
-            "SELECT rowid, vector_blob
-             FROM {TABLE_DOCUMENT_EMBEDDING_CACHE}
-             ORDER BY embedding_unit_key"
+    let rows = document_embedding_cache::table
+        .select((
+            diesel::dsl::sql::<BigInt>("rowid"),
+            document_embedding_cache::vector_blob,
         ))
+        .order(document_embedding_cache::embedding_unit_key.asc())
+        .load::<(i64, Vec<u8>)>(connection)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let rows = select
-        .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
-        })
+    for (rowid, vector_blob) in rows {
+        diesel::sql_query(format!(
+            "INSERT INTO {TABLE_RECORD_VECTOR_INDEX} (rowid, embedding) VALUES (?, ?)"
+        ))
+        .bind::<BigInt, _>(rowid)
+        .bind::<Binary, _>(vector_blob)
+        .execute(connection)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    for row in rows {
-        let (rowid, vector_blob) =
-            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-        insert
-            .execute((rowid, vector_blob))
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
-fn embedding_dimensions(connection: &Connection) -> Result<usize, IndexWriteError> {
-    let dimensions = connection
-        .query_row(
-            &format!(
-                "SELECT dimensions
-                 FROM {TABLE_DOCUMENT_EMBEDDING_CACHE}
-                 LIMIT 1"
-            ),
-            [],
-            |row| row.get::<_, i64>(0),
-        )
+fn embedding_dimensions(connection: &mut SqliteConnection) -> Result<usize, IndexWriteError> {
+    let dimensions = document_embedding_cache::table
+        .select(document_embedding_cache::dimensions)
+        .first::<i64>(connection)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     usize::try_from(dimensions).map_err(|_| {
         IndexWriteError::WriteFailed(format!(
@@ -64,28 +54,38 @@ fn embedding_dimensions(connection: &Connection) -> Result<usize, IndexWriteErro
 
 #[cfg(test)]
 mod tests {
-    use atlas_artifact::schema::create_artifact_schema_sql;
-    use atlas_artifact::storage::encode_f32_vector_blob;
-    use rusqlite::Connection;
+    use crate::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
+    use crate::artifact_storage::encode_f32_vector_blob;
+    use diesel::connection::SimpleConnection;
+    use diesel::sql_types::{BigInt, Binary, Text};
+    use diesel::{
+        Connection as DieselConnection, QueryableByName, RunQueryDsl, SqliteConnection, sql_query,
+    };
 
     use super::write_record_vector_index;
+
+    #[derive(QueryableByName)]
+    struct CountRow {
+        #[diesel(sql_type = BigInt)]
+        count: i64,
+    }
 
     #[test]
     fn writes_record_vector_index_from_document_embedding_cache() {
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().expect("sqlite-vec should register");
-        let connection = Connection::open_in_memory().expect("in-memory database should open");
+        let mut connection =
+            SqliteConnection::establish(":memory:").expect("in-memory database should open");
         connection
-            .execute_batch(&create_artifact_schema_sql())
+            .batch_execute(CREATE_ARTIFACT_SCHEMA_SQL)
             .expect("schema should create");
         connection
-            .execute(
+            .batch_execute(
                 "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
-                 VALUES ('actions', 'Actions', 'Item', 'packs/actions', 'packs/actions', 1)",
-                [],
+                 VALUES ('actions', 'Actions', 'Item', 'packs/actions', 'packs/actions', 1)"
             )
             .expect("pack row should insert");
         connection
-            .execute(
+            .batch_execute(
                 "INSERT INTO records (
                   record_key, id, name, normalized_name, record_family, pack_name, pack_label,
                   foundry_document_type, foundry_record_type, traits_json, prerequisites_json, publication_remaster,
@@ -93,33 +93,28 @@ mod tests {
                   source_path, is_default_visible, raw_json
                 ) VALUES ('actions:testAction1', 'testAction1', 'Test Action', 'test action',
                   'rule', 'actions', 'Actions', 'Item', 'action', '[]', '[]', 0, 'unknown', '[]',
-                  '[]', 'none', 'packs/actions/test-action.json', 1, '{}')",
-                [],
+                  '[]', 'none', 'packs/actions/test-action.json', 1, '{}')"
             )
             .expect("record row should insert");
-        connection
-            .execute(
-                "INSERT INTO document_embedding_cache (
+        sql_query(
+            "INSERT INTO document_embedding_cache (
                     embedding_unit_key, record_key, unit_kind, label, ordinal,
                     semantic_input_hash, dimensions, vector_blob
-                 ) VALUES (?1, ?2, ?3, NULL, 0, ?4, 2, ?5)",
-                (
-                    "actions:testAction1#parent",
-                    "actions:testAction1",
-                    "parent",
-                    "fixture-hash",
-                    encode_f32_vector_blob(&[1.0, -2.5]),
-                ),
-            )
-            .expect("document embedding row should insert");
+                 ) VALUES (?, ?, ?, NULL, 0, ?, 2, ?)",
+        )
+        .bind::<Text, _>("actions:testAction1#parent")
+        .bind::<Text, _>("actions:testAction1")
+        .bind::<Text, _>("parent")
+        .bind::<Text, _>("fixture-hash")
+        .bind::<Binary, _>(encode_f32_vector_blob(&[1.0, -2.5]))
+        .execute(&mut connection)
+        .expect("document embedding row should insert");
 
-        write_record_vector_index(&connection).expect("vector index should write");
+        write_record_vector_index(&mut connection).expect("vector index should write");
 
-        let rows: i64 = connection
-            .query_row("SELECT COUNT(*) FROM record_vector_index", [], |row| {
-                row.get(0)
-            })
+        let rows = sql_query("SELECT COUNT(*) AS count FROM record_vector_index")
+            .get_result::<CountRow>(&mut connection)
             .expect("vector index should be readable");
-        assert_eq!(rows, 1);
+        assert_eq!(rows.count, 1);
     }
 }

@@ -13,11 +13,11 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-cli` owns command parsing, output, progress, exit codes, and agent skill installation.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration and result assembly.
-- `atlas-index` owns artifact validation, row readers, SQLite artifact writing, filter compilation, reference queries, and vector SQL.
+- `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter compilation, reference queries, and vector SQL.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, `ContentDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
-- `atlas-artifact` owns physical SQLite table/column descriptors, schema SQL, vector blob encoding, and contract constants.
+- The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-discovery` owns filter discovery field and value policy.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
@@ -41,9 +41,7 @@ flowchart TD
     index --> artifactDb
     embedding --> artifactDb
     ingest --> record["atlas-record"]
-    ingest --> artifact["atlas-artifact"]
     index --> record
-    index --> artifact
 ```
 
 ## Product Surfaces
@@ -89,7 +87,7 @@ Derived tags are a planned Rust redesign. The retained model should be defined a
 
 - Keep `atlas-cli` thin. Durable search, lookup, graph, validation, setup, and artifact behavior belongs below the CLI.
 - Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
-- Keep `atlas-artifact` as the single owner of physical table/column descriptors and artifact constants.
+- Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter relations, and SQLite validation pragmas.
 - Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.

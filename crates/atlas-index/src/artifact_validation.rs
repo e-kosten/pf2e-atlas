@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use rusqlite::Connection;
 
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError, ValidationCode,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError, ValidationCode,
 };
 
 mod content;
@@ -12,7 +12,7 @@ mod embeddings;
 mod fts;
 mod metrics;
 mod relationships;
-mod required_schema;
+mod schema;
 
 use content::validate_content_json;
 use discovery::validate_filter_discovery_catalogs;
@@ -20,12 +20,12 @@ use embeddings::validate_document_embedding_cache;
 use fts::validate_fts_coverage;
 use metrics::{validate_metric_catalogs, validate_metric_values};
 use relationships::validate_relationships;
-use required_schema::{
+use schema::{
     validate_boolean_columns, validate_foreign_keys, validate_record_counts,
     validate_required_columns, validate_required_tables,
 };
 
-pub(crate) fn validate_artifact_contract(
+pub(crate) fn validate_artifact_coherence(
     connection: &Connection,
     metadata: &BTreeMap<String, String>,
 ) -> Result<Vec<ArtifactValidationDiagnostic>, IndexValidationError> {
@@ -53,14 +53,14 @@ pub(crate) fn validate_artifact_contract(
     Ok(diagnostics)
 }
 
-pub(crate) fn contract_diagnostic(
-    family: ArtifactContractFamily,
+pub(crate) fn artifact_validation_diagnostic(
+    family: ArtifactValidationFamily,
     message: String,
     key: Option<String>,
     expected: Option<String>,
     actual: Option<String>,
 ) -> ArtifactValidationDiagnostic {
-    contract_diagnostic_with_code(
+    artifact_validation_diagnostic_with_code(
         family,
         message,
         key,
@@ -70,8 +70,8 @@ pub(crate) fn contract_diagnostic(
     )
 }
 
-pub(crate) fn contract_diagnostic_with_code(
-    family: ArtifactContractFamily,
+pub(crate) fn artifact_validation_diagnostic_with_code(
+    family: ArtifactValidationFamily,
     message: String,
     key: Option<String>,
     expected: Option<String>,

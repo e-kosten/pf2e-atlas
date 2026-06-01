@@ -1,7 +1,7 @@
 use super::{
-    Column, ColumnCheck, TABLE_DESCRIPTORS, Table, actor_records, document_embedding_cache,
-    item_records, packs, record_aliases, record_content, record_metrics, record_traits, records,
-    reference_edges, reference_occurrences, remaster_links, spell_records,
+    Column, Table, actor_records, document_embedding_cache, item_records, packs, record_aliases,
+    record_content, record_metrics, record_traits, records, reference_edges, reference_occurrences,
+    remaster_links, spell_records,
 };
 
 pub struct BooleanColumn {
@@ -12,21 +12,26 @@ pub struct BooleanColumn {
 }
 
 pub fn boolean_columns() -> Vec<BooleanColumn> {
-    TABLE_DESCRIPTORS
-        .iter()
-        .flat_map(|table| {
-            table
-                .column_descriptors
-                .iter()
-                .filter(|column| column.check == Some(ColumnCheck::Boolean))
-                .map(|column| BooleanColumn {
-                    key: column.column.key(),
-                    table: table.table,
-                    column: column.column,
-                    nullable: column.nullable,
-                })
-        })
-        .collect()
+    [
+        boolean_column(records::columns::PUBLICATION_REMASTER, false),
+        boolean_column(records::columns::IS_DEFAULT_VISIBLE, false),
+        boolean_column(record_content::columns::CONTRIBUTES_TO_SEARCH, false),
+        boolean_column(record_content::columns::CONTRIBUTES_TO_REFERENCES, false),
+        boolean_column(record_metrics::columns::BOOL_VALUE, true),
+        boolean_column(actor_records::columns::IS_COMPLEX, false),
+        boolean_column(spell_records::columns::SUSTAINED, false),
+        boolean_column(spell_records::columns::BASIC_SAVE, false),
+    ]
+    .into()
+}
+
+fn boolean_column(column: Column, nullable: bool) -> BooleanColumn {
+    BooleanColumn {
+        key: column.key(),
+        table: column.table(),
+        column,
+        nullable,
+    }
 }
 
 pub struct RequiredReference {

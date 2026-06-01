@@ -468,7 +468,7 @@ fn selected_model_validation(
         .diagnostics
         .push(atlas_index::ArtifactValidationDiagnostic {
             code: atlas_index::ValidationCode::EmbeddingMismatch,
-            family: atlas_index::ArtifactContractFamily::Embedding,
+            family: atlas_index::ArtifactValidationFamily::Embedding,
             message: "artifact embedding model does not match selected setup model".to_string(),
             key: Some("embedding_model_id".to_string()),
             expected: Some(spec.model_id.to_string()),

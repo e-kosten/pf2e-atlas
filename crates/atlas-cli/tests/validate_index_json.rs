@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use atlas_artifact::test_support::{
-    create_minimal_contract_schema, insert_contract_metadata_entries,
-    insert_contract_metadata_omitting, insert_minimal_contract_rows,
+use atlas_index::test_support::{
+    create_minimal_artifact_schema, insert_artifact_metadata_entries,
+    insert_artifact_metadata_omitting, insert_minimal_artifact_rows,
     legacy_minilm_metadata_entries,
 };
 use rusqlite::Connection;
@@ -1304,7 +1304,7 @@ fn build_index_human_output_reports_timing_summary() -> Result<(), Box<dyn std::
 #[test]
 fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-valid");
-    create_contract_database(&path, None)?;
+    create_valid_artifact_database(&path, None)?;
 
     let output = run_atlas_base(&path)?;
 
@@ -1351,7 +1351,7 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
 #[test]
 fn index_check_json_reports_valid_minimal_contract() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-check-valid");
-    create_contract_database(&path, None)?;
+    create_valid_artifact_database(&path, None)?;
 
     let output = run_atlas_check(&path)?;
 
@@ -1468,7 +1468,7 @@ fn validate_index_json_reports_missing_artifact_metadata() -> Result<(), Box<dyn
 #[test]
 fn validate_index_json_reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-embedding-mismatch");
-    create_contract_database(&path, Some(("embedding_dimensions", "768")))?;
+    create_valid_artifact_database(&path, Some(("embedding_dimensions", "768")))?;
 
     let output = run_atlas(&path)?;
 
@@ -1525,7 +1525,7 @@ fn validate_index_json_reports_embedding_mismatch() -> Result<(), Box<dyn std::e
 #[test]
 fn validate_index_json_reports_missing_required_key() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-missing-key");
-    create_contract_database_omitting(&path, "embedding_dtype")?;
+    create_valid_artifact_database_omitting(&path, "embedding_dtype")?;
 
     let output = run_atlas(&path)?;
 
@@ -1572,7 +1572,7 @@ fn validate_index_json_reports_missing_required_key() -> Result<(), Box<dyn std:
 #[test]
 fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-stale-source");
-    create_contract_database(&path, Some(("source_signature", "stale:fixture")))?;
+    create_valid_artifact_database(&path, Some(("source_signature", "stale:fixture")))?;
 
     let output = run_atlas(&path)?;
 
@@ -1630,7 +1630,7 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
 fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-unsupported-schema");
-    create_contract_database(&path, Some(("schema_version", "2")))?;
+    create_valid_artifact_database(&path, Some(("schema_version", "2")))?;
 
     let output = run_atlas(&path)?;
 
@@ -1722,30 +1722,30 @@ fn ok_data(value: &Value) -> &Value {
     value.get("data").expect("ok envelope should contain data")
 }
 
-fn create_contract_database(
+fn create_valid_artifact_database(
     path: &PathBuf,
     override_entry: Option<(&str, &str)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
-    create_minimal_contract_schema(&connection)?;
-    insert_contract_metadata_entries(
+    create_minimal_artifact_schema(&connection)?;
+    insert_artifact_metadata_entries(
         &connection,
         legacy_minilm_metadata_entries(),
         override_entry,
     )?;
     if override_entry.is_none() {
-        insert_minimal_contract_rows(&connection)?;
+        insert_minimal_artifact_rows(&connection)?;
     }
     Ok(())
 }
 
-fn create_contract_database_omitting(
+fn create_valid_artifact_database_omitting(
     path: &PathBuf,
     omitted_key: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
-    create_minimal_contract_schema(&connection)?;
-    insert_contract_metadata_omitting(&connection, legacy_minilm_metadata_entries(), omitted_key)?;
+    create_minimal_artifact_schema(&connection)?;
+    insert_artifact_metadata_omitting(&connection, legacy_minilm_metadata_entries(), omitted_key)?;
     Ok(())
 }
 

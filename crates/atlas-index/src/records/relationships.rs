@@ -1,84 +1,123 @@
-use atlas_artifact::schema::{
-    record_alias_select_sql, reference_edge_select_sql, remaster_link_select_sql,
-};
 use atlas_record::{RecordAlias, ReferenceEdge, RemasterLink};
-use rusqlite::Connection;
+use diesel::prelude::*;
+use diesel::sqlite::Sqlite;
+use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
+
+use crate::schema::{record_aliases, reference_edges, remaster_links};
 
 use super::RecordLoadError;
 use super::parse::{
-    optional_string, parse_alias_source, parse_content_source_kind, parse_content_visibility,
-    parse_record_key, parse_remaster_link_source, required_string,
+    parse_alias_source, parse_content_source_kind, parse_content_visibility, parse_record_key,
+    parse_remaster_link_source,
 };
 
 pub(super) fn read_reference_edges(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
 ) -> Result<Vec<ReferenceEdge>, RecordLoadError> {
-    let mut statement = connection
-        .prepare(&reference_edge_select_sql())
+    let rows = reference_edges::table
+        .select(ReferenceEdgeRow::as_select())
+        .order((
+            reference_edges::from_record_key.asc(),
+            reference_edges::to_record_key.asc(),
+            reference_edges::source_kind.asc(),
+            reference_edges::reference_text.asc(),
+        ))
+        .load::<ReferenceEdgeRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut rows = statement
-        .query([])
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut edges = Vec::new();
-    while let Some(row) = rows
-        .next()
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    {
-        edges.push(ReferenceEdge {
-            from_record_key: parse_record_key(&required_string(row, "from_record_key")?)?,
-            to_record_key: parse_record_key(&required_string(row, "to_record_key")?)?,
-            display_text: optional_string(row, "display_text")?,
-            reference_text: required_string(row, "reference_text")?,
-            source_kind: parse_content_source_kind(&required_string(row, "source_kind")?)?,
-            visibility: parse_content_visibility(&required_string(row, "visibility")?)?,
-        });
-    }
-    Ok(edges)
+    rows.into_iter()
+        .map(|row| {
+            Ok(ReferenceEdge {
+                from_record_key: parse_record_key(&row.from_record_key)?,
+                to_record_key: parse_record_key(&row.to_record_key)?,
+                display_text: row.display_text,
+                reference_text: row.reference_text,
+                source_kind: parse_content_source_kind(&row.source_kind)?,
+                visibility: parse_content_visibility(&row.visibility)?,
+            })
+        })
+        .collect()
 }
 
-pub(super) fn read_aliases(connection: &Connection) -> Result<Vec<RecordAlias>, RecordLoadError> {
-    let mut statement = connection
-        .prepare(&record_alias_select_sql())
+pub(super) fn read_aliases(
+    connection: &mut SqliteConnection,
+) -> Result<Vec<RecordAlias>, RecordLoadError> {
+    let rows = record_aliases::table
+        .select(RecordAliasRow::as_select())
+        .order((
+            record_aliases::canonical_record_key.asc(),
+            record_aliases::normalized_alias.asc(),
+            record_aliases::source_kind.asc(),
+            record_aliases::source_ref.asc(),
+        ))
+        .load::<RecordAliasRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut rows = statement
-        .query([])
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut aliases = Vec::new();
-    while let Some(row) = rows
-        .next()
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    {
-        aliases.push(RecordAlias {
-            canonical_record_key: parse_record_key(&required_string(row, "canonical_record_key")?)?,
-            alias_text: required_string(row, "alias_text")?,
-            normalized_alias: required_string(row, "normalized_alias")?,
-            source: parse_alias_source(&required_string(row, "source_kind")?)?,
-            source_ref: required_string(row, "source_ref")?,
-        });
-    }
-    Ok(aliases)
+    rows.into_iter()
+        .map(|row| {
+            Ok(RecordAlias {
+                canonical_record_key: parse_record_key(&row.canonical_record_key)?,
+                alias_text: row.alias_text,
+                normalized_alias: row.normalized_alias,
+                source: parse_alias_source(&row.source_kind)?,
+                source_ref: row.source_ref,
+            })
+        })
+        .collect()
 }
 
 pub(super) fn read_remaster_links(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
 ) -> Result<Vec<RemasterLink>, RecordLoadError> {
-    let mut statement = connection
-        .prepare(&remaster_link_select_sql())
+    let rows = remaster_links::table
+        .select(RemasterLinkRow::as_select())
+        .order((
+            remaster_links::remaster_record_key.asc(),
+            remaster_links::legacy_record_key.asc(),
+            remaster_links::source_kind.asc(),
+            remaster_links::source_ref.asc(),
+        ))
+        .load::<RemasterLinkRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut rows = statement
-        .query([])
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?;
-    let mut links = Vec::new();
-    while let Some(row) = rows
-        .next()
-        .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
-    {
-        links.push(RemasterLink {
-            remaster_record_key: parse_record_key(&required_string(row, "remaster_record_key")?)?,
-            legacy_record_key: parse_record_key(&required_string(row, "legacy_record_key")?)?,
-            source: parse_remaster_link_source(&required_string(row, "source_kind")?)?,
-            source_ref: required_string(row, "source_ref")?,
-        });
-    }
-    Ok(links)
+    rows.into_iter()
+        .map(|row| {
+            Ok(RemasterLink {
+                remaster_record_key: parse_record_key(&row.remaster_record_key)?,
+                legacy_record_key: parse_record_key(&row.legacy_record_key)?,
+                source: parse_remaster_link_source(&row.source_kind)?,
+                source_ref: row.source_ref,
+            })
+        })
+        .collect()
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = reference_edges)]
+#[diesel(check_for_backend(Sqlite))]
+struct ReferenceEdgeRow {
+    from_record_key: String,
+    to_record_key: String,
+    display_text: Option<String>,
+    reference_text: String,
+    source_kind: String,
+    visibility: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = record_aliases)]
+#[diesel(check_for_backend(Sqlite))]
+struct RecordAliasRow {
+    canonical_record_key: String,
+    alias_text: String,
+    normalized_alias: String,
+    source_kind: String,
+    source_ref: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = remaster_links)]
+#[diesel(check_for_backend(Sqlite))]
+struct RemasterLinkRow {
+    remaster_record_key: String,
+    legacy_record_key: String,
+    source_kind: String,
+    source_ref: String,
 }

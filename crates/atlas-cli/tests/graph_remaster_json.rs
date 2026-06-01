@@ -5,14 +5,14 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
 use support::graph::insert_remaster_link;
 
 #[test]
 fn graph_remaster_json_returns_legacy_and_remaster_links() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-graph-remaster");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_remaster_link(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -40,7 +40,7 @@ fn graph_remaster_json_returns_legacy_and_remaster_links() -> Result<(), Box<dyn
 #[test]
 fn graph_remaster_json_resolves_record_names() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-remaster-name");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_remaster_link(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -62,7 +62,7 @@ fn graph_remaster_json_resolves_record_names() -> Result<(), Box<dyn std::error:
 #[test]
 fn graph_remaster_json_reports_missing_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-remaster-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "remaster", "actions:missing", "--index"])
@@ -83,7 +83,7 @@ fn graph_remaster_json_reports_missing_seed() -> Result<(), Box<dyn std::error::
 fn graph_remaster_json_supports_remaster_seed_direction() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-graph-remaster-reverse");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_remaster_link(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -110,7 +110,7 @@ fn graph_remaster_json_supports_remaster_seed_direction() -> Result<(), Box<dyn 
 fn graph_remaster_json_returns_empty_links_for_existing_record()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-remaster-empty");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "remaster", "actions:testAction3", "--index"])

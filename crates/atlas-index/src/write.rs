@@ -13,6 +13,12 @@ pub enum IndexWriteError {
     WriteFailed(String),
 }
 
+impl From<diesel::result::Error> for IndexWriteError {
+    fn from(error: diesel::result::Error) -> Self {
+        Self::WriteFailed(error.to_string())
+    }
+}
+
 pub trait IndexArtifactWriter {
     fn label(&self) -> &'static str;
     fn output_path(&self) -> &Path;

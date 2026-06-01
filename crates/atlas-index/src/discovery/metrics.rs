@@ -1,13 +1,16 @@
+use crate::sqlite::raw_sql::SqlBindValue;
 use atlas_domain::{
     BooleanFieldCounts, FilterDiscoveryExecution, FilterValueCount, FilterValueDiscovery,
     FilterValuePayload, MetricDomain, MetricKeyDiscovery, MetricValuePayload, NumericFieldStats,
     RecordFamily, SearchFilterNode,
 };
 use atlas_record::{MetricRow, MetricValue, definition_for, label_for_row};
-use rusqlite::types::{Type, Value};
-use rusqlite::{Connection, OptionalExtension, params, params_from_iter};
+use diesel::OptionalExtension;
+use diesel::sql_types::{BigInt, Double, Nullable, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::compile_eligible_records_query;
+use crate::filters::SqliteEligibleRecordKeyset;
+use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 use super::error::{DiscoveryError, query_error};
 use super::request::FilterValueRequest;
@@ -22,7 +25,7 @@ use query::{
 pub(super) use resolution::resolve_filter_metrics;
 
 pub(super) fn values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     request: FilterValueRequest,
 ) -> Result<FilterValueDiscovery, DiscoveryError> {
@@ -109,7 +112,7 @@ pub(super) fn values(
 }
 
 pub(super) fn metric_key_count(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     prefix: Option<&str>,
     label_query: Option<&str>,
@@ -128,58 +131,55 @@ pub(super) fn metric_key_count(
 }
 
 fn metric_keys(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     prefix: Option<&str>,
     label_query: Option<&str>,
     metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    let mut predicates = Vec::new();
-    if let Some(prefix) = prefix {
-        parameters.push(Value::Text(format!("{prefix}%")));
-        predicates.push(format!("rm.metric_key LIKE ?{}", parameters.len()));
-    }
-    if let Some(domain) = domain {
-        parameters.push(Value::Text(domain.to_string()));
-        predicates.push(format!("rm.metric_domain = ?{}", parameters.len()));
-    }
-    let where_extra = if predicates.is_empty() {
-        String::new()
-    } else {
-        format!(" AND {}", predicates.join(" AND "))
-    };
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.metric_domain, r.record_family, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+        |builder| {
+            let mut predicates = Vec::new();
+            if let Some(prefix) = prefix {
+                let placeholder = builder.push_text(format!("{prefix}%"));
+                predicates.push(format!("rm.metric_key LIKE {placeholder}"));
+            }
+            if let Some(domain) = domain {
+                let placeholder = builder.push_text(domain);
+                predicates.push(format!("rm.metric_domain = {placeholder}"));
+            }
+            let where_extra = if predicates.is_empty() {
+                String::new()
+            } else {
+                format!(" AND {}", predicates.join(" AND "))
+            };
+            format!(
+                "SELECT rm.metric_domain, r.record_family, rm.metric_key, rm.value_type, COUNT(*) AS catalog_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
          JOIN records r ON r.record_key = rm.record_key
          WHERE 1 = 1 {where_extra}
          GROUP BY rm.metric_domain, r.record_family, rm.metric_key, rm.value_type
          ORDER BY rm.metric_key ASC, r.record_family ASC",
-        eligible = eligible.sql,
-    );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    let rows = statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            metric_key_from_parts(
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                None,
             )
-        })
+        },
+    );
+    let rows = bind_sql_query(query.sql, &query.parameters)
+        .load::<MetricKeyRow>(connection)
         .map_err(query_error)?;
     let label_query = label_query.map(normalize_metric_label);
     let metric_query = metric_query.map(metric_query_tokens);
     let mut metrics = Vec::new();
     for row in rows {
-        let metric = row.map_err(query_error)?;
+        let metric = metric_key_from_parts(
+            row.metric_domain,
+            row.record_family,
+            row.metric_key,
+            row.value_type,
+            row.catalog_count as u64,
+            None,
+        )?;
         if let Some(query) = &label_query {
             let label = metric.label.as_deref().unwrap_or("");
             let haystack = format!(
@@ -202,7 +202,7 @@ fn metric_keys(
 }
 
 fn resolve_metric(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     value: &str,
     domain: Option<&str>,
@@ -265,7 +265,7 @@ fn metric_candidates(metrics: &[MetricKeyDiscovery]) -> String {
 }
 
 fn metric_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     catalog_scope: Option<MetricCatalogScope>,
     metric: &MetricKeyDiscovery,
@@ -281,7 +281,7 @@ fn metric_values(
 }
 
 fn metric_text_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     catalog_scope: Option<MetricCatalogScope>,
     metric: &MetricKeyDiscovery,
@@ -289,42 +289,32 @@ fn metric_text_values(
     if let Some(scope) = catalog_scope {
         return catalog_metric_text_values(connection, scope, metric);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(Value::Text(metric.metric_domain.clone()));
-    parameters.push(Value::Text(metric.metric_key.clone()));
-    parameters.push(Value::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.text_value, COUNT(*)
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT rm.text_value AS value, COUNT(*) AS catalog_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}
            AND rm.text_value IS NOT NULL
          GROUP BY rm.text_value
          ORDER BY COUNT(*) DESC, rm.text_value ASC",
-        eligible = eligible.sql,
-    );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            Ok(FilterValueCount {
-                value: row.get(0)?,
-                count: row.get(1)?,
-            })
-        })
-        .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
+        .load::<MetricValueCountRow>(connection)
         .map_err(query_error)
+        .map(filter_value_counts_from_rows)
 }
 
 fn metric_boolean_counts(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     catalog_scope: Option<MetricCatalogScope>,
     metric: &MetricKeyDiscovery,
@@ -332,40 +322,36 @@ fn metric_boolean_counts(
     if let Some(scope) = catalog_scope {
         return catalog_metric_boolean_counts(connection, scope, metric);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(Value::Text(metric.metric_domain.clone()));
-    parameters.push(Value::Text(metric.metric_key.clone()));
-    parameters.push(Value::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT
-           SUM(CASE WHEN rm.bool_value = 1 THEN 1 ELSE 0 END),
-           SUM(CASE WHEN rm.bool_value = 0 THEN 1 ELSE 0 END),
-           (SELECT COUNT(*) FROM eligible) - COUNT(rm.bool_value)
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT
+           SUM(CASE WHEN rm.bool_value = 1 THEN 1 ELSE 0 END) AS true_count,
+           SUM(CASE WHEN rm.bool_value = 0 THEN 1 ELSE 0 END) AS false_count,
+           (SELECT COUNT(*) FROM eligible) - COUNT(rm.bool_value) AS null_count
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}",
-        eligible = eligible.sql,
-    );
-    connection
-        .query_row(&sql, params_from_iter(parameters.iter()), |row| {
-            Ok(BooleanFieldCounts {
-                r#true: row.get::<_, Option<u64>>(0)?.unwrap_or(0),
-                r#false: row.get::<_, Option<u64>>(1)?.unwrap_or(0),
-                null: row.get::<_, Option<u64>>(2)?.unwrap_or(0),
-            })
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}",
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
+        .get_result::<BooleanCountsRow>(connection)
+        .map(|row| BooleanFieldCounts {
+            r#true: row.true_count.unwrap_or(0) as u64,
+            r#false: row.false_count.unwrap_or(0) as u64,
+            null: row.null_count.unwrap_or(0) as u64,
         })
         .map_err(query_error)
 }
 
 fn metric_numeric_stats(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
     catalog_scope: Option<MetricCatalogScope>,
     metric: &MetricKeyDiscovery,
@@ -375,34 +361,29 @@ fn metric_numeric_stats(
     {
         return Ok(stats);
     }
-    let eligible = compile_eligible_records_query(filter)?;
-    let mut parameters = eligible.parameters;
-    parameters.push(Value::Text(metric.metric_domain.clone()));
-    parameters.push(Value::Text(metric.metric_key.clone()));
-    parameters.push(Value::Text(metric.value_type.clone()));
-    let domain_index = parameters.len() - 2;
-    let key_index = parameters.len() - 1;
-    let value_type_index = parameters.len();
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible})
-         SELECT rm.number_value
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|builder| {
+            let domain_placeholder = builder.push_text(metric.metric_domain.clone());
+            let key_placeholder = builder.push_text(metric.metric_key.clone());
+            let value_type_placeholder = builder.push_text(metric.value_type.clone());
+            format!(
+                "SELECT rm.number_value AS number_value
          FROM record_metrics rm
          JOIN eligible e ON e.record_key = rm.record_key
-         WHERE rm.metric_domain = ?{domain_index}
-           AND rm.metric_key = ?{key_index}
-           AND rm.value_type = ?{value_type_index}
+         WHERE rm.metric_domain = {domain_placeholder}
+           AND rm.metric_key = {key_placeholder}
+           AND rm.value_type = {value_type_placeholder}
            AND rm.number_value IS NOT NULL
          ORDER BY rm.number_value ASC",
-        eligible = eligible.sql,
-    );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    let values = statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            row.get::<_, f64>(0)
-        })
+            )
+        });
+    let values = bind_sql_query(query.sql, &query.parameters)
+        .load::<MetricNumericValueRow>(connection)
         .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)?;
+        .into_iter()
+        .map(|row| row.number_value)
+        .collect::<Vec<_>>();
     let matching_record_count = super::dynamic::count_matching_records(connection, filter)?;
     Ok(stats::numeric_stats_from_values(
         &values,
@@ -411,7 +392,7 @@ fn metric_numeric_stats(
 }
 
 pub(super) fn catalog_metric_keys(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: MetricCatalogScope,
     prefix: Option<&str>,
     label_query: Option<&str>,
@@ -419,9 +400,10 @@ pub(super) fn catalog_metric_keys(
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
     let mut sql = String::from(
-        "SELECT mk.metric_domain, COALESCE(mk.record_family, 'all'), mk.metric_key, mk.value_type,
-                mk.catalog_count, ns.catalog_count, ns.null_count, ns.min, ns.p05,
-                ns.p25, ns.p50, ns.mean, ns.p75, ns.p95, ns.max
+        "SELECT mk.metric_domain, COALESCE(mk.record_family, 'all') AS record_family,
+                mk.metric_key, mk.value_type, mk.catalog_count,
+                ns.catalog_count AS ns_catalog_count, ns.null_count AS ns_null_count,
+                ns.min, ns.p05, ns.p25, ns.p50, ns.mean, ns.p75, ns.p95, ns.max
          FROM metric_key_catalog mk
          LEFT JOIN filter_numeric_catalog ns
            ON ns.field = 'metric'
@@ -434,48 +416,41 @@ pub(super) fn catalog_metric_keys(
     let mut parameters = Vec::new();
     push_catalog_scope_predicate(&mut sql, &mut parameters, "mk.record_family", scope);
     if let Some(prefix) = prefix {
-        parameters.push(Value::Text(format!("{prefix}%")));
+        parameters.push(SqlBindValue::Text(format!("{prefix}%")));
         sql.push_str(&format!(" AND mk.metric_key LIKE ?{}", parameters.len()));
     }
     if let Some(domain) = domain {
-        parameters.push(Value::Text(domain.to_string()));
+        parameters.push(SqlBindValue::Text(domain.to_string()));
         sql.push_str(&format!(" AND mk.metric_domain = ?{}", parameters.len()));
     }
     sql.push_str(" ORDER BY mk.metric_key ASC, mk.record_family ASC");
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    let rows = statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            let numeric_stats = if let Some(count) = row.get::<_, Option<u64>>(5)? {
-                Some(NumericFieldStats {
-                    count,
-                    null_count: row.get(6)?,
-                    min: row.get(7)?,
-                    p05: row.get(8)?,
-                    p25: row.get(9)?,
-                    p50: row.get(10)?,
-                    mean: row.get(11)?,
-                    p75: row.get(12)?,
-                    p95: row.get(13)?,
-                    max: row.get(14)?,
-                })
-            } else {
-                None
-            };
-            metric_key_from_parts(
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                numeric_stats,
-            )
-        })
+    let rows = bind_sql_query(sql, &parameters)
+        .load::<CatalogMetricKeyRow>(connection)
         .map_err(query_error)?;
     let label_query = label_query.map(normalize_metric_label);
     let metric_query = metric_query.map(metric_query_tokens);
     let mut metrics = Vec::new();
     for row in rows {
-        let metric = row.map_err(query_error)?;
+        let numeric_stats = row.ns_catalog_count.map(|count| NumericFieldStats {
+            count: count as u64,
+            null_count: row.ns_null_count.unwrap_or(0) as u64,
+            min: row.min,
+            p05: row.p05,
+            p25: row.p25,
+            p50: row.p50,
+            mean: row.mean,
+            p75: row.p75,
+            p95: row.p95,
+            max: row.max,
+        });
+        let metric = metric_key_from_parts(
+            row.metric_domain,
+            row.record_family,
+            row.metric_key,
+            row.value_type,
+            row.catalog_count as u64,
+            numeric_stats,
+        )?;
         if let Some(query) = &label_query {
             let label = metric.label.as_deref().unwrap_or("");
             let haystack = format!(
@@ -498,7 +473,7 @@ pub(super) fn catalog_metric_keys(
 }
 
 fn catalog_metric_numeric_stats(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: MetricCatalogScope,
     metric: &MetricKeyDiscovery,
 ) -> Result<Option<NumericFieldStats>, DiscoveryError> {
@@ -509,22 +484,19 @@ fn catalog_metric_numeric_stats(
     );
     let mut parameters = Vec::new();
     push_catalog_scope_predicate(&mut sql, &mut parameters, "record_family", scope);
-    parameters.push(Value::Text(metric.metric_domain.clone()));
+    parameters.push(SqlBindValue::Text(metric.metric_domain.clone()));
     sql.push_str(&format!(" AND metric_domain = ?{}", parameters.len()));
-    parameters.push(Value::Text(metric.metric_key.clone()));
+    parameters.push(SqlBindValue::Text(metric.metric_key.clone()));
     sql.push_str(&format!(" AND metric_key = ?{}", parameters.len()));
-    connection
-        .query_row(
-            &sql,
-            params_from_iter(parameters.iter()),
-            stats::numeric_stats_from_row,
-        )
+    bind_sql_query(sql, &parameters)
+        .get_result::<MetricNumericStatsRow>(connection)
         .optional()
         .map_err(query_error)
+        .map(|row| row.map(metric_numeric_stats_from_row))
 }
 
 fn catalog_metric_text_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: MetricCatalogScope,
     metric: &MetricKeyDiscovery,
 ) -> Result<Vec<FilterValueCount>, DiscoveryError> {
@@ -535,26 +507,19 @@ fn catalog_metric_text_values(
            AND metric_key = ?2",
     );
     let mut parameters = vec![
-        Value::Text(metric.metric_domain.clone()),
-        Value::Text(metric.metric_key.clone()),
+        SqlBindValue::Text(metric.metric_domain.clone()),
+        SqlBindValue::Text(metric.metric_key.clone()),
     ];
     push_catalog_scope_predicate(&mut sql, &mut parameters, "record_family", scope);
     sql.push_str(" ORDER BY catalog_count DESC, value ASC");
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    statement
-        .query_map(params_from_iter(parameters.iter()), |row| {
-            Ok(FilterValueCount {
-                value: row.get(0)?,
-                count: row.get(1)?,
-            })
-        })
-        .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
+    bind_sql_query(sql, &parameters)
+        .load::<MetricValueCountRow>(connection)
         .map_err(query_error)
+        .map(filter_value_counts_from_rows)
 }
 
 fn catalog_metric_boolean_counts(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: MetricCatalogScope,
     metric: &MetricKeyDiscovery,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
@@ -584,7 +549,7 @@ fn metric_key_from_parts(
     value_type: String,
     count: u64,
     numeric_stats: Option<NumericFieldStats>,
-) -> rusqlite::Result<MetricKeyDiscovery> {
+) -> Result<MetricKeyDiscovery, DiscoveryError> {
     let metric_value = match value_type.as_str() {
         "number" => MetricValue::Number(0.0),
         "boolean" => MetricValue::Boolean(false),
@@ -633,38 +598,39 @@ fn metric_catalog_scope(filter: Option<&SearchFilterNode>) -> Option<MetricCatal
 
 fn push_catalog_scope_predicate(
     sql: &mut String,
-    parameters: &mut Vec<Value>,
+    parameters: &mut Vec<SqlBindValue>,
     column: &str,
     scope: MetricCatalogScope,
 ) {
     match scope {
         MetricCatalogScope::Global => sql.push_str(&format!(" AND {column} IS NULL")),
         MetricCatalogScope::Family(family) => {
-            parameters.push(Value::Text(record_family_string(family)));
+            parameters.push(SqlBindValue::Text(record_family_string(family)));
             sql.push_str(&format!(" AND {column} = ?{}", parameters.len()));
         }
     }
 }
 
 fn matching_count_for_catalog_scope(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     scope: MetricCatalogScope,
 ) -> Result<u64, DiscoveryError> {
     match scope {
-        MetricCatalogScope::Global => connection
-            .query_row(
-                "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(query_error),
-        MetricCatalogScope::Family(family) => connection
-            .query_row(
-                "SELECT COUNT(*) FROM records WHERE is_default_visible = 1 AND record_family = ?1",
-                params![record_family_string(family)],
-                |row| row.get(0),
-            )
-            .map_err(query_error),
+        MetricCatalogScope::Global => bind_sql_query(
+            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1".to_string(),
+            &[],
+        )
+        .get_result::<CountRow>(connection)
+        .map(|row| row.count as u64)
+        .map_err(query_error),
+        MetricCatalogScope::Family(family) => bind_sql_query(
+            "SELECT COUNT(*) AS count FROM records WHERE is_default_visible = 1 AND record_family = ?1"
+                .to_string(),
+            &[SqlBindValue::Text(record_family_string(family))],
+        )
+        .get_result::<CountRow>(connection)
+        .map(|row| row.count as u64)
+        .map_err(query_error),
     }
 }
 
@@ -675,19 +641,131 @@ fn record_family_string(value: RecordFamily) -> String {
         .unwrap_or_else(|| format!("{value:?}").to_lowercase())
 }
 
-fn parse_metric_domain(value: &str) -> rusqlite::Result<MetricDomain> {
-    MetricDomain::from_canonical(value).ok_or_else(|| {
-        rusqlite::Error::FromSqlConversionFailure(
-            0,
-            Type::Text,
-            Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("unknown metric domain `{value}`"),
-            )),
-        )
-    })
+fn parse_metric_domain(value: &str) -> Result<MetricDomain, DiscoveryError> {
+    MetricDomain::from_canonical(value)
+        .ok_or_else(|| DiscoveryError::QueryFailed(format!("unknown metric domain `{value}`")))
 }
 
 fn metric_domain_string(value: MetricDomain) -> String {
     value.as_str().to_string()
+}
+
+fn filter_value_counts_from_rows(rows: Vec<MetricValueCountRow>) -> Vec<FilterValueCount> {
+    rows.into_iter()
+        .map(|row| FilterValueCount {
+            value: row.value,
+            count: row.catalog_count as u64,
+        })
+        .collect()
+}
+
+fn metric_numeric_stats_from_row(row: MetricNumericStatsRow) -> NumericFieldStats {
+    NumericFieldStats {
+        count: row.catalog_count as u64,
+        null_count: row.null_count as u64,
+        min: row.min,
+        p05: row.p05,
+        p25: row.p25,
+        p50: row.p50,
+        mean: row.mean,
+        p75: row.p75,
+        p95: row.p95,
+        max: row.max,
+    }
+}
+
+#[derive(QueryableByName)]
+struct MetricKeyRow {
+    #[diesel(sql_type = Text)]
+    metric_domain: String,
+    #[diesel(sql_type = Text)]
+    record_family: String,
+    #[diesel(sql_type = Text)]
+    metric_key: String,
+    #[diesel(sql_type = Text)]
+    value_type: String,
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+}
+
+#[derive(QueryableByName)]
+struct CatalogMetricKeyRow {
+    #[diesel(sql_type = Text)]
+    metric_domain: String,
+    #[diesel(sql_type = Text)]
+    record_family: String,
+    #[diesel(sql_type = Text)]
+    metric_key: String,
+    #[diesel(sql_type = Text)]
+    value_type: String,
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    ns_catalog_count: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    ns_null_count: Option<i64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    min: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p05: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p25: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p50: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    mean: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p75: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p95: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    max: Option<f64>,
+}
+
+#[derive(QueryableByName)]
+struct MetricValueCountRow {
+    #[diesel(sql_type = Text)]
+    value: String,
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+}
+
+#[derive(QueryableByName)]
+struct BooleanCountsRow {
+    #[diesel(sql_type = Nullable<BigInt>)]
+    true_count: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    false_count: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    null_count: Option<i64>,
+}
+
+#[derive(QueryableByName)]
+struct MetricNumericValueRow {
+    #[diesel(sql_type = Double)]
+    number_value: f64,
+}
+
+#[derive(QueryableByName)]
+struct MetricNumericStatsRow {
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+    #[diesel(sql_type = BigInt)]
+    null_count: i64,
+    #[diesel(sql_type = Nullable<Double>)]
+    min: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p05: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p25: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p50: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    mean: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p75: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    p95: Option<f64>,
+    #[diesel(sql_type = Nullable<Double>)]
+    max: Option<f64>,
 }

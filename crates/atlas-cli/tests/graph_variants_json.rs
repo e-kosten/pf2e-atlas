@@ -5,13 +5,13 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_contract_database, ok_data, temp_db_path};
+use support::db::{create_valid_artifact_database, ok_data, temp_db_path};
 use support::graph::{insert_second_variant_group, insert_variant_group};
 
 #[test]
 fn graph_variants_json_returns_group_siblings() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-variants");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_variant_group(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -41,7 +41,7 @@ fn graph_variants_json_returns_group_siblings() -> Result<(), Box<dyn std::error
 #[test]
 fn graph_variants_json_resolves_variant_base_name() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-variant-base");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_variant_group(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -67,7 +67,7 @@ fn graph_variants_json_resolves_variant_base_name() -> Result<(), Box<dyn std::e
 #[test]
 fn graph_variants_json_reports_ambiguous_base_name() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-variant-ambiguous");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     insert_variant_group(&path)?;
     insert_second_variant_group(&path)?;
 
@@ -90,7 +90,7 @@ fn graph_variants_json_reports_ambiguous_base_name() -> Result<(), Box<dyn std::
 fn graph_variants_json_returns_empty_group_for_non_variant_record()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-variant-non-variant");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "variants", "actions:testAction1", "--index"])
@@ -122,7 +122,7 @@ fn graph_variants_json_returns_empty_group_for_non_variant_record()
 #[test]
 fn graph_variants_json_reports_missing_seed() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("cli-graph-variant-missing");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "variants", "actions:missing", "--index"])
@@ -143,7 +143,7 @@ fn graph_variants_json_reports_missing_seed() -> Result<(), Box<dyn std::error::
 fn graph_variants_json_reports_unresolved_base_name_miss() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-graph-variant-miss");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
 
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["graph", "variants", "Not Present", "--index"])

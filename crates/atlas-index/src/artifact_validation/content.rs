@@ -2,8 +2,8 @@ use atlas_record::ContentDocument;
 use rusqlite::Connection;
 
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 pub(super) fn validate_content_json(
@@ -52,8 +52,8 @@ pub(super) fn validate_content_json(
     }
 
     if invalid > 0 {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Data,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Data,
             "content JSON must deserialize as ContentDocument".to_string(),
             Some("content:json".to_string()),
             Some("valid ContentDocument JSON".to_string()),

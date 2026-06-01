@@ -2,7 +2,7 @@
 
 `atlas-cli` owns the command-line surface for the Rust runtime.
 
-This crate should stay thin: it parses arguments, routes commands, formats text or JSON output, reports progress, and chooses exit codes. Durable behavior belongs in the runtime, search, index, ingest, record, embedding, or artifact crate that owns the underlying concern.
+This crate should stay thin: it parses arguments, routes commands, formats text or JSON output, reports progress, and chooses exit codes. Durable behavior belongs in the runtime, search, index, ingest, record, or embedding crate that owns the underlying concern.
 
 ## Owns
 

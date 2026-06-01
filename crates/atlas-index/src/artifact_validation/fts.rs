@@ -1,10 +1,10 @@
-use atlas_artifact::schema::TABLE_RECORDS_FTS;
+use crate::schema_inventory::TABLE_RECORDS_FTS;
 use rusqlite::Connection;
 
 use crate::sql::{count_rows, count_sql};
 use crate::{
-    ArtifactContractFamily, ArtifactValidationDiagnostic, IndexValidationError,
-    contract::contract_diagnostic,
+    ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
+    artifact_validation::artifact_validation_diagnostic,
 };
 
 pub(super) fn validate_fts_coverage(
@@ -17,8 +17,8 @@ pub(super) fn validate_fts_coverage(
         "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
     )?;
     if fts_rows != default_visible_records {
-        diagnostics.push(contract_diagnostic(
-            ArtifactContractFamily::Fts,
+        diagnostics.push(artifact_validation_diagnostic(
+            ArtifactValidationFamily::Fts,
             "FTS row count must match default-visible record count".to_string(),
             Some("records_fts:default_visible_count".to_string()),
             Some(default_visible_records.to_string()),
@@ -54,8 +54,8 @@ pub(super) fn validate_fts_coverage(
     ] {
         let invalid = count_sql(connection, sql)?;
         if invalid > 0 {
-            diagnostics.push(contract_diagnostic(
-                ArtifactContractFamily::Fts,
+            diagnostics.push(artifact_validation_diagnostic(
+                ArtifactValidationFamily::Fts,
                 format!("FTS coverage check `{key}` failed"),
                 Some(key.to_string()),
                 Some(expected.to_string()),

@@ -37,23 +37,6 @@ pub(super) fn numeric_stats_from_values(
     }
 }
 
-pub(super) fn numeric_stats_from_row(
-    row: &rusqlite::Row<'_>,
-) -> rusqlite::Result<NumericFieldStats> {
-    Ok(NumericFieldStats {
-        count: row.get(0)?,
-        null_count: row.get(1)?,
-        min: row.get(2)?,
-        p05: row.get(3)?,
-        p25: row.get(4)?,
-        p50: row.get(5)?,
-        mean: row.get(6)?,
-        p75: row.get(7)?,
-        p95: row.get(8)?,
-        max: row.get(9)?,
-    })
-}
-
 pub(super) fn sample_example(value: &FilterValueCount) -> FilterSampleExample {
     let (text, truncated) = truncate_sample_text(&value.value);
     FilterSampleExample {

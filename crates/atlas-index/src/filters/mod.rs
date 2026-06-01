@@ -3,17 +3,16 @@ mod error;
 mod metadata;
 mod metrics;
 mod operators;
-mod query;
 mod relationships;
 mod sql_render;
+mod sqlite_keyset;
 
 use compiler::FilterCompiler;
 
 pub use error::FilterCompileError;
-#[cfg(test)]
-pub(crate) use query::EligibleRecordsQuery;
-pub(crate) use query::{
-    FilteredRecordKeysQuery, FilteredRecordSort, compile_eligible_records_query,
-    compile_filtered_record_keys_query,
-};
 pub(crate) use relationships::default_reference_edge_sql_predicate;
+#[cfg(test)]
+pub(crate) use sqlite_keyset::CompiledSqliteEligibleRecordKeyset;
+pub(crate) use sqlite_keyset::{
+    SqliteEligibleRecordKeyset, SqliteFilterSqlQuery, SqliteFilteredRecordSort,
+};

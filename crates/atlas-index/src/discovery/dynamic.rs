@@ -2,9 +2,11 @@ use atlas_domain::{
     BooleanFieldCounts, FilterFieldInfo, FilterSample, FilterValueCount, FilterValuePayload,
     FilterValuePolicy, SearchFilterNode,
 };
-use rusqlite::{Connection, params_from_iter};
+use diesel::sql_types::{BigInt, Bool, Double, Nullable, Text};
+use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::compile_eligible_records_query;
+use crate::filters::SqliteEligibleRecordKeyset;
+use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 use super::definitions::{FieldDefinition, all_definitions};
 use super::error::{DiscoveryError, query_error};
@@ -12,7 +14,7 @@ use super::request::{DiscoveryValueSort, FilterValueRequest};
 use super::stats;
 
 pub(super) fn fields(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<Vec<FilterFieldInfo>, DiscoveryError> {
     let mut fields = Vec::new();
@@ -25,7 +27,7 @@ pub(super) fn fields(
 }
 
 pub(super) fn values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
     request: &FilterValueRequest,
@@ -55,84 +57,82 @@ pub(super) fn values(
 }
 
 pub(super) fn count_matching_records(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({}) SELECT COUNT(*) FROM eligible",
-        eligible.sql
-    );
-    connection
-        .query_row(&sql, params_from_iter(eligible.parameters.iter()), |row| {
-            row.get(0)
-        })
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .count_query();
+    bind_sql_query(query.sql, &query.parameters)
+        .get_result::<CountRow>(connection)
+        .map(|row| row.count as u64)
         .map_err(query_error)
 }
 
 pub(super) fn field_applies(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<bool, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible}), field_values(record_key, value) AS ({values})
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|_| {
+            format!(
+                ", field_values(record_key, value) AS ({values})
          SELECT EXISTS (
            SELECT 1
            FROM field_values fv
            JOIN eligible e ON e.record_key = fv.record_key
            WHERE fv.value IS NOT NULL AND CAST(fv.value AS TEXT) <> ''
            LIMIT 1
-         )",
-        eligible = eligible.sql,
-        values = definition.value_sql,
-    );
-    connection
-        .query_row(&sql, params_from_iter(eligible.parameters.iter()), |row| {
-            row.get::<_, bool>(0)
-        })
+         ) AS value",
+                values = definition.value_sql,
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
+        .get_result::<BoolRow>(connection)
+        .map(|row| row.value)
         .map_err(query_error)
 }
 
 fn enumerable_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
     sort: DiscoveryValueSort,
 ) -> Result<(Vec<FilterValueCount>, u64), DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
     let order = match sort {
         DiscoveryValueSort::Alpha | DiscoveryValueSort::Canonical => "value ASC",
         DiscoveryValueSort::Count => "catalog_count DESC, value ASC",
     };
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible}), field_values(record_key, value) AS ({values})
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|_| {
+            format!(
+                ", field_values(record_key, value) AS ({values})
          SELECT value, COUNT(*) AS catalog_count
          FROM field_values fv
          JOIN eligible e ON e.record_key = fv.record_key
          WHERE value IS NOT NULL AND CAST(value AS TEXT) <> ''
          GROUP BY value
          ORDER BY {order}",
-        eligible = eligible.sql,
-        values = definition.value_sql,
-    );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    let values = statement
-        .query_map(params_from_iter(eligible.parameters.iter()), |row| {
-            Ok(FilterValueCount {
-                value: row.get(0)?,
-                count: row.get(1)?,
-            })
-        })
+                values = definition.value_sql,
+            )
+        });
+    let values = bind_sql_query(query.sql, &query.parameters)
+        .load::<FilterValueCountRow>(connection)
         .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)?;
+        .into_iter()
+        .map(|row| FilterValueCount {
+            value: row.value,
+            count: row.catalog_count as u64,
+        })
+        .collect::<Vec<_>>();
     Ok((values, null_count(connection, definition, filter)?))
 }
 
 fn sample_values(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
     request: &FilterValueRequest,
@@ -163,29 +163,29 @@ fn sample_values(
 }
 
 fn numeric_stats(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible}), field_values(record_key, value) AS ({values})
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|_| {
+            format!(
+                ", field_values(record_key, value) AS ({values})
          SELECT value
          FROM field_values fv
          JOIN eligible e ON e.record_key = fv.record_key
          WHERE value IS NOT NULL
          ORDER BY value ASC",
-        eligible = eligible.sql,
-        values = definition.value_sql,
-    );
-    let mut statement = connection.prepare(&sql).map_err(query_error)?;
-    let values = statement
-        .query_map(params_from_iter(eligible.parameters.iter()), |row| {
-            row.get::<_, f64>(0)
-        })
+                values = definition.value_sql,
+            )
+        });
+    let values = bind_sql_query(query.sql, &query.parameters)
+        .load::<NumericValueRow>(connection)
         .map_err(query_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(query_error)?;
+        .into_iter()
+        .map(|row| row.value)
+        .collect::<Vec<_>>();
     Ok(stats::numeric_stats_from_values(
         &values,
         count_matching_records(connection, filter)?,
@@ -193,53 +193,85 @@ fn numeric_stats(
 }
 
 fn boolean_counts(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible}), field_values(record_key, value) AS ({values})
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .with_eligible_cte(|_| {
+            format!(
+                ", field_values(record_key, value) AS ({values})
          SELECT
-           SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END),
-           SUM(CASE WHEN value = 0 THEN 1 ELSE 0 END),
-           (SELECT COUNT(*) FROM eligible) - COUNT(value)
+           SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END) AS true_count,
+           SUM(CASE WHEN value = 0 THEN 1 ELSE 0 END) AS false_count,
+           (SELECT COUNT(*) FROM eligible) - COUNT(value) AS null_count
          FROM field_values fv
          JOIN eligible e ON e.record_key = fv.record_key",
-        eligible = eligible.sql,
-        values = definition.value_sql,
-    );
-    connection
-        .query_row(&sql, params_from_iter(eligible.parameters.iter()), |row| {
-            Ok(BooleanFieldCounts {
-                r#true: row.get::<_, Option<u64>>(0)?.unwrap_or(0),
-                r#false: row.get::<_, Option<u64>>(1)?.unwrap_or(0),
-                null: row.get::<_, Option<u64>>(2)?.unwrap_or(0),
-            })
+                values = definition.value_sql,
+            )
+        });
+    bind_sql_query(query.sql, &query.parameters)
+        .get_result::<BooleanCountsRow>(connection)
+        .map(|row| BooleanFieldCounts {
+            r#true: row.true_count.unwrap_or(0) as u64,
+            r#false: row.false_count.unwrap_or(0) as u64,
+            null: row.null_count.unwrap_or(0) as u64,
         })
         .map_err(query_error)
 }
 
 fn null_count(
-    connection: &Connection,
+    connection: &mut SqliteConnection,
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, DiscoveryError> {
-    let eligible = compile_eligible_records_query(filter)?;
-    let sql = format!(
-        "WITH eligible(record_key) AS ({eligible}), field_values(record_key, value) AS ({values})
-         SELECT COUNT(*)
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+        |_| {
+            format!(
+                ", field_values(record_key, value) AS ({values})
+         SELECT COUNT(*) AS count
          FROM eligible e
          WHERE NOT EXISTS (
            SELECT 1 FROM field_values fv
            WHERE fv.record_key = e.record_key AND fv.value IS NOT NULL AND CAST(fv.value AS TEXT) <> ''
          )",
-        eligible = eligible.sql,
-        values = definition.value_sql,
+                values = definition.value_sql,
+            )
+        },
     );
-    connection
-        .query_row(&sql, params_from_iter(eligible.parameters.iter()), |row| {
-            row.get(0)
-        })
+    bind_sql_query(query.sql, &query.parameters)
+        .get_result::<CountRow>(connection)
+        .map(|row| row.count as u64)
         .map_err(query_error)
+}
+
+#[derive(QueryableByName)]
+struct BoolRow {
+    #[diesel(sql_type = Bool)]
+    value: bool,
+}
+
+#[derive(QueryableByName)]
+struct FilterValueCountRow {
+    #[diesel(sql_type = Text)]
+    value: String,
+    #[diesel(sql_type = BigInt)]
+    catalog_count: i64,
+}
+
+#[derive(QueryableByName)]
+struct NumericValueRow {
+    #[diesel(sql_type = Double)]
+    value: f64,
+}
+
+#[derive(QueryableByName)]
+struct BooleanCountsRow {
+    #[diesel(sql_type = Nullable<BigInt>)]
+    true_count: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    false_count: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    null_count: Option<i64>,
 }

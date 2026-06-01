@@ -50,11 +50,10 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-cli`: command parsing, JSON/text output, progress output, exit codes, and agent skill installation
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
 - `crates/atlas-search`: product-facing retrieval orchestration
-- `crates/atlas-index`: read-only artifact access, validation, row readers, filter compilation, and vector SQL
+- `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter compilation, and vector SQL
 - `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embeddings during builds, and SQLite artifact writing
 - `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic input rendering
 - `crates/atlas-record`: normalized records, content documents, presentation, FTS projection, and graph/reference policy
-- `crates/atlas-artifact`: physical SQLite table/column descriptors, contract constants, schema SQL, and vector blob encoding
 - `crates/atlas-discovery`: filter discovery field/value policy
 - `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
@@ -221,6 +220,8 @@ Tracked git hooks live in `.githooks/` and enforce:
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
 - `pre-merge-commit`: rerun Rust fmt, clippy, tests, and build for non-docs merge commits
 - `pre-push`: rerun Rust fmt, clippy, tests, and build
+
+When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 
 Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
 

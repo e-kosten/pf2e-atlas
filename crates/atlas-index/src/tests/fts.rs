@@ -1,4 +1,4 @@
-use super::{create_contract_database, temp_db_path};
+use super::{create_valid_artifact_database, temp_db_path};
 
 mod fixtures;
 mod query;

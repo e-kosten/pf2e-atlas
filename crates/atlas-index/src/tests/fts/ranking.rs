@@ -3,8 +3,8 @@ use std::fs;
 use rusqlite::Connection;
 
 use super::{
-    create_contract_database, record_key_strings, replace_fts_rows, replace_single_column_rows,
-    temp_db_path, weights_for_column,
+    create_valid_artifact_database, record_key_strings, replace_fts_rows,
+    replace_single_column_rows, temp_db_path, weights_for_column,
 };
 use crate::{FtsColumnWeights, FtsQuery, SqliteIndexReader};
 
@@ -12,7 +12,7 @@ use crate::{FtsColumnWeights, FtsQuery, SqliteIndexReader};
 fn weighted_ranking_prefers_title_matches_over_body_matches()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-weight-order");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -60,7 +60,7 @@ fn weighted_ranking_prefers_title_matches_over_body_matches()
 #[test]
 fn weighted_ranking_covers_structured_term_columns() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-structured-weight-order");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -168,7 +168,7 @@ fn weighted_ranking_covers_all_fts_columns() -> Result<(), Box<dyn std::error::E
 
     for (column, expected_key) in cases {
         let path = temp_db_path(&format!("fts-column-{column}"));
-        create_contract_database(&path)?;
+        create_valid_artifact_database(&path)?;
         let connection = Connection::open(&path)?;
         replace_single_column_rows(&connection, column)?;
         drop(connection);
@@ -190,7 +190,7 @@ fn weighted_ranking_covers_all_fts_columns() -> Result<(), Box<dyn std::error::E
 #[test]
 fn strict_conjunction_tier_ranks_before_or_fallback() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-strict-before-fallback");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -237,7 +237,7 @@ fn strict_conjunction_tier_ranks_before_or_fallback() -> Result<(), Box<dyn std:
 fn fallback_rows_are_deduped_and_truncated_after_strict_rows()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-fallback-dedupe-limit");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -279,7 +279,7 @@ fn fallback_rows_are_deduped_and_truncated_after_strict_rows()
 #[test]
 fn title_phrase_signals_rank_above_body_matches() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-title-phrase-rank");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -343,7 +343,7 @@ fn title_phrase_signals_rank_above_body_matches() -> Result<(), Box<dyn std::err
 fn token_coverage_signals_rank_high_value_matches_above_body_only_matches()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("fts-token-coverage-rank");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -403,7 +403,7 @@ fn token_coverage_signals_rank_high_value_matches_above_body_only_matches()
 fn partial_title_match_ranks_above_body_only_phrase_match() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("fts-partial-title-rank");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     replace_fts_rows(
         &connection,
@@ -467,7 +467,7 @@ fn partial_title_match_ranks_above_body_only_phrase_match() -> Result<(), Box<dy
 fn effect_records_are_downranked_below_canonical_records() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("fts-effect-downrank");
-    create_contract_database(&path)?;
+    create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE records
