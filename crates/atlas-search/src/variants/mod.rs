@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
+use atlas_index::{IndexVariantGroup, VariantReadIndex};
 use atlas_record::PersistedRecord;
 
 use crate::query::normalize_record_query;
@@ -50,10 +51,7 @@ impl VariantRetrieval for AtlasRetrievalService {
         else {
             return Ok(None);
         };
-        let group = self
-            .index
-            .variant_group_for_record(record_key)
-            .map_err(SearchError::from_record_load)?;
+        let group = variant_group_for_record(self.index.as_ref(), record_key)?;
         let (variant_group_key, variants) = group
             .map(|group| {
                 self.load_records_preserving_order(&group.record_keys)
@@ -73,9 +71,7 @@ impl VariantRetrieval for AtlasRetrievalService {
         request: VariantBaseNameRequest<'_>,
     ) -> Result<Vec<VariantGroupResult>, SearchError> {
         let normalized_base_name = normalize_record_query(request.base_name);
-        self.index
-            .variant_groups_by_base_name(&normalized_base_name)
-            .map_err(SearchError::from_record_load)?
+        variant_groups_by_base_name(self.index.as_ref(), &normalized_base_name)?
             .into_iter()
             .map(|group| {
                 let variants = self.load_records_preserving_order(&group.record_keys)?;
@@ -87,6 +83,30 @@ impl VariantRetrieval for AtlasRetrievalService {
             })
             .collect()
     }
+}
+
+fn variant_group_for_record<I>(
+    index: &I,
+    record_key: &RecordKey,
+) -> Result<Option<IndexVariantGroup>, SearchError>
+where
+    I: VariantReadIndex + ?Sized,
+{
+    index
+        .variant_group_for_record(record_key)
+        .map_err(SearchError::from_record_load)
+}
+
+fn variant_groups_by_base_name<I>(
+    index: &I,
+    normalized_base_name: &str,
+) -> Result<Vec<IndexVariantGroup>, SearchError>
+where
+    I: VariantReadIndex + ?Sized,
+{
+    index
+        .variant_groups_by_base_name(normalized_base_name)
+        .map_err(SearchError::from_record_load)
 }
 
 impl AtlasRetrievalService {
@@ -118,10 +138,11 @@ impl AtlasRetrievalService {
 mod tests {
     use atlas_domain::{PackName, PublicationFamily, RecordFamily, RecordKey};
     use atlas_index::{
-        FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsSearchHit,
-        GraphReadIndex, GraphReferenceEdge, IndexRemasterLinkRecord, IndexRemasterLinks,
-        IndexVariantGroup, RecordLoadError, ReferenceEdgeDirection, SearchIndex, VectorQueryError,
-        VectorSearchHit,
+        FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
+        FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinkRecord,
+        IndexRemasterLinks, IndexVariantGroup, RecordIdentityMatch, RecordLoadError,
+        RecordReadIndex, ReferenceEdgeDirection, ReferenceReadIndex, RemasterReadIndex,
+        VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
     };
     use atlas_record::PersistedRecordSet;
 
@@ -234,7 +255,7 @@ mod tests {
         }
     }
 
-    impl SearchIndex for FakeIndex {
+    impl RecordReadIndex for FakeIndex {
         fn load_records_by_key(
             &self,
             keys: &[RecordKey],
@@ -276,7 +297,20 @@ mod tests {
                 })
                 .collect())
         }
+    }
 
+    impl IdentityReadIndex for FakeIndex {
+        fn resolve_record_identity_matches(
+            &self,
+            _query: &str,
+            _normalized_query: &str,
+            _filter: Option<&atlas_domain::SearchFilterNode>,
+        ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+            Ok(Vec::new())
+        }
+    }
+
+    impl FilterReadIndex for FakeIndex {
         fn resolve_metric_filters(
             &self,
             _filter: Option<&atlas_domain::SearchFilterNode>,
@@ -300,7 +334,9 @@ mod tests {
                 total: self.records.len() as u64,
             })
         }
+    }
 
+    impl FtsReadIndex for FakeIndex {
         fn query_precision_fts_index(
             &self,
             _fts_query: &FtsQuery,
@@ -317,7 +353,9 @@ mod tests {
         ) -> Result<Vec<RecordKey>, FilterCompileError> {
             Ok(Vec::new())
         }
+    }
 
+    impl VectorReadIndex for FakeIndex {
         fn query_vector_index(
             &self,
             _query_vector: &[f32],
@@ -336,7 +374,7 @@ mod tests {
         }
     }
 
-    impl GraphReadIndex for FakeIndex {
+    impl ReferenceReadIndex for FakeIndex {
         fn reference_edges_for_seed(
             &self,
             _seed: &RecordKey,
@@ -344,7 +382,9 @@ mod tests {
         ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
             Ok(Vec::new())
         }
+    }
 
+    impl VariantReadIndex for FakeIndex {
         fn variant_group_for_record(
             &self,
             _seed: &RecordKey,
@@ -388,7 +428,9 @@ mod tests {
                     .collect(),
             }])
         }
+    }
 
+    impl RemasterReadIndex for FakeIndex {
         fn remaster_links_for_record(
             &self,
             seed: &RecordKey,

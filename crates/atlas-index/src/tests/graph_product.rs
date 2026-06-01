@@ -3,7 +3,7 @@ use std::fs;
 use atlas_domain::RecordKey;
 use rusqlite::Connection;
 
-use crate::{GraphReadIndex, ReferenceEdgeDirection, SqliteIndexReader};
+use crate::{ReferenceEdgeDirection, RemasterReadIndex, SqliteIndexReader, VariantReadIndex};
 
 use super::{create_valid_artifact_database, insert_reference_edge, temp_db_path};
 

@@ -1,35 +1,34 @@
 use atlas_domain::SearchFilterNode;
 use atlas_index::{
-    FilterCompileError, FilteredRecordSort, RecordIdentityMatch, RecordIdentityMatchKind,
-    RecordLoadError,
+    FilterCompileError, FilterReadIndex, FilteredRecordSort, IdentityReadIndex,
+    RecordIdentityMatch, RecordIdentityMatchKind, RecordLoadError, RecordReadIndex,
 };
 use atlas_record::{PersistedRecord, RecordAlias};
 
+use crate::SearchError;
 use crate::query::normalize_record_query;
-use crate::{AtlasRetrievalService, SearchError};
 
 use super::{RecordResolutionMatchKind, RecordResolutionResult};
 
-pub(crate) fn resolve_record(
-    service: &AtlasRetrievalService,
+pub(crate) fn resolve_record<I>(
+    index: &I,
     query: &str,
     filter: Option<&SearchFilterNode>,
-) -> Result<Vec<RecordResolutionResult>, SearchError> {
-    let resolved_filter = service
-        .index
+) -> Result<Vec<RecordResolutionResult>, SearchError>
+where
+    I: FilterReadIndex + IdentityReadIndex + RecordReadIndex + ?Sized,
+{
+    let resolved_filter = index
         .resolve_metric_filters(filter)
         .map_err(SearchError::from_filter)?;
     let filter = resolved_filter.as_ref().or(filter);
     let normalized_query = normalize_record_query(query);
-    if let Some(mut matches) =
-        service.resolve_record_with_index(query, &normalized_query, filter)?
-    {
-        service.enrich_resolution_reference_labels(&mut matches)?;
+    let matches = resolve_record_with_index(index, query, &normalized_query, filter)?;
+    if !matches.is_empty() {
         return Ok(matches);
     }
 
-    let mut record_set = service
-        .index
+    let mut record_set = index
         .load_record_set()
         .map_err(SearchError::from_record_load)?;
     record_set
@@ -44,8 +43,7 @@ pub(crate) fn resolve_record(
         .aliases
         .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
     if let Some(filter) = filter {
-        let allowed = service
-            .index
+        let allowed = index
             .list_filtered_record_keys(Some(filter), FilteredRecordSort::RecordKey, u32::MAX, 0)
             .map_err(SearchError::from_filter)?
             .record_keys
@@ -94,67 +92,62 @@ pub(crate) fn resolve_record(
         );
     }
 
-    service.enrich_resolution_reference_labels(&mut matches)?;
     Ok(matches)
 }
 
-impl AtlasRetrievalService {
-    fn resolve_record_with_index(
-        &self,
-        query: &str,
-        normalized_query: &str,
-        filter: Option<&SearchFilterNode>,
-    ) -> Result<Option<Vec<RecordResolutionResult>>, SearchError> {
-        let identity_matches =
-            match self
-                .index
-                .resolve_record_identity_matches(query, normalized_query, filter)
-            {
-                Ok(Some(matches)) => matches,
-                Ok(None) => return Ok(None),
-                Err(FilterCompileError::QueryFailed(message)) => {
-                    return Err(SearchError::from_record_load(RecordLoadError::QueryFailed(
-                        message,
-                    )));
-                }
-                Err(FilterCompileError::InvalidValue(message)) => {
-                    return Err(SearchError::from_record_load(RecordLoadError::InvalidData(
-                        message,
-                    )));
-                }
-                Err(error) => return Err(SearchError::from_filter(error)),
-            };
-        if identity_matches.is_empty() {
-            return Ok(Some(Vec::new()));
-        }
-
-        let record_keys = identity_matches
-            .iter()
-            .map(|identity| identity.record_key.clone())
-            .collect::<Vec<_>>();
-        let records = self
-            .index
-            .load_records_by_key(&record_keys)
-            .map_err(SearchError::from_record_load)?
-            .into_iter()
-            .map(|record| (record.key.clone(), record))
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let mut matches = identity_matches
-            .into_iter()
-            .filter_map(|identity| {
-                let record = records.get(&identity.record_key)?;
-                Some(resolution_result_from_identity(
-                    query,
-                    normalized_query,
-                    identity,
-                    record,
-                ))
-            })
-            .collect::<Vec<_>>();
-        matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
-        matches.dedup_by(|left, right| left.record.key == right.record.key);
-        Ok(Some(matches))
+fn resolve_record_with_index<I>(
+    index: &I,
+    query: &str,
+    normalized_query: &str,
+    filter: Option<&SearchFilterNode>,
+) -> Result<Vec<RecordResolutionResult>, SearchError>
+where
+    I: IdentityReadIndex + RecordReadIndex + ?Sized,
+{
+    let identity_matches =
+        match index.resolve_record_identity_matches(query, normalized_query, filter) {
+            Ok(matches) => matches,
+            Err(FilterCompileError::QueryFailed(message)) => {
+                return Err(SearchError::from_record_load(RecordLoadError::QueryFailed(
+                    message,
+                )));
+            }
+            Err(FilterCompileError::InvalidValue(message)) => {
+                return Err(SearchError::from_record_load(RecordLoadError::InvalidData(
+                    message,
+                )));
+            }
+            Err(error) => return Err(SearchError::from_filter(error)),
+        };
+    if identity_matches.is_empty() {
+        return Ok(Vec::new());
     }
+
+    let record_keys = identity_matches
+        .iter()
+        .map(|identity| identity.record_key.clone())
+        .collect::<Vec<_>>();
+    let records = index
+        .load_records_by_key(&record_keys)
+        .map_err(SearchError::from_record_load)?
+        .into_iter()
+        .map(|record| (record.key.clone(), record))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut matches = identity_matches
+        .into_iter()
+        .filter_map(|identity| {
+            let record = records.get(&identity.record_key)?;
+            Some(resolution_result_from_identity(
+                query,
+                normalized_query,
+                identity,
+                record,
+            ))
+        })
+        .collect::<Vec<_>>();
+    matches.sort_by(|left, right| left.record.key.cmp(&right.record.key));
+    matches.dedup_by(|left, right| left.record.key == right.record.key);
+    Ok(matches)
 }
 
 fn resolution_matches_for_kind(

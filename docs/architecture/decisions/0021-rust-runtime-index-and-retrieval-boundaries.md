@@ -23,11 +23,11 @@ Rust should keep the writer lifecycle separate from runtime artifact reads. `atl
 
 `atlas-runtime` owns runtime artifact location policy and surface composition. It is the single owner for deriving the default source checkout, SQLite artifact path, embedding model cache path, and any optional path overrides. CLI flags and future surface-specific configuration may supply overrides, but default resolution and readiness checks route through runtime types.
 
-`atlas-index` owns runtime index read/write boundaries. Runtime read interaction goes through focused read traits such as `SearchIndex`, with `SqliteIndexReader` as the SQLite implementation. Artifact construction goes through `IndexArtifactWriter`, with `SqliteIndexWriter` as the SQLite implementation. Runtime artifact operations such as base validation, inspection, record loading, record lookup primitives, filter-backed listing, lexical query primitives, vector validation, and vector query execution should remain behind the index read boundary rather than being opened directly by CLI or search code.
+`atlas-index` owns runtime index read/write boundaries. Runtime read interaction goes through focused read traits such as `RecordReadIndex`, `IdentityReadIndex`, `FilterReadIndex`, `FtsReadIndex`, `VectorReadIndex`, `ReferenceReadIndex`, `VariantReadIndex`, and `RemasterReadIndex`, with the composite `RetrievalReadIndex` bundle for consumers that legitimately need the full retrieval read surface. `SqliteIndexReader` is the SQLite implementation. Artifact construction goes through `IndexArtifactWriter`, with `SqliteIndexWriter` as the SQLite implementation. Runtime artifact operations such as base validation, inspection, record loading, record lookup primitives, filter-backed listing, lexical query primitives, vector validation, and vector query execution should remain behind the index read boundary rather than being opened directly by CLI or search code.
 
 Public path-based runtime operation helpers are not durable API. Passing a path to a concrete index reader constructor such as `SqliteIndexReader::open_*` is the correct boundary for opening an artifact. Passing paths to validation, inspection, search, or record-loading helpers that then open their own connections is a migration convenience that should be removed as the index boundary is consolidated.
 
-`atlas-search::AtlasRetrievalService` is the durable product-facing retrieval boundary. CLI and future TUI surfaces should route retrieval use cases through this service rather than constructing separate lookup, list, lexical, semantic, or hybrid services as peer public surfaces. The service owns retrieval orchestration and result assembly over crate-private index read seams and embedding components, while direct SQLite interaction remains inside `SqliteIndexReader`.
+`atlas-search::AtlasRetrievalService` is the durable product-facing retrieval boundary. CLI and future TUI surfaces should route retrieval use cases through this service rather than constructing separate lookup, list, lexical, semantic, or hybrid services as peer public surfaces. The service owns retrieval orchestration and result assembly over the index-owned `RetrievalReadIndex` capability bundle and embedding components, while direct SQLite interaction remains inside `SqliteIndexReader`.
 
 Consumers should depend on narrow `atlas-search` capability traits when they only need a subset of retrieval behavior: `RecordRetrieval`, `TextRetrieval`, `SemanticRetrieval`, `SimilarRetrieval`, `GraphRetrieval`, `VariantRetrieval`, and `RemasterRetrieval`. These traits expose search-owned request/result DTOs and keep index-owned rows, SQL details, vector errors, and filter compiler internals out of product callers.
 
@@ -50,7 +50,7 @@ The search crate should consolidate public retrieval behavior behind `AtlasRetri
 Architecture diagrams should show:
 
 - `atlas-runtime` owning runtime artifact locations and composition
-- `SqliteIndexReader` owning direct SQLite artifact reads behind `SearchIndex`
+- `SqliteIndexReader` owning direct SQLite artifact reads behind focused read traits and the `RetrievalReadIndex` bundle
 - `AtlasRetrievalService` owning retrieval orchestration
 - `atlas-embedding` owning embedding model behavior and vector unit preparation, not direct runtime database ownership
 - `atlas-ingest` owning build orchestration/build-input handoff

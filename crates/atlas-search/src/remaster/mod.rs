@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use atlas_domain::{RecordKey, RemasterLinkSource};
+use atlas_index::{IndexRemasterLinks, RemasterReadIndex};
 use atlas_record::PersistedRecord;
 
 use crate::{AtlasRetrievalService, GetRecordsRequest, RecordRetrieval, SearchError};
@@ -46,10 +47,7 @@ impl RemasterRetrieval for AtlasRetrievalService {
         else {
             return Ok(None);
         };
-        let links = self
-            .index
-            .remaster_links_for_record(record_key)
-            .map_err(SearchError::from_record_load)?
+        let links = remaster_links_for_record(self.index.as_ref(), record_key)?
             .map(|links| -> Result<_, SearchError> {
                 let record_keys = links
                     .links
@@ -107,4 +105,16 @@ impl RemasterRetrieval for AtlasRetrievalService {
             .unwrap_or_default();
         Ok(Some(RemasterLinksResult { seed, links }))
     }
+}
+
+fn remaster_links_for_record<I>(
+    index: &I,
+    record_key: &RecordKey,
+) -> Result<Option<IndexRemasterLinks>, SearchError>
+where
+    I: RemasterReadIndex + ?Sized,
+{
+    index
+        .remaster_links_for_record(record_key)
+        .map_err(SearchError::from_record_load)
 }

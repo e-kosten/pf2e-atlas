@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
+use atlas_index::RecordReadIndex;
 use atlas_record::{ContentDocument, PersistedRecord, visit_content_references_mut};
 
 use crate::text::TextSearchRecord;
@@ -13,61 +14,78 @@ impl AtlasRetrievalService {
         &self,
         records: &mut [PersistedRecord],
     ) -> Result<(), SearchError> {
-        self.enrich_reference_labels_for_items(records, persisted_record, persisted_record_mut)
+        enrich_reference_labels_for_items(
+            self.index.as_ref(),
+            records,
+            persisted_record,
+            persisted_record_mut,
+        )
     }
 
     pub(crate) fn enrich_resolution_reference_labels(
         &self,
         matches: &mut [RecordResolutionResult],
     ) -> Result<(), SearchError> {
-        self.enrich_reference_labels_for_items(matches, resolution_record, resolution_record_mut)
+        enrich_reference_labels_for_items(
+            self.index.as_ref(),
+            matches,
+            resolution_record,
+            resolution_record_mut,
+        )
     }
 
     pub(crate) fn enrich_text_record_reference_labels(
         &self,
         records: &mut [TextSearchRecord],
     ) -> Result<(), SearchError> {
-        self.enrich_reference_labels_for_items(records, text_record, text_record_mut)
+        enrich_reference_labels_for_items(
+            self.index.as_ref(),
+            records,
+            text_record,
+            text_record_mut,
+        )
+    }
+}
+
+fn enrich_reference_labels_for_items<I, T>(
+    index: &I,
+    items: &mut [T],
+    record: fn(&T) -> &PersistedRecord,
+    record_mut: fn(&mut T) -> &mut PersistedRecord,
+) -> Result<(), SearchError>
+where
+    I: RecordReadIndex + ?Sized,
+{
+    let mut target_keys = BTreeSet::new();
+    for item in items.iter() {
+        collect_reference_target_keys(record(item), &mut target_keys);
+    }
+    if target_keys.is_empty() {
+        return Ok(());
     }
 
-    fn enrich_reference_labels_for_items<T>(
-        &self,
-        items: &mut [T],
-        record: fn(&T) -> &PersistedRecord,
-        record_mut: fn(&mut T) -> &mut PersistedRecord,
-    ) -> Result<(), SearchError> {
-        let mut target_keys = BTreeSet::new();
-        for item in items.iter() {
-            collect_reference_target_keys(record(item), &mut target_keys);
-        }
-        if target_keys.is_empty() {
-            return Ok(());
-        }
+    let requested_keys = items
+        .iter()
+        .map(|item| record(item).key.clone())
+        .collect::<BTreeSet<_>>();
+    let keys_to_load = target_keys
+        .into_iter()
+        .filter(|key| !requested_keys.contains(key))
+        .collect::<Vec<_>>();
+    let loaded_targets = index
+        .load_records_by_key(&keys_to_load)
+        .map_err(SearchError::from_record_load)?;
+    let names_by_key = items
+        .iter()
+        .map(record)
+        .chain(loaded_targets.iter())
+        .map(|record| (record.key.clone(), record.name.clone()))
+        .collect::<BTreeMap<_, _>>();
 
-        let requested_keys = items
-            .iter()
-            .map(|item| record(item).key.clone())
-            .collect::<BTreeSet<_>>();
-        let keys_to_load = target_keys
-            .into_iter()
-            .filter(|key| !requested_keys.contains(key))
-            .collect::<Vec<_>>();
-        let loaded_targets = self
-            .index
-            .load_records_by_key(&keys_to_load)
-            .map_err(SearchError::from_record_load)?;
-        let names_by_key = items
-            .iter()
-            .map(record)
-            .chain(loaded_targets.iter())
-            .map(|record| (record.key.clone(), record.name.clone()))
-            .collect::<BTreeMap<_, _>>();
-
-        for item in items {
-            apply_reference_target_names(record_mut(item), &names_by_key);
-        }
-        Ok(())
+    for item in items {
+        apply_reference_target_names(record_mut(item), &names_by_key);
     }
+    Ok(())
 }
 
 fn persisted_record(record: &PersistedRecord) -> &PersistedRecord {
