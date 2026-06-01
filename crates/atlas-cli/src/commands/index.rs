@@ -9,7 +9,10 @@ use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntim
 use serde_json::Value;
 
 use crate::output::{format_duration_ms, write_json_data, write_validation_report};
-use crate::{
+
+pub(crate) mod args;
+
+use args::{
     AnalyzeIndexOptions, BuildIndexOptions, CheckIndexOptions, IndexPathOptions,
     ValidateIndexOptions,
 };

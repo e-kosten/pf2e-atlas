@@ -14,7 +14,10 @@ use tracing::info;
 
 use crate::output::{write_json_data, write_json_error};
 use crate::terminal::TerminalStyle;
-use crate::{CliFusionMethod, CliSearchSort, SearchOptions};
+
+pub(crate) mod args;
+
+use args::{CliFusionMethod, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
 use super::record::{detail_outputs_description, print_record_for_detail};

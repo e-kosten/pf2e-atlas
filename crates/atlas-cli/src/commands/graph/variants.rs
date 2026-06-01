@@ -1,9 +1,9 @@
 use std::process::ExitCode;
 
-use crate::GraphVariantsOptions;
 use crate::output::{write_json_data, write_json_error};
 
 use super::super::record::{open_record_service, record_runtime};
+use super::args::GraphVariantsOptions;
 use super::data::graph_variants_data;
 use super::render::print_graph_variants;
 use super::resolve::{GraphCommandOutcome, resolve_graph_variant_group};

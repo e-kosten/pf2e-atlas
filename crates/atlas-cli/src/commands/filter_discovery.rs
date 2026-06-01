@@ -9,8 +9,12 @@ use atlas_index::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::Value;
 
+use crate::cli::args::FilterOptions;
 use crate::output::{write_json_data, write_json_error};
-use crate::{CliFilterValueSort, FilterOptions, FiltersFieldsOptions, FiltersValuesOptions};
+
+pub(crate) mod args;
+
+use args::{CliFilterValueSort, FiltersFieldsOptions, FiltersValuesOptions};
 
 use super::filters::build_filter;
 

@@ -9,7 +9,10 @@ use serde::Serialize;
 
 use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
 use crate::terminal::TerminalStyle;
-use crate::{RecordGetOptions, RecordResolveOptions};
+
+pub(crate) mod args;
+
+use args::{RecordGetOptions, RecordResolveOptions};
 
 use super::filters::build_filter;
 

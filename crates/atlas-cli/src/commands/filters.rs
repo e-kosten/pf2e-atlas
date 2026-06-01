@@ -8,7 +8,7 @@ use atlas_domain::{
 };
 use serde_json::Value;
 
-use crate::FilterOptions;
+use crate::cli::args::FilterOptions;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CliFilterError {

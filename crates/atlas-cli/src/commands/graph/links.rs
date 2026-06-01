@@ -2,10 +2,10 @@ use std::process::ExitCode;
 
 use atlas_search::GraphContextRequest;
 
-use crate::GraphLinksOptions;
 use crate::output::{write_json_data, write_json_error};
 
 use super::super::record::{open_record_service, record_runtime, search_error, search_error_code};
+use super::args::GraphLinksOptions;
 use super::data::graph_links_data;
 use super::render::print_graph_links;
 use super::resolve::{GraphCommandOutcome, record_not_found, resolve_graph_record_ref};
