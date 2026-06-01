@@ -1,6 +1,6 @@
-use atlas_discovery::{DiscoveryFieldDefinition, all_discovery_field_definitions};
 use rusqlite::{Connection, params};
 
+use crate::discovery::definitions::{DiscoveryFieldDefinition, all_definitions};
 use crate::{ArtifactValidationDiagnostic, IndexValidationError, sql::count_sql};
 
 use super::{discovery_diagnostic, push_duplicate_diagnostic};
@@ -18,20 +18,21 @@ pub(super) fn validate_field_catalog(
          WHERE field <> 'metric'",
     )?;
     let mut mismatched = 0_u64;
-    for definition in all_discovery_field_definitions() {
-        let global_expected = field_observation_count(connection, definition.value_sql, None)?;
+    for definition in all_definitions() {
+        let value_sql = definition.value_sql();
+        let global_expected = field_observation_count(connection, &value_sql, None)?;
         if global_expected > 0 {
             missing += missing_field_row(connection, definition.field, None)?;
             stale = stale.saturating_sub(1);
-            mismatched += mismatched_field_row(connection, definition, None)?;
+            mismatched += mismatched_field_row(connection, definition, &value_sql, None)?;
         }
         for family in definition.applicable_families {
-            let family_expected =
-                field_observation_count(connection, definition.value_sql, Some(*family))?;
+            let family_expected = field_observation_count(connection, &value_sql, Some(*family))?;
             if family_expected > 0 {
                 missing += missing_field_row(connection, definition.field, Some(*family))?;
                 stale = stale.saturating_sub(1);
-                mismatched += mismatched_field_row(connection, definition, Some(*family))?;
+                mismatched +=
+                    mismatched_field_row(connection, definition, &value_sql, Some(*family))?;
             }
         }
     }
@@ -132,9 +133,10 @@ fn missing_field_row(
 fn mismatched_field_row(
     connection: &Connection,
     definition: &DiscoveryFieldDefinition,
+    value_sql: &str,
     family: Option<&str>,
 ) -> Result<u64, IndexValidationError> {
-    let stats = expected_field_stats(connection, definition.value_sql, family)?;
+    let stats = expected_field_stats(connection, value_sql, family)?;
     let operators_json = serde_json::to_string(definition.operators)
         .map_err(|error| IndexValidationError::InvalidArtifact(error.to_string()))?;
     let cli_flags_json = serde_json::to_string(definition.cli_flags)

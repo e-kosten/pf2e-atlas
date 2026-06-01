@@ -9,7 +9,7 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 
 ## Completed Baseline
 
-- [x] Rust workspace with `atlas-domain`, `atlas-record`, `atlas-discovery`, `atlas-ingest`, `atlas-index`, `atlas-embedding`, `atlas-search`, `atlas-runtime`, `atlas-cli`, and `atlas-sqlite-vec`.
+- [x] Rust workspace with `atlas-domain`, `atlas-record`, `atlas-ingest`, `atlas-index`, `atlas-embedding`, `atlas-search`, `atlas-runtime`, `atlas-cli`, and `atlas-sqlite-vec`.
 - [x] Pinned Rust toolchain and tracked `Cargo.lock`.
 - [x] Artifact contract `pf2e-atlas-artifact/v1`.
 - [x] Deep and fast artifact validation.

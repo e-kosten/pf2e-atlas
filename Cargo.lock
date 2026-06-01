@@ -113,15 +113,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atlas-discovery"
-version = "0.1.0"
-dependencies = [
- "atlas-domain",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "atlas-domain"
 version = "0.1.0"
 dependencies = [
@@ -149,7 +140,6 @@ dependencies = [
 name = "atlas-index"
 version = "0.1.0"
 dependencies = [
- "atlas-discovery",
  "atlas-domain",
  "atlas-embedding",
  "atlas-record",
@@ -166,7 +156,6 @@ dependencies = [
 name = "atlas-ingest"
 version = "0.1.0"
 dependencies = [
- "atlas-discovery",
  "atlas-domain",
  "atlas-embedding",
  "atlas-index",

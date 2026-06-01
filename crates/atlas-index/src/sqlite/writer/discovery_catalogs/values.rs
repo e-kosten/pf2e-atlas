@@ -4,11 +4,14 @@ use diesel::sql_types::{BigInt, Double, Nullable, Text};
 use diesel::{QueryableByName, SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
+use crate::discovery::definitions::{
+    DISCOVERY_ALL_FAMILIES as ALL_FAMILIES, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
+    DiscoveryFieldDefinition as FieldCatalogSeed,
+};
 
 use super::super::models::{
     FilterNumericCatalogRow, FilterSampleCatalogRow, FilterValueCatalogRow,
 };
-use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
 use super::fields::{count_to_i64, known_family, non_negative_u64};
 
 const SAMPLE_LIMIT: usize = 100;

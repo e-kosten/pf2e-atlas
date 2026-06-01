@@ -1,4 +1,3 @@
-mod field_seeds;
 mod fields;
 mod staging;
 mod stats;

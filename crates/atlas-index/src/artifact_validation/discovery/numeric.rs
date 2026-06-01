@@ -1,7 +1,7 @@
-use atlas_discovery::all_discovery_field_definitions;
 use atlas_domain::FilterValuePolicy;
 use rusqlite::{Connection, params};
 
+use crate::discovery::definitions::all_definitions;
 use crate::{ArtifactValidationDiagnostic, IndexValidationError, sql::count_sql};
 
 use super::{
@@ -45,12 +45,13 @@ fn validate_numeric_catalog_coverage(
 ) -> Result<(), IndexValidationError> {
     let mut missing = 0_u64;
     let mut stale = 0_u64;
-    for definition in all_discovery_field_definitions()
+    for definition in all_definitions()
         .iter()
         .filter(|definition| definition.value_policy == FilterValuePolicy::NumericStats)
     {
+        let value_sql = definition.value_sql();
         let (definition_missing, definition_stale) =
-            numeric_field_catalog_diff(connection, definition.field, definition.value_sql)?;
+            numeric_field_catalog_diff(connection, definition.field, &value_sql)?;
         missing += definition_missing;
         stale += definition_stale;
     }

@@ -1,7 +1,7 @@
-use atlas_discovery::all_discovery_field_definitions;
 use atlas_domain::FilterValuePolicy;
 use rusqlite::{Connection, params};
 
+use crate::discovery::definitions::all_definitions;
 use crate::{ArtifactValidationDiagnostic, IndexValidationError, sql::count_sql};
 
 use super::{push_duplicate_diagnostic, push_row_diagnostics, query_count_pair};
@@ -13,15 +13,16 @@ pub(super) fn validate_value_catalog(
     validate_value_catalog_uniqueness(connection, diagnostics)?;
     let mut missing = 0_u64;
     let mut stale = 0_u64;
-    for definition in all_discovery_field_definitions()
+    for definition in all_definitions()
         .iter()
         .filter(|definition| definition.value_policy == FilterValuePolicy::Enumerable)
     {
+        let value_sql = definition.value_sql();
         let (definition_missing, definition_stale) = value_catalog_diff(
             connection,
             "filter_value_catalog",
             definition.field,
-            definition.value_sql,
+            &value_sql,
             None,
         )?;
         missing += definition_missing;

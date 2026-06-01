@@ -74,6 +74,7 @@ pub(super) fn field_applies(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<bool, DiscoveryError> {
+    let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
@@ -86,7 +87,7 @@ pub(super) fn field_applies(
            WHERE fv.value IS NOT NULL AND CAST(fv.value AS TEXT) <> ''
            LIMIT 1
          ) AS value",
-                values = definition.value_sql,
+                values = value_sql,
             )
         });
     bind_sql_query(query.sql, &query.parameters)
@@ -101,6 +102,7 @@ fn enumerable_values(
     filter: Option<&SearchFilterNode>,
     sort: DiscoveryValueSort,
 ) -> Result<(Vec<FilterValueCount>, u64), DiscoveryError> {
+    let value_sql = definition.value_sql();
     let order = match sort {
         DiscoveryValueSort::Alpha | DiscoveryValueSort::Canonical => "value ASC",
         DiscoveryValueSort::Count => "catalog_count DESC, value ASC",
@@ -116,7 +118,7 @@ fn enumerable_values(
          WHERE value IS NOT NULL AND CAST(value AS TEXT) <> ''
          GROUP BY value
          ORDER BY {order}",
-                values = definition.value_sql,
+                values = value_sql,
             )
         });
     let values = bind_sql_query(query.sql, &query.parameters)
@@ -167,6 +169,7 @@ fn numeric_stats(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
+    let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
@@ -177,7 +180,7 @@ fn numeric_stats(
          JOIN eligible e ON e.record_key = fv.record_key
          WHERE value IS NOT NULL
          ORDER BY value ASC",
-                values = definition.value_sql,
+                values = value_sql,
             )
         });
     let values = bind_sql_query(query.sql, &query.parameters)
@@ -197,6 +200,7 @@ fn boolean_counts(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
+    let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
@@ -208,7 +212,7 @@ fn boolean_counts(
            (SELECT COUNT(*) FROM eligible) - COUNT(value) AS null_count
          FROM field_values fv
          JOIN eligible e ON e.record_key = fv.record_key",
-                values = definition.value_sql,
+                values = value_sql,
             )
         });
     bind_sql_query(query.sql, &query.parameters)
@@ -226,6 +230,7 @@ fn null_count(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, DiscoveryError> {
+    let value_sql = definition.value_sql();
     let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
         |_| {
             format!(
@@ -236,7 +241,7 @@ fn null_count(
            SELECT 1 FROM field_values fv
            WHERE fv.record_key = e.record_key AND fv.value IS NOT NULL AND CAST(fv.value AS TEXT) <> ''
          )",
-                values = definition.value_sql,
+                values = value_sql,
             )
         },
     );
