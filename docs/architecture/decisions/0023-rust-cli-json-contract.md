@@ -43,9 +43,13 @@ The shared record DTO is a projection of the renderer-neutral presentation recor
 
 Record sections use stable section and block kinds. Rich `ContentDocument` blocks are rendered to markdown for Phase 5 JSON output. Structured `ContentDocument` JSON and original Foundry rich-text output are future formats, not part of the initial CLI contract. Batch record payloads include `data.partial` alongside per-item errors so automation can distinguish complete success from partial domain misses without relying only on the process exit code.
 
+Ambiguous strict record-reference errors should include structured alternatives when the command has resolved candidate records. `record resolve`, graph seed resolution, and similar-record seed resolution report `error.code: "record_resolution_ambiguous"` and place parseable candidate records under `error.data.result.alternatives`; callers should not need to scrape candidate names or keys from the human-readable `message`.
+
 Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. Top-level `status: "error"` is reserved for cases where the command cannot run.
 
 Setup reports separate read-only diagnostics from mutating or planned repair work. `data.checks` contains read-only work such as source analysis and artifact readiness checks. `data.actions` contains mutating operations and repair decisions such as source fetch, embedding model preparation, and index build. `atlas setup --check` may still perform entries in `checks`, but it must not perform mutating `actions`.
+
+When setup is not ready, JSON output may include `data.not_ready_reasons` as a concise list derived from planned, blocked, or failed checks/actions. Each entry carries a diagnostic `code`, the user-facing `message`, and the related action/status so automation can distinguish common cases such as `artifact_stale_source_signature` without reinterpreting free-form action reasons.
 
 ## Consequences
 

@@ -132,6 +132,20 @@ fn similar_json_reports_ambiguous_seed_name() -> Result<(), Box<dyn std::error::
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["status"], "error");
     assert_eq!(json["error"]["code"], "record_resolution_ambiguous");
+    let alternatives = json["error"]["data"]["result"]["alternatives"]
+        .as_array()
+        .expect("ambiguous similar seed should include alternatives");
+    assert_eq!(alternatives.len(), 2);
+    assert!(
+        alternatives
+            .iter()
+            .any(|alternative| alternative["record"]["key"] == "actions:testAction1")
+    );
+    assert!(
+        alternatives
+            .iter()
+            .all(|alternative| alternative["resolution"]["query"] == "Shared Action")
+    );
 
     fs::remove_file(path)?;
     Ok(())

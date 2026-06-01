@@ -155,6 +155,8 @@ fn invalid_setup_input(json: bool, message: String) -> Result<ExitCode, String> 
 struct SetupData {
     target: &'static str,
     ready: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    not_ready_reasons: Vec<SetupNotReadyReasonData>,
     path_mode: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     repo_root: Option<String>,
@@ -176,6 +178,14 @@ struct SetupActionData {
     status: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SetupNotReadyReasonData {
+    code: &'static str,
+    message: String,
+    action: &'static str,
+    status: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -342,6 +352,7 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
     SetupData {
         target: target_label(report.target),
         ready: report.ready,
+        not_ready_reasons: setup_not_ready_reasons(report),
         path_mode: report.path_mode,
         repo_root: report.repo_root.clone(),
         offline: report.offline,
@@ -376,6 +387,61 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             embedding_model_load_duration_ms: build.embedding_model_load_duration_ms,
             embedding_generation_duration_ms: build.embedding_generation_duration_ms,
         }),
+    }
+}
+
+fn setup_not_ready_reasons(
+    report: &atlas_runtime::RuntimeSetupReport,
+) -> Vec<SetupNotReadyReasonData> {
+    if report.ready {
+        return Vec::new();
+    }
+    report
+        .checks
+        .iter()
+        .chain(report.actions.iter())
+        .filter(|action| {
+            matches!(
+                action.status,
+                SetupActionStatus::Planned | SetupActionStatus::Blocked | SetupActionStatus::Failed
+            )
+        })
+        .map(|action| {
+            let message = action.reason.clone().unwrap_or_else(|| {
+                format!(
+                    "{} is {}",
+                    action_kind_label(&action.kind),
+                    action_status_label(&action.status)
+                )
+            });
+            SetupNotReadyReasonData {
+                code: setup_not_ready_code(action),
+                message,
+                action: action_kind_label(&action.kind),
+                status: action_status_label(&action.status),
+            }
+        })
+        .collect()
+}
+
+fn setup_not_ready_code(action: &atlas_runtime::SetupAction) -> &'static str {
+    match action.reason.as_deref() {
+        Some("source signature changed since the artifact was built") => {
+            "artifact_stale_source_signature"
+        }
+        Some("source checkout is missing") | Some("source checkout is not ready") => {
+            "source_not_ready"
+        }
+        Some("embedding model cache is missing required files")
+        | Some("embedding model cache is not ready") => "embedding_model_not_ready",
+        Some("force rebuild requested") => "force_rebuild_requested",
+        Some("offline") => "offline_blocked",
+        _ => match action.status {
+            SetupActionStatus::Planned => "action_planned",
+            SetupActionStatus::Blocked => "action_blocked",
+            SetupActionStatus::Failed => "action_failed",
+            SetupActionStatus::Done | SetupActionStatus::Skipped => "not_ready",
+        },
     }
 }
 

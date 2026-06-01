@@ -98,11 +98,13 @@ atlas graph links bestiary-ability-glossary-srd:ihN8yaHAGwltvVM4 --outgoing 0 --
 
 By default, graph links include outgoing references and omit backlinks. Use `--backlinks <count>` only when incoming context is useful, because backlinks can be noisy for common rules, actions, conditions, and traits. Use `graph uses` for backlinks-only context. Graph context is retrieval only; it does not synthesize answers.
 
+PF2e actions such as Treat Wounds are Atlas `rule` records in the `actionspf2e` pack, not a separate `action` record family. Use `--pack-name actionspf2e` or `--family rule` when narrowing action records; do not use `--family action`.
+
 Use `similar` when you already have a seed record and want records like it. This uses the seed record's stored embedding, applies normal structured filters to candidate records, and adds modest shared-reference and shared-trait evidence:
 
 ```bash
 atlas similar "Dirge of Doom" --family spell --json
-atlas similar "Shield Block" --limit 12 --explain
+atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain
 ```
 
 For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--detail full --include-raw --json` only when raw source metadata is directly relevant.
