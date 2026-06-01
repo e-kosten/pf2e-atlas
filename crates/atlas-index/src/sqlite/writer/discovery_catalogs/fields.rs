@@ -10,6 +10,7 @@ use super::stats::FieldStats;
 use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
 pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), IndexWriteError> {
     let insert_sql = filter_field_catalog_insert_sql();
+    let all_stats = collect_all_stats(connection)?;
     let total = FIELD_SEEDS.len() as u64;
     for (index, seed) in FIELD_SEEDS.iter().enumerate() {
         super::progress(
@@ -18,15 +19,17 @@ pub(super) fn write_field_catalogs(connection: &Connection) -> Result<(), IndexW
             total,
             format!("Writing filter field catalog: {}", seed.field),
         );
-        let stats_by_scope = collect_stats(connection, seed.value_sql)?;
+        let stats_by_scope = all_stats.get(seed.field);
         for family in seed.applicable_families {
-            if let Some(stats) = stats_by_scope.get(&Some(*family)).copied()
+            if let Some(stats) = stats_by_scope
+                .and_then(|stats| stats.get(&Some(*family)))
+                .copied()
                 && stats.value_count > 0
             {
                 write_scope_with_stats(connection, &insert_sql, seed, Some(*family), stats)?;
             }
         }
-        if let Some(stats) = stats_by_scope.get(&None).copied()
+        if let Some(stats) = stats_by_scope.and_then(|stats| stats.get(&None)).copied()
             && stats.value_count > 0
         {
             write_scope_with_stats(connection, &insert_sql, seed, None, stats)?;
@@ -77,105 +80,141 @@ fn write_scope_with_stats(
     Ok(())
 }
 
-pub(super) fn collect_stats(
+fn collect_all_stats(
     connection: &Connection,
-    value_sql: &str,
-) -> Result<BTreeMap<Option<&'static str>, FieldStats>, IndexWriteError> {
-    let sql = format!(
-        "WITH field_values(record_key, value) AS ({value_sql}),
-              scoped_values AS (
-                SELECT NULL AS record_family, r.record_key, value
-                FROM field_values fv
-                JOIN records r ON r.record_key = fv.record_key
-                WHERE r.is_default_visible = 1
-                UNION ALL
-                SELECT r.record_family, r.record_key, value
-                FROM field_values fv
-                JOIN records r ON r.record_key = fv.record_key
-                WHERE r.is_default_visible = 1
-              ),
-              counts AS (
-                SELECT NULL AS record_family, value, COUNT(*) AS value_count
-                FROM scoped_values
-                WHERE record_family IS NULL
-                  AND value IS NOT NULL
-                  AND CAST(value AS TEXT) <> ''
-                GROUP BY value
-                UNION ALL
-                SELECT record_family, value, COUNT(*) AS value_count
-                FROM scoped_values
-                WHERE record_family IS NOT NULL
-                  AND value IS NOT NULL
-                  AND CAST(value AS TEXT) <> ''
-                GROUP BY record_family, value
-              ),
-              observed_records AS (
-                SELECT record_family, COUNT(DISTINCT record_key) AS observed_record_count
-                FROM scoped_values
-                WHERE value IS NOT NULL AND CAST(value AS TEXT) <> ''
-                GROUP BY record_family
-              )
-         SELECT record_family,
+) -> Result<BTreeMap<String, BTreeMap<Option<&'static str>, FieldStats>>, IndexWriteError> {
+    super::progress(
+        "filter_field_catalogs",
+        0,
+        1,
+        "Collecting filter field catalog stats".to_string(),
+    );
+    let matching_counts = matching_counts(connection)?;
+    let observed_counts = observed_counts(connection)?;
+    let sql = "SELECT field,
+                NULL AS record_family,
                 COALESCE(SUM(value_count), 0),
                 COUNT(*),
-                SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END),
-                COALESCE((
-                    SELECT observed_record_count
-                    FROM observed_records observed
-                    WHERE (observed.record_family IS NULL AND counts.record_family IS NULL)
-                       OR observed.record_family = counts.record_family
-                ), 0)
-         FROM counts
-         GROUP BY record_family"
-    );
+                SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END)
+         FROM (
+            SELECT field, value, COUNT(*) AS value_count
+            FROM temp_discovery_values
+            WHERE value IS NOT NULL AND value <> ''
+            GROUP BY field, value
+         )
+         GROUP BY field
+         UNION ALL
+         SELECT field,
+                record_family,
+                COALESCE(SUM(value_count), 0),
+                COUNT(*),
+                SUM(CASE WHEN value_count = 1 THEN 1 ELSE 0 END)
+         FROM (
+            SELECT field, record_family, value, COUNT(*) AS value_count
+            FROM temp_discovery_values
+            WHERE value IS NOT NULL AND value <> ''
+            GROUP BY field, record_family, value
+         )
+         GROUP BY field, record_family";
     let mut statement = connection
-        .prepare(&sql)
+        .prepare(sql)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let rows = statement
         .query_map([], |row| {
             Ok((
-                row.get::<_, Option<String>>(0)?,
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
                 FieldStats {
-                    value_count: row.get(1)?,
-                    distinct_count: row.get(2)?,
-                    singleton_count: row.get(3)?,
+                    value_count: row.get(2)?,
+                    distinct_count: row.get(3)?,
+                    singleton_count: row.get(4)?,
                     matching_record_count: 0,
                     null_count: 0,
                 },
-                row.get::<_, u64>(4)?,
             ))
         })
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let mut stats = BTreeMap::new();
+    let mut stats = BTreeMap::<String, BTreeMap<Option<&'static str>, FieldStats>>::new();
     for row in rows {
-        let (scope, mut field_stats, observed_record_count) =
+        let (field, scope, mut field_stats) =
             row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let scope = scope.and_then(|value| known_family(value.as_str()));
-        let matching_record_count = matching_count(connection, scope)?;
+        let matching_record_count = matching_counts.get(&scope).copied().unwrap_or_default();
+        let observed_record_count = observed_counts
+            .get(&(field.clone(), scope))
+            .copied()
+            .unwrap_or_default();
         field_stats.matching_record_count = matching_record_count;
         field_stats.null_count = matching_record_count.saturating_sub(observed_record_count);
-        stats.insert(scope, field_stats);
+        stats.entry(field).or_default().insert(scope, field_stats);
     }
     Ok(stats)
 }
 
-fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IndexWriteError> {
-    match family {
-        Some(family) => connection
-            .query_row(
-                "SELECT COUNT(*) FROM records WHERE is_default_visible = 1 AND record_family = ?1",
-                params![family],
-                |row| row.get(0),
-            )
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
-        None => connection
-            .query_row(
-                "SELECT COUNT(*) FROM records WHERE is_default_visible = 1",
-                [],
-                |row| row.get(0),
-            )
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
+fn observed_counts(
+    connection: &Connection,
+) -> Result<BTreeMap<(String, Option<&'static str>), u64>, IndexWriteError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT field, NULL AS record_family, COUNT(DISTINCT record_key)
+             FROM temp_discovery_values
+             WHERE value IS NOT NULL AND value <> ''
+             GROUP BY field
+             UNION ALL
+             SELECT field, record_family, COUNT(DISTINCT record_key)
+             FROM temp_discovery_values
+             WHERE value IS NOT NULL AND value <> ''
+             GROUP BY field, record_family",
+        )
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, u64>(2)?,
+            ))
+        })
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let mut counts = BTreeMap::new();
+    for row in rows {
+        let (field, scope, count) =
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        counts.insert(
+            (field, scope.and_then(|value| known_family(value.as_str()))),
+            count,
+        );
     }
+    Ok(counts)
+}
+
+fn matching_counts(
+    connection: &Connection,
+) -> Result<BTreeMap<Option<&'static str>, u64>, IndexWriteError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT NULL AS record_family, COUNT(*)
+             FROM records
+             WHERE is_default_visible = 1
+             UNION ALL
+             SELECT record_family, COUNT(*)
+             FROM records
+             WHERE is_default_visible = 1
+             GROUP BY record_family",
+        )
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, Option<String>>(0)?, row.get::<_, u64>(1)?))
+        })
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let mut counts = BTreeMap::new();
+    for row in rows {
+        let (scope, count) =
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        counts.insert(scope.and_then(|value| known_family(value.as_str())), count);
+    }
+    Ok(counts)
 }
 
 pub(super) fn known_family(value: &str) -> Option<&'static str> {
