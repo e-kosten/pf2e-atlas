@@ -13,6 +13,7 @@ mod filters;
 mod fts;
 mod graph_product;
 mod records;
+mod schema_freshness;
 mod validation;
 mod vector;
 mod vector_query;

@@ -222,6 +222,8 @@ Tracked git hooks live in `.githooks/` and enforce:
 - `pre-merge-commit`: rerun Rust fmt, clippy, tests, and build for non-docs merge commits
 - `pre-push`: rerun Rust fmt, clippy, tests, and build
 
+When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
+
 Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
 
 ```bash

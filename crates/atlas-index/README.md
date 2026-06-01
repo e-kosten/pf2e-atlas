@@ -9,7 +9,7 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 - `SearchIndex` read contract and `SqliteIndexReader` read handles.
 - `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
 - Artifact validation diagnostics and validation reports.
-- Diesel schema, migrations, and ordinary relational writer/reader row models.
+- Diesel migrations, checked-in schema declarations validated against those migrations, and ordinary relational writer/reader row models.
 - Row readers and hydration into `atlas-record` models.
 - Filter-to-SQL keyset compilation.
 - Vector query SQL over `document_embedding_cache` and `record_vector_index`.
@@ -24,4 +24,4 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 
 ## Boundary Notes
 
-Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` owns the SQLite artifact contract; ordinary relational access should use Diesel, while FTS5, sqlite-vec, dynamic filter relations, and validation pragmas may stay as explicit raw SQL. Product-facing retrieval behavior should compose through `atlas-search`.
+Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` owns the SQLite artifact contract; migration files under `migrations/` are the schema source of truth, artifact creation embeds those migrations, and the test suite checks the checked-in Diesel schema against them. Ordinary relational access should use Diesel, while FTS5, sqlite-vec, dynamic filter relations, and validation pragmas may stay as explicit raw SQL. Product-facing retrieval behavior should compose through `atlas-search`.
