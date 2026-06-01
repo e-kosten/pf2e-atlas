@@ -36,9 +36,9 @@ pub(super) fn write_field_catalogs(
             rows.push(row_with_stats(seed, None, stats)?);
         }
     }
-    if !rows.is_empty() {
+    for rows in rows.chunks(super::super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::filter_field_catalog::table)
-            .values(&rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }

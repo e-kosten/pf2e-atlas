@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::UNIX_EPOCH;
 
-use atlas_index::artifact_metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
-};
+use atlas_index::{ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

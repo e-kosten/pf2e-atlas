@@ -1,14 +1,10 @@
-use crate::schema_inventory::{
-    record_aliases as artifact_record_aliases, records as artifact_records,
-};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, RecordKey, SearchFilterNode};
 use atlas_record::{PersistedRecord, PersistedRecordSet};
 use diesel::connection::SimpleConnection;
-use diesel::sql_types::{Nullable, Text};
-use diesel::{Connection as DieselConnection, QueryableByName, RunQueryDsl, SqliteConnection};
+use diesel::{Connection as DieselConnection, RunQueryDsl, SqliteConnection};
 use rusqlite::{Connection, OpenFlags};
 
 use crate::discovery::{self, DiscoveryError, FilterValueRequest};
@@ -18,13 +14,12 @@ use crate::filters::{
 };
 use crate::fts;
 use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_seed};
-use crate::sqlite::raw_sql::{CountRow, RecordKeyRow, SqlBindValue, bind_sql_query};
+use crate::sqlite::raw_sql::{CountRow, RecordKeyRow, bind_sql_query};
 use crate::vector::register_sqlite_vec_extension;
 use crate::{
     ArtifactValidationReport, IndexInspectionReport, IndexValidationError, RecordIdentityMatch,
-    RecordIdentityMatchKind, RecordLoadError, SearchCandidateRecord, ValidationTarget,
-    VectorQueryError, VectorSearchHit, check_index_connection, inspect, records,
-    validate_index_connection, vector,
+    RecordLoadError, SearchCandidateRecord, ValidationTarget, VectorQueryError, VectorSearchHit,
+    check_index_connection, inspect, records, validate_index_connection, vector,
 };
 
 pub struct SqliteIndexReader {
@@ -168,7 +163,7 @@ impl SqliteIndexReader {
                 path.display()
             )));
         }
-        let database_url = read_only_sqlite_uri(&path);
+        let database_url = read_only_sqlite_uri(&path)?;
         let mut diesel_connection = SqliteConnection::establish(&database_url)
             .map_err(|error| IndexValidationError::Unavailable(error.to_string()))?;
         diesel_connection
@@ -352,7 +347,7 @@ impl SqliteIndexReader {
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
     ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-        resolve_record_identity_matches(
+        records::resolve_record_identity_matches_from_diesel_connection(
             &mut self.diesel_connection.borrow_mut(),
             query,
             normalized_query,
@@ -577,162 +572,6 @@ fn read_record_keys(
     Ok(keys)
 }
 
-fn resolve_record_identity_matches(
-    connection: &mut SqliteConnection,
-    query: &str,
-    normalized_query: &str,
-    filter: Option<&SearchFilterNode>,
-) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-    for query in [
-        identity_name_query(query),
-        identity_normalized_name_query(normalized_query),
-        identity_alias_query(normalized_query),
-        identity_variant_name_query(normalized_query),
-    ] {
-        let matches = read_identity_matches(connection, filter, query)?;
-        if !matches.is_empty() {
-            return Ok(matches);
-        }
-    }
-    Ok(Vec::new())
-}
-
-struct IdentityQuery {
-    match_kind: RecordIdentityMatchKind,
-    from_sql: String,
-    where_sql: String,
-    parameters: Vec<SqlBindValue>,
-    order_sql: String,
-}
-
-fn identity_name_query(query: &str) -> IdentityQuery {
-    IdentityQuery {
-        match_kind: RecordIdentityMatchKind::Name,
-        from_sql: format!("{} r", artifact_records::TABLE.name()),
-        where_sql: "r.name = ?".to_string(),
-        parameters: vec![SqlBindValue::Text(query.to_string())],
-        order_sql: "r.record_key ASC".to_string(),
-    }
-}
-
-fn identity_normalized_name_query(normalized_query: &str) -> IdentityQuery {
-    IdentityQuery {
-        match_kind: RecordIdentityMatchKind::NormalizedName,
-        from_sql: format!("{} r", artifact_records::TABLE.name()),
-        where_sql: "r.variant_label IS NULL AND r.normalized_name = ?".to_string(),
-        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
-        order_sql: "r.record_key ASC".to_string(),
-    }
-}
-
-fn identity_alias_query(normalized_query: &str) -> IdentityQuery {
-    IdentityQuery {
-        match_kind: RecordIdentityMatchKind::Alias,
-        from_sql: format!(
-            "{} r JOIN {} a ON a.canonical_record_key = r.record_key",
-            artifact_records::TABLE.name(),
-            artifact_record_aliases::TABLE.name()
-        ),
-        where_sql: "a.normalized_alias = ?".to_string(),
-        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
-        order_sql: "r.record_key ASC, a.source_kind ASC, a.source_ref ASC".to_string(),
-    }
-}
-
-fn identity_variant_name_query(normalized_query: &str) -> IdentityQuery {
-    IdentityQuery {
-        match_kind: RecordIdentityMatchKind::VariantName,
-        from_sql: format!("{} r", artifact_records::TABLE.name()),
-        where_sql: "r.variant_label IS NOT NULL AND r.normalized_name = ?".to_string(),
-        parameters: vec![SqlBindValue::Text(normalized_query.to_string())],
-        order_sql: "r.record_key ASC".to_string(),
-    }
-}
-
-fn read_identity_matches(
-    connection: &mut SqliteConnection,
-    filter: Option<&SearchFilterNode>,
-    identity_query: IdentityQuery,
-) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-    let query = SqliteEligibleRecordKeyset::new(filter)
-        .compile()?
-        .with_eligible_cte(|builder| {
-            builder.extend(identity_query.parameters);
-            format!(
-                "SELECT
-           r.record_key,
-           {matched_text} AS matched_text,
-           {alias_source} AS alias_source,
-           {alias_source_ref} AS alias_source_ref
-         FROM {from_sql}
-         JOIN eligible e ON e.record_key = r.record_key
-         WHERE {where_sql}
-         ORDER BY {order_sql}",
-                matched_text = match identity_query.match_kind {
-                    RecordIdentityMatchKind::Name => "r.name",
-                    RecordIdentityMatchKind::NormalizedName
-                    | RecordIdentityMatchKind::VariantName => "r.normalized_name",
-                    RecordIdentityMatchKind::Alias => "a.alias_text",
-                },
-                alias_source = match identity_query.match_kind {
-                    RecordIdentityMatchKind::Alias => "a.source_kind",
-                    RecordIdentityMatchKind::Name
-                    | RecordIdentityMatchKind::NormalizedName
-                    | RecordIdentityMatchKind::VariantName => "NULL",
-                },
-                alias_source_ref = match identity_query.match_kind {
-                    RecordIdentityMatchKind::Alias => "a.source_ref",
-                    RecordIdentityMatchKind::Name
-                    | RecordIdentityMatchKind::NormalizedName
-                    | RecordIdentityMatchKind::VariantName => "NULL",
-                },
-                from_sql = identity_query.from_sql,
-                where_sql = identity_query.where_sql,
-                order_sql = identity_query.order_sql,
-            )
-        });
-    let mut matches = bind_sql_query(query.sql, &query.parameters)
-        .load::<IdentityMatchRow>(connection)
-        .map_err(|error| FilterCompileError::QueryFailed(error.to_string()))?
-        .into_iter()
-        .map(|row| identity_match_from_row(row, identity_query.match_kind))
-        .collect::<Result<Vec<_>, _>>()?;
-    matches.dedup_by(|left, right| left.record_key == right.record_key);
-    Ok(matches)
-}
-
-fn identity_match_from_row(
-    row: IdentityMatchRow,
-    match_kind: RecordIdentityMatchKind,
-) -> Result<RecordIdentityMatch, FilterCompileError> {
-    let record_key = RecordKey::parse(&row.record_key).map_err(|error| {
-        FilterCompileError::InvalidValue(format!(
-            "identity result record_key `{}` is invalid: {error}",
-            row.record_key
-        ))
-    })?;
-
-    Ok(RecordIdentityMatch {
-        record_key,
-        match_kind,
-        matched_text: row.matched_text,
-        alias_source: row.alias_source,
-        alias_source_ref: row.alias_source_ref,
-    })
-}
-
-#[derive(QueryableByName)]
-struct IdentityMatchRow {
-    #[diesel(sql_type = Text)]
-    record_key: String,
-    #[diesel(sql_type = Text)]
-    matched_text: String,
-    #[diesel(sql_type = Nullable<Text>)]
-    alias_source: Option<String>,
-    #[diesel(sql_type = Nullable<Text>)]
-    alias_source_ref: Option<String>,
-}
-
 fn sql_sort(sort: FilteredRecordSort) -> SqliteKeysetRecordSort {
     match sort {
         FilteredRecordSort::RecordKey => SqliteKeysetRecordSort::RecordKeyAsc,
@@ -754,8 +593,13 @@ fn seeded_key_hash(seed: u64, key: &str) -> u64 {
     hash
 }
 
-fn read_only_sqlite_uri(path: &Path) -> String {
-    let path = path.to_string_lossy();
+fn read_only_sqlite_uri(path: &Path) -> Result<String, IndexValidationError> {
+    let path = path.to_str().ok_or_else(|| {
+        IndexValidationError::Unavailable(format!(
+            "SQLite artifact path is not valid UTF-8: {}",
+            path.display()
+        ))
+    })?;
     let mut escaped = String::with_capacity(path.len());
     for ch in path.chars() {
         match ch {
@@ -765,5 +609,23 @@ fn read_only_sqlite_uri(path: &Path) -> String {
             _ => escaped.push(ch),
         }
     }
-    format!("file:{escaped}?mode=ro")
+    Ok(format!("file:{escaped}?mode=ro"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn read_only_uri_rejects_non_utf8_paths() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let path = PathBuf::from(OsString::from_vec(b"atlas-index-\xff.sqlite".to_vec()));
+        let error = read_only_sqlite_uri(&path).expect_err("non-UTF-8 path should be rejected");
+
+        assert!(matches!(error, IndexValidationError::Unavailable(_)));
+        assert!(error.to_string().contains("not valid UTF-8"));
+    }
 }

@@ -24,15 +24,15 @@ pub(super) fn write_metric_catalogs(
     let key_rows = metric_key_catalog_rows(&source_rows)?;
     let value_rows = metric_value_catalog_rows(&source_rows)?;
 
-    if !key_rows.is_empty() {
+    for rows in key_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::metric_key_catalog::table)
-            .values(&key_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    if !value_rows.is_empty() {
+    for rows in value_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::metric_value_catalog::table)
-            .values(&value_rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }

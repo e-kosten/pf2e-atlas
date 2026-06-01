@@ -2,15 +2,16 @@
 
 use std::path::Path;
 
-use atlas_index::artifact_storage::encode_f32_vector_blob;
-use atlas_index::sqlite_vector_index;
+use atlas_index::test_support::{
+    create_record_vector_index_sql, encode_f32_vector_blob, insert_record_vector_index_sql,
+};
 use rusqlite::{Connection, params};
 
 pub fn insert_vector_embeddings(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()?;
     let connection = Connection::open(path)?;
-    connection.execute_batch(&sqlite_vector_index::create_sql(384))?;
-    let insert_vector_sql = sqlite_vector_index::insert_sql();
+    connection.execute_batch(&create_record_vector_index_sql(384))?;
+    let insert_vector_sql = insert_record_vector_index_sql();
     for (record_key, first, second) in [
         ("actions:testAction1", 1.0_f32, 0.0_f32),
         ("actions:testAction2", 0.92_f32, 0.08_f32),

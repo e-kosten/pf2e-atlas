@@ -7,9 +7,9 @@ use crate::schema_inventory::required_tables;
 use rusqlite::Connection;
 use thiserror::Error;
 
-pub mod artifact_metadata;
+mod artifact_metadata;
 mod artifact_schema;
-pub mod artifact_storage;
+mod artifact_storage;
 mod artifact_validation;
 mod build_input;
 mod discovery;
@@ -26,7 +26,7 @@ mod schema_inventory;
 mod search;
 mod sql;
 mod sqlite;
-pub mod sqlite_vector_index;
+mod sqlite_vector_index;
 #[cfg(feature = "test-support")]
 pub mod test_support;
 #[cfg(test)]
@@ -36,6 +36,9 @@ mod vector;
 mod write;
 mod writer_visibility;
 
+pub use artifact_metadata::{
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
+};
 pub use build_input::{IndexBuildInput, IndexBuildInputError, IndexBuildPack};
 pub use discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};

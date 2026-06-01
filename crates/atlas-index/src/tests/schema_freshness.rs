@@ -17,6 +17,39 @@ fn checked_in_diesel_schema_matches_migration_tables_and_columns()
     Ok(())
 }
 
+#[test]
+fn schema_inventory_requirements_match_migration_schema() -> Result<(), Box<dyn std::error::Error>>
+{
+    let connection = Connection::open_in_memory()?;
+    connection.execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)?;
+
+    let migration_columns = migration_table_columns(&connection)?;
+    for table in crate::schema_inventory::required_tables() {
+        assert!(
+            migration_columns.contains_key(table.name()),
+            "required table `{}` is missing from migration schema",
+            table.name()
+        );
+    }
+    for (table, required_columns) in crate::schema_inventory::required_columns() {
+        let Some(columns) = migration_columns.get(table.name()) else {
+            panic!(
+                "required columns for table `{}` refer to a table missing from migration schema",
+                table.name()
+            );
+        };
+        for column in *required_columns {
+            assert!(
+                columns.iter().any(|name| name == column.name()),
+                "required column `{}` is missing from migration table `{}`",
+                column.name(),
+                table.name()
+            );
+        }
+    }
+    Ok(())
+}
+
 fn migration_table_columns(
     connection: &Connection,
 ) -> Result<BTreeMap<String, Vec<String>>, Box<dyn std::error::Error>> {

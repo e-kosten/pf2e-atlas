@@ -26,9 +26,9 @@ pub(super) fn write_reference_edges(
             visibility: reference.visibility.as_str().to_string(),
         })
         .collect::<Vec<_>>();
-    if !rows.is_empty() {
+    for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_or_ignore_into(crate::schema::reference_edges::table)
-            .values(&rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
@@ -74,9 +74,9 @@ pub(super) fn write_reference_occurrences(
             }
         }
     }
-    if !rows.is_empty() {
+    for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_or_ignore_into(crate::schema::reference_occurrences::table)
-            .values(&rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
@@ -129,9 +129,9 @@ pub(super) fn write_record_aliases(
             source_ref: alias.source_ref.clone(),
         })
         .collect::<Vec<_>>();
-    if !rows.is_empty() {
+    for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_or_ignore_into(crate::schema::record_aliases::table)
-            .values(&rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
@@ -151,9 +151,9 @@ pub(super) fn write_remaster_links(
             source_ref: link.source_ref.clone(),
         })
         .collect::<Vec<_>>();
-    if !rows.is_empty() {
+    for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_or_ignore_into(crate::schema::remaster_links::table)
-            .values(&rows)
+            .values(rows)
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }

@@ -5,6 +5,7 @@ use thiserror::Error;
 
 mod candidates;
 mod content;
+mod identity;
 mod metrics;
 mod parse;
 mod relationships;
@@ -54,6 +55,15 @@ pub fn load_search_candidate_records_from_diesel_connection(
     keys: &[RecordKey],
 ) -> Result<Vec<crate::SearchCandidateRecord>, RecordLoadError> {
     candidates::read_search_candidate_records_by_keys(connection, keys)
+}
+
+pub fn resolve_record_identity_matches_from_diesel_connection(
+    connection: &mut SqliteConnection,
+    query: &str,
+    normalized_query: &str,
+    filter: Option<&atlas_domain::SearchFilterNode>,
+) -> Result<Vec<crate::RecordIdentityMatch>, crate::FilterCompileError> {
+    identity::resolve_record_identity_matches(connection, query, normalized_query, filter)
 }
 
 fn attach_record_details(

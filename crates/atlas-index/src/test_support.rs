@@ -5,6 +5,18 @@ use crate::artifact_metadata::{
 };
 use crate::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
 
+pub fn create_record_vector_index_sql(dimensions: usize) -> String {
+    crate::sqlite_vector_index::create_sql(dimensions)
+}
+
+pub fn insert_record_vector_index_sql() -> String {
+    crate::sqlite_vector_index::insert_sql()
+}
+
+pub fn encode_f32_vector_blob(vector: &[f32]) -> Vec<u8> {
+    crate::artifact_storage::encode_f32_vector_blob(vector)
+}
+
 pub fn create_minimal_artifact_schema(
     connection: &Connection,
 ) -> Result<(), Box<dyn std::error::Error>> {
