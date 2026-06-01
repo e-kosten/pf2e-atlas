@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use atlas_domain::SearchFilterNode;
+use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::EmbeddingUnitKind;
 use atlas_index::VectorSearchHit;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ impl SemanticSearchMode {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticSearchHit {
-    pub record_key: String,
+    pub record_key: RecordKey,
     pub unit_kind: String,
     pub label: Option<String>,
     pub distance: f64,
@@ -44,7 +44,7 @@ pub struct SemanticSearchHit {
 
 impl SemanticSearchHit {
     pub(crate) fn new(
-        record_key: String,
+        record_key: RecordKey,
         unit_kind: String,
         label: Option<String>,
         distance: f64,
@@ -73,59 +73,76 @@ pub struct SemanticSearchResult {
     pub timing: SemanticSearchTiming,
 }
 
-impl AtlasRetrievalService {
-    pub fn semantic(
-        &mut self,
-        query: &str,
-        filter: Option<&SearchFilterNode>,
-        limit: u32,
-        mode: SemanticSearchMode,
-    ) -> Result<Vec<SemanticSearchHit>, SearchError> {
-        Ok(self.semantic_with_timing(query, filter, limit, mode)?.hits)
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct SemanticSearchRequest<'a> {
+    pub query: &'a str,
+    pub filter: Option<&'a SearchFilterNode>,
+    pub limit: u32,
+    pub mode: SemanticSearchMode,
+}
 
-    pub fn semantic_with_timing(
+pub trait SemanticRetrieval {
+    fn search_semantic(
         &mut self,
-        query: &str,
-        filter: Option<&SearchFilterNode>,
-        limit: u32,
-        mode: SemanticSearchMode,
+        request: SemanticSearchRequest<'_>,
+    ) -> Result<SemanticSearchResult, SearchError>;
+}
+
+impl SemanticRetrieval for AtlasRetrievalService {
+    fn search_semantic(
+        &mut self,
+        request: SemanticSearchRequest<'_>,
     ) -> Result<SemanticSearchResult, SearchError> {
-        let resolved_filter = self.index.resolve_metric_filters(filter)?;
-        let filter = resolved_filter.as_ref().or(filter);
-        if let Some(filter) = filter {
-            filter
-                .validate()
-                .map_err(|error| SearchError::InvalidSearchOptions(error.to_string()))?;
-        }
-        let total_started_at = Instant::now();
-        let embedding_started_at = Instant::now();
-        let embedder = self
-            .embedder
-            .as_mut()
-            .ok_or(SearchError::UnsupportedRetrievalPattern("semantic search"))?;
-        let query_vector = embedder
-            .embed_query(query)
-            .map_err(|error| SearchError::Embedding(error.to_string()))?;
-        let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
-        let vector_started_at = Instant::now();
-        let raw_limit = semantic_unit_limit(limit, mode);
-        let hits = self.index.query_vector_index(
+        search_semantic(self, request)
+    }
+}
+
+fn search_semantic(
+    service: &mut AtlasRetrievalService,
+    request: SemanticSearchRequest<'_>,
+) -> Result<SemanticSearchResult, SearchError> {
+    let resolved_filter = service
+        .index
+        .resolve_metric_filters(request.filter)
+        .map_err(SearchError::from_filter)?;
+    let filter = resolved_filter.as_ref().or(request.filter);
+    if let Some(filter) = filter {
+        filter
+            .validate()
+            .map_err(|error| SearchError::invalid_search_options(error.to_string()))?;
+    }
+    let total_started_at = Instant::now();
+    let embedding_started_at = Instant::now();
+    let embedder = service
+        .embedder
+        .as_mut()
+        .ok_or(SearchError::unsupported_retrieval_pattern(
+            "semantic search",
+        ))?;
+    let query_vector = embedder
+        .embed_query(request.query)
+        .map_err(|error| SearchError::embedding(error.to_string()))?;
+    let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
+    let vector_started_at = Instant::now();
+    let raw_limit = semantic_unit_limit(request.limit, request.mode);
+    let hits = service
+        .index
+        .query_vector_index(
             &query_vector,
             filter,
             raw_limit,
-            mode.includes_child_units(),
-        )?;
-        let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
-        Ok(SemanticSearchResult {
-            hits: collapse_vector_hits(hits, limit as usize, mode),
-            timing: SemanticSearchTiming {
-                query_embedding_duration_ms,
-                vector_search_duration_ms,
-                total_duration_ms: total_started_at.elapsed().as_millis(),
-            },
-        })
-    }
+            request.mode.includes_child_units(),
+        )
+        .map_err(SearchError::from_vector)?;
+    let vector_search_duration_ms = vector_started_at.elapsed().as_millis();
+    Ok(SemanticSearchResult {
+        hits: collapse_vector_hits(hits, request.limit as usize, request.mode),
+        timing: SemanticSearchTiming {
+            query_embedding_duration_ms,
+            vector_search_duration_ms,
+            total_duration_ms: total_started_at.elapsed().as_millis(),
+        },
+    })
 }
 
 pub(crate) fn semantic_unit_limit(limit: u32, mode: SemanticSearchMode) -> u32 {
@@ -141,9 +158,12 @@ pub(crate) fn collapse_vector_hits(
     limit: usize,
     mode: SemanticSearchMode,
 ) -> Vec<SemanticSearchHit> {
-    let mut grouped = std::collections::BTreeMap::<String, Vec<VectorSearchHit>>::new();
+    let mut grouped = std::collections::BTreeMap::<RecordKey, Vec<VectorSearchHit>>::new();
     for hit in rows {
-        grouped.entry(hit.record_key.clone()).or_default().push(hit);
+        let Ok(record_key) = RecordKey::parse(&hit.record_key) else {
+            continue;
+        };
+        grouped.entry(record_key).or_default().push(hit);
     }
     let mut collapsed = grouped
         .into_values()
@@ -162,21 +182,25 @@ fn best_record_hit(
         .iter()
         .any(|hit| parsed_unit_kind(hit) == Some(EmbeddingUnitKind::Parent));
     hits.into_iter()
-        .map(|hit| {
+        .filter_map(|hit| {
             let rank_distance = rank_distance(&hit, has_parent, mode);
             semantic_hit_from_vector_hit(hit, rank_distance)
         })
         .min_by(compare_semantic_hits_for_rank)
 }
 
-fn semantic_hit_from_vector_hit(hit: VectorSearchHit, rank_distance: f64) -> SemanticSearchHit {
-    SemanticSearchHit::new(
-        hit.record_key,
+fn semantic_hit_from_vector_hit(
+    hit: VectorSearchHit,
+    rank_distance: f64,
+) -> Option<SemanticSearchHit> {
+    let record_key = RecordKey::parse(&hit.record_key).ok()?;
+    Some(SemanticSearchHit::new(
+        record_key,
         hit.unit_kind,
         hit.label,
         hit.distance,
         rank_distance,
-    )
+    ))
 }
 
 fn rank_distance(hit: &VectorSearchHit, has_parent: bool, mode: SemanticSearchMode) -> f64 {
@@ -244,7 +268,7 @@ mod tests {
         assert_eq!(
             collapsed
                 .iter()
-                .map(|hit| hit.record_key.as_str())
+                .map(|hit| hit.record_key.to_string())
                 .collect::<Vec<_>>(),
             vec!["records:a", "records:b"]
         );
@@ -287,7 +311,10 @@ mod tests {
             SemanticSearchMode::WeightedChunks,
         );
 
-        assert_eq!(collapsed[0].record_key, "records:b");
+        assert_eq!(
+            collapsed[0].record_key,
+            RecordKey::parse("records:b").unwrap()
+        );
         assert_eq!(collapsed[0].rank_distance, 0.145);
         assert_eq!(collapsed[1].unit_kind, "heading_section");
         assert_eq!(collapsed[1].rank_distance, 0.150);

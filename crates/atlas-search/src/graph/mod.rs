@@ -5,6 +5,7 @@ use atlas_index::{GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection};
 use atlas_record::PersistedRecord;
 
 use crate::{AtlasRetrievalService, SearchError};
+use crate::{GetRecordRequest, GetRecordsRequest, RecordRetrieval};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphContextRequest {
@@ -44,12 +45,22 @@ pub struct GraphContextEdgeSource {
     pub visibility: String,
 }
 
-impl AtlasRetrievalService {
-    pub fn graph_context(
+pub trait GraphRetrieval {
+    fn graph_context(
+        &self,
+        request: GraphContextRequest,
+    ) -> Result<Option<GraphContextResult>, SearchError>;
+}
+
+impl GraphRetrieval for AtlasRetrievalService {
+    fn graph_context(
         &self,
         request: GraphContextRequest,
     ) -> Result<Option<GraphContextResult>, SearchError> {
-        let Some(seed) = self.get_record(&request.seed)? else {
+        let Some(seed) = self.get_record(GetRecordRequest {
+            record_key: &request.seed,
+        })?
+        else {
             return Ok(None);
         };
         let outgoing = self.graph_context_section(
@@ -68,7 +79,9 @@ impl AtlasRetrievalService {
             backlinks,
         }))
     }
+}
 
+impl AtlasRetrievalService {
     fn graph_context_section(
         &self,
         seed: &RecordKey,
@@ -85,7 +98,10 @@ impl AtlasRetrievalService {
             });
         }
 
-        let raw_edges = self.index.reference_edges_for_seed(seed, direction)?;
+        let raw_edges = self
+            .index
+            .reference_edges_for_seed(seed, direction)
+            .map_err(SearchError::from_record_load)?;
         let edges = sorted_unique_graph_edges(raw_edges, direction);
         let total_edges = edges.len();
         let mut neighbor_order = Vec::new();
@@ -102,7 +118,9 @@ impl AtlasRetrievalService {
             .take(record_limit)
             .collect::<Vec<_>>();
         let mut records_by_key = self
-            .get_records(&retained_keys)?
+            .get_records(GetRecordsRequest {
+                record_keys: &retained_keys,
+            })?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
@@ -133,10 +151,11 @@ fn retained_records(
     let mut records = Vec::with_capacity(retained_keys.len());
     for key in retained_keys {
         let Some(record) = records_by_key.remove(key) else {
-            return Err(RecordLoadError::InvalidData(format!(
-                "graph neighbor record `{key}` was referenced by an edge but was not found"
-            ))
-            .into());
+            return Err(SearchError::from_record_load(RecordLoadError::InvalidData(
+                format!(
+                    "graph neighbor record `{key}` was referenced by an edge but was not found"
+                ),
+            )));
         };
         records.push(record);
     }

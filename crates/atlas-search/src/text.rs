@@ -10,8 +10,12 @@ use crate::fusion::{
     fuse_ranked_hits, identity_explain,
 };
 use crate::query::{TextQueryAnalysis, analyze_text_query};
-use crate::resolution::{RecordResolutionMatchKind, RecordResolutionResult};
-use crate::semantic::{SemanticSearchHit, SemanticSearchMode};
+use crate::records::{
+    RecordResolutionMatchKind, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
+};
+use crate::semantic::{
+    SemanticRetrieval, SemanticSearchHit, SemanticSearchMode, SemanticSearchRequest,
+};
 use crate::{AtlasRetrievalService, SearchError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,7 +59,7 @@ pub struct TextSearchRequest<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextSearchPage {
+pub struct TextSearchResult {
     pub query: TextQueryAnalysis,
     pub retrieval: RetrievalMode,
     pub fusion: FusionOptions,
@@ -82,57 +86,50 @@ pub enum TextSearchMatch {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum AtlasSearchRequest<'a> {
-    Semantic {
-        query: &'a str,
-        filter: Option<&'a SearchFilterNode>,
-        limit: u32,
-        mode: SemanticSearchMode,
-    },
-    FilterOnly {
-        filter: Option<&'a SearchFilterNode>,
-        limit: u32,
-    },
-    Text(TextSearchRequest<'a>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum AtlasSearchResult {
-    Semantic(crate::semantic::SemanticSearchResult),
-    Text(TextSearchPage),
-}
-
-impl AtlasRetrievalService {
-    pub fn text_search(
+pub trait TextRetrieval {
+    fn search_text(
         &mut self,
         request: TextSearchRequest<'_>,
-    ) -> Result<TextSearchPage, SearchError> {
-        validate_text_search_request(&request)?;
-        let resolved_filter = self.index.resolve_metric_filters(request.filter)?;
+    ) -> Result<TextSearchResult, SearchError>;
+}
+
+impl TextRetrieval for AtlasRetrievalService {
+    fn search_text(
+        &mut self,
+        request: TextSearchRequest<'_>,
+    ) -> Result<TextSearchResult, SearchError> {
+        validate_search_text_request(&request)?;
+        let resolved_filter = self
+            .index
+            .resolve_metric_filters(request.filter)
+            .map_err(SearchError::from_filter)?;
         let filter = resolved_filter.as_ref().or(request.filter);
         let query = analyze_text_query(request.query, request.exclude);
         let fts_query = FtsQuery::from_tokens(query.fts_tokens.clone());
         let exclude_query = FtsQuery::from_tokens(query.exclude_tokens.clone());
-        let identity_matches = self.resolve_record(request.query, filter)?;
+        let identity_matches = self.resolve_record(ResolveRecordRequest {
+            query: request.query,
+            filter,
+        })?;
         let fts_hits = if request.retrieval.uses_fts() {
             match fts_query.as_ref() {
-                Some(fts_query) => {
-                    self.index
-                        .query_precision_fts_index(fts_query, filter, request.fts_top_k)?
-                }
+                Some(fts_query) => self
+                    .index
+                    .query_precision_fts_index(fts_query, filter, request.fts_top_k)
+                    .map_err(SearchError::from_filter)?,
                 None => Vec::new(),
             }
         } else {
             Vec::new()
         };
         let vector_hits = if request.retrieval.uses_vector() {
-            self.semantic(
-                request.query,
+            self.search_semantic(SemanticSearchRequest {
+                query: request.query,
                 filter,
-                request.vector_top_k,
-                SemanticSearchMode::WeightedChunks,
-            )?
+                limit: request.vector_top_k,
+                mode: SemanticSearchMode::WeightedChunks,
+            })?
+            .hits
         } else {
             Vec::new()
         };
@@ -142,7 +139,8 @@ impl AtlasRetrievalService {
                 .query_fts_candidate_record_keys(
                     exclude_query,
                     &candidate_keys(&identity_matches, &fts_hits, &vector_hits),
-                )?
+                )
+                .map_err(SearchError::from_filter)?
                 .into_iter()
                 .collect::<BTreeSet<_>>(),
             None => BTreeSet::new(),
@@ -161,7 +159,8 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let candidate_records = self
             .index
-            .load_search_candidate_records(&fusion_candidate_keys)?;
+            .load_search_candidate_records(&fusion_candidate_keys)
+            .map_err(SearchError::from_record_load)?;
         let candidates_by_key = candidate_records
             .into_iter()
             .map(|record| (record.key.clone(), record))
@@ -194,29 +193,30 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let mut page_items = identity_records
             .into_iter()
-            .map(|record| TextSearchPageItem::Identity(Box::new(record)))
-            .chain(fused.into_iter().map(TextSearchPageItem::Ranked))
+            .map(|record| TextSearchResultItem::Identity(Box::new(record)))
+            .chain(fused.into_iter().map(TextSearchResultItem::Ranked))
             .skip(request.offset as usize)
             .take(request.limit as usize)
             .collect::<Vec<_>>();
         let ranked_page_keys = page_items
             .iter()
             .filter_map(|item| match item {
-                TextSearchPageItem::Identity(_) => None,
-                TextSearchPageItem::Ranked(ranked) => Some(ranked.record_key.clone()),
+                TextSearchResultItem::Identity(_) => None,
+                TextSearchResultItem::Ranked(ranked) => Some(ranked.record_key.clone()),
             })
             .collect::<Vec<_>>();
         let ranked_page_records = self
             .index
-            .load_records_by_key(&ranked_page_keys)?
+            .load_records_by_key(&ranked_page_keys)
+            .map_err(SearchError::from_record_load)?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let mut page_records = page_items
             .drain(..)
             .filter_map(|item| match item {
-                TextSearchPageItem::Identity(record) => Some(*record),
-                TextSearchPageItem::Ranked(ranked) => ranked_page_records
+                TextSearchResultItem::Identity(record) => Some(*record),
+                TextSearchResultItem::Ranked(ranked) => ranked_page_records
                     .get(&ranked.record_key)
                     .map(|record| TextSearchRecord {
                         record: record.clone(),
@@ -229,7 +229,7 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         self.enrich_text_record_reference_labels(&mut page_records)?;
 
-        Ok(TextSearchPage {
+        Ok(TextSearchResult {
             query,
             retrieval: request.retrieval,
             fusion: request.fusion,
@@ -239,22 +239,22 @@ impl AtlasRetrievalService {
     }
 }
 
-enum TextSearchPageItem {
+enum TextSearchResultItem {
     Identity(Box<TextSearchRecord>),
     Ranked(crate::fusion::FusedRankedHit),
 }
 
-fn validate_text_search_request(request: &TextSearchRequest<'_>) -> Result<(), SearchError> {
+fn validate_search_text_request(request: &TextSearchRequest<'_>) -> Result<(), SearchError> {
     if let Some(filter) = request.filter {
         filter
             .validate()
-            .map_err(|error| SearchError::InvalidSearchOptions(error.to_string()))?;
+            .map_err(|error| SearchError::invalid_search_options(error.to_string()))?;
     }
     if request.fusion.method == FusionMethod::Rrf
         && ((request.fusion.fts_weight - 1.0).abs() > f64::EPSILON
             || (request.fusion.vector_weight - 1.0).abs() > f64::EPSILON)
     {
-        return Err(SearchError::InvalidSearchOptions(
+        return Err(SearchError::invalid_search_options(
             "unweighted rrf does not accept lane weights; use weighted-rrf".to_string(),
         ));
     }
@@ -262,7 +262,7 @@ fn validate_text_search_request(request: &TextSearchRequest<'_>) -> Result<(), S
         || request.fusion.fts_weight < 0.0
         || request.fusion.vector_weight < 0.0
     {
-        return Err(SearchError::InvalidSearchOptions(
+        return Err(SearchError::invalid_search_options(
             "fusion weights must be non-negative and rank constant must be greater than zero"
                 .to_string(),
         ));
@@ -280,11 +280,7 @@ fn candidate_keys(
         .map(|identity| identity.record.key.clone())
         .collect::<BTreeSet<_>>();
     keys.extend(fts_hits.iter().map(|hit| hit.record_key.clone()));
-    keys.extend(
-        vector_hits
-            .iter()
-            .filter_map(|hit| RecordKey::parse(&hit.record_key).ok()),
-    );
+    keys.extend(vector_hits.iter().map(|hit| hit.record_key.clone()));
     keys.into_iter().collect()
 }
 
@@ -304,7 +300,7 @@ mod tests {
     use atlas_record::{MetricRow, MetricValue, PersistedRecord, PersistedRecordSet};
 
     #[test]
-    fn text_search_uses_candidates_for_fusion_and_hydrates_ranked_page_only() {
+    fn search_text_uses_candidates_for_fusion_and_hydrates_ranked_page_only() {
         let identity = fake_record("actions:identity", "Identity Action");
         let mut ranked = fake_record("actions:ranked", "Ranked Action");
         ranked.metrics.push(MetricRow {
@@ -319,7 +315,7 @@ mod tests {
         let mut service = AtlasRetrievalService::without_embeddings_with_index(Box::new(index));
 
         let page = service
-            .text_search(TextSearchRequest {
+            .search_text(TextSearchRequest {
                 query: "Identity Action",
                 exclude: None,
                 filter: None,
@@ -373,10 +369,9 @@ mod tests {
             explain: false,
         };
 
-        assert!(matches!(
-            validate_text_search_request(&request),
-            Err(SearchError::InvalidSearchOptions(_))
-        ));
+        let error = validate_search_text_request(&request).expect_err("invalid fusion should fail");
+
+        assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
     }
 
     struct FakeTextIndex {

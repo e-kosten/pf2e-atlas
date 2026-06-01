@@ -6,7 +6,10 @@ use atlas_index::{RecordEmbeddingVector, ReferenceEdgeDirection};
 use atlas_record::PersistedRecord;
 
 use crate::semantic::collapse_vector_hits;
-use crate::{AtlasRetrievalService, SearchError, SemanticSearchHit, SemanticSearchMode};
+use crate::{
+    AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RecordRetrieval, SearchError,
+    SemanticSearchHit, SemanticSearchMode,
+};
 
 const DEFAULT_SEMANTIC_WEIGHT: f64 = 0.80;
 const DEFAULT_REFERENCE_WEIGHT: f64 = 0.15;
@@ -99,30 +102,44 @@ pub struct SimilarSharedReference {
     pub name: String,
 }
 
-impl AtlasRetrievalService {
-    pub fn similar_records(
+pub trait SimilarRetrieval {
+    fn similar_records(
+        &self,
+        request: SimilarRecordRequest<'_>,
+    ) -> Result<Option<SimilarRecordResult>, SearchError>;
+}
+
+impl SimilarRetrieval for AtlasRetrievalService {
+    fn similar_records(
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, SearchError> {
-        let Some(seed) = self.get_record(request.seed)? else {
+        let Some(seed) = self.get_record(GetRecordRequest {
+            record_key: request.seed,
+        })?
+        else {
             return Ok(None);
         };
 
-        let resolved_filter = self.index.resolve_metric_filters(request.filter)?;
+        let resolved_filter = self
+            .index
+            .resolve_metric_filters(request.filter)
+            .map_err(SearchError::from_filter)?;
         let filter = resolved_filter.as_ref().or(request.filter);
         if let Some(filter) = filter {
             filter
                 .validate()
-                .map_err(|error| SearchError::InvalidSearchOptions(error.to_string()))?;
+                .map_err(|error| SearchError::invalid_search_options(error.to_string()))?;
         }
         let weights = request
             .weights
             .validate()
-            .map_err(SearchError::InvalidSearchOptions)?;
+            .map_err(SearchError::invalid_search_options)?;
 
         let seed_unit = select_seed_embedding_unit(
             self.index
-                .load_record_embedding_vectors(request.seed)?
+                .load_record_embedding_vectors(request.seed)
+                .map_err(SearchError::from_vector)?
                 .as_slice(),
         )?
         .clone();
@@ -133,23 +150,26 @@ impl AtlasRetrievalService {
         let vector_limit = candidate_limit
             .saturating_add(1)
             .min(MAX_SIMILAR_CANDIDATES);
-        let vector_hits =
-            self.index
-                .query_vector_index(&seed_unit.vector, filter, vector_limit, false)?;
+        let vector_hits = self
+            .index
+            .query_vector_index(&seed_unit.vector, filter, vector_limit, false)
+            .map_err(SearchError::from_vector)?;
         let mut semantic_hits = collapse_vector_hits(
             vector_hits,
             vector_limit as usize,
             SemanticSearchMode::ParentOnly,
         );
-        semantic_hits.retain(|hit| hit.record_key != request.seed.to_string());
+        semantic_hits.retain(|hit| hit.record_key != *request.seed);
         semantic_hits.truncate(candidate_limit as usize);
 
         let candidate_keys = semantic_hits
             .iter()
-            .filter_map(|hit| RecordKey::parse(&hit.record_key).ok())
+            .map(|hit| hit.record_key.clone())
             .collect::<Vec<_>>();
         let records_by_key = self
-            .get_records(&candidate_keys)?
+            .get_records(GetRecordsRequest {
+                record_keys: &candidate_keys,
+            })?
             .into_iter()
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
@@ -160,7 +180,7 @@ impl AtlasRetrievalService {
         let mut ranked = semantic_hits
             .into_iter()
             .filter_map(|hit| {
-                let key = RecordKey::parse(&hit.record_key).ok()?;
+                let key = hit.record_key.clone();
                 let record = records_by_key.get(&key)?.clone();
                 Some((hit, record))
             })
@@ -193,13 +213,17 @@ impl AtlasRetrievalService {
             records: ranked,
         }))
     }
+}
 
+impl AtlasRetrievalService {
     fn reference_names(
         &self,
         reference_keys: &BTreeSet<RecordKey>,
     ) -> Result<BTreeMap<RecordKey, String>, SearchError> {
         Ok(self
-            .get_records(&reference_keys.iter().cloned().collect::<Vec<_>>())?
+            .get_records(GetRecordsRequest {
+                record_keys: &reference_keys.iter().cloned().collect::<Vec<_>>(),
+            })?
             .into_iter()
             .map(|record| (record.key, record.name))
             .collect())
@@ -259,7 +283,7 @@ fn select_seed_embedding_unit(
     units
         .iter()
         .find(|unit| unit.unit_kind == EmbeddingUnitKind::Parent.as_str())
-        .ok_or(SearchError::UnsupportedRetrievalPattern(
+        .ok_or(SearchError::unsupported_retrieval_pattern(
             "similar records require a stored parent seed embedding",
         ))
 }
@@ -270,7 +294,8 @@ fn outgoing_reference_keys(
 ) -> Result<BTreeSet<RecordKey>, SearchError> {
     Ok(service
         .index
-        .reference_edges_for_seed(seed, ReferenceEdgeDirection::Outgoing)?
+        .reference_edges_for_seed(seed, ReferenceEdgeDirection::Outgoing)
+        .map_err(SearchError::from_record_load)?
         .into_iter()
         .map(|edge| edge.to_record_key)
         .collect())

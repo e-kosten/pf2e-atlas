@@ -3,9 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use atlas_domain::RecordKey;
 use atlas_record::{ContentDocument, PersistedRecord, visit_content_references_mut};
 
-use crate::resolution::RecordResolutionResult;
 use crate::text::TextSearchRecord;
 use crate::{AtlasRetrievalService, SearchError};
+
+use super::RecordResolutionResult;
 
 impl AtlasRetrievalService {
     pub(crate) fn enrich_reference_labels(
@@ -51,7 +52,10 @@ impl AtlasRetrievalService {
             .into_iter()
             .filter(|key| !requested_keys.contains(key))
             .collect::<Vec<_>>();
-        let loaded_targets = self.index.load_records_by_key(&keys_to_load)?;
+        let loaded_targets = self
+            .index
+            .load_records_by_key(&keys_to_load)
+            .map_err(SearchError::from_record_load)?;
         let names_by_key = items
             .iter()
             .map(record)

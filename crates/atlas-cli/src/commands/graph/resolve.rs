@@ -3,7 +3,8 @@ use std::process::ExitCode;
 use atlas_domain::{DetailLevel, RecordKey};
 use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
-    AtlasRetrievalService, GraphVariantGroupResult, RecordResolutionResult, SearchError,
+    AtlasRetrievalService, RecordResolutionResult, RecordRetrieval, ResolveRecordRequest,
+    SearchError, VariantBaseNameRequest, VariantGroupRequest, VariantGroupResult, VariantRetrieval,
 };
 use serde::Serialize;
 
@@ -24,7 +25,10 @@ pub(super) fn resolve_graph_record_ref(
     if let Ok(key) = RecordKey::parse(record_ref) {
         return Ok(GraphCommandOutcome::Value(key));
     }
-    let matches = match service.resolve_record(record_ref, None) {
+    let matches = match service.resolve_record(ResolveRecordRequest {
+        query: record_ref,
+        filter: None,
+    }) {
         Ok(matches) => matches,
         Err(error) => return graph_search_error(error, json),
     };
@@ -50,21 +54,24 @@ pub(super) fn resolve_graph_variant_group(
     service: &AtlasRetrievalService,
     record_ref: &str,
     json: bool,
-) -> Result<GraphCommandOutcome<GraphVariantGroupResult>, String> {
+) -> Result<GraphCommandOutcome<VariantGroupResult>, String> {
     if let Ok(key) = RecordKey::parse(record_ref) {
-        return match service.variant_group(&key) {
+        return match service.variant_group(VariantGroupRequest { record_key: &key }) {
             Ok(Some(result)) => Ok(GraphCommandOutcome::Value(result)),
             Ok(None) => record_not_found(&key, json).map(GraphCommandOutcome::Exit),
             Err(error) => graph_search_error(error, json),
         };
     }
-    let matches = match service.resolve_record(record_ref, None) {
+    let matches = match service.resolve_record(ResolveRecordRequest {
+        query: record_ref,
+        filter: None,
+    }) {
         Ok(matches) => matches,
         Err(error) => return graph_search_error(error, json),
     };
     if matches.len() == 1 {
         let key = &matches[0].record.key;
-        return match service.variant_group(key) {
+        return match service.variant_group(VariantGroupRequest { record_key: key }) {
             Ok(Some(result)) => Ok(GraphCommandOutcome::Value(result)),
             Ok(None) => record_not_found(key, json).map(GraphCommandOutcome::Exit),
             Err(error) => graph_search_error(error, json),
@@ -75,7 +82,9 @@ pub(super) fn resolve_graph_variant_group(
         return Ok(GraphCommandOutcome::Exit(ExitCode::from(1)));
     }
 
-    let variant_groups = match service.variant_groups_by_base_name(record_ref) {
+    let variant_groups = match service.variant_groups_by_base_name(VariantBaseNameRequest {
+        base_name: record_ref,
+    }) {
         Ok(groups) => groups,
         Err(error) => return graph_search_error(error, json),
     };
@@ -202,7 +211,7 @@ fn ambiguous_record_resolution(
 
 fn write_variant_group_ambiguity(
     record_ref: &str,
-    groups: &[GraphVariantGroupResult],
+    groups: &[VariantGroupResult],
     json: bool,
 ) -> Result<(), String> {
     let alternatives = groups
