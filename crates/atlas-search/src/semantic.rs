@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use atlas_domain::{RecordKey, SearchFilterNode};
-use atlas_embedding::EmbeddingUnitKind;
-use atlas_index::VectorSearchHit;
+use atlas_embedding::{EmbeddingUnitKind, TextEmbedder};
+use atlas_index::{FilterReadIndex, VectorReadIndex, VectorSearchHit};
 use serde::{Deserialize, Serialize};
 
 use crate::{AtlasRetrievalService, SearchError};
@@ -93,16 +93,19 @@ impl SemanticRetrieval for AtlasRetrievalService {
         &mut self,
         request: SemanticSearchRequest<'_>,
     ) -> Result<SemanticSearchResult, SearchError> {
-        search_semantic(self, request)
+        search_semantic(self.index.as_ref(), &mut self.embedder, request)
     }
 }
 
-fn search_semantic(
-    service: &mut AtlasRetrievalService,
+fn search_semantic<I>(
+    index: &I,
+    embedder: &mut Option<TextEmbedder>,
     request: SemanticSearchRequest<'_>,
-) -> Result<SemanticSearchResult, SearchError> {
-    let resolved_filter = service
-        .index
+) -> Result<SemanticSearchResult, SearchError>
+where
+    I: FilterReadIndex + VectorReadIndex + ?Sized,
+{
+    let resolved_filter = index
         .resolve_metric_filters(request.filter)
         .map_err(SearchError::from_filter)?;
     let filter = resolved_filter.as_ref().or(request.filter);
@@ -113,8 +116,7 @@ fn search_semantic(
     }
     let total_started_at = Instant::now();
     let embedding_started_at = Instant::now();
-    let embedder = service
-        .embedder
+    let embedder = embedder
         .as_mut()
         .ok_or(SearchError::unsupported_retrieval_pattern(
             "semantic search",
@@ -125,8 +127,7 @@ fn search_semantic(
     let query_embedding_duration_ms = embedding_started_at.elapsed().as_millis();
     let vector_started_at = Instant::now();
     let raw_limit = semantic_unit_limit(request.limit, request.mode);
-    let hits = service
-        .index
+    let hits = index
         .query_vector_index(
             &query_vector,
             filter,

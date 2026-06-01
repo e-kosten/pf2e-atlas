@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
-use atlas_index::{GraphReadIndex, SearchIndex, SqliteIndexReader};
+use atlas_index::{RetrievalReadIndex, SqliteIndexReader};
 
 use crate::SearchError;
 
@@ -12,13 +12,9 @@ use crate::SearchError;
 /// prepared index handles; callers consume its product methods or narrower
 /// capability traits rather than assembling index/embedding pieces directly.
 pub struct AtlasRetrievalService {
-    pub(crate) index: Box<dyn RetrievalIndex>,
+    pub(crate) index: Box<dyn RetrievalReadIndex>,
     pub(crate) embedder: Option<TextEmbedder>,
 }
-
-pub(crate) trait RetrievalIndex: SearchIndex + GraphReadIndex {}
-
-impl<T> RetrievalIndex for T where T: SearchIndex + GraphReadIndex {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchEmbeddingConfig {
@@ -35,7 +31,7 @@ impl AtlasRetrievalService {
     }
 
     pub(crate) fn new_with_index(
-        index: Box<dyn RetrievalIndex>,
+        index: Box<dyn RetrievalReadIndex>,
         embedding_config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
         Ok(Self {
@@ -48,7 +44,7 @@ impl AtlasRetrievalService {
         Self::without_embeddings_with_index(Box::new(index))
     }
 
-    pub(crate) fn without_embeddings_with_index(index: Box<dyn RetrievalIndex>) -> Self {
+    pub(crate) fn without_embeddings_with_index(index: Box<dyn RetrievalReadIndex>) -> Self {
         Self {
             index,
             embedder: None,

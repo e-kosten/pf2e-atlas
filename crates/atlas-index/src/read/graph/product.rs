@@ -9,13 +9,15 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use crate::schema::{records, remaster_links};
 use crate::{GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection, SqliteIndexReader};
 
-pub trait GraphReadIndex {
+pub trait ReferenceReadIndex {
     fn reference_edges_for_seed(
         &self,
         seed: &RecordKey,
         direction: ReferenceEdgeDirection,
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError>;
+}
 
+pub trait VariantReadIndex {
     fn variant_group_for_record(
         &self,
         seed: &RecordKey,
@@ -25,7 +27,9 @@ pub trait GraphReadIndex {
         &self,
         normalized_base_name: &str,
     ) -> Result<Vec<IndexVariantGroup>, RecordLoadError>;
+}
 
+pub trait RemasterReadIndex {
     fn remaster_links_for_record(
         &self,
         seed: &RecordKey,
@@ -51,7 +55,7 @@ pub struct IndexRemasterLinkRecord {
     pub source_ref: String,
 }
 
-impl GraphReadIndex for SqliteIndexReader {
+impl ReferenceReadIndex for SqliteIndexReader {
     fn reference_edges_for_seed(
         &self,
         seed: &RecordKey,
@@ -59,7 +63,9 @@ impl GraphReadIndex for SqliteIndexReader {
     ) -> Result<Vec<GraphReferenceEdge>, RecordLoadError> {
         SqliteIndexReader::reference_edges_for_seed(self, seed, direction)
     }
+}
 
+impl VariantReadIndex for SqliteIndexReader {
     fn variant_group_for_record(
         &self,
         seed: &RecordKey,
@@ -75,7 +81,9 @@ impl GraphReadIndex for SqliteIndexReader {
             variant_groups_by_base_name(connection, normalized_base_name)
         })
     }
+}
 
+impl RemasterReadIndex for SqliteIndexReader {
     fn remaster_links_for_record(
         &self,
         seed: &RecordKey,

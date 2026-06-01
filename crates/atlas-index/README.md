@@ -6,7 +6,7 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 
 ## Owns
 
-- `SearchIndex` read contract and `SqliteIndexReader` read handles.
+- Focused read capability traits, the composite `RetrievalReadIndex` contract, and `SqliteIndexReader` read handles.
 - `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
 - Artifact validation diagnostics and validation reports.
 - Diesel migrations, checked-in schema declarations validated against those migrations, and ordinary relational writer/reader row models.

@@ -25,16 +25,19 @@ pub use inspect::{
     IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
     TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
 };
+pub use read::RetrievalReadIndex;
 pub use read::discovery::{DiscoveryError, DiscoveryValueSort, FilterValueRequest};
 pub use read::graph::edges::GraphReferenceEdge;
 pub use read::graph::product::{
-    GraphReadIndex, IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup,
+    IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup, ReferenceReadIndex,
+    RemasterReadIndex, VariantReadIndex,
 };
 pub use read::records::RecordLoadError;
 pub use read::search::filters::FilterCompileError;
 pub use read::search::vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
 pub use read::search::{
-    RecordIdentityMatch, RecordIdentityMatchKind, SearchCandidateRecord, SearchIndex,
+    FilterReadIndex, FtsReadIndex, IdentityReadIndex, RecordIdentityMatch, RecordIdentityMatchKind,
+    RecordReadIndex, SearchCandidateRecord, VectorReadIndex,
 };
 pub use sqlite::{
     FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,

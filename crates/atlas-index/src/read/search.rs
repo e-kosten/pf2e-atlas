@@ -11,7 +11,7 @@ use crate::{
     RecordEmbeddingVector, RecordLoadError, SqliteIndexReader, VectorQueryError, VectorSearchHit,
 };
 
-pub trait SearchIndex {
+pub trait RecordReadIndex {
     fn load_records_by_key(
         &self,
         keys: &[RecordKey],
@@ -23,16 +23,18 @@ pub trait SearchIndex {
         &self,
         keys: &[RecordKey],
     ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError>;
+}
 
+pub trait IdentityReadIndex {
     fn resolve_record_identity_matches(
         &self,
-        _query: &str,
-        _normalized_query: &str,
-        _filter: Option<&SearchFilterNode>,
-    ) -> Result<Option<Vec<RecordIdentityMatch>>, FilterCompileError> {
-        Ok(None)
-    }
+        query: &str,
+        normalized_query: &str,
+        filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError>;
+}
 
+pub trait FilterReadIndex {
     fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -45,7 +47,9 @@ pub trait SearchIndex {
         limit: u32,
         offset: u32,
     ) -> Result<FilteredRecordKeyPage, FilterCompileError>;
+}
 
+pub trait FtsReadIndex {
     fn query_precision_fts_index(
         &self,
         fts_query: &FtsQuery,
@@ -58,7 +62,9 @@ pub trait SearchIndex {
         fts_query: &FtsQuery,
         candidate_keys: &[RecordKey],
     ) -> Result<Vec<RecordKey>, FilterCompileError>;
+}
 
+pub trait VectorReadIndex {
     fn query_vector_index(
         &self,
         query_vector: &[f32],
@@ -102,7 +108,7 @@ pub enum RecordIdentityMatchKind {
     VariantName,
 }
 
-impl SearchIndex for SqliteIndexReader {
+impl RecordReadIndex for SqliteIndexReader {
     fn load_records_by_key(
         &self,
         keys: &[RecordKey],
@@ -120,21 +126,20 @@ impl SearchIndex for SqliteIndexReader {
     ) -> Result<Vec<SearchCandidateRecord>, RecordLoadError> {
         SqliteIndexReader::load_search_candidate_records(self, keys)
     }
+}
 
+impl IdentityReadIndex for SqliteIndexReader {
     fn resolve_record_identity_matches(
         &self,
         query: &str,
         normalized_query: &str,
         filter: Option<&SearchFilterNode>,
-    ) -> Result<Option<Vec<RecordIdentityMatch>>, FilterCompileError> {
-        Ok(Some(SqliteIndexReader::resolve_record_identity_matches(
-            self,
-            query,
-            normalized_query,
-            filter,
-        )?))
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+        SqliteIndexReader::resolve_record_identity_matches(self, query, normalized_query, filter)
     }
+}
 
+impl FilterReadIndex for SqliteIndexReader {
     fn resolve_metric_filters(
         &self,
         filter: Option<&SearchFilterNode>,
@@ -151,7 +156,9 @@ impl SearchIndex for SqliteIndexReader {
     ) -> Result<FilteredRecordKeyPage, FilterCompileError> {
         SqliteIndexReader::list_filtered_record_keys(self, filter, sort, limit, offset)
     }
+}
 
+impl FtsReadIndex for SqliteIndexReader {
     fn query_precision_fts_index(
         &self,
         fts_query: &FtsQuery,
@@ -168,7 +175,9 @@ impl SearchIndex for SqliteIndexReader {
     ) -> Result<Vec<RecordKey>, FilterCompileError> {
         SqliteIndexReader::query_fts_candidate_record_keys(self, fts_query, candidate_keys)
     }
+}
 
+impl VectorReadIndex for SqliteIndexReader {
     fn query_vector_index(
         &self,
         query_vector: &[f32],

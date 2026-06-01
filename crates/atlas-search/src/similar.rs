@@ -2,7 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::{RecordKey, SearchFilterNode};
 use atlas_embedding::EmbeddingUnitKind;
-use atlas_index::{RecordEmbeddingVector, ReferenceEdgeDirection};
+use atlas_index::{
+    FilterReadIndex, RecordEmbeddingVector, ReferenceEdgeDirection, ReferenceReadIndex,
+    VectorReadIndex, VectorSearchHit,
+};
 use atlas_record::PersistedRecord;
 
 use crate::semantic::collapse_vector_hits;
@@ -121,10 +124,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
             return Ok(None);
         };
 
-        let resolved_filter = self
-            .index
-            .resolve_metric_filters(request.filter)
-            .map_err(SearchError::from_filter)?;
+        let resolved_filter = resolve_similar_filter(self.index.as_ref(), request.filter)?;
         let filter = resolved_filter.as_ref().or(request.filter);
         if let Some(filter) = filter {
             filter
@@ -137,10 +137,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
             .map_err(SearchError::invalid_search_options)?;
 
         let seed_unit = select_seed_embedding_unit(
-            self.index
-                .load_record_embedding_vectors(request.seed)
-                .map_err(SearchError::from_vector)?
-                .as_slice(),
+            load_record_embedding_vectors(self.index.as_ref(), request.seed)?.as_slice(),
         )?
         .clone();
         let candidate_limit = request
@@ -150,10 +147,12 @@ impl SimilarRetrieval for AtlasRetrievalService {
         let vector_limit = candidate_limit
             .saturating_add(1)
             .min(MAX_SIMILAR_CANDIDATES);
-        let vector_hits = self
-            .index
-            .query_vector_index(&seed_unit.vector, filter, vector_limit, false)
-            .map_err(SearchError::from_vector)?;
+        let vector_hits = query_similar_vector_index(
+            self.index.as_ref(),
+            &seed_unit.vector,
+            filter,
+            vector_limit,
+        )?;
         let mut semantic_hits = collapse_vector_hits(
             vector_hits,
             vector_limit as usize,
@@ -174,7 +173,7 @@ impl SimilarRetrieval for AtlasRetrievalService {
             .map(|record| (record.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
 
-        let seed_references = outgoing_reference_keys(self, request.seed)?;
+        let seed_references = outgoing_reference_keys(self.index.as_ref(), request.seed)?;
         let reference_names = self.reference_names(&seed_references)?;
         let seed_traits = string_set(&seed.traits);
         let mut ranked = semantic_hits
@@ -215,6 +214,44 @@ impl SimilarRetrieval for AtlasRetrievalService {
     }
 }
 
+fn resolve_similar_filter<I>(
+    index: &I,
+    filter: Option<&SearchFilterNode>,
+) -> Result<Option<SearchFilterNode>, SearchError>
+where
+    I: FilterReadIndex + ?Sized,
+{
+    index
+        .resolve_metric_filters(filter)
+        .map_err(SearchError::from_filter)
+}
+
+fn load_record_embedding_vectors<I>(
+    index: &I,
+    record_key: &RecordKey,
+) -> Result<Vec<RecordEmbeddingVector>, SearchError>
+where
+    I: VectorReadIndex + ?Sized,
+{
+    index
+        .load_record_embedding_vectors(record_key)
+        .map_err(SearchError::from_vector)
+}
+
+fn query_similar_vector_index<I>(
+    index: &I,
+    vector: &[f32],
+    filter: Option<&SearchFilterNode>,
+    limit: u32,
+) -> Result<Vec<VectorSearchHit>, SearchError>
+where
+    I: VectorReadIndex + ?Sized,
+{
+    index
+        .query_vector_index(vector, filter, limit, false)
+        .map_err(SearchError::from_vector)
+}
+
 impl AtlasRetrievalService {
     fn reference_names(
         &self,
@@ -238,7 +275,7 @@ impl AtlasRetrievalService {
         seed_traits: &BTreeSet<String>,
         weights: SimilarScoreWeights,
     ) -> Result<SimilarRecord, SearchError> {
-        let candidate_references = outgoing_reference_keys(self, &record.key)?;
+        let candidate_references = outgoing_reference_keys(self.index.as_ref(), &record.key)?;
         let shared_references = seed_references
             .intersection(&candidate_references)
             .map(|key| SimilarSharedReference {
@@ -288,12 +325,14 @@ fn select_seed_embedding_unit(
         ))
 }
 
-fn outgoing_reference_keys(
-    service: &AtlasRetrievalService,
+fn outgoing_reference_keys<I>(
+    index: &I,
     seed: &RecordKey,
-) -> Result<BTreeSet<RecordKey>, SearchError> {
-    Ok(service
-        .index
+) -> Result<BTreeSet<RecordKey>, SearchError>
+where
+    I: ReferenceReadIndex + ?Sized,
+{
+    Ok(index
         .reference_edges_for_seed(seed, ReferenceEdgeDirection::Outgoing)
         .map_err(SearchError::from_record_load)?
         .into_iter()

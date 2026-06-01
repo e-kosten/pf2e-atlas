@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
-use atlas_index::{GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection};
+use atlas_index::{
+    GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection, ReferenceReadIndex,
+};
 use atlas_record::PersistedRecord;
 
 use crate::{AtlasRetrievalService, SearchError};
@@ -98,10 +100,7 @@ impl AtlasRetrievalService {
             });
         }
 
-        let raw_edges = self
-            .index
-            .reference_edges_for_seed(seed, direction)
-            .map_err(SearchError::from_record_load)?;
+        let raw_edges = reference_edges_for_seed(self.index.as_ref(), seed, direction)?;
         let edges = sorted_unique_graph_edges(raw_edges, direction);
         let total_edges = edges.len();
         let mut neighbor_order = Vec::new();
@@ -142,6 +141,19 @@ impl AtlasRetrievalService {
             truncated: total_records > record_limit,
         })
     }
+}
+
+fn reference_edges_for_seed<I>(
+    index: &I,
+    seed: &RecordKey,
+    direction: ReferenceEdgeDirection,
+) -> Result<Vec<GraphReferenceEdge>, SearchError>
+where
+    I: ReferenceReadIndex + ?Sized,
+{
+    index
+        .reference_edges_for_seed(seed, direction)
+        .map_err(SearchError::from_record_load)
 }
 
 fn retained_records(

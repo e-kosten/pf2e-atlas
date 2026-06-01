@@ -1,9 +1,11 @@
 use super::*;
 use atlas_domain::{PackName, PublicationFamily, RecordFamily, SearchFilterNode};
 use atlas_index::{
-    FilterCompileError, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery, FtsSearchHit,
-    GraphReadIndex, GraphReferenceEdge, IndexRemasterLinks, IndexVariantGroup, RecordLoadError,
-    SearchCandidateRecord, SearchIndex, VectorQueryError, VectorSearchHit,
+    FilterCompileError, FilterReadIndex, FilteredRecordKeyPage, FilteredRecordSort, FtsQuery,
+    FtsReadIndex, FtsSearchHit, GraphReferenceEdge, IdentityReadIndex, IndexRemasterLinks,
+    IndexVariantGroup, RecordIdentityMatch, RecordLoadError, RecordReadIndex, ReferenceReadIndex,
+    RemasterReadIndex, SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex,
+    VectorSearchHit,
 };
 use atlas_record::{ContentSourceKind, ContentVisibility, PersistedRecordSet};
 
@@ -218,7 +220,7 @@ impl FakeSimilarIndex {
     }
 }
 
-impl SearchIndex for FakeSimilarIndex {
+impl RecordReadIndex for FakeSimilarIndex {
     fn load_records_by_key(
         &self,
         keys: &[RecordKey],
@@ -251,7 +253,20 @@ impl SearchIndex for FakeSimilarIndex {
             .map(search_candidate_from_record)
             .collect())
     }
+}
 
+impl IdentityReadIndex for FakeSimilarIndex {
+    fn resolve_record_identity_matches(
+        &self,
+        _query: &str,
+        _normalized_query: &str,
+        _filter: Option<&SearchFilterNode>,
+    ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
+        Ok(Vec::new())
+    }
+}
+
+impl FilterReadIndex for FakeSimilarIndex {
     fn resolve_metric_filters(
         &self,
         _filter: Option<&SearchFilterNode>,
@@ -275,7 +290,9 @@ impl SearchIndex for FakeSimilarIndex {
             total: self.records.len() as u64,
         })
     }
+}
 
+impl FtsReadIndex for FakeSimilarIndex {
     fn query_precision_fts_index(
         &self,
         _fts_query: &FtsQuery,
@@ -292,7 +309,9 @@ impl SearchIndex for FakeSimilarIndex {
     ) -> Result<Vec<RecordKey>, FilterCompileError> {
         Ok(Vec::new())
     }
+}
 
+impl VectorReadIndex for FakeSimilarIndex {
     fn query_vector_index(
         &self,
         query_vector: &[f32],
@@ -327,7 +346,7 @@ impl SearchIndex for FakeSimilarIndex {
     }
 }
 
-impl GraphReadIndex for FakeSimilarIndex {
+impl ReferenceReadIndex for FakeSimilarIndex {
     fn reference_edges_for_seed(
         &self,
         seed: &RecordKey,
@@ -341,7 +360,9 @@ impl GraphReadIndex for FakeSimilarIndex {
             Ok(Vec::new())
         }
     }
+}
 
+impl VariantReadIndex for FakeSimilarIndex {
     fn variant_group_for_record(
         &self,
         _seed: &RecordKey,
@@ -355,7 +376,9 @@ impl GraphReadIndex for FakeSimilarIndex {
     ) -> Result<Vec<IndexVariantGroup>, RecordLoadError> {
         Ok(Vec::new())
     }
+}
 
+impl RemasterReadIndex for FakeSimilarIndex {
     fn remaster_links_for_record(
         &self,
         _seed: &RecordKey,
