@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::artifact_storage::encode_f32_vector_blob;
+use crate::artifact::storage::encode_f32_vector_blob;
 use atlas_domain::RecordKey;
 use rusqlite::Connection;
 

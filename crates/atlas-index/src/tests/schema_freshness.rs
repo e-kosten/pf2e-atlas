@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rusqlite::Connection;
 
-use crate::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 
 #[test]
 fn checked_in_diesel_schema_matches_migration_tables_and_columns()
@@ -24,14 +24,14 @@ fn schema_inventory_requirements_match_migration_schema() -> Result<(), Box<dyn 
     connection.execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)?;
 
     let migration_columns = migration_table_columns(&connection)?;
-    for table in crate::schema_inventory::required_tables() {
+    for table in crate::artifact::inventory::required_tables() {
         assert!(
             migration_columns.contains_key(table.name()),
             "required table `{}` is missing from migration schema",
             table.name()
         );
     }
-    for (table, required_columns) in crate::schema_inventory::required_columns() {
+    for (table, required_columns) in crate::artifact::inventory::required_columns() {
         let Some(columns) = migration_columns.get(table.name()) else {
             panic!(
                 "required columns for table `{}` refer to a table missing from migration schema",

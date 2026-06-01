@@ -39,6 +39,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 - [Rust artifact ownership hardening](./items/rust-artifact-ownership-hardening.md)
   Artifact schema descriptors now generate SQLite DDL and drive writer, reader, validation, vector storage, typed metric, and reference graph policy boundaries for the Rust runtime migration. Status: done.
 
+- [Rust Atlas index internal boundaries](./items/rust-atlas-index-internal-boundaries.md)
+  `atlas-index` now has explicit artifact, read, write, and SQLite internal module facades while keeping one crate and preserving narrow public hooks for ingest, runtime, search, and CLI consumers. Status: done.
+
 - [Rust CLI setup and help onboarding](./items/rust-cli-setup-and-help-onboarding.md)
   `atlas setup` is now the first-run install/repair path for source, artifact build, selected embedding readiness, and final validation, with symmetric `atlas index validate` flags and clearer CLI help. Status: done.
 

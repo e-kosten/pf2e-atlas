@@ -1,4 +1,4 @@
-use crate::schema_inventory::{
+use crate::artifact::inventory::{
     TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES, TABLE_RECORDS,
     TABLE_REFERENCE_EDGES, TABLE_REFERENCE_OCCURRENCES, TABLE_REMASTER_LINKS, required_tables,
 };

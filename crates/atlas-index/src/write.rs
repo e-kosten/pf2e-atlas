@@ -3,7 +3,11 @@ use std::path::Path;
 use atlas_embedding::EmbeddingModelId;
 use thiserror::Error;
 
-use crate::{IndexBuildInput, IndexBuildInputError};
+pub(crate) mod input;
+pub(crate) mod sqlite;
+pub(crate) mod visibility;
+
+use crate::write::input::{IndexBuildInput, IndexBuildInputError};
 
 #[derive(Debug, Error)]
 pub enum IndexWriteError {

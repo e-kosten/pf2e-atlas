@@ -1,9 +1,7 @@
-pub(crate) mod raw_sql;
 mod reader;
-mod writer;
 
-pub use reader::{
-    FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
-    FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader,
-};
-pub use writer::SqliteIndexWriter;
+pub use crate::read::graph::edges::ReferenceEdgeDirection;
+pub use crate::read::search::filters::{FilteredRecordKeyPage, FilteredRecordSort};
+pub use crate::read::search::fts::{FtsColumnWeights, FtsQuery, FtsSearchHit, FtsSearchLane};
+pub use crate::write::sqlite::SqliteIndexWriter;
+pub use reader::SqliteIndexReader;

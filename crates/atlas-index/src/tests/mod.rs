@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::artifact_metadata::{
+use crate::artifact::metadata::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
 };
-use crate::artifact_schema::CREATE_ARTIFACT_SCHEMA_SQL;
+use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
 use atlas_embedding::{EMBEDDING_UNIT_POLICY_VERSION, default_embedding_model_spec};
 use rusqlite::Connection;
 

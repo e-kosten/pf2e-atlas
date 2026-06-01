@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::artifact_metadata::artifact_metadata_keys;
+use crate::artifact::metadata::artifact_metadata_keys;
 use atlas_embedding::EmbeddingModelId;
 use rusqlite::Connection;
 
@@ -23,7 +23,7 @@ fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(report.code, ValidationCode::Ok);
     assert_eq!(
         report.artifact_contract_version.as_deref(),
-        Some(crate::artifact_metadata::ARTIFACT_CONTRACT_VERSION)
+        Some(crate::artifact::metadata::ARTIFACT_CONTRACT_VERSION)
     );
     fs::remove_file(path)?;
     Ok(())

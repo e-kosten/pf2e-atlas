@@ -3,11 +3,9 @@ use atlas_domain::{
     FilterValueSort,
 };
 
-use crate::schema_inventory::{
+use crate::artifact::inventory::{
     Column, Table, actor_records, item_records, record_traits, records, spell_records,
 };
-
-use super::error::DiscoveryError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DiscoveryFieldDefinition {
@@ -731,38 +729,6 @@ pub(crate) fn metric_field_info(catalog_available: bool) -> FilterFieldInfo {
         cli_flags: vec!["--metric".to_string()],
         catalog_available,
     }
-}
-
-pub(super) fn validate_options(
-    definition: FieldDefinition,
-    sort: Option<FilterValueSort>,
-    sample_limit: Option<usize>,
-) -> Result<(), DiscoveryError> {
-    if sort.is_some() && definition.value_policy != FilterValuePolicy::Enumerable {
-        return Err(DiscoveryError::InvalidOption(
-            "--sort applies only to enumerable value fields".to_string(),
-        ));
-    }
-    if sample_limit.is_some() && definition.value_policy != FilterValuePolicy::Sample {
-        return Err(DiscoveryError::InvalidOption(
-            "--sample-limit applies only to sampled text fields".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-pub(super) fn unknown_field_error(field: &str) -> DiscoveryError {
-    let suggestion = match field {
-        "packs" | "pack" => " Did you mean `pack_name` or `pack_label`?",
-        "sources" | "source" => " Did you mean `publication_title`?",
-        "actorMetrics" | "itemMetrics" | "actor_metrics" | "item_metrics" => {
-            " Did you mean `metric`?"
-        }
-        _ => "",
-    };
-    DiscoveryError::InvalidField(format!(
-        "unknown filter field `{field}`.{suggestion} Run `atlas filters fields` to discover supported fields."
-    ))
 }
 
 #[cfg(test)]
