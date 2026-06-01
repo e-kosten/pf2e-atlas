@@ -5,7 +5,7 @@ use atlas_domain::{
 use diesel::sql_types::{BigInt, Bool, Double, Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::EligibleRecordKeyset;
+use crate::filters::SqliteEligibleRecordKeyset;
 use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 use super::definitions::{FieldDefinition, all_definitions};
@@ -60,7 +60,9 @@ pub(super) fn count_matching_records(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter).compile()?.count_query();
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .count_query();
     bind_sql_query(query.sql, &query.parameters)
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
@@ -72,7 +74,7 @@ pub(super) fn field_applies(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<bool, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -103,7 +105,7 @@ fn enumerable_values(
         DiscoveryValueSort::Alpha | DiscoveryValueSort::Canonical => "value ASC",
         DiscoveryValueSort::Count => "catalog_count DESC, value ASC",
     };
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -165,7 +167,7 @@ fn numeric_stats(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<atlas_domain::NumericFieldStats, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -195,7 +197,7 @@ fn boolean_counts(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<BooleanFieldCounts, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|_| {
             format!(
@@ -224,7 +226,7 @@ fn null_count(
     definition: FieldDefinition,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
         |_| {
             format!(
                 ", field_values(record_key, value) AS ({values})

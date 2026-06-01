@@ -9,7 +9,7 @@ use diesel::OptionalExtension;
 use diesel::sql_types::{BigInt, Double, Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::EligibleRecordKeyset;
+use crate::filters::SqliteEligibleRecordKeyset;
 use crate::sqlite::raw_sql::{CountRow, bind_sql_query};
 
 use super::error::{DiscoveryError, query_error};
@@ -138,7 +138,7 @@ fn metric_keys(
     metric_query: Option<&str>,
     domain: Option<&str>,
 ) -> Result<Vec<MetricKeyDiscovery>, DiscoveryError> {
-    let query = EligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
         |builder| {
             let mut predicates = Vec::new();
             if let Some(prefix) = prefix {
@@ -289,7 +289,7 @@ fn metric_text_values(
     if let Some(scope) = catalog_scope {
         return catalog_metric_text_values(connection, scope, metric);
     }
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());
@@ -322,7 +322,7 @@ fn metric_boolean_counts(
     if let Some(scope) = catalog_scope {
         return catalog_metric_boolean_counts(connection, scope, metric);
     }
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());
@@ -361,7 +361,7 @@ fn metric_numeric_stats(
     {
         return Ok(stats);
     }
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             let domain_placeholder = builder.push_text(metric.metric_domain.clone());

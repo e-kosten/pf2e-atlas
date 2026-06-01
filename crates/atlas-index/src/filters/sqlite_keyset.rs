@@ -7,28 +7,28 @@ use super::error::FilterCompileError;
 use super::sql_render::{RECORDS_ALIAS, record_column};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct EligibleRecordKeyset<'a> {
+pub(crate) struct SqliteEligibleRecordKeyset<'a> {
     filter: Option<&'a SearchFilterNode>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct FilterSqlQuery {
+pub(crate) struct SqliteFilterSqlQuery {
     pub sql: String,
     pub parameters: Vec<SqlBindValue>,
 }
 
-pub(crate) struct FilterSqlBuilder<'a> {
+pub(crate) struct SqliteFilterSqlBuilder<'a> {
     parameters: &'a mut Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct CompiledEligibleRecordKeyset {
+pub(crate) struct CompiledSqliteEligibleRecordKeyset {
     select_sql: String,
     parameters: Vec<SqlBindValue>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FilteredRecordSort {
+pub(crate) enum SqliteFilteredRecordSort {
     RecordKeyAsc,
     NameAsc,
     LevelAsc,
@@ -37,12 +37,12 @@ pub enum FilteredRecordSort {
     PriceDesc,
 }
 
-impl<'a> EligibleRecordKeyset<'a> {
+impl<'a> SqliteEligibleRecordKeyset<'a> {
     pub(crate) fn new(filter: Option<&'a SearchFilterNode>) -> Self {
         Self { filter }
     }
 
-    pub(crate) fn compile(self) -> Result<CompiledEligibleRecordKeyset, FilterCompileError> {
+    pub(crate) fn compile(self) -> Result<CompiledSqliteEligibleRecordKeyset, FilterCompileError> {
         let mut compiler = FilterCompiler::default();
         let base = format!(
             "SELECT {record_key} FROM {records_table} {records_alias} WHERE {default_visible} = 1",
@@ -56,14 +56,14 @@ impl<'a> EligibleRecordKeyset<'a> {
             None => base,
         };
 
-        Ok(CompiledEligibleRecordKeyset {
+        Ok(CompiledSqliteEligibleRecordKeyset {
             select_sql,
             parameters: compiler.parameters,
         })
     }
 }
 
-impl CompiledEligibleRecordKeyset {
+impl CompiledSqliteEligibleRecordKeyset {
     #[cfg(test)]
     pub(crate) fn select_sql(&self) -> &str {
         &self.select_sql
@@ -80,30 +80,30 @@ impl CompiledEligibleRecordKeyset {
 
     pub(crate) fn with_eligible_cte(
         self,
-        build_body: impl FnOnce(&mut FilterSqlBuilder<'_>) -> String,
-    ) -> FilterSqlQuery {
+        build_body: impl FnOnce(&mut SqliteFilterSqlBuilder<'_>) -> String,
+    ) -> SqliteFilterSqlQuery {
         let cte = self.eligible_cte_sql();
         let mut parameters = self.parameters;
-        let mut builder = FilterSqlBuilder {
+        let mut builder = SqliteFilterSqlBuilder {
             parameters: &mut parameters,
         };
         let body = build_body(&mut builder);
-        FilterSqlQuery {
+        SqliteFilterSqlQuery {
             sql: format!("WITH {cte} {body}"),
             parameters,
         }
     }
 
-    pub(crate) fn count_query(self) -> FilterSqlQuery {
+    pub(crate) fn count_query(self) -> SqliteFilterSqlQuery {
         self.with_eligible_cte(|_| "SELECT COUNT(*) AS count FROM eligible".to_string())
     }
 
     pub(crate) fn into_record_keys_query(
         self,
-        sort: FilteredRecordSort,
+        sort: SqliteFilteredRecordSort,
         limit: Option<u32>,
         offset: Option<u32>,
-    ) -> FilterSqlQuery {
+    ) -> SqliteFilterSqlQuery {
         self.with_eligible_cte(|builder| {
             let mut sql = format!(
                 "SELECT {}
@@ -141,7 +141,7 @@ impl CompiledEligibleRecordKeyset {
     }
 }
 
-impl FilterSqlBuilder<'_> {
+impl SqliteFilterSqlBuilder<'_> {
     pub(crate) fn push(&mut self, value: SqlBindValue) -> String {
         self.parameters.push(value);
         format!("?{}", self.parameters.len())
@@ -164,7 +164,7 @@ impl FilterSqlBuilder<'_> {
     }
 }
 
-impl FilteredRecordSort {
+impl SqliteFilteredRecordSort {
     fn sql(self) -> String {
         match self {
             Self::RecordKeyAsc => format!("{} ASC", record_column(records::columns::RECORD_KEY)),
