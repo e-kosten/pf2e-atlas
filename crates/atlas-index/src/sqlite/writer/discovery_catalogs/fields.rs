@@ -5,9 +5,12 @@ use diesel::sql_types::{BigInt, Nullable, Text};
 use diesel::{QueryableByName, SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
+use crate::discovery::definitions::{
+    DISCOVERY_ALL_FAMILIES as ALL_FAMILIES, DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS,
+    DiscoveryFieldDefinition as FieldCatalogSeed,
+};
 
 use super::super::models::FilterFieldCatalogRow;
-use super::field_seeds::{ALL_FAMILIES, FIELD_SEEDS, FieldCatalogSeed};
 use super::stats::FieldStats;
 
 pub(super) fn write_field_catalogs(

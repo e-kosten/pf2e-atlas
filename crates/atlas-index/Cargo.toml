@@ -10,7 +10,6 @@ rust-version.workspace = true
 test-support = []
 
 [dependencies]
-atlas-discovery.workspace = true
 atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-record.workspace = true

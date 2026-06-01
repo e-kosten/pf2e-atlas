@@ -4,8 +4,7 @@ use diesel::sql_types::Text;
 use diesel::{SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
-
-use super::field_seeds::FIELD_SEEDS;
+use crate::discovery::definitions::DISCOVERY_FIELD_DEFINITIONS as FIELD_SEEDS;
 
 const TEMP_DISCOVERY_VALUES: &str = "temp_discovery_values";
 
@@ -33,6 +32,7 @@ pub(super) fn stage_discovery_values(
             total,
             format!("Staging filter discovery values: {}", seed.field),
         );
+        let value_sql = seed.value_sql();
         let sql = format!(
             "WITH field_values(record_key, value) AS ({value_sql})
              INSERT INTO {TEMP_DISCOVERY_VALUES}
@@ -45,7 +45,7 @@ pub(super) fn stage_discovery_values(
              FROM field_values fv
              JOIN records r ON r.record_key = fv.record_key
              WHERE r.is_default_visible = 1",
-            value_sql = seed.value_sql
+            value_sql = value_sql
         );
         sql_query(sql)
             .bind::<Text, _>(seed.field)

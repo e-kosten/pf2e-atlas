@@ -19,7 +19,6 @@ It is intended as release hygiene and is not legal advice.
 - anstyle-wincon 3.0.11: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - anyhow 1.0.102: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - atlas-cli 0.1.0-rc.4: MIT (workspace)
-- atlas-discovery 0.1.0: MIT (workspace)
 - atlas-domain 0.1.0: MIT (workspace)
 - atlas-embedding 0.1.0: MIT (workspace)
 - atlas-index 0.1.0: MIT (workspace)

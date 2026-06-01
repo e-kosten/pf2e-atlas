@@ -1,5 +1,5 @@
 mod catalog;
-mod definitions;
+pub(crate) mod definitions;
 mod dynamic;
 mod error;
 mod metrics;
