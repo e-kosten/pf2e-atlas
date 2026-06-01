@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::artifact_metadata::artifact_metadata_keys;
-use crate::artifact_storage::{decode_f32_vector_blob, f32_vector_blob_len};
+use crate::artifact::metadata::artifact_metadata_keys;
+use crate::artifact::storage::{decode_f32_vector_blob, f32_vector_blob_len};
 use atlas_embedding::{
     EMBEDDING_UNIT_POLICY_VERSION, EmbeddingModelSpec, ReusableDocumentEmbedding,
 };

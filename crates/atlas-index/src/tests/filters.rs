@@ -8,12 +8,12 @@ use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 
 use super::{create_valid_artifact_database, temp_db_path};
-use crate::filters::{
+use crate::read::search::filters::{
     CompiledSqliteEligibleRecordKeyset, FilterCompileError, SqliteEligibleRecordKeyset,
     SqliteFilterSqlQuery, SqliteFilteredRecordSort,
 };
-use crate::sqlite::raw_sql::SqlBindValue;
-use crate::vector::compile_vector_knn_query;
+use crate::read::search::vector::compile_vector_knn_query;
+use crate::read::sql::SqlBindValue;
 use crate::{FilteredRecordSort, FtsQuery, SqliteIndexReader};
 
 #[test]

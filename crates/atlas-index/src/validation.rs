@@ -1,4 +1,15 @@
 use serde::Serialize;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum IndexValidationError {
+    #[error("index is unavailable: {0}")]
+    Unavailable(String),
+    #[error("index query failed: {0}")]
+    QueryFailed(String),
+    #[error("index artifact metadata is invalid: {0}")]
+    InvalidArtifact(String),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

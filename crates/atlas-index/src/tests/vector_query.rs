@@ -2,9 +2,9 @@ use atlas_domain::RecordFamily;
 use atlas_domain::metadata::{MetadataPredicate, MetadataSetField, MetadataSetMatch};
 
 use crate::VectorQueryError;
-use crate::filters::FilterCompileError;
-use crate::sqlite::raw_sql::SqlBindValue;
-use crate::vector::compile_vector_knn_query;
+use crate::read::search::filters::FilterCompileError;
+use crate::read::search::vector::compile_vector_knn_query;
+use crate::read::sql::SqlBindValue;
 
 #[test]
 fn composes_vector_knn_query_from_eligible_records() -> Result<(), Box<dyn std::error::Error>> {

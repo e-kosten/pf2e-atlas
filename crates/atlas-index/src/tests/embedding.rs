@@ -1,7 +1,7 @@
 use std::fs;
 use std::mem::size_of;
 
-use crate::artifact_storage::encode_f32_vector_blob;
+use crate::artifact::storage::encode_f32_vector_blob;
 use rusqlite::Connection;
 
 use super::{create_valid_artifact_database, temp_db_path};
@@ -56,7 +56,7 @@ fn reusable_document_embedding_cache_rejects_metadata_mismatch()
     let connection = Connection::open(&path)?;
     connection.execute(
         "UPDATE artifact_metadata SET value = 'unknown/model' WHERE key = ?1",
-        [crate::artifact_metadata::artifact_metadata_keys::EMBEDDING_MODEL_ID],
+        [crate::artifact::metadata::artifact_metadata_keys::EMBEDDING_MODEL_ID],
     )?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
     drop(connection);
@@ -203,12 +203,12 @@ fn check_embedding_readiness_skips_deep_vector_coverage() -> Result<(), Box<dyn 
 {
     let path = temp_db_path("vector-check-skips-coverage");
     create_valid_artifact_database(&path)?;
-    crate::vector::register_sqlite_vec_extension()?;
+    crate::read::search::vector::register_sqlite_vec_extension()?;
     let connection = Connection::open(&path)?;
     insert_document_embedding_cache_rows(&connection, 384, 384 * size_of::<f32>())?;
-    connection.execute_batch(&crate::sqlite_vector_index::create_sql(384))?;
+    connection.execute_batch(&crate::read::search::sqlite_vector_index::create_sql(384))?;
     connection.execute(
-        &crate::sqlite_vector_index::insert_sql(),
+        &crate::read::search::sqlite_vector_index::insert_sql(),
         (1_i64, encode_f32_vector_blob(&vec![0.0_f32; 384])),
     )?;
     drop(connection);
