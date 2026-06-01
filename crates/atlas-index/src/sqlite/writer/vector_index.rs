@@ -1,10 +1,10 @@
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Binary};
-use diesel::{QueryableByName, SqliteConnection, sql_query};
+use diesel::{SqliteConnection, sql_query};
 
 use crate::IndexWriteError;
+use crate::schema::document_embedding_cache;
 
-const TABLE_DOCUMENT_EMBEDDING_CACHE: &str = "document_embedding_cache";
 const TABLE_RECORD_VECTOR_INDEX: &str = "record_vector_index";
 
 pub(super) fn write_record_vector_index(
@@ -20,48 +20,31 @@ pub(super) fn write_record_vector_index(
     .execute(connection)
     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
 
-    let rows = sql_query(format!(
-        "SELECT rowid, vector_blob
-         FROM {TABLE_DOCUMENT_EMBEDDING_CACHE}
-         ORDER BY embedding_unit_key"
-    ))
-    .load::<VectorSourceRow>(connection)
-    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    for row in rows {
+    let rows = document_embedding_cache::table
+        .select((
+            diesel::dsl::sql::<BigInt>("rowid"),
+            document_embedding_cache::vector_blob,
+        ))
+        .order(document_embedding_cache::embedding_unit_key.asc())
+        .load::<(i64, Vec<u8>)>(connection)
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    for (rowid, vector_blob) in rows {
         diesel::sql_query(format!(
             "INSERT INTO {TABLE_RECORD_VECTOR_INDEX} (rowid, embedding) VALUES (?, ?)"
         ))
-        .bind::<BigInt, _>(row.rowid)
-        .bind::<Binary, _>(row.vector_blob)
+        .bind::<BigInt, _>(rowid)
+        .bind::<Binary, _>(vector_blob)
         .execute(connection)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
 }
 
-#[derive(QueryableByName)]
-struct DimensionRow {
-    #[diesel(sql_type = BigInt)]
-    dimensions: i64,
-}
-
-#[derive(QueryableByName)]
-struct VectorSourceRow {
-    #[diesel(sql_type = BigInt)]
-    rowid: i64,
-    #[diesel(sql_type = Binary)]
-    vector_blob: Vec<u8>,
-}
-
 fn embedding_dimensions(connection: &mut SqliteConnection) -> Result<usize, IndexWriteError> {
-    let dimensions = sql_query(format!(
-        "SELECT dimensions
-         FROM {TABLE_DOCUMENT_EMBEDDING_CACHE}
-         LIMIT 1"
-    ))
-    .get_result::<DimensionRow>(connection)
-    .map(|row| row.dimensions)
-    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let dimensions = document_embedding_cache::table
+        .select(document_embedding_cache::dimensions)
+        .first::<i64>(connection)
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     usize::try_from(dimensions).map_err(|_| {
         IndexWriteError::WriteFailed(format!(
             "document embedding dimensions must be non-negative, got {dimensions}"
