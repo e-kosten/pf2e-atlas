@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use atlas_artifact::schema::{
     filter_numeric_catalog_insert_sql, filter_sample_catalog_insert_sql,
     filter_value_catalog_insert_sql,
@@ -61,7 +63,7 @@ fn write_discrete_values(
     insert_sql: &str,
     seed: &FieldCatalogSeed,
 ) -> Result<(), IndexWriteError> {
-    for row in collect_counts(connection, seed.value_sql)? {
+    for row in collect_counts(connection, seed.field)? {
         connection
             .execute(
                 insert_sql,
@@ -77,7 +79,7 @@ fn write_sample_values(
     insert_sql: &str,
     seed: &FieldCatalogSeed,
 ) -> Result<(), IndexWriteError> {
-    let mut rows = collect_counts(connection, seed.value_sql)?;
+    let mut rows = collect_counts(connection, seed.field)?;
     rows.sort_by(|left, right| {
         left.record_family
             .cmp(&right.record_family)
@@ -110,7 +112,7 @@ fn write_numeric_values(
     insert_sql: &str,
     seed: &FieldCatalogSeed,
 ) -> Result<(), IndexWriteError> {
-    for row in collect_numeric_stats(connection, seed.value_sql)? {
+    for row in collect_numeric_stats(connection, seed.field)? {
         connection
             .execute(
                 insert_sql,
@@ -140,30 +142,16 @@ fn write_metric_numeric_values(
     connection: &Connection,
     insert_sql: &str,
 ) -> Result<(), IndexWriteError> {
-    let mut statement = connection
-        .prepare(
-            "SELECT DISTINCT metric_domain, metric_key
-             FROM record_metrics
-             WHERE value_type = 'number'
-             ORDER BY metric_domain, metric_key",
-        )
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let metric_rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let total = metric_rows.len() as u64;
-    for (index, (metric_domain, metric_key)) in metric_rows.iter().enumerate() {
+    let stats_by_metric = collect_all_metric_numeric_stats(connection)?;
+    let total = stats_by_metric.len() as u64;
+    for (index, ((metric_domain, metric_key), rows)) in stats_by_metric.iter().enumerate() {
         super::progress(
             "filter_metric_catalogs",
             index as u64,
             total,
             format!("Writing filter metric catalog: {metric_domain}.{metric_key}"),
         );
-        for row in collect_metric_numeric_stats(connection, metric_domain, metric_key)? {
+        for row in rows {
             connection
                 .execute(
                     insert_sql,
@@ -203,30 +191,22 @@ struct CountRow {
     count: u64,
 }
 
-fn collect_counts(
-    connection: &Connection,
-    value_sql: &str,
-) -> Result<Vec<CountRow>, IndexWriteError> {
-    let sql = format!(
-        "WITH field_values(record_key, value) AS ({value_sql})
-         SELECT NULL AS record_family, value, COUNT(*) AS catalog_count
-         FROM field_values fv
-         JOIN records r ON r.record_key = fv.record_key
-         WHERE r.is_default_visible = 1 AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
+fn collect_counts(connection: &Connection, field: &str) -> Result<Vec<CountRow>, IndexWriteError> {
+    let sql = "SELECT NULL AS record_family, value, COUNT(*) AS catalog_count
+         FROM temp_discovery_values
+         WHERE field = ?1 AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
          GROUP BY value
          UNION ALL
-         SELECT r.record_family, value, COUNT(*) AS catalog_count
-         FROM field_values fv
-         JOIN records r ON r.record_key = fv.record_key
-         WHERE r.is_default_visible = 1 AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
-         GROUP BY r.record_family, value
-         ORDER BY record_family, catalog_count DESC, value ASC"
-    );
+         SELECT record_family, value, COUNT(*) AS catalog_count
+         FROM temp_discovery_values
+         WHERE field = ?1 AND value IS NOT NULL AND CAST(value AS TEXT) <> ''
+         GROUP BY record_family, value
+         ORDER BY record_family, catalog_count DESC, value ASC";
     let mut statement = connection
-        .prepare(&sql)
+        .prepare(sql)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map(params![field], |row| {
             Ok((
                 row.get::<_, Option<String>>(0)?,
                 row.get::<_, String>(1)?,
@@ -264,133 +244,113 @@ struct NumericRow {
 
 fn collect_numeric_stats(
     connection: &Connection,
-    value_sql: &str,
+    field: &str,
 ) -> Result<Vec<NumericRow>, IndexWriteError> {
     let mut rows = Vec::new();
-    rows.push(numeric_scope(connection, value_sql, None)?);
+    rows.push(numeric_scope(connection, field, None)?);
     for family in ALL_FAMILIES {
-        rows.push(numeric_scope(connection, value_sql, Some(*family))?);
+        rows.push(numeric_scope(connection, field, Some(*family))?);
     }
     Ok(rows.into_iter().flatten().collect())
 }
 
-fn collect_metric_numeric_stats(
+fn collect_all_metric_numeric_stats(
     connection: &Connection,
-    metric_domain: &str,
-    metric_key: &str,
-) -> Result<Vec<NumericRow>, IndexWriteError> {
-    let mut rows = Vec::new();
-    rows.push(metric_numeric_scope(
-        connection,
-        metric_domain,
-        metric_key,
-        None,
-    )?);
-    for family in ALL_FAMILIES {
-        rows.push(metric_numeric_scope(
-            connection,
-            metric_domain,
-            metric_key,
-            Some(*family),
-        )?);
-    }
-    Ok(rows.into_iter().flatten().collect())
-}
-
-fn metric_numeric_scope(
-    connection: &Connection,
-    metric_domain: &str,
-    metric_key: &str,
-    family: Option<&'static str>,
-) -> Result<Option<NumericRow>, IndexWriteError> {
-    let family_predicate = if family.is_some() {
-        "AND r.record_family = ?3"
-    } else {
-        ""
-    };
-    let sql = format!(
-        "SELECT rm.number_value
-         FROM record_metrics rm
-         JOIN records r ON r.record_key = rm.record_key
-         WHERE r.is_default_visible = 1
-           AND rm.metric_domain = ?1
-           AND rm.metric_key = ?2
-           AND rm.value_type = 'number'
-           AND rm.number_value IS NOT NULL
-           {family_predicate}
-         ORDER BY rm.number_value ASC"
+) -> Result<BTreeMap<(String, String), Vec<NumericRow>>, IndexWriteError> {
+    super::progress(
+        "filter_metric_catalogs",
+        0,
+        1,
+        "Collecting filter metric catalog stats".to_string(),
     );
+    let matching_counts = matching_counts_by_scope(connection)?;
     let mut statement = connection
-        .prepare(&sql)
+        .prepare(
+            "SELECT rm.metric_domain,
+                    rm.metric_key,
+                    r.record_family,
+                    rm.number_value
+             FROM record_metrics rm
+             JOIN records r ON r.record_key = rm.record_key
+             WHERE r.is_default_visible = 1
+               AND rm.value_type = 'number'
+               AND rm.number_value IS NOT NULL",
+        )
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    let values = if let Some(family) = family {
-        statement
-            .query_map(params![metric_domain, metric_key, family], |row| {
-                row.get::<_, f64>(0)
-            })
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
-    } else {
-        statement
-            .query_map(params![metric_domain, metric_key], |row| {
-                row.get::<_, f64>(0)
-            })
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
-    };
-    if values.is_empty() {
-        return Ok(None);
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, f64>(3)?,
+            ))
+        })
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let mut values_by_scope = BTreeMap::<(String, String, Option<&'static str>), Vec<f64>>::new();
+    for row in rows {
+        let (metric_domain, metric_key, record_family, value) =
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        values_by_scope
+            .entry((metric_domain.clone(), metric_key.clone(), None))
+            .or_default()
+            .push(value);
+        if let Some(record_family) = known_family(record_family.as_str()) {
+            values_by_scope
+                .entry((metric_domain, metric_key, Some(record_family)))
+                .or_default()
+                .push(value);
+        }
     }
-    let matching_count = matching_count(connection, family)?;
-    Ok(Some(NumericRow {
-        record_family: family,
-        count: values.len() as u64,
-        null_count: matching_count.saturating_sub(values.len() as u64),
-        min: values.first().copied(),
-        p05: percentile(&values, 0.05),
-        p25: percentile(&values, 0.25),
-        p50: percentile(&values, 0.50),
-        mean: Some(values.iter().sum::<f64>() / values.len() as f64),
-        p75: percentile(&values, 0.75),
-        p95: percentile(&values, 0.95),
-        max: values.last().copied(),
-    }))
+    let mut stats_by_metric = BTreeMap::<(String, String), Vec<NumericRow>>::new();
+    for ((metric_domain, metric_key, record_family), mut values) in values_by_scope {
+        values.sort_by(f64::total_cmp);
+        let matching_count = matching_counts
+            .get(&record_family)
+            .copied()
+            .unwrap_or_default();
+        stats_by_metric
+            .entry((metric_domain, metric_key))
+            .or_default()
+            .push(numeric_row_from_values(
+                record_family,
+                &values,
+                matching_count,
+            ));
+    }
+    Ok(stats_by_metric)
 }
 
 fn numeric_scope(
     connection: &Connection,
-    value_sql: &str,
+    field: &str,
     family: Option<&'static str>,
 ) -> Result<Option<NumericRow>, IndexWriteError> {
     let family_predicate = if family.is_some() {
-        "AND r.record_family = ?1"
+        "AND record_family = ?2"
     } else {
         ""
     };
     let sql = format!(
-        "WITH field_values(record_key, value) AS ({value_sql})
-         SELECT value
-         FROM field_values fv
-         JOIN records r ON r.record_key = fv.record_key
-         WHERE r.is_default_visible = 1
+        "SELECT numeric_value
+         FROM temp_discovery_values
+         WHERE field = ?1
            {family_predicate}
            AND value IS NOT NULL
-         ORDER BY value ASC"
+         ORDER BY numeric_value ASC"
     );
     let mut statement = connection
         .prepare(&sql)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     let values = if let Some(family) = family {
         statement
-            .query_map(params![family], |row| row.get::<_, f64>(0))
+            .query_map(params![field, family], |row| row.get::<_, f64>(0))
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
     } else {
         statement
-            .query_map([], |row| row.get::<_, f64>(0))
+            .query_map(params![field], |row| row.get::<_, f64>(0))
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?
@@ -399,19 +359,31 @@ fn numeric_scope(
         return Ok(None);
     }
     let matching_count = matching_count(connection, family)?;
-    Ok(Some(NumericRow {
-        record_family: family,
+    Ok(Some(numeric_row_from_values(
+        family,
+        &values,
+        matching_count,
+    )))
+}
+
+fn numeric_row_from_values(
+    record_family: Option<&'static str>,
+    values: &[f64],
+    matching_count: u64,
+) -> NumericRow {
+    NumericRow {
+        record_family,
         count: values.len() as u64,
         null_count: matching_count.saturating_sub(values.len() as u64),
         min: values.first().copied(),
-        p05: percentile(&values, 0.05),
-        p25: percentile(&values, 0.25),
-        p50: percentile(&values, 0.50),
+        p05: percentile(values, 0.05),
+        p25: percentile(values, 0.25),
+        p50: percentile(values, 0.50),
         mean: Some(values.iter().sum::<f64>() / values.len() as f64),
-        p75: percentile(&values, 0.75),
-        p95: percentile(&values, 0.95),
+        p75: percentile(values, 0.75),
+        p95: percentile(values, 0.95),
         max: values.last().copied(),
-    }))
+    }
 }
 
 fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, IndexWriteError> {
@@ -431,6 +403,35 @@ fn matching_count(connection: &Connection, family: Option<&str>) -> Result<u64, 
             )
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string())),
     }
+}
+
+fn matching_counts_by_scope(
+    connection: &Connection,
+) -> Result<BTreeMap<Option<&'static str>, u64>, IndexWriteError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT NULL AS record_family, COUNT(*)
+             FROM records
+             WHERE is_default_visible = 1
+             UNION ALL
+             SELECT record_family, COUNT(*)
+             FROM records
+             WHERE is_default_visible = 1
+             GROUP BY record_family",
+        )
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, Option<String>>(0)?, row.get::<_, u64>(1)?))
+        })
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    let mut counts = BTreeMap::new();
+    for row in rows {
+        let (scope, count) =
+            row.map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+        counts.insert(scope.and_then(|value| known_family(value.as_str())), count);
+    }
+    Ok(counts)
 }
 
 fn percentile(sorted_values: &[f64], percentile: f64) -> Option<f64> {
