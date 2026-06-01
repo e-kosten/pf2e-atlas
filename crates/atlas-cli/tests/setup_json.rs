@@ -598,6 +598,18 @@ fn assert_plans_rebuild_after_source_analysis(
             && action["status"] == "planned"
             && action["reason"] == "source signature changed since the artifact was built"
     }));
+    assert!(
+        actual["not_ready_reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reason| {
+                reason["code"] == "artifact_stale_source_signature"
+                    && reason["action"] == "build_index"
+                    && reason["status"] == "planned"
+                    && reason["message"] == "source signature changed since the artifact was built"
+            })
+    );
     Ok(())
 }
 

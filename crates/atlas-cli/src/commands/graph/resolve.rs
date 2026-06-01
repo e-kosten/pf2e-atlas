@@ -1,11 +1,13 @@
 use std::process::ExitCode;
 
-use atlas_domain::RecordKey;
+use atlas_domain::{DetailLevel, RecordKey};
+use atlas_record::{RecordJsonOptions, record_json};
 use atlas_search::{
     AtlasRetrievalService, GraphVariantGroupResult, RecordResolutionResult, SearchError,
 };
+use serde::Serialize;
 
-use crate::output::write_json_error;
+use crate::output::{write_json_error, write_json_error_data};
 
 use super::super::record::{search_error, search_error_code};
 
@@ -118,19 +120,84 @@ fn write_record_resolution_ambiguity(
     matches: &[RecordResolutionResult],
     json: bool,
 ) -> Result<(), String> {
-    let alternatives = matches
-        .iter()
-        .take(5)
-        .map(|hit| format!("{} ({})", hit.record.name, hit.record.key))
-        .collect::<Vec<_>>()
-        .join(", ");
-    let message = format!("record resolution ambiguous: {record_ref}; candidates: {alternatives}");
+    let ambiguity = ambiguous_record_resolution(record_ref, matches);
+    let message = ambiguity.message();
     if json {
-        write_json_error("record_resolution_ambiguous", message)?;
+        write_json_error_data("record_resolution_ambiguous", message, ambiguity)?;
     } else {
         eprintln!("{message}");
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct AmbiguousGraphResolution {
+    result: AmbiguousGraphResult,
+}
+
+#[derive(Debug, Serialize)]
+struct AmbiguousGraphResult {
+    query: String,
+    alternatives: Vec<GraphResolutionAlternativeJson>,
+}
+
+#[derive(Debug, Serialize)]
+struct GraphResolutionAlternativeJson {
+    record: atlas_record::RecordJson,
+    resolution: GraphResolutionJson,
+}
+
+#[derive(Debug, Serialize)]
+struct GraphResolutionJson {
+    query: String,
+    normalized_query: String,
+    match_kind: &'static str,
+    matched_text: String,
+}
+
+impl AmbiguousGraphResolution {
+    fn message(&self) -> String {
+        format!(
+            "record resolution ambiguous: {}; candidates: {}",
+            self.result.query,
+            self.result
+                .alternatives
+                .iter()
+                .map(|alternative| {
+                    format!("{} ({})", alternative.record.name, alternative.record.key)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+fn ambiguous_record_resolution(
+    record_ref: &str,
+    matches: &[RecordResolutionResult],
+) -> AmbiguousGraphResolution {
+    let record_options = RecordJsonOptions {
+        detail: DetailLevel::Summary,
+        include_source_json: false,
+    };
+    AmbiguousGraphResolution {
+        result: AmbiguousGraphResult {
+            query: record_ref.to_string(),
+            alternatives: matches
+                .iter()
+                .take(5)
+                .map(|resolution| GraphResolutionAlternativeJson {
+                    record: record_json(&resolution.record, record_options),
+                    resolution: GraphResolutionJson {
+                        query: resolution.query.clone(),
+                        normalized_query: resolution.normalized_query.clone(),
+                        match_kind: resolution.match_kind.as_str(),
+                        matched_text: resolution.matched_text.clone(),
+                    },
+                })
+                .collect(),
+        },
+    }
 }
 
 fn write_variant_group_ambiguity(

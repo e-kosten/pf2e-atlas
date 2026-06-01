@@ -15,7 +15,7 @@ use crate::commands::filters::build_filter;
 use crate::commands::record::{
     detail_outputs_description, print_record_for_detail, search_error, search_error_code,
 };
-use crate::output::{write_json_data, write_json_error};
+use crate::output::{write_json_data, write_json_error, write_json_error_data};
 
 #[derive(Debug, Serialize)]
 struct SimilarData {
@@ -118,11 +118,15 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             }
             return Ok(ExitCode::from(1));
         }
-        Ok(SeedResolution::Ambiguous(message)) => {
+        Ok(SeedResolution::Ambiguous(ambiguity)) => {
             if options.json {
-                write_json_error("record_resolution_ambiguous", message)?;
+                write_json_error_data(
+                    "record_resolution_ambiguous",
+                    ambiguity.message(),
+                    ambiguity,
+                )?;
             } else {
-                eprintln!("{message}");
+                eprintln!("{ambiguity}");
             }
             return Ok(ExitCode::from(1));
         }
@@ -166,7 +170,49 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
 enum SeedResolution {
     Resolved(RecordKey),
     Missing,
-    Ambiguous(String),
+    Ambiguous(AmbiguousSeedResolution),
+}
+
+#[derive(Debug, Serialize)]
+struct AmbiguousSeedResolution {
+    result: AmbiguousSeedResult,
+}
+
+#[derive(Debug, Serialize)]
+struct AmbiguousSeedResult {
+    query: String,
+    alternatives: Vec<ResolutionAlternativeJson>,
+}
+
+#[derive(Debug, Serialize)]
+struct ResolutionAlternativeJson {
+    record: atlas_record::RecordJson,
+    resolution: ResolutionJson,
+}
+
+#[derive(Debug, Serialize)]
+struct ResolutionJson {
+    query: String,
+    normalized_query: String,
+    match_kind: &'static str,
+    matched_text: String,
+}
+
+impl AmbiguousSeedResolution {
+    fn message(&self) -> String {
+        format!(
+            "record resolution ambiguous: {}; candidates: {}",
+            self.result.query,
+            self.result
+                .alternatives
+                .iter()
+                .map(|alternative| {
+                    format!("{} ({})", alternative.record.name, alternative.record.key)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
 }
 
 fn resolve_seed(
@@ -180,21 +226,45 @@ fn resolve_seed(
     match matches.as_slice() {
         [] => Ok(SeedResolution::Missing),
         [resolution] => Ok(SeedResolution::Resolved(resolution.record.key.clone())),
-        alternatives => Ok(SeedResolution::Ambiguous(format!(
-            "record resolution ambiguous: {}; candidates: {}",
+        alternatives => Ok(SeedResolution::Ambiguous(ambiguous_seed_resolution(
             record_ref,
-            resolution_candidates(alternatives)
+            alternatives,
         ))),
     }
 }
 
-fn resolution_candidates(matches: &[RecordResolutionResult]) -> String {
-    matches
-        .iter()
-        .take(5)
-        .map(|resolution| format!("{} ({})", resolution.record.name, resolution.record.key))
-        .collect::<Vec<_>>()
-        .join(", ")
+fn ambiguous_seed_resolution(
+    record_ref: &str,
+    matches: &[RecordResolutionResult],
+) -> AmbiguousSeedResolution {
+    let record_options = RecordJsonOptions {
+        detail: DetailLevel::Summary,
+        include_source_json: false,
+    };
+    AmbiguousSeedResolution {
+        result: AmbiguousSeedResult {
+            query: record_ref.to_string(),
+            alternatives: matches
+                .iter()
+                .take(5)
+                .map(|resolution| ResolutionAlternativeJson {
+                    record: record_json(&resolution.record, record_options),
+                    resolution: ResolutionJson {
+                        query: resolution.query.clone(),
+                        normalized_query: resolution.normalized_query.clone(),
+                        match_kind: resolution.match_kind.as_str(),
+                        matched_text: resolution.matched_text.clone(),
+                    },
+                })
+                .collect(),
+        },
+    }
+}
+
+impl std::fmt::Display for AmbiguousSeedResolution {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message())
+    }
 }
 
 fn similar_data(
