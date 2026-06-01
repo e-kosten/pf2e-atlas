@@ -9,7 +9,10 @@ use atlas_runtime::{
 use serde::Serialize;
 
 use crate::output::{format_duration_ms, write_json_data, write_json_error};
-use crate::{SetupArgs, SetupCleanOptions, SetupCommand, SetupPathOptions, SetupRunOptions};
+
+pub(crate) mod args;
+
+use args::{SetupArgs, SetupCleanOptions, SetupCommand, SetupPathOptions, SetupRunOptions};
 
 pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
     let json = args.paths.json;

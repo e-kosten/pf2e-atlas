@@ -10,12 +10,15 @@ use atlas_search::{
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::SimilarOptions;
 use crate::commands::filters::build_filter;
 use crate::commands::record::{
     detail_outputs_description, print_record_for_detail, search_error, search_error_code,
 };
 use crate::output::{write_json_data, write_json_error, write_json_error_data};
+
+pub(crate) mod args;
+
+use args::SimilarOptions;
 
 #[derive(Debug, Serialize)]
 struct SimilarData {
