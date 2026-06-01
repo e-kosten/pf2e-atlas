@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::artifact_validation::{
     artifact_validation_diagnostic, artifact_validation_diagnostic_with_code,
 };
-use crate::filters::{EligibleRecordKeyset, FilterCompileError};
+use crate::filters::{FilterCompileError, SqliteEligibleRecordKeyset};
 use crate::sql::{count_rows, count_sql, table_exists};
 use crate::sqlite::raw_sql::bind_sql_query;
 use crate::{
@@ -92,7 +92,7 @@ pub(crate) fn compile_vector_knn_query(
     } else {
         "AND candidate.unit_kind = 'parent'"
     };
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             let vector_placeholder = builder.push_blob(encode_f32_vector_blob(query_vector));

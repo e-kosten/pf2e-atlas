@@ -6,7 +6,7 @@ use atlas_domain::{RecordKey, SearchFilterNode};
 use diesel::sql_types::{Double, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
-use crate::filters::{EligibleRecordKeyset, FilterCompileError};
+use crate::filters::{FilterCompileError, SqliteEligibleRecordKeyset};
 use crate::fts::ranking::{
     FtsDocument, FtsDocumentHit, FtsMatchTier, adjusted_rank, compare_fts_document_hits,
     normalize_text, tokenize_query,
@@ -222,7 +222,7 @@ pub(crate) fn query_fts_record_keys(
     filter: Option<&SearchFilterNode>,
     limit: u32,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             let query_placeholder = builder.push_text(fts_query.as_disjunction_match_query());
@@ -279,7 +279,7 @@ fn query_fts_documents(
     weights: FtsColumnWeights,
     tier: FtsMatchTier,
 ) -> Result<Vec<FtsDocumentHit>, FilterCompileError> {
-    let query = EligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
+    let query = SqliteEligibleRecordKeyset::new(filter).compile()?.with_eligible_cte(
         |builder| {
             let query_placeholder = builder.push_text(match_query.to_string());
             let limit_placeholder = builder.push_integer(i64::from(limit));

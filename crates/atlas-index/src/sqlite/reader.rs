@@ -13,8 +13,8 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::discovery::{self, DiscoveryError, FilterValueRequest};
 use crate::filters::{
-    EligibleRecordKeyset, FilterCompileError, FilterSqlQuery,
-    FilteredRecordSort as SqlFilteredRecordSort,
+    FilterCompileError, SqliteEligibleRecordKeyset, SqliteFilterSqlQuery,
+    SqliteFilteredRecordSort as SqliteKeysetRecordSort,
 };
 use crate::fts;
 use crate::relationship_edges::{GraphReferenceEdge, read_reference_edges_for_seed};
@@ -405,9 +405,9 @@ impl SqliteIndexReader {
     ) -> Result<FilteredRecordKeyPage, FilterCompileError> {
         match sort {
             FilteredRecordSort::Random { seed } => {
-                let query = EligibleRecordKeyset::new(filter)
+                let query = SqliteEligibleRecordKeyset::new(filter)
                     .compile()?
-                    .into_record_keys_query(SqlFilteredRecordSort::RecordKeyAsc, None, None);
+                    .into_record_keys_query(SqliteKeysetRecordSort::RecordKeyAsc, None, None);
                 let mut record_keys =
                     read_record_keys(&mut self.diesel_connection.borrow_mut(), &query)?;
                 record_keys.sort_by_key(|key| seeded_key_hash(seed, &key.to_string()));
@@ -422,7 +422,7 @@ impl SqliteIndexReader {
             sort => {
                 let total =
                     count_filtered_records(&mut self.diesel_connection.borrow_mut(), filter)?;
-                let query = EligibleRecordKeyset::new(filter)
+                let query = SqliteEligibleRecordKeyset::new(filter)
                     .compile()?
                     .into_record_keys_query(sql_sort(sort), Some(limit), Some(offset));
                 Ok(FilteredRecordKeyPage {
@@ -552,7 +552,9 @@ fn count_filtered_records(
     connection: &mut SqliteConnection,
     filter: Option<&SearchFilterNode>,
 ) -> Result<u64, FilterCompileError> {
-    let query = EligibleRecordKeyset::new(filter).compile()?.count_query();
+    let query = SqliteEligibleRecordKeyset::new(filter)
+        .compile()?
+        .count_query();
     bind_sql_query(query.sql, &query.parameters)
         .get_result::<CountRow>(connection)
         .map(|row| row.count as u64)
@@ -561,7 +563,7 @@ fn count_filtered_records(
 
 fn read_record_keys(
     connection: &mut SqliteConnection,
-    query: &FilterSqlQuery,
+    query: &SqliteFilterSqlQuery,
 ) -> Result<Vec<RecordKey>, FilterCompileError> {
     let keys = bind_sql_query(query.sql.clone(), &query.parameters)
         .load::<RecordKeyRow>(connection)
@@ -652,7 +654,7 @@ fn read_identity_matches(
     filter: Option<&SearchFilterNode>,
     identity_query: IdentityQuery,
 ) -> Result<Vec<RecordIdentityMatch>, FilterCompileError> {
-    let query = EligibleRecordKeyset::new(filter)
+    let query = SqliteEligibleRecordKeyset::new(filter)
         .compile()?
         .with_eligible_cte(|builder| {
             builder.extend(identity_query.parameters);
@@ -731,15 +733,15 @@ struct IdentityMatchRow {
     alias_source_ref: Option<String>,
 }
 
-fn sql_sort(sort: FilteredRecordSort) -> SqlFilteredRecordSort {
+fn sql_sort(sort: FilteredRecordSort) -> SqliteKeysetRecordSort {
     match sort {
-        FilteredRecordSort::RecordKey => SqlFilteredRecordSort::RecordKeyAsc,
-        FilteredRecordSort::Alphabetical => SqlFilteredRecordSort::NameAsc,
-        FilteredRecordSort::LevelAsc => SqlFilteredRecordSort::LevelAsc,
-        FilteredRecordSort::LevelDesc => SqlFilteredRecordSort::LevelDesc,
-        FilteredRecordSort::PriceAsc => SqlFilteredRecordSort::PriceAsc,
-        FilteredRecordSort::PriceDesc => SqlFilteredRecordSort::PriceDesc,
-        FilteredRecordSort::Random { .. } => SqlFilteredRecordSort::RecordKeyAsc,
+        FilteredRecordSort::RecordKey => SqliteKeysetRecordSort::RecordKeyAsc,
+        FilteredRecordSort::Alphabetical => SqliteKeysetRecordSort::NameAsc,
+        FilteredRecordSort::LevelAsc => SqliteKeysetRecordSort::LevelAsc,
+        FilteredRecordSort::LevelDesc => SqliteKeysetRecordSort::LevelDesc,
+        FilteredRecordSort::PriceAsc => SqliteKeysetRecordSort::PriceAsc,
+        FilteredRecordSort::PriceDesc => SqliteKeysetRecordSort::PriceDesc,
+        FilteredRecordSort::Random { .. } => SqliteKeysetRecordSort::RecordKeyAsc,
     }
 }
 
